@@ -1,0 +1,5 @@
+# This is the root BUILD.bazel file.
+# It can be used to define top-level targets and to reference other BUILD.bazel files.
+
+# For example, to reference the BUILD.bazel file in src/main/kotlin:
+# exports_files(["src/main/kotlin/BUILD.bazel"])

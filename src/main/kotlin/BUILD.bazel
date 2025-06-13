@@ -1,0 +1,8 @@
+load("@rules_kotlin//kotlin:defs.bzl", "kt_jvm_library")
+
+package(default_visibility = ["//visibility:public"])
+
+kt_jvm_library(
+    name = "hello",
+    srcs = glob(["*.kt"]),
+)
