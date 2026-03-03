@@ -1,52 +1,64 @@
 # Contributing to 4ward
 
-Thanks for your interest in 4ward! Contributions are welcome.
+Hey, thanks for being here! Whether it's your first open-source PR or your
+thousandth, you're welcome.
 
-## The best kind of contribution
+## The easiest way to contribute
 
-The p4c STF corpus is our backlog. The most valuable contributions are:
-**"make this STF test pass"**. These are naturally well-scoped, test-driven,
-and self-contained. Pick a failing test, implement what it needs, open a PR.
+Our backlog is literally a list of failing tests. The p4c project ships hundreds
+of STF (Simple Test Framework) tests, and each one we can't pass yet is a
+feature waiting to be built. Pick one, make it green, open a PR. That's it.
 
-Run `bazel test //tests/stf/...` to see which tests currently pass and fail.
+These contributions are great because they're **naturally well-scoped** — you
+know exactly when you're done (the test passes), and you don't need to
+understand the whole codebase to get started.
+
+Run `bazel test //...` to see what's passing and what's not.
 
 ## Getting started
 
 ```sh
-# Clone and build.
+# Clone and build — that's really all there is to it.
 git clone https://github.com/yourorg/4ward
 cd 4ward
 bazel build //...
-
-# Run all tests.
 bazel test //...
 ```
 
-Hermetic Bazel builds work on macOS and Ubuntu. You need a C++20 compiler and
-Bazel 9+ (or [Bazelisk](https://github.com/bazelbuild/bazelisk), recommended).
+Builds are hermetic — Bazel grabs everything it needs. You just need a C++20
+compiler and Bazel 9+ (or grab
+[Bazelisk](https://github.com/bazelbuild/bazelisk) so you never think about
+Bazel versions again). Works on macOS and Ubuntu.
 
 ## Making changes
 
-1. Fork the repository and create a branch.
-2. Make your change. All new behaviour must be covered by a test.
-3. Run `bazel test //...`. Everything must be green.
-4. Run `bazel run //:buildifier` to format BUILD files.
-5. Open a **draft** PR with a clear description of what and why.
+1. Fork the repo and create a branch.
+2. Make your change. New behaviour needs a test (usually an STF test does the
+   trick).
+3. Run `bazel test //...` — everything should be green.
+4. Run `./format.sh` to auto-format everything.
+5. Open a **draft** PR explaining what you changed and why.
+
+Don't worry about getting it perfect on the first try — that's what review is
+for.
 
 ## Style
 
-- **Kotlin**: [Google Kotlin style guide](https://google.github.io/styleguide/kotlinguide.html)
-- **C++**: [Google C++ style guide](https://google.github.io/styleguide/cppguide.html)
-- **Proto**: `snake_case` field names, enum values prefixed with the type name.
-- **Commit messages**: focus on *why*, not *what*. The diff shows the what.
+We follow the Google style guides and let the formatters handle the details:
+
+- **Kotlin**: [Google Kotlin style](https://google.github.io/styleguide/kotlinguide.html), enforced by ktfmt
+- **C++**: [Google C++ style](https://google.github.io/styleguide/cppguide.html), enforced by clang-format
+- **Proto**: `snake_case` fields, `UPPER_SNAKE_CASE` enum values with a type prefix
+- **Commit messages**: tell us *why*, not *what* — the diff already shows the what
 
 ## Proto stability
 
-Do not remove or renumber fields in `ir.proto` or `sim.proto`. Add new fields
-instead. Removal requires a deprecation period and a version bump.
+`ir.proto` and `simulator.proto` are the contract between the backend and the
+simulator, so treat field numbers like promises: never remove or renumber them.
+Add new fields instead.
 
-## A note on performance
+## On performance
 
-4ward is a correctness and observability tool, not a performance tool. Please do
-not submit optimisations that trade readability or correctness for speed. If you
-want a fast P4 data plane, BMv2 or DPDK are the right tools.
+4ward is proudly not fast. It's correct, it's observable, and it's readable.
+Please don't send PRs that trade any of those for speed — if you want a fast P4
+data plane, BMv2 or DPDK are excellent choices.
