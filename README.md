@@ -61,13 +61,19 @@ Given a simple IPv4 forwarding program, 4ward produces traces like:
 ```json
 {
   "events": [
-    {"parserTransition": {"parserName": "MyParser", "fromState": "start",        "toState": "parse_ethernet"}},
+    {"parserTransition": {"parserName": "MyParser", "fromState": "start",         "toState": "parse_ethernet"}},
     {"parserTransition": {"parserName": "MyParser", "fromState": "parse_ethernet","toState": "parse_ipv4"}},
-    {"parserTransition": {"parserName": "MyParser", "fromState": "parse_ipv4",   "toState": "accept"}},
-    {"tableLookup":      {"tableName": "ipv4_lpm",  "hit": true, "actionName": "set_nhop",
-                          "matchedEntry": {"match": [{"lpm": {"value": "CgAA", "prefixLen": 24}}]}}},
-    {"actionExecution":  {"actionName": "set_nhop", "params": {"port": "AQ=="}}},
-    {"branch":           {"controlName": "MyIngress", "taken": false}}
+    {"parserTransition": {"parserName": "MyParser", "fromState": "parse_ipv4",    "toState": "accept"}},
+    {"tableLookup": {
+       "tableName": "ipv4_lpm", "hit": true, "actionName": "set_nhop",
+       "matchedEntry": {
+         "tableId": 37298292,
+         "match": [{"fieldId": 1, "lpm": {"value": "CgAAAA==", "prefixLen": 24}}],
+         "action": {"action": {"actionId": 28792498, "params": [{"paramId": 1, "value": "AQ=="}]}}
+       }
+    }},
+    {"actionExecution": {"actionName": "set_nhop", "params": {"port": "AQ=="}}},
+    {"branch":          {"controlName": "MyIngress", "taken": false}}
   ]
 }
 ```
