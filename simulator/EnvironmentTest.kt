@@ -104,7 +104,7 @@ class EnvironmentTest {
   @Test
   fun `extractBytes throws when fewer bytes remain than requested`() {
     val env = Environment(byteArrayOf(0x01))
-    assertThrows(IllegalArgumentException::class.java) { env.extractBytes(2) }
+    assertThrows(PacketTooShortException::class.java) { env.extractBytes(2) }
   }
 
   // ---------------------------------------------------------------------------

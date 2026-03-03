@@ -2,6 +2,7 @@ package fourward.simulator
 
 import fourward.sim.v1.Trace
 import fourward.sim.v1.TraceEvent
+import java.io.ByteArrayOutputStream
 
 /**
  * The execution environment for a single packet traversal.
@@ -25,12 +26,12 @@ class Environment(payload: ByteArray) {
   private val buffer: PacketBuffer = PacketBuffer(payload)
 
   /** Output packet bytes, written by deparser emit(). */
-  private val outputBuffer: MutableList<Byte> = mutableListOf()
+  private val outputBuffer = ByteArrayOutputStream()
 
   fun extractBytes(count: Int): ByteArray = buffer.read(count)
 
   fun emitBytes(bytes: ByteArray) {
-    outputBuffer.addAll(bytes.toList())
+    outputBuffer.write(bytes)
   }
 
   fun outputPayload(): ByteArray = outputBuffer.toByteArray()
@@ -103,6 +104,14 @@ class Environment(payload: ByteArray) {
   fun buildTrace(): Trace = Trace.newBuilder().addAllEvents(traceEvents).build()
 }
 
+/**
+ * Thrown when the parser tries to extract more bytes than the packet contains.
+ *
+ * In v1model/BMv2, this corresponds to a `PacketTooShort` parser error. The packet is dropped
+ * rather than propagating as a simulator processing failure.
+ */
+class PacketTooShortException(message: String) : Exception(message)
+
 /** A simple byte-level cursor over a packet buffer. */
 private class PacketBuffer(private val data: ByteArray) {
   private var offset: Int = 0
@@ -112,8 +121,10 @@ private class PacketBuffer(private val data: ByteArray) {
   fun readAll(): ByteArray = data.copyOfRange(offset, data.size).also { offset = data.size }
 
   fun read(count: Int): ByteArray {
-    require(count <= remaining()) {
-      "attempted to extract $count bytes but only ${remaining()} remain in packet"
+    if (count > remaining()) {
+      throw PacketTooShortException(
+        "attempted to extract $count bytes but only ${remaining()} remain in packet"
+      )
     }
     return data.copyOfRange(offset, offset + count).also { offset += count }
   }

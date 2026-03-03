@@ -63,9 +63,10 @@ complexity:
     active: false
 
 exceptions:
-  # ExitException is a P4 control-flow mechanism (the exit statement unwinds the
-  # current stage), not an error. EOFException in the subprocess read loop signals
-  # normal controller shutdown. Suppressing these globally avoids per-site noise.
+  # ExitException and PacketTooShortException are P4 control-flow mechanisms (exit
+  # unwinds the current stage; PacketTooShort signals a parser error that drops the
+  # packet in v1model). EOFException signals normal controller shutdown.
+  # Suppressing these globally avoids per-site noise.
   SwallowedException:
     ignoredExceptionTypes:
       - InterruptedException
@@ -73,6 +74,7 @@ exceptions:
       - ParseException
       - ExitException
       - EOFException
+      - PacketTooShortException
 
   # The simulator subprocess writes diagnostics to stderr; e.printStackTrace(System.err)
   # is the right call there. Alternatives (logging frameworks, custom formatters) would

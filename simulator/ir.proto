@@ -254,9 +254,16 @@ message ControlDecl {
 }
 
 message ActionDecl {
+  // Semantic name: matches the p4info alias and originalName (used for table
+  // dispatch).
   string name = 1;
   repeated ParamDecl params = 2;
   repeated Stmt body = 3;
+  // Post-midend name if renamed (e.g. "do_thing_1" when "do_thing" was
+  // duplicated). Populated only when different from name. The interpreter
+  // indexes actions under both name and current_name so both table dispatch and
+  // inline calls resolve.
+  string current_name = 4;
 }
 
 // Supplements the p4info table description with key expressions.

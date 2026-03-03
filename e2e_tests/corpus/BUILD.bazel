@@ -1,0 +1,15 @@
+load("//e2e_tests:corpus.bzl", "p4_stf_test")
+
+# Initial selection of p4c corpus tests. Each entry compiles the P4 source
+# with p4c-4ward and runs the corresponding STF test against the simulator.
+#
+# Selection criteria: self-contained (no local #include), v1model architecture,
+# no unimplemented features (varbit, header stacks, checksum externs).
+
+p4_stf_test(name = "opassign1-bmv2")
+
+p4_stf_test(name = "gauntlet_action_mux-bmv2")
+
+p4_stf_test(name = "gauntlet_hdr_assign_1-bmv2")
+
+p4_stf_test(name = "flag_lost-bmv2")

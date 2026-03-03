@@ -2,7 +2,6 @@ package fourward.simulator
 
 import fourward.ir.v1.P4BehavioralConfig
 import fourward.ir.v1.StageKind
-import fourward.ir.v1.TypeDecl
 
 /**
  * v1model pipeline implementation.
@@ -67,8 +66,8 @@ class V1ModelArchitecture : Architecture {
     // local parameter names each stage uses (e.g. "smeta" vs "standard_metadata").
     val sharedByType =
       mapOf(
-        headersTypeName to createDefaultValue(headersTypeName, typesByName),
-        metaTypeName to createDefaultValue(metaTypeName, typesByName),
+        headersTypeName to defaultValue(headersTypeName, typesByName),
+        metaTypeName to defaultValue(metaTypeName, typesByName),
         standardMetaTypeName to standardMetadata,
       )
 
@@ -95,6 +94,9 @@ class V1ModelArchitecture : Architecture {
       try {
         interpreter.runParser(parserStage.blockName, env)
       } catch (e: ExitException) {
+        return PipelineResult(emptyList(), env.buildTrace())
+      } catch (e: PacketTooShortException) {
+        // In v1model/BMv2, a PacketTooShort parser error causes the packet to be dropped.
         return PipelineResult(emptyList(), env.buildTrace())
       }
     }
@@ -140,35 +142,5 @@ class V1ModelArchitecture : Architecture {
     private const val PORT_BITS = 9
     private const val INT32_BITS = 32
     private const val FLAG_BITS = 1
-  }
-
-  /**
-   * Creates a default-initialised [Value] for the named type.
-   *
-   * Headers are initially invalid with zeroed fields; structs are recursively initialised. Unknown
-   * types (e.g. packet_in externs) return [UnitVal].
-   */
-  private fun createDefaultValue(typeName: String, typesByName: Map<String, TypeDecl>): Value {
-    val typeDecl = typesByName[typeName] ?: return UnitVal
-    return when {
-      typeDecl.hasHeader() ->
-        HeaderVal(
-          typeName = typeName,
-          fields =
-            typeDecl.header.fieldsList
-              .associate { f -> f.name to BitVal(0L, f.type.bit.width) }
-              .toMutableMap(),
-          valid = false,
-        )
-      typeDecl.hasStruct() ->
-        StructVal(
-          typeName = typeName,
-          fields =
-            typeDecl.struct.fieldsList
-              .associate { f -> f.name to createDefaultValue(f.type.named, typesByName) }
-              .toMutableMap(),
-        )
-      else -> UnitVal
-    }
   }
 }

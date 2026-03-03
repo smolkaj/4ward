@@ -1,0 +1,2 @@
+# This file makes e2e_tests/ a Bazel package so that corpus.bzl can be loaded
+# as //e2e_tests:corpus.bzl from subdirectory BUILD files.

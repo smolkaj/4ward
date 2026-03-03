@@ -2,6 +2,7 @@ package fourward.simulator
 
 import fourward.ir.v1.BinaryOperator
 import fourward.ir.v1.ControlDecl
+import fourward.ir.v1.Direction
 import fourward.ir.v1.Expr
 import fourward.ir.v1.Literal
 import fourward.ir.v1.MethodCall
@@ -35,9 +36,22 @@ class Interpreter(private val config: P4BehavioralConfig, private val tableStore
 
   // Actions may be declared either at the top level or as local actions inside controls.
   // After the midend, all relevant actions end up in control.localActionsList.
+  //
+  // Indexing rules:
+  // - Every action is indexed under name (= originalName) so that table dispatch
+  //   (which resolves via p4info aliases = originalNames) always finds it. We use
+  //   putIfAbsent so that a renamed duplicate (e.g. the second "do_thing" copy that
+  //   the midend renames to "do_thing_1") does not overwrite the authoritative first
+  //   declaration, which carries the actual action body.
+  // - If the midend renamed the action (currentName != ""), it is also indexed under
+  //   currentName so that direct call sites using the post-midend name can resolve it.
   private val actions: Map<String, fourward.ir.v1.ActionDecl> = buildMap {
-    config.actionsList.forEach { put(it.name, it) }
-    config.controlsList.forEach { ctrl -> ctrl.localActionsList.forEach { put(it.name, it) } }
+    fun index(action: fourward.ir.v1.ActionDecl) {
+      if (!containsKey(action.name)) put(action.name, action)
+      if (action.currentName.isNotEmpty()) put(action.currentName, action)
+    }
+    config.actionsList.forEach { index(it) }
+    config.controlsList.forEach { ctrl -> ctrl.localActionsList.forEach { index(it) } }
   }
 
   private val tables: Map<String, TableBehavior> = config.tablesList.associateBy { it.name }
@@ -53,35 +67,36 @@ class Interpreter(private val config: P4BehavioralConfig, private val tableStore
     runParserState(parser, "start", env)
   }
 
-  private fun runParserState(parser: ParserDecl, stateName: String, env: Environment) {
-    if (stateName == "accept" || stateName == "reject") return
+  private fun runParserState(parser: ParserDecl, startState: String, env: Environment) {
+    // Index states by name for O(1) lookup during traversal.
+    val statesByName = parser.statesList.associateBy { it.name }
 
-    val state =
-      parser.statesList.find { it.name == stateName }
-        ?: error("unknown parser state: $stateName in ${parser.name}")
+    var stateName = startState
+    while (stateName != "accept" && stateName != "reject") {
+      val state =
+        statesByName[stateName] ?: error("unknown parser state: $stateName in ${parser.name}")
 
-    for (stmt in state.stmtsList) {
-      execStmt(stmt, env)
+      for (stmt in state.stmtsList) execStmt(stmt, env)
+
+      val nextState =
+        when {
+          state.transition.hasSelect() -> evalSelect(state.transition.select, env)
+          else -> state.transition.nextState
+        }
+
+      env.addTraceEvent(
+        TraceEvent.newBuilder()
+          .setParserTransition(
+            ParserTransitionEvent.newBuilder()
+              .setParserName(parser.name)
+              .setFromState(stateName)
+              .setToState(nextState)
+          )
+          .build()
+      )
+
+      stateName = nextState
     }
-
-    val nextState =
-      when {
-        state.transition.hasSelect() -> evalSelect(state.transition.select, env)
-        else -> state.transition.nextState
-      }
-
-    env.addTraceEvent(
-      TraceEvent.newBuilder()
-        .setParserTransition(
-          ParserTransitionEvent.newBuilder()
-            .setParserName(parser.name)
-            .setFromState(stateName)
-            .setToState(nextState)
-        )
-        .build()
-    )
-
-    runParserState(parser, nextState, env)
   }
 
   private fun evalSelect(select: fourward.ir.v1.SelectTransition, env: Environment): String {
@@ -129,7 +144,9 @@ class Interpreter(private val config: P4BehavioralConfig, private val tableStore
     env.pushScope()
     try {
       for (varDecl in control.localVarsList) {
-        val init = if (varDecl.hasInitializer()) evalExpr(varDecl.initializer, env) else UnitVal
+        val init =
+          if (varDecl.hasInitializer()) evalExpr(varDecl.initializer, env)
+          else defaultValue(varDecl.type, types)
         env.define(varDecl.name, init)
       }
       execBlock(control.applyBodyList, env)
@@ -340,9 +357,13 @@ class Interpreter(private val config: P4BehavioralConfig, private val tableStore
       // (not in env); the header is the first argument.
       "extract" -> execExtract(call, env)
       "emit" -> execEmit(call, env)
-      // "__call__" is used for free functions (extern calls without a receiver object).
-      // The target nameRef identifies the function.
-      "__call__" -> execExternCall(call, env)
+      // "__call__" is used for free functions and direct action calls. Check actions first;
+      // fall back to extern handling (mark_to_drop, etc.) for unrecognised names.
+      "__call__" -> {
+        val funcName = call.target.nameRef.name
+        if (funcName in actions) execInlineActionCall(funcName, call.argsList, env)
+        else execExternCall(call, env)
+      }
       else -> error("unhandled method call: ${call.method} on ${call.target}")
     }
   }
@@ -415,6 +436,41 @@ class Interpreter(private val config: P4BehavioralConfig, private val tableStore
     }
   }
 
+  /**
+   * Executes a direct (non-table-mediated) action call such as `do_thing(h.h.b)`.
+   *
+   * Binds argument values to the action's parameter names, runs the body, then writes back any
+   * `inout`/`out` parameters to the corresponding call-site lvalues (call-by-value-result
+   * semantics, as required by the P4 spec).
+   */
+  private fun execInlineActionCall(actionName: String, args: List<Expr>, env: Environment): Value {
+    val actionDecl = actions[actionName]!!
+    val argValues = args.map { evalExpr(it, env) }
+
+    env.pushScope()
+    try {
+      actionDecl.paramsList.forEachIndexed { i, param ->
+        env.define(param.name, argValues.getOrElse(i) { UnitVal })
+      }
+      try {
+        execBlock(actionDecl.bodyList, env)
+      } catch (_: ReturnException) {
+        // P4 action return exits the body without a value; fall through to writeback.
+      }
+      // Write back inout/out parameters before the scope is popped.
+      actionDecl.paramsList.forEachIndexed { i, param ->
+        if (
+          (param.direction == Direction.INOUT || param.direction == Direction.OUT) && i < args.size
+        ) {
+          setLValue(args[i], env.lookup(param.name)!!, env)
+        }
+      }
+    } finally {
+      env.popScope()
+    }
+    return UnitVal
+  }
+
   // -------------------------------------------------------------------------
   // Extern function calls  (method == "__call__", target is a NameRef)
   // -------------------------------------------------------------------------
@@ -462,29 +518,51 @@ class Interpreter(private val config: P4BehavioralConfig, private val tableStore
   }
 
   private fun execEmit(call: MethodCall, env: Environment): Value {
-    // packet_out.emit(hdr.field): the header to emit is args[0], not the target.
-    val header = evalExpr(call.argsList[0], env) as HeaderVal
-    if (!header.valid) return UnitVal // invalid headers are not emitted
-
-    val headerDecl = (types[header.typeName] ?: error("type not found: ${header.typeName}")).header
-
-    // Pack all fields into one BigInteger by shifting each value into position (MSB-first),
-    // then serialize to bytes. Mirrors the inverse shift+mask logic in execExtract.
-    val totalBits = headerDecl.fieldsList.sumOf { it.type.bit.width }
-    var packedBits = BigInteger.ZERO
-    var bitOffset = 0
-    for (field in headerDecl.fieldsList) {
-      val value = header.fields[field.name] as BitVal
-      val shift = totalBits - bitOffset - value.bits.width
-      packedBits = packedBits or value.bits.value.shiftLeft(shift)
-      bitOffset += value.bits.width
-    }
-
-    // BigInteger.toByteArray() may include a leading 0x00 sign byte; strip/pad to exact size.
-    val totalBytes = (totalBits + 7) / 8
-    val raw = packedBits.toByteArray()
-    env.emitBytes(ByteArray(totalBytes) { i -> raw.getOrElse(raw.size - totalBytes + i) { 0 } })
+    emitValue(evalExpr(call.argsList[0], env), env)
     return UnitVal
+  }
+
+  /**
+   * Recursively emits a value to the packet output buffer.
+   * - [HeaderVal]: packs all fields into bytes (MSB-first) and appends if valid.
+   * - [StructVal]: iterates fields in declaration order (looking up the TypeDecl) and emits each.
+   * - Other types: no-op (non-emittable values such as BoolVal in metadata structs).
+   *
+   * This handles both `pkt.emit(hdr.ethernet)` (single header) and `pkt.emit(hdr)` where `hdr` is a
+   * struct containing multiple headers, as required by the P4 deparser model.
+   */
+  private fun emitValue(value: Value, env: Environment) {
+    when (value) {
+      is HeaderVal -> {
+        if (!value.valid) return
+        val headerDecl =
+          (types[value.typeName] ?: error("type not found: ${value.typeName}")).header
+        val totalBits = headerDecl.fieldsList.sumOf { it.type.bit.width }
+        var packedBits = BigInteger.ZERO
+        var bitOffset = 0
+        for (field in headerDecl.fieldsList) {
+          val fieldVal = value.fields[field.name] as BitVal
+          val shift = totalBits - bitOffset - fieldVal.bits.width
+          packedBits = packedBits or fieldVal.bits.value.shiftLeft(shift)
+          bitOffset += fieldVal.bits.width
+        }
+        val totalBytes = (totalBits + 7) / 8
+        val raw = packedBits.toByteArray()
+        env.emitBytes(ByteArray(totalBytes) { i -> raw.getOrElse(raw.size - totalBytes + i) { 0 } })
+      }
+      is StructVal -> {
+        // Emit in the declaration order from the TypeDecl; fall back to map order if unknown.
+        val structDecl = types[value.typeName]?.struct
+        if (structDecl != null) {
+          for (field in structDecl.fieldsList) {
+            emitValue(value.fields[field.name] ?: continue, env)
+          }
+        } else {
+          for (fieldVal in value.fields.values) emitValue(fieldVal, env)
+        }
+      }
+      else -> {} // BoolVal, BitVal outside a header, UnitVal — not emittable
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -493,7 +571,18 @@ class Interpreter(private val config: P4BehavioralConfig, private val tableStore
 
   private fun setLValue(lhs: Expr, value: Value, env: Environment) {
     when {
-      lhs.hasNameRef() -> env.update(lhs.nameRef.name, value)
+      lhs.hasNameRef() -> {
+        // P4 assignment is copy-by-value. Headers and structs carry a mutable fields map,
+        // so we copy them here to prevent aliasing (e.g. `x = h.h; x.a = 2` must not
+        // modify `h.h.a`).
+        val copy =
+          when (value) {
+            is HeaderVal -> value.copy()
+            is StructVal -> value.copy()
+            else -> value
+          }
+        env.update(lhs.nameRef.name, copy)
+      }
       lhs.hasFieldAccess() -> {
         val target = evalExpr(lhs.fieldAccess.expr, env)
         when (target) {
