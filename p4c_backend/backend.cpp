@@ -46,6 +46,12 @@ fourward::ir::v1::Type FourWardBackend::EmitType(const IR::Type *type) {
     } else if (type->is<IR::Type_Boolean>()) {
         out.set_boolean(true);
     } else if (const auto *tn = type->to<IR::Type_Name>()) {
+        // Resolve typedef aliases (e.g. `typedef bit<48> macAddr_t`) to their underlying
+        // concrete types so the simulator sees bit widths instead of opaque typedef names.
+        const auto *decl = refMap_.getDeclaration(tn->path, false);
+        if (const auto *td = decl ? decl->to<IR::Type_Typedef>() : nullptr) {
+            return EmitType(td->type);
+        }
         out.set_named(tn->path->name.name.c_str());
     } else if (const auto *hdr = type->to<IR::Type_Header>()) {
         out.set_named(hdr->name.name.c_str());
@@ -216,13 +222,17 @@ fourward::ir::v1::Stmt FourWardBackend::EmitStmt(const IR::StatOrDecl *node) {
     } else if (const auto *ifst = node->to<IR::IfStatement>()) {
         auto *i = out.mutable_if_stmt();
         *i->mutable_condition() = EmitExpr(ifst->condition);
-        if (const auto *tb = ifst->ifTrue->to<IR::BlockStatement>()) {
-            *i->mutable_then_block() = EmitBlock(tb);
-        }
+        // SimplifyControlFlow normally wraps branches in BlockStatements, but some
+        // downstream passes (e.g. LocalCopyPropagation) may produce bare statements.
+        auto emitBranch = [&](const IR::Statement *stmt) -> fourward::ir::v1::BlockStmt {
+            if (const auto *blk = stmt->to<IR::BlockStatement>()) return EmitBlock(blk);
+            fourward::ir::v1::BlockStmt branch;
+            *branch.add_stmts() = EmitStmt(stmt);
+            return branch;
+        };
+        *i->mutable_then_block() = emitBranch(ifst->ifTrue);
         if (ifst->ifFalse) {
-            if (const auto *fb = ifst->ifFalse->to<IR::BlockStatement>()) {
-                *i->mutable_else_block() = EmitBlock(fb);
-            }
+            *i->mutable_else_block() = emitBranch(ifst->ifFalse);
         }
     } else if (const auto *sw = node->to<IR::SwitchStatement>()) {
         auto *s = out.mutable_switch_stmt();
@@ -355,11 +365,11 @@ void FourWardBackend::emitParser(const IR::P4Parser *parser) {
                 *selectTrans->add_keys() = EmitExpr(key);
             }
             for (const auto *sc : sel->selectCases) {
-                auto *c = selectTrans->add_cases();
                 if (sc->keyset->is<IR::DefaultExpression>()) {
                     selectTrans->set_default_state(sc->state->path->name.name.c_str());
                     continue;
                 }
+                auto *c = selectTrans->add_cases();
                 auto *k = c->add_keysets();
                 *k->mutable_exact() = EmitExpr(sc->keyset);
                 c->set_next_state(sc->state->path->name.name.c_str());
@@ -394,6 +404,13 @@ void FourWardBackend::emitControl(const IR::P4Control *control) {
             emitAction(action, ad);
         } else if (const auto *table = decl->to<IR::P4Table>()) {
             emitTable(table);
+        } else if (const auto *varDecl = decl->to<IR::Declaration_Variable>()) {
+            auto *vd = cd->add_local_vars();
+            vd->set_name(varDecl->name.name.c_str());
+            *vd->mutable_type() = EmitType(varDecl->type);
+            if (varDecl->initializer) {
+                *vd->mutable_initializer() = EmitExpr(varDecl->initializer);
+            }
         }
     }
 
@@ -404,8 +421,14 @@ void FourWardBackend::emitControl(const IR::P4Control *control) {
 
 void FourWardBackend::emitAction(const IR::P4Action *action,
                                  fourward::ir::v1::ActionDecl *out) {
-    // Use the original (pre-rename) name so it matches p4info action aliases.
+    // Use the original (pre-midend) name as the canonical key so it matches the
+    // p4info alias and allows table-dispatch lookups to succeed.
     out->set_name(action->name.originalName.c_str());
+    // If the midend renamed this action (e.g. "do_thing" → "do_thing_1"), also record
+    // the current name so the interpreter can resolve direct call sites that use it.
+    if (action->name.name != action->name.originalName) {
+        out->set_current_name(action->name.name.c_str());
+    }
     for (const auto *param : action->parameters->parameters) {
         auto *p = out->add_params();
         p->set_name(param->name.name.c_str());

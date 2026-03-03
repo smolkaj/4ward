@@ -258,6 +258,29 @@ class InterpreterControlTest {
   }
 
   @Test
+  fun `uninitialized local var defaults to zero`() {
+    // Verifies that defaultValue() is called for vars with no explicit initializer.
+    val config =
+      P4BehavioralConfig.newBuilder()
+        .addControls(
+          ControlDecl.newBuilder()
+            .setName("MyControl")
+            .addLocalVars(
+              VarDecl.newBuilder()
+                .setName("x")
+                .setType(Type.newBuilder().setBit(BitType.newBuilder().setWidth(8)))
+              // no initializer
+            )
+            .addApplyBody(assign("result", nameRef("x")))
+        )
+        .build()
+    val env = emptyEnv
+    env.define("result", BitVal(99, 8)) // sentinel
+    interp(config).runControl("MyControl", env)
+    assertEquals(BitVal(0, 8), env.lookup("result"))
+  }
+
+  @Test
   fun `local var initializer runs and is accessible in the apply body`() {
     // Declare local var "count" initialised to 42; the apply body copies it to "x".
     val config =

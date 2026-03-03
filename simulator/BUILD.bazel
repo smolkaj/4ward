@@ -148,3 +148,25 @@ kt_jvm_test(
         "@maven//:junit_junit",
     ],
 )
+
+kt_jvm_test(
+    name = "InterpreterInlineActionTest",
+    srcs = ["InterpreterInlineActionTest.kt"],
+    test_class = "fourward.simulator.InterpreterInlineActionTest",
+    deps = [
+        ":ir_java_proto",
+        ":simulator_lib",
+        "@maven//:junit_junit",
+    ],
+)
+
+kt_jvm_test(
+    name = "InterpreterParserTest",
+    srcs = ["InterpreterParserTest.kt"],
+    test_class = "fourward.simulator.InterpreterParserTest",
+    deps = [
+        ":ir_java_proto",
+        ":simulator_lib",
+        "@maven//:junit_junit",
+    ],
+)
