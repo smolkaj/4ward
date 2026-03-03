@@ -50,7 +50,7 @@ Run `./dev.sh help` for a summary of available developer commands.
 5. Open a **draft** PR explaining what you changed and why.
 
 Don't worry about getting it perfect on the first try — that's what review is
-for.
+for. CI will post a coverage report on your PR automatically.
 
 ## Style
 
