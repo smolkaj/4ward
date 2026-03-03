@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env zsh
 # Copyright 2020 The P4-Constraints Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,22 +24,23 @@ CLANG_FORMAT_EXTENSIONS="cc|h|proto"
 
 # Run clang-format.
 find . -not -path "./third_party/**" \
+       -not -path "./.claude/*" \
   | egrep "\.(${CLANG_FORMAT_EXTENSIONS})\$" \
   | xargs clang-format --verbose -style=google -i
 
-bazel run -- \
-  @buildifier_prebuilt//:buildifier --lint=fix -r "${WORKSPACE}"
+# Run buildifier on Starlark files, excluding generated symlinks and .claude/.
+BZL_SOURCES=(${(f)"$(find "${WORKSPACE}" \
+  -path "${WORKSPACE}/bazel-*" -prune -o \
+  -path "${WORKSPACE}/.claude" -prune -o \
+  \( -name "*.bazel" -o -name "*.bzl" \) \
+  -print | sort)"})
+[[ ${#BZL_SOURCES[@]} -gt 0 ]] && \
+  bazel run -- @buildifier_prebuilt//:buildifier --lint=fix "${BZL_SOURCES[@]}"
 
 # Run ktfmt on Kotlin sources (Google style, matching our style guide).
-KT_SOURCES=()
-while IFS= read -r f; do
-  KT_SOURCES+=("$f")
-done < <(
-  find "${WORKSPACE}" \
-    -path "${WORKSPACE}/bazel-*" -prune -o \
-    -name "*.kt" -print \
-  | sort
-)
-if [[ ${#KT_SOURCES[@]} -gt 0 ]]; then
+KT_SOURCES=(${(f)"$(find "${WORKSPACE}" \
+  -path "${WORKSPACE}/bazel-*" -prune -o \
+  -path "${WORKSPACE}/.claude" -prune -o \
+  -name "*.kt" -print | sort)"})
+[[ ${#KT_SOURCES[@]} -gt 0 ]] && \
   bazel run //:ktfmt -- --google-style "${KT_SOURCES[@]}"
-fi
