@@ -32,7 +32,7 @@ namespace P4::FourWard {
 // Type emission
 // =============================================================================
 
-fourward::ir::v1::Type EmitType(const IR::Type *type, const TypeMap &typeMap) {
+fourward::ir::v1::Type FourWardBackend::EmitType(const IR::Type *type) {
     fourward::ir::v1::Type out;
 
     if (const auto *bits = type->to<IR::Type_Bits>()) {
@@ -72,7 +72,23 @@ fourward::ir::v1::Type EmitType(const IR::Type *type, const TypeMap &typeMap) {
 // Expression emission
 // =============================================================================
 
-fourward::ir::v1::Expr EmitExpr(const IR::Expression *expr, const TypeMap &typeMap) {
+// Returns true if `expr` is a PathExpression referring to a P4Table, and if so
+// sets `*tableName` to the table's original (pre-midend-rename) name.
+static bool isTableApply(const IR::Expression *expr, const ReferenceMap &refMap,
+                          std::string *tableName) {
+    const auto *mc = expr->to<IR::MethodCallExpression>();
+    if (!mc) return false;
+    const auto *mem = mc->method->to<IR::Member>();
+    if (!mem || mem->member != "apply") return false;
+    const auto *pe = mem->expr->to<IR::PathExpression>();
+    if (!pe) return false;
+    const auto *decl = refMap.getDeclaration(pe->path);
+    if (!decl || !decl->is<IR::P4Table>()) return false;
+    if (tableName) *tableName = decl->to<IR::P4Table>()->name.originalName.c_str();
+    return true;
+}
+
+fourward::ir::v1::Expr FourWardBackend::EmitExpr(const IR::Expression *expr) {
     fourward::ir::v1::Expr out;
 
     if (const auto *cnst = expr->to<IR::Constant>()) {
@@ -96,24 +112,33 @@ fourward::ir::v1::Expr EmitExpr(const IR::Expression *expr, const TypeMap &typeM
     } else if (const auto *pe = expr->to<IR::PathExpression>()) {
         out.mutable_name_ref()->set_name(pe->path->name.name.c_str());
     } else if (const auto *mem = expr->to<IR::Member>()) {
+        // Special case: table.apply().action_run — subject of a switch statement.
+        // Emit as TableApplyExpr (the action_run selection is handled by execSwitch).
+        if (mem->member == "action_run") {
+            std::string tableName;
+            if (isTableApply(mem->expr, refMap_, &tableName)) {
+                out.mutable_table_apply()->set_table_name(tableName);
+                return out;  // no type annotation for TableApplyExpr
+            }
+        }
         auto *fa = out.mutable_field_access();
-        *fa->mutable_expr() = EmitExpr(mem->expr, typeMap);
+        *fa->mutable_expr() = EmitExpr(mem->expr);
         fa->set_field_name(mem->member.name.c_str());
     } else if (const auto *slice = expr->to<IR::Slice>()) {
         auto *s = out.mutable_slice();
-        *s->mutable_expr() = EmitExpr(slice->e0, typeMap);
+        *s->mutable_expr() = EmitExpr(slice->e0);
         s->set_hi(slice->getH());
         s->set_lo(slice->getL());
     } else if (const auto *cat = expr->to<IR::Concat>()) {
-        *out.mutable_concat()->mutable_left()  = EmitExpr(cat->left, typeMap);
-        *out.mutable_concat()->mutable_right() = EmitExpr(cat->right, typeMap);
+        *out.mutable_concat()->mutable_left()  = EmitExpr(cat->left);
+        *out.mutable_concat()->mutable_right() = EmitExpr(cat->right);
     } else if (const auto *cast = expr->to<IR::Cast>()) {
-        *out.mutable_cast()->mutable_target_type() = EmitType(cast->destType, typeMap);
-        *out.mutable_cast()->mutable_expr()         = EmitExpr(cast->expr, typeMap);
+        *out.mutable_cast()->mutable_target_type() = EmitType(cast->destType);
+        *out.mutable_cast()->mutable_expr()         = EmitExpr(cast->expr);
     } else if (const auto *binop = expr->to<IR::Operation_Binary>()) {
         auto *b = out.mutable_binary_op();
-        *b->mutable_left()  = EmitExpr(binop->left, typeMap);
-        *b->mutable_right() = EmitExpr(binop->right, typeMap);
+        *b->mutable_left()  = EmitExpr(binop->left);
+        *b->mutable_right() = EmitExpr(binop->right);
 
         if      (binop->is<IR::Add>())     b->set_op(fourward::ir::v1::BinaryOperator::ADD);
         else if (binop->is<IR::Sub>())     b->set_op(fourward::ir::v1::BinaryOperator::SUB);
@@ -138,31 +163,38 @@ fourward::ir::v1::Expr EmitExpr(const IR::Expression *expr, const TypeMap &typeM
         else LOG1("WARNING: unhandled binary operator: " << binop->node_type_name());
     } else if (const auto *unop = expr->to<IR::Operation_Unary>()) {
         auto *u = out.mutable_unary_op();
-        *u->mutable_expr() = EmitExpr(unop->expr, typeMap);
+        *u->mutable_expr() = EmitExpr(unop->expr);
         if      (unop->is<IR::Neg>())    u->set_op(fourward::ir::v1::UnaryOperator::NEG);
         else if (unop->is<IR::Cmpl>())   u->set_op(fourward::ir::v1::UnaryOperator::BIT_NOT);
         else if (unop->is<IR::LNot>())   u->set_op(fourward::ir::v1::UnaryOperator::NOT);
         else LOG1("WARNING: unhandled unary operator: " << unop->node_type_name());
     } else if (const auto *mc = expr->to<IR::MethodCallExpression>()) {
+        // Special case: table.apply() — emit as TableApplyExpr.
+        std::string tableName;
+        if (isTableApply(expr, refMap_, &tableName)) {
+            out.mutable_table_apply()->set_table_name(tableName);
+            return out;  // no type annotation for TableApplyExpr
+        }
+
         auto *call = out.mutable_method_call();
         // The method is typically a Member expression: target.method
         if (const auto *mem = mc->method->to<IR::Member>()) {
-            *call->mutable_target() = EmitExpr(mem->expr, typeMap);
+            *call->mutable_target() = EmitExpr(mem->expr);
             call->set_method(mem->member.name.c_str());
         } else {
-            *call->mutable_target() = EmitExpr(mc->method, typeMap);
+            *call->mutable_target() = EmitExpr(mc->method);
             call->set_method("__call__");
         }
         for (const auto *arg : *mc->arguments) {
-            *call->add_args() = EmitExpr(arg->expression, typeMap);
+            *call->add_args() = EmitExpr(arg->expression);
         }
     } else {
         LOG1("WARNING: unhandled expression " << expr->node_type_name());
     }
 
     // Always populate the type annotation.
-    if (const auto *type = typeMap.getType(expr)) {
-        *out.mutable_type() = EmitType(type, typeMap);
+    if (const auto *type = typeMap_.getType(expr)) {
+        *out.mutable_type() = EmitType(type);
     }
 
     return out;
@@ -172,53 +204,54 @@ fourward::ir::v1::Expr EmitExpr(const IR::Expression *expr, const TypeMap &typeM
 // Statement emission
 // =============================================================================
 
-fourward::ir::v1::Stmt EmitStmt(const IR::StatOrDecl *node, const TypeMap &typeMap) {
+fourward::ir::v1::Stmt FourWardBackend::EmitStmt(const IR::StatOrDecl *node) {
     fourward::ir::v1::Stmt out;
 
     if (const auto *assign = node->to<IR::AssignmentStatement>()) {
         auto *a = out.mutable_assignment();
-        *a->mutable_lhs() = EmitExpr(assign->left, typeMap);
-        *a->mutable_rhs() = EmitExpr(assign->right, typeMap);
+        *a->mutable_lhs() = EmitExpr(assign->left);
+        *a->mutable_rhs() = EmitExpr(assign->right);
     } else if (const auto *mc = node->to<IR::MethodCallStatement>()) {
-        *out.mutable_method_call()->mutable_call() = EmitExpr(mc->methodCall, typeMap);
+        *out.mutable_method_call()->mutable_call() = EmitExpr(mc->methodCall);
     } else if (const auto *ifst = node->to<IR::IfStatement>()) {
         auto *i = out.mutable_if_stmt();
-        *i->mutable_condition() = EmitExpr(ifst->condition, typeMap);
+        *i->mutable_condition() = EmitExpr(ifst->condition);
         if (const auto *tb = ifst->ifTrue->to<IR::BlockStatement>()) {
-            *i->mutable_then_block() = EmitBlock(tb, typeMap);
+            *i->mutable_then_block() = EmitBlock(tb);
         }
         if (ifst->ifFalse) {
             if (const auto *fb = ifst->ifFalse->to<IR::BlockStatement>()) {
-                *i->mutable_else_block() = EmitBlock(fb, typeMap);
+                *i->mutable_else_block() = EmitBlock(fb);
             }
         }
     } else if (const auto *sw = node->to<IR::SwitchStatement>()) {
         auto *s = out.mutable_switch_stmt();
-        *s->mutable_subject() = EmitExpr(sw->expression, typeMap);
+        *s->mutable_subject() = EmitExpr(sw->expression);
         for (const auto *c : sw->cases) {
             if (c->label->is<IR::DefaultExpression>()) {
                 if (const auto *b = c->statement->to<IR::BlockStatement>()) {
-                    *s->mutable_default_block() = EmitBlock(b, typeMap);
+                    *s->mutable_default_block() = EmitBlock(b);
                 }
             } else {
                 auto *sc = s->add_cases();
                 if (const auto *pe = c->label->to<IR::PathExpression>()) {
-                    sc->set_action_name(pe->path->name.name.c_str());
+                    // Use the original (pre-rename) action name to match p4info aliases.
+                    sc->set_action_name(pe->path->name.originalName.c_str());
                 }
                 if (c->statement) {
                     if (const auto *b = c->statement->to<IR::BlockStatement>()) {
-                        *sc->mutable_block() = EmitBlock(b, typeMap);
+                        *sc->mutable_block() = EmitBlock(b);
                     }
                 }
             }
         }
     } else if (const auto *blk = node->to<IR::BlockStatement>()) {
-        *out.mutable_block() = EmitBlock(blk, typeMap);
+        *out.mutable_block() = EmitBlock(blk);
     } else if (node->is<IR::ExitStatement>()) {
         out.mutable_exit();
     } else if (const auto *ret = node->to<IR::ReturnStatement>()) {
         if (ret->expression) {
-            *out.mutable_return_stmt()->mutable_value() = EmitExpr(ret->expression, typeMap);
+            *out.mutable_return_stmt()->mutable_value() = EmitExpr(ret->expression);
         } else {
             out.mutable_return_stmt();
         }
@@ -228,10 +261,10 @@ fourward::ir::v1::Stmt EmitStmt(const IR::StatOrDecl *node, const TypeMap &typeM
     return out;
 }
 
-fourward::ir::v1::BlockStmt EmitBlock(const IR::BlockStatement *block, const TypeMap &typeMap) {
+fourward::ir::v1::BlockStmt FourWardBackend::EmitBlock(const IR::BlockStatement *block) {
     fourward::ir::v1::BlockStmt out;
     for (const auto *stmt : block->components) {
-        *out.add_stmts() = EmitStmt(stmt, typeMap);
+        *out.add_stmts() = EmitStmt(stmt);
     }
     return out;
 }
@@ -274,7 +307,7 @@ void FourWardBackend::emitTypeDecls(const IR::P4Program *program) {
             for (const auto *field : hdr->fields) {
                 auto *fd = hdecl->add_fields();
                 fd->set_name(field->name.name.c_str());
-                *fd->mutable_type() = EmitType(field->type, typeMap_);
+                *fd->mutable_type() = EmitType(field->type);
             }
         } else if (const auto *st = decl->to<IR::Type_Struct>()) {
             auto *td = behavioral_->add_types();
@@ -283,7 +316,7 @@ void FourWardBackend::emitTypeDecls(const IR::P4Program *program) {
             for (const auto *field : st->fields) {
                 auto *fd = sdecl->add_fields();
                 fd->set_name(field->name.name.c_str());
-                *fd->mutable_type() = EmitType(field->type, typeMap_);
+                *fd->mutable_type() = EmitType(field->type);
             }
         }
         // Enums and header unions: TODO
@@ -297,7 +330,7 @@ void FourWardBackend::emitParser(const IR::P4Parser *parser) {
     for (const auto *param : parser->getApplyParameters()->parameters) {
         auto *p = pd->add_params();
         p->set_name(param->name.name.c_str());
-        *p->mutable_type() = EmitType(param->type, typeMap_);
+        *p->mutable_type() = EmitType(param->type);
         switch (param->direction) {
             case IR::Direction::In:    p->set_direction(fourward::ir::v1::Direction::IN); break;
             case IR::Direction::Out:   p->set_direction(fourward::ir::v1::Direction::OUT); break;
@@ -311,7 +344,7 @@ void FourWardBackend::emitParser(const IR::P4Parser *parser) {
         ps->set_name(state->name.name.c_str());
 
         for (const auto *stmt : state->components) {
-            *ps->add_stmts() = EmitStmt(stmt, typeMap_);
+            *ps->add_stmts() = EmitStmt(stmt);
         }
 
         // accept/reject are terminal states with no selectExpression.
@@ -319,7 +352,7 @@ void FourWardBackend::emitParser(const IR::P4Parser *parser) {
         } else if (const auto *sel = state->selectExpression->to<IR::SelectExpression>()) {
             auto *selectTrans = ps->mutable_transition()->mutable_select();
             for (const auto *key : sel->select->components) {
-                *selectTrans->add_keys() = EmitExpr(key, typeMap_);
+                *selectTrans->add_keys() = EmitExpr(key);
             }
             for (const auto *sc : sel->selectCases) {
                 auto *c = selectTrans->add_cases();
@@ -328,7 +361,7 @@ void FourWardBackend::emitParser(const IR::P4Parser *parser) {
                     continue;
                 }
                 auto *k = c->add_keysets();
-                *k->mutable_exact() = EmitExpr(sc->keyset, typeMap_);
+                *k->mutable_exact() = EmitExpr(sc->keyset);
                 c->set_next_state(sc->state->path->name.name.c_str());
             }
         } else if (const auto *path = state->selectExpression->to<IR::PathExpression>()) {
@@ -338,13 +371,15 @@ void FourWardBackend::emitParser(const IR::P4Parser *parser) {
 }
 
 void FourWardBackend::emitControl(const IR::P4Control *control) {
+    controlName_ = control->name.name.c_str();
+
     auto *cd = behavioral_->add_controls();
-    cd->set_name(control->name.name.c_str());
+    cd->set_name(controlName_);
 
     for (const auto *param : control->getApplyParameters()->parameters) {
         auto *p = cd->add_params();
         p->set_name(param->name.name.c_str());
-        *p->mutable_type() = EmitType(param->type, typeMap_);
+        *p->mutable_type() = EmitType(param->type);
         switch (param->direction) {
             case IR::Direction::In:    p->set_direction(fourward::ir::v1::Direction::IN); break;
             case IR::Direction::Out:   p->set_direction(fourward::ir::v1::Direction::OUT); break;
@@ -357,24 +392,64 @@ void FourWardBackend::emitControl(const IR::P4Control *control) {
         if (const auto *action = decl->to<IR::P4Action>()) {
             auto *ad = cd->add_local_actions();
             emitAction(action, ad);
+        } else if (const auto *table = decl->to<IR::P4Table>()) {
+            emitTable(table);
         }
     }
 
     for (const auto *stmt : control->body->components) {
-        *cd->add_apply_body() = EmitStmt(stmt, typeMap_);
+        *cd->add_apply_body() = EmitStmt(stmt);
     }
 }
 
 void FourWardBackend::emitAction(const IR::P4Action *action,
                                  fourward::ir::v1::ActionDecl *out) {
-    out->set_name(action->name.name.c_str());
+    // Use the original (pre-rename) name so it matches p4info action aliases.
+    out->set_name(action->name.originalName.c_str());
     for (const auto *param : action->parameters->parameters) {
         auto *p = out->add_params();
         p->set_name(param->name.name.c_str());
-        *p->mutable_type() = EmitType(param->type, typeMap_);
+        *p->mutable_type() = EmitType(param->type);
     }
     for (const auto *stmt : action->body->components) {
-        *out->add_body() = EmitStmt(stmt, typeMap_);
+        *out->add_body() = EmitStmt(stmt);
+    }
+}
+
+void FourWardBackend::emitTable(const IR::P4Table *table) {
+    // originalName matches the p4info alias (e.g. "port_table" from "MyIngress.port_table").
+    const std::string tableName = table->name.originalName.c_str();
+
+    // Look up the p4info table by qualified name to retrieve match field IDs.
+    // The qualified name is "controlName.tableName" (e.g. "MyIngress.port_table").
+    const std::string qualifiedName = controlName_ + "." + tableName;
+    const p4::config::v1::Table *p4Table = nullptr;
+    for (const auto &t : pipelineConfig_.p4info().tables()) {
+        if (t.preamble().name() == qualifiedName) {
+            p4Table = &t;
+            break;
+        }
+    }
+    if (!p4Table) {
+        LOG1("WARNING: no p4info table found for " << qualifiedName << "; skipping emitTable");
+        return;
+    }
+
+    auto *tb = behavioral_->add_tables();
+    tb->set_name(tableName);
+
+    // Emit one TableKey per match field. The field_name is the p4info match
+    // field ID as a string; this is what TableStore.lookup compares against
+    // FieldMatch.fieldId from P4Runtime write requests.
+    const IR::Key *key = table->getKey();
+    if (!key) return;
+    int keyIdx = 0;
+    for (const auto *keyElem : key->keyElements) {
+        if (keyIdx >= p4Table->match_fields_size()) break;
+        auto *tk = tb->add_keys();
+        tk->set_field_name(std::to_string(p4Table->match_fields(keyIdx).id()));
+        *tk->mutable_expr() = EmitExpr(keyElem->expression);
+        ++keyIdx;
     }
 }
 

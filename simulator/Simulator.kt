@@ -44,8 +44,15 @@ class Simulator {
     val config = req.config
     pipeline = config
 
-    val tableNameById = config.p4Info.tablesList.associate { it.preamble.id to it.preamble.name }
-    val actionNameById = config.p4Info.actionsList.associate { it.preamble.id to it.preamble.name }
+    // Use aliases (short names) so they match the originalName-based keys the behavioral IR uses.
+    val tableNameById =
+      config.p4Info.tablesList.associate {
+        it.preamble.id to it.preamble.alias.ifEmpty { it.preamble.name }
+      }
+    val actionNameById =
+      config.p4Info.actionsList.associate {
+        it.preamble.id to it.preamble.alias.ifEmpty { it.preamble.name }
+      }
     tableStore.loadMappings(tableNameById, actionNameById)
 
     for (table in config.p4Info.tablesList) {

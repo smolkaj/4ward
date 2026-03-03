@@ -29,25 +29,6 @@
 namespace P4::FourWard {
 
 // -----------------------------------------------------------------------
-// IR-to-proto converters
-//
-// Each Emit* function converts a p4c IR node to the corresponding proto
-// message. They are free functions (not a visitor) to keep the code
-// straightforward: we call them explicitly from the main backend pass.
-// -----------------------------------------------------------------------
-
-fourward::ir::v1::Type EmitType(const IR::Type* type, const TypeMap& typeMap);
-
-fourward::ir::v1::Expr EmitExpr(const IR::Expression* expr,
-                                const TypeMap& typeMap);
-
-fourward::ir::v1::Stmt EmitStmt(const IR::StatOrDecl* stmt,
-                                const TypeMap& typeMap);
-
-fourward::ir::v1::BlockStmt EmitBlock(const IR::BlockStatement* block,
-                                      const TypeMap& typeMap);
-
-// -----------------------------------------------------------------------
 // FourWardBackend
 //
 // The top-level backend pass. Walks the p4c ToplevelBlock after all midend
@@ -62,6 +43,7 @@ class FourWardBackend : public Inspector {
   void process(const IR::ToplevelBlock* toplevel);
 
   // Injects the p4info produced by the P4Runtime serialiser into the config.
+  // Must be called before process() so emitTable() can look up field IDs.
   void setP4Info(p4::config::v1::P4Info p4info);
 
   // Writes the accumulated PipelineConfig proto to the output file.
@@ -76,12 +58,23 @@ class FourWardBackend : public Inspector {
   fourward::ir::v1::PipelineConfig pipelineConfig_;
   fourward::ir::v1::P4BehavioralConfig* behavioral_;
 
+  // Set by emitControl so nested emitters can use the enclosing control name.
+  std::string controlName_;
+
   void emitTypeDecls(const IR::P4Program* program);
   void emitParser(const IR::P4Parser* parser);
   void emitControl(const IR::P4Control* control);
-  void emitAction(const IR::P4Action* action,
-                  fourward::ir::v1::ActionDecl* out);
+  void emitAction(const IR::P4Action* action, fourward::ir::v1::ActionDecl* out);
+  void emitTable(const IR::P4Table* table);
   void emitArchitecture(const IR::ToplevelBlock* toplevel);
+
+  // IR-to-proto converters. These are member functions so they can access
+  // refMap_ (needed to resolve PathExpression declarations for table apply
+  // detection) and typeMap_ directly.
+  fourward::ir::v1::Type EmitType(const IR::Type* type);
+  fourward::ir::v1::Expr EmitExpr(const IR::Expression* expr);
+  fourward::ir::v1::Stmt EmitStmt(const IR::StatOrDecl* stmt);
+  fourward::ir::v1::BlockStmt EmitBlock(const IR::BlockStatement* block);
 
   std::string outputFilePath() const;
 };

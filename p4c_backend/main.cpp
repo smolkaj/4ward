@@ -70,8 +70,9 @@ int main(int argc, char *const argv[]) {
     if (toplevel == nullptr || ::P4::errorCount() > 0) return 1;
 
     FourWard::FourWardBackend backend(options, midend.refMap, midend.typeMap);
-    backend.process(toplevel);
+    // setP4Info must come before process so emitTable can look up match field IDs.
     backend.setP4Info(*p4Runtime.p4Info);
+    backend.process(toplevel);
 
     if (!backend.writePipelineConfig()) return 1;
     return ::P4::errorCount() > 0 ? 1 : 0;

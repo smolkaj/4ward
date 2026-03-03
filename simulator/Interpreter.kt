@@ -33,8 +33,13 @@ class Interpreter(private val config: P4BehavioralConfig, private val tableStore
 
   private val controls: Map<String, ControlDecl> = config.controlsList.associateBy { it.name }
 
+  // Actions may be declared either at the top level or as local actions inside controls.
+  // After the midend, all relevant actions end up in control.localActionsList.
   private val actions: Map<String, fourward.ir.v1.ActionDecl> =
-    config.actionsList.associateBy { it.name }
+    buildMap {
+      config.actionsList.forEach { put(it.name, it) }
+      config.controlsList.forEach { ctrl -> ctrl.localActionsList.forEach { put(it.name, it) } }
+    }
 
   private val tables: Map<String, TableBehavior> = config.tablesList.associateBy { it.name }
 
@@ -336,7 +341,10 @@ class Interpreter(private val config: P4BehavioralConfig, private val tableStore
       // (not in env); the header is the first argument.
       "extract" -> execExtract(call, env)
       "emit" -> execEmit(call, env)
-      else -> error("unhandled method call: ${call.method} on ${evalExpr(call.target, env)}")
+      // "__call__" is used for free functions (extern calls without a receiver object).
+      // The target nameRef identifies the function.
+      "__call__" -> execExternCall(call, env)
+      else -> error("unhandled method call: ${call.method} on ${call.target}")
     }
   }
 
@@ -405,6 +413,23 @@ class Interpreter(private val config: P4BehavioralConfig, private val tableStore
       execBlock(actionDecl.bodyList, env)
     } finally {
       env.popScope()
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Extern function calls  (method == "__call__", target is a NameRef)
+  // -------------------------------------------------------------------------
+
+  private fun execExternCall(call: MethodCall, env: Environment): Value {
+    val funcName = call.target.nameRef.name
+    return when (funcName) {
+      // mark_to_drop(standard_metadata): sets egress_spec to the v1model drop port (511).
+      "mark_to_drop" -> {
+        val smeta = evalExpr(call.argsList[0], env) as StructVal
+        smeta.fields["egress_spec"] = BitVal(511, PORT_BITS)
+        UnitVal
+      }
+      else -> error("unhandled extern call: $funcName")
     }
   }
 
@@ -478,6 +503,9 @@ class Interpreter(private val config: P4BehavioralConfig, private val tableStore
     }
   }
 }
+
+// Drop port for v1model mark_to_drop(): egress_spec is set to 511 (0x1FF).
+private const val PORT_BITS = 9
 
 /**
  * Thrown by an `exit` statement; unwinds the call stack to the top of the current pipeline stage.
