@@ -98,6 +98,11 @@ jobs:
     name: Coverage
     runs-on: ubuntu-24.04
     if: github.event_name == 'pull_request'
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      PR_NUM: ${{ github.event.pull_request.number }}
     steps:
       - uses: actions/checkout@v6
 
@@ -105,14 +110,51 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.cache/bazel
-          key: bazel-ubuntu-24.04-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: bazel-ubuntu-24.04-
+          key: bazel-coverage-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: bazel-coverage-
+
+      - name: Install lcov
+        run: sudo apt install -y lcov
 
       - name: Run coverage
-        run: ./coverage.sh
+        run: ./coverage.sh --html
 
-      - name: Upload to Codecov
-        uses: codecov/codecov-action@v5
-        with:
-          files: coverage.lcov
-          fail_ci_if_error: false
+      - name: Publish HTML report to GitHub Pages
+        run: |
+          git fetch --depth=1 origin gh-pages
+          git worktree add /tmp/gh-pages gh-pages
+          mkdir -p "/tmp/gh-pages/pr/${PR_NUM}"
+          cp -r coverage-report/* "/tmp/gh-pages/pr/${PR_NUM}/"
+          cd /tmp/gh-pages
+          git add "pr/${PR_NUM}"
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -m "Coverage report for PR #${PR_NUM}" --allow-empty
+          # Retry once on conflict (concurrent PR pushes).
+          git push origin gh-pages || (git pull --rebase origin gh-pages && git push origin gh-pages)
+
+      - name: Comment coverage on PR
+        run: |
+          MARKER="<!-- coverage-report -->"
+          TOTAL_LH=$(awk -F: '/^LH:/{s+=$2} END{print s+0}' coverage.lcov)
+          TOTAL_LF=$(awk -F: '/^LF:/{s+=$2} END{print s+0}' coverage.lcov)
+          REPO_NAME="${{ github.event.repository.name }}"
+          if [[ "${TOTAL_LF}" -gt 0 ]]; then
+            PCT=$(( 100 * TOTAL_LH / TOTAL_LF ))
+            REPORT_URL="https://${{ github.repository_owner }}.github.io/${REPO_NAME}/pr/${PR_NUM}/"
+            BODY="${MARKER}"$'\n'"**Coverage**: ${TOTAL_LH}/${TOTAL_LF} lines (${PCT}%) — [full report](${REPORT_URL})"
+          else
+            BODY="${MARKER}"$'\n'"**Coverage**: no data collected"
+          fi
+          # Update existing comment or create a new one.
+          EXISTING=$(gh api "repos/${{ github.repository }}/issues/${PR_NUM}/comments" \
+            --jq ".[] | select(.body | contains(\"${MARKER}\")) | .id" \
+            | head -1)
+          if [[ -n "${EXISTING}" ]]; then
+            gh api "repos/${{ github.repository }}/issues/comments/${EXISTING}" \
+              -X PATCH -f body="${BODY}"
+          else
+            gh pr comment "${PR_NUM}" --body "${BODY}"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
