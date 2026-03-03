@@ -27,7 +27,7 @@ namespace P4::FourWard {
 class FourWardOptions : public CompilerOptions {
  public:
     // Output file for the serialised PipelineConfig proto. Defaults to
-    // replacing the input file's extension with ".pb".
+    // replacing the input file's extension with ".txtpb".
     std::optional<std::string> outputFile;
 
     FourWardOptions();

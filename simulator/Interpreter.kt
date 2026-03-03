@@ -316,14 +316,16 @@ class Interpreter(
     }
 
     private fun evalMethodCall(call: MethodCall, env: Environment): Value {
-        val target = evalExpr(call.target, env)
         return when (call.method) {
-            "isValid"    -> BoolVal((target as HeaderVal).valid)
-            "setValid"   -> { (target as HeaderVal).valid = true; UnitVal }
-            "setInvalid" -> { (target as HeaderVal).setInvalid(); UnitVal }
+            // Header validity methods: target is the header instance.
+            "isValid"    -> BoolVal((evalExpr(call.target, env) as HeaderVal).valid)
+            "setValid"   -> { (evalExpr(call.target, env) as HeaderVal).valid = true; UnitVal }
+            "setInvalid" -> { (evalExpr(call.target, env) as HeaderVal).setInvalid(); UnitVal }
+            // packet_in.extract(hdr) / packet_out.emit(hdr): target is the extern object
+            // (not in env); the header is the first argument.
             "extract"    -> execExtract(call, env)
             "emit"       -> execEmit(call, env)
-            else         -> error("unhandled method call: ${call.method} on $target")
+            else         -> error("unhandled method call: ${call.method} on ${evalExpr(call.target, env)}")
         }
     }
 
@@ -401,7 +403,8 @@ class Interpreter(
     // -------------------------------------------------------------------------
 
     private fun execExtract(call: MethodCall, env: Environment): Value {
-        val header = evalExpr(call.target, env) as HeaderVal
+        // packet_in.extract(hdr.field): the header to extract into is args[0], not the target.
+        val header = evalExpr(call.argsList[0], env) as HeaderVal
         val typeName = header.typeName
         val typeDecl = config.typesList.find { it.name == typeName }
             ?: error("type not found: $typeName")
@@ -418,7 +421,8 @@ class Interpreter(
     }
 
     private fun execEmit(call: MethodCall, env: Environment): Value {
-        val header = evalExpr(call.target, env) as HeaderVal
+        // packet_out.emit(hdr.field): the header to emit is args[0], not the target.
+        val header = evalExpr(call.argsList[0], env) as HeaderVal
         if (!header.valid) return UnitVal  // invalid headers are not emitted
 
         val typeName = header.typeName

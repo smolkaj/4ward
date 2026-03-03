@@ -13,9 +13,10 @@ class PassthroughTest {
     fun `passthrough program forwards packet to port 1`() {
         val runfiles = System.getenv("JAVA_RUNFILES") ?: "."
 
-        val simulatorBinary = Paths.get(runfiles, "fourward/simulator/simulator")
-        val pipelineConfig  = Paths.get(runfiles, "fourward/e2e_tests/passthrough/passthrough.pb")
-        val stfFile         = Paths.get(runfiles, "fourward/e2e_tests/passthrough/passthrough.stf")
+        // Under Bzlmod the main module's canonical repo name is always "_main".
+        val simulatorBinary = Paths.get(runfiles, "_main/simulator/simulator")
+        val pipelineConfig  = Paths.get(runfiles, "_main/e2e_tests/passthrough/passthrough.txtpb")
+        val stfFile         = Paths.get(runfiles, "_main/e2e_tests/passthrough/passthrough.stf")
 
         val result = StfRunner(simulatorBinary, pipelineConfig).run(stfFile)
         if (result is TestResult.Failure) {

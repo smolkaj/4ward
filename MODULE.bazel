@@ -40,6 +40,7 @@ maven.install(
         "com.google.protobuf:protobuf-java:4.29.3",
         "com.google.protobuf:protobuf-kotlin:4.29.3",
         "junit:junit:4.13.2",
+        "com.facebook:ktfmt:0.61",
     ],
     repositories = [
         "https://repo1.maven.org/maven2",
@@ -50,3 +51,12 @@ use_repo(maven, "maven")
 # --- Dev tools ---
 
 bazel_dep(name = "buildifier_prebuilt", version = "8.2.1.2", dev_dependency = True)
+
+# Generates compile_commands.json for clang-tidy and IDE integration.
+# After adding new targets: bazel run @hedron_compile_commands//:refresh_all
+bazel_dep(name = "hedron_compile_commands", dev_dependency = True)
+git_override(
+    module_name = "hedron_compile_commands",
+    remote = "https://github.com/hedronvision/bazel-compile-commands-extractor.git",
+    commit = "abb61a688167623088f8768cc9264798df6a9d10",
+)

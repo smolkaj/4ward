@@ -50,8 +50,8 @@ bazel build //...
 bazel test //...
 
 # Simulate a P4 program (once the backend and simulator are on your PATH).
-p4c-4ward --arch v1model my_program.p4 -o my_program.pb
-4ward my_program.pb < input.stf
+p4c-4ward --arch v1model my_program.p4 -o my_program.txtpb
+4ward my_program.txtpb < input.stf
 ```
 
 ## Trace example
@@ -95,9 +95,9 @@ driven by the p4c STF test corpus — each new feature makes more tests go green
 
 - [x] Proto IR schema
 - [x] Project skeleton
-- [ ] p4c backend (v1model, passthrough)
-- [ ] Simulator (passthrough)
-- [ ] STF test runner
+- [x] p4c backend (v1model, passthrough)
+- [x] Simulator (passthrough)
+- [x] STF test runner
 - [ ] Full v1model support
 - [ ] P4Runtime server (Go)
 

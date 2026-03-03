@@ -9,8 +9,8 @@ fit together, and why key decisions were made the way they were.
 ┌─────────────────────────────────────────────────────────────────┐
 │ compile time                                                    │
 │                                                                 │
-│  program.p4 ──▶ p4c + 4ward backend ──▶ PipelineConfig.pb     │
-│                        (C++)               (proto binary)       │
+│  program.p4 ──▶ p4c + 4ward backend ──▶ PipelineConfig.txtpb  │
+│                        (C++)               (proto text format)  │
 └─────────────────────────────────────────────────────────────────┘
                                 │
                                 ▼

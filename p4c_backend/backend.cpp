@@ -16,8 +16,11 @@
 
 #include "p4c_backend/backend.h"
 
+#include <filesystem>
 #include <fstream>
 #include <string>
+
+#include "google/protobuf/text_format.h"
 
 #include "frontends/p4/coreLibrary.h"
 #include "lib/error.h"
@@ -48,7 +51,7 @@ fourward::ir::v1::Type EmitType(const IR::Type *type, const TypeMap &typeMap) {
         out.set_named(hdr->name.name.c_str());
     } else if (const auto *st = type->to<IR::Type_Struct>()) {
         out.set_named(st->name.name.c_str());
-    } else if (const auto *stack = type->to<IR::Type_Stack>()) {
+    } else if (const auto *stack = type->to<IR::Type_Array>()) {
         auto *hs = out.mutable_header_stack();
         if (const auto *elemType = stack->elementType->to<IR::Type_Name>()) {
             hs->set_element_type(elemType->path->name.name.c_str());
@@ -75,14 +78,14 @@ fourward::ir::v1::Expr EmitExpr(const IR::Expression *expr, const TypeMap &typeM
     if (const auto *cnst = expr->to<IR::Constant>()) {
         auto *lit = out.mutable_literal();
         // Use big_integer for values that don't fit in 64 bits.
-        if (cnst->value.fits_uint64()) {
-            lit->set_integer(cnst->value.get_ui());
+        if (cnst->fitsUint64()) {
+            lit->set_integer(cnst->asUint64());
         } else {
-            // Serialise as big-endian bytes.
+            // Serialise as big-endian bytes using boost::multiprecision::export_bits.
             std::string bytes;
             auto v = cnst->value;
             while (v != 0) {
-                bytes.push_back(static_cast<char>(mpz_get_ui(v.get_mpz_t()) & 0xFF));
+                bytes.push_back(static_cast<char>(static_cast<uint8_t>(v & 0xFF)));
                 v >>= 8;
             }
             std::reverse(bytes.begin(), bytes.end());
@@ -311,7 +314,9 @@ void FourWardBackend::emitParser(const IR::P4Parser *parser) {
             *ps->add_stmts() = EmitStmt(stmt, typeMap_);
         }
 
-        if (const auto *sel = state->selectExpression->to<IR::SelectExpression>()) {
+        // accept/reject are terminal states with no selectExpression.
+        if (!state->selectExpression) {
+        } else if (const auto *sel = state->selectExpression->to<IR::SelectExpression>()) {
             auto *selectTrans = ps->mutable_transition()->mutable_select();
             for (const auto *key : sel->select->components) {
                 *selectTrans->add_keys() = EmitExpr(key, typeMap_);
@@ -406,9 +411,16 @@ void FourWardBackend::emitArchitecture(const IR::ToplevelBlock *toplevel) {
         for (const auto &arg : *main->node->to<IR::Declaration_Instance>()->arguments) {
             if (i >= stageSpec.size()) break;
             std::string blockName;
-            if (const auto *pe = arg->expression->to<IR::PathExpression>()) {
+            const auto *expr = arg->expression;
+            if (const auto *pe = expr->to<IR::PathExpression>()) {
+                // Already-resolved reference (e.g. after some midend passes).
                 blockName = pe->path->name.name.c_str();
-            } else if (const auto *mc = arg->expression->to<IR::MethodCallExpression>()) {
+            } else if (const auto *cce = expr->to<IR::ConstructorCallExpression>()) {
+                // Constructor call: MyParser() — the type name is the block name.
+                if (const auto *tn = cce->constructedType->to<IR::Type_Name>()) {
+                    blockName = tn->path->name.name.c_str();
+                }
+            } else if (const auto *mc = expr->to<IR::MethodCallExpression>()) {
                 if (const auto *pe2 = mc->method->to<IR::PathExpression>()) {
                     blockName = pe2->path->name.name.c_str();
                 }
@@ -421,7 +433,7 @@ void FourWardBackend::emitArchitecture(const IR::ToplevelBlock *toplevel) {
     } else {
         // Unknown architecture: emit the name and leave stages empty.
         // The simulator will reject it with a clear error.
-        arch->set_name(main->type->name.c_str());
+        arch->set_name(main->type->name.name.c_str());
         ::P4::error("4ward: unsupported architecture '%1%'. Only v1model is supported currently.",
                     main->type->name);
     }
@@ -434,18 +446,20 @@ bool FourWardBackend::writePipelineConfig() const {
         ::P4::error("4ward: cannot open output file '%1%'", path);
         return false;
     }
-    if (!pipelineConfig_.SerializeToOstream(&out)) {
+    std::string text;
+    if (!google::protobuf::TextFormat::PrintToString(pipelineConfig_, &text)) {
         ::P4::error("4ward: failed to serialise PipelineConfig to '%1%'", path);
         return false;
     }
+    out << text;
     LOG1("4ward: wrote PipelineConfig to " << path);
     return true;
 }
 
 std::string FourWardBackend::outputFilePath() const {
     if (options_.outputFile) return *options_.outputFile;
-    // Default: replace input extension with .pb
-    return options_.file.replace_extension(".pb").string();
+    // Default: replace input extension with .txtpb
+    return std::filesystem::path(options_.file).replace_extension(".txtpb").string();
 }
 
 }  // namespace P4::FourWard

@@ -19,7 +19,7 @@
 // Compiles a P4 program to a PipelineConfig proto binary suitable for loading
 // into the 4ward simulator. Usage:
 //
-//   p4c-4ward --arch v1model -o output.pb input.p4
+//   p4c-4ward --arch v1model -o output.txtpb input.p4
 
 #include "control-plane/p4RuntimeSerializer.h"
 #include "frontends/common/applyOptionsPragmas.h"

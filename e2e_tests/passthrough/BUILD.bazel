@@ -1,12 +1,19 @@
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
 
-# Compiles passthrough.p4 to a PipelineConfig proto binary.
+# Compiles passthrough.p4 to a PipelineConfig text proto.
+# The -I flag points p4c at the p4include directory so it can find core.p4 and
+# v1model.p4. We derive the path from core_p4's execpath rather than
+# hard-coding it because the exact external-repo directory varies by platform.
 genrule(
     name = "passthrough_pb",
     srcs = ["passthrough.p4"],
-    outs = ["passthrough.pb"],
-    cmd = "$(execpath //p4c_backend:p4c-4ward) -o $@ $(SRCS)",
-    tools = ["//p4c_backend:p4c-4ward"],
+    outs = ["passthrough.txtpb"],
+    cmd = "$(execpath //p4c_backend:p4c-4ward) -I $$(dirname $(execpath @p4c//:core_p4)) -o $@ $(SRCS)",
+    tools = [
+        "//p4c_backend:p4c-4ward",
+        "@p4c//:p4include",
+        "@p4c//:core_p4",
+    ],
 )
 
 # Runs the passthrough STF test against the 4ward simulator.

@@ -29,7 +29,9 @@ class StfRunner(
 ) {
     fun run(stfPath: Path): TestResult {
         val stf = StfFile.parse(stfPath)
-        val config = PipelineConfig.parseFrom(pipelineConfigPath.toFile().readBytes())
+        val builder = PipelineConfig.newBuilder()
+        com.google.protobuf.TextFormat.merge(pipelineConfigPath.toFile().readText(), builder)
+        val config = builder.build()
 
         val process = ProcessBuilder(simulatorBinary.toString())
             .redirectErrorStream(false)
