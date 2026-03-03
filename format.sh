@@ -23,7 +23,7 @@ cd "$(git rev-parse --show-toplevel)" || exit 1
 REPO_ROOT=$(pwd)
 
 # Run clang-format.
-git ls-files '*.cc' '*.h' '*.proto' | xargs clang-format --verbose -style=google -i
+git ls-files '*.cpp' '*.h' '*.proto' | xargs clang-format --verbose -style=google -i
 
 # Run buildifier on Starlark files.
 # Absolute paths are needed because `bazel run` changes the working directory.
