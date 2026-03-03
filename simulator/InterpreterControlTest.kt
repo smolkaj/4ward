@@ -74,8 +74,7 @@ class InterpreterControlTest {
       .setSwitchStmt(
         SwitchStmt.newBuilder()
           .setSubject(
-            Expr.newBuilder()
-              .setTableApply(TableApplyExpr.newBuilder().setTableName(tableName))
+            Expr.newBuilder().setTableApply(TableApplyExpr.newBuilder().setTableName(tableName))
           )
           .addAllCases(
             cases.map { (actionName, stmts) ->

@@ -8,3 +8,5 @@ bazel-bin
 bazel-out
 bazel-testlogs
 bazel-4ward
+# Claude
+.claude
