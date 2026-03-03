@@ -1,9 +1,11 @@
 # 4ward
 
-A glass-box P4 simulator. Unlike a real switch (or BMv2), 4ward tells you
-*exactly* what happened to your packet: every parser transition, every table
-lookup, every action executed, every branch taken — delivered as a structured
-trace alongside the output packets.
+**Your P4 programs, finally explained.**
+
+Ever stare at a packet leaving a switch and wonder *what just happened in
+there?* 4ward is a glass-box P4 simulator that tells you exactly what happened
+to your packet — every parser transition, every table lookup, every action, every
+branch — delivered as a structured trace you can actually read.
 
 ```
              p4c + 4ward backend
@@ -15,7 +17,7 @@ trace alongside the output packets.
                      ▼
             ┌────────────────┐
  packet ──▶ │  4ward sim     │──▶ output packets
-            │  (Kotlin/JVM)  │──▶ execution trace
+            │  (Kotlin/JVM)  │──▶ execution trace  (the good stuff)
             └────────────────┘
                      ▲
              P4Runtime writes
@@ -27,20 +29,22 @@ trace alongside the output packets.
 
 | | BMv2 | Real hardware | **4ward** |
 |---|---|---|---|
-| Runs P4 programs | ✓ | ✓ | **✓** |
-| Execution trace | ✗ | ✗ | **✓** |
-| Architecture-generic | ✗ | ✗ | **✓** |
-| P4Runtime | ✓ | ✓ | **✓** |
-| Simple codebase | ✗ | ✗ | **✓** |
+| Runs P4 programs | sure | sure | **yep** |
+| Execution trace | nope | nope | **yes!** |
+| Architecture-generic | nope | nope | **yes!** |
+| P4Runtime | sure | sure | **yep** |
+| Simple, readable codebase | ehh | ehh | **yes!** |
 
-4ward optimises for **correctness and observability**, not performance. It is a
-development and testing tool, not a production data plane.
+4ward optimises for **correctness and observability**, not performance. It's a
+development and testing tool — think of it as a debugger that speaks P4, not a
+production data plane.
 
 ## Quick start
 
-You need [Bazel](https://bazel.build) (version 9+, or use
-[Bazelisk](https://github.com/bazelbuild/bazelisk)) and a C++20-capable
-compiler for the p4c backend. Everything else is hermetic.
+You need [Bazel](https://bazel.build) 9+ (or just grab
+[Bazelisk](https://github.com/bazelbuild/bazelisk) and forget about it) and a
+C++20 compiler for the p4c backend. Everything else is hermetic — Bazel handles
+it.
 
 ```sh
 # Build everything.
@@ -54,9 +58,9 @@ p4c-4ward --arch v1model my_program.p4 -o my_program.txtpb
 4ward my_program.txtpb < input.stf
 ```
 
-## Trace example
+## See what your packets are up to
 
-Given a simple IPv4 forwarding program, 4ward produces traces like:
+Given a simple IPv4 forwarding program, 4ward produces traces like this:
 
 ```json
 {
@@ -84,21 +88,20 @@ No printf debugging. No Wireshark. No guessing. Just the trace.
 
 ```
 4ward/
-├── simulator/              # Kotlin simulator (interpreter + P4Runtime adapter)
-│   ├── ir.proto            # Behavioral IR (the core contract between backend and sim)
-│   └── simulator.proto     # Simulator service protocol (stdin/stdout framing)
-├── p4c_backend/            # p4c backend plugin (C++, emits the proto IR)
-└── e2e_tests/              # STF test runner and test programs
-    └── stf/                # STF runner
+├── simulator/              Kotlin simulator — the brain
+│   ├── ir.proto            Behavioral IR (the contract between backend & sim)
+│   └── simulator.proto     Simulator service protocol (stdin/stdout framing)
+├── p4c_backend/            p4c backend plugin (C++, emits the proto IR)
+└── e2e_tests/              STF test runner and test programs
+    └── stf/                STF runner
 ```
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for a deeper dive.
+Curious about the design? [ARCHITECTURE.md](ARCHITECTURE.md) has the full story.
 
-## Status
+## Where things stand
 
-4ward is early-stage. The current focus is the walking skeleton: a passthrough
-P4 program that exercises the full pipeline end-to-end. Feature development is
-driven by the p4c STF test corpus — each new feature makes more tests go green.
+4ward is young and growing fast. Feature development is driven by the p4c STF
+test corpus — each new feature makes another batch of tests go green.
 
 - [x] Proto IR schema
 - [x] Project skeleton
@@ -108,10 +111,11 @@ driven by the p4c STF test corpus — each new feature makes more tests go green
 - [ ] Full v1model support
 - [ ] P4Runtime server (Go)
 
-## Contributing
+## Want to help?
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Issues and PRs welcome — especially
-"make this STF test pass" contributions, which are naturally well-scoped.
+We'd love that! The easiest way to contribute is to pick a failing STF test and
+make it pass — they're naturally well-scoped and self-contained. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for the full details.
 
 ## License
 

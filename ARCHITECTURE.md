@@ -1,7 +1,10 @@
 # 4ward Architecture
 
-This document explains the design of 4ward: what the components are, how they
-fit together, and why key decisions were made the way they were.
+This is the "how does this thing actually work?" document. It walks through the
+components, how they talk to each other, and why we made the choices we did.
+
+If you just want to use 4ward, the [README](README.md) is all you need. If you
+want to hack on it, keep reading.
 
 ## The big picture
 
@@ -30,117 +33,117 @@ fit together, and why key decisions were made the way they were.
 
 ## Components
 
-### p4c backend (`p4c_backend/`)
+### p4c backend (`p4c_backend/`) — the translator
 
-A C++ p4c backend plugin that runs after p4c's midend passes and emits a
-`PipelineConfig` proto binary. It links against p4c as a Bazel dependency
-(no fork required once upstreamed; use `git_override` in the interim).
+A C++ p4c backend plugin that turns your P4 source into something the simulator
+can understand. It runs after p4c's midend simplification passes and emits a
+`PipelineConfig` proto. By this point the program is fully elaborated:
+generics instantiated, constants folded, header stacks concretized, no abstract
+types. Nice and clean for the simulator to interpret.
 
-The backend runs after all midend simplification passes, so the IR it emits
-reflects a fully-elaborated, type-resolved P4 program: generics instantiated,
-constants folded, header stacks concretized, no abstract types.
+### Proto IR (`simulator/ir.proto`) — the contract
 
-### Proto IR (`simulator/ir.proto`)
+This is the heart of the project: the intermediate representation that the
+backend produces and the simulator consumes. Two design choices worth
+highlighting:
 
-The core contract between the backend and the simulator. Two key design choices:
+**Names, not IDs.** Everything is referenced by human-readable string names.
+Numeric IDs only show up in p4info (for P4Runtime). This means you can actually
+read a `PipelineConfig` without a lookup table — just open the textproto and
+it makes sense.
 
-**Names, not IDs.** All cross-references use string names. Numeric IDs from
-p4info are for the control-plane API (P4Runtime) only. This makes the IR
-readable and debuggable without a p4info lookup table.
+**Type-complete expressions.** Every `Expr` node carries a `Type` annotation.
+The simulator never guesses bit widths; p4c already figured that out.
 
-**Type-complete expressions.** Every `Expr` node carries a `Type` annotation
-populated by p4c. The simulator never needs to infer types; it always knows
-the exact bit width of every value it manipulates.
+### Simulator service protocol (`simulator/simulator.proto`) — the wire
 
-### Simulator service protocol (`simulator/simulator.proto`)
+How does the outside world talk to the simulator? Length-delimited proto messages
+over stdin/stdout (4-byte big-endian length prefix + serialised bytes). Same
+pattern as the Language Server Protocol — boring, reliable, easy to debug.
 
-The IPC protocol between the controller and the simulator subprocess.
-Framing: length-delimited proto messages over stdin/stdout (4-byte big-endian
-length prefix + serialised bytes). This is the Language Server Protocol pattern,
-well-proven in practice.
+The protocol is refreshingly simple: load a pipeline, send packets, read and
+write table entries. That's about it.
 
-The protocol is intentionally simple: load a pipeline, process packets, read and
-write table entries. The P4Runtime server (when added) is a thin translation
-layer from the P4Runtime gRPC API to this protocol.
+### Simulator (`simulator/`) — where the magic happens
 
-### Simulator (`simulator/`)
-
-A Kotlin/JVM interpreter for the proto IR. Architecture:
+A Kotlin/JVM interpreter that walks the proto IR and actually *runs* your P4
+program, one packet at a time. Here's the lay of the land:
 
 ```
-Main.kt                  stdin/stdout framing, request dispatch
-Simulator.kt             top-level state (pipeline config, table entries)
-Interpreter.kt           IR tree-walker: parsers, controls, actions
-Environment.kt           variable bindings, packet state (headers + metadata)
-Values.kt                runtime value types (BitVector, BoolVal, HeaderVal, ...)
-BitVector.kt             bit-precise integer arithmetic (backed by BigInteger)
-Architecture.kt          interface for architecture-specific behaviour
-V1ModelArchitecture.kt   v1model: recirculation, clone, resubmit, mark_to_drop
+Main.kt                  Front door: stdin/stdout framing, request dispatch
+Simulator.kt             Top-level state: pipeline config, table entries
+Interpreter.kt           The big one: IR tree-walker for parsers, controls, actions
+Environment.kt           Variable bindings, packet state (headers + metadata)
+Values.kt                Runtime value types (BitVector, BoolVal, HeaderVal, ...)
+BitVector.kt             Bit-precise integer arithmetic (backed by BigInteger)
+Architecture.kt          Interface for architecture-specific behaviour
+V1ModelArchitecture.kt   v1model specifics: recirculate, clone, resubmit, drop
 ```
 
-The simulator prioritises correctness and readability over performance. `BigInteger`
-is used for all `bit<N>` arithmetic to handle arbitrary widths without overflow
-surprises.
+We use `BigInteger` for all `bit<N>` arithmetic because life is too short for
+overflow bugs at arbitrary bit widths.
 
 ## Architecture genericity
 
-Different P4 architectures (v1model, PSA, PNA, TNA) differ in:
+P4 has several architectures (v1model, PSA, PNA, TNA) and they all do things a
+little differently:
 
 1. **Pipeline structure**: which parsers/controls run and in what order.
 2. **Standard metadata**: the metadata struct passed between stages.
-3. **Extern semantics**: what `clone3()`, `resubmit()`, etc. actually do.
+3. **Extern semantics**: what `clone3()`, `resubmit()`, etc. actually *do*.
 
-Point 1 is captured structurally in `Architecture.stages`. Points 2 and 3
-require code in the simulator — `Architecture.kt` defines the interface, and
-each architecture gets an implementation (e.g. `V1ModelArch.kt`).
+4ward handles this cleanly: point 1 is captured structurally in
+`Architecture.stages`. Points 2 and 3 live in per-architecture Kotlin code —
+`Architecture.kt` defines the interface, and each architecture gets its own
+implementation (currently just `V1ModelArchitecture.kt`).
 
-Adding a new architecture requires:
+Want to add a new one? You need:
 - A new `Architecture.kt` implementation in `simulator/`.
-- Any new externs declared in the `ExternTypeDecl` list of the `Architecture`
-  proto message.
+- Any new externs in the `ExternTypeDecl` list of the `Architecture` proto.
 - A new `--arch` flag value in the p4c backend.
 
 ## Testing strategy
 
-Testing is driven by the p4c STF (Simple Test Framework) corpus. Each STF test
-is a tuple of (P4 program, table entries, input packets, expected output
-packets). The STF runner compiles the P4 program to a `PipelineConfig` proto
-using the 4ward backend, loads it into the simulator, feeds the input packets,
-and diffs the output against the STF expectations.
+Here's the fun part: p4c ships hundreds of STF (Simple Test Framework) tests,
+and each one is basically a self-contained feature spec. An STF test says "here's
+a P4 program, here are some table entries and packets — now tell me what comes
+out." The STF runner compiles the program, loads it into the simulator, feeds the
+packets in, and diffs the output.
 
-This gives us hundreds of regression tests for free. The failing-test list *is*
-the feature backlog: pick a failing STF test, implement what it needs, make it
-green.
+The failing-test list *is* the feature backlog. Pick a failing test, make it
+pass, and you've shipped a feature. It's surprisingly satisfying.
 
-Supplementary testing:
-- **P4TestGen**: uses symbolic execution to generate path-covering tests.
-- **Unit tests**: bit-precise arithmetic, match kinds (LPM, ternary), select
-  expression semantics — anything where correctness is subtle.
-- **BMv2 diff testing** (maybe): for programs not in the STF corpus, run the 
-  same inputs through BMv2 and 4ward and compare outputs.
+We also have:
+- **Unit tests** for the tricky stuff: bit-precise arithmetic, match kinds
+  (LPM, ternary), select expression semantics.
+- **P4TestGen** (planned): symbolic execution to generate path-covering tests.
+- **BMv2 diff testing** (maybe, someday): run the same inputs through BMv2 and
+  4ward and compare outputs.
 
 ## P4Runtime (future)
 
-The P4Runtime server is deliberately deferred until the simulator is solid.
-When added, it will be a Go binary that:
-1. Speaks P4Runtime gRPC to the controller.
-2. Translates P4Runtime requests to `SimRequest` proto messages.
-3. Forwards them to the simulator subprocess over stdin/stdout.
+Not yet! We're deliberately building the simulator first and getting it solid
+before adding the P4Runtime layer. When the time comes, it'll be a Go binary
+that:
 
-The Go server is a thin adapter; all P4 execution logic stays in the Kotlin sim.
+1. Speaks P4Runtime gRPC to the controller.
+2. Translates requests into `SimRequest` proto messages.
+3. Forwards them to the simulator over stdin/stdout.
+
+The Go server will be a thin adapter — all the real P4 logic stays in the Kotlin
+simulator where it belongs.
 
 ## Why these languages?
 
-- **Kotlin**: sealed classes and `when` expressions are the right abstraction for
-  an IR interpreter. The JVM's `BigInteger` handles arbitrary-width bit vectors.
-  Google's Kotlin style guide is followed throughout.
-- **C++ (backend)**: p4c is C++. The backend is a p4c plugin; there is no
-  other practical choice.
-- **Go (future P4Runtime server)**: gRPC is a first-class citizen in Go.
-  The server is a thin layer; Go's simplicity keeps it readable.
+- **Kotlin**: sealed classes and `when` expressions are *perfect* for
+  interpreting a tree-structured IR. Plus, `BigInteger` handles arbitrary-width
+  bit vectors without us having to write our own bignum library (no thank you).
+- **C++**: p4c is C++, so the backend has to be C++. Simple as that.
+- **Go** (future P4Runtime server): gRPC is a first-class citizen in Go, and the
+  server will be thin enough that Go's simplicity is a feature, not a limitation.
 
 ## Why proto edition 2024?
 
-Proto editions replace the proto2/proto3 distinction with fine-grained feature
-flags, giving us forward compatibility without legacy baggage. We adopt the
-latest edition from the start rather than migrating later.
+Because we'd rather adopt the latest thing from day one than migrate later. Proto
+editions replace the old proto2/proto3 split with fine-grained feature flags —
+less baggage, more flexibility.
