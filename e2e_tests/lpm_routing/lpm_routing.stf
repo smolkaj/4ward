@@ -1,0 +1,24 @@
+# lpm_routing.stf — LPM IPv4 routing test
+#
+# Two routes: 10.0.0.0/8 → port 1, 10.1.0.0/16 → port 2.
+# Longest prefix wins, so 10.1.x.x goes to port 2 and 10.2.x.x goes to port 1.
+# Any non-matching prefix → default drop.
+
+add ipv4_lpm hdr.ipv4.dstAddr:10.0.0.0/8 forward(1)
+add ipv4_lpm hdr.ipv4.dstAddr:10.1.0.0/16 forward(2)
+
+# Packet to 10.2.3.4 — matches 10.0.0.0/8 only → port 1.
+# Ethernet (14 B): dstMAC=ff:ff:ff:ff:ff:ff srcMAC=00:00:00:00:00:01 etherType=0800
+# IPv4   (20 B): ver=4 ihl=5 tos=0 len=20 id=0 flags=0 ttl=64 proto=0 cksum=0
+#                src=10.0.0.1 (0a000001) dst=10.2.3.4 (0a020304)
+packet 0 FFFFFFFFFFFF 000000000001 0800 4500001400000000400000000A0000010A020304
+expect 1 FFFFFFFFFFFF 000000000001 0800 4500001400000000400000000A0000010A020304
+
+# Packet to 10.1.2.3 — matches both /8 and /16; /16 wins → port 2.
+# dst=10.1.2.3 (0a010203)
+packet 0 FFFFFFFFFFFF 000000000001 0800 4500001400000000400000000A0000010A010203
+expect 2 FFFFFFFFFFFF 000000000001 0800 4500001400000000400000000A0000010A010203
+
+# Packet to 192.168.1.1 — no route → drop.
+# dst=192.168.1.1 (c0a80101)
+packet 0 FFFFFFFFFFFF 000000000001 0800 4500001400000000400000000A000001C0A80101

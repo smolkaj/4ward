@@ -1,0 +1,14 @@
+# basic_table.stf — STF test for basic_table.p4
+#
+# Installs one table entry: etherType 0x0800 (IPv4) → forward to port 1.
+# Any other etherType hits the default action (drop).
+
+add port_table hdr.ethernet.etherType:0x0800 forward(1)
+
+# Send an IPv4 Ethernet frame (etherType=0x0800) — expect it on port 1, unchanged.
+# Frame: dstMAC=ff:ff:ff:ff:ff:ff srcMAC=00:00:00:00:00:01 etherType=0800 payload=deadbeef
+packet 0 FFFFFFFFFFFF 000000000001 0800 DEADBEEF
+expect 1 FFFFFFFFFFFF 000000000001 0800 DEADBEEF
+
+# Send an ARP frame (etherType=0x0806) — no matching entry, default action drops it.
+packet 0 FFFFFFFFFFFF 000000000001 0806 DEADBEEF

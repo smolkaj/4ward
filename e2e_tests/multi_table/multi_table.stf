@@ -1,0 +1,18 @@
+# multi_table.stf — two tables applied sequentially via switch on action_run
+#
+# ACL: block ARP (0x0806), permit IPv4 (0x0800). Default: permit.
+# FWD: route dstMAC=aabbccddeeff to port 1. Default: drop.
+
+add acl hdr.ethernet.etherType:0x0806 drop()
+add acl hdr.ethernet.etherType:0x0800 permit()
+add fwd hdr.ethernet.dstAddr:0xaabbccddeeff forward(1)
+
+# IPv4 packet with known dstMAC → ACL permits → FWD forwards to port 1.
+packet 0 AABBCCDDEEFF 000000000001 0800 DEADBEEF
+expect 1 AABBCCDDEEFF 000000000001 0800 DEADBEEF
+
+# ARP packet → ACL drops → FWD is skipped → drop.
+packet 0 AABBCCDDEEFF 000000000001 0806 DEADBEEF
+
+# IPv4 packet with unknown dstMAC → ACL permits → FWD default drop → drop.
+packet 0 111111111111 000000000001 0800 DEADBEEF

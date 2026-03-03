@@ -1,0 +1,26 @@
+# ternary_acl.stf — ternary ACL test
+#
+# Two entries:
+#   priority 10: protocol=0x06 mask=0xff (TCP exact) → forward(1)
+#   priority  5: protocol=0x00 mask=0x00 (wildcard)  → forward(2)
+#
+# TCP (0x06) hits the higher-priority exact entry → port 1.
+# UDP (0x11) matches only the wildcard → port 2.
+# Non-IPv4 (ARP) never reaches the table — no IPv4 header → table sees invalid
+# header; default action drops it.
+
+add acl 10 hdr.ipv4.protocol:0x06&&&0xff forward(1)
+add acl 5 hdr.ipv4.protocol:0x00&&&0x00 forward(2)
+
+# TCP packet (protocol=0x06): hits priority-10 entry → port 1.
+# Ethernet + IPv4 with proto=0x06, dst=10.0.0.1
+# IPv4: 45 00 00 14 00 00 00 00 40 06 00 00 0A 00 00 01 0A 00 00 02
+#       ver+ihl=45 tos=00 len=0014 id=0000 flags=0000 ttl=40 proto=06 cksum=0000
+#       src=10.0.0.1 dst=10.0.0.2
+packet 0 FFFFFFFFFFFF 000000000001 0800 4500001400000000400600000A0000010A000002
+expect 1 FFFFFFFFFFFF 000000000001 0800 4500001400000000400600000A0000010A000002
+
+# UDP packet (protocol=0x11): misses all specific entries, hits wildcard → port 2.
+# proto=0x11
+packet 0 FFFFFFFFFFFF 000000000001 0800 4500001400000000401100000A0000010A000002
+expect 2 FFFFFFFFFFFF 000000000001 0800 4500001400000000401100000A0000010A000002

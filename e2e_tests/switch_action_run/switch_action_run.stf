@@ -1,0 +1,18 @@
+# switch_action_run.stf — switch on table.apply().action_run
+#
+# One forwarding entry: dstMAC=aa:bb:cc:dd:ee:ff → forward(1).
+# After the forward action runs, the switch block rewrites srcAddr to
+# aa:aa:aa:aa:aa:01 (0xAAAAAAAAAA01).
+# No matching entry → drop.
+
+add dmac_table hdr.ethernet.dstAddr:0xaabbccddeeff forward(1)
+
+# Matching packet: dstAddr=aabbccddeeff → forward(1) + srcAddr rewrite.
+# Input:  dst=aabbccddeeff src=000000000001 etherType=0800 payload=deadbeef
+# Output: dst=aabbccddeeff src=AAAAAAAAAA01 etherType=0800 payload=deadbeef
+#                              ^--- 0xAAAAAAAAAA01 = aa:aa:aa:aa:aa:01
+packet 0 AABBCCDDEEFF 000000000001 0800 DEADBEEF
+expect 1 AABBCCDDEEFF AAAAAAAAAA01 0800 DEADBEEF
+
+# Non-matching packet: dstAddr=111111111111 → drop (no expect line).
+packet 0 111111111111 000000000001 0800 DEADBEEF

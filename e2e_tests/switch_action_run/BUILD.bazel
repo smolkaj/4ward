@@ -1,0 +1,29 @@
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
+
+genrule(
+    name = "switch_action_run_pb",
+    srcs = ["switch_action_run.p4"],
+    outs = ["switch_action_run.txtpb"],
+    cmd = "$(execpath //p4c_backend:p4c-4ward) -I $$(dirname $(execpath @p4c//:core_p4)) -o $@ $(SRCS)",
+    tools = [
+        "//p4c_backend:p4c-4ward",
+        "@p4c//:core_p4",
+        "@p4c//:p4include",
+    ],
+)
+
+kt_jvm_test(
+    name = "switch_action_run_test",
+    srcs = ["SwitchActionRunTest.kt"],
+    data = [
+        "switch_action_run.stf",
+        ":switch_action_run_pb",
+        "//simulator",
+    ],
+    test_class = "fourward.e2e.switchactionrun.SwitchActionRunTest",
+    deps = [
+        "//e2e_tests/stf:stf_runner",
+        "@maven//:com_google_protobuf_protobuf_java",
+        "@maven//:junit_junit",
+    ],
+)

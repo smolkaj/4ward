@@ -89,7 +89,11 @@ class V1ModelArchitecture : Architecture {
       interpreter.runControl(deparserStage.blockName, env)
     }
 
-    val output = OutputPacket(egressSpec.toUInt(), env.outputPayload())
+    // Append any bytes the parser did not extract (the un-parsed packet body).
+    // In P4, the deparser emits re-serialised headers; the remaining payload
+    // is transparently forwarded after them.
+    val outputBytes = env.outputPayload() + env.drainRemainingInput()
+    val output = OutputPacket(egressSpec.toUInt(), outputBytes)
     return PipelineResult(listOf(output), env.buildTrace())
   }
 

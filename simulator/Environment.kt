@@ -37,6 +37,9 @@ class Environment(payload: ByteArray) {
 
   fun remainingInputBytes(): Int = buffer.remaining()
 
+  /** Returns all bytes not yet consumed by the parser (the un-parsed packet body). */
+  fun drainRemainingInput(): ByteArray = buffer.readAll()
+
   // -------------------------------------------------------------------------
   // Variable bindings
   // -------------------------------------------------------------------------
@@ -105,6 +108,9 @@ private class PacketBuffer(private val data: ByteArray) {
   private var offset: Int = 0
 
   fun remaining(): Int = data.size - offset
+
+  fun readAll(): ByteArray =
+    data.copyOfRange(offset, data.size).also { offset = data.size }
 
   fun read(count: Int): ByteArray {
     require(count <= remaining()) {

@@ -1,0 +1,29 @@
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
+
+genrule(
+    name = "lpm_routing_pb",
+    srcs = ["lpm_routing.p4"],
+    outs = ["lpm_routing.txtpb"],
+    cmd = "$(execpath //p4c_backend:p4c-4ward) -I $$(dirname $(execpath @p4c//:core_p4)) -o $@ $(SRCS)",
+    tools = [
+        "//p4c_backend:p4c-4ward",
+        "@p4c//:core_p4",
+        "@p4c//:p4include",
+    ],
+)
+
+kt_jvm_test(
+    name = "lpm_routing_test",
+    srcs = ["LpmRoutingTest.kt"],
+    data = [
+        "lpm_routing.stf",
+        ":lpm_routing_pb",
+        "//simulator",
+    ],
+    test_class = "fourward.e2e.lpmrouting.LpmRoutingTest",
+    deps = [
+        "//e2e_tests/stf:stf_runner",
+        "@maven//:com_google_protobuf_protobuf_java",
+        "@maven//:junit_junit",
+    ],
+)

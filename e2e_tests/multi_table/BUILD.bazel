@@ -1,0 +1,29 @@
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
+
+genrule(
+    name = "multi_table_pb",
+    srcs = ["multi_table.p4"],
+    outs = ["multi_table.txtpb"],
+    cmd = "$(execpath //p4c_backend:p4c-4ward) -I $$(dirname $(execpath @p4c//:core_p4)) -o $@ $(SRCS)",
+    tools = [
+        "//p4c_backend:p4c-4ward",
+        "@p4c//:core_p4",
+        "@p4c//:p4include",
+    ],
+)
+
+kt_jvm_test(
+    name = "multi_table_test",
+    srcs = ["MultiTableTest.kt"],
+    data = [
+        "multi_table.stf",
+        ":multi_table_pb",
+        "//simulator",
+    ],
+    test_class = "fourward.e2e.multitable.MultiTableTest",
+    deps = [
+        "//e2e_tests/stf:stf_runner",
+        "@maven//:com_google_protobuf_protobuf_java",
+        "@maven//:junit_junit",
+    ],
+)

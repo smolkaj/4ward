@@ -33,7 +33,7 @@ style:
   # without clarifying intent (HEX_RADIX = 16 does not explain more than 16 alone).
   MagicNumber:
     excludes: ['**/test/**', '**/*.kts', '**/*Test.kt']
-    ignoreNumbers: ['-1', '0', '1', '2', '8', '16', '100']
+    ignoreNumbers: ['-1', '0', '1', '2', '4', '7', '8', '16', '100']
 
 complexity:
   # Test builder helpers legitimately need many parameters to fully specify a test

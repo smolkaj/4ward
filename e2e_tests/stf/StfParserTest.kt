@@ -3,6 +3,7 @@ package fourward.e2e
 import java.nio.file.Files
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -137,8 +138,95 @@ class StfParserTest {
   }
 
   @Test
-  fun `table entries list is always empty until add is implemented`() {
+  fun `no add lines produces empty table entries list`() {
     val stf = parse("packet 0 FF\nexpect 1 FF")
     assertTrue(stf.tableEntries.isEmpty())
+  }
+
+  // ---------------------------------------------------------------------------
+  // add directive parsing
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `add exact match entry`() {
+    val stf = parse("add port_table hdr.ethernet.etherType:0x0800 forward(1)")
+    assertEquals(1, stf.tableEntries.size)
+    val entry = stf.tableEntries[0]
+    assertEquals("port_table", entry.tableName)
+    assertNull(entry.priority)
+    assertEquals(1, entry.matches.size)
+    val m = entry.matches[0]
+    assertEquals("hdr.ethernet.etherType", m.fieldName)
+    assertEquals(MatchKind.EXACT, m.kind)
+    assertEquals("0x0800", m.value)
+    assertEquals("forward", entry.actionName)
+    assertEquals(listOf("1"), entry.actionParams)
+  }
+
+  @Test
+  fun `add entry with no action params`() {
+    val stf = parse("add acl hdr.ipv4.protocol:0x11 drop()")
+    val entry = stf.tableEntries[0]
+    assertEquals("drop", entry.actionName)
+    assertTrue(entry.actionParams.isEmpty())
+  }
+
+  @Test
+  fun `add LPM entry`() {
+    val stf = parse("add ipv4_lpm hdr.ipv4.dstAddr:10.0.0.0/24 forward(1)")
+    val m = stf.tableEntries[0].matches[0]
+    assertEquals(MatchKind.LPM, m.kind)
+    assertEquals("10.0.0.0", m.value)
+    assertEquals(24, m.prefixLen)
+  }
+
+  @Test
+  fun `add ternary entry with priority`() {
+    val stf = parse("add acl 10 hdr.ipv4.protocol:0x06&&&0xff drop()")
+    val entry = stf.tableEntries[0]
+    assertEquals(10, entry.priority)
+    val m = entry.matches[0]
+    assertEquals(MatchKind.TERNARY, m.kind)
+    assertEquals("0x06", m.value)
+    assertEquals("0xff", m.mask)
+  }
+
+  @Test
+  fun `add with multiple match fields`() {
+    val stf =
+      parse("add acl hdr.ipv4.protocol:0x06 hdr.tcp.dstPort:0x0050 drop()")
+    val entry = stf.tableEntries[0]
+    assertEquals(2, entry.matches.size)
+    assertEquals("hdr.ipv4.protocol", entry.matches[0].fieldName)
+    assertEquals("hdr.tcp.dstPort", entry.matches[1].fieldName)
+  }
+
+  @Test
+  fun `add with multiple action params`() {
+    val stf = parse("add t key:0x01 action_two_params(10, 20)")
+    val entry = stf.tableEntries[0]
+    assertEquals("action_two_params", entry.actionName)
+    assertEquals(listOf("10", "20"), entry.actionParams)
+  }
+
+  @Test
+  fun `add lines before packets are parsed correctly`() {
+    val stf =
+      parse(
+        """
+        add t k:0x01 a()
+        packet 0 FF
+        expect 1 FF
+        """
+          .trimIndent()
+      )
+    assertEquals(1, stf.tableEntries.size)
+    assertEquals(1, stf.packets.size)
+  }
+
+  @Test
+  fun `decimal match value`() {
+    val stf = parse("add t port:80 a()")
+    assertEquals("80", stf.tableEntries[0].matches[0].value)
   }
 }

@@ -426,7 +426,7 @@ class Interpreter(private val config: P4BehavioralConfig, private val tableStore
       // mark_to_drop(standard_metadata): sets egress_spec to the v1model drop port (511).
       "mark_to_drop" -> {
         val smeta = evalExpr(call.argsList[0], env) as StructVal
-        smeta.fields["egress_spec"] = BitVal(511, PORT_BITS)
+        smeta.fields["egress_spec"] = BitVal(V1ModelArchitecture.DROP_PORT.toLong(), PORT_BITS)
         UnitVal
       }
       else -> error("unhandled extern call: $funcName")
@@ -444,11 +444,17 @@ class Interpreter(private val config: P4BehavioralConfig, private val tableStore
     val typeDecl = types[typeName] ?: error("type not found: $typeName")
     val headerDecl = typeDecl.header
 
+    // Read all header bytes at once, then extract fields by bit position. This handles
+    // sub-byte fields (e.g. bit<4>) correctly: version and ihl share a byte in IPv4.
+    val totalBits = headerDecl.fieldsList.sumOf { it.type.bit.width }
+    val rawBytes = env.extractBytes((totalBits + 7) / 8)
+
     val newFields = mutableMapOf<String, Value>()
+    var bitOffset = 0
     for (field in headerDecl.fieldsList) {
       val width = field.type.bit.width
-      val bytes = env.extractBytes((width + BitVector.BITS_PER_BYTE - 1) / BitVector.BITS_PER_BYTE)
-      newFields[field.name] = BitVal(BitVector.ofBytes(bytes, width))
+      newFields[field.name] = BitVal(extractBitsFromBytes(rawBytes, bitOffset, width))
+      bitOffset += width
     }
     header.setValid(newFields)
     return UnitVal
@@ -462,11 +468,45 @@ class Interpreter(private val config: P4BehavioralConfig, private val tableStore
     val typeName = header.typeName
     val typeDecl = types[typeName] ?: error("type not found: $typeName")
 
+    // Pack all fields into a single contiguous bit stream (handles sub-byte fields).
+    val totalBits = typeDecl.header.fieldsList.sumOf { it.type.bit.width }
+    val outputBytes = ByteArray((totalBits + 7) / 8)
+    var bitOffset = 0
     for (field in typeDecl.header.fieldsList) {
       val value = header.fields[field.name] as BitVal
-      env.emitBytes(value.bits.toByteArray())
+      packBitsIntoBytes(outputBytes, bitOffset, value.bits)
+      bitOffset += value.bits.width
     }
+    env.emitBytes(outputBytes)
     return UnitVal
+  }
+
+  /**
+   * Extracts [width] bits starting at [bitOffset] from [bytes], interpreting bits MSB-first
+   * within each byte (P4 network byte order).
+   */
+  private fun extractBitsFromBytes(bytes: ByteArray, bitOffset: Int, width: Int): BitVector {
+    var value = BigInteger.ZERO
+    for (i in 0 until width) {
+      val pos = bitOffset + i
+      val bit = (bytes[pos / 8].toInt() ushr (7 - pos % 8)) and 1
+      value = value.shiftLeft(1) or BigInteger.valueOf(bit.toLong())
+    }
+    return BitVector(value, width)
+  }
+
+  /**
+   * Writes [bits] into [bytes] starting at [bitOffset], MSB-first (P4 network byte order).
+   */
+  private fun packBitsIntoBytes(bytes: ByteArray, bitOffset: Int, bits: BitVector) {
+    for (i in 0 until bits.width) {
+      // bit position within the field: i=0 is MSB, i=width-1 is LSB.
+      val fieldBitIdx = bits.width - 1 - i
+      if (bits.value.testBit(fieldBitIdx)) {
+        val pos = bitOffset + i
+        bytes[pos / 8] = (bytes[pos / 8].toInt() or (1 shl (7 - pos % 8))).toByte()
+      }
+    }
   }
 
   // -------------------------------------------------------------------------
