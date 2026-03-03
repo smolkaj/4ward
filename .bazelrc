@@ -6,23 +6,21 @@ common --noenable_workspace
 build --java_runtime_version=remotejdk_21
 build --tool_java_runtime_version=remotejdk_21
 
-# Force Clang for all builds, matching p4c upstream. repo_env influences
-# Bazel's C++ toolchain auto-detection (cc_autoconf), ensuring include paths
-# are Clang-native. This also fixes clang-tidy, which inherits these paths
-# via the compilation database.
-build --repo_env=CC=clang
-build --repo_env=CXX=clang++
+# Force the use of Clang for all builds, matching p4c upstream.
 build --action_env=CC=clang
 build --action_env=CXX=clang++
+
+# macOS: use Command Line Tools clang (avoids requiring a full Xcode install)
+# and raise the deployment target to 10.15, which is the minimum for
+# std::filesystem support in libc++.
+# host_macos_minimum_os covers tool builds (e.g. p4c's ir-generator).
+build --repo_env=CC=/usr/bin/clang
+build --macos_minimum_os=10.15
+build --host_macos_minimum_os=10.15
 
 # C++20 for the p4c backend.
 build --cxxopt=-std=c++20
 build --host_cxxopt=-std=c++20
-
-# macOS: raise the deployment target to 10.15 for std::filesystem support.
-# host_macos_minimum_os covers tool builds (e.g. p4c's ir-generator).
-build --macos_minimum_os=10.15
-build --host_macos_minimum_os=10.15
 
 # Print test output for failing tests.
 test --test_output=errors
