@@ -28,27 +28,29 @@ WarningsAsErrors: "*"
 HeaderFilterRegex: "^p4c_backend/.*"
 
 CheckOptions:
-  # Naming conventions from the Google C++ Style Guide.
+  # Naming conventions.  The p4c backend is a p4c plugin and inherits p4c's
+  # camelBack naming for functions, variables, and members.  Namespaces follow
+  # p4c's CamelCase convention (P4::FourWard).
   - key: readability-identifier-naming.NamespaceCase
-    value: lower_case
+    value: CamelCase
   - key: readability-identifier-naming.ClassCase
     value: CamelCase
   - key: readability-identifier-naming.StructCase
     value: CamelCase
   - key: readability-identifier-naming.FunctionCase
-    value: CamelCase
+    value: camelBack
   - key: readability-identifier-naming.VariableCase
-    value: lower_case
+    value: camelBack
   - key: readability-identifier-naming.ParameterCase
-    value: lower_case
+    value: camelBack
   - key: readability-identifier-naming.MemberCase
-    value: lower_case
+    value: camelBack
   - key: readability-identifier-naming.PrivateMemberCase
-    value: lower_case
+    value: camelBack
   - key: readability-identifier-naming.PrivateMemberSuffix
     value: _
   - key: readability-identifier-naming.ProtectedMemberCase
-    value: lower_case
+    value: camelBack
   - key: readability-identifier-naming.ProtectedMemberSuffix
     value: _
   # Google style uses kName for constants (k prefix + CamelCase).
@@ -64,3 +66,6 @@ CheckOptions:
     value: k
   - key: readability-identifier-naming.MacroDefinitionCase
     value: UPPER_CASE
+  # Exclude include guards (e.g. P4C_BACKEND_OPTIONS_H_) from macro naming.
+  - key: readability-identifier-naming.MacroDefinitionIgnoredRegexp
+    value: "^[A-Z0-9_]+_H_$"

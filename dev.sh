@@ -1,4 +1,4 @@
-#!/usr/bin/env zsh
+#!/usr/bin/env bash
 # Developer task runner. Run `./dev.sh help` to see available commands.
 
 set -euo pipefail

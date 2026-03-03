@@ -72,10 +72,10 @@ class FourWardBackend : public Inspector {
   // IR-to-proto converters. These are member functions so they can access
   // refMap_ (needed to resolve PathExpression declarations for table apply
   // detection) and typeMap_ directly.
-  fourward::ir::v1::Type EmitType(const IR::Type* type);
-  fourward::ir::v1::Expr EmitExpr(const IR::Expression* expr);
-  fourward::ir::v1::Stmt EmitStmt(const IR::StatOrDecl* stmt);
-  fourward::ir::v1::BlockStmt EmitBlock(const IR::BlockStatement* block);
+  fourward::ir::v1::Type emitType(const IR::Type* type);
+  fourward::ir::v1::Expr emitExpr(const IR::Expression* expr);
+  fourward::ir::v1::Stmt emitStmt(const IR::StatOrDecl* stmt);
+  fourward::ir::v1::BlockStmt emitBlock(const IR::BlockStatement* block);
 
   std::string outputFilePath() const;
 };

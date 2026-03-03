@@ -1,4 +1,4 @@
-#!/usr/bin/env zsh
+#!/usr/bin/env bash
 # Runs all linters:
 #   - clang-tidy on C++ sources (via Bazel aspect)
 #   - detekt on Kotlin sources

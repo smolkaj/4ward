@@ -1,4 +1,4 @@
-#!/usr/bin/env zsh
+#!/usr/bin/env bash
 # Collects Kotlin code coverage for the simulator library.
 #
 # Usage:
