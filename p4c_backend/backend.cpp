@@ -258,9 +258,9 @@ fourward::ir::v1::Stmt FourWardBackend::EmitStmt(const IR::StatOrDecl* node) {
         return EmitBlock(blk);
       fourward::ir::v1::BlockStmt branch;
       // IR::EmptyStatement (produced by RemoveReturns for void-return branches)
-      // has no IR representation; skip it to avoid an empty Stmt{} in the output.
-      if (!stmt->is<IR::EmptyStatement>())
-        *branch.add_stmts() = EmitStmt(stmt);
+      // has no IR representation; skip it to avoid an empty Stmt{} in the
+      // output.
+      if (!stmt->is<IR::EmptyStatement>()) *branch.add_stmts() = EmitStmt(stmt);
       return branch;
     };
     *i->mutable_then_block() = emitBranch(ifst->ifTrue);

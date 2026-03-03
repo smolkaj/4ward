@@ -17,13 +17,15 @@ _main/<package>/<name>.txtpb and _main/<package>/<name>.stf under JAVA_RUNFILES.
 
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
 
-def p4_stf_test(name, p4_src = None, stf_src = None):
+def p4_stf_test(name, p4_src = None, stf_src = None, tags = []):
     """Compiles a p4c corpus P4 file and runs its STF test against 4ward.
 
     Args:
         name:    base name; also used to derive default p4_src/stf_src filenames.
         p4_src:  P4 source file (default: <name>.p4).
         stf_src: STF test file (default: <name>.stf).
+        tags:    Bazel tags forwarded to the kt_jvm_test (e.g. ["manual"] to
+                 exclude from //... until the required feature is implemented).
     """
     if p4_src == None:
         p4_src = name + ".p4"
@@ -48,6 +50,7 @@ def p4_stf_test(name, p4_src = None, stf_src = None):
         name = name + "_test",
         srcs = ["CorpusStfTest.kt"],
         test_class = "fourward.e2e.corpus.CorpusStfTest",
+        tags = tags,
         data = [
             stf_src,
             ":" + pb_name,

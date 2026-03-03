@@ -109,7 +109,7 @@ class V1ModelArchitecture : Architecture {
       try {
         interpreter.runControl(stage.blockName, env)
       } catch (e: ExitException) {
-        break  // skip remaining control stages; still run deparser below
+        break // skip remaining control stages; still run deparser below
       }
     }
 
