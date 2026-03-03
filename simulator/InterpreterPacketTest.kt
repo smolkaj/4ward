@@ -25,6 +25,7 @@ import fourward.ir.v1.Type
 import fourward.ir.v1.TypeDecl
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -75,6 +76,25 @@ class InterpreterPacketTest {
     val config =
       P4BehavioralConfig.newBuilder().also { cfg -> types.forEach { cfg.addTypes(it) } }.build()
     return Interpreter(config, TableStore(), packetCtx)
+  }
+
+  // ---------------------------------------------------------------------------
+  // missing PacketContext
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `extract without PacketContext gives a descriptive error`() {
+    val type = headerType("h_t", "f" to 8)
+    val config = P4BehavioralConfig.newBuilder().also { cfg -> cfg.addTypes(type) }.build()
+    val interp = Interpreter(config, TableStore()) // no PacketContext
+    val env = Environment()
+    env.define("hdr", HeaderVal(typeName = "h_t", valid = false))
+
+    val ex =
+      assertThrows(IllegalStateException::class.java) {
+        interp.evalExpr(packetCall("extract", "hdr"), env)
+      }
+    assertTrue(ex.message!!.contains("PacketContext"))
   }
 
   // ---------------------------------------------------------------------------
