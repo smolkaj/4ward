@@ -1,5 +1,6 @@
 package fourward.simulator
 
+import fourward.ir.v1.ActionDecl
 import fourward.ir.v1.AssignmentStmt
 import fourward.ir.v1.BitType
 import fourward.ir.v1.BlockStmt
@@ -12,8 +13,14 @@ import fourward.ir.v1.Literal
 import fourward.ir.v1.NameRef
 import fourward.ir.v1.P4BehavioralConfig
 import fourward.ir.v1.Stmt
+import fourward.ir.v1.SwitchCase
+import fourward.ir.v1.SwitchStmt
+import fourward.ir.v1.TableApplyExpr
+import fourward.ir.v1.TableBehavior
 import fourward.ir.v1.Type
+import fourward.ir.v1.VarDecl
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Test
 
@@ -51,7 +58,36 @@ class InterpreterControlTest {
       .addControls(ControlDecl.newBuilder().setName("MyControl").addAllApplyBody(stmts.toList()))
       .build()
 
-  private fun interp(config: P4BehavioralConfig) = Interpreter(config, TableStore())
+  private fun interp(config: P4BehavioralConfig, tableStore: TableStore = TableStore()) =
+    Interpreter(config, tableStore)
+
+  private fun nameRef(name: String): Expr =
+    Expr.newBuilder().setNameRef(NameRef.newBuilder().setName(name)).build()
+
+  /** Builds a `switch (tableName.apply().action_run)` statement. */
+  private fun switchOn(
+    tableName: String,
+    cases: Map<String, List<Stmt>>,
+    defaultStmts: List<Stmt> = emptyList(),
+  ): Stmt =
+    Stmt.newBuilder()
+      .setSwitchStmt(
+        SwitchStmt.newBuilder()
+          .setSubject(
+            Expr.newBuilder()
+              .setTableApply(TableApplyExpr.newBuilder().setTableName(tableName))
+          )
+          .addAllCases(
+            cases.map { (actionName, stmts) ->
+              SwitchCase.newBuilder()
+                .setActionName(actionName)
+                .setBlock(BlockStmt.newBuilder().addAllStmts(stmts))
+                .build()
+            }
+          )
+          .setDefaultBlock(BlockStmt.newBuilder().addAllStmts(defaultStmts))
+      )
+      .build()
 
   /** Assignment: [varName] = [rhs]. */
   private fun assign(varName: String, rhs: Expr): Stmt =
@@ -139,5 +175,109 @@ class InterpreterControlTest {
       interp(controlConfig(exitStmt, assign("x", bit(99, 8)))).runControl("MyControl", env)
     }
     assertEquals(BitVal(0, 8), env.lookup("x"))
+  }
+
+  // ---------------------------------------------------------------------------
+  // Switch statement
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `switch executes matching case block`() {
+    // Table default action is "drop"; the switch case for "drop" sets x=1.
+    val ts = TableStore().also { it.setDefaultAction("t", "drop") }
+    val config =
+      P4BehavioralConfig.newBuilder()
+        .addTables(TableBehavior.newBuilder().setName("t"))
+        .addActions(ActionDecl.newBuilder().setName("drop"))
+        .addControls(
+          ControlDecl.newBuilder()
+            .setName("MyControl")
+            .addApplyBody(
+              switchOn(
+                "t",
+                mapOf("drop" to listOf(assign("x", bit(1, 8)))),
+                listOf(assign("x", bit(2, 8))),
+              )
+            )
+        )
+        .build()
+    val env = emptyEnv
+    env.define("x", BitVal(0, 8))
+    interp(config, ts).runControl("MyControl", env)
+    assertEquals(BitVal(1, 8), env.lookup("x"))
+  }
+
+  @Test
+  fun `switch executes default block when no case matches action`() {
+    // Table default action is "NoAction"; the only declared case is for "drop" (won't match).
+    val ts = TableStore().also { it.setDefaultAction("t", "NoAction") }
+    val config =
+      P4BehavioralConfig.newBuilder()
+        .addTables(TableBehavior.newBuilder().setName("t"))
+        .addActions(ActionDecl.newBuilder().setName("NoAction"))
+        .addActions(ActionDecl.newBuilder().setName("drop"))
+        .addControls(
+          ControlDecl.newBuilder()
+            .setName("MyControl")
+            .addApplyBody(
+              switchOn(
+                "t",
+                mapOf("drop" to listOf(assign("x", bit(1, 8)))),
+                listOf(assign("x", bit(2, 8))),
+              )
+            )
+        )
+        .build()
+    val env = emptyEnv
+    env.define("x", BitVal(0, 8))
+    interp(config, ts).runControl("MyControl", env)
+    assertEquals(BitVal(2, 8), env.lookup("x"))
+  }
+
+  // ---------------------------------------------------------------------------
+  // Local variable scoping
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `control local vars are not visible in outer scope after control returns`() {
+    // "local" is declared as a local var in the control; the outer env must not see it.
+    val config =
+      P4BehavioralConfig.newBuilder()
+        .addControls(
+          ControlDecl.newBuilder()
+            .setName("MyControl")
+            .addLocalVars(
+              VarDecl.newBuilder()
+                .setName("local")
+                .setType(Type.newBuilder().setBit(BitType.newBuilder().setWidth(8)))
+            )
+        )
+        .build()
+    val env = emptyEnv
+    interp(config).runControl("MyControl", env)
+    assertNull(env.lookup("local"))
+  }
+
+  @Test
+  fun `local var initializer runs and is accessible in the apply body`() {
+    // Declare local var "count" initialised to 42; the apply body copies it to "x".
+    val config =
+      P4BehavioralConfig.newBuilder()
+        .addControls(
+          ControlDecl.newBuilder()
+            .setName("MyControl")
+            .addLocalVars(
+              VarDecl.newBuilder()
+                .setName("count")
+                .setType(Type.newBuilder().setBit(BitType.newBuilder().setWidth(8)))
+                .setInitializer(bit(42, 8))
+            )
+            .addApplyBody(assign("x", nameRef("count")))
+        )
+        .build()
+    val env = emptyEnv
+    env.define("x", BitVal(0, 8))
+    interp(config).runControl("MyControl", env)
+    assertEquals(BitVal(42, 8), env.lookup("x"))
   }
 }

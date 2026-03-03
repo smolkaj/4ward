@@ -127,3 +127,24 @@ kt_jvm_test(
         "@maven//:junit_junit",
     ],
 )
+
+kt_jvm_test(
+    name = "InterpreterPacketTest",
+    srcs = ["InterpreterPacketTest.kt"],
+    test_class = "fourward.simulator.InterpreterPacketTest",
+    deps = [
+        ":ir_java_proto",
+        ":simulator_lib",
+        "@maven//:junit_junit",
+    ],
+)
+
+kt_jvm_test(
+    name = "EnvironmentTest",
+    srcs = ["EnvironmentTest.kt"],
+    test_class = "fourward.simulator.EnvironmentTest",
+    deps = [
+        ":simulator_lib",
+        "@maven//:junit_junit",
+    ],
+)
