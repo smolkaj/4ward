@@ -1,1 +1,35 @@
-<html><body><h1>4ward Coverage Reports</h1><p>Coverage reports are published here per PR.</p></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>4ward Coverage Reports</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 600px; margin: 2rem auto; padding: 0 1rem; }
+  a { display: block; padding: .25rem 0; }
+  #error { color: #b00; }
+</style>
+</head>
+<body>
+<h1>4ward Coverage Reports</h1>
+<div id="list">Loading…</div>
+<script>
+fetch("https://api.github.com/repos/smolkaj/4ward/contents/pr?ref=gh-pages")
+  .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+  .then(entries => {
+    const prs = entries
+      .filter(e => e.type === "dir")
+      .map(e => parseInt(e.name, 10))
+      .filter(n => !isNaN(n))
+      .sort((a, b) => b - a);
+    document.getElementById("list").innerHTML = prs.length
+      ? prs.map(n => `<a href="pr/${n}/">PR #${n}</a>`).join("")
+      : "No reports published yet.";
+  })
+  .catch(() => {
+    document.getElementById("list").innerHTML =
+      '<span id="error">Could not load report list. Try refreshing.</span>';
+  });
+</script>
+</body>
+</html>
