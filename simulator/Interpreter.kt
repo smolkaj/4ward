@@ -35,11 +35,10 @@ class Interpreter(private val config: P4BehavioralConfig, private val tableStore
 
   // Actions may be declared either at the top level or as local actions inside controls.
   // After the midend, all relevant actions end up in control.localActionsList.
-  private val actions: Map<String, fourward.ir.v1.ActionDecl> =
-    buildMap {
-      config.actionsList.forEach { put(it.name, it) }
-      config.controlsList.forEach { ctrl -> ctrl.localActionsList.forEach { put(it.name, it) } }
-    }
+  private val actions: Map<String, fourward.ir.v1.ActionDecl> = buildMap {
+    config.actionsList.forEach { put(it.name, it) }
+    config.controlsList.forEach { ctrl -> ctrl.localActionsList.forEach { put(it.name, it) } }
+  }
 
   private val tables: Map<String, TableBehavior> = config.tablesList.associateBy { it.name }
 
@@ -440,20 +439,22 @@ class Interpreter(private val config: P4BehavioralConfig, private val tableStore
   private fun execExtract(call: MethodCall, env: Environment): Value {
     // packet_in.extract(hdr.field): the header to extract into is args[0], not the target.
     val header = evalExpr(call.argsList[0], env) as HeaderVal
-    val typeName = header.typeName
-    val typeDecl = types[typeName] ?: error("type not found: $typeName")
-    val headerDecl = typeDecl.header
+    val headerDecl = (types[header.typeName] ?: error("type not found: ${header.typeName}")).header
 
-    // Read all header bytes at once, then extract fields by bit position. This handles
-    // sub-byte fields (e.g. bit<4>) correctly: version and ihl share a byte in IPv4.
+    // Read the entire header at once and load it into a single BigInteger (MSB-first).
+    // This handles sub-byte fields (e.g. IPv4's bit<4> version and ihl) correctly:
+    // both fields live in the same byte and must be unpacked by shift+mask, not by
+    // reading separate bytes.
     val totalBits = headerDecl.fieldsList.sumOf { it.type.bit.width }
-    val rawBytes = env.extractBytes((totalBits + 7) / 8)
+    val allBits = BigInteger(1, env.extractBytes((totalBits + 7) / 8))
 
     val newFields = mutableMapOf<String, Value>()
     var bitOffset = 0
     for (field in headerDecl.fieldsList) {
       val width = field.type.bit.width
-      newFields[field.name] = BitVal(extractBitsFromBytes(rawBytes, bitOffset, width))
+      val mask = BigInteger.ONE.shiftLeft(width) - BigInteger.ONE
+      val bits = BitVector((allBits shr (totalBits - bitOffset - width)) and mask, width)
+      newFields[field.name] = BitVal(bits)
       bitOffset += width
     }
     header.setValid(newFields)
@@ -465,48 +466,25 @@ class Interpreter(private val config: P4BehavioralConfig, private val tableStore
     val header = evalExpr(call.argsList[0], env) as HeaderVal
     if (!header.valid) return UnitVal // invalid headers are not emitted
 
-    val typeName = header.typeName
-    val typeDecl = types[typeName] ?: error("type not found: $typeName")
+    val headerDecl = (types[header.typeName] ?: error("type not found: ${header.typeName}")).header
 
-    // Pack all fields into a single contiguous bit stream (handles sub-byte fields).
-    val totalBits = typeDecl.header.fieldsList.sumOf { it.type.bit.width }
-    val outputBytes = ByteArray((totalBits + 7) / 8)
+    // Pack all fields into one BigInteger by shifting each value into position (MSB-first),
+    // then serialize to bytes. Mirrors the inverse shift+mask logic in execExtract.
+    val totalBits = headerDecl.fieldsList.sumOf { it.type.bit.width }
+    var packedBits = BigInteger.ZERO
     var bitOffset = 0
-    for (field in typeDecl.header.fieldsList) {
+    for (field in headerDecl.fieldsList) {
       val value = header.fields[field.name] as BitVal
-      packBitsIntoBytes(outputBytes, bitOffset, value.bits)
+      val shift = totalBits - bitOffset - value.bits.width
+      packedBits = packedBits or value.bits.value.shiftLeft(shift)
       bitOffset += value.bits.width
     }
-    env.emitBytes(outputBytes)
+
+    // BigInteger.toByteArray() may include a leading 0x00 sign byte; strip/pad to exact size.
+    val totalBytes = (totalBits + 7) / 8
+    val raw = packedBits.toByteArray()
+    env.emitBytes(ByteArray(totalBytes) { i -> raw.getOrElse(raw.size - totalBytes + i) { 0 } })
     return UnitVal
-  }
-
-  /**
-   * Extracts [width] bits starting at [bitOffset] from [bytes], interpreting bits MSB-first
-   * within each byte (P4 network byte order).
-   */
-  private fun extractBitsFromBytes(bytes: ByteArray, bitOffset: Int, width: Int): BitVector {
-    var value = BigInteger.ZERO
-    for (i in 0 until width) {
-      val pos = bitOffset + i
-      val bit = (bytes[pos / 8].toInt() ushr (7 - pos % 8)) and 1
-      value = value.shiftLeft(1) or BigInteger.valueOf(bit.toLong())
-    }
-    return BitVector(value, width)
-  }
-
-  /**
-   * Writes [bits] into [bytes] starting at [bitOffset], MSB-first (P4 network byte order).
-   */
-  private fun packBitsIntoBytes(bytes: ByteArray, bitOffset: Int, bits: BitVector) {
-    for (i in 0 until bits.width) {
-      // bit position within the field: i=0 is MSB, i=width-1 is LSB.
-      val fieldBitIdx = bits.width - 1 - i
-      if (bits.value.testBit(fieldBitIdx)) {
-        val pos = bitOffset + i
-        bytes[pos / 8] = (bytes[pos / 8].toInt() or (1 shl (7 - pos % 8))).toByte()
-      }
-    }
   }
 
   // -------------------------------------------------------------------------

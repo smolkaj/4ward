@@ -193,8 +193,7 @@ class StfParserTest {
 
   @Test
   fun `add with multiple match fields`() {
-    val stf =
-      parse("add acl hdr.ipv4.protocol:0x06 hdr.tcp.dstPort:0x0050 drop()")
+    val stf = parse("add acl hdr.ipv4.protocol:0x06 hdr.tcp.dstPort:0x0050 drop()")
     val entry = stf.tableEntries[0]
     assertEquals(2, entry.matches.size)
     assertEquals("hdr.ipv4.protocol", entry.matches[0].fieldName)
@@ -228,5 +227,44 @@ class StfParserTest {
   fun `decimal match value`() {
     val stf = parse("add t port:80 a()")
     assertEquals("80", stf.tableEntries[0].matches[0].value)
+  }
+
+  // ---------------------------------------------------------------------------
+  // encodeValue
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `encodeValue hex prefix`() {
+    assertArrayEquals(byteArrayOf(0x08, 0x00), encodeValue("0x0800", 16).toByteArray())
+  }
+
+  @Test
+  fun `encodeValue uppercase hex prefix`() {
+    assertArrayEquals(byteArrayOf(0x08, 0x00), encodeValue("0X0800", 16).toByteArray())
+  }
+
+  @Test
+  fun `encodeValue dotted-decimal IPv4`() {
+    assertArrayEquals(
+      byteArrayOf(0x0a, 0x00, 0x00, 0x01),
+      encodeValue("10.0.0.1", 32).toByteArray(),
+    )
+  }
+
+  @Test
+  fun `encodeValue plain decimal`() {
+    assertArrayEquals(byteArrayOf(0x00, 0x50), encodeValue("80", 16).toByteArray())
+  }
+
+  @Test
+  fun `encodeValue strips BigInteger sign byte for high-bit values`() {
+    // BigInteger("ff", 16) = 255, which toByteArray() encodes as [0x00, 0xff].
+    // encodeValue must strip the sign byte and return just [0xff].
+    assertArrayEquals(byteArrayOf(0xff.toByte()), encodeValue("0xff", 8).toByteArray())
+  }
+
+  @Test
+  fun `encodeValue zero-pads to full byte length`() {
+    assertArrayEquals(byteArrayOf(0x00, 0x00, 0x00, 0x01), encodeValue("1", 32).toByteArray())
   }
 }

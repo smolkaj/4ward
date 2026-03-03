@@ -109,8 +109,7 @@ private class PacketBuffer(private val data: ByteArray) {
 
   fun remaining(): Int = data.size - offset
 
-  fun readAll(): ByteArray =
-    data.copyOfRange(offset, data.size).also { offset = data.size }
+  fun readAll(): ByteArray = data.copyOfRange(offset, data.size).also { offset = data.size }
 
   fun read(count: Int): ByteArray {
     require(count <= remaining()) {

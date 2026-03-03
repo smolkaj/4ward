@@ -17,3 +17,7 @@ build --host_macos_minimum_os=10.15
 
 # Print test output for failing tests.
 test --test_output=errors
+
+# Coverage: instrument the simulator library. Run via `bazel coverage //...`.
+coverage --combined_report=lcov
+coverage --instrumentation_filter=//simulator[/:]

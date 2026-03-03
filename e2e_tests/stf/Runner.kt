@@ -11,6 +11,7 @@ import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.math.BigInteger
 import java.nio.file.Path
+import java.nio.file.Paths
 import p4.config.v1.P4InfoOuterClass
 import p4.v1.P4RuntimeOuterClass
 
@@ -179,9 +180,7 @@ class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPat
       .setUpdate(
         P4RuntimeOuterClass.Update.newBuilder()
           .setType(P4RuntimeOuterClass.Update.Type.INSERT)
-          .setEntity(
-            P4RuntimeOuterClass.Entity.newBuilder().setTableEntry(tableEntry)
-          )
+          .setEntity(P4RuntimeOuterClass.Entity.newBuilder().setTableEntry(tableEntry))
       )
       .build()
   }
@@ -207,11 +206,23 @@ sealed class TestResult {
   data class Failure(val message: String) : TestResult()
 }
 
+/**
+ * Runs the STF test named [testName] using the standard Bazel runfiles layout.
+ *
+ * Looks for `_main/simulator/simulator`, `_main/e2e_tests/<testName>/<testName>.txtpb`, and
+ * `_main/e2e_tests/<testName>/<testName>.stf` under `JAVA_RUNFILES`.
+ */
+fun runStfTest(testName: String): TestResult {
+  val runfiles = System.getenv("JAVA_RUNFILES") ?: "."
+  return StfRunner(
+      Paths.get(runfiles, "_main/simulator/simulator"),
+      Paths.get(runfiles, "_main/e2e_tests/$testName/$testName.txtpb"),
+    )
+    .run(Paths.get(runfiles, "_main/e2e_tests/$testName/$testName.stf"))
+}
+
 /** A parsed .stf file. */
-data class StfFile(
-  val tableEntries: List<StfTableEntry>,
-  val packets: List<StfPacket>,
-) {
+data class StfFile(val tableEntries: List<StfTableEntry>, val packets: List<StfPacket>) {
   companion object {
     /**
      * Parses an STF file. Supported directives:
@@ -247,7 +258,10 @@ data class StfFile(
             current?.expectedOutputs?.add(StfExpectedOutput(port, payload))
           }
           "add" -> {
-            current?.let { packets += it; current = null }
+            current?.let {
+              packets += it
+              current = null
+            }
             tableEntries += parseAdd(tokens.drop(1))
           }
         }
@@ -329,10 +343,10 @@ data class StfFile(
 // ---------------------------------------------------------------------------
 
 /**
- * Encodes a decimal, 0x-prefixed hex, or dotted-decimal IPv4 string into a big-endian byte array
- * of the right width.
+ * Encodes a decimal, 0x-prefixed hex, or dotted-decimal IPv4 string into a big-endian byte array of
+ * the right width.
  */
-internal fun encodeValue(raw: String, bitwidth: Int): ByteString {
+fun encodeValue(raw: String, bitwidth: Int): ByteString {
   val value =
     when {
       raw.startsWith("0x") || raw.startsWith("0X") -> BigInteger(raw.drop(2), 16)
@@ -347,10 +361,11 @@ internal fun encodeValue(raw: String, bitwidth: Int): ByteString {
   val byteLen = (bitwidth + 7) / 8
   val bigEndian = value.toByteArray()
   // BigInteger.toByteArray() may include a leading 0x00 sign byte.
-  val result = ByteArray(byteLen) { i ->
-    val srcIdx = bigEndian.size - byteLen + i
-    if (srcIdx < 0) 0 else bigEndian[srcIdx]
-  }
+  val result =
+    ByteArray(byteLen) { i ->
+      val srcIdx = bigEndian.size - byteLen + i
+      if (srcIdx < 0) 0 else bigEndian[srcIdx]
+    }
   return ByteString.copyFrom(result)
 }
 

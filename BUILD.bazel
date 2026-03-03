@@ -1,7 +1,16 @@
 load("@buildifier_prebuilt//:rules.bzl", "buildifier", "buildifier_test")
+load("@hedron_compile_commands//:refresh_compile_commands.bzl", "refresh_compile_commands")
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_binary")
 
 buildifier(name = "buildifier")
+
+# Used by the clang-tidy CI step. Scoped to first-party sources only to
+# avoid hedron crashing on header-only compile actions in external deps.
+refresh_compile_commands(
+    name = "refresh_compile_commands",
+    exclude_external_sources = True,
+    targets = {"//p4c_backend/...": ""},
+)
 
 kt_jvm_binary(
     name = "ktfmt",

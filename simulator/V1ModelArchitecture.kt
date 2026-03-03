@@ -32,11 +32,26 @@ class V1ModelArchitecture : Architecture {
 
     val typesByName = config.typesList.associateBy { it.name }
 
+    // Derive the type names for hdr/meta/standard_metadata from the parser's
+    // parameter list, filtering out the architecture-level packet I/O params.
+    // v1model always declares: (packet_in, hdr, meta, standard_metadata) in that order.
+    val ioTypes = setOf("packet_in", "packet_out")
+    val parserUserParams =
+      config.parsersList.first().paramsList.filter {
+        it.type.hasNamed() && it.type.named !in ioTypes
+      }
+    require(parserUserParams.size == V1MODEL_USER_PARAM_COUNT) {
+      "Expected $V1MODEL_USER_PARAM_COUNT non-IO parser params, got ${parserUserParams.size}"
+    }
+    val headersTypeName = parserUserParams[0].type.named // e.g. "headers_t"
+    val metaTypeName = parserUserParams[1].type.named // e.g. "metadata_t"
+    val standardMetaTypeName = parserUserParams[2].type.named // e.g. "standard_metadata_t"
+
     // Initialise standard_metadata_t. The struct is defined in v1model.p4;
     // we hard-code the fields we care about for simulation purposes.
     val standardMetadata =
       StructVal(
-        typeName = "standard_metadata_t",
+        typeName = standardMetaTypeName,
         fields =
           mutableMapOf(
             "ingress_port" to BitVal(ingressPort.toLong(), PORT_BITS),
@@ -47,12 +62,28 @@ class V1ModelArchitecture : Architecture {
             "drop" to BitVal(0L, FLAG_BITS),
           ),
       )
-    env.define("standard_metadata", standardMetadata)
 
-    // Initialise user-defined headers and metadata. Headers start invalid
-    // (the parser sets them valid as it extracts them).
-    env.define("hdr", createDefaultValue("headers_t", typesByName))
-    env.define("meta", createDefaultValue("metadata_t", typesByName))
+    // Map each shared type name to its initialised object so we can bind whatever
+    // local parameter names each stage uses (e.g. "smeta" vs "standard_metadata").
+    val sharedByType =
+      mapOf(
+        headersTypeName to createDefaultValue(headersTypeName, typesByName),
+        metaTypeName to createDefaultValue(metaTypeName, typesByName),
+        standardMetaTypeName to standardMetadata,
+      )
+
+    // Bind every stage's parameter names upfront. All stages share the same
+    // underlying objects; different stages may just use different local names.
+    for (parser in config.parsersList) {
+      for (param in parser.paramsList) {
+        sharedByType[param.type.named]?.let { env.define(param.name, it) }
+      }
+    }
+    for (control in config.controlsList) {
+      for (param in control.paramsList) {
+        sharedByType[param.type.named]?.let { env.define(param.name, it) }
+      }
+    }
 
     val stages = config.architecture.stagesList
     val parserStage = stages.find { it.kind == StageKind.PARSER }
@@ -100,6 +131,10 @@ class V1ModelArchitecture : Architecture {
   companion object {
     /** Port value used by mark_to_drop() to signal packet drop in v1model. */
     const val DROP_PORT = 511
+
+    // Number of user-visible params in the v1model parser after removing packet_in/packet_out:
+    // (hdr, meta, standard_metadata).
+    private const val V1MODEL_USER_PARAM_COUNT = 3
 
     // Bit widths for standard_metadata_t fields, as defined in v1model.p4.
     private const val PORT_BITS = 9

@@ -64,7 +64,8 @@ class FourWardBackend : public Inspector {
   void emitTypeDecls(const IR::P4Program* program);
   void emitParser(const IR::P4Parser* parser);
   void emitControl(const IR::P4Control* control);
-  void emitAction(const IR::P4Action* action, fourward::ir::v1::ActionDecl* out);
+  void emitAction(const IR::P4Action* action,
+                  fourward::ir::v1::ActionDecl* out);
   void emitTable(const IR::P4Table* table);
   void emitArchitecture(const IR::ToplevelBlock* toplevel);
 

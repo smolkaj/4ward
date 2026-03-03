@@ -1,8 +1,7 @@
 package fourward.e2e.switchactionrun
 
-import fourward.e2e.StfRunner
 import fourward.e2e.TestResult
-import java.nio.file.Paths
+import fourward.e2e.runStfTest
 import org.junit.Assert.fail
 import org.junit.Test
 
@@ -11,16 +10,7 @@ class SwitchActionRunTest {
 
   @Test
   fun `switch on action_run executes the matching case block`() {
-    val runfiles = System.getenv("JAVA_RUNFILES") ?: "."
-
-    val simulatorBinary = Paths.get(runfiles, "_main/simulator/simulator")
-    val pipelineConfig =
-      Paths.get(runfiles, "_main/e2e_tests/switch_action_run/switch_action_run.txtpb")
-    val stfFile = Paths.get(runfiles, "_main/e2e_tests/switch_action_run/switch_action_run.stf")
-
-    val result = StfRunner(simulatorBinary, pipelineConfig).run(stfFile)
-    if (result is TestResult.Failure) {
-      fail(result.message)
-    }
+    val result = runStfTest("switch_action_run")
+    if (result is TestResult.Failure) fail(result.message)
   }
 }

@@ -3,3 +3,4 @@ bazel-*
 .cache
 *.pb.go
 *.pb.py
+coverage-report/
