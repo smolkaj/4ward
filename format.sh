@@ -1,4 +1,4 @@
-#!/usr/bin/env zsh
+#!/usr/bin/env bash
 # Copyright 2020 The P4-Constraints Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,12 +27,14 @@ git ls-files '*.cpp' '*.h' '*.proto' | xargs clang-format --verbose -style=googl
 
 # Run buildifier on Starlark files.
 # Absolute paths are needed because `bazel run` changes the working directory.
-BZL_SOURCES=(${(f)"$(git ls-files '*.bazel' '*.bzl')"})
+BZL_SOURCES=()
+while IFS= read -r f; do BZL_SOURCES+=("$f"); done < <(git ls-files '*.bazel' '*.bzl')
 [[ ${#BZL_SOURCES[@]} -gt 0 ]] && \
   bazel run -- @buildifier_prebuilt//:buildifier --lint=fix "${BZL_SOURCES[@]/#/$REPO_ROOT/}"
 
 # Run ktfmt on Kotlin sources (Google style, matching our style guide).
 # Absolute paths are needed because `bazel run` changes the working directory.
-KT_SOURCES=(${(f)"$(git ls-files '*.kt')"})
+KT_SOURCES=()
+while IFS= read -r f; do KT_SOURCES+=("$f"); done < <(git ls-files '*.kt')
 [[ ${#KT_SOURCES[@]} -gt 0 ]] && \
   bazel run //:ktfmt -- --google-style "${KT_SOURCES[@]/#/$REPO_ROOT/}"

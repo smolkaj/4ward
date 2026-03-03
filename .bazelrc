@@ -6,6 +6,12 @@ common --noenable_workspace
 build --java_runtime_version=remotejdk_21
 build --tool_java_runtime_version=remotejdk_21
 
+# Force Clang for all builds, matching p4c upstream. This also ensures
+# clang-tidy (a Clang tool) shares the same header search paths as the
+# compiler, avoiding system-header-not-found errors in the Bazel sandbox.
+build --action_env=CC=clang
+build --action_env=CXX=clang++
+
 # C++20 for the p4c backend.
 build --cxxopt=-std=c++20
 build --host_cxxopt=-std=c++20

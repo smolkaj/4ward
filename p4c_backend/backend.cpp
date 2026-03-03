@@ -31,7 +31,7 @@ namespace P4::FourWard {
 // Type emission
 // =============================================================================
 
-fourward::ir::v1::Type FourWardBackend::EmitType(const IR::Type* type) {
+fourward::ir::v1::Type FourWardBackend::emitType(const IR::Type* type) {
   fourward::ir::v1::Type out;
 
   if (const auto* bits = type->to<IR::Type_Bits>()) {
@@ -50,7 +50,7 @@ fourward::ir::v1::Type FourWardBackend::EmitType(const IR::Type* type) {
     // opaque typedef names.
     const auto* decl = refMap_.getDeclaration(tn->path, false);
     if (const auto* td = decl ? decl->to<IR::Type_Typedef>() : nullptr) {
-      return EmitType(td->type);
+      return emitType(td->type);
     }
     out.set_named(tn->path->name.name.c_str());
   } else if (const auto* hdr = type->to<IR::Type_Header>()) {
@@ -95,7 +95,7 @@ static bool isTableApply(const IR::Expression* expr, const ReferenceMap& refMap,
   return true;
 }
 
-fourward::ir::v1::Expr FourWardBackend::EmitExpr(const IR::Expression* expr) {
+fourward::ir::v1::Expr FourWardBackend::emitExpr(const IR::Expression* expr) {
   fourward::ir::v1::Expr out;
 
   if (const auto* cnst = expr->to<IR::Constant>()) {
@@ -130,23 +130,23 @@ fourward::ir::v1::Expr FourWardBackend::EmitExpr(const IR::Expression* expr) {
       }
     }
     auto* fa = out.mutable_field_access();
-    *fa->mutable_expr() = EmitExpr(mem->expr);
+    *fa->mutable_expr() = emitExpr(mem->expr);
     fa->set_field_name(mem->member.name.c_str());
   } else if (const auto* slice = expr->to<IR::Slice>()) {
     auto* s = out.mutable_slice();
-    *s->mutable_expr() = EmitExpr(slice->e0);
+    *s->mutable_expr() = emitExpr(slice->e0);
     s->set_hi(slice->getH());
     s->set_lo(slice->getL());
   } else if (const auto* cat = expr->to<IR::Concat>()) {
-    *out.mutable_concat()->mutable_left() = EmitExpr(cat->left);
-    *out.mutable_concat()->mutable_right() = EmitExpr(cat->right);
+    *out.mutable_concat()->mutable_left() = emitExpr(cat->left);
+    *out.mutable_concat()->mutable_right() = emitExpr(cat->right);
   } else if (const auto* cast = expr->to<IR::Cast>()) {
-    *out.mutable_cast()->mutable_target_type() = EmitType(cast->destType);
-    *out.mutable_cast()->mutable_expr() = EmitExpr(cast->expr);
+    *out.mutable_cast()->mutable_target_type() = emitType(cast->destType);
+    *out.mutable_cast()->mutable_expr() = emitExpr(cast->expr);
   } else if (const auto* binop = expr->to<IR::Operation_Binary>()) {
     auto* b = out.mutable_binary_op();
-    *b->mutable_left() = EmitExpr(binop->left);
-    *b->mutable_right() = EmitExpr(binop->right);
+    *b->mutable_left() = emitExpr(binop->left);
+    *b->mutable_right() = emitExpr(binop->right);
 
     if (binop->is<IR::Add>())
       b->set_op(fourward::ir::v1::BinaryOperator::ADD);
@@ -192,7 +192,7 @@ fourward::ir::v1::Expr FourWardBackend::EmitExpr(const IR::Expression* expr) {
       LOG1("WARNING: unhandled binary operator: " << binop->node_type_name());
   } else if (const auto* unop = expr->to<IR::Operation_Unary>()) {
     auto* u = out.mutable_unary_op();
-    *u->mutable_expr() = EmitExpr(unop->expr);
+    *u->mutable_expr() = emitExpr(unop->expr);
     if (unop->is<IR::Neg>())
       u->set_op(fourward::ir::v1::UnaryOperator::NEG);
     else if (unop->is<IR::Cmpl>())
@@ -212,14 +212,14 @@ fourward::ir::v1::Expr FourWardBackend::EmitExpr(const IR::Expression* expr) {
     auto* call = out.mutable_method_call();
     // The method is typically a Member expression: target.method
     if (const auto* mem = mc->method->to<IR::Member>()) {
-      *call->mutable_target() = EmitExpr(mem->expr);
+      *call->mutable_target() = emitExpr(mem->expr);
       call->set_method(mem->member.name.c_str());
     } else {
-      *call->mutable_target() = EmitExpr(mc->method);
+      *call->mutable_target() = emitExpr(mc->method);
       call->set_method("__call__");
     }
     for (const auto* arg : *mc->arguments) {
-      *call->add_args() = EmitExpr(arg->expression);
+      *call->add_args() = emitExpr(arg->expression);
     }
   } else {
     LOG1("WARNING: unhandled expression " << expr->node_type_name());
@@ -227,7 +227,7 @@ fourward::ir::v1::Expr FourWardBackend::EmitExpr(const IR::Expression* expr) {
 
   // Always populate the type annotation.
   if (const auto* type = typeMap_.getType(expr)) {
-    *out.mutable_type() = EmitType(type);
+    *out.mutable_type() = emitType(type);
   }
 
   return out;
@@ -237,30 +237,30 @@ fourward::ir::v1::Expr FourWardBackend::EmitExpr(const IR::Expression* expr) {
 // Statement emission
 // =============================================================================
 
-fourward::ir::v1::Stmt FourWardBackend::EmitStmt(const IR::StatOrDecl* node) {
+fourward::ir::v1::Stmt FourWardBackend::emitStmt(const IR::StatOrDecl* node) {
   fourward::ir::v1::Stmt out;
 
   if (const auto* assign = node->to<IR::AssignmentStatement>()) {
     auto* a = out.mutable_assignment();
-    *a->mutable_lhs() = EmitExpr(assign->left);
-    *a->mutable_rhs() = EmitExpr(assign->right);
+    *a->mutable_lhs() = emitExpr(assign->left);
+    *a->mutable_rhs() = emitExpr(assign->right);
   } else if (const auto* mc = node->to<IR::MethodCallStatement>()) {
-    *out.mutable_method_call()->mutable_call() = EmitExpr(mc->methodCall);
+    *out.mutable_method_call()->mutable_call() = emitExpr(mc->methodCall);
   } else if (const auto* ifst = node->to<IR::IfStatement>()) {
     auto* i = out.mutable_if_stmt();
-    *i->mutable_condition() = EmitExpr(ifst->condition);
+    *i->mutable_condition() = emitExpr(ifst->condition);
     // SimplifyControlFlow normally wraps branches in BlockStatements, but some
     // downstream passes (e.g. LocalCopyPropagation) may produce bare
     // statements.
     auto emitBranch =
         [&](const IR::Statement* stmt) -> fourward::ir::v1::BlockStmt {
       if (const auto* blk = stmt->to<IR::BlockStatement>())
-        return EmitBlock(blk);
+        return emitBlock(blk);
       fourward::ir::v1::BlockStmt branch;
       // IR::EmptyStatement (produced by RemoveReturns for void-return branches)
       // has no IR representation; skip it to avoid an empty Stmt{} in the
       // output.
-      if (!stmt->is<IR::EmptyStatement>()) *branch.add_stmts() = EmitStmt(stmt);
+      if (!stmt->is<IR::EmptyStatement>()) *branch.add_stmts() = emitStmt(stmt);
       return branch;
     };
     *i->mutable_then_block() = emitBranch(ifst->ifTrue);
@@ -269,11 +269,11 @@ fourward::ir::v1::Stmt FourWardBackend::EmitStmt(const IR::StatOrDecl* node) {
     }
   } else if (const auto* sw = node->to<IR::SwitchStatement>()) {
     auto* s = out.mutable_switch_stmt();
-    *s->mutable_subject() = EmitExpr(sw->expression);
+    *s->mutable_subject() = emitExpr(sw->expression);
     for (const auto* c : sw->cases) {
       if (c->label->is<IR::DefaultExpression>()) {
         if (const auto* b = c->statement->to<IR::BlockStatement>()) {
-          *s->mutable_default_block() = EmitBlock(b);
+          *s->mutable_default_block() = emitBlock(b);
         }
       } else {
         auto* sc = s->add_cases();
@@ -283,18 +283,18 @@ fourward::ir::v1::Stmt FourWardBackend::EmitStmt(const IR::StatOrDecl* node) {
         }
         if (c->statement) {
           if (const auto* b = c->statement->to<IR::BlockStatement>()) {
-            *sc->mutable_block() = EmitBlock(b);
+            *sc->mutable_block() = emitBlock(b);
           }
         }
       }
     }
   } else if (const auto* blk = node->to<IR::BlockStatement>()) {
-    *out.mutable_block() = EmitBlock(blk);
+    *out.mutable_block() = emitBlock(blk);
   } else if (node->is<IR::ExitStatement>()) {
     out.mutable_exit();
   } else if (const auto* ret = node->to<IR::ReturnStatement>()) {
     if (ret->expression) {
-      *out.mutable_return_stmt()->mutable_value() = EmitExpr(ret->expression);
+      *out.mutable_return_stmt()->mutable_value() = emitExpr(ret->expression);
     } else {
       out.mutable_return_stmt();
     }
@@ -304,11 +304,11 @@ fourward::ir::v1::Stmt FourWardBackend::EmitStmt(const IR::StatOrDecl* node) {
   return out;
 }
 
-fourward::ir::v1::BlockStmt FourWardBackend::EmitBlock(
+fourward::ir::v1::BlockStmt FourWardBackend::emitBlock(
     const IR::BlockStatement* block) {
   fourward::ir::v1::BlockStmt out;
   for (const auto* stmt : block->components) {
-    *out.add_stmts() = EmitStmt(stmt);
+    *out.add_stmts() = emitStmt(stmt);
   }
   return out;
 }
@@ -352,7 +352,7 @@ void FourWardBackend::emitTypeDecls(const IR::P4Program* program) {
       for (const auto* field : hdr->fields) {
         auto* fd = hdecl->add_fields();
         fd->set_name(field->name.name.c_str());
-        *fd->mutable_type() = EmitType(field->type);
+        *fd->mutable_type() = emitType(field->type);
       }
     } else if (const auto* st = decl->to<IR::Type_Struct>()) {
       auto* td = behavioral_->add_types();
@@ -361,7 +361,7 @@ void FourWardBackend::emitTypeDecls(const IR::P4Program* program) {
       for (const auto* field : st->fields) {
         auto* fd = sdecl->add_fields();
         fd->set_name(field->name.name.c_str());
-        *fd->mutable_type() = EmitType(field->type);
+        *fd->mutable_type() = emitType(field->type);
       }
     }
     // Enums and header unions: TODO
@@ -375,7 +375,7 @@ void FourWardBackend::emitParser(const IR::P4Parser* parser) {
   for (const auto* param : parser->getApplyParameters()->parameters) {
     auto* p = pd->add_params();
     p->set_name(param->name.name.c_str());
-    *p->mutable_type() = EmitType(param->type);
+    *p->mutable_type() = emitType(param->type);
     switch (param->direction) {
       case IR::Direction::In:
         p->set_direction(fourward::ir::v1::Direction::IN);
@@ -396,7 +396,7 @@ void FourWardBackend::emitParser(const IR::P4Parser* parser) {
     ps->set_name(state->name.name.c_str());
 
     for (const auto* stmt : state->components) {
-      *ps->add_stmts() = EmitStmt(stmt);
+      *ps->add_stmts() = emitStmt(stmt);
     }
 
     // accept/reject are terminal states with no selectExpression.
@@ -405,7 +405,7 @@ void FourWardBackend::emitParser(const IR::P4Parser* parser) {
                    state->selectExpression->to<IR::SelectExpression>()) {
       auto* selectTrans = ps->mutable_transition()->mutable_select();
       for (const auto* key : sel->select->components) {
-        *selectTrans->add_keys() = EmitExpr(key);
+        *selectTrans->add_keys() = emitExpr(key);
       }
       for (const auto* sc : sel->selectCases) {
         if (sc->keyset->is<IR::DefaultExpression>()) {
@@ -414,7 +414,7 @@ void FourWardBackend::emitParser(const IR::P4Parser* parser) {
         }
         auto* c = selectTrans->add_cases();
         auto* k = c->add_keysets();
-        *k->mutable_exact() = EmitExpr(sc->keyset);
+        *k->mutable_exact() = emitExpr(sc->keyset);
         c->set_next_state(sc->state->path->name.name.c_str());
       }
     } else if (const auto* path =
@@ -433,7 +433,7 @@ void FourWardBackend::emitControl(const IR::P4Control* control) {
   for (const auto* param : control->getApplyParameters()->parameters) {
     auto* p = cd->add_params();
     p->set_name(param->name.name.c_str());
-    *p->mutable_type() = EmitType(param->type);
+    *p->mutable_type() = emitType(param->type);
     switch (param->direction) {
       case IR::Direction::In:
         p->set_direction(fourward::ir::v1::Direction::IN);
@@ -458,15 +458,15 @@ void FourWardBackend::emitControl(const IR::P4Control* control) {
     } else if (const auto* varDecl = decl->to<IR::Declaration_Variable>()) {
       auto* vd = cd->add_local_vars();
       vd->set_name(varDecl->name.name.c_str());
-      *vd->mutable_type() = EmitType(varDecl->type);
+      *vd->mutable_type() = emitType(varDecl->type);
       if (varDecl->initializer) {
-        *vd->mutable_initializer() = EmitExpr(varDecl->initializer);
+        *vd->mutable_initializer() = emitExpr(varDecl->initializer);
       }
     }
   }
 
   for (const auto* stmt : control->body->components) {
-    *cd->add_apply_body() = EmitStmt(stmt);
+    *cd->add_apply_body() = emitStmt(stmt);
   }
 }
 
@@ -484,10 +484,10 @@ void FourWardBackend::emitAction(const IR::P4Action* action,
   for (const auto* param : action->parameters->parameters) {
     auto* p = out->add_params();
     p->set_name(param->name.name.c_str());
-    *p->mutable_type() = EmitType(param->type);
+    *p->mutable_type() = emitType(param->type);
   }
   for (const auto* stmt : action->body->components) {
-    *out->add_body() = EmitStmt(stmt);
+    *out->add_body() = emitStmt(stmt);
   }
 }
 
@@ -526,7 +526,7 @@ void FourWardBackend::emitTable(const IR::P4Table* table) {
     if (keyIdx >= p4Table->match_fields_size()) break;
     auto* tk = tb->add_keys();
     tk->set_field_name(std::to_string(p4Table->match_fields(keyIdx).id()));
-    *tk->mutable_expr() = EmitExpr(keyElem->expression);
+    *tk->mutable_expr() = emitExpr(keyElem->expression);
     ++keyIdx;
   }
 }
