@@ -1,0 +1,14 @@
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_library")
+
+kt_jvm_library(
+    name = "stf_runner",
+    srcs = ["Runner.kt"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//simulator:ir_java_proto",
+        "//simulator:simulator_java_proto",
+        "@maven//:com_google_protobuf_protobuf_java",
+        "@maven//:com_google_protobuf_protobuf_kotlin",
+        "//simulator:p4runtime_java_proto",
+    ],
+)

@@ -1,0 +1,52 @@
+module(
+    name = "fourward",
+    version = "0.1.0",
+    bazel_compatibility = [">=9.0.0"],
+)
+
+# --- Core build rules ---
+
+bazel_dep(name = "bazel_skylib", version = "1.9.0")
+bazel_dep(name = "rules_cc", version = "0.2.17")
+bazel_dep(name = "rules_license", version = "1.0.0")
+bazel_dep(name = "rules_proto", version = "7.1.0")
+bazel_dep(name = "rules_kotlin", version = "2.3.0")
+bazel_dep(name = "rules_jvm_external", version = "6.10")
+
+# --- Protobuf ---
+
+bazel_dep(name = "protobuf", version = "33.5")
+
+# --- P4 ecosystem ---
+
+# p4runtime provides p4info.proto, p4runtime.proto, and p4data.proto.
+bazel_dep(name = "p4runtime", version = "1.5.0.bcr.1")
+
+# p4c provides the compiler frontend and midend that our backend builds on.
+# Point this at your fork during development; remove the override when
+# the 4ward backend has been upstreamed into p4c proper.
+bazel_dep(name = "p4c", version = "head")
+
+local_path_override(
+    module_name = "p4c",
+    path = "../p4c",
+)
+
+# --- JVM dependencies (protobuf runtime for Kotlin) ---
+
+maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
+maven.install(
+    artifacts = [
+        "com.google.protobuf:protobuf-java:4.29.3",
+        "com.google.protobuf:protobuf-kotlin:4.29.3",
+        "junit:junit:4.13.2",
+    ],
+    repositories = [
+        "https://repo1.maven.org/maven2",
+    ],
+)
+use_repo(maven, "maven")
+
+# --- Dev tools ---
+
+bazel_dep(name = "buildifier_prebuilt", version = "8.2.1.2", dev_dependency = True)

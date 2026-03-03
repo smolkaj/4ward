@@ -1,0 +1,7 @@
+# passthrough.stf — STF test for passthrough.p4
+#
+# Sends a single Ethernet frame in on port 0 and expects it back on port 1,
+# unmodified. No table entries needed.
+
+packet 0 FFFFFFFFFFFF 000000000001 0800
+expect 1 FFFFFFFFFFFF 000000000001 0800

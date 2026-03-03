@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel any preceding run on the pull request.
+concurrency:
+  group: bazel-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+
+  format-and-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: tools/format-bazel-files.sh
+      - name: Check formatting diff
+        run: |
+          CHANGED_FILES="$(git diff-index --name-only HEAD --)"
+          if [[ -z "${CHANGED_FILES}" ]]; then
+            echo "Success: no formatting changes needed."
+            exit 0
+          fi
+          echo "Found formatting changes in the following files:"
+          echo "${CHANGED_FILES}"
+          echo ""
+          echo "Please run \`tools/format-bazel-files.sh\` to apply the changes."
+          exit 1
+
+      - name: Proto lint
+        uses: bufbuild/buf-action@v1
+        with:
+          lint: true
+          breaking: true
+          breaking_against: |
+            ${{ github.event_name == 'pull_request' && format(
+              'https://github.com/{0}.git#branch={1}',
+              github.repository, github.base_ref
+            ) || '' }}
+
+
+  build-and-test:
+    name: Build and test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-26]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Mount Bazel cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/bazel
+          key: bazel-${{ matrix.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: bazel-${{ matrix.os }}-
+
+      - name: Build
+        run: bazel build //...
+
+      - name: Test
+        run: bazel test //... --test_output=errors

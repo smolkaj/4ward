@@ -1,0 +1,33 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
+
+cc_library(
+    name = "p4c_backend_lib",
+    srcs = [
+        "backend.cpp",
+        "midend.cpp",
+        "options.cpp",
+    ],
+    hdrs = [
+        "backend.h",
+        "midend.h",
+        "options.h",
+    ],
+    deps = [
+        "//simulator:ir_cc_proto",
+        "@p4c//:ir_frontend_midend_control_plane",
+        "@p4c//:lib",
+        "@p4c//:p4c_backends_common_lib",
+    ],
+)
+
+cc_binary(
+    name = "p4c-4ward",
+    srcs = ["main.cpp"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":p4c_backend_lib",
+        "//simulator:ir_cc_proto",
+        "@p4c//:ir_frontend_midend_control_plane",
+        "@p4c//:lib",
+    ],
+)

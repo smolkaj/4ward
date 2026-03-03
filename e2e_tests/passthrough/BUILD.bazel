@@ -1,0 +1,27 @@
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
+
+# Compiles passthrough.p4 to a PipelineConfig proto binary.
+genrule(
+    name = "passthrough_pb",
+    srcs = ["passthrough.p4"],
+    outs = ["passthrough.pb"],
+    cmd = "$(execpath //p4c_backend:p4c-4ward) -o $@ $(SRCS)",
+    tools = ["//p4c_backend:p4c-4ward"],
+)
+
+# Runs the passthrough STF test against the 4ward simulator.
+kt_jvm_test(
+    name = "passthrough_test",
+    srcs = ["PassthroughTest.kt"],
+    data = [
+        ":passthrough_pb",
+        "passthrough.stf",
+        "//simulator:simulator",
+    ],
+    test_class = "fourward.e2e.passthrough.PassthroughTest",
+    deps = [
+        "//e2e_tests/stf:stf_runner",
+        "@maven//:com_google_protobuf_protobuf_java",
+        "@maven//:junit_junit",
+    ],
+)

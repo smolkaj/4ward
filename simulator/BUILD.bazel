@@ -1,0 +1,95 @@
+load("@protobuf//bazel:cc_proto_library.bzl", "cc_proto_library")
+load("@protobuf//bazel:java_proto_library.bzl", "java_proto_library")
+load("@protobuf//bazel:proto_library.bzl", "proto_library")
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_binary", "kt_jvm_library", "kt_jvm_test")
+
+# =============================================================================
+# Proto
+# =============================================================================
+
+# strip_import_prefix = "/simulator" lets other protos use `import "ir.proto"`
+# instead of the full workspace-relative path.
+proto_library(
+    name = "ir_proto",
+    srcs = ["ir.proto"],
+    strip_import_prefix = "/simulator",
+    visibility = ["//visibility:public"],
+    deps = ["@p4runtime//proto/p4/config/v1:p4info_proto"],
+)
+
+java_proto_library(
+    name = "ir_java_proto",
+    visibility = ["//visibility:public"],
+    deps = [":ir_proto"],
+)
+
+cc_proto_library(
+    name = "ir_cc_proto",
+    visibility = ["//visibility:public"],
+    deps = [":ir_proto"],
+)
+
+proto_library(
+    name = "simulator_proto",
+    srcs = ["simulator.proto"],
+    strip_import_prefix = "/simulator",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":ir_proto",
+        "@p4runtime//proto/p4/v1:p4runtime_proto",
+    ],
+)
+
+java_proto_library(
+    name = "simulator_java_proto",
+    visibility = ["//visibility:public"],
+    deps = [":simulator_proto"],
+)
+
+# The p4runtime BCR module only ships cc/go/py proto targets; we generate the
+# Java ones ourselves so the Kotlin simulator can import p4runtime classes.
+java_proto_library(
+    name = "p4runtime_java_proto",
+    visibility = ["//visibility:public"],
+    deps = ["@p4runtime//proto/p4/v1:p4runtime_proto"],
+)
+
+# =============================================================================
+# Kotlin simulator
+# =============================================================================
+
+kt_jvm_library(
+    name = "simulator_lib",
+    srcs = glob(
+        ["*.kt"],
+        exclude = ["*Test.kt"],
+    ),
+    deps = [
+        ":ir_java_proto",
+        ":p4runtime_java_proto",
+        ":simulator_java_proto",
+        "@maven//:com_google_protobuf_protobuf_java",
+        "@maven//:com_google_protobuf_protobuf_kotlin",
+    ],
+)
+
+kt_jvm_binary(
+    name = "simulator",
+    main_class = "fourward.simulator.MainKt",
+    visibility = ["//visibility:public"],
+    runtime_deps = [":simulator_lib"],
+)
+
+# =============================================================================
+# Unit tests (colocated with source per Google convention)
+# =============================================================================
+
+kt_jvm_test(
+    name = "BitVectorTest",
+    srcs = ["BitVectorTest.kt"],
+    test_class = "fourward.simulator.BitVectorTest",
+    deps = [
+        ":simulator_lib",
+        "@maven//:junit_junit",
+    ],
+)
