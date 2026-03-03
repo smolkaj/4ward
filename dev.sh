@@ -29,11 +29,11 @@ cmd_test() {
 }
 
 cmd_fmt() {
-  exec "${REPO_ROOT}/format.sh"
+  exec "${REPO_ROOT}/format.sh" "$@"
 }
 
 cmd_lint() {
-  exec "${REPO_ROOT}/lint.sh"
+  exec "${REPO_ROOT}/lint.sh" "$@"
 }
 
 cmd_coverage() {
