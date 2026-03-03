@@ -22,6 +22,12 @@ Open PRs in draft mode (`gh pr create --draft`). Rebase onto `origin/main`
 before submitting. The description should explain motivation and approach,
 not list every changed line.
 
+## Worktrees
+
+Always work in a worktree for non-trivial tasks. This avoids conflicts
+when parallel development is happening in the main tree. Rebase and squash
+when merging back.
+
 ## Tool use
 
 - Prefer `bazel build //...` and `bazel test //...` to direct invocations of
