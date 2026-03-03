@@ -1,0 +1,65 @@
+---
+# clang-tidy configuration enforcing the Google C++ Style Guide.
+# See: https://google.github.io/styleguide/cppguide.html
+#
+# The `google-*` checks directly encode Google style rules. The remaining
+# families (bugprone, modernize, performance, readability) catch common
+# mistakes and are broadly compatible with Google style, with a few
+# exclusions noted below.
+Checks: >
+  -*,
+  bugprone-*,
+  google-*,
+  modernize-*,
+  performance-*,
+  readability-*,
+  -modernize-use-trailing-return-type,
+  -readability-braces-around-statements,
+  -readability-else-after-return,
+  -readability-identifier-length,
+  -readability-magic-numbers,
+
+# Treat all enabled checks as errors so CI fails on violations.
+WarningsAsErrors: "*"
+
+# Only report diagnostics for headers within this repo; suppress noise from
+# p4c and other third-party headers pulled in via @p4c//.
+HeaderFilterRegex: "^p4c_backend/.*"
+
+CheckOptions:
+  # Naming conventions from the Google C++ Style Guide.
+  - key: readability-identifier-naming.NamespaceCase
+    value: lower_case
+  - key: readability-identifier-naming.ClassCase
+    value: CamelCase
+  - key: readability-identifier-naming.StructCase
+    value: CamelCase
+  - key: readability-identifier-naming.FunctionCase
+    value: CamelCase
+  - key: readability-identifier-naming.VariableCase
+    value: lower_case
+  - key: readability-identifier-naming.ParameterCase
+    value: lower_case
+  - key: readability-identifier-naming.MemberCase
+    value: lower_case
+  - key: readability-identifier-naming.PrivateMemberCase
+    value: lower_case
+  - key: readability-identifier-naming.PrivateMemberSuffix
+    value: _
+  - key: readability-identifier-naming.ProtectedMemberCase
+    value: lower_case
+  - key: readability-identifier-naming.ProtectedMemberSuffix
+    value: _
+  # Google style uses kName for constants (k prefix + CamelCase).
+  - key: readability-identifier-naming.ConstantCase
+    value: CamelCase
+  - key: readability-identifier-naming.ConstantPrefix
+    value: k
+  - key: readability-identifier-naming.EnumCase
+    value: CamelCase
+  - key: readability-identifier-naming.EnumConstantCase
+    value: CamelCase
+  - key: readability-identifier-naming.EnumConstantPrefix
+    value: k
+  - key: readability-identifier-naming.MacroDefinitionCase
+    value: UPPER_CASE
