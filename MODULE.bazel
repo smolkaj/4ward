@@ -59,5 +59,12 @@ bazel_dep(name = "hedron_compile_commands", dev_dependency = True)
 git_override(
     module_name = "hedron_compile_commands",
     commit = "abb61a688167623088f8768cc9264798df6a9d10",
+    patch_strip = 1,
+    # native.py_binary was removed in Bazel 9; patch to use rules_python instead.
+    patches = [
+        "//patches:hedron-module.patch",
+        "//patches:hedron-build.patch",
+        "//patches:hedron-bzl.patch",
+    ],
     remote = "https://github.com/hedronvision/bazel-compile-commands-extractor.git",
 )
