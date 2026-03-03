@@ -9,6 +9,8 @@ import p4.v1.P4RuntimeOuterClass.Update
  *
  * Supports exact, LPM, and ternary match kinds. Range match is a TODO. Entries are stored
  * per-table; lookup returns the highest-priority match.
+ *
+ * Call [loadMappings] once per pipeline load before any [write] or [lookup] calls.
  */
 class TableStore {
 
@@ -18,6 +20,21 @@ class TableStore {
   // tableName -> default action name (from p4info)
   private val defaultActions: MutableMap<String, String> = mutableMapOf()
 
+  // Populated by loadMappings; used to resolve IDs to names in write() and lookup().
+  private var tableNameById: Map<Int, String> = emptyMap()
+  private var actionNameById: Map<Int, String> = emptyMap()
+
+  /**
+   * Initialises the ID→name maps for the loaded pipeline and clears all table entries.
+   *
+   * Must be called before [write] or [lookup]. Calling it again (pipeline reload) resets all state.
+   */
+  fun loadMappings(tableNameById: Map<Int, String>, actionNameById: Map<Int, String>) {
+    this.tableNameById = tableNameById
+    this.actionNameById = actionNameById
+    tables.clear()
+  }
+
   fun setDefaultAction(tableName: String, actionName: String) {
     defaultActions[tableName] = actionName
   }
@@ -26,11 +43,7 @@ class TableStore {
   // Write
   // -------------------------------------------------------------------------
 
-  // actionNameById is not yet used here: action names are currently resolved via
-  // the action ID stored in the entry proto. It is kept as part of the API for
-  // when proper p4info-based resolution is wired up.
-  @Suppress("UnusedParameter")
-  fun write(update: Update, tableNameById: Map<Int, String>, actionNameById: Map<Int, String>) {
+  fun write(update: Update) {
     val entry = update.entity.tableEntry
     val tableName = tableNameById[entry.tableId] ?: error("unknown table ID: ${entry.tableId}")
 
@@ -76,10 +89,8 @@ class TableStore {
     val best =
       candidates.maxByOrNull { it.score } ?: return LookupResult(false, null, defaultAction)
 
-    // Resolve action name from the entry's action ID (we don't have p4info here;
-    // action names are embedded as strings in the entry's action spec for now).
-    // TODO: resolve via actionNameById once the TableStore is wired to p4info.
-    val actionName = best.entry.action.action.actionId.toString() // placeholder
+    val actionId = best.entry.action.action.actionId
+    val actionName = actionNameById[actionId] ?: error("unknown action ID: $actionId")
     return LookupResult(true, best.entry, actionName)
   }
 

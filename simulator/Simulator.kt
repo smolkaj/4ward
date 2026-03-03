@@ -27,10 +27,6 @@ class Simulator {
   private var architecture: Architecture? = null
   private val tableStore = TableStore()
 
-  // Maps p4info numeric IDs to names, populated when a pipeline is loaded.
-  private val tableNameById: MutableMap<Int, String> = mutableMapOf()
-  private val actionNameById: MutableMap<Int, String> = mutableMapOf()
-
   fun handle(request: SimRequest): SimResponse =
     when {
       request.hasLoadPipeline() -> handleLoadPipeline(request.loadPipeline)
@@ -48,14 +44,9 @@ class Simulator {
     val config = req.config
     pipeline = config
 
-    tableNameById.clear()
-    actionNameById.clear()
-    for (table in config.p4Info.tablesList) {
-      tableNameById[table.preamble.id] = table.preamble.name
-    }
-    for (action in config.p4Info.actionsList) {
-      actionNameById[action.preamble.id] = action.preamble.name
-    }
+    val tableNameById = config.p4Info.tablesList.associate { it.preamble.id to it.preamble.name }
+    val actionNameById = config.p4Info.actionsList.associate { it.preamble.id to it.preamble.name }
+    tableStore.loadMappings(tableNameById, actionNameById)
 
     for (table in config.p4Info.tablesList) {
       if (table.constDefaultActionId != 0) {
@@ -113,7 +104,7 @@ class Simulator {
 
   private fun handleWriteEntry(req: fourward.sim.v1.WriteEntryRequest): SimResponse {
     pipeline ?: return simError("no pipeline loaded", ErrorCode.NO_PIPELINE_LOADED)
-    tableStore.write(req.update, tableNameById, actionNameById)
+    tableStore.write(req.update)
     return SimResponse.newBuilder().setWriteEntry(WriteEntryResponse.getDefaultInstance()).build()
   }
 

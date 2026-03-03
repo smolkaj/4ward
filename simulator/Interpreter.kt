@@ -38,6 +38,8 @@ class Interpreter(private val config: P4BehavioralConfig, private val tableStore
 
   private val tables: Map<String, TableBehavior> = config.tablesList.associateBy { it.name }
 
+  private val types = config.typesList.associateBy { it.name }
+
   // -------------------------------------------------------------------------
   // Parser
   // -------------------------------------------------------------------------
@@ -80,29 +82,35 @@ class Interpreter(private val config: P4BehavioralConfig, private val tableStore
 
   private fun evalSelect(select: fourward.ir.v1.SelectTransition, env: Environment): String {
     val keyValues = select.keysList.map { evalExpr(it, env) }
-
+    // Keyset expressions in parser select are always compile-time constants; a single
+    // empty environment is correct for all of them.
+    val constEnv = Environment(byteArrayOf())
     for (case in select.casesList) {
-      if (keyValues.zip(case.keysetsList).all { (v, k) -> matchesKeyset(v, k) }) {
+      if (keyValues.zip(case.keysetsList).all { (v, k) -> matchesKeyset(v, k, constEnv) }) {
         return case.nextState
       }
     }
     return select.defaultState
   }
 
-  private fun matchesKeyset(value: Value, keyset: fourward.ir.v1.KeysetExpr): Boolean =
+  private fun matchesKeyset(
+    value: Value,
+    keyset: fourward.ir.v1.KeysetExpr,
+    constEnv: Environment,
+  ): Boolean =
     when {
       keyset.hasDefaultCase() -> true
-      keyset.hasExact() -> value == evalExpr(keyset.exact, Environment(byteArrayOf()))
+      keyset.hasExact() -> value == evalExpr(keyset.exact, constEnv)
       keyset.hasMask() -> {
         val v = (value as BitVal).bits
-        val mask = (evalExpr(keyset.mask.mask, Environment(byteArrayOf())) as BitVal).bits
-        val want = (evalExpr(keyset.mask.value, Environment(byteArrayOf())) as BitVal).bits
+        val mask = (evalExpr(keyset.mask.mask, constEnv) as BitVal).bits
+        val want = (evalExpr(keyset.mask.value, constEnv) as BitVal).bits
         (v and mask) == (want and mask)
       }
       keyset.hasRange() -> {
         val v = (value as BitVal).bits
-        val lo = (evalExpr(keyset.range.lo, Environment(byteArrayOf())) as BitVal).bits
-        val hi = (evalExpr(keyset.range.hi, Environment(byteArrayOf())) as BitVal).bits
+        val lo = (evalExpr(keyset.range.lo, constEnv) as BitVal).bits
+        val hi = (evalExpr(keyset.range.hi, constEnv) as BitVal).bits
         v >= lo && v <= hi
       }
       else -> error("unhandled keyset kind: $keyset")
@@ -302,7 +310,10 @@ class Interpreter(private val config: P4BehavioralConfig, private val tableStore
   private fun evalUnaryOp(op: fourward.ir.v1.UnaryOp, env: Environment): Value {
     val inner = evalExpr(op.expr, env)
     return when (op.op) {
-      UnaryOperator.NEG -> BitVal((inner as BitVal).bits * BitVector.ofInt(-1, inner.bits.width))
+      // Two's-complement negation: (2^N - x) mod 2^N = (0 - x) using wrapping subtraction.
+      // BitVector.ofInt(-1, width) would violate the non-negative value invariant.
+      UnaryOperator.NEG ->
+        (inner as BitVal).let { BitVal(BitVector.ofInt(0, it.bits.width) - it.bits) }
       UnaryOperator.BIT_NOT -> BitVal((inner as BitVal).bits.inv())
       UnaryOperator.NOT -> BoolVal(!(inner as BoolVal).value)
       else -> error("unhandled unary operator: ${op.op}")
@@ -405,8 +416,7 @@ class Interpreter(private val config: P4BehavioralConfig, private val tableStore
     // packet_in.extract(hdr.field): the header to extract into is args[0], not the target.
     val header = evalExpr(call.argsList[0], env) as HeaderVal
     val typeName = header.typeName
-    val typeDecl =
-      config.typesList.find { it.name == typeName } ?: error("type not found: $typeName")
+    val typeDecl = types[typeName] ?: error("type not found: $typeName")
     val headerDecl = typeDecl.header
 
     val newFields = mutableMapOf<String, Value>()
@@ -425,8 +435,7 @@ class Interpreter(private val config: P4BehavioralConfig, private val tableStore
     if (!header.valid) return UnitVal // invalid headers are not emitted
 
     val typeName = header.typeName
-    val typeDecl =
-      config.typesList.find { it.name == typeName } ?: error("type not found: $typeName")
+    val typeDecl = types[typeName] ?: error("type not found: $typeName")
 
     for (field in typeDecl.header.fieldsList) {
       val value = header.fields[field.name] as BitVal
