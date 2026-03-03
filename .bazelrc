@@ -6,9 +6,12 @@ common --noenable_workspace
 build --java_runtime_version=remotejdk_21
 build --tool_java_runtime_version=remotejdk_21
 
-# Force Clang for all builds, matching p4c upstream. This also ensures
-# clang-tidy (a Clang tool) shares the same header search paths as the
-# compiler, avoiding system-header-not-found errors in the Bazel sandbox.
+# Force Clang for all builds, matching p4c upstream. repo_env influences
+# Bazel's C++ toolchain auto-detection (cc_autoconf), ensuring include paths
+# are Clang-native. This also fixes clang-tidy, which inherits these paths
+# via the compilation database.
+build --repo_env=CC=clang
+build --repo_env=CXX=clang++
 build --action_env=CC=clang
 build --action_env=CXX=clang++
 
