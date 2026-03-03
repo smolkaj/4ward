@@ -104,7 +104,9 @@ jobs:
         with:
           path: ~/.cache/bazel
           key: bazel-coverage-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: bazel-coverage-
+          restore-keys: |
+            bazel-coverage-
+            bazel-ubuntu-24.04-
 
       - name: Install lcov
         run: sudo apt install -y lcov
