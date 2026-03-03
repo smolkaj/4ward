@@ -78,11 +78,12 @@ No printf debugging. No Wireshark. No guessing. Just the trace.
 
 ```
 4ward/
-├── proto/fourward/ir/v1/   # Behavioral IR (the core contract between backend and sim)
-├── proto/fourward/sim/v1/  # Simulator service protocol (stdin/stdout framing)
 ├── simulator/              # Kotlin simulator (interpreter + P4Runtime adapter)
-├── backend/                # p4c backend plugin (C++, emits the proto IR)
-└── tests/                  # STF test runner and test programs
+│   ├── ir.proto            # Behavioral IR (the core contract between backend and sim)
+│   └── simulator.proto     # Simulator service protocol (stdin/stdout framing)
+├── p4c_backend/            # p4c backend plugin (C++, emits the proto IR)
+└── e2e_tests/              # STF test runner and test programs
+    └── stf/                # STF runner
 ```
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for a deeper dive.
