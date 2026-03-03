@@ -18,16 +18,19 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Mount Bazel cache
-        uses: actions/cache@v5
+      # Restore-only: the build-and-test job owns the authoritative cache for
+      # this key.  Lint builds a subset (p4c_backend + formatting tools), so
+      # letting it save would evict simulator/e2e artifacts that build-and-test
+      # needs.
+      - name: Restore Bazel cache
+        uses: actions/cache/restore@v5
         with:
           path: ~/.cache/bazel
-          # Shared with the ubuntu-24.04 build-and-test shard.
           key: bazel-ubuntu-24.04-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
           restore-keys: bazel-ubuntu-24.04-
 
-      - name: Install tools
-        run: sudo apt install -y clang-format clang-tidy-18
+      - name: Install clang tools
+        run: sudo apt install -y clang-format clang-tidy
 
       # format.sh modifies files in-place; the diff check below catches any
       # changes, so we use a single "run and diff" pattern for both clang-format
@@ -57,16 +60,9 @@ jobs:
             echo "skip=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Generate compile_commands.json
-        if: steps.cpp.outputs.skip != 'true'
-        run: bazel run //:refresh_compile_commands
-
       - name: Run clang-tidy
         if: steps.cpp.outputs.skip != 'true'
-        run: |
-          find p4c_backend \( -name "*.cpp" -o -name "*.cc" \) -print0 \
-            | xargs -0 -P "$(nproc)" -I{} \
-                clang-tidy-18 -p . {}
+        run: bazel build //p4c_backend/... --config=clang-tidy
 
 
   build-and-test:
