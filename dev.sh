@@ -15,6 +15,7 @@ Commands:
   fmt             Auto-format all files
   lint            Run all linters
   coverage        Run tests with coverage, open report
+  diff-coverage   Compute incremental coverage from a diff + LCOV file
   help            Show this help
 EOF
 }
@@ -40,13 +41,18 @@ cmd_coverage() {
   exec "${REPO_ROOT}/coverage.sh" "$@"
 }
 
+cmd_diff_coverage() {
+  exec "${REPO_ROOT}/diff-coverage.sh" "$@"
+}
+
 # Dispatch.
 case "${1:-help}" in
   build)        shift; cmd_build "$@" ;;
   test)         shift; cmd_test "$@" ;;
   fmt|format)   shift; cmd_fmt "$@" ;;
   lint)         shift; cmd_lint "$@" ;;
-  coverage|cov) shift; cmd_coverage "$@" ;;
+  coverage|cov)  shift; cmd_coverage "$@" ;;
+  diff-coverage) shift; cmd_diff_coverage "$@" ;;
   help|--help|-h) cmd_help ;;
   *)
     echo "Unknown command: $1" >&2

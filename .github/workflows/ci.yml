@@ -129,11 +129,16 @@ jobs:
           # Retry once on conflict (concurrent PR pushes).
           git push origin gh-pages || (git pull --rebase origin gh-pages && git push origin gh-pages)
 
+      - name: Compute diff coverage
+        run: |
+          gh pr diff "${PR_NUM}" > /tmp/pr.diff
+          ./diff-coverage.sh /tmp/pr.diff coverage.lcov >> "$GITHUB_ENV"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Comment coverage on PR
         run: |
           MARKER="<!-- coverage-report -->"
-          TOTAL_LH=$(awk -F: '/^LH:/{s+=$2} END{print s+0}' coverage.lcov)
-          TOTAL_LF=$(awk -F: '/^LF:/{s+=$2} END{print s+0}' coverage.lcov)
           REPO_NAME="${{ github.event.repository.name }}"
           if [[ "${TOTAL_LF}" -gt 0 ]]; then
             PCT=$(( 100 * TOTAL_LH / TOTAL_LF ))
@@ -141,6 +146,11 @@ jobs:
             BODY="${MARKER}"$'\n'"**Coverage**: ${TOTAL_LH}/${TOTAL_LF} lines (${PCT}%) — [full report](${REPORT_URL})"
           else
             BODY="${MARKER}"$'\n'"**Coverage**: no data collected"
+          fi
+          if [[ "${DIFF_PCT}" -ge 0 ]]; then
+            BODY="${BODY}"$'\n'"**Diff coverage**: ${DIFF_LH}/${DIFF_LF} changed lines (${DIFF_PCT}%)"
+          else
+            BODY="${BODY}"$'\n'"**Diff coverage**: no coverable lines changed"
           fi
           # Update existing comment or create a new one.
           EXISTING=$(gh api "repos/${{ github.repository }}/issues/${PR_NUM}/comments" \

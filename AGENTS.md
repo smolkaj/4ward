@@ -29,6 +29,7 @@ bazel test //...           # run all tests
 ./format.sh                # auto-format all files (clang-format + buildifier + ktfmt)
 ./lint.sh                  # lint all files (clang-tidy for C++, detekt for Kotlin)
 ./coverage.sh              # collect code coverage (LCOV + optional HTML report)
+./diff-coverage.sh         # incremental coverage from a diff + LCOV file
 ./dev.sh help              # show all developer commands
 ```
 
@@ -40,8 +41,8 @@ CI runs on every push and PR via GitHub Actions (`.github/workflows/ci.yml`):
 formatting, clang-tidy, build+test (Ubuntu + macOS), and coverage.
 
 On PRs, a coverage report is published to GitHub Pages and linked from a bot
-comment. Reports are browsable at
-`https://smolkaj.github.io/4ward/pr/<number>/`.
+comment that shows both absolute and incremental (diff) coverage. Reports are
+browsable at `https://smolkaj.github.io/4ward/pr/<number>/`.
 
 ## Key design invariants — do not break these
 
