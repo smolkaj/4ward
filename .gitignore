@@ -4,3 +4,4 @@ bazel-*
 *.pb.go
 *.pb.py
 coverage-report/
+.claude
