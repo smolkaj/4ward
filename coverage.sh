@@ -66,7 +66,14 @@ if [[ ! -d "${SAMPLE_RUNFILES}" ]]; then
 fi
 
 JACOCO_JAR="${SAMPLE_RUNFILES}/rules_java++toolchains+remote_java_tools/java_tools/JacocoCoverage_jarjar_deploy.jar"
-JDK_HOME="${SAMPLE_RUNFILES}/rules_java++toolchains+remotejdk21_macos_aarch64"
+# Auto-detect the hermetic JDK directory (platform-dependent name).
+JDK_HOME=""
+for d in "${SAMPLE_RUNFILES}"/rules_java++toolchains+remotejdk21_*; do
+  if [[ -x "${d}/bin/java" ]]; then
+    JDK_HOME="${d}"
+    break
+  fi
+done
 JAVA="${JDK_HOME}/bin/java"
 JAVAC="${JDK_HOME}/bin/javac"
 JAR="${JDK_HOME}/bin/jar"
@@ -75,8 +82,8 @@ if [[ ! -f "${JACOCO_JAR}" ]]; then
   echo "Error: JaCoCo deploy jar not found at ${JACOCO_JAR}" >&2
   exit 1
 fi
-if [[ ! -x "${JAVA}" ]]; then
-  echo "Error: JDK not found at ${JDK_HOME}" >&2
+if [[ -z "${JDK_HOME}" || ! -x "${JAVA}" ]]; then
+  echo "Error: JDK not found in ${SAMPLE_RUNFILES}/rules_java++toolchains+remotejdk21_*" >&2
   exit 1
 fi
 
