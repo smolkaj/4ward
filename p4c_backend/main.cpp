@@ -40,40 +40,43 @@
 
 using namespace P4;
 
-int main(int argc, char *const argv[]) {
-    setup_gc_logging();
-    setup_signals();
+int main(int argc, char* const argv[]) {
+  setup_gc_logging();
+  setup_signals();
 
-    AutoCompileContext autoContext(new P4CContextWithOptions<FourWard::FourWardOptions>);
-    auto &options = P4CContextWithOptions<FourWard::FourWardOptions>::get().options();
-    options.langVersion = CompilerOptions::FrontendVersion::P4_16;
+  AutoCompileContext autoContext(
+      new P4CContextWithOptions<FourWard::FourWardOptions>);
+  auto& options =
+      P4CContextWithOptions<FourWard::FourWardOptions>::get().options();
+  options.langVersion = CompilerOptions::FrontendVersion::P4_16;
 
-    if (options.process(argc, argv) != nullptr) {
-        options.setInputFile();
-    }
-    if (::P4::errorCount() > 0) return 1;
+  if (options.process(argc, argv) != nullptr) {
+    options.setInputFile();
+  }
+  if (::P4::errorCount() > 0) return 1;
 
-    const IR::P4Program *program = parseP4File(options);
-    if (program == nullptr || ::P4::errorCount() > 0) return 1;
+  const IR::P4Program* program = parseP4File(options);
+  if (program == nullptr || ::P4::errorCount() > 0) return 1;
 
-    FrontEnd frontend;
-    program = frontend.run(options, program);
-    if (program == nullptr || ::P4::errorCount() > 0) return 1;
+  FrontEnd frontend;
+  program = frontend.run(options, program);
+  if (program == nullptr || ::P4::errorCount() > 0) return 1;
 
-    // Generate p4info from the post-frontend program (before midend simplifications
-    // strip out information needed for the control-plane API).
-    auto p4Runtime = generateP4Runtime(program, "v1model"_cs);
-    if (::P4::errorCount() > 0) return 1;
+  // Generate p4info from the post-frontend program (before midend
+  // simplifications strip out information needed for the control-plane API).
+  auto p4Runtime = generateP4Runtime(program, "v1model"_cs);
+  if (::P4::errorCount() > 0) return 1;
 
-    FourWard::MidEnd midend(options);
-    const IR::ToplevelBlock *toplevel = midend.process(program);
-    if (toplevel == nullptr || ::P4::errorCount() > 0) return 1;
+  FourWard::MidEnd midend(options);
+  const IR::ToplevelBlock* toplevel = midend.process(program);
+  if (toplevel == nullptr || ::P4::errorCount() > 0) return 1;
 
-    FourWard::FourWardBackend backend(options, midend.refMap, midend.typeMap);
-    // setP4Info must come before process so emitTable can look up match field IDs.
-    backend.setP4Info(*p4Runtime.p4Info);
-    backend.process(toplevel);
+  FourWard::FourWardBackend backend(options, midend.refMap, midend.typeMap);
+  // setP4Info must come before process so emitTable can look up match field
+  // IDs.
+  backend.setP4Info(*p4Runtime.p4Info);
+  backend.process(toplevel);
 
-    if (!backend.writePipelineConfig()) return 1;
-    return ::P4::errorCount() > 0 ? 1 : 0;
+  if (!backend.writePipelineConfig()) return 1;
+  return ::P4::errorCount() > 0 ? 1 : 0;
 }

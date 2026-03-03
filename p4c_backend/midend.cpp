@@ -25,25 +25,27 @@
 
 namespace P4::FourWard {
 
-MidEnd::MidEnd(FourWardOptions &options) {
-    auto *evaluator = new P4::EvaluatorPass(&refMap, &typeMap);
+MidEnd::MidEnd(FourWardOptions& options) {
+  auto* evaluator = new P4::EvaluatorPass(&refMap, &typeMap);
 
-    addPasses({
-        new P4::ResolveReferences(&refMap),
-        new P4::TypeInference(&typeMap, false),
-        new P4::ConstantFolding(&typeMap),
-        new P4::SimplifyControlFlow(&typeMap, true),
-        new P4::FlattenHeaders(&typeMap),
-        new P4::EliminateTuples(&typeMap),
-        new P4::CopyStructures(&typeMap),
-        new P4::LocalCopyPropagation(&typeMap),
-        new P4::SimplifyKey(&typeMap, new P4::OrPolicy(new P4::IsLikeLeftValue,
-                                                        new P4::IsValid(&typeMap))),
-        new P4::SimplifySelectCases(&typeMap, false),
-        new P4::SimplifySelectList(&typeMap),
-        evaluator,
-        new VisitFunctor([this, evaluator]() { toplevel = evaluator->getToplevelBlock(); }),
-    });
+  addPasses({
+      new P4::ResolveReferences(&refMap),
+      new P4::TypeInference(&typeMap, false),
+      new P4::ConstantFolding(&typeMap),
+      new P4::SimplifyControlFlow(&typeMap, true),
+      new P4::FlattenHeaders(&typeMap),
+      new P4::EliminateTuples(&typeMap),
+      new P4::CopyStructures(&typeMap),
+      new P4::LocalCopyPropagation(&typeMap),
+      new P4::SimplifyKey(
+          &typeMap,
+          new P4::OrPolicy(new P4::IsLikeLeftValue, new P4::IsValid(&typeMap))),
+      new P4::SimplifySelectCases(&typeMap, false),
+      new P4::SimplifySelectList(&typeMap),
+      evaluator,
+      new VisitFunctor(
+          [this, evaluator]() { toplevel = evaluator->getToplevelBlock(); }),
+  });
 }
 
 }  // namespace P4::FourWard
