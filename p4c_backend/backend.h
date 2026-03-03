@@ -21,9 +21,9 @@
 
 #include "frontends/common/resolveReferences/referenceMap.h"
 #include "frontends/p4/typeMap.h"
+#include "ir.pb.h"
 #include "ir/ir.h"
 #include "ir/visitor.h"
-#include "ir.pb.h"
 #include "p4c_backend/options.h"
 
 namespace P4::FourWard {
@@ -36,13 +36,16 @@ namespace P4::FourWard {
 // straightforward: we call them explicitly from the main backend pass.
 // -----------------------------------------------------------------------
 
-fourward::ir::v1::Type EmitType(const IR::Type *type, const TypeMap &typeMap);
+fourward::ir::v1::Type EmitType(const IR::Type* type, const TypeMap& typeMap);
 
-fourward::ir::v1::Expr EmitExpr(const IR::Expression *expr, const TypeMap &typeMap);
+fourward::ir::v1::Expr EmitExpr(const IR::Expression* expr,
+                                const TypeMap& typeMap);
 
-fourward::ir::v1::Stmt EmitStmt(const IR::StatOrDecl *stmt, const TypeMap &typeMap);
+fourward::ir::v1::Stmt EmitStmt(const IR::StatOrDecl* stmt,
+                                const TypeMap& typeMap);
 
-fourward::ir::v1::BlockStmt EmitBlock(const IR::BlockStatement *block, const TypeMap &typeMap);
+fourward::ir::v1::BlockStmt EmitBlock(const IR::BlockStatement* block,
+                                      const TypeMap& typeMap);
 
 // -----------------------------------------------------------------------
 // FourWardBackend
@@ -52,34 +55,35 @@ fourward::ir::v1::BlockStmt EmitBlock(const IR::BlockStatement *block, const Typ
 // -----------------------------------------------------------------------
 class FourWardBackend : public Inspector {
  public:
-    FourWardBackend(const FourWardOptions &options, const ReferenceMap &refMap,
-                    const TypeMap &typeMap);
+  FourWardBackend(const FourWardOptions& options, const ReferenceMap& refMap,
+                  const TypeMap& typeMap);
 
-    // Called by the pass manager to trigger IR traversal.
-    void process(const IR::ToplevelBlock *toplevel);
+  // Called by the pass manager to trigger IR traversal.
+  void process(const IR::ToplevelBlock* toplevel);
 
-    // Injects the p4info produced by the P4Runtime serialiser into the config.
-    void setP4Info(p4::config::v1::P4Info p4info);
+  // Injects the p4info produced by the P4Runtime serialiser into the config.
+  void setP4Info(p4::config::v1::P4Info p4info);
 
-    // Writes the accumulated PipelineConfig proto to the output file.
-    // Returns true on success.
-    bool writePipelineConfig() const;
+  // Writes the accumulated PipelineConfig proto to the output file.
+  // Returns true on success.
+  bool writePipelineConfig() const;
 
  private:
-    const FourWardOptions &options_;
-    const ReferenceMap &refMap_;
-    const TypeMap &typeMap_;
+  const FourWardOptions& options_;
+  const ReferenceMap& refMap_;
+  const TypeMap& typeMap_;
 
-    fourward::ir::v1::PipelineConfig pipelineConfig_;
-    fourward::ir::v1::P4BehavioralConfig *behavioral_;
+  fourward::ir::v1::PipelineConfig pipelineConfig_;
+  fourward::ir::v1::P4BehavioralConfig* behavioral_;
 
-    void emitTypeDecls(const IR::P4Program *program);
-    void emitParser(const IR::P4Parser *parser);
-    void emitControl(const IR::P4Control *control);
-    void emitAction(const IR::P4Action *action, fourward::ir::v1::ActionDecl *out);
-    void emitArchitecture(const IR::ToplevelBlock *toplevel);
+  void emitTypeDecls(const IR::P4Program* program);
+  void emitParser(const IR::P4Parser* parser);
+  void emitControl(const IR::P4Control* control);
+  void emitAction(const IR::P4Action* action,
+                  fourward::ir::v1::ActionDecl* out);
+  void emitArchitecture(const IR::ToplevelBlock* toplevel);
 
-    std::string outputFilePath() const;
+  std::string outputFilePath() const;
 };
 
 }  // namespace P4::FourWard

@@ -40,16 +40,16 @@ namespace P4::FourWard {
 // header stack simplification, etc.
 class MidEnd : public PassManager {
  public:
-    ReferenceMap refMap;
-    TypeMap typeMap;
-    IR::ToplevelBlock *toplevel = nullptr;
+  ReferenceMap refMap;
+  TypeMap typeMap;
+  IR::ToplevelBlock* toplevel = nullptr;
 
-    explicit MidEnd(FourWardOptions &options);
+  explicit MidEnd(FourWardOptions& options);
 
-    IR::ToplevelBlock *process(const IR::P4Program *&program) {
-        program = program->apply(*this);
-        return toplevel;
-    }
+  IR::ToplevelBlock* process(const IR::P4Program*& program) {
+    program = program->apply(*this);
+    return toplevel;
+  }
 };
 
 }  // namespace P4::FourWard

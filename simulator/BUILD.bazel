@@ -93,3 +93,26 @@ kt_jvm_test(
         "@maven//:junit_junit",
     ],
 )
+
+kt_jvm_test(
+    name = "InterpreterTest",
+    srcs = ["InterpreterTest.kt"],
+    test_class = "fourward.simulator.InterpreterTest",
+    deps = [
+        ":ir_java_proto",
+        ":simulator_lib",
+        "@maven//:junit_junit",
+    ],
+)
+
+kt_jvm_test(
+    name = "TableStoreTest",
+    srcs = ["TableStoreTest.kt"],
+    test_class = "fourward.simulator.TableStoreTest",
+    deps = [
+        ":p4runtime_java_proto",
+        ":simulator_lib",
+        "@maven//:com_google_protobuf_protobuf_java",
+        "@maven//:junit_junit",
+    ],
+)

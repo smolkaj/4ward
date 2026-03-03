@@ -4,8 +4,9 @@
 // or any other client) and the simulator subprocess.
 //
 // Transport: length-delimited protocol buffers over stdin/stdout — a 4-byte
-// big-endian length prefix followed by the serialised SimRequest or SimResponse.
-// This is the same framing used by Bazel's persistent worker protocol.
+// big-endian length prefix followed by the serialised SimRequest or
+// SimResponse. This is the same framing used by Bazel's persistent worker
+// protocol.
 //
 // Concurrency: the simulator processes one request at a time. Clients that need
 // concurrent access must serialise requests (e.g. with a mutex).
@@ -24,22 +25,22 @@ option java_package = "fourward.sim.v1";
 // =============================================================================
 
 message SimRequest {
-    oneof kind {
-        LoadPipelineRequest load_pipeline = 1;
-        ProcessPacketRequest process_packet = 2;
-        WriteEntryRequest write_entry = 3;
-        ReadEntriesRequest read_entries = 4;
-    }
+  oneof kind {
+    LoadPipelineRequest load_pipeline = 1;
+    ProcessPacketRequest process_packet = 2;
+    WriteEntryRequest write_entry = 3;
+    ReadEntriesRequest read_entries = 4;
+  }
 }
 
 message SimResponse {
-    oneof kind {
-        LoadPipelineResponse load_pipeline = 1;
-        ProcessPacketResponse process_packet = 2;
-        WriteEntryResponse write_entry = 3;
-        ReadEntriesResponse read_entries = 4;
-        ErrorResponse error = 100;
-    }
+  oneof kind {
+    LoadPipelineResponse load_pipeline = 1;
+    ProcessPacketResponse process_packet = 2;
+    WriteEntryResponse write_entry = 3;
+    ReadEntriesResponse read_entries = 4;
+    ErrorResponse error = 100;
+  }
 }
 
 // =============================================================================
@@ -49,7 +50,9 @@ message SimResponse {
 // Installs a compiled P4 program. Must be sent before any ProcessPacketRequest.
 // Sending a new LoadPipelineRequest replaces the current program and clears all
 // table entries.
-message LoadPipelineRequest  { fourward.ir.v1.PipelineConfig config = 1; }
+message LoadPipelineRequest {
+  fourward.ir.v1.PipelineConfig config = 1;
+}
 message LoadPipelineResponse {}
 
 // =============================================================================
@@ -57,20 +60,20 @@ message LoadPipelineResponse {}
 // =============================================================================
 
 message ProcessPacketRequest {
-    uint32 ingress_port = 1;
-    bytes payload = 2;
+  uint32 ingress_port = 1;
+  bytes payload = 2;
 }
 
 // The primary output of the simulator: output packets (what a real device would
 // emit) plus a complete execution trace (what 4ward uniquely provides).
 message ProcessPacketResponse {
-    repeated OutputPacket output_packets = 1;
-    Trace trace = 2;
+  repeated OutputPacket output_packets = 1;
+  Trace trace = 2;
 }
 
 message OutputPacket {
-    uint32 egress_port = 1;
-    bytes payload = 2;
+  uint32 egress_port = 1;
+  bytes payload = 2;
 }
 
 // =============================================================================
@@ -81,70 +84,70 @@ message OutputPacket {
 // =============================================================================
 
 message Trace {
-    repeated TraceEvent events = 1;
+  repeated TraceEvent events = 1;
 }
 
 message TraceEvent {
-    oneof kind {
-        ParserTransitionEvent parser_transition = 1;
-        TableLookupEvent table_lookup = 2;
-        ActionExecutionEvent action_execution = 3;
-        BranchEvent branch = 4;
-        ExternCallEvent extern_call = 5;
-        DropEvent drop = 6;
-        CloneEvent clone = 7;
-    }
+  oneof kind {
+    ParserTransitionEvent parser_transition = 1;
+    TableLookupEvent table_lookup = 2;
+    ActionExecutionEvent action_execution = 3;
+    BranchEvent branch = 4;
+    ExternCallEvent extern_call = 5;
+    DropEvent drop = 6;
+    CloneEvent clone = 7;
+  }
 }
 
 // Fired on every parser state transition, including the final transition to
 // "accept" or "reject".
 message ParserTransitionEvent {
-    string parser_name = 1;
-    string from_state = 2;
-    string to_state = 3;
+  string parser_name = 1;
+  string from_state = 2;
+  string to_state = 3;
 }
 
 // Fired on every table.apply(). Records hit/miss, matched entry, and selected
 // action.
 message TableLookupEvent {
-    string table_name = 1;
-    bool hit = 2;
-    p4.v1.TableEntry matched_entry = 3;  // present on hit; absent on miss
-    string action_name = 4;              // default action on miss
+  string table_name = 1;
+  bool hit = 2;
+  p4.v1.TableEntry matched_entry = 3;  // present on hit; absent on miss
+  string action_name = 4;              // default action on miss
 }
 
 // Fired when an action begins executing. Parameter values are big-endian bytes.
 message ActionExecutionEvent {
-    string action_name = 1;
-    map<string, bytes> params = 2;
+  string action_name = 1;
+  map<string, bytes> params = 2;
 }
 
 // Fired on every if/else branch.
 message BranchEvent {
-    string control_name = 1;
-    bool taken = 2;  // true = then-branch; false = else-branch
+  string control_name = 1;
+  bool taken = 2;  // true = then-branch; false = else-branch
 }
 
 // Fired on every extern method call.
 message ExternCallEvent {
-    string extern_instance_name = 1;
-    string method = 2;
+  string extern_instance_name = 1;
+  string method = 2;
 }
 
 // Fired when a packet is dropped.
 message DropEvent {
-    DropReason reason = 1;
+  DropReason reason = 1;
 }
 
 enum DropReason {
-    DROP_REASON_UNSPECIFIED = 0;
-    MARK_TO_DROP = 1;   // explicit mark_to_drop()
-    PARSER_REJECT = 2;  // parser transitioned to reject state
+  DROP_REASON_UNSPECIFIED = 0;
+  MARK_TO_DROP = 1;   // explicit mark_to_drop()
+  PARSER_REJECT = 2;  // parser transitioned to reject state
 }
 
 // Fired when the P4 program requests a packet clone.
 message CloneEvent {
-    uint32 session_id = 1;
+  uint32 session_id = 1;
 }
 
 // =============================================================================
@@ -152,24 +155,30 @@ message CloneEvent {
 // =============================================================================
 
 // Reuses P4Runtime's Update message so clients can share entry-building code.
-message WriteEntryRequest  { p4.v1.Update update = 1; }
+message WriteEntryRequest {
+  p4.v1.Update update = 1;
+}
 message WriteEntryResponse {}
 
-message ReadEntriesRequest  { p4.v1.ReadRequest request = 1; }
-message ReadEntriesResponse { repeated p4.v1.Entity entities = 1; }
+message ReadEntriesRequest {
+  p4.v1.ReadRequest request = 1;
+}
+message ReadEntriesResponse {
+  repeated p4.v1.Entity entities = 1;
+}
 
 // =============================================================================
 // Errors
 // =============================================================================
 
 message ErrorResponse {
-    string message = 1;
-    ErrorCode code = 2;
+  string message = 1;
+  ErrorCode code = 2;
 }
 
 enum ErrorCode {
-    ERROR_CODE_UNSPECIFIED = 0;
-    INVALID_REQUEST = 1;
-    NO_PIPELINE_LOADED = 2;
-    INTERNAL_ERROR = 3;
+  ERROR_CODE_UNSPECIFIED = 0;
+  INVALID_REQUEST = 1;
+  NO_PIPELINE_LOADED = 2;
+  INTERNAL_ERROR = 3;
 }

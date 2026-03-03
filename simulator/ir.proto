@@ -6,9 +6,9 @@
 // Design principles:
 //
 //   Architecture-generic: the Architecture message captures pipeline wiring and
-//   extern declarations; extern semantics are implemented per-architecture in the
-//   simulator. Adding a new architecture requires only a new Architecture value
-//   and a corresponding simulator implementation.
+//   extern declarations; extern semantics are implemented per-architecture in
+//   the simulator. Adding a new architecture requires only a new Architecture
+//   value and a corresponding simulator implementation.
 //
 //   Readable: all cross-references use names, not numeric IDs. Numeric IDs from
 //   p4info are reserved for the control-plane API (P4Runtime) only.
@@ -17,9 +17,9 @@
 //   after type resolution. The simulator never infers types at runtime.
 //
 // Relationship to p4info:
-//   PipelineConfig embeds a p4.config.v1.P4Info alongside this behavioral config.
-//   p4info owns the control-plane description (table IDs, action IDs, etc.).
-//   This file owns the execution semantics.
+//   PipelineConfig embeds a p4.config.v1.P4Info alongside this behavioral
+//   config. p4info owns the control-plane description (table IDs, action IDs,
+//   etc.). This file owns the execution semantics.
 //
 // The IR is emitted after p4c's midend passes: generics instantiated, types
 // resolved, constants folded, header stacks concretized.
@@ -39,20 +39,20 @@ option java_package = "fourward.ir.v1";
 // PipelineConfig is the top-level message for a compiled P4 program. It maps
 // directly onto the P4Runtime SetForwardingPipelineConfig RPC.
 message PipelineConfig {
-    p4.config.v1.P4Info p4info = 1;
-    P4BehavioralConfig behavioral = 2;
+  p4.config.v1.P4Info p4info = 1;
+  P4BehavioralConfig behavioral = 2;
 }
 
 message P4BehavioralConfig {
-    Architecture architecture = 1;
-    repeated TypeDecl types = 2;
-    repeated ParserDecl parsers = 3;
-    repeated ControlDecl controls = 4;
-    repeated ActionDecl actions = 5;
+  Architecture architecture = 1;
+  repeated TypeDecl types = 2;
+  repeated ParserDecl parsers = 3;
+  repeated ControlDecl controls = 4;
+  repeated ActionDecl actions = 5;
 
-    // Supplements p4info's table descriptions with key expressions to evaluate.
-    // One entry per table; name matches p4info table preamble name.
-    repeated TableBehavior tables = 6;
+  // Supplements p4info's table descriptions with key expressions to evaluate.
+  // One entry per table; name matches p4info table preamble name.
+  repeated TableBehavior tables = 6;
 }
 
 // =============================================================================
@@ -64,43 +64,43 @@ message P4BehavioralConfig {
 // resubmit, etc. differ between v1model and PSA). The stages field describes
 // the structural wiring.
 message Architecture {
-    // Well-known identifier used by the simulator to select the correct
-    // implementation. Current values: "v1model", "psa", "pna".
-    string name = 1;
+  // Well-known identifier used by the simulator to select the correct
+  // implementation. Current values: "v1model", "psa", "pna".
+  string name = 1;
 
-    repeated PipelineStage stages = 2;
+  repeated PipelineStage stages = 2;
 
-    // Extern types provided by this architecture. The simulator's architecture
-    // implementation provides runtime semantics for each.
-    repeated ExternTypeDecl extern_types = 3;
+  // Extern types provided by this architecture. The simulator's architecture
+  // implementation provides runtime semantics for each.
+  repeated ExternTypeDecl extern_types = 3;
 }
 
 message PipelineStage {
-    string name = 1;        // e.g. "ingress", "egress_parser"
-    StageKind kind = 2;
-    string block_name = 3;  // references a ParserDecl or ControlDecl by name
+  string name = 1;  // e.g. "ingress", "egress_parser"
+  StageKind kind = 2;
+  string block_name = 3;  // references a ParserDecl or ControlDecl by name
 }
 
 enum StageKind {
-    STAGE_KIND_UNSPECIFIED = 0;
-    PARSER = 1;
-    CONTROL = 2;
-    DEPARSER = 3;
+  STAGE_KIND_UNSPECIFIED = 0;
+  PARSER = 1;
+  CONTROL = 2;
+  DEPARSER = 3;
 }
 
 // ExternTypeDecl declares an extern type provided by the architecture.
 // Semantics are implemented in the simulator; this declaration lets the
 // simulator validate instantiations and method calls at load time.
 message ExternTypeDecl {
-    string name = 1;
-    repeated ParamDecl constructor_params = 2;
-    repeated MethodDecl methods = 3;
+  string name = 1;
+  repeated ParamDecl constructor_params = 2;
+  repeated MethodDecl methods = 3;
 }
 
 message MethodDecl {
-    string name = 1;
-    repeated ParamDecl params = 2;
-    Type return_type = 3;
+  string name = 1;
+  repeated ParamDecl params = 2;
+  Type return_type = 3;
 }
 
 // =============================================================================
@@ -109,24 +109,30 @@ message MethodDecl {
 
 // Always present on Expr nodes (annotated by p4c after type resolution).
 message Type {
-    oneof kind {
-        BitType bit = 1;          // bit<N>: unsigned N-bit integer
-        IntType signed_int = 2;   // int<N>: signed N-bit two's-complement integer
-        VarbitType varbit = 3;    // varbit<N>: variable-length bitstring, max N bits
-        bool boolean = 4;
-        string named = 5;         // reference to a TypeDecl by name
-        HeaderStackType header_stack = 6;
-        bool error = 7;           // P4 error type
-    }
+  oneof kind {
+    BitType bit = 1;         // bit<N>: unsigned N-bit integer
+    IntType signed_int = 2;  // int<N>: signed N-bit two's-complement integer
+    VarbitType varbit = 3;   // varbit<N>: variable-length bitstring, max N bits
+    bool boolean = 4;
+    string named = 5;  // reference to a TypeDecl by name
+    HeaderStackType header_stack = 6;
+    bool error = 7;  // P4 error type
+  }
 }
 
-message BitType    { uint32 width = 1; }
-message IntType    { uint32 width = 1; }
-message VarbitType { uint32 max_width = 1; }
+message BitType {
+  uint32 width = 1;
+}
+message IntType {
+  uint32 width = 1;
+}
+message VarbitType {
+  uint32 max_width = 1;
+}
 
 message HeaderStackType {
-    string element_type = 1;  // references a TypeDecl whose kind is header
-    uint32 size = 2;
+  string element_type = 1;  // references a TypeDecl whose kind is header
+  uint32 size = 2;
 }
 
 // =============================================================================
@@ -136,42 +142,50 @@ message HeaderStackType {
 // All types referenced in the program are declared here after p4c's midend;
 // the program contains no anonymous types.
 message TypeDecl {
-    string name = 1;
-    oneof kind {
-        HeaderDecl header = 2;
-        StructDecl struct = 3;
-        HeaderUnionDecl header_union = 4;
-        EnumDecl enum = 5;
-    }
+  string name = 1;
+  oneof kind {
+    HeaderDecl header = 2;
+    StructDecl struct = 3;
+    HeaderUnionDecl header_union = 4;
+    EnumDecl enum = 5;
+  }
 }
 
-message HeaderDecl      { repeated FieldDecl fields = 1; }
-message StructDecl      { repeated FieldDecl fields = 1; }
-message HeaderUnionDecl { repeated FieldDecl fields = 1; }
-message EnumDecl        { repeated string members = 1; }
+message HeaderDecl {
+  repeated FieldDecl fields = 1;
+}
+message StructDecl {
+  repeated FieldDecl fields = 1;
+}
+message HeaderUnionDecl {
+  repeated FieldDecl fields = 1;
+}
+message EnumDecl {
+  repeated string members = 1;
+}
 
 message FieldDecl {
-    string name = 1;
-    Type type = 2;
+  string name = 1;
+  Type type = 2;
 }
 
 message ParamDecl {
-    string name = 1;
-    Type type = 2;
-    Direction direction = 3;
+  string name = 1;
+  Type type = 2;
+  Direction direction = 3;
 }
 
 enum Direction {
-    DIRECTION_UNSPECIFIED = 0;
-    IN = 1;
-    OUT = 2;
-    INOUT = 3;
+  DIRECTION_UNSPECIFIED = 0;
+  IN = 1;
+  OUT = 2;
+  INOUT = 3;
 }
 
 message VarDecl {
-    string name = 1;
-    Type type = 2;
-    Expr initializer = 3;  // absent if no initialiser
+  string name = 1;
+  Type type = 2;
+  Expr initializer = 3;  // absent if no initialiser
 }
 
 // =============================================================================
@@ -179,79 +193,85 @@ message VarDecl {
 // =============================================================================
 
 message ParserDecl {
-    string name = 1;
-    repeated ParamDecl params = 2;
-    repeated ParserState states = 3;
+  string name = 1;
+  repeated ParamDecl params = 2;
+  repeated ParserState states = 3;
 }
 
 message ParserState {
-    // Predefined: "start", "accept", "reject". All others are user-defined.
-    string name = 1;
-    repeated Stmt stmts = 2;
-    Transition transition = 3;
+  // Predefined: "start", "accept", "reject". All others are user-defined.
+  string name = 1;
+  repeated Stmt stmts = 2;
+  Transition transition = 3;
 }
 
 message Transition {
-    oneof kind {
-        string next_state = 1;
-        SelectTransition select = 2;
-    }
+  oneof kind {
+    string next_state = 1;
+    SelectTransition select = 2;
+  }
 }
 
 message SelectTransition {
-    repeated Expr keys = 1;
-    repeated SelectCase cases = 2;
-    string default_state = 3;
+  repeated Expr keys = 1;
+  repeated SelectCase cases = 2;
+  string default_state = 3;
 }
 
 message SelectCase {
-    repeated KeysetExpr keysets = 1;
-    string next_state = 2;
+  repeated KeysetExpr keysets = 1;
+  string next_state = 2;
 }
 
 message KeysetExpr {
-    oneof kind {
-        Expr exact = 1;
-        RangeKeyset range = 2;   // lo .. hi (inclusive)
-        MaskKeyset mask = 3;     // value &&& mask
-        bool default_case = 4;   // the "_" wildcard
-    }
+  oneof kind {
+    Expr exact = 1;
+    RangeKeyset range = 2;  // lo .. hi (inclusive)
+    MaskKeyset mask = 3;    // value &&& mask
+    bool default_case = 4;  // the "_" wildcard
+  }
 }
 
-message RangeKeyset { Expr lo = 1; Expr hi = 2; }
-message MaskKeyset  { Expr value = 1; Expr mask = 2; }
+message RangeKeyset {
+  Expr lo = 1;
+  Expr hi = 2;
+}
+message MaskKeyset {
+  Expr value = 1;
+  Expr mask = 2;
+}
 
 // =============================================================================
 // Control
 // =============================================================================
 
 message ControlDecl {
-    string name = 1;
-    repeated ParamDecl params = 2;
-    repeated VarDecl local_vars = 3;
-    repeated ActionDecl local_actions = 4;
-    repeated Stmt apply_body = 5;
+  string name = 1;
+  repeated ParamDecl params = 2;
+  repeated VarDecl local_vars = 3;
+  repeated ActionDecl local_actions = 4;
+  repeated Stmt apply_body = 5;
 }
 
 message ActionDecl {
-    string name = 1;
-    repeated ParamDecl params = 2;
-    repeated Stmt body = 3;
+  string name = 1;
+  repeated ParamDecl params = 2;
+  repeated Stmt body = 3;
 }
 
 // Supplements the p4info table description with key expressions.
 // Name must match p4info table.preamble.name.
 message TableBehavior {
-    string name = 1;
+  string name = 1;
 
-    // In the same order as p4info match_fields. The simulator evaluates each
-    // expression to produce the lookup key.
-    repeated TableKey keys = 2;
+  // In the same order as p4info match_fields. The simulator evaluates each
+  // expression to produce the lookup key.
+  repeated TableKey keys = 2;
 }
 
 message TableKey {
-    string field_name = 1;  // matches p4info match_field.name
-    Expr expr = 2;
+  string field_name = 1;  // matches p4info match_field.name
+  Expr expr = 2;
 }
 
 // =============================================================================
@@ -259,48 +279,52 @@ message TableKey {
 // =============================================================================
 
 message Stmt {
-    oneof kind {
-        AssignmentStmt assignment = 1;
-        MethodCallStmt method_call = 2;
-        IfStmt if_stmt = 3;
-        SwitchStmt switch_stmt = 4;  // switch (table.apply().action_run) { ... }
-        BlockStmt block = 5;
-        ExitStmt exit = 6;
-        ReturnStmt return_stmt = 7;
-    }
+  oneof kind {
+    AssignmentStmt assignment = 1;
+    MethodCallStmt method_call = 2;
+    IfStmt if_stmt = 3;
+    SwitchStmt switch_stmt = 4;  // switch (table.apply().action_run) { ... }
+    BlockStmt block = 5;
+    ExitStmt exit = 6;
+    ReturnStmt return_stmt = 7;
+  }
 }
 
 message AssignmentStmt {
-    Expr lhs = 1;  // lvalue: NameRef, FieldAccess, ArrayIndex, or Slice
-    Expr rhs = 2;
+  Expr lhs = 1;  // lvalue: NameRef, FieldAccess, ArrayIndex, or Slice
+  Expr rhs = 2;
 }
 
 message MethodCallStmt {
-    Expr call = 1;  // return value is discarded
+  Expr call = 1;  // return value is discarded
 }
 
 message IfStmt {
-    Expr condition = 1;
-    BlockStmt then_block = 2;
-    BlockStmt else_block = 3;  // empty if no else branch
+  Expr condition = 1;
+  BlockStmt then_block = 2;
+  BlockStmt else_block = 3;  // empty if no else branch
 }
 
 // switch (table.apply().action_run) { case action_name: { ... } ... }
 // subject is always a TableApplyExpr.
 message SwitchStmt {
-    Expr subject = 1;
-    repeated SwitchCase cases = 2;
-    BlockStmt default_block = 3;
+  Expr subject = 1;
+  repeated SwitchCase cases = 2;
+  BlockStmt default_block = 3;
 }
 
 message SwitchCase {
-    string action_name = 1;
-    BlockStmt block = 2;
+  string action_name = 1;
+  BlockStmt block = 2;
 }
 
-message BlockStmt  { repeated Stmt stmts = 1; }
-message ExitStmt   {}
-message ReturnStmt { Expr value = 1; }
+message BlockStmt {
+  repeated Stmt stmts = 1;
+}
+message ExitStmt {}
+message ReturnStmt {
+  Expr value = 1;
+}
 
 // =============================================================================
 // Expressions
@@ -310,91 +334,111 @@ message ReturnStmt { Expr value = 1; }
 // The simulator relies on this for bit-precise arithmetic; types are never
 // inferred at runtime.
 message Expr {
-    oneof kind {
-        Literal literal = 1;
-        NameRef name_ref = 2;
-        FieldAccess field_access = 3;
-        ArrayIndex array_index = 4;    // header_stack[index]
-        Slice slice = 5;               // expr[hi:lo]
-        Concat concat = 6;             // expr ++ expr
-        Cast cast = 7;
-        BinaryOp binary_op = 8;
-        UnaryOp unary_op = 9;
-        MethodCall method_call = 10;
-        TableApplyExpr table_apply = 11;
-    }
+  oneof kind {
+    Literal literal = 1;
+    NameRef name_ref = 2;
+    FieldAccess field_access = 3;
+    ArrayIndex array_index = 4;  // header_stack[index]
+    Slice slice = 5;             // expr[hi:lo]
+    Concat concat = 6;           // expr ++ expr
+    Cast cast = 7;
+    BinaryOp binary_op = 8;
+    UnaryOp unary_op = 9;
+    MethodCall method_call = 10;
+    TableApplyExpr table_apply = 11;
+  }
 
-    Type type = 100;  // always present
+  Type type = 100;  // always present
 }
 
 message Literal {
-    oneof kind {
-        uint64 integer = 1;       // bit<N> where N <= 64
-        bytes big_integer = 2;    // big-endian bytes for bit<N> where N > 64
-        bool boolean = 3;
-        string error_member = 4;  // e.g. "NoError", "PacketTooShort"
-    }
+  oneof kind {
+    uint64 integer = 1;     // bit<N> where N <= 64
+    bytes big_integer = 2;  // big-endian bytes for bit<N> where N > 64
+    bool boolean = 3;
+    string error_member = 4;  // e.g. "NoError", "PacketTooShort"
+  }
 }
 
-message NameRef      { string name = 1; }
-message FieldAccess  { Expr expr = 1; string field_name = 2; }
-message ArrayIndex   { Expr expr = 1; Expr index = 2; }
-message Slice        { Expr expr = 1; uint32 hi = 2; uint32 lo = 3; }
-message Concat       { Expr left = 1; Expr right = 2; }
-message Cast         { Type target_type = 1; Expr expr = 2; }
+message NameRef {
+  string name = 1;
+}
+message FieldAccess {
+  Expr expr = 1;
+  string field_name = 2;
+}
+message ArrayIndex {
+  Expr expr = 1;
+  Expr index = 2;
+}
+message Slice {
+  Expr expr = 1;
+  uint32 hi = 2;
+  uint32 lo = 3;
+}
+message Concat {
+  Expr left = 1;
+  Expr right = 2;
+}
+message Cast {
+  Type target_type = 1;
+  Expr expr = 2;
+}
 
 message BinaryOp {
-    BinaryOperator op = 1;
-    Expr left = 2;
-    Expr right = 3;
+  BinaryOperator op = 1;
+  Expr left = 2;
+  Expr right = 3;
 }
 
 enum BinaryOperator {
-    BINARY_OPERATOR_UNSPECIFIED = 0;
-    ADD = 1;
-    SUB = 2;
-    MUL = 3;
-    DIV = 4;
-    MOD = 5;
-    ADD_SAT = 6;   // |+|
-    SUB_SAT = 7;   // |-|
-    BIT_AND = 8;
-    BIT_OR = 9;
-    BIT_XOR = 10;
-    SHL = 11;
-    SHR = 12;
-    EQ = 13;
-    NEQ = 14;
-    LT = 15;
-    GT = 16;
-    LE = 17;
-    GE = 18;
-    AND = 19;  // logical &&
-    OR = 20;   // logical ||
+  BINARY_OPERATOR_UNSPECIFIED = 0;
+  ADD = 1;
+  SUB = 2;
+  MUL = 3;
+  DIV = 4;
+  MOD = 5;
+  ADD_SAT = 6;  // |+|
+  SUB_SAT = 7;  // |-|
+  BIT_AND = 8;
+  BIT_OR = 9;
+  BIT_XOR = 10;
+  SHL = 11;
+  SHR = 12;
+  EQ = 13;
+  NEQ = 14;
+  LT = 15;
+  GT = 16;
+  LE = 17;
+  GE = 18;
+  AND = 19;  // logical &&
+  OR = 20;   // logical ||
 }
 
 message UnaryOp {
-    UnaryOperator op = 1;
-    Expr expr = 2;
+  UnaryOperator op = 1;
+  Expr expr = 2;
 }
 
 enum UnaryOperator {
-    UNARY_OPERATOR_UNSPECIFIED = 0;
-    NEG = 1;      // unary -
-    BIT_NOT = 2;  // ~
-    NOT = 3;      // logical !
+  UNARY_OPERATOR_UNSPECIFIED = 0;
+  NEG = 1;      // unary -
+  BIT_NOT = 2;  // ~
+  NOT = 3;      // logical !
 }
 
 // Covers extern method calls, header methods (isValid, setValid, setInvalid),
 // and packet methods (extract, emit, lookahead).
 message MethodCall {
-    Expr target = 1;
-    string method = 2;
-    repeated Expr args = 3;
-    repeated Type type_args = 4;  // for generic methods, e.g. packet.lookahead<T>()
+  Expr target = 1;
+  string method = 2;
+  repeated Expr args = 3;
+  repeated Type type_args =
+      4;  // for generic methods, e.g. packet.lookahead<T>()
 }
 
-// table.apply(): used as the subject of SwitchStmt and as a standalone statement.
+// table.apply(): used as the subject of SwitchStmt and as a standalone
+// statement.
 message TableApplyExpr {
-    string table_name = 1;  // references a TableBehavior and p4info table by name
+  string table_name = 1;  // references a TableBehavior and p4info table by name
 }

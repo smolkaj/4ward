@@ -11,8 +11,8 @@ genrule(
     cmd = "$(execpath //p4c_backend:p4c-4ward) -I $$(dirname $(execpath @p4c//:core_p4)) -o $@ $(SRCS)",
     tools = [
         "//p4c_backend:p4c-4ward",
-        "@p4c//:p4include",
         "@p4c//:core_p4",
+        "@p4c//:p4include",
     ],
 )
 
@@ -21,9 +21,9 @@ kt_jvm_test(
     name = "passthrough_test",
     srcs = ["PassthroughTest.kt"],
     data = [
-        ":passthrough_pb",
         "passthrough.stf",
-        "//simulator:simulator",
+        ":passthrough_pb",
+        "//simulator",
     ],
     test_class = "fourward.e2e.passthrough.PassthroughTest",
     deps = [

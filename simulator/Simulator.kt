@@ -14,131 +14,120 @@ import fourward.sim.v1.WriteEntryResponse
 /**
  * The top-level simulator state machine.
  *
- * Holds the loaded pipeline configuration and all mutable data-plane state
- * (table entries, counter/meter/register values). Dispatches [SimRequest]
- * messages to the appropriate handler and returns [SimResponse] messages.
+ * Holds the loaded pipeline configuration and all mutable data-plane state (table entries,
+ * counter/meter/register values). Dispatches [SimRequest] messages to the appropriate handler and
+ * returns [SimResponse] messages.
  *
- * One [Simulator] instance runs for the lifetime of the process; it is
- * single-threaded (callers must serialise concurrent requests).
+ * One [Simulator] instance runs for the lifetime of the process; it is single-threaded (callers
+ * must serialise concurrent requests).
  */
 class Simulator {
 
-    private var pipeline: PipelineConfig? = null
-    private var architecture: Architecture? = null
-    private val tableStore = TableStore()
+  private var pipeline: PipelineConfig? = null
+  private var architecture: Architecture? = null
+  private val tableStore = TableStore()
 
-    // Maps p4info numeric IDs to names, populated when a pipeline is loaded.
-    private val tableNameById: MutableMap<Int, String> = mutableMapOf()
-    private val actionNameById: MutableMap<Int, String> = mutableMapOf()
+  // Maps p4info numeric IDs to names, populated when a pipeline is loaded.
+  private val tableNameById: MutableMap<Int, String> = mutableMapOf()
+  private val actionNameById: MutableMap<Int, String> = mutableMapOf()
 
-    fun handle(request: SimRequest): SimResponse = when {
-        request.hasLoadPipeline()  -> handleLoadPipeline(request.loadPipeline)
-        request.hasProcessPacket() -> handleProcessPacket(request.processPacket)
-        request.hasWriteEntry()    -> handleWriteEntry(request.writeEntry)
-        request.hasReadEntries()   -> handleReadEntries(request.readEntries)
-        else -> error("unhandled request kind: $request")
+  fun handle(request: SimRequest): SimResponse =
+    when {
+      request.hasLoadPipeline() -> handleLoadPipeline(request.loadPipeline)
+      request.hasProcessPacket() -> handleProcessPacket(request.processPacket)
+      request.hasWriteEntry() -> handleWriteEntry(request.writeEntry)
+      request.hasReadEntries() -> handleReadEntries(request.readEntries)
+      else -> error("unhandled request kind: $request")
     }
 
-    // -------------------------------------------------------------------------
-    // Pipeline loading
-    // -------------------------------------------------------------------------
+  // -------------------------------------------------------------------------
+  // Pipeline loading
+  // -------------------------------------------------------------------------
 
-    private fun handleLoadPipeline(
-        req: fourward.sim.v1.LoadPipelineRequest,
-    ): SimResponse {
-        val config = req.config
-        pipeline = config
+  private fun handleLoadPipeline(req: fourward.sim.v1.LoadPipelineRequest): SimResponse {
+    val config = req.config
+    pipeline = config
 
-        tableNameById.clear()
-        actionNameById.clear()
-        for (table in config.p4Info.tablesList) {
-            tableNameById[table.preamble.id] = table.preamble.name
-        }
-        for (action in config.p4Info.actionsList) {
-            actionNameById[action.preamble.id] = action.preamble.name
-        }
-
-        for (table in config.p4Info.tablesList) {
-            if (table.constDefaultActionId != 0) {
-                val actionName = actionNameById[table.constDefaultActionId] ?: "NoAction"
-                tableStore.setDefaultAction(table.preamble.name, actionName)
-            }
-        }
-
-        architecture = when (val archName = config.behavioral.architecture.name) {
-            "v1model" -> V1ModelArchitecture()
-            else      -> return simError("unsupported architecture: $archName")
-        }
-
-        return SimResponse.newBuilder()
-            .setLoadPipeline(LoadPipelineResponse.getDefaultInstance())
-            .build()
+    tableNameById.clear()
+    actionNameById.clear()
+    for (table in config.p4Info.tablesList) {
+      tableNameById[table.preamble.id] = table.preamble.name
+    }
+    for (action in config.p4Info.actionsList) {
+      actionNameById[action.preamble.id] = action.preamble.name
     }
 
-    // -------------------------------------------------------------------------
-    // Packet processing
-    // -------------------------------------------------------------------------
+    for (table in config.p4Info.tablesList) {
+      if (table.constDefaultActionId != 0) {
+        val actionName = actionNameById[table.constDefaultActionId] ?: "NoAction"
+        tableStore.setDefaultAction(table.preamble.name, actionName)
+      }
+    }
 
-    private fun handleProcessPacket(
-        req: fourward.sim.v1.ProcessPacketRequest,
-    ): SimResponse {
-        val config = pipeline ?: return simError("no pipeline loaded", ErrorCode.NO_PIPELINE_LOADED)
-        val arch   = architecture ?: return simError("no pipeline loaded", ErrorCode.NO_PIPELINE_LOADED)
+    architecture =
+      when (val archName = config.behavioral.architecture.name) {
+        "v1model" -> V1ModelArchitecture()
+        else -> return simError("unsupported architecture: $archName")
+      }
 
-        val result = arch.processPacket(
-            ingressPort = req.ingressPort.toUInt(),
-            payload     = req.payload.toByteArray(),
-            config      = config.behavioral,
-            tableStore  = tableStore,
+    return SimResponse.newBuilder()
+      .setLoadPipeline(LoadPipelineResponse.getDefaultInstance())
+      .build()
+  }
+
+  // -------------------------------------------------------------------------
+  // Packet processing
+  // -------------------------------------------------------------------------
+
+  private fun handleProcessPacket(req: fourward.sim.v1.ProcessPacketRequest): SimResponse {
+    val config = pipeline ?: return simError("no pipeline loaded", ErrorCode.NO_PIPELINE_LOADED)
+    val arch = architecture ?: return simError("no pipeline loaded", ErrorCode.NO_PIPELINE_LOADED)
+
+    val result =
+      arch.processPacket(
+        ingressPort = req.ingressPort.toUInt(),
+        payload = req.payload.toByteArray(),
+        config = config.behavioral,
+        tableStore = tableStore,
+      )
+
+    val response =
+      ProcessPacketResponse.newBuilder()
+        .addAllOutputPackets(
+          result.outputPackets.map { pkt ->
+            OutputPacket.newBuilder()
+              .setEgressPort(pkt.port.toInt())
+              .setPayload(com.google.protobuf.ByteString.copyFrom(pkt.payload))
+              .build()
+          }
         )
+        .setTrace(result.trace)
+        .build()
 
-        val response = ProcessPacketResponse.newBuilder()
-            .addAllOutputPackets(
-                result.outputPackets.map { pkt ->
-                    OutputPacket.newBuilder()
-                        .setEgressPort(pkt.port.toInt())
-                        .setPayload(com.google.protobuf.ByteString.copyFrom(pkt.payload))
-                        .build()
-                }
-            )
-            .setTrace(result.trace)
-            .build()
+    return SimResponse.newBuilder().setProcessPacket(response).build()
+  }
 
-        return SimResponse.newBuilder().setProcessPacket(response).build()
-    }
+  // -------------------------------------------------------------------------
+  // Table entry management
+  // -------------------------------------------------------------------------
 
-    // -------------------------------------------------------------------------
-    // Table entry management
-    // -------------------------------------------------------------------------
+  private fun handleWriteEntry(req: fourward.sim.v1.WriteEntryRequest): SimResponse {
+    pipeline ?: return simError("no pipeline loaded", ErrorCode.NO_PIPELINE_LOADED)
+    tableStore.write(req.update, tableNameById, actionNameById)
+    return SimResponse.newBuilder().setWriteEntry(WriteEntryResponse.getDefaultInstance()).build()
+  }
 
-    private fun handleWriteEntry(
-        req: fourward.sim.v1.WriteEntryRequest,
-    ): SimResponse {
-        pipeline ?: return simError("no pipeline loaded", ErrorCode.NO_PIPELINE_LOADED)
-        tableStore.write(req.update, tableNameById, actionNameById)
-        return SimResponse.newBuilder()
-            .setWriteEntry(WriteEntryResponse.getDefaultInstance())
-            .build()
-    }
+  private fun handleReadEntries(req: fourward.sim.v1.ReadEntriesRequest): SimResponse {
+    // TODO: implement read support.
+    return SimResponse.newBuilder().setReadEntries(ReadEntriesResponse.getDefaultInstance()).build()
+  }
 
-    private fun handleReadEntries(
-        req: fourward.sim.v1.ReadEntriesRequest,
-    ): SimResponse {
-        // TODO: implement read support.
-        return SimResponse.newBuilder()
-            .setReadEntries(ReadEntriesResponse.getDefaultInstance())
-            .build()
-    }
+  // -------------------------------------------------------------------------
+  // Helpers
+  // -------------------------------------------------------------------------
 
-    // -------------------------------------------------------------------------
-    // Helpers
-    // -------------------------------------------------------------------------
-
-    private fun simError(
-        message: String,
-        code: ErrorCode = ErrorCode.INTERNAL_ERROR,
-    ): SimResponse =
-        SimResponse.newBuilder()
-            .setError(ErrorResponse.newBuilder().setMessage(message).setCode(code))
-            .build()
+  private fun simError(message: String, code: ErrorCode = ErrorCode.INTERNAL_ERROR): SimResponse =
+    SimResponse.newBuilder()
+      .setError(ErrorResponse.newBuilder().setMessage(message).setCode(code))
+      .build()
 }

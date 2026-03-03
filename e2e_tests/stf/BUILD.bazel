@@ -1,4 +1,4 @@
-load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_library")
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_library", "kt_jvm_test")
 
 kt_jvm_library(
     name = "stf_runner",
@@ -6,9 +6,19 @@ kt_jvm_library(
     visibility = ["//visibility:public"],
     deps = [
         "//simulator:ir_java_proto",
+        "//simulator:p4runtime_java_proto",
         "//simulator:simulator_java_proto",
         "@maven//:com_google_protobuf_protobuf_java",
         "@maven//:com_google_protobuf_protobuf_kotlin",
-        "//simulator:p4runtime_java_proto",
+    ],
+)
+
+kt_jvm_test(
+    name = "StfParserTest",
+    srcs = ["StfParserTest.kt"],
+    test_class = "fourward.e2e.StfParserTest",
+    deps = [
+        ":stf_runner",
+        "@maven//:junit_junit",
     ],
 )
