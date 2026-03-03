@@ -69,7 +69,7 @@ class InterpreterParserTest {
 
   @Test
   fun `single-state parser executes stmts and halts at accept`() {
-    val env = Environment(byteArrayOf())
+    val env = Environment()
     env.define("x", BitVal(0, 8))
 
     interp(state("start", "accept", assign("x", bit(1, 8)))).runParser("MyParser", env)
@@ -80,7 +80,7 @@ class InterpreterParserTest {
   @Test
   fun `two-state parser traverses states in order`() {
     // start(x=1) → middle(x=2) → accept: both states must run.
-    val env = Environment(byteArrayOf())
+    val env = Environment()
     env.define("x", BitVal(0, 8))
 
     interp(
@@ -95,7 +95,7 @@ class InterpreterParserTest {
   @Test
   fun `three-state chain visits all states`() {
     // start(x=1) → s1(x=2) → s2(x=3) → accept
-    val env = Environment(byteArrayOf())
+    val env = Environment()
     env.define("x", BitVal(0, 8))
 
     interp(
@@ -111,7 +111,7 @@ class InterpreterParserTest {
   @Test
   fun `parser stops at reject without error`() {
     // reject is a terminal state, not an exception — the pipeline drops the packet separately.
-    val env = Environment(byteArrayOf())
+    val env = Environment()
     interp(state("start", "reject")).runParser("MyParser", env)
   }
 }

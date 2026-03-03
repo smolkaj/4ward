@@ -20,7 +20,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Test
 
-/** Unit tests for [Environment]: variable scoping, packet buffer, and output buffer. */
+/** Unit tests for [Environment] (variable scoping) and [PacketContext] (packet buffer, output). */
 class EnvironmentTest {
 
   // ---------------------------------------------------------------------------
@@ -29,20 +29,20 @@ class EnvironmentTest {
 
   @Test
   fun `lookup returns null for undefined name`() {
-    val env = Environment(byteArrayOf())
+    val env = Environment()
     assertNull(env.lookup("x"))
   }
 
   @Test
   fun `define and lookup in same scope`() {
-    val env = Environment(byteArrayOf())
+    val env = Environment()
     env.define("x", BitVal(7, 8))
     assertEquals(BitVal(7, 8), env.lookup("x"))
   }
 
   @Test
   fun `inner scope shadows outer binding`() {
-    val env = Environment(byteArrayOf())
+    val env = Environment()
     env.define("x", BitVal(1, 8))
     env.pushScope()
     env.define("x", BitVal(99, 8))
@@ -53,7 +53,7 @@ class EnvironmentTest {
 
   @Test
   fun `inner scope variable is not visible after popScope`() {
-    val env = Environment(byteArrayOf())
+    val env = Environment()
     env.pushScope()
     env.define("inner", BitVal(5, 8))
     env.popScope()
@@ -62,7 +62,7 @@ class EnvironmentTest {
 
   @Test
   fun `update modifies variable in the nearest enclosing scope`() {
-    val env = Environment(byteArrayOf())
+    val env = Environment()
     env.define("x", BitVal(1, 8))
     env.pushScope()
     env.update("x", BitVal(2, 8))
@@ -73,7 +73,7 @@ class EnvironmentTest {
 
   @Test
   fun `update throws for undefined variable`() {
-    val env = Environment(byteArrayOf())
+    val env = Environment()
     assertThrows(IllegalStateException::class.java) { env.update("missing", BitVal(0, 8)) }
   }
 
@@ -83,28 +83,28 @@ class EnvironmentTest {
 
   @Test
   fun `extractBytes reads exactly N bytes from the front of the packet`() {
-    val env = Environment(byteArrayOf(0x01, 0x02, 0x03, 0x04))
-    assertArrayEquals(byteArrayOf(0x01, 0x02), env.extractBytes(2))
+    val pktCtx = PacketContext(byteArrayOf(0x01, 0x02, 0x03, 0x04))
+    assertArrayEquals(byteArrayOf(0x01, 0x02), pktCtx.extractBytes(2))
   }
 
   @Test
   fun `extractBytes advances the cursor so the next call gets the next bytes`() {
-    val env = Environment(byteArrayOf(0x01, 0x02, 0x03, 0x04))
-    env.extractBytes(2)
-    assertArrayEquals(byteArrayOf(0x03, 0x04), env.extractBytes(2))
+    val pktCtx = PacketContext(byteArrayOf(0x01, 0x02, 0x03, 0x04))
+    pktCtx.extractBytes(2)
+    assertArrayEquals(byteArrayOf(0x03, 0x04), pktCtx.extractBytes(2))
   }
 
   @Test
   fun `drainRemainingInput returns bytes not yet extracted`() {
-    val env = Environment(byteArrayOf(0x01, 0x02, 0x03, 0x04))
-    env.extractBytes(1)
-    assertArrayEquals(byteArrayOf(0x02, 0x03, 0x04), env.drainRemainingInput())
+    val pktCtx = PacketContext(byteArrayOf(0x01, 0x02, 0x03, 0x04))
+    pktCtx.extractBytes(1)
+    assertArrayEquals(byteArrayOf(0x02, 0x03, 0x04), pktCtx.drainRemainingInput())
   }
 
   @Test
   fun `extractBytes throws when fewer bytes remain than requested`() {
-    val env = Environment(byteArrayOf(0x01))
-    assertThrows(PacketTooShortException::class.java) { env.extractBytes(2) }
+    val pktCtx = PacketContext(byteArrayOf(0x01))
+    assertThrows(PacketTooShortException::class.java) { pktCtx.extractBytes(2) }
   }
 
   // ---------------------------------------------------------------------------
@@ -113,22 +113,22 @@ class EnvironmentTest {
 
   @Test
   fun `outputPayload is empty before any emitBytes call`() {
-    val env = Environment(byteArrayOf())
-    assertArrayEquals(byteArrayOf(), env.outputPayload())
+    val pktCtx = PacketContext(byteArrayOf())
+    assertArrayEquals(byteArrayOf(), pktCtx.outputPayload())
   }
 
   @Test
   fun `emitBytes appends bytes to the output buffer`() {
-    val env = Environment(byteArrayOf())
-    env.emitBytes(byteArrayOf(0x08, 0x00))
-    assertArrayEquals(byteArrayOf(0x08, 0x00), env.outputPayload())
+    val pktCtx = PacketContext(byteArrayOf())
+    pktCtx.emitBytes(byteArrayOf(0x08, 0x00))
+    assertArrayEquals(byteArrayOf(0x08, 0x00), pktCtx.outputPayload())
   }
 
   @Test
   fun `multiple emitBytes calls concatenate in order`() {
-    val env = Environment(byteArrayOf())
-    env.emitBytes(byteArrayOf(0x01, 0x02))
-    env.emitBytes(byteArrayOf(0x03, 0x04))
-    assertArrayEquals(byteArrayOf(0x01, 0x02, 0x03, 0x04), env.outputPayload())
+    val pktCtx = PacketContext(byteArrayOf())
+    pktCtx.emitBytes(byteArrayOf(0x01, 0x02))
+    pktCtx.emitBytes(byteArrayOf(0x03, 0x04))
+    assertArrayEquals(byteArrayOf(0x01, 0x02, 0x03, 0x04), pktCtx.outputPayload())
   }
 }

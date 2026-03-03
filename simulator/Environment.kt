@@ -5,45 +5,15 @@ import fourward.sim.v1.TraceEvent
 import java.io.ByteArrayOutputStream
 
 /**
- * The execution environment for a single packet traversal.
+ * Variable scope stack for a single packet traversal.
  *
- * [Environment] holds all mutable state during packet processing:
- * - Variable bindings (headers, metadata, local variables), organised as a stack of scopes to
- *   handle nested control blocks.
- * - The packet buffer (bytes not yet extracted by the parser).
- * - The execution trace being built up event by event.
+ * Holds variable bindings (headers, metadata, local variables) organised as a stack of scopes to
+ * handle nested control blocks. A new Environment is created for each [ProcessPacketRequest] and
+ * discarded afterwards.
  *
- * A new Environment is created for each [ProcessPacketRequest] and discarded afterwards. Table
- * state and extern instances live in [Simulator], not here.
+ * Packet-level state (input buffer, output buffer, execution trace) lives in [PacketContext].
  */
-class Environment(payload: ByteArray) {
-
-  // -------------------------------------------------------------------------
-  // Packet buffer
-  // -------------------------------------------------------------------------
-
-  /** Remaining bytes in the input packet, consumed by parser extract(). */
-  private val buffer: PacketBuffer = PacketBuffer(payload)
-
-  /** Output packet bytes, written by deparser emit(). */
-  private val outputBuffer = ByteArrayOutputStream()
-
-  fun extractBytes(count: Int): ByteArray = buffer.read(count)
-
-  fun emitBytes(bytes: ByteArray) {
-    outputBuffer.write(bytes)
-  }
-
-  fun outputPayload(): ByteArray = outputBuffer.toByteArray()
-
-  fun remainingInputBytes(): Int = buffer.remaining()
-
-  /** Returns all bytes not yet consumed by the parser (the un-parsed packet body). */
-  fun drainRemainingInput(): ByteArray = buffer.readAll()
-
-  // -------------------------------------------------------------------------
-  // Variable bindings
-  // -------------------------------------------------------------------------
+class Environment {
 
   private val scopes: ArrayDeque<MutableMap<String, Value>> = ArrayDeque()
 
@@ -90,6 +60,38 @@ class Environment(payload: ByteArray) {
     }
     error("undefined variable: $name")
   }
+}
+
+/**
+ * Packet-level state for a single [ProcessPacketRequest].
+ *
+ * Holds the input packet buffer, the output (emit) buffer, and the execution trace. Created once
+ * per packet in the architecture's [processPacket] and threaded through the interpreter.
+ */
+class PacketContext(payload: ByteArray) {
+
+  // -------------------------------------------------------------------------
+  // Packet buffer
+  // -------------------------------------------------------------------------
+
+  /** Remaining bytes in the input packet, consumed by parser extract(). */
+  private val buffer: PacketBuffer = PacketBuffer(payload)
+
+  /** Output packet bytes, written by deparser emit(). */
+  private val outputBuffer = ByteArrayOutputStream()
+
+  fun extractBytes(count: Int): ByteArray = buffer.read(count)
+
+  fun emitBytes(bytes: ByteArray) {
+    outputBuffer.write(bytes)
+  }
+
+  fun outputPayload(): ByteArray = outputBuffer.toByteArray()
+
+  fun remainingInputBytes(): Int = buffer.remaining()
+
+  /** Returns all bytes not yet consumed by the parser (the un-parsed packet body). */
+  fun drainRemainingInput(): ByteArray = buffer.readAll()
 
   // -------------------------------------------------------------------------
   // Trace
