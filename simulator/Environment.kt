@@ -88,8 +88,6 @@ class PacketContext(payload: ByteArray) {
 
   fun outputPayload(): ByteArray = outputBuffer.toByteArray()
 
-  fun remainingInputBytes(): Int = buffer.remaining()
-
   /** Returns all bytes not yet consumed by the parser (the un-parsed packet body). */
   fun drainRemainingInput(): ByteArray = buffer.readAll()
 

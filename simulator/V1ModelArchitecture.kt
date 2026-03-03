@@ -143,7 +143,7 @@ class V1ModelArchitecture : Architecture {
     private const val V1MODEL_USER_PARAM_COUNT = 3
 
     // Bit widths for standard_metadata_t fields, as defined in v1model.p4.
-    private const val PORT_BITS = 9
+    const val PORT_BITS = 9
     private const val INT32_BITS = 32
     private const val FLAG_BITS = 1
   }
