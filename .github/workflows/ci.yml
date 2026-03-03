@@ -26,8 +26,8 @@ jobs:
           key: bazel-ubuntu-24.04-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
           restore-keys: bazel-ubuntu-24.04-
 
-      - name: Install tools
-        run: sudo apt install -y clang-format clang-tidy-18
+      - name: Install clang tools
+        run: sudo apt install -y clang-format clang-tidy
 
       # format.sh modifies files in-place; the diff check below catches any
       # changes, so we use a single "run and diff" pattern for both clang-format
@@ -57,16 +57,9 @@ jobs:
             echo "skip=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Generate compile_commands.json
-        if: steps.cpp.outputs.skip != 'true'
-        run: bazel run //:refresh_compile_commands
-
       - name: Run clang-tidy
         if: steps.cpp.outputs.skip != 'true'
-        run: |
-          find p4c_backend \( -name "*.cpp" -o -name "*.cc" \) -print0 \
-            | xargs -0 -P "$(nproc)" -I{} \
-                clang-tidy-18 -p . {}
+        run: bazel build //p4c_backend/... --config=clang-tidy
 
 
   build-and-test:

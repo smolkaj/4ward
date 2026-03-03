@@ -18,6 +18,11 @@ build --host_macos_minimum_os=10.15
 # Print test output for failing tests.
 test --test_output=errors
 
+# clang-tidy: run via `bazel build //p4c_backend/... --config=clang-tidy`.
+build:clang-tidy --aspects @bazel_clang_tidy//clang_tidy:clang_tidy.bzl%clang_tidy_aspect
+build:clang-tidy --output_groups=report
+build:clang-tidy --@bazel_clang_tidy//:clang_tidy_config=//:clang_tidy_config
+
 # Coverage: instrument the simulator library. Run via `bazel coverage //...`.
 coverage --combined_report=lcov
 coverage --instrumentation_filter=//simulator[/:]

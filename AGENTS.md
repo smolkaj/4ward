@@ -32,13 +32,6 @@ bazel test //...           # run all tests
 ./dev.sh help              # show all developer commands
 ```
 
-`./lint.sh` for C++ requires a `compile_commands.json`. It is generated
-automatically on first run, or manually after adding/removing C++ targets:
-
-```sh
-bazel run @hedron_compile_commands//:refresh_all
-```
-
 All builds are hermetic. Do not install dependencies outside of Bazel.
 
 ## CI

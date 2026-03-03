@@ -53,18 +53,11 @@ use_repo(maven, "maven")
 
 bazel_dep(name = "buildifier_prebuilt", version = "8.2.1.2", dev_dependency = True)
 
-# Generates compile_commands.json for clang-tidy and IDE integration.
-# After adding new targets: bazel run @hedron_compile_commands//:refresh_all
-bazel_dep(name = "hedron_compile_commands", dev_dependency = True)
+# Runs clang-tidy as a Bazel aspect — no compile_commands.json needed.
+# Usage: bazel build //p4c_backend/... --config=clang-tidy
+bazel_dep(name = "bazel_clang_tidy", dev_dependency = True)
 git_override(
-    module_name = "hedron_compile_commands",
-    commit = "abb61a688167623088f8768cc9264798df6a9d10",
-    patch_strip = 1,
-    # native.py_binary was removed in Bazel 9; patch to use rules_python instead.
-    patches = [
-        "//patches:hedron-module.patch",
-        "//patches:hedron-build.patch",
-        "//patches:hedron-bzl.patch",
-    ],
-    remote = "https://github.com/hedronvision/bazel-compile-commands-extractor.git",
+    module_name = "bazel_clang_tidy",
+    commit = "c4d35e0d0b838309358e57a2efed831780f85cd0",
+    remote = "https://github.com/erenon/bazel_clang_tidy.git",
 )
