@@ -41,19 +41,13 @@ p4_stf_test(name = "gauntlet_exit_combination_17-bmv2")
 
 p4_stf_test(name = "gauntlet_exit_combination_18-bmv2")
 
-p4_stf_test(
-    name = "gauntlet_exit_combination_19-bmv2",
-    tags = ["manual"],  # TODO: enable once table.apply().hit and ternary operator are implemented
-)
+p4_stf_test(name = "gauntlet_exit_combination_19-bmv2")
 
 p4_stf_test(name = "gauntlet_exit_combination_20-bmv2")
 
 p4_stf_test(name = "gauntlet_exit_combination_21-bmv2")
 
-p4_stf_test(
-    name = "gauntlet_exit_combination_22-bmv2",
-    tags = ["manual"],  # TODO: enable once table.apply().hit and ternary operator are implemented
-)
+p4_stf_test(name = "gauntlet_exit_combination_22-bmv2")
 
 p4_stf_test(name = "gauntlet_exit_combination_23-bmv2")
 

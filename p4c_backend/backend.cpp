@@ -119,19 +119,26 @@ fourward::ir::v1::Expr FourWardBackend::emitExpr(const IR::Expression* expr) {
   } else if (const auto* pe = expr->to<IR::PathExpression>()) {
     out.mutable_name_ref()->set_name(pe->path->name.name.c_str());
   } else if (const auto* mem = expr->to<IR::Member>()) {
-    // Special case: table.apply().action_run — subject of a switch statement.
-    // Emit as TableApplyExpr (the action_run selection is handled by
-    // execSwitch).
-    if (mem->member == "action_run") {
-      std::string tableName;
-      if (isTableApply(mem->expr, refMap_, &tableName)) {
-        out.mutable_table_apply()->set_table_name(tableName);
-        return out;  // no type annotation for TableApplyExpr
-      }
+    std::string tableName;
+    if (mem->member == "action_run" &&
+        isTableApply(mem->expr, refMap_, &tableName)) {
+      // Switch subject: table.apply().action_run — no type annotation.
+      out.mutable_table_apply()->set_table_name(tableName);
+      return out;
+    } else if ((mem->member == "hit" || mem->member == "miss") &&
+               isTableApply(mem->expr, refMap_, &tableName)) {
+      // Boolean hit/miss: type annotation (bool) is added by the common block
+      // below.
+      auto* ta = out.mutable_table_apply();
+      ta->set_table_name(tableName);
+      ta->set_access_kind(mem->member == "hit"
+                              ? fourward::ir::v1::TableApplyExpr::HIT
+                              : fourward::ir::v1::TableApplyExpr::MISS);
+    } else {
+      auto* fa = out.mutable_field_access();
+      *fa->mutable_expr() = emitExpr(mem->expr);
+      fa->set_field_name(mem->member.name.c_str());
     }
-    auto* fa = out.mutable_field_access();
-    *fa->mutable_expr() = emitExpr(mem->expr);
-    fa->set_field_name(mem->member.name.c_str());
   } else if (const auto* slice = expr->to<IR::Slice>()) {
     auto* s = out.mutable_slice();
     *s->mutable_expr() = emitExpr(slice->e0);
@@ -201,6 +208,11 @@ fourward::ir::v1::Expr FourWardBackend::emitExpr(const IR::Expression* expr) {
       u->set_op(fourward::ir::v1::UnaryOperator::NOT);
     else
       LOG1("WARNING: unhandled unary operator: " << unop->node_type_name());
+  } else if (const auto* mux = expr->to<IR::Mux>()) {
+    auto* m = out.mutable_mux();
+    *m->mutable_condition() = emitExpr(mux->e0);
+    *m->mutable_then_expr() = emitExpr(mux->e1);
+    *m->mutable_else_expr() = emitExpr(mux->e2);
   } else if (const auto* mc = expr->to<IR::MethodCallExpression>()) {
     // Special case: table.apply() — emit as TableApplyExpr.
     std::string tableName;

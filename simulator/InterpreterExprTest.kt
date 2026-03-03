@@ -8,6 +8,7 @@ import fourward.ir.v1.Expr
 import fourward.ir.v1.FieldAccess
 import fourward.ir.v1.Literal
 import fourward.ir.v1.MethodCall
+import fourward.ir.v1.MuxExpr
 import fourward.ir.v1.NameRef
 import fourward.ir.v1.P4BehavioralConfig
 import fourward.ir.v1.Type
@@ -334,6 +335,54 @@ class InterpreterExprTest {
         .build()
     interp().evalExpr(expr, env)
     assertTrue(hdr.valid)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Mux (ternary) operator
+  // ---------------------------------------------------------------------------
+
+  private fun mux(condition: Expr, thenExpr: Expr, elseExpr: Expr): Expr =
+    Expr.newBuilder()
+      .setMux(
+        MuxExpr.newBuilder().setCondition(condition).setThenExpr(thenExpr).setElseExpr(elseExpr)
+      )
+      .setType(thenExpr.type)
+      .build()
+
+  @Test
+  fun `mux selects then-branch when condition is true`() {
+    assertEquals(
+      BitVal(1, 16),
+      interp().evalExpr(mux(boolLit(true), bit(1, 16), bit(2, 16)), emptyEnv),
+    )
+  }
+
+  @Test
+  fun `mux selects else-branch when condition is false`() {
+    assertEquals(
+      BitVal(2, 16),
+      interp().evalExpr(mux(boolLit(false), bit(1, 16), bit(2, 16)), emptyEnv),
+    )
+  }
+
+  @Test
+  fun `mux works with computed condition`() {
+    val gt =
+      Expr.newBuilder()
+        .setBinaryOp(
+          BinaryOp.newBuilder().setOp(BinaryOperator.GT).setLeft(bit(5, 8)).setRight(bit(3, 8))
+        )
+        .setType(Type.newBuilder().setBoolean(true))
+        .build()
+    assertEquals(BitVal(1, 8), interp().evalExpr(mux(gt, bit(1, 8), bit(2, 8)), emptyEnv))
+  }
+
+  @Test
+  fun `mux works with bool branches`() {
+    assertEquals(
+      BoolVal(false),
+      interp().evalExpr(mux(boolLit(true), boolLit(false), boolLit(true)), emptyEnv),
+    )
   }
 
   @Test
