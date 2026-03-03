@@ -38,7 +38,7 @@ import org.junit.Test
 class InterpreterInlineActionTest {
 
   private val emptyEnv
-    get() = Environment(byteArrayOf())
+    get() = Environment()
 
   private fun bitType(width: Int): Type =
     Type.newBuilder().setBit(BitType.newBuilder().setWidth(width)).build()

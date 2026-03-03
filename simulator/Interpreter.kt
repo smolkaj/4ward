@@ -21,15 +21,19 @@ import java.math.BigInteger
 /**
  * The core P4 interpreter.
  *
- * Walks the proto IR tree for a single packet traversal. All mutable packet-local state lives in
- * the [Environment]; program-global state (table entries, extern instances) lives in [TableStore]
- * and is passed in.
+ * Walks the proto IR tree for a single packet traversal. Variable scopes live in [Environment];
+ * packet-level state (input buffer, output buffer, trace) lives in [PacketContext]; program-global
+ * state (table entries, extern instances) lives in [TableStore].
  *
  * The interpreter is deliberately simple: it pattern-matches on proto oneof fields and dispatches
  * to focused methods. There is no bytecode compilation or optimisation — correctness and
  * readability are the goals.
  */
-class Interpreter(private val config: P4BehavioralConfig, private val tableStore: TableStore) {
+class Interpreter(
+  private val config: P4BehavioralConfig,
+  private val tableStore: TableStore,
+  private val packetCtx: PacketContext? = null,
+) {
   private val parsers: Map<String, ParserDecl> = config.parsersList.associateBy { it.name }
 
   private val controls: Map<String, ControlDecl> = config.controlsList.associateBy { it.name }
@@ -55,6 +59,10 @@ class Interpreter(private val config: P4BehavioralConfig, private val tableStore
   }
 
   private val tables: Map<String, TableBehavior> = config.tablesList.associateBy { it.name }
+
+  /** Non-null packet context; throws a clear error if packet I/O is attempted without one. */
+  private val packet: PacketContext
+    get() = packetCtx ?: error("packet I/O requires a PacketContext")
 
   private val types = config.typesList.associateBy { it.name }
 
@@ -84,7 +92,7 @@ class Interpreter(private val config: P4BehavioralConfig, private val tableStore
           else -> state.transition.nextState
         }
 
-      env.addTraceEvent(
+      packetCtx?.addTraceEvent(
         TraceEvent.newBuilder()
           .setParserTransition(
             ParserTransitionEvent.newBuilder()
@@ -103,7 +111,7 @@ class Interpreter(private val config: P4BehavioralConfig, private val tableStore
     val keyValues = select.keysList.map { evalExpr(it, env) }
     // Keyset expressions in parser select are always compile-time constants; a single
     // empty environment is correct for all of them.
-    val constEnv = Environment(byteArrayOf())
+    val constEnv = Environment()
     for (case in select.casesList) {
       if (keyValues.zip(case.keysetsList).all { (v, k) -> matchesKeyset(v, k, constEnv) }) {
         return case.nextState
@@ -186,7 +194,7 @@ class Interpreter(private val config: P4BehavioralConfig, private val tableStore
 
     // The control name is not directly available in the Stmt proto; we use
     // a placeholder here. A richer trace could include source location info.
-    env.addTraceEvent(
+    packetCtx?.addTraceEvent(
       TraceEvent.newBuilder().setBranch(BranchEvent.newBuilder().setTaken(condition)).build()
     )
 
@@ -380,7 +388,7 @@ class Interpreter(private val config: P4BehavioralConfig, private val tableStore
 
     val (hit, entry, actionName) = tableStore.lookup(tableName, keyValues)
 
-    env.addTraceEvent(
+    packetCtx?.addTraceEvent(
       TraceEvent.newBuilder()
         .setTableLookup(
           TableLookupEvent.newBuilder()
@@ -420,7 +428,7 @@ class Interpreter(private val config: P4BehavioralConfig, private val tableStore
         env.define(paramDecl.name, value)
       }
 
-      env.addTraceEvent(
+      packetCtx?.addTraceEvent(
         TraceEvent.newBuilder()
           .setActionExecution(
             ActionExecutionEvent.newBuilder()
@@ -481,7 +489,8 @@ class Interpreter(private val config: P4BehavioralConfig, private val tableStore
       // mark_to_drop(standard_metadata): sets egress_spec to the v1model drop port (511).
       "mark_to_drop" -> {
         val smeta = evalExpr(call.argsList[0], env) as StructVal
-        smeta.fields["egress_spec"] = BitVal(V1ModelArchitecture.DROP_PORT.toLong(), PORT_BITS)
+        smeta.fields["egress_spec"] =
+          BitVal(V1ModelArchitecture.DROP_PORT.toLong(), V1ModelArchitecture.PORT_BITS)
         UnitVal
       }
       else -> error("unhandled extern call: $funcName")
@@ -502,7 +511,7 @@ class Interpreter(private val config: P4BehavioralConfig, private val tableStore
     // both fields live in the same byte and must be unpacked by shift+mask, not by
     // reading separate bytes.
     val totalBits = headerDecl.fieldsList.sumOf { it.type.bit.width }
-    val allBits = BigInteger(1, env.extractBytes((totalBits + 7) / 8))
+    val allBits = BigInteger(1, packet.extractBytes((totalBits + 7) / 8))
 
     val newFields = mutableMapOf<String, Value>()
     var bitOffset = 0
@@ -518,7 +527,7 @@ class Interpreter(private val config: P4BehavioralConfig, private val tableStore
   }
 
   private fun execEmit(call: MethodCall, env: Environment): Value {
-    emitValue(evalExpr(call.argsList[0], env), env)
+    emitValue(evalExpr(call.argsList[0], env))
     return UnitVal
   }
 
@@ -531,7 +540,7 @@ class Interpreter(private val config: P4BehavioralConfig, private val tableStore
    * This handles both `pkt.emit(hdr.ethernet)` (single header) and `pkt.emit(hdr)` where `hdr` is a
    * struct containing multiple headers, as required by the P4 deparser model.
    */
-  private fun emitValue(value: Value, env: Environment) {
+  private fun emitValue(value: Value) {
     when (value) {
       is HeaderVal -> {
         if (!value.valid) return
@@ -546,19 +555,17 @@ class Interpreter(private val config: P4BehavioralConfig, private val tableStore
           packedBits = packedBits or fieldVal.bits.value.shiftLeft(shift)
           bitOffset += fieldVal.bits.width
         }
-        val totalBytes = (totalBits + 7) / 8
-        val raw = packedBits.toByteArray()
-        env.emitBytes(ByteArray(totalBytes) { i -> raw.getOrElse(raw.size - totalBytes + i) { 0 } })
+        packet.emitBytes(BitVector(packedBits, totalBits).toByteArray())
       }
       is StructVal -> {
         // Emit in the declaration order from the TypeDecl; fall back to map order if unknown.
         val structDecl = types[value.typeName]?.struct
         if (structDecl != null) {
           for (field in structDecl.fieldsList) {
-            emitValue(value.fields[field.name] ?: continue, env)
+            emitValue(value.fields[field.name] ?: continue)
           }
         } else {
-          for (fieldVal in value.fields.values) emitValue(fieldVal, env)
+          for (fieldVal in value.fields.values) emitValue(fieldVal)
         }
       }
       else -> {} // BoolVal, BitVal outside a header, UnitVal — not emittable
@@ -610,9 +617,6 @@ class Interpreter(private val config: P4BehavioralConfig, private val tableStore
     }
   }
 }
-
-// Drop port for v1model mark_to_drop(): egress_spec is set to 511 (0x1FF).
-private const val PORT_BITS = 9
 
 /**
  * Thrown by an `exit` statement; unwinds the call stack to the top of the current pipeline stage.

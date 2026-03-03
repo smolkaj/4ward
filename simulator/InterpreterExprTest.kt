@@ -31,7 +31,7 @@ class InterpreterExprTest {
   private val emptyConfig = P4BehavioralConfig.getDefaultInstance()
 
   private val emptyEnv
-    get() = Environment(byteArrayOf())
+    get() = Environment()
 
   private fun interp() = Interpreter(emptyConfig, TableStore())
 

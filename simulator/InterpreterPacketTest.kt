@@ -71,10 +71,10 @@ class InterpreterPacketTest {
       )
       .build()
 
-  private fun interp(vararg types: TypeDecl): Interpreter {
+  private fun interp(packetCtx: PacketContext, vararg types: TypeDecl): Interpreter {
     val config =
       P4BehavioralConfig.newBuilder().also { cfg -> types.forEach { cfg.addTypes(it) } }.build()
-    return Interpreter(config, TableStore())
+    return Interpreter(config, TableStore(), packetCtx)
   }
 
   // ---------------------------------------------------------------------------
@@ -84,11 +84,12 @@ class InterpreterPacketTest {
   @Test
   fun `extract byte-aligned 16-bit field`() {
     val type = headerType("h_t", "etherType" to 16)
-    val env = Environment(byteArrayOf(0x08, 0x00))
+    val pktCtx = PacketContext(byteArrayOf(0x08, 0x00))
+    val env = Environment()
     val header = HeaderVal(typeName = "h_t", valid = false)
     env.define("hdr", header)
 
-    interp(type).evalExpr(packetCall("extract", "hdr"), env)
+    interp(pktCtx, type).evalExpr(packetCall("extract", "hdr"), env)
 
     assertTrue(header.valid)
     assertEquals(BitVal(0x0800, 16), header.fields["etherType"])
@@ -98,11 +99,12 @@ class InterpreterPacketTest {
   fun `extract two sub-byte fields from a shared byte`() {
     // 0x45: upper nibble = version=4, lower nibble = ihl=5
     val type = headerType("h_t", "version" to 4, "ihl" to 4)
-    val env = Environment(byteArrayOf(0x45))
+    val pktCtx = PacketContext(byteArrayOf(0x45))
+    val env = Environment()
     val header = HeaderVal(typeName = "h_t", valid = false)
     env.define("hdr", header)
 
-    interp(type).evalExpr(packetCall("extract", "hdr"), env)
+    interp(pktCtx, type).evalExpr(packetCall("extract", "hdr"), env)
 
     assertTrue(header.valid)
     assertEquals(BitVal(4, 4), header.fields["version"])
@@ -113,11 +115,12 @@ class InterpreterPacketTest {
   fun `extract mixed-width fields spanning four bytes`() {
     // bit<4>(4) + bit<4>(5) + bit<8>(0) + bit<16>(0x0800) = 0x45 0x00 0x08 0x00
     val type = headerType("h_t", "version" to 4, "ihl" to 4, "tos" to 8, "len" to 16)
-    val env = Environment(byteArrayOf(0x45, 0x00, 0x08, 0x00))
+    val pktCtx = PacketContext(byteArrayOf(0x45, 0x00, 0x08, 0x00))
+    val env = Environment()
     val header = HeaderVal(typeName = "h_t", valid = false)
     env.define("hdr", header)
 
-    interp(type).evalExpr(packetCall("extract", "hdr"), env)
+    interp(pktCtx, type).evalExpr(packetCall("extract", "hdr"), env)
 
     assertEquals(BitVal(4, 4), header.fields["version"])
     assertEquals(BitVal(5, 4), header.fields["ihl"])
@@ -129,13 +132,14 @@ class InterpreterPacketTest {
   fun `extract advances the packet buffer cursor`() {
     // Two sequential extracts: first grabs bytes [0x08, 0x00], second gets [0x01, 0x00].
     val type = headerType("h_t", "f" to 16)
-    val env = Environment(byteArrayOf(0x08, 0x00, 0x01, 0x00))
+    val pktCtx = PacketContext(byteArrayOf(0x08, 0x00, 0x01, 0x00))
+    val env = Environment()
     val h1 = HeaderVal(typeName = "h_t", valid = false)
     val h2 = HeaderVal(typeName = "h_t", valid = false)
     env.define("h1", h1)
     env.define("h2", h2)
 
-    val interp = interp(type)
+    val interp = interp(pktCtx, type)
     interp.evalExpr(packetCall("extract", "h1"), env)
     interp.evalExpr(packetCall("extract", "h2"), env)
 
@@ -150,7 +154,8 @@ class InterpreterPacketTest {
   @Test
   fun `emit valid 16-bit header produces correct bytes`() {
     val type = headerType("h_t", "etherType" to 16)
-    val env = Environment(byteArrayOf())
+    val pktCtx = PacketContext(byteArrayOf())
+    val env = Environment()
     val header =
       HeaderVal(
         typeName = "h_t",
@@ -159,28 +164,30 @@ class InterpreterPacketTest {
       )
     env.define("hdr", header)
 
-    interp(type).evalExpr(packetCall("emit", "hdr"), env)
+    interp(pktCtx, type).evalExpr(packetCall("emit", "hdr"), env)
 
-    assertArrayEquals(byteArrayOf(0x08, 0x00), env.outputPayload())
+    assertArrayEquals(byteArrayOf(0x08, 0x00), pktCtx.outputPayload())
   }
 
   @Test
   fun `emit invalid header produces no bytes`() {
     val type = headerType("h_t", "etherType" to 16)
-    val env = Environment(byteArrayOf())
+    val pktCtx = PacketContext(byteArrayOf())
+    val env = Environment()
     val header = HeaderVal(typeName = "h_t", valid = false)
     env.define("hdr", header)
 
-    interp(type).evalExpr(packetCall("emit", "hdr"), env)
+    interp(pktCtx, type).evalExpr(packetCall("emit", "hdr"), env)
 
-    assertArrayEquals(byteArrayOf(), env.outputPayload())
+    assertArrayEquals(byteArrayOf(), pktCtx.outputPayload())
   }
 
   @Test
   fun `emit packs sub-byte fields into a single byte`() {
     // version=4, ihl=5 → both in the same byte → 0x45
     val type = headerType("h_t", "version" to 4, "ihl" to 4)
-    val env = Environment(byteArrayOf())
+    val pktCtx = PacketContext(byteArrayOf())
+    val env = Environment()
     val header =
       HeaderVal(
         typeName = "h_t",
@@ -189,23 +196,24 @@ class InterpreterPacketTest {
       )
     env.define("hdr", header)
 
-    interp(type).evalExpr(packetCall("emit", "hdr"), env)
+    interp(pktCtx, type).evalExpr(packetCall("emit", "hdr"), env)
 
-    assertArrayEquals(byteArrayOf(0x45), env.outputPayload())
+    assertArrayEquals(byteArrayOf(0x45), pktCtx.outputPayload())
   }
 
   @Test
   fun `extract then emit round-trips the original bytes`() {
     val type = headerType("h_t", "version" to 4, "ihl" to 4, "tos" to 8, "len" to 16)
     val input = byteArrayOf(0x45, 0x00, 0x08, 0x00)
-    val env = Environment(input)
+    val pktCtx = PacketContext(input)
+    val env = Environment()
     val header = HeaderVal(typeName = "h_t", valid = false)
     env.define("hdr", header)
 
-    val interp = interp(type)
+    val interp = interp(pktCtx, type)
     interp.evalExpr(packetCall("extract", "hdr"), env)
     interp.evalExpr(packetCall("emit", "hdr"), env)
 
-    assertArrayEquals(input, env.outputPayload())
+    assertArrayEquals(input, pktCtx.outputPayload())
   }
 }

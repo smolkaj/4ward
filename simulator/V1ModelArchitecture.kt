@@ -26,8 +26,9 @@ class V1ModelArchitecture : Architecture {
     config: P4BehavioralConfig,
     tableStore: TableStore,
   ): PipelineResult {
-    val interpreter = Interpreter(config, tableStore)
-    val env = Environment(payload)
+    val packetCtx = PacketContext(payload)
+    val interpreter = Interpreter(config, tableStore, packetCtx)
+    val env = Environment()
 
     val typesByName = config.typesList.associateBy { it.name }
 
@@ -94,10 +95,10 @@ class V1ModelArchitecture : Architecture {
       try {
         interpreter.runParser(parserStage.blockName, env)
       } catch (e: ExitException) {
-        return PipelineResult(emptyList(), env.buildTrace())
+        return PipelineResult(emptyList(), packetCtx.buildTrace())
       } catch (e: PacketTooShortException) {
         // In v1model/BMv2, a PacketTooShort parser error causes the packet to be dropped.
-        return PipelineResult(emptyList(), env.buildTrace())
+        return PipelineResult(emptyList(), packetCtx.buildTrace())
       }
     }
 
@@ -117,7 +118,7 @@ class V1ModelArchitecture : Architecture {
 
     // Port 511 is the v1model drop port (mark_to_drop sets egress_spec = 511).
     if (egressSpec == DROP_PORT) {
-      return PipelineResult(emptyList(), env.buildTrace())
+      return PipelineResult(emptyList(), packetCtx.buildTrace())
     }
 
     // --- Deparser ---
@@ -128,9 +129,9 @@ class V1ModelArchitecture : Architecture {
     // Append any bytes the parser did not extract (the un-parsed packet body).
     // In P4, the deparser emits re-serialised headers; the remaining payload
     // is transparently forwarded after them.
-    val outputBytes = env.outputPayload() + env.drainRemainingInput()
+    val outputBytes = packetCtx.outputPayload() + packetCtx.drainRemainingInput()
     val output = OutputPacket(egressSpec.toUInt(), outputBytes)
-    return PipelineResult(listOf(output), env.buildTrace())
+    return PipelineResult(listOf(output), packetCtx.buildTrace())
   }
 
   companion object {
@@ -142,7 +143,7 @@ class V1ModelArchitecture : Architecture {
     private const val V1MODEL_USER_PARAM_COUNT = 3
 
     // Bit widths for standard_metadata_t fields, as defined in v1model.p4.
-    private const val PORT_BITS = 9
+    const val PORT_BITS = 9
     private const val INT32_BITS = 32
     private const val FLAG_BITS = 1
   }

@@ -34,7 +34,7 @@ import org.junit.Test
 class InterpreterControlTest {
 
   private val emptyEnv
-    get() = Environment(byteArrayOf())
+    get() = Environment()
 
   // ---------------------------------------------------------------------------
   // Expr / Stmt builder helpers
