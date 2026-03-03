@@ -30,6 +30,14 @@ compiler and Bazel 9+ (or grab
 [Bazelisk](https://github.com/bazelbuild/bazelisk) so you never think about
 Bazel versions again). Works on macOS and Ubuntu.
 
+## How we work
+
+Most development happens by prompting AI coding agents — the human's job is
+to steer and review, not to type every line. That's why the repo includes
+[AGENTS.md](AGENTS.md) and [CLAUDE.md](CLAUDE.md): they give agents the
+context they need to make good changes autonomously. You're welcome to work
+this way too, or write code by hand — whatever you prefer.
+
 ## Making changes
 
 1. Fork the repo and create a branch.
