@@ -38,6 +38,8 @@ to steer and review, not to type every line. That's why the repo includes
 context they need to make good changes autonomously. You're welcome to work
 this way too, or write code by hand — whatever you prefer.
 
+Run `./dev help` for a summary of available developer commands.
+
 ## Making changes
 
 1. Fork the repo and create a branch.

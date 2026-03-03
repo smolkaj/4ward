@@ -6,3 +6,4 @@ bazel-*
 coverage-report/
 coverage.lcov
 .claude
+compile_commands.json
