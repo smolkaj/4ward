@@ -102,11 +102,14 @@ class V1ModelArchitecture : Architecture {
     }
 
     // --- Controls (verify checksum, ingress, egress, compute checksum) ---
+    // P4 exit terminates all active control blocks up to the pipeline level but
+    // does NOT drop the packet — forwarding is still governed by egress_spec at
+    // the time of the exit (P4 spec §12.4, v1model semantics).
     for (stage in controlStages) {
       try {
         interpreter.runControl(stage.blockName, env)
       } catch (e: ExitException) {
-        return PipelineResult(emptyList(), env.buildTrace())
+        break  // skip remaining control stages; still run deparser below
       }
     }
 

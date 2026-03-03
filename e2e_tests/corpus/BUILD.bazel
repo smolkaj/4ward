@@ -1,15 +1,56 @@
 load("//e2e_tests:corpus.bzl", "p4_stf_test")
 
-# Initial selection of p4c corpus tests. Each entry compiles the P4 source
-# with p4c-4ward and runs the corresponding STF test against the simulator.
-#
-# Selection criteria: self-contained (no local #include), v1model architecture,
-# no unimplemented features (varbit, header stacks, checksum externs).
+# p4c corpus STF tests. Each entry compiles the P4 source with p4c-4ward and
+# runs the corresponding STF test against the simulator.
 
-p4_stf_test(name = "opassign1-bmv2")
+p4_stf_test(name = "flag_lost-bmv2")
 
 p4_stf_test(name = "gauntlet_action_mux-bmv2")
 
+p4_stf_test(name = "gauntlet_exit_combination_1-bmv2")
+
+p4_stf_test(name = "gauntlet_exit_combination_2-bmv2")
+
+p4_stf_test(name = "gauntlet_exit_combination_3-bmv2")
+
+p4_stf_test(name = "gauntlet_exit_combination_4-bmv2")
+
+p4_stf_test(name = "gauntlet_exit_combination_5-bmv2")
+
+p4_stf_test(name = "gauntlet_exit_combination_6-bmv2")
+
+p4_stf_test(name = "gauntlet_exit_combination_7-bmv2")
+
+p4_stf_test(name = "gauntlet_exit_combination_8-bmv2")
+
+p4_stf_test(name = "gauntlet_exit_combination_9-bmv2")
+
+p4_stf_test(name = "gauntlet_exit_combination_10-bmv2")
+
+p4_stf_test(name = "gauntlet_exit_combination_11-bmv2")
+
+p4_stf_test(name = "gauntlet_exit_combination_13-bmv2")
+
+p4_stf_test(name = "gauntlet_exit_combination_14-bmv2")
+
+p4_stf_test(name = "gauntlet_exit_combination_15-bmv2")
+
+p4_stf_test(name = "gauntlet_exit_combination_16-bmv2")
+
+p4_stf_test(name = "gauntlet_exit_combination_17-bmv2")
+
+p4_stf_test(name = "gauntlet_exit_combination_18-bmv2")
+
+# gauntlet_exit_combination_19: needs table.apply().hit and ternary operator.
+
+p4_stf_test(name = "gauntlet_exit_combination_20-bmv2")
+
+p4_stf_test(name = "gauntlet_exit_combination_21-bmv2")
+
+# gauntlet_exit_combination_22: needs table.apply().hit and ternary operator.
+
+p4_stf_test(name = "gauntlet_exit_combination_23-bmv2")
+
 p4_stf_test(name = "gauntlet_hdr_assign_1-bmv2")
 
-p4_stf_test(name = "flag_lost-bmv2")
+p4_stf_test(name = "opassign1-bmv2")
