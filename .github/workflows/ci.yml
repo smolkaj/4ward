@@ -130,10 +130,10 @@ jobs:
           restore-keys: bazel-ubuntu-24.04-
 
       - name: Run coverage
-        run: bazel coverage //...
+        run: ./coverage.sh
 
       - name: Upload to Codecov
         uses: codecov/codecov-action@v5
         with:
-          files: bazel-out/_coverage/_coverage_report.dat
+          files: coverage.lcov
           fail_ci_if_error: false

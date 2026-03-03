@@ -37,20 +37,7 @@ cmd_lint() {
 }
 
 cmd_coverage() {
-  bazel coverage //...
-  # Merge LCOV shards into a single report.
-  local lcov
-  lcov="$(bazel info output_path)/_coverage/_coverage_report.dat"
-  if [[ -f "${lcov}" ]]; then
-    mkdir -p "${REPO_ROOT}/coverage-report"
-    cp "${lcov}" "${REPO_ROOT}/coverage-report/lcov.info"
-    echo ""
-    echo "Coverage report: coverage-report/lcov.info"
-    if command -v genhtml >/dev/null 2>&1; then
-      genhtml "${lcov}" -o "${REPO_ROOT}/coverage-report/html" --quiet
-      echo "HTML report:    coverage-report/html/index.html"
-    fi
-  fi
+  exec "${REPO_ROOT}/coverage.sh" "$@"
 }
 
 cmd_refresh_cc() {
