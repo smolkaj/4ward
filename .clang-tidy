@@ -13,6 +13,7 @@ Checks: >
   modernize-*,
   performance-*,
   readability-*,
+  -modernize-use-constraints,
   -modernize-use-trailing-return-type,
   -readability-braces-around-statements,
   -readability-else-after-return,
