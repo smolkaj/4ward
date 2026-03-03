@@ -18,11 +18,14 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Mount Bazel cache
-        uses: actions/cache@v5
+      # Restore-only: the build-and-test job owns the authoritative cache for
+      # this key.  Lint builds a subset (p4c_backend + formatting tools), so
+      # letting it save would evict simulator/e2e artifacts that build-and-test
+      # needs.
+      - name: Restore Bazel cache
+        uses: actions/cache/restore@v5
         with:
           path: ~/.cache/bazel
-          # Shared with the ubuntu-24.04 build-and-test shard.
           key: bazel-ubuntu-24.04-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
           restore-keys: bazel-ubuntu-24.04-
 
@@ -104,9 +107,7 @@ jobs:
         with:
           path: ~/.cache/bazel
           key: bazel-coverage-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: |
-            bazel-coverage-
-            bazel-ubuntu-24.04-
+          restore-keys: bazel-coverage-
 
       - name: Install lcov
         run: sudo apt install -y lcov
