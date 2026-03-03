@@ -13,54 +13,7 @@ concurrency:
 
 jobs:
 
-  format-and-lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Install clang-format
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y clang-format
-
-      # format.sh modifies files in-place; the diff check below catches any
-      # changes, so we use a single "run and diff" pattern for both clang-format
-      # and buildifier rather than separate --dry-run/--check invocations.
-      - run: ./format.sh
-      - name: Check formatting diff
-        run: |
-          CHANGED_FILES="$(git diff-index --name-only HEAD --)"
-          if [[ -z "${CHANGED_FILES}" ]]; then
-            echo "Success: no formatting changes needed."
-            exit 0
-          fi
-          echo "Found formatting changes in the following files:"
-          echo "${CHANGED_FILES}"
-          echo ""
-          echo "Please run \`format.sh\` to apply the changes."
-          exit 1
-
-      # TODO(buf-edition-2024): Re-enable once buf supports protobuf edition 2024.
-      # As of buf 1.66.0 (latest), `buf build` hard-fails with:
-      #   edition "2024" not yet fully supported; latest supported edition "2023"
-      # Additionally, format.sh creates bazel-* symlinks that buf follows into
-      # external dependency trees, causing duplicate-symbol errors.  When
-      # re-enabling, add `rm -f bazel-*` before the buf step.
-      #
-      # - name: Proto lint
-      #   uses: bufbuild/buf-action@v1
-      #   with:
-      #     lint: true
-      #     breaking: true
-      #     breaking_against: |
-      #       ${{ github.event_name == 'pull_request' && format(
-      #         'https://github.com/{0}.git#branch={1}',
-      #         github.repository, github.base_ref
-      #       ) || '' }}
-
-
-  clang-tidy:
-    name: clang-tidy
+  lint:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
@@ -69,23 +22,49 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/bazel
-          # Share the cache with the ubuntu-24.04 build-and-test shard so the
-          # compilation outputs don't need to be rebuilt from scratch.
+          # Shared with the ubuntu-24.04 build-and-test shard.
           key: bazel-ubuntu-24.04-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
           restore-keys: bazel-ubuntu-24.04-
 
-      - name: Install clang-tidy
+      - name: Install tools
+        run: sudo apt install -y clang-format clang-tidy-18
+
+      # format.sh modifies files in-place; the diff check below catches any
+      # changes, so we use a single "run and diff" pattern for both clang-format
+      # and buildifier rather than separate --dry-run/--check invocations.
+      - run: ./format.sh
+      - name: Check formatting diff
         run: |
-          sudo apt-get update -q
-          sudo apt-get install -y clang-tidy-18
+          if changed=$(git diff-index --name-only HEAD --) && [[ -n "$changed" ]]; then
+            echo -e "Please run format.sh. Files needing formatting:\n$changed"
+            exit 1
+          fi
+
+      # TODO(buf-edition-2024): Re-enable buf lint/breaking once buf supports
+      # edition 2024. Tracked in https://github.com/smolkaj/4ward/pull/4.
+
+      # On PRs, skip clang-tidy when no C++ files were modified — most PRs
+      # only touch Kotlin or proto files.  Always run on pushes to main.
+      - name: Detect C++ changes
+        id: cpp
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          FILES=$(gh pr diff "${{ github.event.pull_request.number }}" --name-only)
+          if ! printf '%s\n' "$FILES" | grep -qE '\.(cpp|cc|h)$|\.clang-tidy$'; then
+            echo "No C++ files changed; skipping clang-tidy."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Generate compile_commands.json
+        if: steps.cpp.outputs.skip != 'true'
         run: bazel run //:refresh_compile_commands
 
       - name: Run clang-tidy
+        if: steps.cpp.outputs.skip != 'true'
         run: |
           find p4c_backend \( -name "*.cpp" -o -name "*.cc" \) -print0 \
-            | sort -z \
             | xargs -0 -P "$(nproc)" -I{} \
                 clang-tidy-18 -p . {}
 
