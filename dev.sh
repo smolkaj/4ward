@@ -1,5 +1,5 @@
 #!/bin/bash
-# Developer task runner. Run `./dev help` to see available commands.
+# Developer task runner. Run `./dev.sh help` to see available commands.
 
 set -euo pipefail
 
@@ -7,7 +7,7 @@ REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
 
 cmd_help() {
   cat <<'EOF'
-Usage: ./dev <command>
+Usage: ./dev.sh <command>
 
 Commands:
   build           Build everything
@@ -15,7 +15,6 @@ Commands:
   fmt             Auto-format all files
   lint            Run all linters
   coverage        Run tests with coverage, open report
-  refresh-cc      Regenerate compile_commands.json
   help            Show this help
 EOF
 }
@@ -40,10 +39,6 @@ cmd_coverage() {
   exec "${REPO_ROOT}/coverage.sh" "$@"
 }
 
-cmd_refresh_cc() {
-  bazel run @hedron_compile_commands//:refresh_all
-}
-
 # Dispatch.
 case "${1:-help}" in
   build)        shift; cmd_build "$@" ;;
@@ -51,11 +46,10 @@ case "${1:-help}" in
   fmt|format)   shift; cmd_fmt "$@" ;;
   lint)         shift; cmd_lint "$@" ;;
   coverage|cov) shift; cmd_coverage "$@" ;;
-  refresh-cc)   shift; cmd_refresh_cc "$@" ;;
   help|--help|-h) cmd_help ;;
   *)
     echo "Unknown command: $1" >&2
-    echo "Run './dev help' for available commands." >&2
+    echo "Run './dev.sh help' for available commands." >&2
     exit 1
     ;;
 esac

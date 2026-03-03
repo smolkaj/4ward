@@ -28,7 +28,7 @@ bazel build //...          # build everything
 bazel test //...           # run all tests
 ./format.sh                # auto-format all files (clang-format + buildifier + ktfmt)
 ./lint.sh                  # lint all files (clang-tidy for C++, detekt for Kotlin)
-./dev help                 # show all developer commands
+./dev.sh help              # show all developer commands
 ```
 
 `./lint.sh` for C++ requires a `compile_commands.json`. It is generated
