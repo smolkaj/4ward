@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Mount Bazel cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/bazel
           # Shared with the ubuntu-24.04 build-and-test shard.
@@ -81,7 +81,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Mount Bazel cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/bazel
           key: bazel-${{ matrix.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
@@ -102,7 +102,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Mount Bazel cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/bazel
           key: bazel-ubuntu-24.04-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
