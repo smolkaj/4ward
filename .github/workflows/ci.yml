@@ -13,15 +13,26 @@ concurrency:
 
 jobs:
 
-  format-and-lint:
-    runs-on: ubuntu-latest
+  lint:
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
+        with:
+          # Full history lets us diff against the PR base to detect C++ changes.
+          fetch-depth: 0
 
-      - name: Install clang-format
+      - name: Mount Bazel cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/bazel
+          # Shared with the ubuntu-24.04 build-and-test shard.
+          key: bazel-ubuntu-24.04-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: bazel-ubuntu-24.04-
+
+      - name: Install tools
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y clang-format
+          sudo apt-get install -y clang-format clang-tidy-18
 
       # format.sh modifies files in-place; the diff check below catches any
       # changes, so we use a single "run and diff" pattern for both clang-format
@@ -58,31 +69,25 @@ jobs:
       #         github.repository, github.base_ref
       #       ) || '' }}
 
-
-  clang-tidy:
-    name: clang-tidy
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Mount Bazel cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/bazel
-          # Share the cache with the ubuntu-24.04 build-and-test shard so the
-          # compilation outputs don't need to be rebuilt from scratch.
-          key: bazel-ubuntu-24.04-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: bazel-ubuntu-24.04-
-
-      - name: Install clang-tidy
+      # On PRs, skip clang-tidy when no C++ files were modified — most PRs
+      # only touch Kotlin or proto files.  Always run on pushes to main.
+      - name: Detect C++ changes
+        id: cpp
         run: |
-          sudo apt-get update -q
-          sudo apt-get install -y clang-tidy-18
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            BASE=${{ github.event.pull_request.base.sha }}
+            if ! git diff --name-only "$BASE" HEAD -- '*.cpp' '*.cc' '*.h' | grep -q .; then
+              echo "No C++ files changed; skipping clang-tidy."
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+            fi
+          fi
 
       - name: Generate compile_commands.json
+        if: steps.cpp.outputs.skip != 'true'
         run: bazel run //:refresh_compile_commands
 
       - name: Run clang-tidy
+        if: steps.cpp.outputs.skip != 'true'
         run: |
           find p4c_backend \( -name "*.cpp" -o -name "*.cc" \) -print0 \
             | sort -z \
