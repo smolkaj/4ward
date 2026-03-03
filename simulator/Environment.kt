@@ -69,7 +69,7 @@ class Environment(payload: ByteArray) {
    * found.
    */
   fun lookup(name: String): Value? {
-    for (scope in scopes.reversed()) {
+    for (scope in scopes.asReversed()) {
       scope[name]?.let {
         return it
       }
@@ -82,7 +82,7 @@ class Environment(payload: ByteArray) {
    * first match. Throws if the variable is not found.
    */
   fun update(name: String, value: Value) {
-    for (scope in scopes.reversed()) {
+    for (scope in scopes.asReversed()) {
       if (name in scope) {
         scope[name] = value
         return
