@@ -9,13 +9,13 @@
 namespace P4::FourWard {
 
 FourWardOptions::FourWardOptions() {
-    registerOption(
-        "-o", "file",
-        [this](const char *arg) {
-            outputFile = arg;
-            return true;
-        },
-        "write the PipelineConfig proto binary to <file> (default: <input>.pb)");
+  registerOption(
+      "-o", "file",
+      [this](const char* arg) {
+        outputFile = arg;
+        return true;
+      },
+      "write the PipelineConfig proto binary to <file> (default: <input>.pb)");
 }
 
 }  // namespace P4::FourWard

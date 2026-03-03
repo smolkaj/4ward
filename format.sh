@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env zsh
 # Copyright 2020 The P4-Constraints Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,30 +16,23 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # Formats source files according to Google's style guide. Requires clang-format.
+# Uses `git ls-files` to respect .gitignore as the single source of truth for
+# which files belong to the project — no manual excludes needed.
 
-WORKSPACE=$(bazel info workspace)
-
-# Only files with these extensions will be formatted by clang-format.
-CLANG_FORMAT_EXTENSIONS="cc|h|proto"
+cd "$(git rev-parse --show-toplevel)" || exit 1
+REPO_ROOT=$(pwd)
 
 # Run clang-format.
-find . -not -path "./third_party/**" \
-  | egrep "\.(${CLANG_FORMAT_EXTENSIONS})\$" \
-  | xargs clang-format --verbose -style=google -i
+git ls-files '*.cpp' '*.h' '*.proto' | xargs clang-format --verbose -style=google -i
 
-bazel run -- \
-  @buildifier_prebuilt//:buildifier --lint=fix -r "${WORKSPACE}"
+# Run buildifier on Starlark files.
+# Absolute paths are needed because `bazel run` changes the working directory.
+BZL_SOURCES=(${(f)"$(git ls-files '*.bazel' '*.bzl')"})
+[[ ${#BZL_SOURCES[@]} -gt 0 ]] && \
+  bazel run -- @buildifier_prebuilt//:buildifier --lint=fix "${BZL_SOURCES[@]/#/$REPO_ROOT/}"
 
 # Run ktfmt on Kotlin sources (Google style, matching our style guide).
-KT_SOURCES=()
-while IFS= read -r f; do
-  KT_SOURCES+=("$f")
-done < <(
-  find "${WORKSPACE}" \
-    -path "${WORKSPACE}/bazel-*" -prune -o \
-    -name "*.kt" -print \
-  | sort
-)
-if [[ ${#KT_SOURCES[@]} -gt 0 ]]; then
-  bazel run //:ktfmt -- --google-style "${KT_SOURCES[@]}"
-fi
+# Absolute paths are needed because `bazel run` changes the working directory.
+KT_SOURCES=(${(f)"$(git ls-files '*.kt')"})
+[[ ${#KT_SOURCES[@]} -gt 0 ]] && \
+  bazel run //:ktfmt -- --google-style "${KT_SOURCES[@]/#/$REPO_ROOT/}"
