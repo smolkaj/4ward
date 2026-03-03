@@ -95,9 +95,20 @@ kt_jvm_test(
 )
 
 kt_jvm_test(
-    name = "InterpreterTest",
-    srcs = ["InterpreterTest.kt"],
-    test_class = "fourward.simulator.InterpreterTest",
+    name = "InterpreterExprTest",
+    srcs = ["InterpreterExprTest.kt"],
+    test_class = "fourward.simulator.InterpreterExprTest",
+    deps = [
+        ":ir_java_proto",
+        ":simulator_lib",
+        "@maven//:junit_junit",
+    ],
+)
+
+kt_jvm_test(
+    name = "InterpreterControlTest",
+    srcs = ["InterpreterControlTest.kt"],
+    test_class = "fourward.simulator.InterpreterControlTest",
     deps = [
         ":ir_java_proto",
         ":simulator_lib",

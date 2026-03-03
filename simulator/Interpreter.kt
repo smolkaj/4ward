@@ -412,7 +412,7 @@ class Interpreter(private val config: P4BehavioralConfig, private val tableStore
     val newFields = mutableMapOf<String, Value>()
     for (field in headerDecl.fieldsList) {
       val width = field.type.bit.width
-      val bytes = env.extractBytes((width + 7) / 8)
+      val bytes = env.extractBytes((width + BitVector.BITS_PER_BYTE - 1) / BitVector.BITS_PER_BYTE)
       newFields[field.name] = BitVal(BitVector.ofBytes(bytes, width))
     }
     header.setValid(newFields)

@@ -27,6 +27,10 @@ fun main() {
 
   while (true) {
     val request = readRequest(input) ?: break
+    // Catch-all at the subprocess boundary: any uncaught exception becomes an
+    // ErrorResponse so the controller can report it gracefully rather than
+    // receiving a truncated or missing response.
+    @Suppress("TooGenericExceptionCaught")
     val response =
       try {
         simulator.handle(request)

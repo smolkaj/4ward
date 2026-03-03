@@ -26,6 +26,10 @@ class TableStore {
   // Write
   // -------------------------------------------------------------------------
 
+  // actionNameById is not yet used here: action names are currently resolved via
+  // the action ID stored in the entry proto. It is kept as part of the API for
+  // when proper p4info-based resolution is wired up.
+  @Suppress("UnusedParameter")
   fun write(update: Update, tableNameById: Map<Int, String>, actionNameById: Map<Int, String>) {
     val entry = update.entity.tableEntry
     val tableName = tableNameById[entry.tableId] ?: error("unknown table ID: ${entry.tableId}")

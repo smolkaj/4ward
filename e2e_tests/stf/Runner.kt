@@ -24,6 +24,10 @@ import java.nio.file.Path
  * 5. Reports pass/fail.
  */
 class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPath: Path) {
+  // The run function is a single sequential protocol: load pipeline → install entries →
+  // send packets → compare. Splitting it would require passing mutable state between
+  // helper functions, making the protocol harder to follow.
+  @Suppress("NestedBlockDepth")
   fun run(stfPath: Path): TestResult {
     val stf = StfFile.parse(stfPath)
     val builder = PipelineConfig.newBuilder()

@@ -28,15 +28,19 @@ style:
 
   # Numeric literals in tests are self-documenting (e.g. BitVector.ofInt(0xFF, 8)).
   # Extend the default excludes to cover our colocated *Test.kt files.
+  # Also add the small integers that frequently appear as byte/hex constants (8, 16)
+  # or sentinel values (100) — extracting them as named constants adds ceremony
+  # without clarifying intent (HEX_RADIX = 16 does not explain more than 16 alone).
   MagicNumber:
     excludes: ['**/test/**', '**/*.kts', '**/*Test.kt']
+    ignoreNumbers: ['-1', '0', '1', '2', '8', '16', '100']
 
+complexity:
   # Test builder helpers legitimately need many parameters to fully specify a test
   # case without introducing opaque intermediate objects.
   LongParameterList:
     excludes: ['**/test/**', '**/*Test.kt']
 
-complexity:
   # 11 is far too low for operator-rich value classes like BitVector (21 functions)
   # or large dispatch classes like Interpreter. Google style sets no hard limit.
   TooManyFunctions:
@@ -45,3 +49,33 @@ complexity:
     thresholdInInterfaces: 30
     thresholdInObjects: 30
     thresholdInEnums: 11
+
+  # Protocol dispatch functions (Interpreter.evalExpr, evalBinaryOp) are large
+  # `when` expressions whose cyclomatic complexity grows linearly with the number
+  # of P4 language constructs — not a readability problem.
+  CyclomaticComplexMethod:
+    threshold: 25
+
+  # 60 lines is too tight for sequential protocol handlers (e.g. StfRunner.run, which
+  # encodes a strict request/response sequence that reads clearly as one function).
+  # CyclomaticComplexMethod already catches functions that are genuinely hard to follow.
+  LongMethod:
+    active: false
+
+exceptions:
+  # ExitException is a P4 control-flow mechanism (the exit statement unwinds the
+  # current stage), not an error. EOFException in the subprocess read loop signals
+  # normal controller shutdown. Suppressing these globally avoids per-site noise.
+  SwallowedException:
+    ignoredExceptionTypes:
+      - InterruptedException
+      - NumberFormatException
+      - ParseException
+      - ExitException
+      - EOFException
+
+  # The simulator subprocess writes diagnostics to stderr; e.printStackTrace(System.err)
+  # is the right call there. Alternatives (logging frameworks, custom formatters) would
+  # add dependencies without benefit in a short-lived subprocess.
+  PrintStackTrace:
+    active: false

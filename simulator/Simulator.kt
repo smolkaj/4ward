@@ -117,6 +117,7 @@ class Simulator {
     return SimResponse.newBuilder().setWriteEntry(WriteEntryResponse.getDefaultInstance()).build()
   }
 
+  @Suppress("UnusedParameter") // req will be used when read filters are implemented
   private fun handleReadEntries(req: fourward.sim.v1.ReadEntriesRequest): SimResponse {
     // TODO: implement read support.
     return SimResponse.newBuilder().setReadEntries(ReadEntriesResponse.getDefaultInstance()).build()

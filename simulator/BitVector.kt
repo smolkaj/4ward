@@ -96,7 +96,7 @@ data class BitVector(val value: BigInteger, val width: Int) {
 
   /** Returns the value as a big-endian byte array, padded to ceil(width/8) bytes. */
   fun toByteArray(): ByteArray {
-    val byteLen = (width + 7) / 8
+    val byteLen = (width + BITS_PER_BYTE - 1) / BITS_PER_BYTE
     val raw = value.toByteArray()
     // BigInteger.toByteArray() may include a leading 0x00 sign byte.
     return ByteArray(byteLen) { i ->
@@ -123,6 +123,8 @@ data class BitVector(val value: BigInteger, val width: Int) {
   }
 
   companion object {
+    const val BITS_PER_BYTE = 8
+
     fun ofInt(value: Int, width: Int): BitVector =
       BitVector(BigInteger.valueOf(value.toLong()), width)
 

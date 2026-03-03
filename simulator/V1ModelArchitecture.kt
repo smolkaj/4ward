@@ -39,12 +39,12 @@ class V1ModelArchitecture : Architecture {
         typeName = "standard_metadata_t",
         fields =
           mutableMapOf(
-            "ingress_port" to BitVal(ingressPort.toLong(), 9),
-            "egress_spec" to BitVal(0L, 9),
-            "egress_port" to BitVal(0L, 9),
-            "packet_length" to BitVal(payload.size.toLong(), 32),
-            "instance_type" to BitVal(0L, 32),
-            "drop" to BitVal(0L, 1),
+            "ingress_port" to BitVal(ingressPort.toLong(), PORT_BITS),
+            "egress_spec" to BitVal(0L, PORT_BITS),
+            "egress_port" to BitVal(0L, PORT_BITS),
+            "packet_length" to BitVal(payload.size.toLong(), INT32_BITS),
+            "instance_type" to BitVal(0L, INT32_BITS),
+            "drop" to BitVal(0L, FLAG_BITS),
           ),
       )
     env.define("standard_metadata", standardMetadata)
@@ -96,6 +96,11 @@ class V1ModelArchitecture : Architecture {
   companion object {
     /** Port value used by mark_to_drop() to signal packet drop in v1model. */
     const val DROP_PORT = 511
+
+    // Bit widths for standard_metadata_t fields, as defined in v1model.p4.
+    private const val PORT_BITS = 9
+    private const val INT32_BITS = 32
+    private const val FLAG_BITS = 1
   }
 
   /**
