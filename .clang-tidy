@@ -27,6 +27,11 @@ WarningsAsErrors: "*"
 # p4c and other third-party headers pulled in via @p4c//.
 HeaderFilterRegex: "^p4c_backend/.*"
 
+# Bazel's sandbox + GCC toolchain on Linux doesn't expose /usr/include to
+# clang-tidy, so GCC's C++ stdlib.h can't #include_next the C stdlib.h.
+ExtraArgsBefore:
+  - '-isystem/usr/include'
+
 CheckOptions:
   # Naming conventions.  The p4c backend is a p4c plugin and inherits p4c's
   # camelBack naming for functions, variables, and members.  Namespaces follow
