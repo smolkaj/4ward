@@ -1,6 +1,19 @@
 load("@buildifier_prebuilt//:rules.bzl", "buildifier", "buildifier_test")
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_binary")
 
 buildifier(name = "buildifier")
+
+kt_jvm_binary(
+    name = "ktfmt",
+    main_class = "com.facebook.ktfmt.cli.Main",
+    runtime_deps = ["@maven//:com_facebook_ktfmt"],
+)
+
+kt_jvm_binary(
+    name = "detekt",
+    main_class = "io.gitlab.arturbosch.detekt.cli.Main",
+    runtime_deps = ["@maven//:io_gitlab_arturbosch_detekt_detekt_cli"],
+)
 
 buildifier_test(
     name = "buildifier_test",

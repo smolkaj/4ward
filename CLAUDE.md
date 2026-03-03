@@ -27,6 +27,8 @@ not list every changed line.
 - Prefer `bazel build //...` and `bazel test //...` to direct invocations of
   `kotlinc`, `g++`, etc. The build is hermetic.
 - Use `./format.sh` to format files, not manual edits.
+- Use `./lint.sh` to lint all code (clang-tidy for C++, detekt for Kotlin).
+  Fix all warnings before marking a task complete.
 - Do not install anything with `apt`, `brew`, or `pip`; declare dependencies
   in `MODULE.bazel` instead.
 

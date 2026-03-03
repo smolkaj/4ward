@@ -17,6 +17,8 @@
 
 # Formats source files according to Google's style guide. Requires clang-format.
 
+WORKSPACE=$(bazel info workspace)
+
 # Only files with these extensions will be formatted by clang-format.
 CLANG_FORMAT_EXTENSIONS="cc|h|proto"
 
@@ -26,4 +28,18 @@ find . -not -path "./third_party/**" \
   | xargs clang-format --verbose -style=google -i
 
 bazel run -- \
-  @buildifier_prebuilt//:buildifier --lint=fix -r $(bazel info workspace)
+  @buildifier_prebuilt//:buildifier --lint=fix -r "${WORKSPACE}"
+
+# Run ktfmt on Kotlin sources (Google style, matching our style guide).
+KT_SOURCES=()
+while IFS= read -r f; do
+  KT_SOURCES+=("$f")
+done < <(
+  find "${WORKSPACE}" \
+    -path "${WORKSPACE}/bazel-*" -prune -o \
+    -name "*.kt" -print \
+  | sort
+)
+if [[ ${#KT_SOURCES[@]} -gt 0 ]]; then
+  bazel run //:ktfmt -- --google-style "${KT_SOURCES[@]}"
+fi

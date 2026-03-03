@@ -1,0 +1,47 @@
+# detekt configuration for 4ward.
+# Run with --build-upon-default-config so unmentioned rules use detekt defaults.
+# Follows the Google Kotlin style guide: https://google.github.io/styleguide/kotlinguide.html
+
+naming:
+  # The Google Kotlin style guide explicitly permits backtick-named test functions
+  # (e.g. `fun `addition wraps at width boundary`()`). Extend the default test
+  # directory exclusions to cover our colocated *Test.kt files.
+  FunctionNaming:
+    excludes: ['**/test/**', '**/*Test.kt']
+
+  # Bazel source layout: simulator/*.kt carries package fourward.simulator but
+  # lives under simulator/, not fourward/simulator/. The mismatch is intentional.
+  InvalidPackageDeclaration:
+    active: false
+
+style:
+  MaxLineLength:
+    maxLineLength: 100  # Google Kotlin style guide §4.4
+
+  # TODOs are tracked in the issue tracker and are not a style violation.
+  ForbiddenComment:
+    active: false
+
+  # Google style guide sets no limit on return statements per function.
+  ReturnCount:
+    active: false
+
+  # Numeric literals in tests are self-documenting (e.g. BitVector.ofInt(0xFF, 8)).
+  # Extend the default excludes to cover our colocated *Test.kt files.
+  MagicNumber:
+    excludes: ['**/test/**', '**/*.kts', '**/*Test.kt']
+
+  # Test builder helpers legitimately need many parameters to fully specify a test
+  # case without introducing opaque intermediate objects.
+  LongParameterList:
+    excludes: ['**/test/**', '**/*Test.kt']
+
+complexity:
+  # 11 is far too low for operator-rich value classes like BitVector (21 functions)
+  # or large dispatch classes like Interpreter. Google style sets no hard limit.
+  TooManyFunctions:
+    thresholdInFiles: 60
+    thresholdInClasses: 30
+    thresholdInInterfaces: 30
+    thresholdInObjects: 30
+    thresholdInEnums: 11

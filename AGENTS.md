@@ -26,7 +26,15 @@ Unit tests live alongside the source they test:
 ```sh
 bazel build //...          # build everything
 bazel test //...           # run all tests
-./format.sh                # auto-format all files
+./format.sh                # auto-format all files (clang-format + buildifier + ktfmt)
+./lint.sh                  # lint all files (clang-tidy for C++, detekt for Kotlin)
+```
+
+`./lint.sh` for C++ requires a `compile_commands.json`. It is generated
+automatically on first run, or manually after adding/removing C++ targets:
+
+```sh
+bazel run @hedron_compile_commands//:refresh_all
 ```
 
 All builds are hermetic. Do not install dependencies outside of Bazel.
@@ -56,12 +64,14 @@ All builds are hermetic. Do not install dependencies outside of Bazel.
 - **Kotlin**: follow the [Google Kotlin style guide](https://google.github.io/styleguide/kotlinguide.html).
   4-space indentation, 100-character line limit, `lowerCamelCase` for functions
   and properties, `UpperCamelCase` for classes, `UPPER_SNAKE_CASE` for constants.
+  Enforced by ktfmt (`./format.sh`) and detekt (`./lint.sh`).
 - **C++**: follow the [Google C++ style guide](https://google.github.io/styleguide/cppguide.html).
-  C++20, clang-format enforced.
+  C++20, enforced by clang-format (`./format.sh`) and clang-tidy (`./lint.sh`,
+  see `.clang-tidy` at the repo root).
 - **Proto**: field names in `snake_case`, enum values in `UPPER_SNAKE_CASE` with
   a type prefix (e.g. `STAGE_KIND_UNSPECIFIED`). Comments on every non-obvious
   field.
-- **BUILD files**: run `bazel run //:buildifier` before committing.
+- **BUILD files**: enforced by buildifier (`./format.sh`).
 
 ## Kotlin packages
 
