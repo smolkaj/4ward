@@ -16,31 +16,23 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # Formats source files according to Google's style guide. Requires clang-format.
+# Uses `git ls-files` to respect .gitignore as the single source of truth for
+# which files belong to the project — no manual excludes needed.
 
-WORKSPACE=$(bazel info workspace)
-
-# Only files with these extensions will be formatted by clang-format.
-CLANG_FORMAT_EXTENSIONS="cc|h|proto"
+cd "$(git rev-parse --show-toplevel)" || exit 1
+REPO_ROOT=$(pwd)
 
 # Run clang-format.
-find . -not -path "./third_party/**" \
-       -not -path "./.claude/*" \
-  | egrep "\.(${CLANG_FORMAT_EXTENSIONS})\$" \
-  | xargs clang-format --verbose -style=google -i
+git ls-files '*.cc' '*.h' '*.proto' | xargs clang-format --verbose -style=google -i
 
-# Run buildifier on Starlark files, excluding generated symlinks and .claude/.
-BZL_SOURCES=(${(f)"$(find "${WORKSPACE}" \
-  -path "${WORKSPACE}/bazel-*" -prune -o \
-  -path "${WORKSPACE}/.claude" -prune -o \
-  \( -name "*.bazel" -o -name "*.bzl" \) \
-  -print | sort)"})
+# Run buildifier on Starlark files.
+# Absolute paths are needed because `bazel run` changes the working directory.
+BZL_SOURCES=(${(f)"$(git ls-files '*.bazel' '*.bzl')"})
 [[ ${#BZL_SOURCES[@]} -gt 0 ]] && \
-  bazel run -- @buildifier_prebuilt//:buildifier --lint=fix "${BZL_SOURCES[@]}"
+  bazel run -- @buildifier_prebuilt//:buildifier --lint=fix "${BZL_SOURCES[@]/#/$REPO_ROOT/}"
 
 # Run ktfmt on Kotlin sources (Google style, matching our style guide).
-KT_SOURCES=(${(f)"$(find "${WORKSPACE}" \
-  -path "${WORKSPACE}/bazel-*" -prune -o \
-  -path "${WORKSPACE}/.claude" -prune -o \
-  -name "*.kt" -print | sort)"})
+# Absolute paths are needed because `bazel run` changes the working directory.
+KT_SOURCES=(${(f)"$(git ls-files '*.kt')"})
 [[ ${#KT_SOURCES[@]} -gt 0 ]] && \
-  bazel run //:ktfmt -- --google-style "${KT_SOURCES[@]}"
+  bazel run //:ktfmt -- --google-style "${KT_SOURCES[@]/#/$REPO_ROOT/}"
