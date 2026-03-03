@@ -20,9 +20,10 @@ EOF
 }
 
 cmd_build() {
-  bazel build //...
+  bazel build //... "$@"
 }
 
+# Extra args are passed through, e.g. `./dev.sh test //simulator:BitVectorTest`.
 cmd_test() {
   bazel test //... "$@"
 }
