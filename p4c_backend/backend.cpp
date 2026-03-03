@@ -120,20 +120,20 @@ fourward::ir::v1::Expr FourWardBackend::emitExpr(const IR::Expression* expr) {
     out.mutable_name_ref()->set_name(pe->path->name.name.c_str());
   } else if (const auto* mem = expr->to<IR::Member>()) {
     std::string tableName;
-    if (mem->member == "action_run" &&
-        isTableApply(mem->expr, refMap_, &tableName)) {
-      // Switch subject: table.apply().action_run — no type annotation.
-      out.mutable_table_apply()->set_table_name(tableName);
-      return out;
-    } else if ((mem->member == "hit" || mem->member == "miss") &&
-               isTableApply(mem->expr, refMap_, &tableName)) {
-      // Boolean hit/miss: type annotation (bool) is added by the common block
-      // below.
+    if (isTableApply(mem->expr, refMap_, &tableName)) {
+      if (mem->member == "action_run") {
+        // Switch subject: no type annotation needed.
+        out.mutable_table_apply()->set_table_name(tableName);
+        return out;
+      }
+      // hit/miss: type annotation (bool) is added by the common block below.
       auto* ta = out.mutable_table_apply();
       ta->set_table_name(tableName);
-      ta->set_access_kind(mem->member == "hit"
-                              ? fourward::ir::v1::TableApplyExpr::HIT
-                              : fourward::ir::v1::TableApplyExpr::MISS);
+      if (mem->member == "hit" || mem->member == "miss") {
+        ta->set_access_kind(mem->member == "hit"
+                                ? fourward::ir::v1::TableApplyExpr::HIT
+                                : fourward::ir::v1::TableApplyExpr::MISS);
+      }
     } else {
       auto* fa = out.mutable_field_access();
       *fa->mutable_expr() = emitExpr(mem->expr);

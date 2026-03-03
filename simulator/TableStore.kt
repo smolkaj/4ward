@@ -41,6 +41,7 @@ class TableStore {
     this.tableNameById = tableNameById
     this.actionNameById = actionNameById
     tables.clear()
+    forcedHits.clear()
   }
 
   fun setDefaultAction(tableName: String, actionName: String) {
