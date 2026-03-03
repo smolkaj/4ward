@@ -26,9 +26,10 @@ bazel_dep(name = "p4runtime", version = "1.5.0.bcr.1")
 # Point this at your fork during development; remove the override when
 # the 4ward backend has been upstreamed into p4c proper.
 bazel_dep(name = "p4c", version = "head")
-local_path_override(
+git_override(
     module_name = "p4c",
-    path = "../p4c",
+    commit = "57df447d4dc916d4a9e0d9c9837aa3ee3cd9f0ab",
+    remote = "https://github.com/smolkaj/p4c.git",
 )
 
 # --- JVM dependencies (protobuf runtime for Kotlin) ---
