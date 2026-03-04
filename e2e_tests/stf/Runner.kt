@@ -209,33 +209,12 @@ sealed class TestResult {
 /**
  * Runs the STF test named [testName] using the standard Bazel runfiles layout.
  *
- * Looks for `_main/simulator/simulator`, `_main/e2e_tests/<testName>/<testName>.txtpb`, and
- * `_main/e2e_tests/<testName>/<testName>.stf` under `JAVA_RUNFILES`.
+ * Looks for `_main/simulator/simulator`, `_main/<pkg>/<testName>.txtpb`, and
+ * `_main/<pkg>/<testName>.stf` under `JAVA_RUNFILES`. The [pkg] defaults to `e2e_tests/<testName>`
+ * (matching the per-test package layout of the regular e2e tests).
  */
-fun runStfTest(testName: String): TestResult {
+fun runStfTest(testName: String, pkg: String = "e2e_tests/$testName"): TestResult {
   val r = System.getenv("JAVA_RUNFILES") ?: "."
-  return runStf(
-    r,
-    Paths.get(r, "_main/e2e_tests/$testName/$testName.txtpb"),
-    Paths.get(r, "_main/e2e_tests/$testName/$testName.stf"),
-  )
-}
-
-/**
- * Runs an STF test whose identity is derived from Bazel's `TEST_TARGET` environment variable.
- *
- * Bazel sets `TEST_TARGET` to the fully qualified label of the running test, e.g.
- * `//e2e_tests/corpus:opassign1-bmv2_test`. This function strips the `_test` suffix to obtain the
- * test name, then looks up `<name>.txtpb` and `<name>.stf` in the same package under
- * `JAVA_RUNFILES/_main/`. Used by [fourward.e2e.corpus.CorpusStfTest] via the `p4_stf_test` Bazel
- * macro.
- */
-fun runStfTestFromEnv(): TestResult {
-  val r = System.getenv("JAVA_RUNFILES") ?: "."
-  val target = System.getenv("TEST_TARGET") ?: error("TEST_TARGET not set")
-  // "//e2e_tests/corpus:opassign1-bmv2_test" → pkg = "e2e_tests/corpus", name = "opassign1-bmv2"
-  val pkg = target.removePrefix("//").substringBefore(":")
-  val testName = target.substringAfterLast(":").removeSuffix("_test")
   return runStf(
     r,
     Paths.get(r, "_main/$pkg/$testName.txtpb"),
