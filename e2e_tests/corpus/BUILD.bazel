@@ -192,3 +192,12 @@ corpus_test_suite(
         "array-copy-bmv2",
     ],
 )
+
+# Tests blocked on various unclassified missing features.
+corpus_test_suite(
+    name = "other_stf_corpus_test",
+    tags = ["manual"],
+    tests = [
+        "bvec-hdr-bmv2",
+    ],
+)
