@@ -106,6 +106,7 @@ corpus_test_suite(
         "issue447-2-bmv2",
         "issue447-5-bmv2",
         "issue447-bmv2",
+        "issue510-bmv2",
         "issue635-bmv2",
         "issue983-bmv2",
         "opassign1-bmv2",
@@ -236,6 +237,13 @@ corpus_test_suite(
         "issue3488-1-bmv2",  # expected packet on port 2 but got none
         "issue447-3-bmv2",  # expected packet on port 0 but got none
         "issue447-4-bmv2",  # expected packet on port 0 but got none
+        "issue561-1-bmv2",  # field access on non-aggregate value: UnitVal
+        "issue561-2-bmv2",  # field access on non-aggregate value: UnitVal
+        "issue561-3-bmv2",  # field access on non-aggregate value: UnitVal
+        "issue561-4-bmv2",  # UnitVal cannot be cast to HeaderVal
+        "issue561-5-bmv2",  # UnitVal cannot be cast to HeaderVal
+        "issue561-6-bmv2",  # UnitVal cannot be cast to HeaderVal
+        "issue561-7-bmv2",  # UnitVal cannot be cast to HeaderVal
     ],
 )
 
