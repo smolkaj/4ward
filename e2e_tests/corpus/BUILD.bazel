@@ -219,6 +219,15 @@ corpus_test_suite(
     ],
 )
 
+# Tests that take excessively long to compile with p4c-4ward.
+corpus_test_suite(
+    name = "slow_compile_stf_corpus_test",
+    tags = ["manual"],
+    tests = [
+        "gauntlet_various_ops-bmv2",
+    ],
+)
+
 # Tests blocked on unsupported non-v1model/non-PSA architectures.
 # These fail at p4c-4ward compile time.
 corpus_test_suite(
