@@ -276,11 +276,16 @@ data class StfFile(val tableEntries: List<StfTableDirective>, val packets: List<
       val packets = mutableListOf<StfPacket>()
       var current: StfPacket? = null
 
+      fun flushPacket() {
+        current?.let { packets += it }
+        current = null
+      }
+
       for (line in lines) {
         val tokens = line.split(Regex("\\s+"))
         when (tokens[0].lowercase()) {
           "packet" -> {
-            current?.let { packets += it }
+            flushPacket()
             val port = tokens[1].toInt()
             val payload = tokens.drop(2).joinToString("").decodeHex()
             current = StfPacket(port, payload, mutableListOf())
@@ -294,22 +299,16 @@ data class StfFile(val tableEntries: List<StfTableDirective>, val packets: List<
             current?.expectedOutputs?.add(StfExpectedOutput(port, payload, mask))
           }
           "add" -> {
-            current?.let {
-              packets += it
-              current = null
-            }
+            flushPacket()
             tableEntries += parseAdd(tokens.drop(1))
           }
           "setdefault" -> {
-            current?.let {
-              packets += it
-              current = null
-            }
+            flushPacket()
             tableEntries += parseSetDefault(tokens.drop(1))
           }
         }
       }
-      current?.let { packets += it }
+      flushPacket()
 
       return StfFile(tableEntries, packets)
     }
@@ -495,8 +494,7 @@ enum class MatchKind {
 }
 
 /** Strips surrounding double-quotes, if present. */
-private fun String.unquote(): String =
-  if (length >= 2 && first() == '"' && last() == '"') substring(1, length - 1) else this
+private fun String.unquote(): String = removeSurrounding("\"")
 
 /** Strips a `"name":` prefix from a p4testgen named action parameter, returning just the value. */
 private fun String.stripNamedParamPrefix(): String {
@@ -514,24 +512,28 @@ private fun String.stripNamedParamPrefix(): String {
  */
 private fun parseBinaryWildcard(binStr: String): Pair<String, String> {
   val bits = binStr.removePrefix("0b").removePrefix("0B")
-  var value = BigInteger.ZERO
-  var mask = BigInteger.ZERO
+  val valueBits = StringBuilder(bits.length)
+  val maskBits = StringBuilder(bits.length)
   for (ch in bits) {
-    value = value.shiftLeft(1)
-    mask = mask.shiftLeft(1)
     when (ch) {
       '1' -> {
-        value = value.setBit(0)
-        mask = mask.setBit(0)
+        valueBits.append('1')
+        maskBits.append('1')
       }
       '0' -> {
-        mask = mask.setBit(0)
+        valueBits.append('0')
+        maskBits.append('1')
       }
-      '*' -> {} // both stay 0
+      '*' -> {
+        valueBits.append('0')
+        maskBits.append('0')
+      }
       else -> error("unexpected character in binary wildcard: $ch")
     }
   }
-  return "0x${value.toString(16)}" to "0x${mask.toString(16)}"
+  val v = if (valueBits.isEmpty()) BigInteger.ZERO else BigInteger(valueBits.toString(), 2)
+  val m = if (maskBits.isEmpty()) BigInteger.ZERO else BigInteger(maskBits.toString(), 2)
+  return "0x${v.toString(16)}" to "0x${m.toString(16)}"
 }
 
 private fun String.decodeHex(): ByteArray {
