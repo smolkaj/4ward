@@ -81,7 +81,9 @@ jobs:
         with:
           path: ~/.cache/bazel
           key: bazel-${{ matrix.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: bazel-${{ matrix.os }}-
+          restore-keys: |
+            bazel-${{ matrix.os }}-
+            ${{ matrix.os == 'ubuntu-24.04' && 'bazel-coverage-' || '' }}
 
       - name: Save start time
         run: echo "START_TIME=$(date +%s)" >> "$GITHUB_ENV"
