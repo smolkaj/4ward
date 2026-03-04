@@ -284,6 +284,20 @@ class Interpreter(
       is StructVal ->
         target.fields[fa.fieldName]
           ?: error("field ${fa.fieldName} not found in struct ${target.typeName}")
+      is HeaderStackVal ->
+        when (fa.fieldName) {
+          // P4 spec §8.18: stack.next returns the element at nextIndex and advances.
+          "next" -> {
+            require(target.nextIndex < target.headers.size) {
+              "header stack overflow: nextIndex=${target.nextIndex}, size=${target.headers.size}"
+            }
+            target.headers[target.nextIndex].also { target.nextIndex++ }
+          }
+          "last" -> target.headers[(target.nextIndex - 1).coerceAtLeast(0)]
+          "lastIndex" -> BitVal(target.headers.size.toLong() - 1, 32)
+          "size" -> BitVal(target.headers.size.toLong(), 32)
+          else -> error("unknown header stack property: ${fa.fieldName}")
+        }
       else -> error("field access on non-aggregate value: $target")
     }
   }
@@ -679,6 +693,9 @@ class Interpreter(
           for (fieldVal in value.fields.values) emitValue(fieldVal)
         }
       }
+      is HeaderStackVal -> {
+        for (header in value.headers) emitValue(header)
+      }
       else -> {} // BoolVal, BitVal outside a header, UnitVal — not emittable
     }
   }
@@ -708,6 +725,12 @@ class Interpreter(
           is StructVal -> target.fields[lhs.fieldAccess.fieldName] = value
           else -> error("field assignment on non-aggregate: $target")
         }
+      }
+      lhs.hasArrayIndex() -> {
+        val stack = evalExpr(lhs.arrayIndex.expr, env) as HeaderStackVal
+        val index = (evalExpr(lhs.arrayIndex.index, env) as BitVal).bits.value.toInt()
+        val copy = if (value is HeaderVal) value.copy() else value
+        stack.headers[index] = copy as HeaderVal
       }
       lhs.hasSlice() -> {
         // Slice assignment: update [hi:lo] bits of the target.

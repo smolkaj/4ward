@@ -11,6 +11,7 @@ load("//e2e_tests:corpus.bzl", "corpus_test_suite")
 corpus_test_suite(
     name = "v1model_stf_corpus_test",
     tests = [
+        "array-copy-bmv2",
         "equality-varbit-bmv2",
         "flag_lost-bmv2",
         "gauntlet_action_mux-bmv2",
@@ -53,6 +54,14 @@ corpus_test_suite(
         "gauntlet_hdr_int_initializer-bmv2",
         "gauntlet_hdr_out_in_action-bmv2",
         "gauntlet_hdr_set_valid-bmv2",
+        "gauntlet_index_1-bmv2",
+        "gauntlet_index_2-bmv2",
+        "gauntlet_index_4-bmv2",
+        "gauntlet_index_5-bmv2",
+        "gauntlet_index_6-bmv2",
+        "gauntlet_index_7-bmv2",
+        "gauntlet_index_8-bmv2",
+        "gauntlet_index_9-bmv2",
         "gauntlet_indirect_hdr_assign_1-bmv2",
         "gauntlet_indirect_hdr_assign_2-bmv2",
         "gauntlet_instance_overwrite-bmv2",
@@ -120,6 +129,7 @@ corpus_test_suite(
         "issue995-bmv2",
         "match-on-exprs-bmv2",
         "opassign1-bmv2",
+        "opassign2-bmv2",
         "parser_error-bmv2",
     ],
 )
@@ -203,13 +213,13 @@ corpus_test_suite(
     ],
 )
 
-# Tests blocked on header stack operations (field access, push/pop, copy).
-# These fail with "field access on non-aggregate value: HeaderStackVal".
+# Tests blocked on header stack operations (push/pop, size/lastIndex).
+# These fail with header stack-related errors.
 corpus_test_suite(
     name = "header_stack_stf_corpus_test",
     tags = ["manual"],
     tests = [
-        "array-copy-bmv2",  # field access on non-aggregate value: HeaderStackVal
+        "equality-bmv2",  # header stack comparison (struct equality with stacks)
     ],
 )
 
@@ -221,15 +231,6 @@ corpus_test_suite(
         "bvec-hdr-bmv2",  # expected packet on port 2 but got none; payload mismatch
         "checksum2-bmv2",  # unhandled extern call: verify
         "checksum3-bmv2",  # unhandled extern call: verify
-        "equality-bmv2",  # payload mismatch
-        "gauntlet_index_1-bmv2",  # field access on non-aggregate value: HeaderStackVal
-        "gauntlet_index_2-bmv2",  # field access on non-aggregate value: HeaderStackVal
-        "gauntlet_index_4-bmv2",  # field access on non-aggregate value: HeaderStackVal
-        "gauntlet_index_5-bmv2",  # field access on non-aggregate value: HeaderStackVal
-        "gauntlet_index_6-bmv2",  # field access on non-aggregate value: HeaderStackVal
-        "gauntlet_index_7-bmv2",  # field access on non-aggregate value: HeaderStackVal
-        "gauntlet_index_8-bmv2",  # field access on non-aggregate value: HeaderStackVal
-        "gauntlet_index_9-bmv2",  # field access on non-aggregate value: HeaderStackVal
         "gauntlet_invalid_hdr_short_circuit-bmv2",  # payload mismatch
         "header-bool-bmv2",  # field access on non-aggregate value: UnitVal
         "header-stack-ops-bmv2",  # unhandled extern call: verify
@@ -249,7 +250,6 @@ corpus_test_suite(
         "issue561-7-bmv2",  # UnitVal cannot be cast to HeaderVal
         "issue655-bmv2",  # unhandled extern call: verify_checksum
         "issue774-4-bmv2",  # undefined variable: arg
-        "opassign2-bmv2",  # field access on non-aggregate value: HeaderStackVal
         "runtime-index-2-bmv2",  # integer literal without bit type
         "runtime-index-bmv2",  # integer literal without bit type
         "saturated-bmv2",  # payload mismatch
