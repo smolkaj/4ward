@@ -217,6 +217,7 @@ corpus_test_suite(
         "gauntlet_invalid_hdr_short_circuit-bmv2",
         "gauntlet_variable_shadowing-bmv2",
         "header-bool-bmv2",
+        "header-stack-ops-bmv2",
     ],
 )
 
