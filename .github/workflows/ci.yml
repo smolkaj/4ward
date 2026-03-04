@@ -69,9 +69,19 @@ jobs:
             echo "skip=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Debug clang include paths
+        if: steps.cpp.outputs.skip != 'true'
+        run: |
+          echo "=== clang system include paths ==="
+          echo | clang -xc++ -E -v - 2>&1 | sed -n '/#include.*search starts/,/End of search list/p'
+          echo "=== stdlib.h location ==="
+          find /usr/include -maxdepth 1 -name 'stdlib.h' 2>/dev/null || echo "NOT FOUND"
+          echo "=== clang-tidy version ==="
+          clang-tidy --version
+
       - name: Run clang-tidy
         if: steps.cpp.outputs.skip != 'true'
-        run: bazel build //p4c_backend/... --config=clang-tidy
+        run: bazel build //p4c_backend/... --config=clang-tidy --verbose_failures
 
 
   build-and-test:
