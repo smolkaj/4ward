@@ -201,5 +201,6 @@ corpus_test_suite(
         "bvec-hdr-bmv2",
         "checksum2-bmv2",
         "checksum3-bmv2",
+        "equality-bmv2",
     ],
 )
