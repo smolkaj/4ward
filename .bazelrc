@@ -33,3 +33,13 @@ build:clang-tidy --@bazel_clang_tidy//:clang_tidy_config=//:clang_tidy_config
 # Coverage: instrument the simulator library. Run via `bazel coverage //...`.
 coverage --combined_report=lcov
 coverage --instrumentation_filter=//simulator[/:]
+
+# Remote cache for CI (BuildBuddy). Activated by CI via ~/.bazelrc.
+# The API key is injected there too, keeping secrets out of the repo.
+build:ci --remote_cache=grpcs://4ward.buildbuddy.io
+build:ci --remote_download_toplevel
+build:ci --remote_upload_local_results
+build:ci --remote_timeout=3s
+build:ci --remote_cache_compression
+build:ci --bes_results_url=https://4ward.buildbuddy.io/invocation/
+build:ci --bes_backend=grpcs://4ward.buildbuddy.io
