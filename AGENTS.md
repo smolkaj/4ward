@@ -127,8 +127,6 @@ Consider whether your change affects any documentation:
   gap, or resolve an existing limitation?
 - **[REFACTORING.md](REFACTORING.md)** — did you notice tech debt worth
   tracking, or complete an item already listed?
-- **[ROADMAP.md](ROADMAP.md)** — does your change move a track forward or
-  change priorities?
 
 ## Worktrees
 
