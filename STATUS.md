@@ -1,5 +1,7 @@
 # 4ward — Status
 
+> Append-only log. Add new entries at the bottom; do not edit past entries.
+
 ## 2026-03-03
 
 **Day one.** Stood up the project end-to-end: proto IR, p4c backend, Kotlin
