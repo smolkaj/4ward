@@ -393,86 +393,58 @@ class Interpreter(
       }
     }
 
-    // int<N> operands: use signed comparison for relational ops, unsigned bits for arithmetic.
-    if (left is IntVal && right is IntVal) {
-      return when (op.op) {
-        BinaryOperator.ADD ->
-          IntVal(
-            SignedBitVector.fromUnsignedBits(
-              (left.bits.toUnsigned() + right.bits.toUnsigned()).value,
-              left.bits.width,
-            )
-          )
-        BinaryOperator.SUB ->
-          IntVal(
-            SignedBitVector.fromUnsignedBits(
-              (left.bits.toUnsigned() - right.bits.toUnsigned()).value,
-              left.bits.width,
-            )
-          )
-        BinaryOperator.MUL ->
-          IntVal(
-            SignedBitVector.fromUnsignedBits(
-              (left.bits.toUnsigned() * right.bits.toUnsigned()).value,
-              left.bits.width,
-            )
-          )
-        BinaryOperator.EQ -> BoolVal(left.bits.value == right.bits.value)
-        BinaryOperator.NEQ -> BoolVal(left.bits.value != right.bits.value)
-        // P4 spec §8.5: relational operators on int<N> use signed comparison.
-        BinaryOperator.LT -> BoolVal(left.bits.value < right.bits.value)
-        BinaryOperator.GT -> BoolVal(left.bits.value > right.bits.value)
-        BinaryOperator.LE -> BoolVal(left.bits.value <= right.bits.value)
-        BinaryOperator.GE -> BoolVal(left.bits.value >= right.bits.value)
-        BinaryOperator.BIT_AND ->
-          IntVal(
-            SignedBitVector.fromUnsignedBits(
-              (left.bits.toUnsigned() and right.bits.toUnsigned()).value,
-              left.bits.width,
-            )
-          )
-        BinaryOperator.BIT_OR ->
-          IntVal(
-            SignedBitVector.fromUnsignedBits(
-              (left.bits.toUnsigned() or right.bits.toUnsigned()).value,
-              left.bits.width,
-            )
-          )
-        BinaryOperator.BIT_XOR ->
-          IntVal(
-            SignedBitVector.fromUnsignedBits(
-              (left.bits.toUnsigned() xor right.bits.toUnsigned()).value,
-              left.bits.width,
-            )
-          )
-        else -> error("unhandled binary operator on int<N>: ${op.op}")
-      }
-    }
-
     return when (op.op) {
-      BinaryOperator.ADD -> BitVal((left as BitVal).bits + (right as BitVal).bits)
-      BinaryOperator.SUB -> BitVal((left as BitVal).bits - (right as BitVal).bits)
-      BinaryOperator.MUL -> BitVal((left as BitVal).bits * (right as BitVal).bits)
+      // Arithmetic and bitwise ops work on unsigned bits; liftBitwise rewraps as
+      // the original signedness (BitVal or IntVal).
+      BinaryOperator.ADD -> liftBitwise(left, right) { a, b -> a + b }
+      BinaryOperator.SUB -> liftBitwise(left, right) { a, b -> a - b }
+      BinaryOperator.MUL -> liftBitwise(left, right) { a, b -> a * b }
+      BinaryOperator.BIT_AND -> liftBitwise(left, right) { a, b -> a and b }
+      BinaryOperator.BIT_OR -> liftBitwise(left, right) { a, b -> a or b }
+      BinaryOperator.BIT_XOR -> liftBitwise(left, right) { a, b -> a xor b }
+      // bit<N>-only operations (no int<N> equivalent in P4 spec).
       BinaryOperator.DIV -> BitVal((left as BitVal).bits / (right as BitVal).bits)
       BinaryOperator.MOD -> BitVal((left as BitVal).bits % (right as BitVal).bits)
       BinaryOperator.ADD_SAT -> BitVal((left as BitVal).bits.addSat((right as BitVal).bits))
       BinaryOperator.SUB_SAT -> BitVal((left as BitVal).bits.subSat((right as BitVal).bits))
-      BinaryOperator.BIT_AND -> BitVal((left as BitVal).bits and (right as BitVal).bits)
-      BinaryOperator.BIT_OR -> BitVal((left as BitVal).bits or (right as BitVal).bits)
-      BinaryOperator.BIT_XOR -> BitVal((left as BitVal).bits xor (right as BitVal).bits)
-      BinaryOperator.SHL -> BitVal((left as BitVal).bits.shl((right as BitVal).bits.value.toInt()))
-      BinaryOperator.SHR -> BitVal((left as BitVal).bits.shr((right as BitVal).bits.value.toInt()))
+      BinaryOperator.SHL -> BitVal((left as BitVal).bits.shl(intValue(right)))
+      BinaryOperator.SHR -> BitVal((left as BitVal).bits.shr(intValue(right)))
+      // Equality uses data-class structural equality (works for both bit<N> and int<N>).
       BinaryOperator.EQ -> BoolVal(left == right)
       BinaryOperator.NEQ -> BoolVal(left != right)
-      BinaryOperator.LT -> BoolVal((left as BitVal).bits < (right as BitVal).bits)
-      BinaryOperator.GT -> BoolVal((left as BitVal).bits > (right as BitVal).bits)
-      BinaryOperator.LE -> BoolVal((left as BitVal).bits <= (right as BitVal).bits)
-      BinaryOperator.GE -> BoolVal((left as BitVal).bits >= (right as BitVal).bits)
+      // P4 spec §8.5: relational operators use signed comparison for int<N>.
+      BinaryOperator.LT -> liftCompare(left, right) { it < 0 }
+      BinaryOperator.GT -> liftCompare(left, right) { it > 0 }
+      BinaryOperator.LE -> liftCompare(left, right) { it <= 0 }
+      BinaryOperator.GE -> liftCompare(left, right) { it >= 0 }
       BinaryOperator.AND -> BoolVal((left as BoolVal).value && (right as BoolVal).value)
       BinaryOperator.OR -> BoolVal((left as BoolVal).value || (right as BoolVal).value)
       else -> error("unhandled binary operator: ${op.op}")
     }
   }
+
+  /** Apply a [BitVector] operation to two fixed-width values, preserving signedness. */
+  private inline fun liftBitwise(
+    left: Value,
+    right: Value,
+    f: (BitVector, BitVector) -> BitVector,
+  ): Value =
+    when (left) {
+      is BitVal -> BitVal(f(left.bits, (right as BitVal).bits))
+      is IntVal -> {
+        val result = f(left.bits.toUnsigned(), (right as IntVal).bits.toUnsigned())
+        IntVal(SignedBitVector.fromUnsignedBits(result.value, left.bits.width))
+      }
+      else -> error("expected fixed-width integer operands, got: $left, $right")
+    }
+
+  /** Compare two fixed-width values, dispatching to signed or unsigned comparison. */
+  private inline fun liftCompare(left: Value, right: Value, pred: (Int) -> Boolean): BoolVal =
+    when (left) {
+      is BitVal -> BoolVal(pred(left.bits.compareTo((right as BitVal).bits)))
+      is IntVal -> BoolVal(pred(left.bits.value.compareTo((right as IntVal).bits.value)))
+      else -> error("expected fixed-width integer operands for comparison")
+    }
 
   /** Extract a small integer from a [BitVal], [IntVal], or [InfIntVal]. */
   private fun intValue(v: Value): Int =
