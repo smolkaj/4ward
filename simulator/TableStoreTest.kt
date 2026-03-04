@@ -255,7 +255,9 @@ class TableStoreTest {
 
   @Test
   fun `range match hit when value is within bounds`() {
-    write(rangeEntry(1, lo = byteArrayOf(0x10), hi = byteArrayOf(0x20), priority = 1, actionId = 10))
+    write(
+      rangeEntry(1, lo = byteArrayOf(0x10), hi = byteArrayOf(0x20), priority = 1, actionId = 10)
+    )
     val result = store.lookup(TABLE_NAME, listOf("1" to BitVal(0x18, 8)))
     assertTrue(result.hit)
     assertEquals("action10", result.actionName)
@@ -263,14 +265,18 @@ class TableStoreTest {
 
   @Test
   fun `range match hit on exact boundary values`() {
-    write(rangeEntry(1, lo = byteArrayOf(0x10), hi = byteArrayOf(0x20), priority = 1, actionId = 10))
+    write(
+      rangeEntry(1, lo = byteArrayOf(0x10), hi = byteArrayOf(0x20), priority = 1, actionId = 10)
+    )
     assertTrue(store.lookup(TABLE_NAME, listOf("1" to BitVal(0x10, 8))).hit)
     assertTrue(store.lookup(TABLE_NAME, listOf("1" to BitVal(0x20, 8))).hit)
   }
 
   @Test
   fun `range match miss when value is outside bounds`() {
-    write(rangeEntry(1, lo = byteArrayOf(0x10), hi = byteArrayOf(0x20), priority = 1, actionId = 10))
+    write(
+      rangeEntry(1, lo = byteArrayOf(0x10), hi = byteArrayOf(0x20), priority = 1, actionId = 10)
+    )
     assertFalse(store.lookup(TABLE_NAME, listOf("1" to BitVal(0x0F, 8))).hit)
     assertFalse(store.lookup(TABLE_NAME, listOf("1" to BitVal(0x21, 8))).hit)
   }

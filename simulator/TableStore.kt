@@ -11,8 +11,8 @@ private fun ByteString.toUnsignedBigInteger(): BigInteger = BigInteger(1, toByte
 /**
  * Stores and looks up P4 table entries for all tables in a loaded pipeline.
  *
- * Supports exact, LPM, ternary, range, and optional match kinds. Entries are stored
- * per-table; lookup returns the highest-priority match.
+ * Supports exact, LPM, ternary, range, and optional match kinds. Entries are stored per-table;
+ * lookup returns the highest-priority match.
  *
  * Call [loadMappings] once per pipeline load before any [write] or [lookup] calls.
  */
