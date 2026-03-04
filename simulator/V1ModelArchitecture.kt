@@ -94,8 +94,9 @@ class V1ModelArchitecture : Architecture {
       } catch (e: ExitException) {
         return PipelineResult(emptyList(), packetCtx.buildTrace())
       } catch (e: PacketTooShortException) {
-        // In v1model/BMv2, a PacketTooShort parser error causes the packet to be dropped.
-        return PipelineResult(emptyList(), packetCtx.buildTrace())
+        // BMv2 v1model: parser errors don't drop the packet. Set parser_error and
+        // continue to the ingress pipeline, letting the P4 program decide the fate.
+        standardMetadata.fields["parser_error"] = ErrorVal("PacketTooShort")
       }
     }
 

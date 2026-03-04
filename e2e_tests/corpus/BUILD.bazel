@@ -114,6 +114,7 @@ corpus_test_suite(
         "issue983-bmv2",
         "match-on-exprs-bmv2",
         "opassign1-bmv2",
+        "parser_error-bmv2",
     ],
 )
 
@@ -249,7 +250,6 @@ corpus_test_suite(
         "issue774-4-bmv2",  # undefined variable: arg
         "issue995-bmv2",  # unhandled expression kind: type
         "opassign2-bmv2",  # field access on non-aggregate value: HeaderStackVal
-        "parser_error-bmv2",  # expected packet on port 0 but got none
         "runtime-index-2-bmv2",  # integer literal without bit type
         "runtime-index-bmv2",  # integer literal without bit type
         "saturated-bmv2",  # payload mismatch
