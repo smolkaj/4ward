@@ -164,13 +164,14 @@ jobs:
         run: echo "START_TIME=$(date +%s)" >> "$GITHUB_ENV"
 
       - name: Install lcov
-        if: github.event_name == 'pull_request'
         run: sudo apt install -y lcov
+
+      - name: Fetch gh-pages
+        run: git fetch --depth=1 origin gh-pages || true
 
       - name: Download baseline coverage
         if: github.event_name == 'pull_request'
         run: |
-          git fetch --depth=1 origin gh-pages || exit 0
           git show origin/gh-pages:main/coverage.lcov > /tmp/baseline.lcov 2>/dev/null \
             || rm -f /tmp/baseline.lcov
 
@@ -182,12 +183,9 @@ jobs:
 
       - name: Run coverage
         run: |
-          ARGS=()
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            ARGS+=(--html)
-            if [[ -s /tmp/baseline.lcov && -s /tmp/pr.diff ]]; then
-              ARGS+=(--baseline /tmp/baseline.lcov --diff /tmp/pr.diff)
-            fi
+          ARGS=(--html)
+          if [[ -s /tmp/baseline.lcov && -s /tmp/pr.diff ]]; then
+            ARGS+=(--baseline /tmp/baseline.lcov --diff /tmp/pr.diff)
           fi
           ./coverage.sh "${ARGS[@]}"
 
@@ -206,18 +204,18 @@ jobs:
           path: ~/.cache/bazel
           key: bazel-coverage-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}-${{ github.run_id }}
 
-      - name: Publish baseline LCOV
+      - name: Publish mainline report
         if: github.event_name == 'push'
         run: |
-          git fetch --depth=1 origin gh-pages || exit 0
           git worktree add /tmp/gh-pages gh-pages
           mkdir -p /tmp/gh-pages/main
           cp coverage.lcov /tmp/gh-pages/main/
+          cp -r coverage-report/* /tmp/gh-pages/main/
           cd /tmp/gh-pages
-          git add main/coverage.lcov
-          git -c user.name="github-actions[bot]" \
-              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-              commit -m "Baseline coverage for $(git -C "$GITHUB_WORKSPACE" rev-parse --short HEAD)" --allow-empty
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add main/
+          git commit -m "Coverage report for $(git -C "$GITHUB_WORKSPACE" rev-parse --short HEAD)" --allow-empty
           git push origin gh-pages || (git pull --rebase origin gh-pages && git push origin gh-pages)
 
       - name: Compute diff coverage
@@ -231,10 +229,10 @@ jobs:
           mkdir -p "/tmp/gh-pages/pr/${PR_NUM}"
           cp -r coverage-report/* "/tmp/gh-pages/pr/${PR_NUM}/"
           cd /tmp/gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add "pr/${PR_NUM}"
-          git -c user.name="github-actions[bot]" \
-              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-              commit -m "Coverage report for PR #${PR_NUM}" --allow-empty
+          git commit -m "Coverage report for PR #${PR_NUM}" --allow-empty
           # Retry once on conflict (concurrent PR pushes).
           git push origin gh-pages || (git pull --rebase origin gh-pages && git push origin gh-pages)
 
