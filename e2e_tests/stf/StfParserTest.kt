@@ -303,4 +303,55 @@ class StfParserTest {
   fun `encodeValue zero-pads to full byte length`() {
     assertArrayEquals(byteArrayOf(0x00, 0x00, 0x00, 0x01), encodeValue("1", 32).toByteArray())
   }
+
+  // ---------------------------------------------------------------------------
+  // matchesMasked (via expect parsing + manual comparison)
+  // ---------------------------------------------------------------------------
+
+  private fun ByteArray.matchesMasked(expected: ByteArray, mask: ByteArray): Boolean {
+    if (size != expected.size) return false
+    return indices.all { i ->
+      (this[i].toInt() and mask[i].toInt()) == (expected[i].toInt() and mask[i].toInt())
+    }
+  }
+
+  @Test
+  fun `matchesMasked exact match`() {
+    val actual = byteArrayOf(0xAA.toByte(), 0xBB.toByte())
+    val expected = byteArrayOf(0xAA.toByte(), 0xBB.toByte())
+    val mask = byteArrayOf(0xFF.toByte(), 0xFF.toByte())
+    assertTrue(actual.matchesMasked(expected, mask))
+  }
+
+  @Test
+  fun `matchesMasked byte mismatch`() {
+    val actual = byteArrayOf(0xAA.toByte(), 0xBB.toByte())
+    val expected = byteArrayOf(0xAA.toByte(), 0xCC.toByte())
+    val mask = byteArrayOf(0xFF.toByte(), 0xFF.toByte())
+    assertTrue(!actual.matchesMasked(expected, mask))
+  }
+
+  @Test
+  fun `matchesMasked all wildcards always matches`() {
+    val actual = byteArrayOf(0xDE.toByte(), 0xAD.toByte())
+    val expected = byteArrayOf(0x00, 0x00)
+    val mask = byteArrayOf(0x00, 0x00)
+    assertTrue(actual.matchesMasked(expected, mask))
+  }
+
+  @Test
+  fun `matchesMasked wildcard ignores differing byte`() {
+    val actual = byteArrayOf(0xFF.toByte(), 0xBB.toByte())
+    val expected = byteArrayOf(0x00, 0xBB.toByte())
+    val mask = byteArrayOf(0x00, 0xFF.toByte()) // first byte is wildcard
+    assertTrue(actual.matchesMasked(expected, mask))
+  }
+
+  @Test
+  fun `matchesMasked length mismatch is never equal`() {
+    val actual = byteArrayOf(0xAA.toByte())
+    val expected = byteArrayOf(0xAA.toByte(), 0xBB.toByte())
+    val mask = byteArrayOf(0xFF.toByte(), 0xFF.toByte())
+    assertTrue(!actual.matchesMasked(expected, mask))
+  }
 }
