@@ -204,5 +204,6 @@ corpus_test_suite(
         "checksum2-bmv2",
         "checksum3-bmv2",
         "equality-bmv2",
+        "gauntlet_index_1-bmv2",
     ],
 )
