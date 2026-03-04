@@ -1,64 +1,66 @@
 load("//e2e_tests:p4testgen.bzl", "p4_testgen_test")
 
-# p4testgen-generated STF tests. Each entry uses symbolic execution to generate
-# a path-covering test case, then runs it against the simulator.
+# p4testgen-generated STF tests. Each entry runs p4testgen (symbolic execution
+# + Z3) on a P4 program from the p4c test corpus to generate a test case, then
+# runs it against the simulator.
 #
-# Tagged "testgen" so they can be run separately:
-#   bazel test //e2e_tests/p4testgen/...
-#
-# Tests that expose simulator bugs are additionally tagged "manual" so they
-# don't fail `bazel test //...`.
+# Tests that expose simulator bugs are tagged "manual" so they don't fail
+# `bazel test //...`.
 
 # --- Passing tests ---
 
 p4_testgen_test(
     name = "opassign1-bmv2",
-    tags = ["testgen"],
+    src_p4 = "@p4c//testdata/p4_16_samples:opassign1-bmv2.p4",
 )
 
 p4_testgen_test(
     name = "gauntlet_nested_table_calls-bmv2",
-    tags = ["testgen"],
+    src_p4 = "@p4c//testdata/p4_16_samples:gauntlet_nested_table_calls-bmv2.p4",
 )
 
 p4_testgen_test(
     name = "issue2343-bmv2",
-    tags = ["testgen"],
+    src_p4 = "@p4c//testdata/p4_16_samples:issue2343-bmv2.p4",
 )
 
 p4_testgen_test(
     name = "gauntlet_exit_combination_1-bmv2",
-    tags = ["testgen"],
+    src_p4 = "@p4c//testdata/p4_16_samples:gauntlet_exit_combination_1-bmv2.p4",
 )
 
 p4_testgen_test(
     name = "gauntlet_exit_combination_2-bmv2",
-    tags = ["testgen"],
+    src_p4 = "@p4c//testdata/p4_16_samples:gauntlet_exit_combination_2-bmv2.p4",
 )
 
 p4_testgen_test(
     name = "flag_lost-bmv2",
-    tags = ["testgen"],
+    src_p4 = "@p4c//testdata/p4_16_samples:flag_lost-bmv2.p4",
 )
 
 # --- Failing tests (simulator bugs — packet dropped when expected) ---
 
 p4_testgen_test(
     name = "gauntlet_action_mux-bmv2",
-    tags = ["manual", "testgen"],
+    src_p4 = "@p4c//testdata/p4_16_samples:gauntlet_action_mux-bmv2.p4",
+    tags = ["manual"],
 )
 
 p4_testgen_test(
     name = "gauntlet_hdr_assign_1-bmv2",
-    tags = ["manual", "testgen"],
+    src_p4 = "@p4c//testdata/p4_16_samples:gauntlet_hdr_assign_1-bmv2.p4",
+    tags = ["manual"],
 )
 
 p4_testgen_test(
     name = "issue2170-bmv2",
-    tags = ["manual", "testgen"],
+    src_p4 = "@p4c//testdata/p4_16_samples:issue2170-bmv2.p4",
+    tags = ["manual"],
 )
 
 p4_testgen_test(
     name = "issue2205-bmv2",
-    tags = ["manual", "testgen"],
+    src_p4 = "@p4c//testdata/p4_16_samples:issue2205-bmv2.p4",
+    tags = ["manual"],
 )

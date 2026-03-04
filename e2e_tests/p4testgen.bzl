@@ -4,26 +4,29 @@ Usage in e2e_tests/p4testgen/BUILD.bazel:
 
     load("//e2e_tests:p4testgen.bzl", "p4_testgen_test")
 
-    p4_testgen_test(name = "opassign1-bmv2")
+    p4_testgen_test(
+        name = "opassign1-bmv2",
+        src_p4 = "@p4c//testdata/p4_16_samples:opassign1-bmv2.p4",
+    )
 
 This creates:
-  - a genrule that runs p4testgen to generate a single path-covering STF test
-  - a genrule that compiles <name>.p4 → <name>.txtpb using p4c-4ward
+  - a genrule that runs p4testgen to generate a symbolically-derived STF test
+  - a genrule that compiles the P4 source → <name>.txtpb using p4c-4ward
   - a kt_jvm_test that runs the generated STF against the simulator
 """
 
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
 
-def p4_testgen_test(name, p4_src = None, tags = []):
+def p4_testgen_test(name, src_p4 = None, tags = []):
     """Generates a p4testgen STF test and runs it against the 4ward simulator.
 
     Args:
-        name: base name; also used to derive the p4_src filename.
-        p4_src: P4 source file (default: @p4c//testdata/p4_16_samples:<name>.p4).
+        name: base name; also used to derive the src_p4 filename.
+        src_p4: P4 source file (default: @p4c//testdata/p4_16_samples:<name>.p4).
         tags: Bazel tags forwarded to the test.
     """
-    if p4_src == None:
-        p4_src = "@p4c//testdata/p4_16_samples:" + name + ".p4"
+    if src_p4 == None:
+        src_p4 = "@p4c//testdata/p4_16_samples:" + name + ".p4"
 
     stf_gen_name = name + "_stf_gen"
     pb_name = name + "_pb"
@@ -32,7 +35,7 @@ def p4_testgen_test(name, p4_src = None, tags = []):
     # <name>_1.stf in the output directory. We rename it to <name>.stf.
     native.genrule(
         name = stf_gen_name,
-        srcs = [p4_src],
+        srcs = [src_p4],
         outs = [name + ".stf"],
         cmd = (
             "$(execpath @p4c//backends/p4tools:p4testgen)" +
@@ -54,7 +57,7 @@ def p4_testgen_test(name, p4_src = None, tags = []):
     # Compile P4 → PipelineConfig txtpb (same as corpus.bzl).
     native.genrule(
         name = pb_name,
-        srcs = [p4_src],
+        srcs = [src_p4],
         outs = [name + ".txtpb"],
         cmd = "$(execpath //p4c_backend:p4c-4ward) -I $$(dirname $(execpath @p4c//:core_p4)) -o $@ $(SRCS)",
         tools = [
@@ -67,7 +70,6 @@ def p4_testgen_test(name, p4_src = None, tags = []):
 
     kt_jvm_test(
         name = name + "_test",
-        srcs = ["//e2e_tests/stf:StfTest.kt"],
         test_class = "fourward.e2e.StfTest",
         tags = tags,
         data = [
@@ -76,7 +78,7 @@ def p4_testgen_test(name, p4_src = None, tags = []):
             "//simulator",
         ],
         deps = [
-            "//e2e_tests/stf:stf_runner",
+            "//e2e_tests/stf:stf_test_class",
             "@maven//:junit_junit",
         ],
     )
