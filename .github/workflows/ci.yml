@@ -134,12 +134,11 @@ jobs:
   coverage:
     name: Coverage
     runs-on: ubuntu-24.04
-    if: github.event_name == 'pull_request'
     permissions:
       contents: write
       pull-requests: write
     env:
-      PR_NUM: ${{ github.event.pull_request.number }}
+      PR_NUM: ${{ github.event.pull_request.number || '' }}
     steps:
       - uses: actions/checkout@v6
 
@@ -165,10 +164,32 @@ jobs:
         run: echo "START_TIME=$(date +%s)" >> "$GITHUB_ENV"
 
       - name: Install lcov
+        if: github.event_name == 'pull_request'
         run: sudo apt install -y lcov
 
+      - name: Download baseline coverage
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch --depth=1 origin gh-pages || exit 0
+          git show origin/gh-pages:main/coverage.lcov > /tmp/baseline.lcov 2>/dev/null \
+            || rm -f /tmp/baseline.lcov
+
+      - name: Generate PR diff
+        if: github.event_name == 'pull_request'
+        run: gh pr diff "${PR_NUM}" > /tmp/pr.diff
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Run coverage
-        run: ./coverage.sh --html
+        run: |
+          ARGS=()
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            ARGS+=(--html)
+            if [[ -s /tmp/baseline.lcov && -s /tmp/pr.diff ]]; then
+              ARGS+=(--baseline /tmp/baseline.lcov --diff /tmp/pr.diff)
+            fi
+          fi
+          ./coverage.sh "${ARGS[@]}"
 
       - name: Calculate build duration
         if: always()
@@ -185,32 +206,27 @@ jobs:
           path: ~/.cache/bazel
           key: bazel-coverage-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}-${{ github.run_id }}
 
-      - name: Compute diff coverage
+      - name: Publish baseline LCOV
+        if: github.event_name == 'push'
         run: |
-          gh pr diff "${PR_NUM}" > /tmp/pr.diff
-          ./diff-coverage.sh /tmp/pr.diff coverage.lcov >> "$GITHUB_ENV"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          git fetch --depth=1 origin gh-pages || exit 0
+          git worktree add /tmp/gh-pages gh-pages
+          mkdir -p /tmp/gh-pages/main
+          cp coverage.lcov /tmp/gh-pages/main/
+          cd /tmp/gh-pages
+          git add main/coverage.lcov
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -m "Baseline coverage for $(git -C "$GITHUB_WORKSPACE" rev-parse --short HEAD)" --allow-empty
+          git push origin gh-pages || (git pull --rebase origin gh-pages && git push origin gh-pages)
 
-      - name: Inject coverage summary into HTML report
-        run: |
-          if [[ "${TOTAL_LF}" -gt 0 ]]; then
-            PCT=$(( 100 * TOTAL_LH / TOTAL_LF ))
-            ABS="Absolute: ${TOTAL_LH}/${TOTAL_LF} (${PCT}%)"
-          else
-            ABS="Absolute: no data collected"
-          fi
-          if [[ "${DIFF_PCT}" -ge 0 ]]; then
-            DELTA="Delta: ${DIFF_LH}/${DIFF_LF} (${DIFF_PCT}%)"
-          else
-            DELTA="Delta: no coverable lines changed"
-          fi
-          BANNER="<div style=\"background:#f0f4f8;border:1px solid #d0d7de;border-radius:6px;padding:12px 16px;margin:10px;font-family:sans-serif;font-size:14px\"><strong>Coverage summary</strong> — ${ABS} · ${DELTA}</div>"
-          sed -i "s|<body>|<body>${BANNER}|" coverage-report/index.html
+      - name: Compute diff coverage
+        if: github.event_name == 'pull_request'
+        run: ./diff-coverage.sh /tmp/pr.diff coverage.lcov >> "$GITHUB_ENV"
 
       - name: Publish HTML report to GitHub Pages
+        if: github.event_name == 'pull_request'
         run: |
-          git fetch --depth=1 origin gh-pages
           git worktree add /tmp/gh-pages gh-pages
           mkdir -p "/tmp/gh-pages/pr/${PR_NUM}"
           cp -r coverage-report/* "/tmp/gh-pages/pr/${PR_NUM}/"
@@ -223,6 +239,7 @@ jobs:
           git push origin gh-pages || (git pull --rebase origin gh-pages && git push origin gh-pages)
 
       - name: Comment coverage on PR
+        if: github.event_name == 'pull_request'
         run: |
           MARKER="<!-- coverage-report -->"
           REPO_NAME="${{ github.event.repository.name }}"
