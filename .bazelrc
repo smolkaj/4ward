@@ -41,3 +41,5 @@ build:ci --remote_download_toplevel
 build:ci --remote_upload_local_results
 build:ci --remote_timeout=3s
 build:ci --remote_cache_compression
+build:ci --bes_results_url=https://4ward.buildbuddy.io/invocation/
+build:ci --bes_backend=grpcs://4ward.buildbuddy.io
