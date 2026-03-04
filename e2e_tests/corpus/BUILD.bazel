@@ -11,6 +11,7 @@ load("//e2e_tests:corpus.bzl", "corpus_test_suite")
 corpus_test_suite(
     name = "v1model_stf_corpus_test",
     tests = [
+        "equality-varbit-bmv2",
         "flag_lost-bmv2",
         "gauntlet_action_mux-bmv2",
         "gauntlet_action_return-bmv2",
