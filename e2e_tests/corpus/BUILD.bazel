@@ -60,6 +60,7 @@ corpus_test_suite(
         "gauntlet_int_slice-bmv2",
         "gauntlet_invalid_hdr_assign-bmv2",
         "gauntlet_list_as_in_argument-bmv2",
+        "gauntlet_mux_eval-bmv2",
         "gauntlet_mux_hdr-bmv2",
         "gauntlet_mux_typecasting-bmv2",
         "gauntlet_mux_validity-bmv2",
