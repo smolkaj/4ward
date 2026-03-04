@@ -1,0 +1,182 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - coverage.lcov - simulator/simulator/Values.kt</title>
+  <link rel="stylesheet" type="text/css" href="../../gcov.css">
+</head>
+
+<body>
+
+          <table width="100%" border=0 cellspacing=0 cellpadding=0>
+            <tr><td class="title">LCOV - differential code coverage report</td></tr>
+            <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+
+            <tr>
+              <td width="100%">
+                <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="10%" class="headerValue"><a href="../../index.html">top level</a> - <a href="index.html">simulator/simulator</a> - Values.kt<span style="font-size: 80%;"> (source / <a href="Values.kt.func-c.html">functions</a>)</span></td>
+            <td width="5%"></td>
+            <td width="5%"></td>
+            <td width="5%" class="headerCovTableHead">Coverage</td>
+            <td width="5%" class="headerCovTableHead" title="Covered + Uncovered code (not including EUB, ECB, DUB, DCB categories)">Total</td>
+            <td width="5%" class="headerCovTableHead" title="Exercised code only (CBC + GBC + GNC + GIC)">Hit</td>
+            <td width="5%" class="headerCovTableHeadUBC" title="Uncovered Baseline Code (0 => 0):
+Unchanged code was untested before, is untested now">Not covered</td>
+            <td width="5%" class="headerCovTableHeadCBC" title="Covered Baseline Code (1 => 1):
+Unchanged code was tested before and is still tested">Covered</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Current:</td>
+            <td class="headerValue">coverage.lcov</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntryMed">86.7&nbsp;%</td>
+            <td class="headerCovTableEntry">30</td>
+            <td class="headerCovTableEntry">26</td>
+            <td class="headerCovTableEntry"><a href="#L22" title="goto first UBC">4</a></td>
+            <td class="headerCovTableEntry"><a href="#L15" title="goto first CBC">26</a></td>
+          </tr>
+          <tr>
+            <td class="headerItem">Current Date:</td>
+            <td class="headerValue">2026-03-04 08:19:23</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntryLo">65.7&nbsp;%</td>
+            <td class="headerCovTableEntry">35</td>
+            <td class="headerCovTableEntry">23</td>
+            <td class="headerCovTableEntry">12</td>
+            <td class="headerCovTableEntry">23</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Baseline:</td>
+            <td class="headerValue">baseline.lcov</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td class="headerItem">Baseline Date:</td>
+            <td class="headerValue">2026-03-04 07:53:45</td>
+            <td></td>
+          </tr>
+                  <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+          </table>
+
+          <table cellpadding=0 cellspacing=0 border=0>
+            <tr>
+              <td><br></td>
+            </tr>
+            <tr>
+              <td>
+<pre class="sourceHeading">           TLA  Line data    Source code</pre>
+<pre class="source">
+<span id="L1"><span class="lineNum">       1</span>                 : package fourward.simulator</span>
+<span id="L2"><span class="lineNum">       2</span>                 : </span>
+<span id="L3"><span class="lineNum">       3</span>                 : /**</span>
+<span id="L4"><span class="lineNum">       4</span>                 :  * Runtime value types for the 4ward simulator.</span>
+<span id="L5"><span class="lineNum">       5</span>                 :  *</span>
+<span id="L6"><span class="lineNum">       6</span>                 :  * Every P4 runtime value is one of these. The sealed hierarchy maps to P4's type system: bit&lt;N&gt; -&gt;</span>
+<span id="L7"><span class="lineNum">       7</span>                 :  * BitVal, int&lt;N&gt; -&gt; IntVal, bool -&gt; BoolVal, header fields -&gt; aggregated in HeaderVal, etc.</span>
+<span id="L8"><span class="lineNum">       8</span>                 :  *</span>
+<span id="L9"><span class="lineNum">       9</span>                 :  * The simulator's interpreter produces and consumes these values; they never escape to the trace</span>
+<span id="L10"><span class="lineNum">      10</span>                 :  * (traces use byte-encoded representations for portability).</span>
+<span id="L11"><span class="lineNum">      11</span>                 :  */</span>
+<span id="L12"><span class="lineNum">      12</span>                 : sealed class Value</span>
+<span id="L13"><span class="lineNum">      13</span>                 : </span>
+<span id="L14"><span class="lineNum">      14</span>                 : /** A bit&lt;N&gt; value. */</span>
+<span id="L15"><span class="lineNum">      15</span> <a href="#L25" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 : data class BitVal(val bits: BitVector) : Value() {</span></span>
+<span id="L16"><span class="lineNum">      16</span> <span class="tlaCBC">              1 :   constructor(value: Long, width: Int) : this(BitVector.ofLong(value, width))</span></span>
+<span id="L17"><span class="lineNum">      17</span>                 : </span>
+<span id="L18"><span class="lineNum">      18</span> <span class="tlaCBC">              1 :   constructor(value: Int, width: Int) : this(BitVector.ofInt(value, width))</span></span>
+<span id="L19"><span class="lineNum">      19</span>                 : }</span>
+<span id="L20"><span class="lineNum">      20</span>                 : </span>
+<span id="L21"><span class="lineNum">      21</span>                 : /** An int&lt;N&gt; value (two's complement). */</span>
+<span id="L22"><span class="lineNum">      22</span> <a href="#L33" class="tlaBgUBC"  title="Next UBC group">Not covered</a><span class="tlaUBC tlaBgUBC">           0 : data class IntVal(val bits: SignedBitVector) : Value()</span></span>
+<span id="L23"><span class="lineNum">      23</span>                 : </span>
+<span id="L24"><span class="lineNum">      24</span>                 : /** A bool value. */</span>
+<span id="L25"><span class="lineNum">      25</span> <a href="#L41" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 : data class BoolVal(val value: Boolean) : Value() {</span></span>
+<span id="L26"><span class="lineNum">      26</span>                 :   companion object {</span>
+<span id="L27"><span class="lineNum">      27</span> <span class="tlaCBC">              1 :     val TRUE = BoolVal(true)</span></span>
+<span id="L28"><span class="lineNum">      28</span> <span class="tlaCBC">              1 :     val FALSE = BoolVal(false)</span></span>
+<span id="L29"><span class="lineNum">      29</span>                 :   }</span>
+<span id="L30"><span class="lineNum">      30</span>                 : }</span>
+<span id="L31"><span class="lineNum">      31</span>                 : </span>
+<span id="L32"><span class="lineNum">      32</span>                 : /** A P4 error value (one of the named error members, e.g. &quot;NoError&quot;). */</span>
+<span id="L33"><span class="lineNum">      33</span> <a href="#L74" class="tlaBgUBC"  title="Next UBC group">Not covered</a><span class="tlaUBC tlaBgUBC">           0 : data class ErrorVal(val member: String) : Value()</span></span>
+<span id="L34"><span class="lineNum">      34</span>                 : </span>
+<span id="L35"><span class="lineNum">      35</span>                 : /**</span>
+<span id="L36"><span class="lineNum">      36</span>                 :  * A header instance.</span>
+<span id="L37"><span class="lineNum">      37</span>                 :  *</span>
+<span id="L38"><span class="lineNum">      38</span>                 :  * [valid] reflects the P4 validity bit. Fields are stored by name. Extracting a header sets valid =</span>
+<span id="L39"><span class="lineNum">      39</span>                 :  * true; calling setInvalid() sets valid = false and zeros all fields.</span>
+<span id="L40"><span class="lineNum">      40</span>                 :  */</span>
+<span id="L41"><span class="lineNum">      41</span> <a href="#L78" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 : data class HeaderVal(</span></span>
+<span id="L42"><span class="lineNum">      42</span> <span class="tlaCBC">              1 :   val typeName: String,</span></span>
+<span id="L43"><span class="lineNum">      43</span> <span class="tlaCBC">              1 :   val fields: MutableMap&lt;String, Value&gt; = mutableMapOf(),</span></span>
+<span id="L44"><span class="lineNum">      44</span> <span class="tlaCBC">              1 :   var valid: Boolean = false,</span></span>
+<span id="L45"><span class="lineNum">      45</span> <span class="tlaCBC">              1 : ) : Value() {</span></span>
+<span id="L46"><span class="lineNum">      46</span>                 : </span>
+<span id="L47"><span class="lineNum">      47</span>                 :   /** Sets the header valid and stores new field values. */</span>
+<span id="L48"><span class="lineNum">      48</span>                 :   fun setValid(newFields: Map&lt;String, Value&gt;) {</span>
+<span id="L49"><span class="lineNum">      49</span> <span class="tlaCBC">              1 :     valid = true</span></span>
+<span id="L50"><span class="lineNum">      50</span> <span class="tlaCBC">              1 :     fields.clear()</span></span>
+<span id="L51"><span class="lineNum">      51</span> <span class="tlaCBC">              1 :     fields.putAll(newFields)</span></span>
+<span id="L52"><span class="lineNum">      52</span> <span class="tlaCBC">              1 :   }</span></span>
+<span id="L53"><span class="lineNum">      53</span>                 : </span>
+<span id="L54"><span class="lineNum">      54</span>                 :   /**</span>
+<span id="L55"><span class="lineNum">      55</span>                 :    * Sets the header invalid and zeros all fields, as required by the P4 spec (section 8.17:</span>
+<span id="L56"><span class="lineNum">      56</span>                 :    * setInvalid resets all fields to their default values).</span>
+<span id="L57"><span class="lineNum">      57</span>                 :    */</span>
+<span id="L58"><span class="lineNum">      58</span>                 :   fun setInvalid() {</span>
+<span id="L59"><span class="lineNum">      59</span> <span class="tlaCBC">              1 :     valid = false</span></span>
+<span id="L60"><span class="lineNum">      60</span>                 :     // Retain the field keys but zero the values — the field types are</span>
+<span id="L61"><span class="lineNum">      61</span>                 :     // needed to reconstruct zero values, so we zero them lazily on read.</span>
+<span id="L62"><span class="lineNum">      62</span> <span class="tlaCBC">              1 :     fields.clear()</span></span>
+<span id="L63"><span class="lineNum">      63</span> <span class="tlaCBC">              1 :   }</span></span>
+<span id="L64"><span class="lineNum">      64</span>                 : </span>
+<span id="L65"><span class="lineNum">      65</span> <span class="tlaCBC">              1 :   fun copy(): HeaderVal = HeaderVal(typeName, fields.toMutableMap(), valid)</span></span>
+<span id="L66"><span class="lineNum">      66</span>                 : }</span>
+<span id="L67"><span class="lineNum">      67</span>                 : </span>
+<span id="L68"><span class="lineNum">      68</span>                 : /**</span>
+<span id="L69"><span class="lineNum">      69</span>                 :  * A struct instance (non-header). Structs have no validity bit. Used for P4's `struct` type,</span>
+<span id="L70"><span class="lineNum">      70</span>                 :  * including standard_metadata_t.</span>
+<span id="L71"><span class="lineNum">      71</span>                 :  */</span>
+<span id="L72"><span class="lineNum">      72</span> <span class="tlaCBC">              1 : data class StructVal(val typeName: String, val fields: MutableMap&lt;String, Value&gt; = mutableMapOf()) :</span></span>
+<span id="L73"><span class="lineNum">      73</span>                 :   Value() {</span>
+<span id="L74"><span class="lineNum">      74</span> <a href="#L84" class="tlaBgUBC"  title="Next UBC group">Not covered</a><span class="tlaUBC tlaBgUBC">           0 :   fun copy(): StructVal = StructVal(typeName, fields.toMutableMap())</span></span>
+<span id="L75"><span class="lineNum">      75</span>                 : }</span>
+<span id="L76"><span class="lineNum">      76</span>                 : </span>
+<span id="L77"><span class="lineNum">      77</span>                 : /** A header stack (fixed-size array of headers with a next/last pointer). */</span>
+<span id="L78"><span class="lineNum">      78</span> <a href="#L88" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 : data class HeaderStackVal(</span></span>
+<span id="L79"><span class="lineNum">      79</span> <span class="tlaCBC">              1 :   val elementTypeName: String,</span></span>
+<span id="L80"><span class="lineNum">      80</span> <span class="tlaCBC">              1 :   val headers: MutableList&lt;HeaderVal&gt;,</span></span>
+<span id="L81"><span class="lineNum">      81</span> <span class="tlaCBC">              1 :   var nextIndex: Int = 0,</span></span>
+<span id="L82"><span class="lineNum">      82</span> <span class="tlaCBC">              1 : ) : Value() {</span></span>
+<span id="L83"><span class="lineNum">      83</span>                 :   val size: Int</span>
+<span id="L84"><span class="lineNum">      84</span> <a href="#top" class="tlaBgUBC"  title="Next UBC group">Not covered</a><span class="tlaUBC tlaBgUBC">           0 :     get() = headers.size</span></span>
+<span id="L85"><span class="lineNum">      85</span>                 : }</span>
+<span id="L86"><span class="lineNum">      86</span>                 : </span>
+<span id="L87"><span class="lineNum">      87</span>                 : /** Sentinel for void returns and uninitialised variables. */</span>
+<span id="L88"><span class="lineNum">      88</span> <a href="#top" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 : object UnitVal : Value()</span></span>
+        </pre>
+              </td>
+            </tr>
+          </table>
+          <br>
+
+          <table width="100%" border=0 cellspacing=0 cellpadding=0>
+            <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+            <tr><td class="versionInfo">Generated by: <a href="https://github.com//linux-test-project/lcov" target="_parent">LCOV version 2.0-1</a></td></tr>
+          </table>
+          <br>
+
+</body>
+</html>
