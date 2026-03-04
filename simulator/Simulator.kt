@@ -62,6 +62,13 @@ class Simulator {
       }
     }
 
+    // Install static table entries declared with `const entries` in the P4
+    // source. These are serialized by p4c's P4Runtime serializer and embedded
+    // in the PipelineConfig at compile time.
+    for (update in config.staticEntries.updatesList) {
+      tableStore.write(update)
+    }
+
     architecture =
       when (val archName = config.behavioral.architecture.name) {
         "v1model" -> V1ModelArchitecture()

@@ -24,6 +24,7 @@
 #include "ir.pb.h"
 #include "ir/ir.h"
 #include "ir/visitor.h"
+#include "p4/v1/p4runtime.pb.h"
 #include "p4c_backend/options.h"
 
 namespace P4::FourWard {
@@ -45,6 +46,9 @@ class FourWardBackend : public Inspector {
   // Injects the p4info produced by the P4Runtime serialiser into the config.
   // Must be called before process() so emitTable() can look up field IDs.
   void setP4Info(p4::config::v1::P4Info p4info);
+
+  // Injects static table entries (const entries) from the P4Runtime serialiser.
+  void setStaticEntries(p4::v1::WriteRequest entries);
 
   // Writes the accumulated PipelineConfig proto to the output file.
   // Returns true on success.

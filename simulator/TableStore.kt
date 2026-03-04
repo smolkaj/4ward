@@ -1,14 +1,18 @@
 package fourward.simulator
 
+import com.google.protobuf.ByteString
 import java.math.BigInteger
 import p4.v1.P4RuntimeOuterClass.TableEntry
 import p4.v1.P4RuntimeOuterClass.Update
 
+/** Interprets a protobuf [ByteString] as an unsigned big-endian integer. */
+private fun ByteString.toUnsignedBigInteger(): BigInteger = BigInteger(1, toByteArray())
+
 /**
  * Stores and looks up P4 table entries for all tables in a loaded pipeline.
  *
- * Supports exact, LPM, and ternary match kinds. Range match is a TODO. Entries are stored
- * per-table; lookup returns the highest-priority match.
+ * Supports exact, LPM, ternary, range, and optional match kinds. Entries are stored per-table;
+ * lookup returns the highest-priority match.
  *
  * Call [loadMappings] once per pipeline load before any [write] or [lookup] calls.
  */
@@ -123,13 +127,14 @@ class TableStore {
 
       when {
         match.hasExact() -> {
-          val want = BigInteger(1, match.exact.value.toByteArray())
-          if (bits.value != want) return null
-          score += Long.MAX_VALUE / 2 // exact beats everything
+          if (bits.value != match.exact.value.toUnsignedBigInteger()) return null
+          // Exact match doesn't contribute to relative scoring — all exact
+          // fields either match or don't.  We add nothing here; the entry's
+          // priority (if any) is added once below the when block.
         }
         match.hasLpm() -> {
           val prefixLen = match.lpm.prefixLen
-          val prefix = BigInteger(1, match.lpm.value.toByteArray())
+          val prefix = match.lpm.value.toUnsignedBigInteger()
           val mask =
             if (prefixLen == 0) BigInteger.ZERO
             else
@@ -141,10 +146,21 @@ class TableStore {
           score += prefixLen.toLong()
         }
         match.hasTernary() -> {
-          val want = BigInteger(1, match.ternary.value.toByteArray())
-          val mask = BigInteger(1, match.ternary.mask.toByteArray())
+          val want = match.ternary.value.toUnsignedBigInteger()
+          val mask = match.ternary.mask.toUnsignedBigInteger()
           if (bits.value.and(mask) != want.and(mask)) return null
           score += entry.priority.toLong()
+        }
+        match.hasRange() -> {
+          val lo = match.range.low.toUnsignedBigInteger()
+          val hi = match.range.high.toUnsignedBigInteger()
+          if (bits.value < lo || bits.value > hi) return null
+          score += entry.priority.toLong()
+        }
+        // P4 spec §14.2.1.3: optional match behaves like exact when present;
+        // omitted optional fields are wildcards (the FieldMatch is absent).
+        match.hasOptional() -> {
+          if (bits.value != match.optional.value.toUnsignedBigInteger()) return null
         }
         else -> return null // unsupported match kind
       }

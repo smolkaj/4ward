@@ -135,6 +135,14 @@ corpus_test_suite(
         "opassign1-bmv2",
         "opassign2-bmv2",
         "parser_error-bmv2",
+        "table-entries-exact-bmv2",
+        "table-entries-exact-ternary-bmv2",
+        "table-entries-lpm-bmv2",
+        "table-entries-optional-bmv2",
+        "table-entries-range-bmv2",
+        "table-entries-ser-enum-bmv2",
+        "table-entries-ternary-bmv2",
+        "v1model-const-entries-bmv2",
     ],
 )
 
@@ -255,14 +263,7 @@ corpus_test_suite(
         "saturated-bmv2",  # payload mismatch
         "stack_complex-bmv2",  # field access on non-aggregate value: HeaderStackVal
         "subparser-with-header-stack-bmv2",  # unhandled extern call: verify
-        "table-entries-exact-bmv2",  # expected packet but got none (const entries)
-        "table-entries-exact-ternary-bmv2",  # expected packet but got none (const entries)
-        "table-entries-lpm-bmv2",  # expected packet but got none (const entries)
-        "table-entries-optional-bmv2",  # expected packet but got none (const entries)
-        "table-entries-priority-bmv2",  # expected packet but got none (const entries)
-        "table-entries-range-bmv2",  # expected packet but got none (const entries)
-        "table-entries-ser-enum-bmv2",  # expected packet but got none (const entries)
-        "table-entries-ternary-bmv2",  # expected packet but got none (const entries)
+        "table-entries-priority-bmv2",  # BMv2-specific @priority annotation (lower=better)
         "ternary2-bmv2",  # NumberFormatException: "val:0x7f"
         "test-parserinvalidargument-error-bmv2",  # payload mismatch
         "union-bmv2",  # field access on non-aggregate value: UnitVal
@@ -270,7 +271,6 @@ corpus_test_suite(
         "union1-bmv2",  # field access on non-aggregate value: UnitVal
         "union2-bmv2",  # field access on non-aggregate value: UnitVal
         "union3-bmv2",  # field access on non-aggregate value: UnitVal
-        "v1model-const-entries-bmv2",  # payload mismatch
         "v1model-special-ops-bmv2",  # NumberFormatException: "new_ipv4_"
     ],
 )
