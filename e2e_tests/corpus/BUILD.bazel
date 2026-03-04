@@ -211,5 +211,6 @@ corpus_test_suite(
         "gauntlet_index_6-bmv2",
         "gauntlet_index_7-bmv2",
         "gauntlet_index_8-bmv2",
+        "gauntlet_index_9-bmv2",
     ],
 )
