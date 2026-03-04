@@ -78,6 +78,14 @@ data class HeaderVal(
 data class StructVal(val typeName: String, val fields: MutableMap<String, Value> = mutableMapOf()) :
   Value() {
   fun copy(): StructVal = StructVal(typeName, fields.toMutableMap())
+
+  /** P4 spec §8.20: a header union is valid if any member header is valid. */
+  fun isUnionValid(): Boolean = fields.values.any { it is HeaderVal && it.valid }
+
+  /** P4 spec §8.20: invalidating a header union invalidates all member headers. */
+  fun invalidateUnion() {
+    fields.values.forEach { if (it is HeaderVal) it.setInvalid() }
+  }
 }
 
 /** A header stack (fixed-size array of headers with a next/last pointer). */

@@ -284,23 +284,25 @@ class Interpreter(
       is StructVal ->
         target.fields[fa.fieldName]
           ?: error("field ${fa.fieldName} not found in struct ${target.typeName}")
-      is HeaderStackVal ->
-        when (fa.fieldName) {
-          // P4 spec §8.18: stack.next returns the element at nextIndex and advances.
-          "next" -> {
-            require(target.nextIndex < target.headers.size) {
-              "header stack overflow: nextIndex=${target.nextIndex}, size=${target.headers.size}"
-            }
-            target.headers[target.nextIndex].also { target.nextIndex++ }
-          }
-          "last" -> target.headers[(target.nextIndex - 1).coerceAtLeast(0)]
-          "lastIndex" -> BitVal(target.headers.size.toLong() - 1, 32)
-          "size" -> BitVal(target.headers.size.toLong(), 32)
-          else -> error("unknown header stack property: ${fa.fieldName}")
-        }
+      is HeaderStackVal -> evalHeaderStackProperty(target, fa.fieldName)
       else -> error("field access on non-aggregate value: $target")
     }
   }
+
+  /** P4 spec §8.18: header stack built-in properties. */
+  private fun evalHeaderStackProperty(stack: HeaderStackVal, name: String): Value =
+    when (name) {
+      "next" -> {
+        require(stack.nextIndex < stack.headers.size) {
+          "header stack overflow: nextIndex=${stack.nextIndex}, size=${stack.headers.size}"
+        }
+        stack.headers[stack.nextIndex].also { stack.nextIndex++ }
+      }
+      "last" -> stack.headers[(stack.nextIndex - 1).coerceAtLeast(0)]
+      "lastIndex" -> BitVal(stack.headers.size.toLong() - 1, 32)
+      "size" -> BitVal(stack.headers.size.toLong(), 32)
+      else -> error("unknown header stack property: $name")
+    }
 
   private fun evalArrayIndex(ai: fourward.ir.v1.ArrayIndex, env: Environment): Value {
     val stack = evalExpr(ai.expr, env) as? HeaderStackVal ?: error("array index on non-stack value")
@@ -397,8 +399,7 @@ class Interpreter(
       "isValid" -> {
         when (val target = evalExpr(call.target, env)) {
           is HeaderVal -> BoolVal(target.valid)
-          // P4 spec §8.20: header union isValid() is true if any member is valid.
-          is StructVal -> BoolVal(target.fields.values.any { it is HeaderVal && it.valid })
+          is StructVal -> BoolVal(target.isUnionValid())
           else -> error("isValid on non-header: $target")
         }
       }
@@ -409,9 +410,7 @@ class Interpreter(
       "setInvalid" -> {
         when (val target = evalExpr(call.target, env)) {
           is HeaderVal -> target.setInvalid()
-          // P4 spec §8.20: header union setInvalid() invalidates all members.
-          is StructVal ->
-            target.fields.values.forEach { if (it is HeaderVal) it.setInvalid() }
+          is StructVal -> target.invalidateUnion()
           else -> error("setInvalid on non-header: $target")
         }
         UnitVal

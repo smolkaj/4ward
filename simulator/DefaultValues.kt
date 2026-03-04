@@ -57,31 +57,27 @@ internal fun defaultValue(typeName: String, types: Map<String, TypeDecl>): Value
         typeName = typeName,
         fields =
           typeDecl.header.fieldsList
-            .associate { f -> f.name to defaultValue(f.type, types) }
-            .toMutableMap(),
+            .associateTo(mutableMapOf()) { f -> f.name to defaultValue(f.type, types) },
         valid = false,
       )
-    typeDecl.hasStruct() ->
-      StructVal(
-        typeName = typeName,
-        fields =
-          typeDecl.struct.fieldsList
-            .associate { f -> f.name to defaultValue(f.type, types) }
-            .toMutableMap(),
-      )
-    // Header union: members are headers, at most one valid at a time (P4 spec §8.20).
-    // Represented as a StructVal so field access works uniformly; validity is
-    // tracked per-member via HeaderVal.valid.
-    typeDecl.hasHeaderUnion() ->
-      StructVal(
-        typeName = typeName,
-        fields =
-          typeDecl.headerUnion.fieldsList
-            .associate { f -> f.name to defaultValue(f.type, types) }
-            .toMutableMap(),
-      )
+    typeDecl.hasStruct() -> defaultStruct(typeName, typeDecl.struct.fieldsList, types)
+    // Header union (P4 spec §8.20): represented as a StructVal so field access works
+    // uniformly; per-member validity is tracked via HeaderVal.valid.
+    typeDecl.hasHeaderUnion() -> defaultStruct(typeName, typeDecl.headerUnion.fieldsList, types)
     // Serializable enum: default to zero of the underlying bit width.
     typeDecl.hasEnum() && typeDecl.enum.width > 0 -> BitVal(0L, typeDecl.enum.width)
     else -> UnitVal
   }
 }
+
+private fun defaultStruct(
+  typeName: String,
+  fieldDecls: List<fourward.ir.v1.FieldDecl>,
+  types: Map<String, TypeDecl>,
+): StructVal =
+  StructVal(
+    typeName = typeName,
+    fields =
+      fieldDecls
+        .associateTo(mutableMapOf()) { f -> f.name to defaultValue(f.type, types) },
+  )
