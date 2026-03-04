@@ -58,6 +58,10 @@ bazel_dep(name = "buildifier_prebuilt", version = "8.2.1.2", dev_dependency = Tr
 bazel_dep(name = "bazel_clang_tidy", dev_dependency = True)
 git_override(
     module_name = "bazel_clang_tidy",
-    commit = "c4d35e0d0b838309358e57a2efed831780f85cd0",
+    # Pin to the commit before "Add builtin include flags for clang-tidy"
+    # (c4d35e0).  That commit passes cc_toolchain.built_in_include_directories
+    # as explicit -isystem flags, which promotes /usr/include out of clang's
+    # internal search order and breaks #include_next from <cstdlib>.
+    commit = "9e54bbb15d1939a9d030c52f3032886a0b278f98",
     remote = "https://github.com/erenon/bazel_clang_tidy.git",
 )
