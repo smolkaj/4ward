@@ -130,3 +130,28 @@ changing `ir.proto` or `simulator.proto`:
 4. Make sure the relevant STF tests still pass.
 
 Never remove or renumber existing fields; add new ones instead.
+
+## Local development
+
+When running multiple agents in parallel (each in its own worktree), Bazel can
+saturate all CPU cores and cause heavy swapping because each worktree gets its
+own output base — recompiling p4c and Z3 from scratch every time.
+
+Add the following to your **`~/.bazelrc`** (not the repo `.bazelrc`) to fix
+this:
+
+```
+# Shared disk cache across worktrees — avoids recompiling p4c/Z3 in every
+# worktree. Grows without bounds; wipe with: rm -rf ~/.cache/bazel-disk
+build --disk_cache=~/.cache/bazel-disk
+
+# Cap resources to keep the machine responsive when multiple agents build in
+# parallel. Tune to your machine (these values suit a MacBook Air M-series).
+build --local_cpu_resources=4
+build --local_ram_resources=8192
+```
+
+These settings are intentionally **not** checked into the repo `.bazelrc`:
+- `--disk_cache` has no garbage collection. If CI ever picked it up, the cache
+  would balloon.
+- Resource limits are machine-specific — CI runners have different specs.
