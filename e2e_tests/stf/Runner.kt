@@ -499,33 +499,27 @@ enum class MatchKind {
 /** Strips surrounding double-quotes, if present. */
 private fun String.unquote(): String = removeSurrounding("\"")
 
-/** Extracts the parameter name from a named param like `"name":value` or `name:value`. */
-private fun String.extractParamName(): String? {
-  if (startsWith('"')) {
-    val sep = indexOf("\":", 1)
-    return if (sep >= 0) substring(1, sep) else null
-  }
-  val colon = indexOf(':')
-  if (colon > 0 && substring(0, colon).all { it.isLetterOrDigit() || it == '_' }) {
-    return substring(0, colon)
-  }
-  return null
-}
-
-/** Strips a `"name":` prefix from a p4testgen named action parameter, returning just the value. */
-private fun String.stripNamedParamPrefix(): String {
+/**
+ * Splits a possibly-named action param (`"name":value` or `name:value`) into
+ * its name (null if positional) and value.
+ */
+private fun String.splitNamedParam(): Pair<String?, String> {
   // p4testgen: quoted named params like "param":value
   if (startsWith('"')) {
     val sep = indexOf("\":", 1)
-    return if (sep >= 0) substring(sep + 2) else this
+    if (sep >= 0) return substring(1, sep) to substring(sep + 2)
   }
   // Unquoted named params like param:value (used in standard STF files).
   val colon = indexOf(':')
   if (colon > 0 && substring(0, colon).all { it.isLetterOrDigit() || it == '_' }) {
-    return substring(colon + 1)
+    return substring(0, colon) to substring(colon + 1)
   }
-  return this
+  return null to this
 }
+
+private fun String.extractParamName(): String? = splitNamedParam().first
+
+private fun String.stripNamedParamPrefix(): String = splitNamedParam().second
 
 /**
  * Parses a binary wildcard string like `0b1010****` into hex value and mask strings.
