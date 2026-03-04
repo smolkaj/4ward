@@ -229,6 +229,7 @@ corpus_test_suite(
         "issue1814-1-bmv2",  # unhandled method call: read (register extern)
         "issue1824-bmv2",  # unhandled extern call: verify
         "issue1879-bmv2",  # field access on non-aggregate value: UnitVal
+        "issue3488-1-bmv2",  # expected packet on port 2 but got none
     ],
 )
 
