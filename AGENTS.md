@@ -3,15 +3,16 @@
 ## Repository map
 
 ```
+ARCHITECTURE.md              Design rationale. Read this first.
 simulator/ir.proto           The behavioral IR. The core contract of the project.
 simulator/simulator.proto    The simulator service protocol (stdin/stdout IPC).
 simulator/*.kt               Kotlin simulator (the heart of 4ward).
-simulator/BUILD.bazel        Proto + Kotlin build targets for the simulator.
 p4c_backend/*.{h,cpp}        C++ p4c backend plugin (emits proto IR from P4 source).
-p4c_backend/BUILD.bazel      C++ build targets.
-e2e_tests/stf/Runner.kt      STF test runner (drives the simulator subprocess).
+e2e_tests/stf/               STF test runner (drives the simulator subprocess).
+e2e_tests/corpus/            Corpus-based STF test harness (bulk p4c test suite).
+e2e_tests/p4testgen/         p4testgen-generated STF tests (one target per P4 program).
 e2e_tests/passthrough/       Walking-skeleton end-to-end test.
-ARCHITECTURE.md              Design rationale. Read this first.
+e2e_tests/*/                 Per-feature STF tests (basic_table, lpm_routing, etc.).
 ```
 
 Unit tests live alongside the source they test (`FooTest.kt` next to `Foo.kt`).
