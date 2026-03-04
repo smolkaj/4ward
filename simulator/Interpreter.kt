@@ -251,7 +251,10 @@ class Interpreter(
       lit.hasBoolean() -> BoolVal(lit.boolean)
       lit.hasErrorMember() -> ErrorVal(lit.errorMember)
       lit.hasInteger() -> {
-        val width = if (type.hasBit()) type.bit.width else error("integer literal without bit type")
+        // An empty type means InfInt (P4 compile-time constant integer, e.g. shift
+        // amounts). Use 32 bits as a safe default; the enclosing operation determines
+        // the result width.
+        val width = if (type.hasBit()) type.bit.width else 32
         BitVal(BitVector(BigInteger.valueOf(lit.integer.toLong()), width))
       }
       lit.hasBigInteger() -> {
