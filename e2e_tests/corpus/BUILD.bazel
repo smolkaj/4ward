@@ -102,6 +102,7 @@ corpus_test_suite(
         "issue2498-bmv2",
         "issue2614-bmv2",
         "issue3488-bmv2",
+        "issue447-1-bmv2",
         "issue635-bmv2",
         "issue983-bmv2",
         "opassign1-bmv2",
