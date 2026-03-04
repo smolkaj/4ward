@@ -68,9 +68,10 @@ class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPat
         }
       }
 
-      // Send all packets and collect outputs into a FIFO queue, matching
-      // BMv2's STF semantics where expects are checked against the global
-      // output order (not tied to individual input packets).
+      // Send all packets and collect outputs, then match expects by port.
+      // Cross-port ordering is ignored; within the same port, outputs are
+      // matched FIFO (first output on that port satisfies the first expect
+      // for that port). This matches BMv2's STF semantics.
       val failures = mutableListOf<String>()
       data class Output(val port: Int, val payload: ByteArray)
       val outputQueue = mutableListOf<Output>()

@@ -251,11 +251,9 @@ class Interpreter(
       lit.hasBoolean() -> BoolVal(lit.boolean)
       lit.hasErrorMember() -> ErrorVal(lit.errorMember)
       lit.hasInteger() -> {
-        // An empty type means InfInt (P4 compile-time constant integer, e.g. shift
-        // amounts). Use 32 bits as a safe default; the enclosing operation determines
-        // the result width.
-        val width = if (type.hasBit()) type.bit.width else 32
-        BitVal(BitVector(BigInteger.valueOf(lit.integer.toLong()), width))
+        val v = BigInteger.valueOf(lit.integer.toLong())
+        if (type.hasBit()) BitVal(BitVector(v, type.bit.width))
+        else InfIntVal(v) // compile-time constant integer (P4 spec §8.1)
       }
       lit.hasBigInteger() -> {
         val width = type.bit.width
@@ -306,7 +304,7 @@ class Interpreter(
 
   private fun evalArrayIndex(ai: fourward.ir.v1.ArrayIndex, env: Environment): Value {
     val stack = evalExpr(ai.expr, env) as? HeaderStackVal ?: error("array index on non-stack value")
-    val index = (evalExpr(ai.index, env) as BitVal).bits.value.toInt()
+    val index = intValue(evalExpr(ai.index, env))
     return stack.headers[index]
   }
 
@@ -329,6 +327,7 @@ class Interpreter(
         val sourceBits =
           when (inner) {
             is BitVal -> inner.bits.value
+            is InfIntVal -> inner.value
             is IntVal -> inner.bits.toUnsigned().value
             is BoolVal -> if (inner.value) BigInteger.ONE else BigInteger.ZERO
             else -> error("cannot cast $inner to bit<$targetWidth>")
@@ -337,20 +336,30 @@ class Interpreter(
       }
       cast.targetType.hasSignedInt() -> {
         val targetWidth = cast.targetType.signedInt.width
-        val sourceBits = (inner as BitVal).bits.value
+        val sourceBits =
+          when (inner) {
+            is BitVal -> inner.bits.value
+            is InfIntVal -> inner.value
+            else -> error("cannot cast $inner to int<$targetWidth>")
+          }
         IntVal(SignedBitVector.fromUnsignedBits(sourceBits, targetWidth))
       }
       cast.targetType.boolean -> {
-        val bits = (inner as BitVal).bits
-        BoolVal(bits.value != BigInteger.ZERO)
+        val v =
+          when (inner) {
+            is BitVal -> inner.bits.value
+            is InfIntVal -> inner.value
+            else -> error("cannot cast $inner to bool")
+          }
+        BoolVal(v != BigInteger.ZERO)
       }
       else -> error("unsupported cast target type: ${cast.targetType}")
     }
   }
 
   private fun evalBinaryOp(op: fourward.ir.v1.BinaryOp, env: Environment): Value {
-    val left = evalExpr(op.left, env)
-    val right = evalExpr(op.right, env)
+    // P4 spec §8.1: compile-time integers adopt the width of the other operand.
+    val (left, right) = coerceInfInts(evalExpr(op.left, env), evalExpr(op.right, env))
     return when (op.op) {
       BinaryOperator.ADD -> BitVal((left as BitVal).bits + (right as BitVal).bits)
       BinaryOperator.SUB -> BitVal((left as BitVal).bits - (right as BitVal).bits)
@@ -376,13 +385,33 @@ class Interpreter(
     }
   }
 
+  /** Extract a small integer from a [BitVal] or [InfIntVal]. */
+  private fun intValue(v: Value): Int =
+    when (v) {
+      is BitVal -> v.bits.value.toInt()
+      is InfIntVal -> v.value.toInt()
+      else -> error("expected integer value: $v")
+    }
+
+  /** P4 spec §8.1: InfInt adopts the width of the fixed-width operand. */
+  private fun coerceInfInts(left: Value, right: Value): Pair<Value, Value> =
+    when {
+      left is InfIntVal && right is BitVal -> left.toBitVal(right.bits.width) to right
+      right is InfIntVal && left is BitVal -> left to right.toBitVal((left as BitVal).bits.width)
+      else -> left to right
+    }
+
   private fun evalUnaryOp(op: fourward.ir.v1.UnaryOp, env: Environment): Value {
     val inner = evalExpr(op.expr, env)
     return when (op.op) {
       // Two's-complement negation: (2^N - x) mod 2^N = (0 - x) using wrapping subtraction.
       // BitVector.ofInt(-1, width) would violate the non-negative value invariant.
       UnaryOperator.NEG ->
-        (inner as BitVal).let { BitVal(BitVector.ofInt(0, it.bits.width) - it.bits) }
+        when (inner) {
+          is InfIntVal -> InfIntVal(inner.value.negate())
+          is BitVal -> BitVal(BitVector.ofInt(0, inner.bits.width) - inner.bits)
+          else -> error("NEG on non-numeric: $inner")
+        }
       UnaryOperator.BIT_NOT -> BitVal((inner as BitVal).bits.inv())
       UnaryOperator.NOT -> BoolVal(!(inner as BoolVal).value)
       else -> error("unhandled unary operator: ${op.op}")
@@ -755,7 +784,7 @@ class Interpreter(
       }
       lhs.hasArrayIndex() -> {
         val stack = evalExpr(lhs.arrayIndex.expr, env) as HeaderStackVal
-        val index = (evalExpr(lhs.arrayIndex.index, env) as BitVal).bits.value.toInt()
+        val index = intValue(evalExpr(lhs.arrayIndex.index, env))
         val copy = if (value is HeaderVal) value.copy() else value
         stack.headers[index] = copy as HeaderVal
       }
