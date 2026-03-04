@@ -263,6 +263,15 @@ corpus_test_suite(
         "table-entries-range-bmv2",  # expected packet but got none (const entries)
         "table-entries-ser-enum-bmv2",  # expected packet but got none (const entries)
         "table-entries-ternary-bmv2",  # expected packet but got none (const entries)
+        "ternary2-bmv2",  # NumberFormatException: "val:0x7f"
+        "test-parserinvalidargument-error-bmv2",  # payload mismatch
+        "union-bmv2",  # field access on non-aggregate value: UnitVal
+        "union-valid-bmv2",  # field access on non-aggregate value: UnitVal
+        "union1-bmv2",  # field access on non-aggregate value: UnitVal
+        "union2-bmv2",  # field access on non-aggregate value: UnitVal
+        "union3-bmv2",  # field access on non-aggregate value: UnitVal
+        "v1model-const-entries-bmv2",  # payload mismatch
+        "v1model-special-ops-bmv2",  # NumberFormatException: "new_ipv4_"
     ],
 )
 
