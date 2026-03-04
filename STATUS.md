@@ -1,6 +1,7 @@
 # 4ward — Status
 
 > Append-only log. Add new entries at the bottom; do not edit past entries.
+> See [ROADMAP.md](ROADMAP.md) for the big picture.
 
 ## 2026-03-03
 
