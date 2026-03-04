@@ -113,3 +113,21 @@ persistent session that resets table state between STFs.
 
 **Fix**: Change visibility from `private` to `internal` so the test can
 import the production implementation directly.
+
+---
+
+## CI hygiene
+
+Pin tool versions and add `set -euo pipefail` to `format.sh`.
+
+---
+
+## Re-enable buf lint
+
+Blocked on buf support for proto edition 2024.
+
+---
+
+## Upstream p4c backend
+
+Land the 4ward backend in the p4c repository. Blocked on upstream review.

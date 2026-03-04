@@ -92,18 +92,8 @@ mismatches (1C).
 **Priority: nice to have | Parallelizable: yes**
 
 Build plumbing, CI improvements, cleanup. Picked up opportunistically — none
-of this blocks the other tracks.
-
-- Extract shared `p4_compile` genrule macro (copy-pasted across 8 locations).
-- `matchesMasked` internal visibility (`private` → `internal` one-liner).
-- Opt-out corpus model (auto-discovery + skip-list instead of allow-list).
-- Simulator process reuse in p4testgen (~330ms per sub-test overhead).
-- CI hygiene (`set -euo pipefail` in `format.sh`, pin tool versions).
-- Re-enable buf lint (blocked on buf support for proto edition 2024).
-- Upstream p4c backend (blocked on landing the backend in p4c).
-
-This list will grow. See [REFACTORING.md](REFACTORING.md) for additional
-cleanup and tech debt items.
+of this blocks the other tracks. See [REFACTORING.md](REFACTORING.md) for
+the full list.
 
 ### Track 3: trace trees
 
