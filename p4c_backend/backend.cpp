@@ -150,6 +150,12 @@ fourward::ir::v1::Expr FourWardBackend::emitExpr(const IR::Expression* expr) {
   } else if (const auto* cast = expr->to<IR::Cast>()) {
     *out.mutable_cast()->mutable_target_type() = emitType(cast->destType);
     *out.mutable_cast()->mutable_expr() = emitExpr(cast->expr);
+  } else if (const auto* ai = expr->to<IR::ArrayIndex>()) {
+    // IR::ArrayIndex is a subclass of IR::Operation_Binary; check it first so
+    // it maps to array_index rather than being caught as an unknown binary op.
+    auto* a = out.mutable_array_index();
+    *a->mutable_expr() = emitExpr(ai->left);
+    *a->mutable_index() = emitExpr(ai->right);
   } else if (const auto* binop = expr->to<IR::Operation_Binary>()) {
     auto* b = out.mutable_binary_op();
     *b->mutable_left() = emitExpr(binop->left);

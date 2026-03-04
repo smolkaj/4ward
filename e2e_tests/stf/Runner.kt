@@ -92,10 +92,10 @@ class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPat
           val actual = result.outputPacketsList.find { it.egressPort == expected.port }
           when {
             actual == null -> failures += "expected packet on port ${expected.port} but got none"
-            !actual.payload.toByteArray().contentEquals(expected.payload) ->
+            !actual.payload.toByteArray().matchesMasked(expected.payload, expected.mask) ->
               failures +=
                 "port ${expected.port}: payload mismatch\n" +
-                  "  expected: ${expected.payload.hex()}\n" +
+                  "  expected: ${expected.payload.hex(expected.mask)}\n" +
                   "  actual:   ${actual.payload.toByteArray().hex()}"
           }
         }
@@ -279,8 +279,11 @@ data class StfFile(val tableEntries: List<StfTableEntry>, val packets: List<StfP
           }
           "expect" -> {
             val port = tokens[1].toInt()
-            val payload = tokens.drop(2).joinToString("").decodeHex()
-            current?.expectedOutputs?.add(StfExpectedOutput(port, payload))
+            // "$" marks end-of-packet (length assertion); our runner already does exact-length
+            // comparison, so strip it. It can appear standalone or appended to the last byte.
+            val hexStr = tokens.drop(2).joinToString("").replace("$", "")
+            val (payload, mask) = decodeExpect(hexStr)
+            current?.expectedOutputs?.add(StfExpectedOutput(port, payload, mask))
           }
           "add" -> {
             current?.let {
@@ -404,7 +407,7 @@ data class StfPacket(
   val expectedOutputs: MutableList<StfExpectedOutput>,
 )
 
-data class StfExpectedOutput(val port: Int, val payload: ByteArray)
+class StfExpectedOutput(val port: Int, val payload: ByteArray, val mask: ByteArray)
 
 /** A parsed `add` directive, before p4info resolution. */
 data class StfTableEntry(
@@ -434,4 +437,39 @@ private fun String.decodeHex(): ByteArray {
   return ByteArray(clean.length / 2) { i -> clean.substring(i * 2, i * 2 + 2).toInt(16).toByte() }
 }
 
+/**
+ * Parses a hex string that may contain `**` wildcard tokens (one per byte). Returns a (payload,
+ * mask) pair: wildcard bytes have mask 0x00 (don't-care); normal bytes have mask 0xFF.
+ */
+private fun decodeExpect(hexStr: String): Pair<ByteArray, ByteArray> {
+  val clean = hexStr.replace(" ", "").lowercase()
+  require(clean.length % 2 == 0) { "odd-length hex in expect: $hexStr" }
+  val n = clean.length / 2
+  val payload = ByteArray(n)
+  val mask = ByteArray(n)
+  for (i in 0 until n) {
+    val chunk = clean.substring(i * 2, i * 2 + 2)
+    if (chunk == "**") {
+      payload[i] = 0
+      mask[i] = 0
+    } else {
+      payload[i] = chunk.toInt(16).toByte()
+      mask[i] = 0xFF.toByte()
+    }
+  }
+  return payload to mask
+}
+
+/** Returns true iff every non-wildcard byte (mask != 0) matches expected. */
+private fun ByteArray.matchesMasked(expected: ByteArray, mask: ByteArray): Boolean {
+  if (size != expected.size) return false
+  return indices.all { i ->
+    (this[i].toInt() and mask[i].toInt()) == (expected[i].toInt() and mask[i].toInt())
+  }
+}
+
 private fun ByteArray.hex(): String = joinToString("") { "%02x".format(it) }
+
+/** Like [hex] but shows `**` for wildcard bytes (mask byte == 0). */
+private fun ByteArray.hex(mask: ByteArray): String =
+  indices.joinToString("") { i -> if (mask[i] == 0.toByte()) "**" else "%02x".format(this[i]) }

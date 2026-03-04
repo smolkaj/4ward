@@ -74,6 +74,42 @@ class StfParserTest {
     val exp = pkt.expectedOutputs[0]
     assertEquals(2, exp.port)
     assertArrayEquals(byteArrayOf(0x03, 0x04), exp.payload)
+    // Normal bytes have a full mask.
+    assertArrayEquals(byteArrayOf(0xFF.toByte(), 0xFF.toByte()), exp.mask)
+  }
+
+  @Test
+  fun `expect with wildcard bytes`() {
+    val stf =
+      parse(
+        """
+        packet 0 AABB
+        expect 1 ** BB
+        """
+          .trimIndent()
+      )
+    val exp = stf.packets[0].expectedOutputs[0]
+    // First byte is wildcard (mask=0x00), second is concrete (mask=0xFF).
+    assertArrayEquals(byteArrayOf(0x00, 0xBB.toByte()), exp.payload)
+    assertArrayEquals(byteArrayOf(0x00, 0xFF.toByte()), exp.mask)
+  }
+
+  @Test
+  fun `expect with four-char wildcard token`() {
+    // "****" is two consecutive wildcard bytes.
+    val stf = parse("packet 0 AABB\nexpect 1 ****")
+    val exp = stf.packets[0].expectedOutputs[0]
+    assertArrayEquals(byteArrayOf(0x00, 0x00), exp.payload)
+    assertArrayEquals(byteArrayOf(0x00, 0x00), exp.mask)
+  }
+
+  @Test
+  fun `expect with end-of-packet marker`() {
+    // "$" is stripped; the payload comparison is exact-length regardless.
+    val stf = parse("packet 0 AABB\nexpect 1 AABB $")
+    val exp = stf.packets[0].expectedOutputs[0]
+    assertArrayEquals(byteArrayOf(0xAA.toByte(), 0xBB.toByte()), exp.payload)
+    assertArrayEquals(byteArrayOf(0xFF.toByte(), 0xFF.toByte()), exp.mask)
   }
 
   @Test
@@ -266,5 +302,56 @@ class StfParserTest {
   @Test
   fun `encodeValue zero-pads to full byte length`() {
     assertArrayEquals(byteArrayOf(0x00, 0x00, 0x00, 0x01), encodeValue("1", 32).toByteArray())
+  }
+
+  // ---------------------------------------------------------------------------
+  // matchesMasked (via expect parsing + manual comparison)
+  // ---------------------------------------------------------------------------
+
+  private fun ByteArray.matchesMasked(expected: ByteArray, mask: ByteArray): Boolean {
+    if (size != expected.size) return false
+    return indices.all { i ->
+      (this[i].toInt() and mask[i].toInt()) == (expected[i].toInt() and mask[i].toInt())
+    }
+  }
+
+  @Test
+  fun `matchesMasked exact match`() {
+    val actual = byteArrayOf(0xAA.toByte(), 0xBB.toByte())
+    val expected = byteArrayOf(0xAA.toByte(), 0xBB.toByte())
+    val mask = byteArrayOf(0xFF.toByte(), 0xFF.toByte())
+    assertTrue(actual.matchesMasked(expected, mask))
+  }
+
+  @Test
+  fun `matchesMasked byte mismatch`() {
+    val actual = byteArrayOf(0xAA.toByte(), 0xBB.toByte())
+    val expected = byteArrayOf(0xAA.toByte(), 0xCC.toByte())
+    val mask = byteArrayOf(0xFF.toByte(), 0xFF.toByte())
+    assertTrue(!actual.matchesMasked(expected, mask))
+  }
+
+  @Test
+  fun `matchesMasked all wildcards always matches`() {
+    val actual = byteArrayOf(0xDE.toByte(), 0xAD.toByte())
+    val expected = byteArrayOf(0x00, 0x00)
+    val mask = byteArrayOf(0x00, 0x00)
+    assertTrue(actual.matchesMasked(expected, mask))
+  }
+
+  @Test
+  fun `matchesMasked wildcard ignores differing byte`() {
+    val actual = byteArrayOf(0xFF.toByte(), 0xBB.toByte())
+    val expected = byteArrayOf(0x00, 0xBB.toByte())
+    val mask = byteArrayOf(0x00, 0xFF.toByte()) // first byte is wildcard
+    assertTrue(actual.matchesMasked(expected, mask))
+  }
+
+  @Test
+  fun `matchesMasked length mismatch is never equal`() {
+    val actual = byteArrayOf(0xAA.toByte())
+    val expected = byteArrayOf(0xAA.toByte(), 0xBB.toByte())
+    val mask = byteArrayOf(0xFF.toByte(), 0xFF.toByte())
+    assertTrue(!actual.matchesMasked(expected, mask))
   }
 }

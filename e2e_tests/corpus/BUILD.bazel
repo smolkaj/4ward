@@ -54,3 +54,131 @@ p4_stf_test(name = "gauntlet_exit_combination_23-bmv2")
 p4_stf_test(name = "gauntlet_hdr_assign_1-bmv2")
 
 p4_stf_test(name = "opassign1-bmv2")
+
+p4_stf_test(name = "gauntlet_action_return-bmv2")
+
+p4_stf_test(name = "gauntlet_arithref_cast-bmv2")
+
+p4_stf_test(name = "gauntlet_complex_initialization-bmv2")
+
+p4_stf_test(name = "gauntlet_copy_out-bmv2")
+
+p4_stf_test(name = "gauntlet_enum_assign-bmv2")
+
+p4_stf_test(name = "gauntlet_exit_after_valid-bmv2")
+
+p4_stf_test(name = "gauntlet_function_if_hdr_return-bmv2")
+
+p4_stf_test(name = "gauntlet_function_return-bmv2")
+
+p4_stf_test(name = "gauntlet_function_return_cast-bmv2")
+
+p4_stf_test(name = "gauntlet_hdr_function_cast-bmv2")
+
+p4_stf_test(name = "gauntlet_hdr_in_value-bmv2")
+
+p4_stf_test(name = "gauntlet_hdr_init-bmv2")
+
+p4_stf_test(name = "gauntlet_hdr_int_initializer-bmv2")
+
+p4_stf_test(name = "gauntlet_hdr_out_in_action-bmv2")
+
+p4_stf_test(name = "gauntlet_hdr_set_valid-bmv2")
+
+p4_stf_test(name = "gauntlet_indirect_hdr_assign_1-bmv2")
+
+p4_stf_test(name = "gauntlet_indirect_hdr_assign_2-bmv2")
+
+p4_stf_test(name = "gauntlet_instance_overwrite-bmv2")
+
+p4_stf_test(name = "gauntlet_int_casting-bmv2")
+
+p4_stf_test(name = "gauntlet_int_slice-bmv2")
+
+p4_stf_test(name = "gauntlet_invalid_hdr_assign-bmv2")
+
+p4_stf_test(name = "gauntlet_list_as_in_argument-bmv2")
+
+p4_stf_test(name = "gauntlet_mux_hdr-bmv2")
+
+p4_stf_test(name = "gauntlet_mux_typecasting-bmv2")
+
+p4_stf_test(name = "gauntlet_mux_validity-bmv2")
+
+p4_stf_test(name = "gauntlet_nested_ifs_in_function-bmv2")
+
+p4_stf_test(name = "gauntlet_nested_slice-bmv2")
+
+p4_stf_test(name = "gauntlet_nested_switch-bmv2")
+
+p4_stf_test(name = "gauntlet_nested_table_calls-bmv2")
+
+p4_stf_test(name = "gauntlet_return_truncate-bmv2")
+
+p4_stf_test(name = "gauntlet_set_valid_in_function-bmv2")
+
+p4_stf_test(name = "gauntlet_short_circuit-bmv2")
+
+p4_stf_test(name = "gauntlet_side_effect_order_1-bmv2")
+
+p4_stf_test(name = "gauntlet_side_effect_order_2-bmv2")
+
+p4_stf_test(name = "gauntlet_side_effect_order_3-bmv2")
+
+p4_stf_test(name = "gauntlet_side_effect_order_4-bmv2")
+
+p4_stf_test(name = "gauntlet_side_effect_order_5-bmv2")
+
+p4_stf_test(name = "gauntlet_side_effects_in_mux-bmv2")
+
+p4_stf_test(name = "gauntlet_switch_exclusivity-bmv2")
+
+p4_stf_test(name = "gauntlet_switch_nested_table_apply-bmv2")
+
+p4_stf_test(name = "gauntlet_switch_shadowing-bmv2")
+
+p4_stf_test(name = "gauntlet_table_call_in_expression-bmv2")
+
+p4_stf_test(name = "gauntlet_typedef_cast-bmv2")
+
+p4_stf_test(name = "gauntlet_uninitialized_bool_struct-bmv2")
+
+p4_stf_test(name = "issue2147-bmv2")
+
+p4_stf_test(name = "issue2153-bmv2")
+
+p4_stf_test(name = "issue2170-bmv2")
+
+p4_stf_test(name = "issue2176-bmv2")
+
+p4_stf_test(name = "issue2205-1-bmv2")
+
+p4_stf_test(name = "issue2205-bmv2")
+
+p4_stf_test(name = "issue2221-bmv2")
+
+p4_stf_test(name = "issue2225-bmv2")
+
+p4_stf_test(name = "issue2287-bmv2")
+
+p4_stf_test(name = "issue2343-bmv2")
+
+p4_stf_test(name = "issue2375-1-bmv2")
+
+p4_stf_test(name = "issue2375-bmv2")
+
+p4_stf_test(name = "issue2383-bmv2")
+
+p4_stf_test(name = "issue2392-bmv2")
+
+p4_stf_test(name = "issue2488-bmv2")
+
+p4_stf_test(name = "issue2498-bmv2")
+
+p4_stf_test(name = "issue2614-bmv2")
+
+p4_stf_test(name = "issue3488-bmv2")
+
+p4_stf_test(name = "issue635-bmv2")
+
+p4_stf_test(name = "issue983-bmv2")
