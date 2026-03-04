@@ -87,6 +87,8 @@ corpus_test_suite(
         "gauntlet_variable_shadowing-bmv2",
         "invalid-hdr-warnings3-bmv2",
         "issue-2123-2-bmv2",
+        "issue-2123-3-bmv2",
+        "issue1000-bmv2",
         "issue1062-1-bmv2",
         "issue2147-bmv2",
         "issue2153-bmv2",
@@ -115,6 +117,7 @@ corpus_test_suite(
         "issue510-bmv2",
         "issue635-bmv2",
         "issue983-bmv2",
+        "issue995-bmv2",
         "match-on-exprs-bmv2",
         "opassign1-bmv2",
         "parser_error-bmv2",
@@ -230,8 +233,6 @@ corpus_test_suite(
         "gauntlet_invalid_hdr_short_circuit-bmv2",  # payload mismatch
         "header-bool-bmv2",  # field access on non-aggregate value: UnitVal
         "header-stack-ops-bmv2",  # unhandled extern call: verify
-        "issue-2123-3-bmv2",  # unhandled expression kind: type
-        "issue1000-bmv2",  # unhandled expression kind: type
         "issue1049-bmv2",  # payload mismatch
         "issue1097-2-bmv2",  # unhandled method call: write (register extern)
         "issue1566-bmv2",  # integer literal without bit type
@@ -248,7 +249,6 @@ corpus_test_suite(
         "issue561-7-bmv2",  # UnitVal cannot be cast to HeaderVal
         "issue655-bmv2",  # unhandled extern call: verify_checksum
         "issue774-4-bmv2",  # undefined variable: arg
-        "issue995-bmv2",  # unhandled expression kind: type
         "opassign2-bmv2",  # field access on non-aggregate value: HeaderStackVal
         "runtime-index-2-bmv2",  # integer literal without bit type
         "runtime-index-bmv2",  # integer literal without bit type

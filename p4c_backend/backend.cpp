@@ -525,23 +525,38 @@ void FourWardBackend::emitParser(const IR::P4Parser* parser) {
       for (const auto* key : sel->select->components) {
         *selectTrans->add_keys() = emitExpr(key);
       }
+      // Helper: emit a single keyset expression into a KeysetExpr proto.
+      auto emitKeyset = [this](fourward::ir::v1::KeysetExpr* k,
+                               const IR::Expression* expr) {
+        if (expr->is<IR::DefaultExpression>()) {
+          k->set_default_case(true);
+        } else if (const auto* range = expr->to<IR::Range>()) {
+          auto* r = k->mutable_range();
+          *r->mutable_lo() = emitExpr(range->left);
+          *r->mutable_hi() = emitExpr(range->right);
+        } else if (const auto* mask = expr->to<IR::Mask>()) {
+          auto* m = k->mutable_mask();
+          *m->mutable_value() = emitExpr(mask->left);
+          *m->mutable_mask() = emitExpr(mask->right);
+        } else {
+          *k->mutable_exact() = emitExpr(expr);
+        }
+      };
+
       for (const auto* sc : sel->selectCases) {
         if (sc->keyset->is<IR::DefaultExpression>()) {
           selectTrans->set_default_state(sc->state->path->name.name.c_str());
           continue;
         }
         auto* c = selectTrans->add_cases();
-        auto* k = c->add_keysets();
-        if (const auto* range = sc->keyset->to<IR::Range>()) {
-          auto* r = k->mutable_range();
-          *r->mutable_lo() = emitExpr(range->left);
-          *r->mutable_hi() = emitExpr(range->right);
-        } else if (const auto* mask = sc->keyset->to<IR::Mask>()) {
-          auto* m = k->mutable_mask();
-          *m->mutable_value() = emitExpr(mask->left);
-          *m->mutable_mask() = emitExpr(mask->right);
+        // Multi-key selects use ListExpression; single-key selects have a
+        // scalar expression. Emit one KeysetExpr per key.
+        if (const auto* list = sc->keyset->to<IR::ListExpression>()) {
+          for (const auto* comp : list->components) {
+            emitKeyset(c->add_keysets(), comp);
+          }
         } else {
-          *k->mutable_exact() = emitExpr(sc->keyset);
+          emitKeyset(c->add_keysets(), sc->keyset);
         }
         c->set_next_state(sc->state->path->name.name.c_str());
       }
