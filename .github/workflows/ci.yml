@@ -76,18 +76,39 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Mount Bazel cache
-        uses: actions/cache@v5
+      - name: Restore Bazel cache
+        uses: actions/cache/restore@v5
         with:
           path: ~/.cache/bazel
           key: bazel-${{ matrix.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: bazel-${{ matrix.os }}-
+          restore-keys: |
+            bazel-${{ matrix.os }}-
+            ${{ matrix.os == 'ubuntu-24.04' && 'bazel-coverage-' || '' }}
 
-      - name: Build
-        run: bazel build //...
+      - name: Save start time
+        run: echo "START_TIME=$(date +%s)" >> "$GITHUB_ENV"
 
-      - name: Test
-        run: bazel test //... --test_output=errors
+      - name: Build and test
+        run: bazel test //...
+
+      - name: Calculate build duration
+        if: always()
+        run: echo "DURATION=$(( $(date +%s) - START_TIME ))" >> "$GITHUB_ENV"
+
+      # Remove the repository cache to save ~500 MB before any potential save.
+      - name: Compress cache
+        if: always()
+        run: rm -rf $(bazel info repository_cache)
+
+      # Only save cache on main (PR caches are scoped to their branch and
+      # evict the shared caches that all jobs depend on) or when the build
+      # was slow (>5 min), indicating a cache miss worth persisting.
+      - name: Save Bazel cache
+        uses: actions/cache/save@v5
+        if: always() && (github.ref_name == 'main' || env.DURATION > 300)
+        with:
+          path: ~/.cache/bazel
+          key: bazel-${{ matrix.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
 
 
   coverage:
@@ -102,18 +123,38 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Mount Bazel cache
-        uses: actions/cache@v5
+      - name: Restore Bazel cache
+        uses: actions/cache/restore@v5
         with:
           path: ~/.cache/bazel
           key: bazel-coverage-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: bazel-coverage-
+          restore-keys: |
+            bazel-coverage-
+            bazel-ubuntu-24.04-
+
+      - name: Save start time
+        run: echo "START_TIME=$(date +%s)" >> "$GITHUB_ENV"
 
       - name: Install lcov
         run: sudo apt install -y lcov
 
       - name: Run coverage
         run: ./coverage.sh --html
+
+      - name: Calculate build duration
+        if: always()
+        run: echo "DURATION=$(( $(date +%s) - START_TIME ))" >> "$GITHUB_ENV"
+
+      - name: Compress cache
+        if: always()
+        run: rm -rf $(bazel info repository_cache)
+
+      - name: Save Bazel cache
+        uses: actions/cache/save@v5
+        if: always() && (github.ref_name == 'main' || env.DURATION > 300)
+        with:
+          path: ~/.cache/bazel
+          key: bazel-coverage-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
 
       - name: Publish HTML report to GitHub Pages
         run: |
