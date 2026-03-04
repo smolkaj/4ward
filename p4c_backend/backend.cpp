@@ -568,18 +568,32 @@ void FourWardBackend::emitTable(const IR::P4Table* table) {
   const std::string tableName = table->name.originalName.c_str();
 
   // Look up the p4info table by qualified name to retrieve match field IDs.
-  // The qualified name is "controlName.tableName" (e.g.
-  // "MyIngress.port_table").
-  const std::string qualifiedName = controlName_ + "." + tableName;
+  // Try multiple strategies: (1) controlName.originalName for simple tables,
+  // (2) externalName() for tables from inlined sub-controls (where p4info uses
+  // dot-separated hierarchy like "ingress.c.t" but originalName has underscores
+  // like "c_t").
   const p4::config::v1::Table* p4Table = nullptr;
-  for (const auto& t : pipelineConfig_.p4info().tables()) {
-    if (t.preamble().name() == qualifiedName) {
-      p4Table = &t;
-      break;
+  {
+    std::string candidates[] = {
+        controlName_ + "." + tableName,
+        std::string(table->externalName().c_str()),
+    };
+    // externalName() may have a leading dot for fully-qualified names.
+    for (auto& c : candidates) {
+      if (!c.empty() && c[0] == '.') c = c.substr(1);
+    }
+    for (const auto& t : pipelineConfig_.p4info().tables()) {
+      for (const auto& c : candidates) {
+        if (t.preamble().name() == c) {
+          p4Table = &t;
+          break;
+        }
+      }
+      if (p4Table) break;
     }
   }
   if (!p4Table) {
-    LOG1("WARNING: no p4info table found for " << qualifiedName
+    LOG1("WARNING: no p4info table found for " << tableName
                                                << "; skipping emitTable");
     return;
   }
