@@ -39,9 +39,10 @@ branch — delivered as a structured trace you can actually read.
 | P4Runtime | sure | sure | **yep** |
 | Simple, readable codebase | ehh | ehh | **yes!** |
 
-4ward optimises for **correctness and observability**, not performance. It's a
-development and testing tool — think of it as a debugger that speaks P4, not a
-production data plane.
+4ward is a **spec-compliant reference implementation** of the
+[P4₁₆ language](https://p4.org/wp-content/uploads/sites/53/2024/10/P4-16-spec-v1.2.5.html),
+optimised for **correctness and observability** rather than performance. Think of
+it as a debugger that speaks P4, not a production data plane.
 
 ## Quick start
 

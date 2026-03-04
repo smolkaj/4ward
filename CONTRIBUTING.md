@@ -67,7 +67,13 @@ We follow the Google style guides and let the formatters handle the details:
 simulator, so treat field numbers like promises: never remove or renumber them.
 Add new fields instead.
 
-## On performance
+## On correctness
+
+4ward is a spec-compliant reference implementation: it should behave exactly as
+the [P4₁₆ spec](https://p4.org/wp-content/uploads/sites/53/2024/10/P4-16-spec-v1.2.5.html)
+describes. When you're unsure about a language detail, check the spec. If the
+spec is ambiguous, follow p4c's behaviour and document the ambiguity in a
+comment citing the relevant section.
 
 4ward is proudly not fast. It's correct, it's observable, and it's readable.
 Please don't send PRs that trade any of those for speed — if you want a fast P4
