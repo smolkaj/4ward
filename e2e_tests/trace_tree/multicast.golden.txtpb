@@ -1,0 +1,31 @@
+# Expected trace tree for multicast: fork per replica.
+# Parser + ingress events are shared; the tree forks when the architecture
+# dispatches the packet to each replica in the multicast group.
+events {
+  parser_transition {
+    parser_name: "MyParser"
+    from_state: "start"
+    to_state: "accept"
+  }
+}
+fork {
+  reason: MULTICAST
+  branches {
+    label: "replica_0_port_1"
+    subtree {
+      # Replica 0 enters egress on port 1.
+    }
+  }
+  branches {
+    label: "replica_0_port_2"
+    subtree {
+      # Replica 0 enters egress on port 2.
+    }
+  }
+  branches {
+    label: "replica_0_port_3"
+    subtree {
+      # Replica 0 enters egress on port 3.
+    }
+  }
+}

@@ -1,0 +1,5 @@
+# multicast.stf — multicast group with 3 replicas.
+# Multicast group configuration will be installed via P4Runtime
+# once the simulator supports multicast groups.
+
+packet 0 FFFFFFFFFFFF 000000000001 0800

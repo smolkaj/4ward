@@ -1,0 +1,6 @@
+# no_fork.stf — send one packet, expect it on port 1 via table entry.
+
+add routing hdr.ethernet.dstAddr:0xFFFFFFFFFFFF forward(1)
+
+packet 0 FFFFFFFFFFFF 000000000001 0800
+expect 1 FFFFFFFFFFFF 000000000001 0800

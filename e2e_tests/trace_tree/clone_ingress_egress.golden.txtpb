@@ -1,0 +1,30 @@
+# Expected trace tree for clone_ingress_egress: fork at clone3 point.
+# Parser events are shared; after clone3, the tree forks into "original"
+# and "clone" branches.
+events {
+  parser_transition {
+    parser_name: "MyParser"
+    from_state: "start"
+    to_state: "accept"
+  }
+}
+events {
+  clone {
+    session_id: 100
+  }
+}
+fork {
+  reason: CLONE
+  branches {
+    label: "original"
+    subtree {
+      # Original packet continues to egress on port 1.
+    }
+  }
+  branches {
+    label: "clone"
+    subtree {
+      # Cloned packet enters the egress pipeline.
+    }
+  }
+}

@@ -1,0 +1,3 @@
+# clone_ingress_egress.stf — clone3 from ingress to egress.
+
+packet 0 FFFFFFFFFFFF 000000000001 0800

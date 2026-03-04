@@ -1,0 +1,22 @@
+# Expected trace tree for no_fork: zero-fork tree (no ForkNode).
+# Parser transition + table hit + action execution — nothing else.
+events {
+  parser_transition {
+    parser_name: "MyParser"
+    from_state: "start"
+    to_state: "accept"
+  }
+}
+events {
+  table_lookup {
+    table_name: "MyIngress.routing"
+    hit: true
+    action_name: "MyIngress.forward"
+  }
+}
+events {
+  action_execution {
+    action_name: "MyIngress.forward"
+    params { key: "port" value: "\000\001" }
+  }
+}

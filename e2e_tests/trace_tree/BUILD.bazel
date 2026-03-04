@@ -1,0 +1,51 @@
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
+
+# =============================================================================
+# Trace tree golden tests (Track 3)
+#
+# Each test compiles a P4 program, sends a packet, and compares the resulting
+# TraceTree against a golden .txtpb file.  All tests are expected to fail
+# until the corresponding feature is implemented.  They are tagged "manual"
+# so they don't break CI.
+# =============================================================================
+
+_P4_PROGRAMS = [
+    "no_fork",
+    "action_selector_3",
+    "action_selector_miss",
+    "action_selector_nested",
+    "clone_ingress_egress",
+    "clone_plus_selector",
+    "multicast",
+]
+
+[genrule(
+    name = "%s_pb" % name,
+    srcs = ["%s.p4" % name],
+    outs = ["%s.txtpb" % name],
+    cmd = "$(execpath //p4c_backend:p4c-4ward) -I $$(dirname $(execpath @p4c//:core_p4)) -o $@ $(SRCS)",
+    tools = [
+        "//p4c_backend:p4c-4ward",
+        "@p4c//:core_p4",
+        "@p4c//:p4include",
+    ],
+) for name in _P4_PROGRAMS]
+
+kt_jvm_test(
+    name = "golden_trace_tree_test",
+    srcs = ["GoldenTraceTreeTest.kt"],
+    data = ["%s.stf" % n for n in _P4_PROGRAMS] +
+           ["%s.golden.txtpb" % n for n in _P4_PROGRAMS] +
+           [":%s_pb" % n for n in _P4_PROGRAMS] +
+           ["//simulator"],
+    tags = ["manual"],
+    test_class = "fourward.e2e.tracetree.GoldenTraceTreeTest",
+    deps = [
+        "//e2e_tests/stf:stf_runner",
+        "//simulator:ir_java_proto",
+        "//simulator:p4runtime_java_proto",
+        "//simulator:simulator_java_proto",
+        "@maven//:com_google_protobuf_protobuf_java",
+        "@maven//:junit_junit",
+    ],
+)

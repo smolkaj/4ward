@@ -1,7 +1,7 @@
 package fourward.simulator
 
-import fourward.sim.v1.Trace
 import fourward.sim.v1.TraceEvent
+import fourward.sim.v1.TraceTree
 import java.io.ByteArrayOutputStream
 
 /**
@@ -101,7 +101,7 @@ class PacketContext(payload: ByteArray) {
     traceEvents.add(event)
   }
 
-  fun buildTrace(): Trace = Trace.newBuilder().addAllEvents(traceEvents).build()
+  fun buildTrace(): TraceTree = TraceTree.newBuilder().addAllEvents(traceEvents).build()
 }
 
 /**

@@ -65,10 +65,15 @@ message ProcessPacketRequest {
 }
 
 // The primary output of the simulator: output packets (what a real device would
-// emit) plus a complete execution trace (what 4ward uniquely provides).
+// emit) plus a complete execution trace tree (what 4ward uniquely provides).
+//
+// At non-deterministic choice points (action selectors, clone, multicast) the
+// tree forks into branches — one per possible outcome.  A program with no
+// non-determinism produces a zero-fork tree that is structurally equivalent to
+// a flat trace.
 message ProcessPacketResponse {
   repeated OutputPacket output_packets = 1;
-  Trace trace = 2;
+  TraceTree trace = 2;
 }
 
 message OutputPacket {
@@ -77,14 +82,43 @@ message OutputPacket {
 }
 
 // =============================================================================
-// Execution trace
+// Execution trace tree
 //
 // A complete record of every decision the simulator made while processing a
-// packet. Events are ordered chronologically.
+// packet.  Events within a node are ordered chronologically.  At
+// non-deterministic choice points the tree forks: each branch represents one
+// possible outcome and contains its own subtree of events.
+//
+// A zero-fork tree (fork absent) is structurally equivalent to a flat trace.
 // =============================================================================
 
-message Trace {
+// Recursive trace structure: a sequence of events followed by an optional fork.
+// Shared prefix events (e.g. the parser trace before a selector fork) live in
+// the parent node; per-branch events live in the fork's subtrees.
+message TraceTree {
   repeated TraceEvent events = 1;
+  ForkNode fork = 2;  // absent when there is no non-determinism
+}
+
+// A non-deterministic choice point where execution forks into multiple
+// possible paths.
+message ForkNode {
+  ForkReason reason = 1;
+  repeated ForkBranch branches = 2;
+}
+
+// One branch of a fork.  The label describes this particular outcome (e.g. the
+// action selector member name or "clone"/"original").
+message ForkBranch {
+  string label = 1;
+  TraceTree subtree = 2;
+}
+
+enum ForkReason {
+  FORK_REASON_UNSPECIFIED = 0;
+  ACTION_SELECTOR = 1;
+  CLONE = 2;
+  MULTICAST = 3;
 }
 
 message TraceEvent {
