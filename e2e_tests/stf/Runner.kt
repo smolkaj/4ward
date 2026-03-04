@@ -237,20 +237,7 @@ fun runStfTest(testName: String, pkg: String = "e2e_tests/$testName"): TestResul
   )
 }
 
-/**
- * Derives the test name and package from Bazel's `TEST_TARGET` env var and runs the STF test.
- *
- * Used by per-test `kt_jvm_test` targets (e.g. p4testgen tests) where each test target corresponds
- * to exactly one STF file.
- */
-fun runStfTestFromEnv(): TestResult {
-  val target = System.getenv("TEST_TARGET") ?: error("TEST_TARGET not set")
-  val pkg = target.removePrefix("//").substringBefore(":")
-  val testName = target.substringAfterLast(":").removeSuffix("_test")
-  return runStfTest(testName, pkg)
-}
-
-private fun runStf(runfiles: String, configPath: Path, stfPath: Path): TestResult =
+fun runStf(runfiles: String, configPath: Path, stfPath: Path): TestResult =
   StfRunner(Paths.get(runfiles, "_main/simulator/simulator"), configPath).run(stfPath)
 
 /** A parsed .stf file. */

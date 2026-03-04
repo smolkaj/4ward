@@ -13,16 +13,6 @@ kt_jvm_library(
     ],
 )
 
-kt_jvm_library(
-    name = "stf_test_class",
-    srcs = ["StfTest.kt"],
-    visibility = ["//e2e_tests:__subpackages__"],
-    deps = [
-        ":stf_runner",
-        "@maven//:junit_junit",
-    ],
-)
-
 kt_jvm_test(
     name = "StfParserTest",
     srcs = ["StfParserTest.kt"],
