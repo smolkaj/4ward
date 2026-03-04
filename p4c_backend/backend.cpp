@@ -326,22 +326,69 @@ fourward::ir::v1::Stmt FourWardBackend::emitStmt(const IR::StatOrDecl* node) {
       *i->mutable_else_block() = emitBranch(ifst->ifFalse);
     }
   } else if (const auto* sw = node->to<IR::SwitchStatement>()) {
-    auto* s = out.mutable_switch_stmt();
-    *s->mutable_subject() = emitExpr(sw->expression);
+    // Detect value-based vs action_run switches: if any non-default case label
+    // is not a PathExpression, this is a value switch on a scalar expression.
+    bool isValueSwitch = false;
     for (const auto* c : sw->cases) {
-      if (c->label->is<IR::DefaultExpression>()) {
-        if (const auto* b = c->statement->to<IR::BlockStatement>()) {
-          *s->mutable_default_block() = emitBlock(b);
-        }
-      } else {
-        auto* sc = s->add_cases();
-        if (const auto* pe = c->label->to<IR::PathExpression>()) {
-          // Use the original (pre-rename) action name to match p4info aliases.
-          sc->set_action_name(pe->path->name.originalName.c_str());
-        }
+      if (!c->label->is<IR::DefaultExpression>() &&
+          !c->label->is<IR::PathExpression>()) {
+        isValueSwitch = true;
+        break;
+      }
+    }
+
+    if (isValueSwitch) {
+      // Emit value-based switch as an if-else chain:
+      //   if (subject == case1) { ... } else if (subject == case2) { ... } else { default }
+      fourward::ir::v1::Stmt* cursor = &out;
+      for (const auto* c : sw->cases) {
+        if (c->label->is<IR::DefaultExpression>()) continue;
+        auto* ifStmt = cursor->mutable_if_stmt();
+        // condition: subject == case_value
+        auto* cond = ifStmt->mutable_condition()->mutable_binary_op();
+        cond->set_op(fourward::ir::v1::BinaryOperator::EQ);
+        *cond->mutable_left() = emitExpr(sw->expression);
+        *cond->mutable_right() = emitExpr(c->label);
         if (c->statement) {
           if (const auto* b = c->statement->to<IR::BlockStatement>()) {
-            *sc->mutable_block() = emitBlock(b);
+            *ifStmt->mutable_then_block() = emitBlock(b);
+          }
+        }
+        // Chain: set cursor to the else branch for the next case.
+        cursor = ifStmt->mutable_else_block()->add_stmts();
+      }
+      // Emit default case as the final else block.
+      for (const auto* c : sw->cases) {
+        if (c->label->is<IR::DefaultExpression>() && c->statement) {
+          if (const auto* b = c->statement->to<IR::BlockStatement>()) {
+            // cursor points to an empty stmt in the last else block; replace
+            // the surrounding block with the default's statements.
+            auto* parent = cursor->mutable_block();
+            for (const auto* s : b->components) {
+              *parent->add_stmts() = emitStmt(s);
+            }
+          }
+        }
+      }
+    } else {
+      // Action_run switch on a table apply result.
+      auto* s = out.mutable_switch_stmt();
+      *s->mutable_subject() = emitExpr(sw->expression);
+      for (const auto* c : sw->cases) {
+        if (c->label->is<IR::DefaultExpression>()) {
+          if (const auto* b = c->statement->to<IR::BlockStatement>()) {
+            *s->mutable_default_block() = emitBlock(b);
+          }
+        } else {
+          auto* sc = s->add_cases();
+          if (const auto* pe = c->label->to<IR::PathExpression>()) {
+            // Use the original (pre-rename) action name to match p4info aliases.
+            sc->set_action_name(pe->path->name.originalName.c_str());
+          }
+          if (c->statement) {
+            if (const auto* b = c->statement->to<IR::BlockStatement>()) {
+              *sc->mutable_block() = emitBlock(b);
+            }
           }
         }
       }

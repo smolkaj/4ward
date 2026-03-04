@@ -85,6 +85,7 @@ corpus_test_suite(
         "gauntlet_typedef_cast-bmv2",
         "gauntlet_uninitialized_bool_struct-bmv2",
         "gauntlet_variable_shadowing-bmv2",
+        "invalid-hdr-warnings3-bmv2",
         "issue-2123-2-bmv2",
         "issue2147-bmv2",
         "issue2153-bmv2",
@@ -225,7 +226,6 @@ corpus_test_suite(
         "gauntlet_invalid_hdr_short_circuit-bmv2",  # payload mismatch
         "header-bool-bmv2",  # field access on non-aggregate value: UnitVal
         "header-stack-ops-bmv2",  # unhandled extern call: verify
-        "invalid-hdr-warnings3-bmv2",  # unknown table: (empty name)
         "issue-2123-3-bmv2",  # unhandled expression kind: type
         "issue1000-bmv2",  # unhandled expression kind: type
         "issue1049-bmv2",  # payload mismatch
