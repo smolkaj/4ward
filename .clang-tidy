@@ -29,16 +29,6 @@ WarningsAsErrors: "*"
 # p4c and other third-party headers pulled in via @p4c//.
 HeaderFilterRegex: "^p4c_backend/.*"
 
-# On Linux the C standard headers in /usr/include may not be on the search
-# path inside Bazel's sandbox.  We use -idirafter (not -isystem) to place
-# /usr/include at the very end of the include search path, ensuring it
-# comes AFTER the C++ headers (e.g. /usr/include/c++/14).  This is critical
-# for #include_next from C++ wrappers (cstdlib → stdlib.h) and avoids
-# -isystem path deduplication issues.
-# Harmless on macOS where /usr/include doesn't exist.
-ExtraArgs:
-  - '-idirafter/usr/include'
-
 CheckOptions:
   # Naming conventions.  The p4c backend is a p4c plugin and inherits p4c's
   # camelBack naming for functions, variables, and members.  Namespaces follow

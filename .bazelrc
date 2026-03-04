@@ -29,6 +29,13 @@ test --test_output=errors
 build:clang-tidy --aspects @bazel_clang_tidy//clang_tidy:clang_tidy.bzl%clang_tidy_aspect
 build:clang-tidy --output_groups=report
 build:clang-tidy --@bazel_clang_tidy//:clang_tidy_config=//:clang_tidy_config
+# On Linux, clang-tidy inside Bazel's sandbox may not find /usr/include for C
+# standard headers.  -idirafter places the directory at the very end of the
+# search path (after C++ headers like /usr/include/c++/14), which is required
+# for #include_next from C++ wrappers (cstdlib → stdlib.h) to resolve
+# correctly.  Harmless on macOS where /usr/include doesn't exist.
+build:clang-tidy --cxxopt=-idirafter/usr/include
+build:clang-tidy --host_cxxopt=-idirafter/usr/include
 
 # Coverage: instrument the simulator library. Run via `bazel coverage //...`.
 coverage --combined_report=lcov
