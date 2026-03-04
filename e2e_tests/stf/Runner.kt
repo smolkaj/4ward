@@ -68,8 +68,13 @@ class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPat
         }
       }
 
-      // Send packets and check outputs.
+      // Send all packets and collect outputs into a FIFO queue, matching
+      // BMv2's STF semantics where expects are checked against the global
+      // output order (not tied to individual input packets).
       val failures = mutableListOf<String>()
+      data class Output(val port: Int, val payload: ByteArray)
+      val outputQueue = mutableListOf<Output>()
+
       for (packet in stf.packets) {
         sendRequest(
           output,
@@ -86,17 +91,23 @@ class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPat
           failures += "ProcessPacket failed: ${resp.error.message}"
           continue
         }
-        val result = resp.processPacket
+        for (pkt in resp.processPacket.outputPacketsList) {
+          outputQueue += Output(pkt.egressPort, pkt.payload.toByteArray())
+        }
+      }
 
-        for (expected in packet.expectedOutputs) {
-          val actual = result.outputPacketsList.find { it.egressPort == expected.port }
-          when {
-            actual == null -> failures += "expected packet on port ${expected.port} but got none"
-            !actual.payload.toByteArray().matchesMasked(expected.payload, expected.mask) ->
-              failures +=
-                "port ${expected.port}: payload mismatch\n" +
-                  "  expected: ${expected.payload.hex(expected.mask)}\n" +
-                  "  actual:   ${actual.payload.toByteArray().hex()}"
+      // Match expects against the output queue in order.
+      for (expected in stf.expects) {
+        val idx = outputQueue.indexOfFirst { it.port == expected.port }
+        if (idx < 0) {
+          failures += "expected packet on port ${expected.port} but got none"
+        } else {
+          val actual = outputQueue.removeAt(idx)
+          if (!actual.payload.matchesMasked(expected.payload, expected.mask)) {
+            failures +=
+              "port ${expected.port}: payload mismatch\n" +
+                "  expected: ${expected.payload.hex(expected.mask)}\n" +
+                "  actual:   ${actual.payload.hex()}"
           }
         }
       }
@@ -241,7 +252,11 @@ fun runStf(runfiles: String, configPath: Path, stfPath: Path): TestResult =
   StfRunner(Paths.get(runfiles, "_main/simulator/simulator"), configPath).run(stfPath)
 
 /** A parsed .stf file. */
-data class StfFile(val tableEntries: List<StfTableDirective>, val packets: List<StfPacket>) {
+data class StfFile(
+  val tableEntries: List<StfTableDirective>,
+  val packets: List<StfPacket>,
+  val expects: List<StfExpectedOutput>,
+) {
   companion object {
     /**
      * Parses an STF file. Supported directives:
@@ -261,21 +276,15 @@ data class StfFile(val tableEntries: List<StfTableDirective>, val packets: List<
 
       val tableEntries = mutableListOf<StfTableDirective>()
       val packets = mutableListOf<StfPacket>()
-      var current: StfPacket? = null
-
-      fun flushPacket() {
-        current?.let { packets += it }
-        current = null
-      }
+      val expects = mutableListOf<StfExpectedOutput>()
 
       for (line in lines) {
         val tokens = line.split(Regex("\\s+"))
         when (tokens[0].lowercase()) {
           "packet" -> {
-            flushPacket()
             val port = tokens[1].toInt()
             val payload = tokens.drop(2).joinToString("").decodeHex()
-            current = StfPacket(port, payload, mutableListOf())
+            packets += StfPacket(port, payload)
           }
           "expect" -> {
             val port = tokens[1].toInt()
@@ -283,21 +292,14 @@ data class StfFile(val tableEntries: List<StfTableDirective>, val packets: List<
             // comparison, so strip it. It can appear standalone or appended to the last byte.
             val hexStr = tokens.drop(2).joinToString("").replace("$", "")
             val (payload, mask) = decodeExpect(hexStr)
-            current?.expectedOutputs?.add(StfExpectedOutput(port, payload, mask))
+            expects += StfExpectedOutput(port, payload, mask)
           }
-          "add" -> {
-            flushPacket()
-            tableEntries += parseAdd(tokens.drop(1))
-          }
-          "setdefault" -> {
-            flushPacket()
-            tableEntries += parseSetDefault(tokens.drop(1))
-          }
+          "add" -> tableEntries += parseAdd(tokens.drop(1))
+          "setdefault" -> tableEntries += parseSetDefault(tokens.drop(1))
         }
       }
-      flushPacket()
 
-      return StfFile(tableEntries, packets)
+      return StfFile(tableEntries, packets, expects)
     }
 
     /**
@@ -440,7 +442,6 @@ fun encodeValue(raw: String, bitwidth: Int): ByteString {
 data class StfPacket(
   val ingressPort: Int,
   val payload: ByteArray,
-  val expectedOutputs: MutableList<StfExpectedOutput>,
 )
 
 class StfExpectedOutput(val port: Int, val payload: ByteArray, val mask: ByteArray)
