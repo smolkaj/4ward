@@ -16,6 +16,7 @@
 
 #include "p4c_backend/backend.h"
 
+#include <array>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -658,7 +659,7 @@ void FourWardBackend::emitTable(const IR::P4Table* table) {
   // like "c_t").
   const p4::config::v1::Table* p4Table = nullptr;
   {
-    std::string candidates[] = {
+    std::array<std::string, 2> candidates = {
         controlName_ + "." + tableName,
         std::string(table->externalName().c_str()),
     };
