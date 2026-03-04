@@ -200,5 +200,6 @@ corpus_test_suite(
     tests = [
         "bvec-hdr-bmv2",
         "checksum2-bmv2",
+        "checksum3-bmv2",
     ],
 )
