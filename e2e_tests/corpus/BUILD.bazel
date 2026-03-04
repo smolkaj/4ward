@@ -212,5 +212,6 @@ corpus_test_suite(
         "gauntlet_index_7-bmv2",
         "gauntlet_index_8-bmv2",
         "gauntlet_index_9-bmv2",
+        "gauntlet_invalid_hdr_short_circuit-bmv2",
     ],
 )
