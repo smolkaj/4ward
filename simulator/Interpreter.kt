@@ -336,13 +336,31 @@ class Interpreter(
       }
       cast.targetType.hasSignedInt() -> {
         val targetWidth = cast.targetType.signedInt.width
-        val sourceBits =
-          when (inner) {
-            is BitVal -> inner.bits.value
-            is InfIntVal -> inner.value
-            else -> error("cannot cast $inner to int<$targetWidth>")
+        when (inner) {
+          // int<N> → int<M>: preserve the signed value (sign-extends or truncates).
+          is IntVal -> {
+            val truncated =
+              SignedBitVector.fromUnsignedBits(
+                inner.bits.value.mod(java.math.BigInteger.TWO.pow(targetWidth)),
+                targetWidth,
+              )
+            // If widening, sign-extend by using the original signed value directly.
+            if (targetWidth >= inner.bits.width) {
+              IntVal(SignedBitVector(inner.bits.value, targetWidth))
+            } else {
+              IntVal(truncated)
+            }
           }
-        IntVal(SignedBitVector.fromUnsignedBits(sourceBits, targetWidth))
+          else -> {
+            val sourceBits =
+              when (inner) {
+                is BitVal -> inner.bits.value
+                is InfIntVal -> inner.value
+                else -> error("cannot cast $inner to int<$targetWidth>")
+              }
+            IntVal(SignedBitVector.fromUnsignedBits(sourceBits, targetWidth))
+          }
+        }
       }
       cast.targetType.boolean -> {
         val v =
@@ -360,6 +378,77 @@ class Interpreter(
   private fun evalBinaryOp(op: fourward.ir.v1.BinaryOp, env: Environment): Value {
     // P4 spec §8.1: compile-time integers adopt the width of the other operand.
     val (left, right) = coerceInfInts(evalExpr(op.left, env), evalExpr(op.right, env))
+
+    // P4 spec §8.5: shift amount is always unsigned, so left may be IntVal while right is BitVal.
+    // SHR on int<N> is arithmetic (sign-extending); SHL is logical.
+    if (left is IntVal && (op.op == BinaryOperator.SHL || op.op == BinaryOperator.SHR)) {
+      val amount = intValue(right)
+      return if (op.op == BinaryOperator.SHL) {
+        val shifted = left.bits.toUnsigned().shl(amount)
+        IntVal(SignedBitVector.fromUnsignedBits(shifted.value, left.bits.width))
+      } else {
+        // Arithmetic right shift: shift the signed value, then re-wrap.
+        val shifted = left.bits.value.shiftRight(amount)
+        IntVal(SignedBitVector(shifted, left.bits.width))
+      }
+    }
+
+    // int<N> operands: use signed comparison for relational ops, unsigned bits for arithmetic.
+    if (left is IntVal && right is IntVal) {
+      return when (op.op) {
+        BinaryOperator.ADD ->
+          IntVal(
+            SignedBitVector.fromUnsignedBits(
+              (left.bits.toUnsigned() + right.bits.toUnsigned()).value,
+              left.bits.width,
+            )
+          )
+        BinaryOperator.SUB ->
+          IntVal(
+            SignedBitVector.fromUnsignedBits(
+              (left.bits.toUnsigned() - right.bits.toUnsigned()).value,
+              left.bits.width,
+            )
+          )
+        BinaryOperator.MUL ->
+          IntVal(
+            SignedBitVector.fromUnsignedBits(
+              (left.bits.toUnsigned() * right.bits.toUnsigned()).value,
+              left.bits.width,
+            )
+          )
+        BinaryOperator.EQ -> BoolVal(left.bits.value == right.bits.value)
+        BinaryOperator.NEQ -> BoolVal(left.bits.value != right.bits.value)
+        // P4 spec §8.5: relational operators on int<N> use signed comparison.
+        BinaryOperator.LT -> BoolVal(left.bits.value < right.bits.value)
+        BinaryOperator.GT -> BoolVal(left.bits.value > right.bits.value)
+        BinaryOperator.LE -> BoolVal(left.bits.value <= right.bits.value)
+        BinaryOperator.GE -> BoolVal(left.bits.value >= right.bits.value)
+        BinaryOperator.BIT_AND ->
+          IntVal(
+            SignedBitVector.fromUnsignedBits(
+              (left.bits.toUnsigned() and right.bits.toUnsigned()).value,
+              left.bits.width,
+            )
+          )
+        BinaryOperator.BIT_OR ->
+          IntVal(
+            SignedBitVector.fromUnsignedBits(
+              (left.bits.toUnsigned() or right.bits.toUnsigned()).value,
+              left.bits.width,
+            )
+          )
+        BinaryOperator.BIT_XOR ->
+          IntVal(
+            SignedBitVector.fromUnsignedBits(
+              (left.bits.toUnsigned() xor right.bits.toUnsigned()).value,
+              left.bits.width,
+            )
+          )
+        else -> error("unhandled binary operator on int<N>: ${op.op}")
+      }
+    }
+
     return when (op.op) {
       BinaryOperator.ADD -> BitVal((left as BitVal).bits + (right as BitVal).bits)
       BinaryOperator.SUB -> BitVal((left as BitVal).bits - (right as BitVal).bits)
@@ -385,10 +474,11 @@ class Interpreter(
     }
   }
 
-  /** Extract a small integer from a [BitVal] or [InfIntVal]. */
+  /** Extract a small integer from a [BitVal], [IntVal], or [InfIntVal]. */
   private fun intValue(v: Value): Int =
     when (v) {
       is BitVal -> v.bits.value.toInt()
+      is IntVal -> v.bits.value.toInt()
       is InfIntVal -> v.value.toInt()
       else -> error("expected integer value: $v")
     }
@@ -398,6 +488,21 @@ class Interpreter(
     when {
       left is InfIntVal && right is BitVal -> left.toBitVal(right.bits.width) to right
       right is InfIntVal && left is BitVal -> left to right.toBitVal((left as BitVal).bits.width)
+      left is InfIntVal && right is IntVal ->
+        IntVal(
+          SignedBitVector.fromUnsignedBits(
+            left.value.mod(java.math.BigInteger.TWO.pow(right.bits.width)),
+            right.bits.width,
+          )
+        ) to right
+      right is InfIntVal && left is IntVal ->
+        left to
+          IntVal(
+            SignedBitVector.fromUnsignedBits(
+              right.value.mod(java.math.BigInteger.TWO.pow(left.bits.width)),
+              left.bits.width,
+            )
+          )
       else -> left to right
     }
 
