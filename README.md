@@ -35,6 +35,7 @@ branch — delivered as a structured trace you can actually read.
 |---|---|---|---|
 | Runs P4 programs | sure | sure | **yep** |
 | Execution trace | text | nope | **proto/JSON** |
+| All possible traces | nope | nope | **trace trees!** |
 | Architecture-generic | nope | nope | **yes!** |
 | P4Runtime | sure | sure | **yep** |
 | Simple, readable codebase | ehh | ehh | **yes!** |
@@ -88,6 +89,35 @@ Given a simple IPv4 forwarding program, 4ward produces traces like this:
 ```
 
 No printf debugging. No Wireshark. No guessing. Just the trace.
+
+## Not just one trace — all of them
+
+P4 programs have non-deterministic choice points. Action selectors pick a group
+member based on an opaque hash. Action profiles let the controller choose
+between multiple actions. Multicast replicates packets to different ports.
+
+Other tools pick one path and show you what happened. 4ward will show you what
+*could* happen — all possible executions, returned as a **trace tree**:
+
+```
+                    ┌─ parse ─ table lookup ─┐
+                    │                        │
+         packet ────┤       (shared prefix)  ├─── action_selector ─┐
+                    │                        │                     │
+                    └────────────────────────┘        ┌────────────┼────────────┐
+                                                      │            │            │
+                                                  member_0     member_1     member_2
+                                                      │            │            │
+                                                   trace …     trace …     trace …
+```
+
+Since execution paths share a common prefix, the tree is compact — shared work
+is represented once, and each fork node is labeled with the choice being made.
+A flag like `--nondeterministic-selectors` tells the simulator to fork at every
+action selector; P4 annotations give fine-grained per-selector control.
+
+This is 4ward's killer feature: the tool you reach for when you need to
+understand not just what your program *did*, but everything it *can* do.
 
 ## Project structure
 

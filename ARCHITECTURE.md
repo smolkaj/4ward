@@ -133,6 +133,40 @@ We also have:
 - **BMv2 diff testing** (maybe, someday): run the same inputs through BMv2 and
   4ward and compare outputs.
 
+## Trace trees (future)
+
+Today, 4ward returns a single execution trace per packet — a linear sequence of
+events. But P4 programs can have non-deterministic choice points, most notably
+**action selectors** where the selected group member depends on a hash that is
+opaque to the programmer. Other sources include action profiles, packet
+replication (clone, multicast), and random externs.
+
+The key insight: even when these choices are technically deterministic (governed
+by a hash algorithm or controller configuration), it's often more useful to
+reason about them as non-deterministic — "what *could* happen to my packet?"
+rather than "what happens with this specific hash seed?"
+
+4ward will support a mode where, instead of picking one path, the simulator
+forks at every non-deterministic choice point and returns a **trace tree**: a
+tree of events where each fork node is labeled with the choice being made, and
+the subtrees represent the possible continuations. Since execution paths share
+a common prefix (parsing and early pipeline stages are typically deterministic),
+the tree is much more compact than a flat list of traces.
+
+**Control mechanisms:**
+
+- A simulator flag (e.g. `--nondeterministic-selectors`) to treat all action
+  selectors as non-deterministic — fork at every selector instead of evaluating
+  the hash.
+- P4 annotations for fine-grained control: mark specific selectors as
+  non-deterministic (or deterministic) regardless of the global flag.
+
+**Why this matters:**
+
+No other P4 tool gives you this. BMv2 picks one path. Hardware picks one path.
+4ward can show you *all* paths — making it a powerful tool for testing,
+verification, and understanding complex P4 programs.
+
 ## P4Runtime (future)
 
 Not yet! We're deliberately building the simulator first and getting it solid
