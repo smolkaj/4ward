@@ -571,7 +571,16 @@ class Interpreter(
 
   private fun execExtract(call: MethodCall, env: Environment): Value {
     // packet_in.extract(hdr.field): the header to extract into is args[0], not the target.
-    val header = evalExpr(call.argsList[0], env) as HeaderVal
+    // P4's don't-care extract `p.extract<T>(_)` compiles to extract(arg) where
+    // `arg` is an undeclared temporary. Create a throw-away header to consume bytes.
+    val arg = call.argsList[0]
+    val header =
+      if (arg.hasNameRef() && env.lookup(arg.nameRef.name) == null && arg.type.hasNamed()) {
+        defaultValue(arg.type.named, types) as? HeaderVal
+          ?: error("type not found for don't-care extract: ${arg.type.named}")
+      } else {
+        evalExpr(arg, env) as HeaderVal
+      }
     val headerDecl = (types[header.typeName] ?: error("type not found: ${header.typeName}")).header
 
     // The 2-argument form b.extract(hdr, varbitBits) is used when the header contains a varbit

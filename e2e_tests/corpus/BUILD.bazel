@@ -128,6 +128,7 @@ corpus_test_suite(
         "issue561-1-bmv2",
         "issue561-2-bmv2",
         "issue635-bmv2",
+        "issue774-4-bmv2",
         "issue983-bmv2",
         "issue995-bmv2",
         "match-on-exprs-bmv2",
@@ -238,7 +239,7 @@ corpus_test_suite(
         "header-stack-ops-bmv2",  # unhandled extern call: verify
         "issue1049-bmv2",  # payload mismatch
         "issue1097-2-bmv2",  # unhandled method call: write (register extern)
-        "issue1566-bmv2",  # integer literal without bit type
+        "issue1566-bmv2",  # unhandled method call: count (counter extern)
         "issue1814-1-bmv2",  # unhandled method call: read (register extern)
         "issue1824-bmv2",  # unhandled extern call: verify
         "issue1879-bmv2",  # undefined variable: inf_0 (inlined function locals)
@@ -249,7 +250,6 @@ corpus_test_suite(
         "issue561-6-bmv2",  # header stack of unions (StructVal as stack element)
         "issue561-7-bmv2",  # header stack of unions (StructVal as stack element)
         "issue655-bmv2",  # unhandled extern call: verify_checksum
-        "issue774-4-bmv2",  # undefined variable: arg
         "runtime-index-2-bmv2",  # integer literal without bit type
         "runtime-index-bmv2",  # integer literal without bit type
         "saturated-bmv2",  # payload mismatch
