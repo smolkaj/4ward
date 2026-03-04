@@ -103,6 +103,9 @@ corpus_test_suite(
         "issue2614-bmv2",
         "issue3488-bmv2",
         "issue447-1-bmv2",
+        "issue447-2-bmv2",
+        "issue447-5-bmv2",
+        "issue447-bmv2",
         "issue635-bmv2",
         "issue983-bmv2",
         "opassign1-bmv2",
@@ -231,6 +234,8 @@ corpus_test_suite(
         "issue1824-bmv2",  # unhandled extern call: verify
         "issue1879-bmv2",  # field access on non-aggregate value: UnitVal
         "issue3488-1-bmv2",  # expected packet on port 2 but got none
+        "issue447-3-bmv2",  # expected packet on port 0 but got none
+        "issue447-4-bmv2",  # expected packet on port 0 but got none
     ],
 )
 
