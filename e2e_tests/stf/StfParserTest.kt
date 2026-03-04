@@ -53,7 +53,7 @@ class StfParserTest {
     val pkt = stf.packets[0]
     assertEquals(0, pkt.ingressPort)
     assertArrayEquals(byteArrayOf(0xAA.toByte(), 0xBB.toByte(), 0xCC.toByte()), pkt.payload)
-    assertTrue(pkt.expectedOutputs.isEmpty())
+    assertTrue(stf.expects.isEmpty())
   }
 
   @Test
@@ -70,8 +70,8 @@ class StfParserTest {
     val pkt = stf.packets[0]
     assertEquals(1, pkt.ingressPort)
     assertArrayEquals(byteArrayOf(0x01, 0x02), pkt.payload)
-    assertEquals(1, pkt.expectedOutputs.size)
-    val exp = pkt.expectedOutputs[0]
+    assertEquals(1, stf.expects.size)
+    val exp = stf.expects[0]
     assertEquals(2, exp.port)
     assertArrayEquals(byteArrayOf(0x03, 0x04), exp.payload)
     // Normal bytes have a full mask.
@@ -88,7 +88,7 @@ class StfParserTest {
         """
           .trimIndent()
       )
-    val exp = stf.packets[0].expectedOutputs[0]
+    val exp = stf.expects[0]
     // First byte is wildcard (mask=0x00), second is concrete (mask=0xFF).
     assertArrayEquals(byteArrayOf(0x00, 0xBB.toByte()), exp.payload)
     assertArrayEquals(byteArrayOf(0x00, 0xFF.toByte()), exp.mask)
@@ -98,7 +98,7 @@ class StfParserTest {
   fun `expect with four-char wildcard token`() {
     // "****" is two consecutive wildcard bytes.
     val stf = parse("packet 0 AABB\nexpect 1 ****")
-    val exp = stf.packets[0].expectedOutputs[0]
+    val exp = stf.expects[0]
     assertArrayEquals(byteArrayOf(0x00, 0x00), exp.payload)
     assertArrayEquals(byteArrayOf(0x00, 0x00), exp.mask)
   }
@@ -107,13 +107,13 @@ class StfParserTest {
   fun `expect with end-of-packet marker`() {
     // "$" is stripped; the payload comparison is exact-length regardless.
     val stf = parse("packet 0 AABB\nexpect 1 AABB $")
-    val exp = stf.packets[0].expectedOutputs[0]
+    val exp = stf.expects[0]
     assertArrayEquals(byteArrayOf(0xAA.toByte(), 0xBB.toByte()), exp.payload)
     assertArrayEquals(byteArrayOf(0xFF.toByte(), 0xFF.toByte()), exp.mask)
   }
 
   @Test
-  fun `multiple expect lines attach to the preceding packet`() {
+  fun `multiple expect lines are collected into the expects list`() {
     val stf =
       parse(
         """
@@ -124,11 +124,11 @@ class StfParserTest {
           .trimIndent()
       )
     assertEquals(1, stf.packets.size)
-    assertEquals(2, stf.packets[0].expectedOutputs.size)
+    assertEquals(2, stf.expects.size)
   }
 
   @Test
-  fun `multiple packets each accumulate their own expects`() {
+  fun `multiple packets collect expects into a flat list`() {
     val stf =
       parse(
         """
@@ -142,8 +142,7 @@ class StfParserTest {
     assertEquals(2, stf.packets.size)
     assertArrayEquals(byteArrayOf(0xAA.toByte()), stf.packets[0].payload)
     assertArrayEquals(byteArrayOf(0xBB.toByte()), stf.packets[1].payload)
-    assertEquals(1, stf.packets[0].expectedOutputs.size)
-    assertEquals(1, stf.packets[1].expectedOutputs.size)
+    assertEquals(2, stf.expects.size)
   }
 
   @Test
@@ -391,7 +390,7 @@ class StfParserTest {
   fun `expect with nibble-level wildcards`() {
     // "A*" → hi nibble = 0xA (mask 0xF), lo nibble = wildcard (mask 0x0)
     val stf = parse("packet 0 AA\nexpect 1 A*BB")
-    val exp = stf.packets[0].expectedOutputs[0]
+    val exp = stf.expects[0]
     assertArrayEquals(byteArrayOf(0xA0.toByte(), 0xBB.toByte()), exp.payload)
     assertArrayEquals(byteArrayOf(0xF0.toByte(), 0xFF.toByte()), exp.mask)
   }
@@ -400,7 +399,7 @@ class StfParserTest {
   fun `expect with single nibble wildcard in low position`() {
     // "*F" → hi nibble = wildcard, lo nibble = 0xF
     val stf = parse("packet 0 AA\nexpect 1 *F")
-    val exp = stf.packets[0].expectedOutputs[0]
+    val exp = stf.expects[0]
     assertArrayEquals(byteArrayOf(0x0F.toByte()), exp.payload)
     assertArrayEquals(byteArrayOf(0x0F.toByte()), exp.mask)
   }
