@@ -100,7 +100,7 @@ jobs:
       # Remove the repository cache to save ~500 MB before any potential save.
       - name: Compress cache
         if: always()
-        run: rm -rf $(bazel info repository_cache)
+        run: bazel shutdown && rm -rf $(bazel info repository_cache)
 
       # Only save cache on main (PR caches are scoped to their branch and
       # evict the shared caches that all jobs depend on) or when the build
@@ -110,7 +110,7 @@ jobs:
         if: always() && (github.ref_name == 'main' || env.DURATION > 300)
         with:
           path: ${{ env.BAZEL_CACHE }}
-          key: bazel-${{ matrix.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          key: bazel-${{ matrix.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}-${{ github.run_id }}
 
 
   coverage:
@@ -149,14 +149,14 @@ jobs:
 
       - name: Compress cache
         if: always()
-        run: rm -rf $(bazel info repository_cache)
+        run: bazel shutdown && rm -rf $(bazel info repository_cache)
 
       - name: Save Bazel cache
         uses: actions/cache/save@v5
         if: always() && (github.ref_name == 'main' || env.DURATION > 300)
         with:
           path: ~/.cache/bazel
-          key: bazel-coverage-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          key: bazel-coverage-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}-${{ github.run_id }}
 
       - name: Compute diff coverage
         run: |
