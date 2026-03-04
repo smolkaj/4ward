@@ -23,11 +23,12 @@ simulator, STF test runner, CI pipeline, coverage reporting.
 - **Developer tooling**: `format.sh`, `lint.sh`, `coverage.sh`,
   `diff-coverage.sh`, `dev.sh` runner, parallel-worktree `~/.bazelrc` docs.
 
-### Where we ended
+### Where are we? Where are we going?
 
 90 corpus tests passing out of ~140 tracked. 6 hand-written feature tests
 (passthrough, basic_table, lpm_routing, ternary_acl, multi_table,
-switch_action_run).
+switch_action_run). ~50 tests remain unclassified — need to test each one and
+sort into passing or failing.
 
 ## 2026-03-04
 
@@ -66,9 +67,49 @@ switch_action_run).
 | Expression kind: type | 3 |
 | Register read/write | 2 |
 
-### Next up
+### Where are we? Where are we going?
 
-Highest-impact features to unblock tests: const table entries (9), header
-stack indexing (11), header unions (14), verify externs (5), register
-read/write (2). These five would move ~41 tests from manual to passing
-(47% → ~66%).
+**217 p4c STF tests tracked, 101 passing in CI (~47%).**
+
+The passing tests cover the core v1model pipeline well: table lookups
+(exact/LPM/ternary), header manipulation, control flow (exit, switch, nested
+tables), type casting, side effects, and mux operations. Plus 6 hand-written
+feature tests (passthrough, basic_table, lpm_routing, ternary_acl,
+multi_table, switch_action_run).
+
+Failing tests (116) break down into clear feature clusters:
+
+| Missing feature | Blocked tests | Effort |
+|---|---|---|
+| **PSA architecture** | 25 | Large (new architecture impl) |
+| **Skeleton .p4 Bazel targets** | 16 | Build plumbing, not simulator work |
+| **Header union support** | 14 | UnitVal field access + casting |
+| **Header stack indexing** | 11 | Field access on HeaderStackVal |
+| **Const table entries** | 9 | Populating tables from IR at load time |
+| **Lookahead / advance** | 6 | p4c backend limitation |
+| **verify/verify_checksum externs** | 5 | Extern implementation |
+| **Payload mismatches** | 6 | Various correctness bugs |
+| **STF parser issues** | 3 | NumberFormatException on edge-case STF syntax |
+| **Integer literal w/o bit type** | 3 | IR/interpreter gap |
+| **Unhandled expression kinds** | 3 | type expressions |
+| **Register read/write** | 2 | Extern implementation |
+| **Other** | ~13 | Assorted (unknown tables, missing packets, etc.) |
+
+If the goal is to maximize passing corpus tests with least effort:
+
+1. **Const table entries** (9 tests) — probably straightforward: populate table
+   entries from the IR's `const_default_action`/`entries` fields during
+   LoadPipeline
+2. **Header stack indexing** (11 tests) — handle array-index access on
+   HeaderStackVal in the interpreter
+3. **Header unions** (14 tests) — support union types in the simulator's value
+   model
+4. **verify/verify_checksum externs** (5 tests) — implement the extern calls
+5. **Register read/write** (2 tests) — implement register extern methods
+
+Items 1–5 would potentially move **41 tests** from manual to passing, bringing
+the pass rate from ~47% to ~66%.
+
+The bigger lifts (PSA architecture, skeleton Bazel targets, lookahead support)
+are either architectural or toolchain work and probably belong on a separate
+track.
