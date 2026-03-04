@@ -81,6 +81,39 @@ class TableStoreTest {
       .setAction(TableAction.newBuilder().setAction(Action.newBuilder().setActionId(actionId)))
       .build()
 
+  private fun rangeEntry(
+    fieldId: Int,
+    lo: ByteArray,
+    hi: ByteArray,
+    priority: Int,
+    actionId: Int,
+  ): TableEntry =
+    TableEntry.newBuilder()
+      .setTableId(TABLE_ID)
+      .addMatch(
+        FieldMatch.newBuilder()
+          .setFieldId(fieldId)
+          .setRange(
+            FieldMatch.Range.newBuilder()
+              .setLow(ByteString.copyFrom(lo))
+              .setHigh(ByteString.copyFrom(hi))
+          )
+      )
+      .setPriority(priority)
+      .setAction(TableAction.newBuilder().setAction(Action.newBuilder().setActionId(actionId)))
+      .build()
+
+  private fun optionalEntry(fieldId: Int, value: ByteArray, actionId: Int): TableEntry =
+    TableEntry.newBuilder()
+      .setTableId(TABLE_ID)
+      .addMatch(
+        FieldMatch.newBuilder()
+          .setFieldId(fieldId)
+          .setOptional(FieldMatch.Optional.newBuilder().setValue(ByteString.copyFrom(value)))
+      )
+      .setAction(TableAction.newBuilder().setAction(Action.newBuilder().setActionId(actionId)))
+      .build()
+
   private fun write(entry: TableEntry) {
     store.write(
       Update.newBuilder()
@@ -214,6 +247,64 @@ class TableStoreTest {
     // 0xB0: top nibble = 0xB ≠ 0xA → no match
     val result = store.lookup(TABLE_NAME, listOf("1" to BitVal(0xB0, 8)))
     assertFalse(result.hit)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Range
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `range match hit when value is within bounds`() {
+    write(rangeEntry(1, lo = byteArrayOf(0x10), hi = byteArrayOf(0x20), priority = 1, actionId = 10))
+    val result = store.lookup(TABLE_NAME, listOf("1" to BitVal(0x18, 8)))
+    assertTrue(result.hit)
+    assertEquals("action10", result.actionName)
+  }
+
+  @Test
+  fun `range match hit on exact boundary values`() {
+    write(rangeEntry(1, lo = byteArrayOf(0x10), hi = byteArrayOf(0x20), priority = 1, actionId = 10))
+    assertTrue(store.lookup(TABLE_NAME, listOf("1" to BitVal(0x10, 8))).hit)
+    assertTrue(store.lookup(TABLE_NAME, listOf("1" to BitVal(0x20, 8))).hit)
+  }
+
+  @Test
+  fun `range match miss when value is outside bounds`() {
+    write(rangeEntry(1, lo = byteArrayOf(0x10), hi = byteArrayOf(0x20), priority = 1, actionId = 10))
+    assertFalse(store.lookup(TABLE_NAME, listOf("1" to BitVal(0x0F, 8))).hit)
+    assertFalse(store.lookup(TABLE_NAME, listOf("1" to BitVal(0x21, 8))).hit)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Optional
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `optional match hit on exact value`() {
+    write(optionalEntry(fieldId = 1, value = byteArrayOf(0x0A), actionId = 42))
+    val result = store.lookup(TABLE_NAME, listOf("1" to BitVal(10, 8)))
+    assertTrue(result.hit)
+    assertEquals("action42", result.actionName)
+  }
+
+  @Test
+  fun `optional match miss on different value`() {
+    write(optionalEntry(fieldId = 1, value = byteArrayOf(0x0A), actionId = 42))
+    assertFalse(store.lookup(TABLE_NAME, listOf("1" to BitVal(11, 8))).hit)
+  }
+
+  @Test
+  fun `optional wildcard matches any value when field is absent from entry`() {
+    // Entry has no match fields → all keys are wildcarded
+    val entry =
+      TableEntry.newBuilder()
+        .setTableId(TABLE_ID)
+        .setPriority(1)
+        .setAction(TableAction.newBuilder().setAction(Action.newBuilder().setActionId(10)))
+        .build()
+    write(entry)
+    val result = store.lookup(TABLE_NAME, listOf("1" to BitVal(0xFF, 8)))
+    assertTrue(result.hit)
   }
 
   // ---------------------------------------------------------------------------
