@@ -10,7 +10,13 @@ load("//e2e_tests:corpus.bzl", "corpus_test_suite")
 #      Create a new manual suite if no existing one fits.
 corpus_test_suite(
     name = "v1model_stf_corpus_test",
+    includes = [
+        "@p4c//testdata/p4_16_samples:arith-inline-skeleton.p4",
+        "@p4c//testdata/p4_16_samples:arith-skeleton.p4",
+        "@p4c//testdata/p4_16_samples:ml-headers.p4",
+    ],
     tests = [
+        "arith2-inline-bmv2",
         "array-copy-bmv2",
         "equality-varbit-bmv2",
         "flag_lost-bmv2",
@@ -146,29 +152,32 @@ corpus_test_suite(
     ],
 )
 
-# Tests blocked on exposing skeleton .p4 files as Bazel targets.
-# arith-skeleton.p4, arith-inline-skeleton.p4, and ml-headers.p4 are
-# sibling includes not yet available as @p4c filegroup targets.
-# Run manually: bazel test //e2e_tests/corpus:skeleton_includes_stf_corpus_test
+# Tests that need sibling skeleton .p4 files as #include dependencies.
+# These are compiled with an extra -I pointing at the testdata directory.
+# Blocked on various simulator gaps (payload mismatches, missing externs).
 corpus_test_suite(
     name = "skeleton_includes_stf_corpus_test",
+    includes = [
+        "@p4c//testdata/p4_16_samples:arith-inline-skeleton.p4",
+        "@p4c//testdata/p4_16_samples:arith-skeleton.p4",
+        "@p4c//testdata/p4_16_samples:ml-headers.p4",
+    ],
     tags = ["manual"],
     tests = [
-        "arith-bmv2",
-        "arith-inline-bmv2",
-        "arith1-bmv2",
-        "arith2-bmv2",
-        "arith2-inline-bmv2",
-        "arith3-bmv2",
-        "arith4-bmv2",
-        "arith5-bmv2",
-        "constant-in-calculation-bmv2",
-        "default-action-arg-bmv2",
-        "default_action-bmv2",
-        "enum-bmv2",
-        "extern-funcs-bmv2",
-        "ipv6-switch-ml-bmv2",
-        "key-bmv2",
+        "arith-bmv2",  # payload mismatch (arithmetic)
+        "arith-inline-bmv2",  # payload mismatch (arithmetic)
+        "arith1-bmv2",  # payload mismatch (arithmetic)
+        "arith2-bmv2",  # payload mismatch (arithmetic)
+        "arith3-bmv2",  # payload mismatch (arithmetic)
+        "arith4-bmv2",  # payload mismatch (arithmetic)
+        "arith5-bmv2",  # payload mismatch (arithmetic)
+        "constant-in-calculation-bmv2",  # unhandled extern call: hash
+        "default-action-arg-bmv2",  # payload mismatch (arithmetic)
+        "default_action-bmv2",  # payload mismatch (arithmetic)
+        "enum-bmv2",  # unhandled expression kind (enum)
+        "extern-funcs-bmv2",  # unhandled extern call: extern_func
+        "ipv6-switch-ml-bmv2",  # unhandled expression kind (enum)
+        "key-bmv2",  # unknown table: c.t (short table name)
     ],
 )
 

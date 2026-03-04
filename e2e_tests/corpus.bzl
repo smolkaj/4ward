@@ -17,15 +17,25 @@ This creates:
 
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
 
-def corpus_test_suite(name, tests, tags = []):
+def corpus_test_suite(name, tests, tags = [], includes = []):
     """Compiles p4c corpus P4 files and runs all STF tests in a single JVM.
 
     Args:
-        name:  name of the batched kt_jvm_test target.
-        tests: list of test base names (e.g. "opassign1-bmv2").
-        tags:  Bazel tags forwarded to the kt_jvm_test.
+        name:     name of the batched kt_jvm_test target.
+        tests:    list of test base names (e.g. "opassign1-bmv2").
+        tags:     Bazel tags forwarded to the kt_jvm_test.
+        includes: extra P4 file labels needed as #include dependencies (e.g.
+                  skeleton headers). Their directory is added to the p4c
+                  include path.
     """
     data = ["//simulator"]
+
+    # Build -I flags for any extra includes.
+    if includes:
+        # All includes are assumed to be in the same directory; one -I suffices.
+        include_flag = " -I $$(dirname $(execpath " + includes[0] + "))"
+    else:
+        include_flag = ""
 
     for test in tests:
         p4_src = "@p4c//testdata/p4_16_samples:" + test + ".p4"
@@ -33,9 +43,9 @@ def corpus_test_suite(name, tests, tags = []):
 
         native.genrule(
             name = test + "_pb",
-            srcs = [p4_src],
+            srcs = [p4_src] + includes,
             outs = [test + ".txtpb"],
-            cmd = "$(execpath //p4c_backend:p4c-4ward) -I $$(dirname $(execpath @p4c//:core_p4)) -o $@ $(SRCS)",
+            cmd = "$(execpath //p4c_backend:p4c-4ward) -I $$(dirname $(execpath @p4c//:core_p4))" + include_flag + " -o $@ $(execpath " + p4_src + ")",
             tags = tags,
             tools = [
                 "//p4c_backend:p4c-4ward",
