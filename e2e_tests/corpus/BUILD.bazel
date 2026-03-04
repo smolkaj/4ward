@@ -244,6 +244,12 @@ corpus_test_suite(
         "issue561-5-bmv2",  # UnitVal cannot be cast to HeaderVal
         "issue561-6-bmv2",  # UnitVal cannot be cast to HeaderVal
         "issue561-7-bmv2",  # UnitVal cannot be cast to HeaderVal
+        "issue655-bmv2",  # unhandled extern call: verify_checksum
+        "issue774-4-bmv2",  # undefined variable: arg
+        "issue995-bmv2",  # unhandled expression kind: type
+        "match-on-exprs-bmv2",  # NumberFormatException: "o"
+        "opassign2-bmv2",  # field access on non-aggregate value: HeaderStackVal
+        "parser_error-bmv2",  # expected packet on port 0 but got none
     ],
 )
 
