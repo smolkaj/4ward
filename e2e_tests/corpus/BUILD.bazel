@@ -219,6 +219,7 @@ corpus_test_suite(
         "header-bool-bmv2",
         "header-stack-ops-bmv2",
         "invalid-hdr-warnings3-bmv2",
+        "issue-2123-2-bmv2",
     ],
 )
 
