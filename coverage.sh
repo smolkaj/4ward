@@ -319,6 +319,21 @@ GENHTML_ARGS=(--quiet)
 if command -v genhtml >/dev/null 2>&1; then
   rm -rf "${REPORT_DIR}"
   genhtml "${PERSISTENT}" --output-directory "${REPORT_DIR}" "${GENHTML_ARGS[@]}"
+
+  # Replace cryptic TLA abbreviations with readable labels in the generated
+  # HTML. Only matches text between > and < so CSS classes are preserved.
+  # Uses -i.bak + delete for BSD/GNU sed portability (BSD requires an
+  # argument to -i; GNU treats a separate '' as a filename).
+  find "${REPORT_DIR}" -name '*.html' -exec sed -i.bak \
+      -e 's/>CBC</>Covered</g'           -e 's/>GBC</>Newly covered</g' \
+      -e 's/>UBC</>Not covered</g'       -e 's/>LBC</>Coverage lost</g' \
+      -e 's/>GNC</>New \&amp; covered</g'    -e 's/>UNC</>New \&amp; not covered</g' \
+      -e 's/>EUB</>Excluded (not covered)</g' -e 's/>ECB</>Excluded (covered)</g' \
+      -e 's/>DUB</>Deleted (not covered)</g'  -e 's/>DCB</>Deleted (covered)</g' \
+      -e 's/>UIC</>Included (not covered)</g' -e 's/>GIC</>Included (covered)</g' \
+      {} +
+  find "${REPORT_DIR}" -name '*.bak' -delete
+
   echo "HTML report:  ${REPORT_DIR}/index.html"
 elif "${WANT_HTML}"; then
   echo "Error: genhtml not found (install lcov: brew install lcov)" >&2
