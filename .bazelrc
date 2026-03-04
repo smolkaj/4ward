@@ -26,9 +26,11 @@ build --host_cxxopt=-std=c++20
 test --test_output=errors
 
 # clang-tidy: run via `bazel build //p4c_backend/... --config=clang-tidy`.
+# The config flag is set unconditionally so switching to --config=clang-tidy
+# does not change it and Bazel can reuse its analysis cache.
+build --@bazel_clang_tidy//:clang_tidy_config=//:clang_tidy_config
 build:clang-tidy --aspects @bazel_clang_tidy//clang_tidy:clang_tidy.bzl%clang_tidy_aspect
 build:clang-tidy --output_groups=report
-build:clang-tidy --@bazel_clang_tidy//:clang_tidy_config=//:clang_tidy_config
 
 # Coverage: instrument the simulator library. Run via `bazel coverage //...`.
 coverage --combined_report=lcov
