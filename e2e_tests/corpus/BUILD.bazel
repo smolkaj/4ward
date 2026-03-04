@@ -144,10 +144,13 @@ corpus_test_suite(
         "issue774-4-bmv2",
         "issue983-bmv2",
         "issue995-bmv2",
+        "key-bmv2",
         "match-on-exprs-bmv2",
         "opassign1-bmv2",
         "opassign2-bmv2",
         "parser_error-bmv2",
+        "runtime-index-2-bmv2",
+        "runtime-index-bmv2",
         "table-entries-exact-bmv2",
         "table-entries-exact-ternary-bmv2",
         "table-entries-lpm-bmv2",
@@ -176,8 +179,7 @@ corpus_test_suite(
         "default_action-bmv2",  # UnitVal as action param default
         "enum-bmv2",  # unhandled expression kind (enum)
         "extern-funcs-bmv2",  # unhandled extern call: extern_func
-        "ipv6-switch-ml-bmv2",  # unknown match field (STF runner)
-        "key-bmv2",  # unknown table: c.t (STF runner dotted name)
+        "ipv6-switch-ml-bmv2",  # expected packet on port 6 but got none
     ],
 )
 
@@ -267,20 +269,18 @@ corpus_test_suite(
         "issue561-6-bmv2",  # header stack of unions (StructVal as stack element)
         "issue561-7-bmv2",  # header stack of unions (StructVal as stack element)
         "issue655-bmv2",  # unhandled extern call: verify_checksum
-        "runtime-index-2-bmv2",  # integer literal without bit type
-        "runtime-index-bmv2",  # integer literal without bit type
         "saturated-bmv2",  # payload mismatch
         "stack_complex-bmv2",  # field access on non-aggregate value: HeaderStackVal
         "subparser-with-header-stack-bmv2",  # unhandled extern call: verify
-        "table-entries-priority-bmv2",  # BMv2-specific @priority annotation (lower=better)
-        "ternary2-bmv2",  # NumberFormatException: "val:0x7f"
+        "table-entries-priority-bmv2",  # BMv2 @priority uses lower-is-better; P4Runtime uses higher-is-better
+        "ternary2-bmv2",  # payload mismatch
         "test-parserinvalidargument-error-bmv2",  # payload mismatch
         "union-bmv2",  # field access on non-aggregate value: UnitVal
         "union-valid-bmv2",  # field access on non-aggregate value: UnitVal
         "union1-bmv2",  # field access on non-aggregate value: UnitVal
         "union2-bmv2",  # field access on non-aggregate value: UnitVal
         "union3-bmv2",  # field access on non-aggregate value: UnitVal
-        "v1model-special-ops-bmv2",  # NumberFormatException: "new_ipv4_"
+        "v1model-special-ops-bmv2",  # unhandled extern call: verify_checksum
     ],
 )
 

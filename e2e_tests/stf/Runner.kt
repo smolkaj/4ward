@@ -127,21 +127,29 @@ class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPat
     val table =
       p4info.tablesList.find {
         it.preamble.alias == directive.tableName || it.preamble.name == directive.tableName
-      } ?: error("unknown table: ${directive.tableName}")
+      }
+        // BMv2 STF files may use partially-qualified names like "c.t" for
+        // "ingress.c.t". Fall back to suffix matching.
+        ?: p4info.tablesList.find { it.preamble.name.endsWith(".${directive.tableName}") }
+        ?: error("unknown table: ${directive.tableName}")
 
     val action =
       p4info.actionsList.find {
         it.preamble.alias == directive.actionName || it.preamble.name == directive.actionName
-      } ?: error("unknown action: ${directive.actionName}")
+      }
+        ?: p4info.actionsList.find { it.preamble.name.endsWith(".${directive.actionName}") }
+        ?: error("unknown action: ${directive.actionName}")
 
     val paramsList =
       action.paramsList.mapIndexed { i, paramInfo ->
-        val rawValue =
-          directive.actionParams.getOrNull(i)
+        // Named params (e.g. "val:0x7f") are resolved by name; unnamed by position.
+        val raw =
+          directive.actionParams.find { it.extractParamName() == paramInfo.name }
+            ?: directive.actionParams.getOrNull(i)
             ?: error("missing param ${paramInfo.name} for action ${directive.actionName}")
         P4RuntimeOuterClass.Action.Param.newBuilder()
           .setParamId(paramInfo.id)
-          .setValue(encodeValue(rawValue, paramInfo.bitwidth))
+          .setValue(encodeValue(raw.stripNamedParamPrefix(), paramInfo.bitwidth))
           .build()
       }
 
@@ -186,8 +194,16 @@ class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPat
     table: P4InfoOuterClass.Table,
     tableName: String,
   ): P4RuntimeOuterClass.FieldMatch {
+    // BMv2 STF files strip the outermost struct prefix from field names
+    // (e.g. p4info "hdrs.data.f1" → STF "data.f1") and use $N for array
+    // indices (p4info "extra[0].h" → STF "extra$0.h").
+    val stfNorm = m.fieldName.replace(Regex("\\$(\\d+)"), "[$1]")
     val mf =
-      table.matchFieldsList.find { it.name == m.fieldName }
+      table.matchFieldsList.find { it.name == m.fieldName || it.name == stfNorm }
+        ?: table.matchFieldsList.find {
+          val suffix = it.name.substringAfter(".")
+          suffix == m.fieldName || suffix == stfNorm
+        }
         ?: error("unknown match field '${m.fieldName}' in table '$tableName'")
     val fmBuilder = P4RuntimeOuterClass.FieldMatch.newBuilder().setFieldId(mf.id)
     when (m.kind) {
@@ -367,6 +383,12 @@ data class StfFile(
         return StfMatchField(fieldName, MatchKind.TERNARY, value, mask = mask)
       }
 
+      // BMv2 STF hex wildcards: 0x****0101 where each * nibble is don't-care.
+      if (rest.startsWith("0x", ignoreCase = true) && rest.contains('*')) {
+        val (value, mask) = parseHexWildcard(rest)
+        return StfMatchField(fieldName, MatchKind.TERNARY, value, mask = mask)
+      }
+
       return when {
         rest.contains("/") -> {
           val (value, prefixLen) = rest.split("/", limit = 2)
@@ -393,12 +415,7 @@ data class StfFile(
       val paramStr = spec.substring(parenIdx + 1).trimEnd(')', ' ')
       val params =
         if (paramStr.isBlank()) emptyList()
-        else
-          paramStr
-            .split(",")
-            .map { it.trim() }
-            .filter { it.isNotEmpty() }
-            .map { it.stripNamedParamPrefix() }
+        else paramStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }
       return name to params
     }
   }
@@ -482,6 +499,19 @@ enum class MatchKind {
 /** Strips surrounding double-quotes, if present. */
 private fun String.unquote(): String = removeSurrounding("\"")
 
+/** Extracts the parameter name from a named param like `"name":value` or `name:value`. */
+private fun String.extractParamName(): String? {
+  if (startsWith('"')) {
+    val sep = indexOf("\":", 1)
+    return if (sep >= 0) substring(1, sep) else null
+  }
+  val colon = indexOf(':')
+  if (colon > 0 && substring(0, colon).all { it.isLetterOrDigit() || it == '_' }) {
+    return substring(0, colon)
+  }
+  return null
+}
+
 /** Strips a `"name":` prefix from a p4testgen named action parameter, returning just the value. */
 private fun String.stripNamedParamPrefix(): String {
   // p4testgen: quoted named params like "param":value
@@ -504,6 +534,26 @@ private fun String.stripNamedParamPrefix(): String {
  * the value and a 1 in the mask. Returns hex strings for consistency with the other match value
  * representations (all match values flow through [encodeValue] during p4info resolution).
  */
+/**
+ * Parses a hex wildcard string like `0x****0101` into hex value and mask strings.
+ *
+ * Each `*` nibble becomes 0 in value and 0 in mask; each hex digit becomes its value and F in mask.
+ */
+private fun parseHexWildcard(hexStr: String): Pair<String, String> {
+  val nibbles = hexStr.removePrefix("0x").removePrefix("0X")
+  var value = BigInteger.ZERO
+  var mask = BigInteger.ZERO
+  for (ch in nibbles) {
+    value = value.shiftLeft(4)
+    mask = mask.shiftLeft(4)
+    if (ch != '*') {
+      value = value.or(BigInteger.valueOf(ch.digitToInt(16).toLong()))
+      mask = mask.or(BigInteger.valueOf(0xF))
+    }
+  }
+  return "0x${value.toString(16)}" to "0x${mask.toString(16)}"
+}
+
 private fun parseBinaryWildcard(binStr: String): Pair<String, String> {
   val bits = binStr.removePrefix("0b").removePrefix("0B")
   val valueBits = StringBuilder(bits.length)

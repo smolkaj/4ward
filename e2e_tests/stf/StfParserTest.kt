@@ -293,13 +293,13 @@ class StfParserTest {
     val stf = parse("""add "t" "key":0x01 "action"("port":1,"mask":0xff)""")
     val entry = stf.tableEntries[0] as StfAddEntry
     assertEquals("action", entry.actionName)
-    assertEquals(listOf("1", "0xff"), entry.actionParams)
+    assertEquals(listOf("\"port\":1", "\"mask\":0xff"), entry.actionParams)
   }
 
   @Test
   fun `add with single named param`() {
     val stf = parse("""add "t" "key":0x01 "fwd"("port":0x02)""")
-    assertEquals(listOf("0x02"), stf.tableEntries[0].actionParams)
+    assertEquals(listOf("\"port\":0x02"), stf.tableEntries[0].actionParams)
   }
 
   // ---------------------------------------------------------------------------
@@ -357,7 +357,7 @@ class StfParserTest {
     val entry = stf.tableEntries[0] as StfSetDefault
     assertEquals("tbl", entry.tableName)
     assertEquals("act", entry.actionName)
-    assertEquals(listOf("0x01", "0x02"), entry.actionParams)
+    assertEquals(listOf("\"p1\":0x01", "\"p2\":0x02"), entry.actionParams)
   }
 
   @Test
