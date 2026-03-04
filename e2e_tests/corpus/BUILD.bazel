@@ -87,6 +87,7 @@ corpus_test_suite(
         "gauntlet_variable_shadowing-bmv2",
         "invalid-hdr-warnings3-bmv2",
         "issue-2123-2-bmv2",
+        "issue1062-1-bmv2",
         "issue2147-bmv2",
         "issue2153-bmv2",
         "issue2170-bmv2",
@@ -107,6 +108,8 @@ corpus_test_suite(
         "issue3488-bmv2",
         "issue447-1-bmv2",
         "issue447-2-bmv2",
+        "issue447-3-bmv2",
+        "issue447-4-bmv2",
         "issue447-5-bmv2",
         "issue447-bmv2",
         "issue510-bmv2",
@@ -230,15 +233,12 @@ corpus_test_suite(
         "issue-2123-3-bmv2",  # unhandled expression kind: type
         "issue1000-bmv2",  # unhandled expression kind: type
         "issue1049-bmv2",  # payload mismatch
-        "issue1062-1-bmv2",  # expected packet on port 0 but got none
         "issue1097-2-bmv2",  # unhandled method call: write (register extern)
         "issue1566-bmv2",  # integer literal without bit type
         "issue1814-1-bmv2",  # unhandled method call: read (register extern)
         "issue1824-bmv2",  # unhandled extern call: verify
         "issue1879-bmv2",  # field access on non-aggregate value: UnitVal
         "issue3488-1-bmv2",  # expected packet on port 2 but got none
-        "issue447-3-bmv2",  # expected packet on port 0 but got none
-        "issue447-4-bmv2",  # expected packet on port 0 but got none
         "issue561-1-bmv2",  # field access on non-aggregate value: UnitVal
         "issue561-2-bmv2",  # field access on non-aggregate value: UnitVal
         "issue561-3-bmv2",  # field access on non-aggregate value: UnitVal
