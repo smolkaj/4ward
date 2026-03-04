@@ -19,7 +19,7 @@ Run `bazel test //...` to see what's passing and what's not.
 
 ```sh
 # Clone and build — that's really all there is to it.
-git clone https://github.com/yourorg/4ward
+git clone https://github.com/smolkaj/4ward
 cd 4ward
 bazel build //...
 bazel test //...
