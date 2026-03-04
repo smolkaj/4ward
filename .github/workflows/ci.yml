@@ -76,15 +76,15 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Save start time
-        run: echo "START_TIME=$(date +%s)" >> "$GITHUB_ENV"
-
       - name: Restore Bazel cache
         uses: actions/cache/restore@v5
         with:
           path: ~/.cache/bazel
           key: bazel-${{ matrix.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
           restore-keys: bazel-${{ matrix.os }}-
+
+      - name: Save start time
+        run: echo "START_TIME=$(date +%s)" >> "$GITHUB_ENV"
 
       - name: Build and test
         run: bazel test //...
