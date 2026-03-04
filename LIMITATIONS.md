@@ -28,9 +28,6 @@ guilt — just write it down so someone can find it later.
 
 ## Simulator
 
-- **No const table entries.** Tables with `const entries` in P4 source are
-  not populated at pipeline load time. The IR carries the entries, but
-  `Simulator.handleLoadPipeline()` ignores them. Blocks ~8 corpus tests.
 - **`ReadEntries` is a stub.** The `ReadEntriesRequest` handler returns an
   empty response (`Simulator.kt:143`).
 - **No clone, resubmit, or recirculate.** `V1ModelArchitecture` defines the
