@@ -47,21 +47,18 @@ class V1ModelArchitecture : Architecture {
     val metaTypeName = parserUserParams[1].type.named // e.g. "metadata_t"
     val standardMetaTypeName = parserUserParams[2].type.named // e.g. "standard_metadata_t"
 
-    // Initialise standard_metadata_t. The struct is defined in v1model.p4;
-    // we hard-code the fields we care about for simulation purposes.
+    // Build standard_metadata from the IR type so all declared fields are present with zero
+    // defaults, then set the fields that have non-zero initial values.
     val standardMetadata =
-      StructVal(
-        typeName = standardMetaTypeName,
-        fields =
-          mutableMapOf(
-            "ingress_port" to BitVal(ingressPort.toLong(), PORT_BITS),
-            "egress_spec" to BitVal(0L, PORT_BITS),
-            "egress_port" to BitVal(0L, PORT_BITS),
-            "packet_length" to BitVal(payload.size.toLong(), INT32_BITS),
-            "instance_type" to BitVal(0L, INT32_BITS),
-            "drop" to BitVal(0L, FLAG_BITS),
-          ),
-      )
+      (defaultValue(standardMetaTypeName, typesByName) as? StructVal)
+        ?: error("$standardMetaTypeName not found in IR types; is v1model.p4 included?")
+    // These fields are guaranteed by the v1model.p4 spec; the checks catch non-standard setups.
+    check("ingress_port" in standardMetadata.fields) { "$standardMetaTypeName has no ingress_port" }
+    check("packet_length" in standardMetadata.fields) {
+      "$standardMetaTypeName has no packet_length"
+    }
+    standardMetadata.fields["ingress_port"] = BitVal(ingressPort.toLong(), PORT_BITS)
+    standardMetadata.fields["packet_length"] = BitVal(payload.size.toLong(), INT32_BITS)
 
     // Map each shared type name to its initialised object so we can bind whatever
     // local parameter names each stage uses (e.g. "smeta" vs "standard_metadata").
@@ -145,6 +142,5 @@ class V1ModelArchitecture : Architecture {
     // Bit widths for standard_metadata_t fields, as defined in v1model.p4.
     const val PORT_BITS = 9
     private const val INT32_BITS = 32
-    private const val FLAG_BITS = 1
   }
 }

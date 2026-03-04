@@ -74,6 +74,42 @@ class StfParserTest {
     val exp = pkt.expectedOutputs[0]
     assertEquals(2, exp.port)
     assertArrayEquals(byteArrayOf(0x03, 0x04), exp.payload)
+    // Normal bytes have a full mask.
+    assertArrayEquals(byteArrayOf(0xFF.toByte(), 0xFF.toByte()), exp.mask)
+  }
+
+  @Test
+  fun `expect with wildcard bytes`() {
+    val stf =
+      parse(
+        """
+        packet 0 AABB
+        expect 1 ** BB
+        """
+          .trimIndent()
+      )
+    val exp = stf.packets[0].expectedOutputs[0]
+    // First byte is wildcard (mask=0x00), second is concrete (mask=0xFF).
+    assertArrayEquals(byteArrayOf(0x00, 0xBB.toByte()), exp.payload)
+    assertArrayEquals(byteArrayOf(0x00, 0xFF.toByte()), exp.mask)
+  }
+
+  @Test
+  fun `expect with four-char wildcard token`() {
+    // "****" is two consecutive wildcard bytes.
+    val stf = parse("packet 0 AABB\nexpect 1 ****")
+    val exp = stf.packets[0].expectedOutputs[0]
+    assertArrayEquals(byteArrayOf(0x00, 0x00), exp.payload)
+    assertArrayEquals(byteArrayOf(0x00, 0x00), exp.mask)
+  }
+
+  @Test
+  fun `expect with end-of-packet marker`() {
+    // "$" is stripped; the payload comparison is exact-length regardless.
+    val stf = parse("packet 0 AABB\nexpect 1 AABB $")
+    val exp = stf.packets[0].expectedOutputs[0]
+    assertArrayEquals(byteArrayOf(0xAA.toByte(), 0xBB.toByte()), exp.payload)
+    assertArrayEquals(byteArrayOf(0xFF.toByte(), 0xFF.toByte()), exp.mask)
   }
 
   @Test
