@@ -1,6 +1,10 @@
-# 4ward
+<p align="center">
+  <img src="logo.svg" alt="4ward logo" width="200">
+</p>
 
-**Your P4 programs, finally explained.**
+<h1 align="center">4ward</h1>
+
+<p align="center"><strong>Your P4 programs, finally explained.</strong></p>
 
 Ever stare at a packet leaving a switch and wonder *what just happened in
 there?* 4ward is a glass-box P4 simulator that tells you exactly what happened
