@@ -384,8 +384,7 @@ class Interpreter(
     if (left is IntVal && (op.op == BinaryOperator.SHL || op.op == BinaryOperator.SHR)) {
       val amount = intValue(right)
       return if (op.op == BinaryOperator.SHL) {
-        val shifted = left.bits.toUnsigned().shl(amount)
-        IntVal(SignedBitVector.fromUnsignedBits(shifted.value, left.bits.width))
+        IntVal(left.bits.toUnsigned().shl(amount).toSigned())
       } else {
         // Arithmetic right shift: shift the signed value, then re-wrap.
         val shifted = left.bits.value.shiftRight(amount)
@@ -431,10 +430,7 @@ class Interpreter(
   ): Value =
     when (left) {
       is BitVal -> BitVal(f(left.bits, (right as BitVal).bits))
-      is IntVal -> {
-        val result = f(left.bits.toUnsigned(), (right as IntVal).bits.toUnsigned())
-        IntVal(SignedBitVector.fromUnsignedBits(result.value, left.bits.width))
-      }
+      is IntVal -> IntVal(f(left.bits.toUnsigned(), (right as IntVal).bits.toUnsigned()).toSigned())
       else -> error("expected fixed-width integer operands, got: $left, $right")
     }
 
