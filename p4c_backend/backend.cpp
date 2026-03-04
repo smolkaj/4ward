@@ -485,7 +485,17 @@ void FourWardBackend::emitParser(const IR::P4Parser* parser) {
         }
         auto* c = selectTrans->add_cases();
         auto* k = c->add_keysets();
-        *k->mutable_exact() = emitExpr(sc->keyset);
+        if (const auto* range = sc->keyset->to<IR::Range>()) {
+          auto* r = k->mutable_range();
+          *r->mutable_lo() = emitExpr(range->left);
+          *r->mutable_hi() = emitExpr(range->right);
+        } else if (const auto* mask = sc->keyset->to<IR::Mask>()) {
+          auto* m = k->mutable_mask();
+          *m->mutable_value() = emitExpr(mask->left);
+          *m->mutable_mask() = emitExpr(mask->right);
+        } else {
+          *k->mutable_exact() = emitExpr(sc->keyset);
+        }
         c->set_next_state(sc->state->path->name.name.c_str());
       }
     } else if (const auto* path =
