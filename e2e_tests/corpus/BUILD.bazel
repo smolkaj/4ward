@@ -255,6 +255,14 @@ corpus_test_suite(
         "saturated-bmv2",  # payload mismatch
         "stack_complex-bmv2",  # field access on non-aggregate value: HeaderStackVal
         "subparser-with-header-stack-bmv2",  # unhandled extern call: verify
+        "table-entries-exact-bmv2",  # expected packet but got none (const entries)
+        "table-entries-exact-ternary-bmv2",  # expected packet but got none (const entries)
+        "table-entries-lpm-bmv2",  # expected packet but got none (const entries)
+        "table-entries-optional-bmv2",  # expected packet but got none (const entries)
+        "table-entries-priority-bmv2",  # expected packet but got none (const entries)
+        "table-entries-range-bmv2",  # expected packet but got none (const entries)
+        "table-entries-ser-enum-bmv2",  # expected packet but got none (const entries)
+        "table-entries-ternary-bmv2",  # expected packet but got none (const entries)
     ],
 )
 
