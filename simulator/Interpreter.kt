@@ -9,6 +9,7 @@ import fourward.ir.v1.MethodCall
 import fourward.ir.v1.P4BehavioralConfig
 import fourward.ir.v1.ParserDecl
 import fourward.ir.v1.Stmt
+import fourward.ir.v1.TableApplyExpr
 import fourward.ir.v1.TableBehavior
 import fourward.ir.v1.UnaryOperator
 import fourward.sim.v1.ActionExecutionEvent
@@ -232,7 +233,15 @@ class Interpreter(
       expr.hasBinaryOp() -> evalBinaryOp(expr.binaryOp, env)
       expr.hasUnaryOp() -> evalUnaryOp(expr.unaryOp, env)
       expr.hasMethodCall() -> evalMethodCall(expr.methodCall, env)
-      expr.hasTableApply() -> applyTable(expr.tableApply.tableName, env).let { UnitVal }
+      expr.hasMux() -> evalMux(expr.mux, env)
+      expr.hasTableApply() -> {
+        val result = applyTable(expr.tableApply.tableName, env)
+        when (expr.tableApply.accessKind) {
+          TableApplyExpr.AccessKind.HIT -> BoolVal(result.hit)
+          TableApplyExpr.AccessKind.MISS -> BoolVal(!result.hit)
+          else -> UnitVal // RESULT / default: switch context
+        }
+      }
       else -> error("unhandled expression kind: $expr")
     }
 
@@ -252,6 +261,17 @@ class Interpreter(
     }
 
   private fun evalFieldAccess(fa: fourward.ir.v1.FieldAccess, env: Environment): Value {
+    // Special case: table.apply().hit / .miss — the p4c midend may restructure
+    // the apply call such that the backend emits FieldAccess{TableApplyExpr, "hit"}
+    // rather than TableApplyExpr{access_kind=HIT}.
+    if (fa.expr.hasTableApply()) {
+      val result = applyTable(fa.expr.tableApply.tableName, env)
+      return when (fa.fieldName) {
+        "hit" -> BoolVal(result.hit)
+        "miss" -> BoolVal(!result.hit)
+        else -> error("unknown field '${fa.fieldName}' on table apply result")
+      }
+    }
     val target = evalExpr(fa.expr, env)
     return when (target) {
       is HeaderVal ->
@@ -348,6 +368,10 @@ class Interpreter(
       else -> error("unhandled unary operator: ${op.op}")
     }
   }
+
+  private fun evalMux(mux: fourward.ir.v1.MuxExpr, env: Environment): Value =
+    if ((evalExpr(mux.condition, env) as BoolVal).value) evalExpr(mux.thenExpr, env)
+    else evalExpr(mux.elseExpr, env)
 
   private fun evalMethodCall(call: MethodCall, env: Environment): Value {
     return when (call.method) {

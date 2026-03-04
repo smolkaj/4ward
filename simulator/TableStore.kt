@@ -20,6 +20,14 @@ class TableStore {
   // tableName -> default action name (from p4info)
   private val defaultActions: MutableMap<String, String> = mutableMapOf()
 
+  // For unit tests that cannot easily construct TableEntry protos: makes lookup() return
+  // hit=true with this action rather than searching the entry list.
+  private val forcedHits: MutableMap<String, String> = mutableMapOf()
+
+  fun setForcedHit(tableName: String, actionName: String) {
+    forcedHits[tableName] = actionName
+  }
+
   // Populated by loadMappings; used to resolve IDs to names in write() and lookup().
   private var tableNameById: Map<Int, String> = emptyMap()
   private var actionNameById: Map<Int, String> = emptyMap()
@@ -33,6 +41,7 @@ class TableStore {
     this.tableNameById = tableNameById
     this.actionNameById = actionNameById
     tables.clear()
+    forcedHits.clear()
   }
 
   fun setDefaultAction(tableName: String, actionName: String) {
@@ -75,6 +84,10 @@ class TableStore {
    * match" means the entry with the highest priority.
    */
   fun lookup(tableName: String, keyValues: List<Pair<String, Value>>): LookupResult {
+    forcedHits[tableName]?.let {
+      return LookupResult(true, null, it)
+    }
+
     val entries = tables[tableName] ?: emptyList<TableEntry>()
     val defaultAction = defaultActions[tableName] ?: "NoAction"
 

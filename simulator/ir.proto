@@ -353,9 +353,17 @@ message Expr {
     UnaryOp unary_op = 9;
     MethodCall method_call = 10;
     TableApplyExpr table_apply = 11;
+    MuxExpr mux = 12;  // condition ? then_expr : else_expr
   }
 
   Type type = 100;  // always present
+}
+
+// condition ? then_expr : else_expr  (P4 §8.9.3)
+message MuxExpr {
+  Expr condition = 1;
+  Expr then_expr = 2;
+  Expr else_expr = 3;
 }
 
 message Literal {
@@ -444,8 +452,20 @@ message MethodCall {
       4;  // for generic methods, e.g. packet.lookahead<T>()
 }
 
-// table.apply(): used as the subject of SwitchStmt and as a standalone
-// statement.
+// table.apply(): used as the subject of SwitchStmt, and as a boolean
+// expression via the .hit / .miss fields.
 message TableApplyExpr {
   string table_name = 1;  // references a TableBehavior and p4info table by name
+
+  // Which aspect of the apply result is being read.
+  // RESULT (default) is used as the subject of SwitchStmt (action_run).
+  // HIT / MISS are used in boolean expressions (table.apply().hit / .miss).
+  // RESULT = 0 is the proto default, so existing compiled .txtpb files that
+  // omit this field continue to decode correctly.
+  enum AccessKind {
+    RESULT = 0;
+    HIT = 1;
+    MISS = 2;
+  }
+  AccessKind access_kind = 2;
 }

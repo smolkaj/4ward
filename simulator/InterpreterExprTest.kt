@@ -1,15 +1,19 @@
 package fourward.simulator
 
+import fourward.ir.v1.ArrayIndex
 import fourward.ir.v1.BinaryOp
 import fourward.ir.v1.BinaryOperator
 import fourward.ir.v1.BitType
 import fourward.ir.v1.Cast
+import fourward.ir.v1.Concat
 import fourward.ir.v1.Expr
 import fourward.ir.v1.FieldAccess
 import fourward.ir.v1.Literal
 import fourward.ir.v1.MethodCall
+import fourward.ir.v1.MuxExpr
 import fourward.ir.v1.NameRef
 import fourward.ir.v1.P4BehavioralConfig
+import fourward.ir.v1.Slice
 import fourward.ir.v1.Type
 import fourward.ir.v1.UnaryOp
 import fourward.ir.v1.UnaryOperator
@@ -61,6 +65,12 @@ class InterpreterExprTest {
   private fun bitType(width: Int): Type =
     Type.newBuilder().setBit(BitType.newBuilder().setWidth(width)).build()
 
+  private fun binop(op: BinaryOperator, left: Expr, right: Expr, type: Type): Expr =
+    Expr.newBuilder()
+      .setBinaryOp(BinaryOp.newBuilder().setOp(op).setLeft(left).setRight(right))
+      .setType(type)
+      .build()
+
   // ---------------------------------------------------------------------------
   // Literal evaluation
   // ---------------------------------------------------------------------------
@@ -104,107 +114,210 @@ class InterpreterExprTest {
 
   @Test
   fun `ADD wraps at width boundary`() {
-    val expr =
-      Expr.newBuilder()
-        .setBinaryOp(
-          BinaryOp.newBuilder().setOp(BinaryOperator.ADD).setLeft(bit(255, 8)).setRight(bit(1, 8))
-        )
-        .setType(bitType(8))
-        .build()
-    assertEquals(BitVal(0, 8), interp().evalExpr(expr, emptyEnv))
+    assertEquals(
+      BitVal(0, 8),
+      interp().evalExpr(binop(BinaryOperator.ADD, bit(255, 8), bit(1, 8), bitType(8)), emptyEnv),
+    )
   }
 
   @Test
   fun `SUB underflows with wrapping`() {
-    val expr =
-      Expr.newBuilder()
-        .setBinaryOp(
-          BinaryOp.newBuilder().setOp(BinaryOperator.SUB).setLeft(bit(0, 8)).setRight(bit(1, 8))
-        )
-        .setType(bitType(8))
-        .build()
-    assertEquals(BitVal(255, 8), interp().evalExpr(expr, emptyEnv))
+    assertEquals(
+      BitVal(255, 8),
+      interp().evalExpr(binop(BinaryOperator.SUB, bit(0, 8), bit(1, 8), bitType(8)), emptyEnv),
+    )
   }
 
   @Test
   fun `EQ returns true for equal values`() {
-    val expr =
-      Expr.newBuilder()
-        .setBinaryOp(
-          BinaryOp.newBuilder().setOp(BinaryOperator.EQ).setLeft(bit(5, 8)).setRight(bit(5, 8))
-        )
-        .setType(boolType())
-        .build()
-    assertEquals(BoolVal(true), interp().evalExpr(expr, emptyEnv))
+    assertEquals(
+      BoolVal(true),
+      interp().evalExpr(binop(BinaryOperator.EQ, bit(5, 8), bit(5, 8), boolType()), emptyEnv),
+    )
   }
 
   @Test
   fun `EQ returns false for unequal values`() {
-    val expr =
-      Expr.newBuilder()
-        .setBinaryOp(
-          BinaryOp.newBuilder().setOp(BinaryOperator.EQ).setLeft(bit(5, 8)).setRight(bit(6, 8))
-        )
-        .setType(boolType())
-        .build()
-    assertEquals(BoolVal(false), interp().evalExpr(expr, emptyEnv))
+    assertEquals(
+      BoolVal(false),
+      interp().evalExpr(binop(BinaryOperator.EQ, bit(5, 8), bit(6, 8), boolType()), emptyEnv),
+    )
   }
 
   @Test
   fun `LT returns true when left is less than right`() {
-    val expr =
-      Expr.newBuilder()
-        .setBinaryOp(
-          BinaryOp.newBuilder().setOp(BinaryOperator.LT).setLeft(bit(3, 8)).setRight(bit(5, 8))
-        )
-        .setType(boolType())
-        .build()
-    assertEquals(BoolVal(true), interp().evalExpr(expr, emptyEnv))
+    assertEquals(
+      BoolVal(true),
+      interp().evalExpr(binop(BinaryOperator.LT, bit(3, 8), bit(5, 8), boolType()), emptyEnv),
+    )
   }
 
   @Test
   fun `BIT_AND masks bits`() {
-    val expr =
-      Expr.newBuilder()
-        .setBinaryOp(
-          BinaryOp.newBuilder()
-            .setOp(BinaryOperator.BIT_AND)
-            .setLeft(bit(0b1010_1010L, 8))
-            .setRight(bit(0b1111_0000L, 8))
-        )
-        .setType(bitType(8))
-        .build()
-    assertEquals(BitVal(0b1010_0000, 8), interp().evalExpr(expr, emptyEnv))
+    assertEquals(
+      BitVal(0b1010_0000, 8),
+      interp()
+        .evalExpr(
+          binop(BinaryOperator.BIT_AND, bit(0b1010_1010L, 8), bit(0b1111_0000L, 8), bitType(8)),
+          emptyEnv,
+        ),
+    )
   }
 
   @Test
   fun `logical AND of two trues is true`() {
-    val expr =
-      Expr.newBuilder()
-        .setBinaryOp(
-          BinaryOp.newBuilder()
-            .setOp(BinaryOperator.AND)
-            .setLeft(boolLit(true))
-            .setRight(boolLit(true))
-        )
-        .setType(boolType())
-        .build()
-    assertEquals(BoolVal(true), interp().evalExpr(expr, emptyEnv))
+    assertEquals(
+      BoolVal(true),
+      interp()
+        .evalExpr(binop(BinaryOperator.AND, boolLit(true), boolLit(true), boolType()), emptyEnv),
+    )
   }
 
   @Test
   fun `logical AND with false is false`() {
-    val expr =
-      Expr.newBuilder()
-        .setBinaryOp(
-          BinaryOp.newBuilder()
-            .setOp(BinaryOperator.AND)
-            .setLeft(boolLit(true))
-            .setRight(boolLit(false))
-        )
-        .setType(boolType())
-        .build()
-    assertEquals(BoolVal(false), interp().evalExpr(expr, emptyEnv))
+    assertEquals(
+      BoolVal(false),
+      interp()
+        .evalExpr(binop(BinaryOperator.AND, boolLit(true), boolLit(false), boolType()), emptyEnv),
+    )
+  }
+
+  @Test
+  fun `NEQ returns true for unequal values`() {
+    assertEquals(
+      BoolVal(true),
+      interp().evalExpr(binop(BinaryOperator.NEQ, bit(3, 8), bit(4, 8), boolType()), emptyEnv),
+    )
+  }
+
+  @Test
+  fun `NEQ returns false for equal values`() {
+    assertEquals(
+      BoolVal(false),
+      interp().evalExpr(binop(BinaryOperator.NEQ, bit(5, 8), bit(5, 8), boolType()), emptyEnv),
+    )
+  }
+
+  @Test
+  fun `GT returns true when left is greater`() {
+    assertEquals(
+      BoolVal(true),
+      interp().evalExpr(binop(BinaryOperator.GT, bit(6, 8), bit(4, 8), boolType()), emptyEnv),
+    )
+  }
+
+  @Test
+  fun `LE returns true when left equals right`() {
+    assertEquals(
+      BoolVal(true),
+      interp().evalExpr(binop(BinaryOperator.LE, bit(3, 8), bit(3, 8), boolType()), emptyEnv),
+    )
+  }
+
+  @Test
+  fun `GE returns true when left is greater or equal`() {
+    assertEquals(
+      BoolVal(true),
+      interp().evalExpr(binop(BinaryOperator.GE, bit(7, 8), bit(7, 8), boolType()), emptyEnv),
+    )
+  }
+
+  @Test
+  fun `logical OR is true when either operand is true`() {
+    assertEquals(
+      BoolVal(true),
+      interp()
+        .evalExpr(binop(BinaryOperator.OR, boolLit(false), boolLit(true), boolType()), emptyEnv),
+    )
+  }
+
+  @Test
+  fun `logical OR is false when both are false`() {
+    assertEquals(
+      BoolVal(false),
+      interp()
+        .evalExpr(binop(BinaryOperator.OR, boolLit(false), boolLit(false), boolType()), emptyEnv),
+    )
+  }
+
+  @Test
+  fun `BIT_OR sets bits from either operand`() {
+    assertEquals(
+      BitVal(0b1111_0000, 8),
+      interp()
+        .evalExpr(
+          binop(BinaryOperator.BIT_OR, bit(0b1010_0000L, 8), bit(0b0101_0000L, 8), bitType(8)),
+          emptyEnv,
+        ),
+    )
+  }
+
+  @Test
+  fun `BIT_XOR flips bits that differ`() {
+    assertEquals(
+      BitVal(0b1111_1111, 8),
+      interp()
+        .evalExpr(
+          binop(BinaryOperator.BIT_XOR, bit(0b1010_1010L, 8), bit(0b0101_0101L, 8), bitType(8)),
+          emptyEnv,
+        ),
+    )
+  }
+
+  @Test
+  fun `SHL shifts bits left`() {
+    assertEquals(
+      BitVal(0b1000_0000, 8),
+      interp().evalExpr(binop(BinaryOperator.SHL, bit(1, 8), bit(7, 8), bitType(8)), emptyEnv),
+    )
+  }
+
+  @Test
+  fun `SHR shifts bits right`() {
+    assertEquals(
+      BitVal(1, 8),
+      interp()
+        .evalExpr(binop(BinaryOperator.SHR, bit(0b1000_0000L, 8), bit(7, 8), bitType(8)), emptyEnv),
+    )
+  }
+
+  @Test
+  fun `MUL multiplies with wrapping`() {
+    // 200 * 2 = 400 → 400 mod 256 = 144
+    assertEquals(
+      BitVal(144, 8),
+      interp().evalExpr(binop(BinaryOperator.MUL, bit(200, 8), bit(2, 8), bitType(8)), emptyEnv),
+    )
+  }
+
+  @Test
+  fun `DIV truncates toward zero`() {
+    assertEquals(
+      BitVal(3, 8),
+      interp().evalExpr(binop(BinaryOperator.DIV, bit(7, 8), bit(2, 8), bitType(8)), emptyEnv),
+    )
+  }
+
+  @Test
+  fun `MOD returns remainder`() {
+    assertEquals(
+      BitVal(1, 8),
+      interp().evalExpr(binop(BinaryOperator.MOD, bit(7, 8), bit(2, 8), bitType(8)), emptyEnv),
+    )
+  }
+
+  @Test
+  fun `ADD_SAT clamps to max on overflow`() {
+    val expr = binop(BinaryOperator.ADD_SAT, bit(255, 8), bit(1, 8), bitType(8))
+    assertEquals(BitVal(255, 8), interp().evalExpr(expr, emptyEnv))
+  }
+
+  @Test
+  fun `SUB_SAT clamps to zero on underflow`() {
+    assertEquals(
+      BitVal(0, 8),
+      interp().evalExpr(binop(BinaryOperator.SUB_SAT, bit(0, 8), bit(1, 8), bitType(8)), emptyEnv),
+    )
   }
 
   // ---------------------------------------------------------------------------
@@ -229,6 +342,17 @@ class InterpreterExprTest {
         .setType(bitType(8))
         .build()
     assertEquals(BitVal(0b0101_0101, 8), interp().evalExpr(expr, emptyEnv))
+  }
+
+  @Test
+  fun `unary NEG negates with two's-complement wrapping`() {
+    // -1 mod 256 = 255; -0 = 0
+    val expr =
+      Expr.newBuilder()
+        .setUnaryOp(UnaryOp.newBuilder().setOp(UnaryOperator.NEG).setExpr(bit(1, 8)))
+        .setType(bitType(8))
+        .build()
+    assertEquals(BitVal(255, 8), interp().evalExpr(expr, emptyEnv))
   }
 
   // ---------------------------------------------------------------------------
@@ -295,6 +419,46 @@ class InterpreterExprTest {
   }
 
   // ---------------------------------------------------------------------------
+  // Slice, Concat, ArrayIndex
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `slice extracts bit range from expression`() {
+    // 0xAB = 1010_1011; [7:4] = 1010 = 0xA
+    val expr =
+      Expr.newBuilder()
+        .setSlice(Slice.newBuilder().setExpr(bit(0xABL, 8)).setHi(7).setLo(4))
+        .setType(bitType(4))
+        .build()
+    assertEquals(BitVal(0xA, 4), interp().evalExpr(expr, emptyEnv))
+  }
+
+  @Test
+  fun `concat joins two bit vectors`() {
+    // 0xA (4 bits) ++ 0xB (4 bits) = 0xAB (8 bits)
+    val expr =
+      Expr.newBuilder()
+        .setConcat(Concat.newBuilder().setLeft(bit(0xAL, 4)).setRight(bit(0xBL, 4)))
+        .setType(bitType(8))
+        .build()
+    assertEquals(BitVal(0xAB, 8), interp().evalExpr(expr, emptyEnv))
+  }
+
+  @Test
+  fun `array index reads the correct stack element`() {
+    val env = emptyEnv
+    val hdr0 = HeaderVal("vlan_t", mutableMapOf("vid" to BitVal(10, 12)), valid = true)
+    val hdr1 = HeaderVal("vlan_t", mutableMapOf("vid" to BitVal(20, 12)), valid = true)
+    env.define("stk", HeaderStackVal("vlan_t", mutableListOf(hdr0, hdr1)))
+    val expr =
+      Expr.newBuilder()
+        .setArrayIndex(ArrayIndex.newBuilder().setExpr(nameRef("stk")).setIndex(bit(1, 8)))
+        .setType(Type.newBuilder().setNamed("vlan_t"))
+        .build()
+    assertEquals(hdr1, interp().evalExpr(expr, env))
+  }
+
+  // ---------------------------------------------------------------------------
   // Header validity method calls
   // ---------------------------------------------------------------------------
 
@@ -334,6 +498,54 @@ class InterpreterExprTest {
         .build()
     interp().evalExpr(expr, env)
     assertTrue(hdr.valid)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Mux (ternary) operator
+  // ---------------------------------------------------------------------------
+
+  private fun mux(condition: Expr, thenExpr: Expr, elseExpr: Expr): Expr =
+    Expr.newBuilder()
+      .setMux(
+        MuxExpr.newBuilder().setCondition(condition).setThenExpr(thenExpr).setElseExpr(elseExpr)
+      )
+      .setType(thenExpr.type)
+      .build()
+
+  @Test
+  fun `mux selects then-branch when condition is true`() {
+    assertEquals(
+      BitVal(1, 16),
+      interp().evalExpr(mux(boolLit(true), bit(1, 16), bit(2, 16)), emptyEnv),
+    )
+  }
+
+  @Test
+  fun `mux selects else-branch when condition is false`() {
+    assertEquals(
+      BitVal(2, 16),
+      interp().evalExpr(mux(boolLit(false), bit(1, 16), bit(2, 16)), emptyEnv),
+    )
+  }
+
+  @Test
+  fun `mux works with computed condition`() {
+    val gt =
+      Expr.newBuilder()
+        .setBinaryOp(
+          BinaryOp.newBuilder().setOp(BinaryOperator.GT).setLeft(bit(5, 8)).setRight(bit(3, 8))
+        )
+        .setType(Type.newBuilder().setBoolean(true))
+        .build()
+    assertEquals(BitVal(1, 8), interp().evalExpr(mux(gt, bit(1, 8), bit(2, 8)), emptyEnv))
+  }
+
+  @Test
+  fun `mux works with bool branches`() {
+    assertEquals(
+      BoolVal(false),
+      interp().evalExpr(mux(boolLit(true), boolLit(false), boolLit(true)), emptyEnv),
+    )
   }
 
   @Test

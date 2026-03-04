@@ -49,6 +49,7 @@ complexity:
     thresholdInInterfaces: 30
     thresholdInObjects: 30
     thresholdInEnums: 11
+    excludes: ['**/test/**', '**/*Test.kt']
 
   # Protocol dispatch functions (Interpreter.evalExpr, evalBinaryOp) are large
   # `when` expressions whose cyclomatic complexity grows linearly with the number

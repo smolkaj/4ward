@@ -302,4 +302,115 @@ class InterpreterControlTest {
     interp(config).runControl("MyControl", env)
     assertEquals(BitVal(42, 8), env.lookup("x"))
   }
+
+  // ---------------------------------------------------------------------------
+  // table.apply().hit / .miss
+  // ---------------------------------------------------------------------------
+
+  /** Builds `if (tableApplyExpr) { thenStmts } else { elseStmts }`. */
+  private fun ifTableHit(
+    tableName: String,
+    accessKind: TableApplyExpr.AccessKind,
+    thenStmts: List<Stmt>,
+    elseStmts: List<Stmt>,
+  ): Stmt {
+    val subject =
+      Expr.newBuilder()
+        .setTableApply(
+          TableApplyExpr.newBuilder().setTableName(tableName).setAccessKind(accessKind)
+        )
+        .setType(Type.newBuilder().setBoolean(true))
+        .build()
+    return ifStmt(subject, thenStmts, elseStmts)
+  }
+
+  /** Minimal config with table "t" and actions "fwd" and "NoAction". */
+  private fun tableHitConfig(bodyStmt: Stmt): P4BehavioralConfig =
+    P4BehavioralConfig.newBuilder()
+      .addTables(TableBehavior.newBuilder().setName("t"))
+      .addActions(ActionDecl.newBuilder().setName("fwd"))
+      .addActions(ActionDecl.newBuilder().setName("NoAction"))
+      .addControls(ControlDecl.newBuilder().setName("MyControl").addApplyBody(bodyStmt))
+      .build()
+
+  @Test
+  fun `table apply hit returns true when entry matches`() {
+    val ts = TableStore().also { it.setForcedHit("t", "fwd") }
+    val env = emptyEnv
+    env.define("x", BitVal(0, 8))
+    interp(
+        tableHitConfig(
+          ifTableHit(
+            "t",
+            TableApplyExpr.AccessKind.HIT,
+            listOf(assign("x", bit(1, 8))),
+            listOf(assign("x", bit(2, 8))),
+          )
+        ),
+        ts,
+      )
+      .runControl("MyControl", env)
+    assertEquals(BitVal(1, 8), env.lookup("x"))
+  }
+
+  @Test
+  fun `table apply hit returns false when no entry matches`() {
+    // TableStore with no entry for "t" — lookup misses (default action).
+    val ts = TableStore()
+    val env = emptyEnv
+    env.define("x", BitVal(0, 8))
+    interp(
+        tableHitConfig(
+          ifTableHit(
+            "t",
+            TableApplyExpr.AccessKind.HIT,
+            listOf(assign("x", bit(1, 8))),
+            listOf(assign("x", bit(2, 8))),
+          )
+        ),
+        ts,
+      )
+      .runControl("MyControl", env)
+    assertEquals(BitVal(2, 8), env.lookup("x"))
+  }
+
+  @Test
+  fun `table apply miss returns true when no entry matches`() {
+    val ts = TableStore()
+    val env = emptyEnv
+    env.define("x", BitVal(0, 8))
+    interp(
+        tableHitConfig(
+          ifTableHit(
+            "t",
+            TableApplyExpr.AccessKind.MISS,
+            listOf(assign("x", bit(1, 8))),
+            listOf(assign("x", bit(2, 8))),
+          )
+        ),
+        ts,
+      )
+      .runControl("MyControl", env)
+    assertEquals(BitVal(1, 8), env.lookup("x"))
+  }
+
+  @Test
+  fun `table apply miss returns false when entry matches`() {
+    val ts = TableStore().also { it.setForcedHit("t", "fwd") }
+    val env = emptyEnv
+    env.define("x", BitVal(0, 8))
+    interp(
+        tableHitConfig(
+          ifTableHit(
+            "t",
+            TableApplyExpr.AccessKind.MISS,
+            listOf(assign("x", bit(1, 8))),
+            listOf(assign("x", bit(2, 8))),
+          )
+        ),
+        ts,
+      )
+      .runControl("MyControl", env)
+    assertEquals(BitVal(2, 8), env.lookup("x"))
+  }
 }
