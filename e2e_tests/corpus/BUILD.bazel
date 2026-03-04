@@ -111,6 +111,7 @@ corpus_test_suite(
         "issue510-bmv2",
         "issue635-bmv2",
         "issue983-bmv2",
+        "match-on-exprs-bmv2",
         "opassign1-bmv2",
     ],
 )
@@ -247,7 +248,6 @@ corpus_test_suite(
         "issue655-bmv2",  # unhandled extern call: verify_checksum
         "issue774-4-bmv2",  # undefined variable: arg
         "issue995-bmv2",  # unhandled expression kind: type
-        "match-on-exprs-bmv2",  # NumberFormatException: "o"
         "opassign2-bmv2",  # field access on non-aggregate value: HeaderStackVal
         "parser_error-bmv2",  # expected packet on port 0 but got none
         "runtime-index-2-bmv2",  # integer literal without bit type

@@ -485,9 +485,17 @@ private fun String.unquote(): String = removeSurrounding("\"")
 
 /** Strips a `"name":` prefix from a p4testgen named action parameter, returning just the value. */
 private fun String.stripNamedParamPrefix(): String {
-  if (!startsWith('"')) return this
-  val sep = indexOf("\":", 1)
-  return if (sep >= 0) substring(sep + 2) else this
+  // p4testgen: quoted named params like "param":value
+  if (startsWith('"')) {
+    val sep = indexOf("\":", 1)
+    return if (sep >= 0) substring(sep + 2) else this
+  }
+  // Unquoted named params like param:value (used in standard STF files).
+  val colon = indexOf(':')
+  if (colon > 0 && substring(0, colon).all { it.isLetterOrDigit() || it == '_' }) {
+    return substring(colon + 1)
+  }
+  return this
 }
 
 /**
