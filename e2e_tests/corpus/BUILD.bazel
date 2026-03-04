@@ -226,6 +226,7 @@ corpus_test_suite(
         "issue1062-1-bmv2",  # expected packet on port 0 but got none
         "issue1097-2-bmv2",  # unhandled method call: write (register extern)
         "issue1566-bmv2",  # integer literal without bit type
+        "issue1814-1-bmv2",  # unhandled method call: read (register extern)
     ],
 )
 
