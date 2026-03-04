@@ -260,8 +260,11 @@ class Interpreter(
       }
       lit.hasBigInteger() -> {
         val v = BigInteger(1, lit.bigInteger.toByteArray())
-        if (type.hasSignedInt()) IntVal(SignedBitVector.fromUnsignedBits(v, type.signedInt.width))
-        else BitVal(BitVector(v, type.bit.width))
+        when {
+          type.hasSignedInt() -> IntVal(SignedBitVector.fromUnsignedBits(v, type.signedInt.width))
+          type.hasBit() -> BitVal(BitVector(v, type.bit.width))
+          else -> error("big integer literal with unexpected type: $type")
+        }
       }
       else -> error("unhandled literal kind: $lit")
     }

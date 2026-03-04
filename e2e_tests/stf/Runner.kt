@@ -15,6 +15,9 @@ import java.nio.file.Paths
 import p4.config.v1.P4InfoOuterClass
 import p4.v1.P4RuntimeOuterClass
 
+/** BMv2 STF files use `$N` for array indices; normalize to `[N]`. */
+private val ARRAY_INDEX_REGEX = Regex("\\$(\\d+)")
+
 /**
  * Runs a single STF test against the 4ward simulator.
  *
@@ -197,7 +200,7 @@ class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPat
     // BMv2 STF files strip the outermost struct prefix from field names
     // (e.g. p4info "hdrs.data.f1" → STF "data.f1") and use $N for array
     // indices (p4info "extra[0].h" → STF "extra$0.h").
-    val stfNorm = m.fieldName.replace(Regex("\\$(\\d+)"), "[$1]")
+    val stfNorm = m.fieldName.replace(ARRAY_INDEX_REGEX, "[$1]")
     val mf =
       table.matchFieldsList.find { it.name == m.fieldName || it.name == stfNorm }
         ?: table.matchFieldsList.find {
@@ -522,13 +525,6 @@ private fun String.extractParamName(): String? = splitNamedParam().first
 private fun String.stripNamedParamPrefix(): String = splitNamedParam().second
 
 /**
- * Parses a binary wildcard string like `0b1010****` into hex value and mask strings.
- *
- * Each `*` bit becomes a 0 in the value and a 0 in the mask; each `0`/`1` bit becomes its value in
- * the value and a 1 in the mask. Returns hex strings for consistency with the other match value
- * representations (all match values flow through [encodeValue] during p4info resolution).
- */
-/**
  * Parses a hex wildcard string like `0x****0101` into hex value and mask strings.
  *
  * Each `*` nibble becomes 0 in value and 0 in mask; each hex digit becomes its value and F in mask.
@@ -548,6 +544,13 @@ private fun parseHexWildcard(hexStr: String): Pair<String, String> {
   return "0x${value.toString(16)}" to "0x${mask.toString(16)}"
 }
 
+/**
+ * Parses a binary wildcard string like `0b1010****` into hex value and mask strings.
+ *
+ * Each `*` bit becomes a 0 in the value and a 0 in the mask; each `0`/`1` bit becomes its value in
+ * the value and a 1 in the mask. Returns hex strings for consistency with the other match value
+ * representations (all match values flow through [encodeValue] during p4info resolution).
+ */
 private fun parseBinaryWildcard(binStr: String): Pair<String, String> {
   val bits = binStr.removePrefix("0b").removePrefix("0B")
   val valueBits = StringBuilder(bits.length)
