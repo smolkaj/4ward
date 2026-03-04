@@ -440,10 +440,7 @@ fun encodeValue(raw: String, bitwidth: Int): ByteString {
 // Data types
 // ---------------------------------------------------------------------------
 
-data class StfPacket(
-  val ingressPort: Int,
-  val payload: ByteArray,
-)
+data class StfPacket(val ingressPort: Int, val payload: ByteArray)
 
 class StfExpectedOutput(val port: Int, val payload: ByteArray, val mask: ByteArray)
 

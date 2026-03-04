@@ -341,7 +341,8 @@ fourward::ir::v1::Stmt FourWardBackend::emitStmt(const IR::StatOrDecl* node) {
 
     if (isValueSwitch) {
       // Emit value-based switch as an if-else chain:
-      //   if (subject == case1) { ... } else if (subject == case2) { ... } else { default }
+      //   if (subject == case1) { ... } else if (subject == case2) { ... } else
+      //   { default }
       fourward::ir::v1::Stmt* cursor = &out;
       for (const auto* c : sw->cases) {
         if (c->label->is<IR::DefaultExpression>()) continue;
@@ -384,7 +385,8 @@ fourward::ir::v1::Stmt FourWardBackend::emitStmt(const IR::StatOrDecl* node) {
         } else {
           auto* sc = s->add_cases();
           if (const auto* pe = c->label->to<IR::PathExpression>()) {
-            // Use the original (pre-rename) action name to match p4info aliases.
+            // Use the original (pre-rename) action name to match p4info
+            // aliases.
             sc->set_action_name(pe->path->name.originalName.c_str());
           }
           if (c->statement) {

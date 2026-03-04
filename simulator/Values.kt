@@ -21,12 +21,13 @@ data class BitVal(val bits: BitVector) : Value() {
 /**
  * A compile-time integer with infinite precision (P4 spec §8.1).
  *
- * InfInt values arise from untyped integer literals in the IR (e.g. shift amounts, constants).
- * They adopt the width of the other operand when used in a binary operation.
+ * InfInt values arise from untyped integer literals in the IR (e.g. shift amounts, constants). They
+ * adopt the width of the other operand when used in a binary operation.
  */
 data class InfIntVal(val value: java.math.BigInteger) : Value() {
   /** Coerce to a fixed-width [BitVal]. */
-  fun toBitVal(width: Int): BitVal = BitVal(BitVector(value.mod(java.math.BigInteger.TWO.pow(width)), width))
+  fun toBitVal(width: Int): BitVal =
+    BitVal(BitVector(value.mod(java.math.BigInteger.TWO.pow(width)), width))
 }
 
 /** An int<N> value (two's complement). */
