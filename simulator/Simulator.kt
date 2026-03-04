@@ -44,21 +44,37 @@ class Simulator {
     val config = req.config
     pipeline = config
 
-    // Use aliases (short names) so they match the originalName-based keys the behavioral IR uses.
+    // The behavioral IR uses its own table/action names (TableBehavior.name,
+    // ActionDecl.name/current_name), which may differ from p4info aliases
+    // (e.g. inlined controls: behavioral "c_t" vs p4info alias "t").
+    // Resolve p4info IDs to behavioral names so the TableStore uses the same
+    // keys as the interpreter.
+    val behavioralTables = config.behavioral.tablesList.map { it.name }
+    val behavioralActions =
+      (config.behavioral.actionsList +
+          config.behavioral.controlsList.flatMap { it.localActionsList })
+        .flatMap { action -> listOfNotNull(action.name, action.currentName.ifEmpty { null }) }
+
+    fun resolveName(alias: String, candidates: List<String>): String =
+      candidates.find { it == alias } ?: candidates.find { it.endsWith("_$alias") } ?: alias
+
     val tableNameById =
-      config.p4Info.tablesList.associate {
-        it.preamble.id to it.preamble.alias.ifEmpty { it.preamble.name }
+      config.p4Info.tablesList.associate { table ->
+        val alias = table.preamble.alias.ifEmpty { table.preamble.name }
+        table.preamble.id to resolveName(alias, behavioralTables)
       }
     val actionNameById =
-      config.p4Info.actionsList.associate {
-        it.preamble.id to it.preamble.alias.ifEmpty { it.preamble.name }
+      config.p4Info.actionsList.associate { action ->
+        val alias = action.preamble.alias.ifEmpty { action.preamble.name }
+        action.preamble.id to resolveName(alias, behavioralActions)
       }
     tableStore.loadMappings(tableNameById, actionNameById)
 
     for (table in config.p4Info.tablesList) {
       if (table.constDefaultActionId != 0) {
+        val tableName = tableNameById[table.preamble.id] ?: continue
         val actionName = actionNameById[table.constDefaultActionId] ?: "NoAction"
-        tableStore.setDefaultAction(table.preamble.name, actionName)
+        tableStore.setDefaultAction(tableName, actionName)
       }
     }
 

@@ -16,7 +16,14 @@ corpus_test_suite(
         "@p4c//testdata/p4_16_samples:ml-headers.p4",
     ],
     tests = [
+        "arith-bmv2",
+        "arith-inline-bmv2",
+        "arith1-bmv2",
+        "arith2-bmv2",
         "arith2-inline-bmv2",
+        "arith3-bmv2",
+        "arith4-bmv2",
+        "arith5-bmv2",
         "array-copy-bmv2",
         "equality-varbit-bmv2",
         "flag_lost-bmv2",
@@ -164,20 +171,13 @@ corpus_test_suite(
     ],
     tags = ["manual"],
     tests = [
-        "arith-bmv2",  # payload mismatch (arithmetic)
-        "arith-inline-bmv2",  # payload mismatch (arithmetic)
-        "arith1-bmv2",  # payload mismatch (arithmetic)
-        "arith2-bmv2",  # payload mismatch (arithmetic)
-        "arith3-bmv2",  # payload mismatch (arithmetic)
-        "arith4-bmv2",  # payload mismatch (arithmetic)
-        "arith5-bmv2",  # payload mismatch (arithmetic)
         "constant-in-calculation-bmv2",  # unhandled extern call: hash
-        "default-action-arg-bmv2",  # payload mismatch (arithmetic)
-        "default_action-bmv2",  # payload mismatch (arithmetic)
+        "default-action-arg-bmv2",  # UnitVal as action param default
+        "default_action-bmv2",  # UnitVal as action param default
         "enum-bmv2",  # unhandled expression kind (enum)
         "extern-funcs-bmv2",  # unhandled extern call: extern_func
-        "ipv6-switch-ml-bmv2",  # unhandled expression kind (enum)
-        "key-bmv2",  # unknown table: c.t (short table name)
+        "ipv6-switch-ml-bmv2",  # unknown match field (STF runner)
+        "key-bmv2",  # unknown table: c.t (STF runner dotted name)
     ],
 )
 
