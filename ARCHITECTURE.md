@@ -6,6 +6,19 @@ components, how they talk to each other, and why we made the choices we did.
 If you just want to use 4ward, the [README](README.md) is all you need. If you
 want to hack on it, keep reading.
 
+## Design goal: spec-compliant reference implementation
+
+4ward's primary goal is to be a faithful implementation of the
+[P4₁₆ language specification](https://p4.org/wp-content/uploads/sites/53/2024/10/P4-16-spec-v1.2.5.html).
+Every language feature should behave exactly as the spec describes. When the
+spec is ambiguous, we follow p4c's reference compiler behaviour and document
+the ambiguity. When the spec is clear, we follow it — even if BMv2 or other
+implementations do something different.
+
+This means correctness always wins over convenience, performance, or
+compatibility with non-standard behaviour. The simulator is meant to be the
+implementation you trust when you need to know what a P4 program *should* do.
+
 ## The big picture
 
 ```
