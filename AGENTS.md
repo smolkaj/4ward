@@ -1,8 +1,5 @@
 # 4ward — Agent Guide
 
-Welcome, AI agent! This guide gives you the context you need to work effectively
-in the 4ward codebase. Read it before making changes.
-
 ## Repository map
 
 ```
@@ -17,9 +14,7 @@ e2e_tests/passthrough/       Walking-skeleton end-to-end test.
 ARCHITECTURE.md              Design rationale. Read this first.
 ```
 
-Unit tests live alongside the source they test:
-- Kotlin: `FooTest.kt` next to `Foo.kt` in the same directory.
-- C++: `foo_test.cc` next to `foo.h/foo.cc` in the same directory.
+Unit tests live alongside the source they test (`FooTest.kt` next to `Foo.kt`).
 
 ## Build and test
 
@@ -66,48 +61,28 @@ results rather than waiting for a full local rebuild. Check CI logs with
    at runtime. Do not remove this field or make it optional.
 
 3. **The simulator is the source of truth for all data-plane state.** Table
-   entries, counters, registers — all live in the Kotlin simulator. The future
-   Go P4Runtime server is a thin adapter that forwards requests; it holds no
-   P4 state of its own.
+   entries, counters, registers — all live in the Kotlin simulator. The planned
+   Go P4Runtime server will be a thin adapter that forwards requests; it will
+   hold no P4 state of its own.
 
 4. **Correctness over performance.** If you are tempted to optimize something at
    the cost of readability or correctness, don't. This is a development and
    testing tool.
 
-## Style guides
+## Style
 
-- **Kotlin**: follow the [Google Kotlin style guide](https://google.github.io/styleguide/kotlinguide.html).
-  4-space indentation, 100-character line limit, `lowerCamelCase` for functions
-  and properties, `UpperCamelCase` for classes, `UPPER_SNAKE_CASE` for constants.
-  Enforced by ktfmt (`./format.sh`) and detekt (`./lint.sh`).
-- **C++**: follow the [Google C++ style guide](https://google.github.io/styleguide/cppguide.html).
-  C++20, enforced by clang-format (`./format.sh`) and clang-tidy (`./lint.sh`,
-  see `.clang-tidy` at the repo root).
-- **Proto**: field names in `snake_case`, enum values in `UPPER_SNAKE_CASE` with
-  a type prefix (e.g. `STAGE_KIND_UNSPECIFIED`). Comments on every non-obvious
-  field.
-- **BUILD files**: enforced by buildifier (`./format.sh`).
+Style is enforced by `./format.sh` (formatting) and `./lint.sh` (linting). Run
+both before completing a task. Fix all warnings.
 
-## Kotlin packages
-
-- Simulator source: `fourward.simulator`
-- Proto-generated (IR): `fourward.ir.v1`
-- Proto-generated (simulator protocol): `fourward.sim.v1`
-- E2E test runner: `fourward.e2e`
-- E2E tests: `fourward.e2e.<test-name>`
+**Proto conventions**: field names in `snake_case`, enum values in
+`UPPER_SNAKE_CASE` with a type prefix (e.g. `STAGE_KIND_UNSPECIFIED`). Never
+remove or renumber existing fields; add new ones instead.
 
 ## Making a test pass
 
-The recommended way to add a feature is:
-
-1. Find a failing STF test in `e2e_tests/` that exercises the feature.
-2. Run it: `bazel test //e2e_tests/<test>`.
-3. Read the failure. It will tell you what the simulator returned vs. what was
-   expected.
-4. Implement the missing feature in `simulator/`.
-5. Confirm the test passes and no other tests regress: `bazel test //...`.
-
-Do not add features that are not exercised by a test.
+Do not add features that are not exercised by an STF test in `e2e_tests/`.
+Find the relevant failing test, implement the missing feature in `simulator/`,
+and confirm no other tests regress: `bazel test //...`.
 
 ## P4 language notes
 
@@ -117,29 +92,19 @@ Do not add features that are not exercised by a test.
 - Arithmetic on `bit<N>` types is unsigned and truncates on overflow (wraps
   modulo 2^N). Arithmetic on `int<N>` is two's-complement. Saturation
   arithmetic uses `|+|` and `|-|` operators.
-- `varbit<N>` (variable-length headers, used in IPv4 options) is a stretch goal;
-  do not implement it unless specifically asked.
+- `varbit<N>` (variable-length headers, used in IPv4 options) has basic support
+  in the simulator.
 
 ## Architecture implementations
 
-Adding a new P4 architecture (e.g. PSA):
-
-1. Add a new `Architecture` implementation in `simulator/` (e.g. `PsaArchitecture.kt`).
-2. Register it in `Simulator.kt`.
-3. Add `--arch psa` support to the p4c backend.
-4. Add STF tests in `e2e_tests/` that exercise PSA-specific behaviour.
+To add a new P4 architecture, follow the existing `V1ModelArchitecture.kt` as
+the reference implementation. Register the new architecture in the `when`
+expression inside `Simulator.handleLoadPipeline()`.
 
 ## Proto changes
 
-Proto changes affect both the p4c backend (C++) and the simulator (Kotlin). When
-changing `ir.proto` or `simulator.proto`:
-
-1. Update the `.proto` file.
-2. Update the p4c backend to emit the new fields.
-3. Update the Kotlin simulator to consume them.
-4. Make sure the relevant STF tests still pass.
-
-Never remove or renumber existing fields; add new ones instead.
+Proto changes affect both the p4c backend (C++) and the simulator (Kotlin).
+Update both sides and make sure the relevant STF tests still pass.
 
 ## Worktrees
 
