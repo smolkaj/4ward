@@ -182,3 +182,13 @@ corpus_test_suite(
         "issue1768-bmv2",
     ],
 )
+
+# Tests blocked on header stack operations (field access, push/pop, copy).
+# These fail with "field access on non-aggregate value: HeaderStackVal".
+corpus_test_suite(
+    name = "header_stack_stf_corpus_test",
+    tags = ["manual"],
+    tests = [
+        "array-copy-bmv2",
+    ],
+)
