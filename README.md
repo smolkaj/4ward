@@ -1,6 +1,10 @@
-# 4ward
+<p align="center">
+  <img src="logo.svg" alt="4ward logo" width="200">
+  <br><br>
+  <strong>Your P4 programs, finally explained.</strong>
+</p>
 
-**Your P4 programs, finally explained.**
+# 4ward
 
 Ever stare at a packet leaving a switch and wonder *what just happened in
 there?* 4ward is a glass-box P4 simulator that tells you exactly what happened
@@ -30,7 +34,7 @@ branch — delivered as a structured trace you can actually read.
 | | BMv2 | Real hardware | **4ward** |
 |---|---|---|---|
 | Runs P4 programs | sure | sure | **yep** |
-| Execution trace | nope | nope | **yes!** |
+| Execution trace | text | nope | **proto/JSON** |
 | Architecture-generic | nope | nope | **yes!** |
 | P4Runtime | sure | sure | **yep** |
 | Simple, readable codebase | ehh | ehh | **yes!** |
