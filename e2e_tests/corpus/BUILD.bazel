@@ -222,6 +222,7 @@ corpus_test_suite(
         "issue-2123-2-bmv2",  # unhandled binary operator: BINARY_OPERATOR_UNSPECIFIED
         "issue-2123-3-bmv2",  # unhandled expression kind: type
         "issue1000-bmv2",  # unhandled expression kind: type
+        "issue1049-bmv2",  # payload mismatch
     ],
 )
 
