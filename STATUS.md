@@ -113,3 +113,75 @@ the pass rate from ~47% to ~66%.
 The bigger lifts (PSA architecture, skeleton Bazel targets, lookahead support)
 are either architectural or toolchain work and probably belong on a separate
 track.
+
+### Corpus fix-up session (branch: `fix-inlined-table-lookup`)
+
+Worked through the top failure categories from the morning classification.
+23 tests promoted to the passing suite (101 → 124). 12 commits, not yet
+merged.
+
+**Fixes implemented:**
+
+- **Header stack support** — field access, array indexing, and emission for
+  `HeaderStackVal`. Promoted 8 gauntlet_index tests + opassign2 + array-copy.
+- **Header union support** — backend emits `HeaderUnionDecl` types; simulator
+  creates `StructVal` for unions with per-member validity tracking (P4 spec
+  §8.20). `isValid()`/`setInvalid()` handle union semantics. Promoted
+  header-bool, issue561-1/2.
+- **STF queue-based output matching** — runner collects all outputs into a FIFO
+  queue, then matches expects by port. Fixes batched STF files where all packets
+  precede all expects (BMv2-compatible behavior).
+- **Don't-care extract** — P4's `p.extract<T>(_)` compiles to `extract(arg)`
+  with undeclared `arg`; simulator now creates a throw-away header to consume
+  bytes. Promoted issue774-4.
+- **Parser error handling** — simulator continues pipeline on parser errors
+  instead of dropping the packet. Promoted parser_error + 2 others.
+- **Backend fixes** — inlined table lookup, InfInt literals, range/mask parser
+  select keysets, multi-key select (ListExpression), value-based switch lowering.
+- **STF parser** — handle unquoted named action params in `add` directives.
+
+### Corpus snapshot: 213 tests total
+
+| Suite | Count | Status |
+|---|---|---|
+| v1model (CI) | 124 | passing |
+| Skeleton includes | 15 | manual — missing Bazel targets |
+| PSA architecture | 25 | manual — unsupported arch |
+| Lookahead/advance | 6 | manual — p4c backend limitation |
+| Header stack ops | 1 | manual — push/pop/comparison |
+| Other failures | 40 | manual — various simulator gaps |
+| Slow compile | 1 | manual — 10+ min compile |
+| Unsupported arch | 1 | manual — non-v1model/PSA |
+
+### Remaining failure categories
+
+| Missing feature | Blocked tests |
+|---|---|
+| Const table entries | 8 |
+| Header unions (remaining) | 10 |
+| verify/verify_checksum | 6 |
+| Payload mismatches | 5 |
+| Header stack edge cases | 2 |
+| Integer literal w/o bit type | 2 |
+| Register read/write | 2 |
+| Counter extern | 1 |
+| Inlined function locals | 1 |
+| NumberFormatException | 2 |
+| Missing output packets | 1 |
+
+### Where are we going?
+
+**124/213 tests passing (~58%), or 124/143 v1model-capable (~87%).**
+
+Excluding structurally blocked tests (PSA, skeleton includes, lookahead,
+unsupported arch = 47 tests), only 19 v1model tests remain failing.
+
+Next highest-impact items:
+
+1. **Const table entries** (8 tests) — populate table entries from IR at load
+   time
+2. **Header union completions** (up to 10 tests) — union-* tests may pass now
+   with the backend/simulator changes; issue561-3 needs one-valid-at-a-time
+   enforcement; issue561-4–7 need `HeaderStackVal` to accept union elements
+3. **verify/verify_checksum externs** (6 tests) — implement the extern calls
+4. **Register read/write + counter** (3 tests) — implement extern methods
