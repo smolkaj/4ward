@@ -69,6 +69,7 @@ corpus_test_suite(
         "gauntlet_nested_switch-bmv2",
         "gauntlet_nested_table_calls-bmv2",
         "gauntlet_return_truncate-bmv2",
+        "gauntlet_set_invalid-bmv2",
         "gauntlet_set_valid_in_function-bmv2",
         "gauntlet_short_circuit-bmv2",
         "gauntlet_side_effect_order_1-bmv2",
