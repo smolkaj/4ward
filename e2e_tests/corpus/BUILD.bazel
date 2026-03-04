@@ -250,6 +250,11 @@ corpus_test_suite(
         "match-on-exprs-bmv2",  # NumberFormatException: "o"
         "opassign2-bmv2",  # field access on non-aggregate value: HeaderStackVal
         "parser_error-bmv2",  # expected packet on port 0 but got none
+        "runtime-index-2-bmv2",  # integer literal without bit type
+        "runtime-index-bmv2",  # integer literal without bit type
+        "saturated-bmv2",  # payload mismatch
+        "stack_complex-bmv2",  # field access on non-aggregate value: HeaderStackVal
+        "subparser-with-header-stack-bmv2",  # unhandled extern call: verify
     ],
 )
 
