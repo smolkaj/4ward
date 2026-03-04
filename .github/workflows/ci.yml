@@ -100,7 +100,7 @@ jobs:
       # Remove the repository cache to save ~500 MB before any potential save.
       - name: Compress cache
         if: always()
-        run: rm -rf $(bazel info repository_cache)
+        run: bazel shutdown && rm -rf $(bazel info repository_cache)
 
       # Only save cache on main (PR caches are scoped to their branch and
       # evict the shared caches that all jobs depend on) or when the build
@@ -149,7 +149,7 @@ jobs:
 
       - name: Compress cache
         if: always()
-        run: rm -rf $(bazel info repository_cache)
+        run: bazel shutdown && rm -rf $(bazel info repository_cache)
 
       - name: Save Bazel cache
         uses: actions/cache/save@v5
