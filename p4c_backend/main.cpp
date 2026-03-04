@@ -43,7 +43,7 @@
 // NOLINTNEXTLINE(bugprone-exception-escape)
 int main(int argc, char* const argv[]) {
   setup_gc_logging();
-  setup_signals();
+  P4::setup_signals();
 
   P4::AutoCompileContext autoContext(
       new P4::P4CContextWithOptions<P4::FourWard::FourWardOptions>);
