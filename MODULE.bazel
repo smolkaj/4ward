@@ -28,7 +28,7 @@ bazel_dep(name = "p4runtime", version = "1.5.0.bcr.1")
 bazel_dep(name = "p4c", version = "head")
 git_override(
     module_name = "p4c",
-    commit = "57df447d4dc916d4a9e0d9c9837aa3ee3cd9f0ab",
+    commit = "f36edeb88709fc6f5e44c3b6c40a666a0af2313a",
     remote = "https://github.com/smolkaj/p4c.git",
 )
 
