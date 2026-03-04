@@ -135,21 +135,22 @@ Curious about the design? [ARCHITECTURE.md](ARCHITECTURE.md) has the full story.
 
 ## Where things stand
 
-4ward is young and growing fast. The goal is a spec-compliant reference
-simulator that goes beyond BMv2 — richer traces, exhaustive exploration of
-non-deterministic paths, and a codebase anyone can extend with ease. Anywhere you need a
-correct, observable P4 model — dataplane validation, CI pipelines, interactive
-debugging — 4ward aims to be the better choice. See [ROADMAP.md](ROADMAP.md)
-for the full picture.
+4ward is young and growing fast. The core is working — proto IR, p4c backend,
+Kotlin simulator, STF test runner, and CI pipeline are all in place. See
+[ROADMAP.md](ROADMAP.md) for what's next and [STATUS.md](STATUS.md) for daily
+progress.
 
-- [x] Proto IR schema
-- [x] Project skeleton
-- [x] p4c backend (v1model, passthrough)
-- [x] Simulator (passthrough)
-- [x] STF test runner
-- [ ] Full v1model support
-- [ ] Trace trees
-- [ ] P4Runtime server (Go)
+## Documentation
+
+| Document | Purpose |
+|---|---|
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Design rationale and component overview |
+| [ROADMAP.md](ROADMAP.md) | Development tracks, priorities, and sequencing |
+| [STATUS.md](STATUS.md) | Append-only log of daily progress |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | How to get involved |
+| [AGENTS.md](AGENTS.md) | Guide for AI coding agents |
+| [LIMITATIONS.md](LIMITATIONS.md) | Known shortcuts and gaps |
+| [REFACTORING.md](REFACTORING.md) | Tech debt and cleanup backlog |
 
 ## Want to help?
 
