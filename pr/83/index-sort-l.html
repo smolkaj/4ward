@@ -25,36 +25,56 @@
             <td width="5%" class="headerCovTableHead">Coverage</td>
             <td width="5%" class="headerCovTableHead" title="Covered + Uncovered code (not including EUB, ECB, DUB, DCB categories)">Total</td>
             <td width="5%" class="headerCovTableHead" title="Exercised code only (CBC + GBC + GNC + GIC)">Hit</td>
+            <td width="5%" class="headerCovTableHeadLBC" title="Lost Baseline Coverage (1 => 0):
+Unchanged code is no longer tested">Coverage lost</td>
+            <td width="5%" class="headerCovTableHeadUIC" title="Uncovered Included Code (# => 0):
+Previously unused code is untested">Included (not covered)</td>
             <td width="5%" class="headerCovTableHeadUBC" title="Uncovered Baseline Code (0 => 0):
 Unchanged code was untested before, is untested now">Not covered</td>
             <td width="5%" class="headerCovTableHeadGBC" title="Gained Baseline Coverage (0 => 1):
 Unchanged code is tested now">Newly covered</td>
+            <td width="5%" class="headerCovTableHeadGIC" title="Gained Included Coverage (# => 1):
+Previously unused code is tested now">Included (covered)</td>
             <td width="5%" class="headerCovTableHeadCBC" title="Covered Baseline Code (1 => 1):
 Unchanged code was tested before and is still tested">Covered</td>
+            <td width="5%" class="headerCovTableHeadEUB" title="Excluded Uncovered Baseline (0 => #):
+Previously untested code is unused now">Excluded (not covered)</td>
+            <td width="5%" class="headerCovTableHeadECB" title="Excluded Covered Baseline (1 => #):
+Previously tested code is unused now">Excluded (covered)</td>
           </tr>
           <tr>
             <td class="headerItem">Current:</td>
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryMed">87.1&nbsp;%</td>
-            <td class="headerCovTableEntry">782</td>
-            <td class="headerCovTableEntry">681</td>
-            <td class="headerCovTableEntry">101</td>
-            <td class="headerCovTableEntry">1</td>
-            <td class="headerCovTableEntry">680</td>
+            <td class="headerCovTableEntryMed">87.2&nbsp;%</td>
+            <td class="headerCovTableEntry">841</td>
+            <td class="headerCovTableEntry">733</td>
+            <td class="headerCovTableEntry">32</td>
+            <td class="headerCovTableEntry">34</td>
+            <td class="headerCovTableEntry">42</td>
+            <td class="headerCovTableEntry">40</td>
+            <td class="headerCovTableEntry">162</td>
+            <td class="headerCovTableEntry">531</td>
+            <td class="headerCovTableEntry">19</td>
+            <td class="headerCovTableEntry">118</td>
           </tr>
           <tr>
             <td class="headerItem">Current Date:</td>
-            <td class="headerValue">2026-03-04 11:19:00</td>
+            <td class="headerValue">2026-03-04 16:56:35</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryMed">88.6&nbsp;%</td>
-            <td class="headerCovTableEntry">175</td>
-            <td class="headerCovTableEntry">155</td>
-            <td class="headerCovTableEntry">20</td>
-            <td class="headerCovTableEntry">1</td>
-            <td class="headerCovTableEntry">154</td>
+            <td class="headerCovTableEntry">184</td>
+            <td class="headerCovTableEntry">163</td>
+            <td class="headerCovTableEntry"></td>
+            <td class="headerCovTableEntry">15</td>
+            <td class="headerCovTableEntry">6</td>
+            <td class="headerCovTableEntry"></td>
+            <td class="headerCovTableEntry">52</td>
+            <td class="headerCovTableEntry">111</td>
+            <td class="headerCovTableEntry">14</td>
+            <td class="headerCovTableEntry">44</td>
           </tr>
           <tr>
             <td class="headerItem">Baseline:</td>
@@ -63,7 +83,7 @@ Unchanged code was tested before and is still tested">Covered</td>
           </tr>
           <tr>
             <td class="headerItem">Baseline Date:</td>
-            <td class="headerValue">2026-03-04 11:16:09</td>
+            <td class="headerValue">2026-03-04 16:53:21</td>
             <td></td>
           </tr>
                   <tr><td><img src="glass.png" width=3 height=3 alt=""></td></tr>
@@ -79,63 +99,95 @@ Unchanged code was tested before and is still tested">Covered</td>
 
             <tr>
               <td width="40%"><br></td>
-            <td width="4%"></td>
-            <td width="4%"></td>
-            <td width="4%"></td>
-            <td width="4%"></td>
-            <td width="4%"></td>
-            <td width="4%"></td>
-            <td width="4%"></td>
-            <td width="4%"></td>
-            <td width="4%"></td>
-            <td width="4%"></td>
-            <td width="4%"></td>
-            <td width="4%"></td>
-            <td width="4%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
             </tr>
 
             <tr>
               <td class="tableHead" rowspan=2>Directory <span  title="Click to sort table by file name" class="tableHeadSort"><a href="index.html"><img src="updown.png" width=10 height=14 alt="Sort by file name" title="Click to sort table by file name" border=0></a></span></td>
-        <td class="tableHead" colspan=7>Line Coverage <span  title="Click to sort table by line coverage" class="tableHeadSort"><img src="glass.png" width=10 height=14 alt="Sort by line coverage" title="Click to sort table by line coverage" border=0></span></td>
-        <td class="tableHead" colspan=6>Function Coverage <span  title="Click to sort table by function coverage" class="tableHeadSort"><a href="index-sort-f.html"><img src="updown.png" width=10 height=14 alt="Sort by function coverage" title="Click to sort table by function coverage" border=0></a></span></td>
+        <td class="tableHead" colspan=12>Line Coverage <span  title="Click to sort table by line coverage" class="tableHeadSort"><img src="glass.png" width=10 height=14 alt="Sort by line coverage" title="Click to sort table by line coverage" border=0></span></td>
+        <td class="tableHead" colspan=9>Function Coverage <span  title="Click to sort table by function coverage" class="tableHeadSort"><a href="index-sort-f.html"><img src="updown.png" width=10 height=14 alt="Sort by function coverage" title="Click to sort table by function coverage" border=0></a></span></td>
             </tr>
             <tr>
                     <td class="tableHead" colspan=2> Rate</td>
                     <td class="tableHead"> Total</td>
                     <td class="tableHead"> Hit</td>
+                    <td class="tableHead" title="Lost Baseline Coverage (1 => 0):
+Unchanged code is no longer tested"> LBC</td>
+                    <td class="tableHead" title="Uncovered Included Code (# => 0):
+Previously unused code is untested"> UIC</td>
                     <td class="tableHead" title="Uncovered Baseline Code (0 => 0):
 Unchanged code was untested before, is untested now"> UBC</td>
                     <td class="tableHead" title="Gained Baseline Coverage (0 => 1):
 Unchanged code is tested now"> GBC</td>
+                    <td class="tableHead" title="Gained Included Coverage (# => 1):
+Previously unused code is tested now"> GIC</td>
                     <td class="tableHead" title="Covered Baseline Code (1 => 1):
 Unchanged code was tested before and is still tested"> CBC</td>
+                    <td class="tableHead" title="Excluded Uncovered Baseline (0 => #):
+Previously untested code is unused now"> EUB</td>
+                    <td class="tableHead" title="Excluded Covered Baseline (1 => #):
+Previously tested code is unused now"> ECB</td>
                     <td class="tableHead"> Rate</td>
                     <td class="tableHead"> Total</td>
                     <td class="tableHead"> Hit</td>
+                    <td class="tableHead" title="Uncovered Included Code (# => 0):
+Previously unused code is untested"> UIC</td>
                     <td class="tableHead" title="Uncovered Baseline Code (0 => 0):
 Unchanged code was untested before, is untested now"> UBC</td>
-                    <td class="tableHead" title="Gained Baseline Coverage (0 => 1):
-Unchanged code is tested now"> GBC</td>
+                    <td class="tableHead" title="Gained Included Coverage (# => 1):
+Previously unused code is tested now"> GIC</td>
                     <td class="tableHead" title="Covered Baseline Code (1 => 1):
 Unchanged code was tested before and is still tested"> CBC</td>
+                    <td class="tableHead" title="Excluded Uncovered Baseline (0 => #):
+Previously untested code is unused now"> EUB</td>
+                    <td class="tableHead" title="Excluded Covered Baseline (1 => #):
+Previously tested code is unused now"> ECB</td>
             </tr>
             <tr>
               <td class="coverFile"><a href="simulator/simulator/index.html">simulator/simulator</a></td>
               <td class="coverBar" align="center">
-                                <table border=0 cellspacing=0 cellpadding=1><tr><td class="coverBarOutline"><img src="amber.png" width=87 height=10 alt="87.1%"><img src="snow.png" width=13 height=10 alt="87.1%"></td></tr></table>
+                                <table border=0 cellspacing=0 cellpadding=1><tr><td class="coverBarOutline"><img src="amber.png" width=87 height=10 alt="87.2%"><img src="snow.png" width=13 height=10 alt="87.2%"></td></tr></table>
               </td>
-              <td class="coverPerMed">87.1&nbsp;%</td>
-              <td class="coverNumDflt">782</td>
-              <td class="coverNumDflt">681</td>
-              <td class="coverNumDflt">101</td>
-              <td class="coverNumDflt">1</td>
-              <td class="coverNumDflt">680</td>
+              <td class="coverPerMed">87.2&nbsp;%</td>
+              <td class="coverNumDflt">841</td>
+              <td class="coverNumDflt">733</td>
+              <td class="tlaLBC">32</td>
+              <td class="tlaUIC">34</td>
+              <td class="coverNumDflt">42</td>
+              <td class="coverNumDflt">40</td>
+              <td class="coverNumDflt">162</td>
+              <td class="coverNumDflt">531</td>
+              <td class="coverNumDflt">19</td>
+              <td class="coverNumDflt">118</td>
               <td class="coverPerMed">88.6&nbsp;%</td>
-              <td class="coverNumDflt">175</td>
-              <td class="coverNumDflt">155</td>
-              <td class="coverNumDflt">20</td>
-              <td class="coverNumDflt">1</td>
-              <td class="coverNumDflt">154</td>
+              <td class="coverNumDflt">184</td>
+              <td class="coverNumDflt">163</td>
+              <td class="tlaUIC">15</td>
+              <td class="coverNumDflt">6</td>
+              <td class="coverNumDflt">52</td>
+              <td class="coverNumDflt">111</td>
+              <td class="coverNumDflt">14</td>
+              <td class="coverNumDflt">44</td>
             </tr>
           </table>
           </center>

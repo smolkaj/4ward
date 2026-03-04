@@ -25,32 +25,44 @@
             <td width="5%" class="headerCovTableHead">Coverage</td>
             <td width="5%" class="headerCovTableHead" title="Covered + Uncovered code (not including EUB, ECB, DUB, DCB categories)">Total</td>
             <td width="5%" class="headerCovTableHead" title="Exercised code only (CBC + GBC + GNC + GIC)">Hit</td>
-            <td width="5%" class="headerCovTableHeadUBC" title="Uncovered Baseline Code (0 => 0):
-Unchanged code was untested before, is untested now">Not covered</td>
+            <td width="5%" class="headerCovTableHeadLBC" title="Lost Baseline Coverage (1 => 0):
+Unchanged code is no longer tested">Coverage lost</td>
+            <td width="5%" class="headerCovTableHeadGIC" title="Gained Included Coverage (# => 1):
+Previously unused code is tested now">Included (covered)</td>
             <td width="5%" class="headerCovTableHeadCBC" title="Covered Baseline Code (1 => 1):
 Unchanged code was tested before and is still tested">Covered</td>
+            <td width="5%" class="headerCovTableHeadEUB" title="Excluded Uncovered Baseline (0 => #):
+Previously untested code is unused now">Excluded (not covered)</td>
+            <td width="5%" class="headerCovTableHeadECB" title="Excluded Covered Baseline (1 => #):
+Previously tested code is unused now">Excluded (covered)</td>
           </tr>
           <tr>
             <td class="headerItem">Current:</td>
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">96.6&nbsp;%</td>
-            <td class="headerCovTableEntry">29</td>
+            <td class="headerCovTableEntryHi">96.4&nbsp;%</td>
             <td class="headerCovTableEntry">28</td>
-            <td class="headerCovTableEntry"><a href="#L74" title="goto first UBC">1</a></td>
-            <td class="headerCovTableEntry"><a href="#L29" title="goto first CBC">28</a></td>
+            <td class="headerCovTableEntry">27</td>
+            <td class="headerCovTableEntry"><a href="#L70" title="goto first LBC">1</a></td>
+            <td class="headerCovTableEntry"><a href="#L67" title="goto first GIC">5</a></td>
+            <td class="headerCovTableEntry"><a href="#L29" title="goto first CBC">22</a></td>
+            <td class="headerCovTableEntry"><a href="#L74" title="goto first EUB">1</a></td>
+            <td class="headerCovTableEntry"><a href="#L61" title="goto first ECB">5</a></td>
           </tr>
           <tr>
             <td class="headerItem">Current Date:</td>
-            <td class="headerValue">2026-03-04 11:19:00</td>
+            <td class="headerValue">2026-03-04 16:56:35</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
-            <td class="headerCovTableEntry">2</td>
+            <td class="headerCovTableEntry">3</td>
+            <td class="headerCovTableEntry">3</td>
+            <td class="headerCovTableEntry"></td>
+            <td class="headerCovTableEntry">1</td>
             <td class="headerCovTableEntry">2</td>
             <td class="headerCovTableEntry"></td>
-            <td class="headerCovTableEntry">2</td>
+            <td class="headerCovTableEntry"></td>
           </tr>
           <tr>
             <td class="headerItem">Baseline:</td>
@@ -59,7 +71,7 @@ Unchanged code was tested before and is still tested">Covered</td>
           </tr>
           <tr>
             <td class="headerItem">Baseline Date:</td>
-            <td class="headerValue">2026-03-04 11:16:09</td>
+            <td class="headerValue">2026-03-04 16:53:21</td>
             <td></td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
@@ -106,7 +118,7 @@ Unchanged code was tested before and is still tested">Covered</td>
 <span id="L26"><span class="lineNum">      26</span>                 :  * unrecognised types → [UnitVal].</span>
 <span id="L27"><span class="lineNum">      27</span>                 :  */</span>
 <span id="L28"><span class="lineNum">      28</span>                 : internal fun defaultValue(type: Type, types: Map&lt;String, TypeDecl&gt;): Value =</span>
-<span id="L29"><span class="lineNum">      29</span> <a href="#top" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :   when {</span></span>
+<span id="L29"><span class="lineNum">      29</span> <a href="#L62" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :   when {</span></span>
 <span id="L30"><span class="lineNum">      30</span> <span class="tlaCBC">              1 :     type.hasBit() -&gt; BitVal(0L, type.bit.width)</span></span>
 <span id="L31"><span class="lineNum">      31</span> <span class="tlaCBC">              1 :     type.hasSignedInt() -&gt; IntVal(SignedBitVector(java.math.BigInteger.ZERO, type.signedInt.width))</span></span>
 <span id="L32"><span class="lineNum">      32</span> <span class="tlaCBC">              1 :     type.hasBoolean() -&gt; BoolVal(false)</span></span>
@@ -136,24 +148,30 @@ Unchanged code was tested before and is still tested">Covered</td>
 <span id="L56"><span class="lineNum">      56</span> <span class="tlaCBC">              1 :       HeaderVal(</span></span>
 <span id="L57"><span class="lineNum">      57</span> <span class="tlaCBC">              1 :         typeName = typeName,</span></span>
 <span id="L58"><span class="lineNum">      58</span>                 :         fields =</span>
-<span id="L59"><span class="lineNum">      59</span> <span class="tlaCBC">              1 :           typeDecl.header.fieldsList</span></span>
-<span id="L60"><span class="lineNum">      60</span> <span class="tlaCBC">              1 :             .associate { f -&gt; f.name to defaultValue(f.type, types) }</span></span>
-<span id="L61"><span class="lineNum">      61</span> <span class="tlaCBC">              1 :             .toMutableMap(),</span></span>
-<span id="L62"><span class="lineNum">      62</span> <span class="tlaCBC">              1 :         valid = false,</span></span>
+<span id="L59"><span class="lineNum">      59</span> <span class="tlaCBC">              1 :           typeDecl.header.fieldsList.associateTo(mutableMapOf()) { f -&gt;</span></span>
+<span id="L60"><span class="lineNum">      60</span> <span class="tlaCBC">              1 :             f.name to defaultValue(f.type, types)</span></span>
+<span id="L61"><span class="lineNum">      61</span> <a href="#L65" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :           },</span></span>
+<span id="L62"><span class="lineNum">      62</span> <a href="#L69" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :         valid = false,</span></span>
 <span id="L63"><span class="lineNum">      63</span>                 :       )</span>
-<span id="L64"><span class="lineNum">      64</span> <span class="tlaCBC">              1 :     typeDecl.hasStruct() -&gt;</span></span>
-<span id="L65"><span class="lineNum">      65</span> <span class="tlaCBC">              1 :       StructVal(</span></span>
-<span id="L66"><span class="lineNum">      66</span> <span class="tlaCBC">              1 :         typeName = typeName,</span></span>
-<span id="L67"><span class="lineNum">      67</span>                 :         fields =</span>
-<span id="L68"><span class="lineNum">      68</span> <span class="tlaCBC">              1 :           typeDecl.struct.fieldsList</span></span>
-<span id="L69"><span class="lineNum">      69</span> <span class="tlaCBC">              1 :             .associate { f -&gt; f.name to defaultValue(f.type, types) }</span></span>
-<span id="L70"><span class="lineNum">      70</span> <span class="tlaCBC">              1 :             .toMutableMap(),</span></span>
-<span id="L71"><span class="lineNum">      71</span>                 :       )</span>
-<span id="L72"><span class="lineNum">      72</span>                 :     // Serializable enum: default to zero of the underlying bit width.</span>
-<span id="L73"><span class="lineNum">      73</span> <span class="tlaCBC">              1 :     typeDecl.hasEnum() &amp;&amp; typeDecl.enum.width &gt; 0 -&gt; BitVal(0L, typeDecl.enum.width)</span></span>
-<span id="L74"><span class="lineNum">      74</span> <a href="#top" class="tlaBgUBC"  title="Next UBC group">Not covered</a><span class="tlaUBC tlaBgUBC">           0 :     else -&gt; UnitVal</span></span>
-<span id="L75"><span class="lineNum">      75</span>                 :   }</span>
-<span id="L76"><span class="lineNum">      76</span>                 : }</span>
+<span id="L64"><span class="lineNum">      64</span> <span class="tlaCBC">              1 :     typeDecl.hasStruct() -&gt; defaultStruct(typeName, typeDecl.struct.fieldsList, types)</span></span>
+<span id="L65"><span class="lineNum">      65</span> <a href="#L68" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :     // Header union (P4 spec §8.20): represented as a StructVal so field access works</span></span>
+<span id="L66"><span class="lineNum">      66</span> <span class="tlaECB">                :     // uniformly; per-member validity is tracked via HeaderVal.valid.</span></span>
+<span id="L67"><span class="lineNum">      67</span> <a href="#L79" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :     typeDecl.hasHeaderUnion() -&gt; defaultStruct(typeName, typeDecl.headerUnion.fieldsList, types)</span></span>
+<span id="L68"><span class="lineNum">      68</span> <a href="#L73" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :     // Serializable enum: default to zero of the underlying bit width.</span></span>
+<span id="L69"><span class="lineNum">      69</span> <a href="#top" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :     typeDecl.hasEnum() &amp;&amp; typeDecl.enum.width &gt; 0 -&gt; BitVal(0L, typeDecl.enum.width)</span></span>
+<span id="L70"><span class="lineNum">      70</span> <a href="#top" class="tlaBgLBC"  title="Next LBC group">Coverage lost</a><span class="tlaLBC tlaBgLBC">           0 :     else -&gt; UnitVal</span></span>
+<span id="L71"><span class="lineNum">      71</span>                 :   }</span>
+<span id="L72"><span class="lineNum">      72</span>                 : }</span>
+<span id="L73"><span class="lineNum">      73</span> <a href="#top" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             : </span></span>
+<span id="L74"><span class="lineNum">      74</span> <a href="#top" class="tlaBgEUB"  title="Next EUB group">Excluded (not covered)</a><span class="tlaEUB tlaBgEUB">             : private fun defaultStruct(</span></span>
+<span id="L75"><span class="lineNum">      75</span>                 :   typeName: String,</span>
+<span id="L76"><span class="lineNum">      76</span>                 :   fieldDecls: List&lt;fourward.ir.v1.FieldDecl&gt;,</span>
+<span id="L77"><span class="lineNum">      77</span>                 :   types: Map&lt;String, TypeDecl&gt;,</span>
+<span id="L78"><span class="lineNum">      78</span>                 : ): StructVal =</span>
+<span id="L79"><span class="lineNum">      79</span> <a href="#top" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :   StructVal(</span></span>
+<span id="L80"><span class="lineNum">      80</span> <span class="tlaGIC">              1 :     typeName = typeName,</span></span>
+<span id="L81"><span class="lineNum">      81</span> <span class="tlaGIC">              1 :     fields = fieldDecls.associateTo(mutableMapOf()) { f -&gt; f.name to defaultValue(f.type, types) },</span></span>
+<span id="L82"><span class="lineNum">      82</span> <span class="tlaGIC">              1 :   )</span></span>
         </pre>
               </td>
             </tr>

@@ -25,32 +25,56 @@
             <td width="5%" class="headerCovTableHead">Coverage</td>
             <td width="5%" class="headerCovTableHead" title="Covered + Uncovered code (not including EUB, ECB, DUB, DCB categories)">Total</td>
             <td width="5%" class="headerCovTableHead" title="Exercised code only (CBC + GBC + GNC + GIC)">Hit</td>
+            <td width="5%" class="headerCovTableHeadLBC" title="Lost Baseline Coverage (1 => 0):
+Unchanged code is no longer tested">Coverage lost</td>
+            <td width="5%" class="headerCovTableHeadUIC" title="Uncovered Included Code (# => 0):
+Previously unused code is untested">Included (not covered)</td>
             <td width="5%" class="headerCovTableHeadUBC" title="Uncovered Baseline Code (0 => 0):
 Unchanged code was untested before, is untested now">Not covered</td>
+            <td width="5%" class="headerCovTableHeadGBC" title="Gained Baseline Coverage (0 => 1):
+Unchanged code is tested now">Newly covered</td>
+            <td width="5%" class="headerCovTableHeadGIC" title="Gained Included Coverage (# => 1):
+Previously unused code is tested now">Included (covered)</td>
             <td width="5%" class="headerCovTableHeadCBC" title="Covered Baseline Code (1 => 1):
 Unchanged code was tested before and is still tested">Covered</td>
+            <td width="5%" class="headerCovTableHeadEUB" title="Excluded Uncovered Baseline (0 => #):
+Previously untested code is unused now">Excluded (not covered)</td>
+            <td width="5%" class="headerCovTableHeadECB" title="Excluded Covered Baseline (1 => #):
+Previously tested code is unused now">Excluded (covered)</td>
           </tr>
           <tr>
             <td class="headerItem">Current:</td>
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryMed">84.0&nbsp;%</td>
-            <td class="headerCovTableEntry">394</td>
-            <td class="headerCovTableEntry">331</td>
-            <td class="headerCovTableEntry">63</td>
-            <td class="headerCovTableEntry">331</td>
+            <td class="headerCovTableEntryMed">84.4&nbsp;%</td>
+            <td class="headerCovTableEntry">449</td>
+            <td class="headerCovTableEntry">379</td>
+            <td class="headerCovTableEntry">30</td>
+            <td class="headerCovTableEntry">26</td>
+            <td class="headerCovTableEntry">14</td>
+            <td class="headerCovTableEntry">36</td>
+            <td class="headerCovTableEntry">130</td>
+            <td class="headerCovTableEntry">213</td>
+            <td class="headerCovTableEntry">13</td>
+            <td class="headerCovTableEntry">88</td>
           </tr>
           <tr>
             <td class="headerItem">Current Date:</td>
-            <td class="headerValue">2026-03-04 11:19:00</td>
+            <td class="headerValue">2026-03-04 16:56:35</td>
             <td></td>
             <td class="headerItem">Functions:</td>
-            <td class="headerCovTableEntryHi">92.9&nbsp;%</td>
+            <td class="headerCovTableEntryHi">93.3&nbsp;%</td>
+            <td class="headerCovTableEntry">45</td>
             <td class="headerCovTableEntry">42</td>
-            <td class="headerCovTableEntry">39</td>
+            <td class="headerCovTableEntry"></td>
             <td class="headerCovTableEntry">3</td>
-            <td class="headerCovTableEntry">39</td>
+            <td class="headerCovTableEntry"></td>
+            <td class="headerCovTableEntry"></td>
+            <td class="headerCovTableEntry">26</td>
+            <td class="headerCovTableEntry">16</td>
+            <td class="headerCovTableEntry">3</td>
+            <td class="headerCovTableEntry">23</td>
           </tr>
           <tr>
             <td class="headerItem">Baseline:</td>
@@ -59,7 +83,7 @@ Unchanged code was tested before and is still tested">Covered</td>
           </tr>
           <tr>
             <td class="headerItem">Baseline Date:</td>
-            <td class="headerValue">2026-03-04 11:16:09</td>
+            <td class="headerValue">2026-03-04 16:53:21</td>
             <td></td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
@@ -81,36 +105,36 @@ Unchanged code was tested before and is still tested">Covered</td>
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="Interpreter.kt.gcov.html#L578">fourward/simulator/Interpreter::fieldWireWidth$default (Lfourward/simulator/Interpreter;Lfourward/ir/v1/Type;IILjava/lang/Object;)I</a></td>
-              <td class="tlaUBC">Not covered</td>
+              <td class="coverFn"><a href="Interpreter.kt.gcov.html#L645">fourward/simulator/Interpreter::fieldWireWidth$default (Lfourward/simulator/Interpreter;Lfourward/ir/v1/Type;IILjava/lang/Object;)I</a></td>
+              <td class="tlaUIC">Included (not covered)</td>
               <td class="coverFnLo">0</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="Interpreter.kt.gcov.html#L733">fourward/simulator/ReturnException::&lt;init&gt; (Lfourward/simulator/Value;)V</a></td>
-              <td class="tlaUBC">Not covered</td>
+              <td class="coverFn"><a href="Interpreter.kt.gcov.html#L815">fourward/simulator/ReturnException::&lt;init&gt; (Lfourward/simulator/Value;)V</a></td>
+              <td class="tlaUIC">Included (not covered)</td>
               <td class="coverFnLo">0</td>
               
               
             </tr>
             <tr>
-              <td class="coverFnAlias"><a href="Interpreter.kt.gcov.html#L733">fourward/simulator/ReturnException::<init> (Lfourward/simulator/Value;)V</a></td>
-              <td class="tlaUBC">Not covered</td>
+              <td class="coverFnAlias"><a href="Interpreter.kt.gcov.html#L815">fourward/simulator/ReturnException::<init> (Lfourward/simulator/Value;)V</a></td>
+              <td class="tlaUIC">Included (not covered)</td>
               <td class="coverFnAliasLo">0</td>
               
               
             </tr>
             <tr>
-              <td class="coverFnAlias"><a href="Interpreter.kt.gcov.html#L733">fourward/simulator/ReturnException::getValue ()Lfourward/simulator/Value;</a></td>
-              <td class="tlaUBC">Not covered</td>
+              <td class="coverFnAlias"><a href="Interpreter.kt.gcov.html#L815">fourward/simulator/ReturnException::getValue ()Lfourward/simulator/Value;</a></td>
+              <td class="tlaUIC">Included (not covered)</td>
               <td class="coverFnAliasLo">0</td>
               
               
             </tr>
             <tr>
               <td class="coverFn"><a href="Interpreter.kt.gcov.html#L730">fourward/simulator/ExitException::&lt;init&gt; ()V</a></td>
-              <td class="tlaCBC">Covered</td>
+              <td class="tlaECB">Excluded (covered)</td>
               <td class="coverFnHi">1</td>
               
               
@@ -123,50 +147,57 @@ Unchanged code was tested before and is still tested">Covered</td>
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="Interpreter.kt.gcov.html#L409">fourward/simulator/Interpreter::applyTable (Ljava/lang/String;Lfourward/simulator/Environment;)Lfourward/simulator/Interpreter$TableResult;</a></td>
-              <td class="tlaCBC">Covered</td>
+              <td class="coverFn"><a href="Interpreter.kt.gcov.html#L467">fourward/simulator/Interpreter::applyTable (Ljava/lang/String;Lfourward/simulator/Environment;)Lfourward/simulator/Interpreter$TableResult;</a></td>
+              <td class="tlaGIC">Included (covered)</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="Interpreter.kt.gcov.html#L600">fourward/simulator/Interpreter::bitsToValue (Lfourward/ir/v1/Type;Ljava/math/BigInteger;I)Lfourward/simulator/Value;</a></td>
-              <td class="tlaCBC">Covered</td>
+              <td class="coverFn"><a href="Interpreter.kt.gcov.html#L667">fourward/simulator/Interpreter::bitsToValue (Lfourward/ir/v1/Type;Ljava/math/BigInteger;I)Lfourward/simulator/Value;</a></td>
+              <td class="tlaGIC">Included (covered)</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="Interpreter.kt.gcov.html#L621">fourward/simulator/Interpreter::emitValue (Lfourward/simulator/Value;)V</a></td>
-              <td class="tlaCBC">Covered</td>
+              <td class="coverFn"><a href="Interpreter.kt.gcov.html#L396">fourward/simulator/Interpreter::coerceInfInts (Lfourward/simulator/Value;Lfourward/simulator/Value;)Lkotlin/Pair;</a></td>
+              <td class="tlaGIC">Included (covered)</td>
+              <td class="coverFnHi">1</td>
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFn"><a href="Interpreter.kt.gcov.html#L688">fourward/simulator/Interpreter::emitValue (Lfourward/simulator/Value;)V</a></td>
+              <td class="tlaGIC">Included (covered)</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
               <td class="coverFn"><a href="Interpreter.kt.gcov.html#L287">fourward/simulator/Interpreter::evalArrayIndex (Lfourward/ir/v1/ArrayIndex;Lfourward/simulator/Environment;)Lfourward/simulator/Value;</a></td>
-              <td class="tlaCBC">Covered</td>
+              <td class="tlaECB">Excluded (covered)</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
               <td class="coverFn"><a href="Interpreter.kt.gcov.html#L331">fourward/simulator/Interpreter::evalBinaryOp (Lfourward/ir/v1/BinaryOp;Lfourward/simulator/Environment;)Lfourward/simulator/Value;</a></td>
-              <td class="tlaCBC">Covered</td>
+              <td class="tlaECB">Excluded (covered)</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="Interpreter.kt.gcov.html#L304">fourward/simulator/Interpreter::evalCast (Lfourward/ir/v1/Cast;Lfourward/simulator/Environment;)Lfourward/simulator/Value;</a></td>
-              <td class="tlaCBC">Covered</td>
+              <td class="coverFn"><a href="Interpreter.kt.gcov.html#L321">fourward/simulator/Interpreter::evalCast (Lfourward/ir/v1/Cast;Lfourward/simulator/Environment;)Lfourward/simulator/Value;</a></td>
+              <td class="tlaGIC">Included (covered)</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="Interpreter.kt.gcov.html#L298">fourward/simulator/Interpreter::evalConcat (Lfourward/ir/v1/Concat;Lfourward/simulator/Environment;)Lfourward/simulator/Value;</a></td>
-              <td class="tlaCBC">Covered</td>
+              <td class="coverFn"><a href="Interpreter.kt.gcov.html#L315">fourward/simulator/Interpreter::evalConcat (Lfourward/ir/v1/Concat;Lfourward/simulator/Environment;)Lfourward/simulator/Value;</a></td>
+              <td class="tlaGIC">Included (covered)</td>
               <td class="coverFnHi">1</td>
               
               
@@ -180,7 +211,14 @@ Unchanged code was tested before and is still tested">Covered</td>
             </tr>
             <tr>
               <td class="coverFn"><a href="Interpreter.kt.gcov.html#L266">fourward/simulator/Interpreter::evalFieldAccess (Lfourward/ir/v1/FieldAccess;Lfourward/simulator/Environment;)Lfourward/simulator/Value;</a></td>
-              <td class="tlaCBC">Covered</td>
+              <td class="tlaECB">Excluded (covered)</td>
+              <td class="coverFnHi">1</td>
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFn"><a href="Interpreter.kt.gcov.html#L290">fourward/simulator/Interpreter::evalHeaderStackProperty (Lfourward/simulator/HeaderStackVal;Ljava/lang/String;)Lfourward/simulator/Value;</a></td>
+              <td class="tlaGIC">Included (covered)</td>
               <td class="coverFnHi">1</td>
               
               
@@ -193,15 +231,15 @@ Unchanged code was tested before and is still tested">Covered</td>
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="Interpreter.kt.gcov.html#L376">fourward/simulator/Interpreter::evalMethodCall (Lfourward/ir/v1/MethodCall;Lfourward/simulator/Environment;)Lfourward/simulator/Value;</a></td>
-              <td class="tlaCBC">Covered</td>
+              <td class="coverFn"><a href="Interpreter.kt.gcov.html#L424">fourward/simulator/Interpreter::evalMethodCall (Lfourward/ir/v1/MethodCall;Lfourward/simulator/Environment;)Lfourward/simulator/Value;</a></td>
+              <td class="tlaGIC">Included (covered)</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
               <td class="coverFn"><a href="Interpreter.kt.gcov.html#L372">fourward/simulator/Interpreter::evalMux (Lfourward/ir/v1/MuxExpr;Lfourward/simulator/Environment;)Lfourward/simulator/Value;</a></td>
-              <td class="tlaCBC">Covered</td>
+              <td class="tlaECB">Excluded (covered)</td>
               <td class="coverFnHi">1</td>
               
               
@@ -214,22 +252,22 @@ Unchanged code was tested before and is still tested">Covered</td>
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="Interpreter.kt.gcov.html#L293">fourward/simulator/Interpreter::evalSlice (Lfourward/ir/v1/Slice;Lfourward/simulator/Environment;)Lfourward/simulator/Value;</a></td>
-              <td class="tlaCBC">Covered</td>
+              <td class="coverFn"><a href="Interpreter.kt.gcov.html#L310">fourward/simulator/Interpreter::evalSlice (Lfourward/ir/v1/Slice;Lfourward/simulator/Environment;)Lfourward/simulator/Value;</a></td>
+              <td class="tlaGIC">Included (covered)</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
               <td class="coverFn"><a href="Interpreter.kt.gcov.html#L359">fourward/simulator/Interpreter::evalUnaryOp (Lfourward/ir/v1/UnaryOp;Lfourward/simulator/Environment;)Lfourward/simulator/Value;</a></td>
-              <td class="tlaCBC">Covered</td>
+              <td class="tlaECB">Excluded (covered)</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="Interpreter.kt.gcov.html#L439">fourward/simulator/Interpreter::execAction (Ljava/lang/String;Ljava/util/List;Lfourward/simulator/Environment;)V</a></td>
-              <td class="tlaCBC">Covered</td>
+              <td class="coverFn"><a href="Interpreter.kt.gcov.html#L497">fourward/simulator/Interpreter::execAction (Ljava/lang/String;Ljava/util/List;Lfourward/simulator/Environment;)V</a></td>
+              <td class="tlaGIC">Included (covered)</td>
               <td class="coverFnHi">1</td>
               
               
@@ -249,22 +287,22 @@ Unchanged code was tested before and is still tested">Covered</td>
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="Interpreter.kt.gcov.html#L607">fourward/simulator/Interpreter::execEmit (Lfourward/ir/v1/MethodCall;Lfourward/simulator/Environment;)Lfourward/simulator/Value;</a></td>
-              <td class="tlaCBC">Covered</td>
+              <td class="coverFn"><a href="Interpreter.kt.gcov.html#L674">fourward/simulator/Interpreter::execEmit (Lfourward/ir/v1/MethodCall;Lfourward/simulator/Environment;)Lfourward/simulator/Value;</a></td>
+              <td class="tlaGIC">Included (covered)</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="Interpreter.kt.gcov.html#L523">fourward/simulator/Interpreter::execExternCall (Lfourward/ir/v1/MethodCall;Lfourward/simulator/Environment;)Lfourward/simulator/Value;</a></td>
-              <td class="tlaCBC">Covered</td>
+              <td class="coverFn"><a href="Interpreter.kt.gcov.html#L581">fourward/simulator/Interpreter::execExternCall (Lfourward/ir/v1/MethodCall;Lfourward/simulator/Environment;)Lfourward/simulator/Value;</a></td>
+              <td class="tlaGIC">Included (covered)</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
               <td class="coverFn"><a href="Interpreter.kt.gcov.html#L542">fourward/simulator/Interpreter::execExtract (Lfourward/ir/v1/MethodCall;Lfourward/simulator/Environment;)Lfourward/simulator/Value;</a></td>
-              <td class="tlaCBC">Covered</td>
+              <td class="tlaECB">Excluded (covered)</td>
               <td class="coverFnHi">1</td>
               
               
@@ -278,7 +316,7 @@ Unchanged code was tested before and is still tested">Covered</td>
             </tr>
             <tr>
               <td class="coverFn"><a href="Interpreter.kt.gcov.html#L491">fourward/simulator/Interpreter::execInlineActionCall (Ljava/lang/String;Ljava/util/List;Lfourward/simulator/Environment;)Lfourward/simulator/Value;</a></td>
-              <td class="tlaCBC">Covered</td>
+              <td class="tlaECB">Excluded (covered)</td>
               <td class="coverFnHi">1</td>
               
               
@@ -299,7 +337,7 @@ Unchanged code was tested before and is still tested">Covered</td>
             </tr>
             <tr>
               <td class="coverFn"><a href="Interpreter.kt.gcov.html#L579">fourward/simulator/Interpreter::fieldWireWidth (Lfourward/ir/v1/Type;I)I</a></td>
-              <td class="tlaCBC">Covered</td>
+              <td class="tlaECB">Excluded (covered)</td>
               <td class="coverFnHi">1</td>
               
               
@@ -307,6 +345,13 @@ Unchanged code was tested before and is still tested">Covered</td>
             <tr>
               <td class="coverFn"><a href="Interpreter.kt.gcov.html#L65">fourward/simulator/Interpreter::getPacket ()Lfourward/simulator/PacketContext;</a></td>
               <td class="tlaCBC">Covered</td>
+              <td class="coverFnHi">1</td>
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFn"><a href="Interpreter.kt.gcov.html#L388">fourward/simulator/Interpreter::intValue (Lfourward/simulator/Value;)I</a></td>
+              <td class="tlaGIC">Included (covered)</td>
               <td class="coverFnHi">1</td>
               
               
@@ -341,7 +386,7 @@ Unchanged code was tested before and is still tested">Covered</td>
             </tr>
             <tr>
               <td class="coverFn"><a href="Interpreter.kt.gcov.html#L686">fourward/simulator/Interpreter::setLValue (Lfourward/ir/v1/Expr;Lfourward/simulator/Value;Lfourward/simulator/Environment;)V</a></td>
-              <td class="tlaCBC">Covered</td>
+              <td class="tlaECB">Excluded (covered)</td>
               <td class="coverFnHi">1</td>
               
               
@@ -369,28 +414,28 @@ Unchanged code was tested before and is still tested">Covered</td>
             </tr>
             <tr>
               <td class="coverFn"><a href="Interpreter.kt.gcov.html#L406">fourward/simulator/Interpreter$TableResult::getHit ()Z</a></td>
-              <td class="tlaCBC">Covered</td>
+              <td class="tlaECB">Excluded (covered)</td>
               <td class="coverFnHi">3</td>
               
               
             </tr>
             <tr>
               <td class="coverFnAlias"><a href="Interpreter.kt.gcov.html#L406">fourward/simulator/Interpreter$TableResult::<init> (ZLjava/lang/String;)V</a></td>
-              <td class="tlaCBC">Covered</td>
+              <td class="tlaECB">Excluded (covered)</td>
               <td class="coverFnAliasHi">1</td>
               
               
             </tr>
             <tr>
               <td class="coverFnAlias"><a href="Interpreter.kt.gcov.html#L406">fourward/simulator/Interpreter$TableResult::getActionName ()Ljava/lang/String;</a></td>
-              <td class="tlaCBC">Covered</td>
+              <td class="tlaECB">Excluded (covered)</td>
               <td class="coverFnAliasHi">1</td>
               
               
             </tr>
             <tr>
               <td class="coverFnAlias"><a href="Interpreter.kt.gcov.html#L406">fourward/simulator/Interpreter$TableResult::getHit ()Z</a></td>
-              <td class="tlaCBC">Covered</td>
+              <td class="tlaECB">Excluded (covered)</td>
               <td class="coverFnAliasHi">1</td>
               
               

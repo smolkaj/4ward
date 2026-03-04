@@ -25,36 +25,56 @@
             <td width="5%" class="headerCovTableHead">Coverage</td>
             <td width="5%" class="headerCovTableHead" title="Covered + Uncovered code (not including EUB, ECB, DUB, DCB categories)">Total</td>
             <td width="5%" class="headerCovTableHead" title="Exercised code only (CBC + GBC + GNC + GIC)">Hit</td>
+            <td width="5%" class="headerCovTableHeadLBC" title="Lost Baseline Coverage (1 => 0):
+Unchanged code is no longer tested">Coverage lost</td>
+            <td width="5%" class="headerCovTableHeadUIC" title="Uncovered Included Code (# => 0):
+Previously unused code is untested">Included (not covered)</td>
             <td width="5%" class="headerCovTableHeadUBC" title="Uncovered Baseline Code (0 => 0):
 Unchanged code was untested before, is untested now">Not covered</td>
             <td width="5%" class="headerCovTableHeadGBC" title="Gained Baseline Coverage (0 => 1):
 Unchanged code is tested now">Newly covered</td>
+            <td width="5%" class="headerCovTableHeadGIC" title="Gained Included Coverage (# => 1):
+Previously unused code is tested now">Included (covered)</td>
             <td width="5%" class="headerCovTableHeadCBC" title="Covered Baseline Code (1 => 1):
 Unchanged code was tested before and is still tested">Covered</td>
+            <td width="5%" class="headerCovTableHeadEUB" title="Excluded Uncovered Baseline (0 => #):
+Previously untested code is unused now">Excluded (not covered)</td>
+            <td width="5%" class="headerCovTableHeadECB" title="Excluded Covered Baseline (1 => #):
+Previously tested code is unused now">Excluded (covered)</td>
           </tr>
           <tr>
             <td class="headerItem">Current:</td>
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryMed">87.1&nbsp;%</td>
-            <td class="headerCovTableEntry">782</td>
-            <td class="headerCovTableEntry">681</td>
-            <td class="headerCovTableEntry">101</td>
-            <td class="headerCovTableEntry">1</td>
-            <td class="headerCovTableEntry">680</td>
+            <td class="headerCovTableEntryMed">87.2&nbsp;%</td>
+            <td class="headerCovTableEntry">841</td>
+            <td class="headerCovTableEntry">733</td>
+            <td class="headerCovTableEntry">32</td>
+            <td class="headerCovTableEntry">34</td>
+            <td class="headerCovTableEntry">42</td>
+            <td class="headerCovTableEntry">40</td>
+            <td class="headerCovTableEntry">162</td>
+            <td class="headerCovTableEntry">531</td>
+            <td class="headerCovTableEntry">19</td>
+            <td class="headerCovTableEntry">118</td>
           </tr>
           <tr>
             <td class="headerItem">Current Date:</td>
-            <td class="headerValue">2026-03-04 11:19:00</td>
+            <td class="headerValue">2026-03-04 16:56:35</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryMed">88.6&nbsp;%</td>
-            <td class="headerCovTableEntry">175</td>
-            <td class="headerCovTableEntry">155</td>
-            <td class="headerCovTableEntry">20</td>
-            <td class="headerCovTableEntry">1</td>
-            <td class="headerCovTableEntry">154</td>
+            <td class="headerCovTableEntry">184</td>
+            <td class="headerCovTableEntry">163</td>
+            <td class="headerCovTableEntry"></td>
+            <td class="headerCovTableEntry">15</td>
+            <td class="headerCovTableEntry">6</td>
+            <td class="headerCovTableEntry"></td>
+            <td class="headerCovTableEntry">52</td>
+            <td class="headerCovTableEntry">111</td>
+            <td class="headerCovTableEntry">14</td>
+            <td class="headerCovTableEntry">44</td>
           </tr>
           <tr>
             <td class="headerItem">Baseline:</td>
@@ -63,7 +83,7 @@ Unchanged code was tested before and is still tested">Covered</td>
           </tr>
           <tr>
             <td class="headerItem">Baseline Date:</td>
-            <td class="headerValue">2026-03-04 11:16:09</td>
+            <td class="headerValue">2026-03-04 16:53:21</td>
             <td></td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
@@ -79,45 +99,69 @@ Unchanged code was tested before and is still tested">Covered</td>
 
             <tr>
               <td width="40%"><br></td>
-            <td width="4%"></td>
-            <td width="4%"></td>
-            <td width="4%"></td>
-            <td width="4%"></td>
-            <td width="4%"></td>
-            <td width="4%"></td>
-            <td width="4%"></td>
-            <td width="4%"></td>
-            <td width="4%"></td>
-            <td width="4%"></td>
-            <td width="4%"></td>
-            <td width="4%"></td>
-            <td width="4%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
+            <td width="2%"></td>
             </tr>
 
             <tr>
               <td class="tableHead" rowspan=2>Filename <span  title="Click to sort table by file name" class="tableHeadSort"><a href="index.html"><img src="../../updown.png" width=10 height=14 alt="Sort by file name" title="Click to sort table by file name" border=0></a></span></td>
-        <td class="tableHead" colspan=7>Line Coverage <span  title="Click to sort table by line coverage" class="tableHeadSort"><img src="../../glass.png" width=10 height=14 alt="Sort by line coverage" title="Click to sort table by line coverage" border=0></span></td>
-        <td class="tableHead" colspan=6>Function Coverage <span  title="Click to sort table by function coverage" class="tableHeadSort"><a href="index-sort-f.html"><img src="../../updown.png" width=10 height=14 alt="Sort by function coverage" title="Click to sort table by function coverage" border=0></a></span></td>
+        <td class="tableHead" colspan=12>Line Coverage <span  title="Click to sort table by line coverage" class="tableHeadSort"><img src="../../glass.png" width=10 height=14 alt="Sort by line coverage" title="Click to sort table by line coverage" border=0></span></td>
+        <td class="tableHead" colspan=9>Function Coverage <span  title="Click to sort table by function coverage" class="tableHeadSort"><a href="index-sort-f.html"><img src="../../updown.png" width=10 height=14 alt="Sort by function coverage" title="Click to sort table by function coverage" border=0></a></span></td>
             </tr>
             <tr>
                     <td class="tableHead" colspan=2> Rate</td>
                     <td class="tableHead"> Total</td>
                     <td class="tableHead"> Hit</td>
+                    <td class="tableHead" title="Lost Baseline Coverage (1 => 0):
+Unchanged code is no longer tested"> LBC</td>
+                    <td class="tableHead" title="Uncovered Included Code (# => 0):
+Previously unused code is untested"> UIC</td>
                     <td class="tableHead" title="Uncovered Baseline Code (0 => 0):
 Unchanged code was untested before, is untested now"> UBC</td>
                     <td class="tableHead" title="Gained Baseline Coverage (0 => 1):
 Unchanged code is tested now"> GBC</td>
+                    <td class="tableHead" title="Gained Included Coverage (# => 1):
+Previously unused code is tested now"> GIC</td>
                     <td class="tableHead" title="Covered Baseline Code (1 => 1):
 Unchanged code was tested before and is still tested"> CBC</td>
+                    <td class="tableHead" title="Excluded Uncovered Baseline (0 => #):
+Previously untested code is unused now"> EUB</td>
+                    <td class="tableHead" title="Excluded Covered Baseline (1 => #):
+Previously tested code is unused now"> ECB</td>
                     <td class="tableHead"> Rate</td>
                     <td class="tableHead"> Total</td>
                     <td class="tableHead"> Hit</td>
+                    <td class="tableHead" title="Uncovered Included Code (# => 0):
+Previously unused code is untested"> UIC</td>
                     <td class="tableHead" title="Uncovered Baseline Code (0 => 0):
 Unchanged code was untested before, is untested now"> UBC</td>
-                    <td class="tableHead" title="Gained Baseline Coverage (0 => 1):
-Unchanged code is tested now"> GBC</td>
+                    <td class="tableHead" title="Gained Included Coverage (# => 1):
+Previously unused code is tested now"> GIC</td>
                     <td class="tableHead" title="Covered Baseline Code (1 => 1):
 Unchanged code was tested before and is still tested"> CBC</td>
+                    <td class="tableHead" title="Excluded Uncovered Baseline (0 => #):
+Previously untested code is unused now"> EUB</td>
+                    <td class="tableHead" title="Excluded Covered Baseline (1 => #):
+Previously tested code is unused now"> ECB</td>
             </tr>
             <tr>
               <td class="coverFile"><a href="Main.kt.gcov.html">Main.kt</a></td>
@@ -127,87 +171,127 @@ Unchanged code was tested before and is still tested"> CBC</td>
               <td class="coverPerLo">73.5&nbsp;%</td>
               <td class="coverNumDflt">34</td>
               <td class="coverNumDflt">25</td>
+              <td class="coverNumDflt"></td>
+              <td class="coverNumDflt"></td>
               <td class="coverNumDflt"><a href="Main.kt.gcov.html#L37" title="Go to first UBC line in Main.kt"><a href="Main.kt.gcov.html#L37" </a></td>
               <td class="coverNumDflt"></td>
+              <td class="coverNumDflt"></td>
               <td class="coverNumDflt"><a href="Main.kt.gcov.html#L22" title="Go to first CBC line in Main.kt"><a href="Main.kt.gcov.html#L22" </a></td>
+              <td class="coverNumDflt"></td>
+              <td class="coverNumDflt"></td>
               <td class="coverPerHi">100.0&nbsp;%</td>
               <td class="coverNumDflt">3</td>
               <td class="coverNumDflt">3</td>
               <td class="coverNumDflt"></td>
               <td class="coverNumDflt"></td>
-              <td class="coverNumDflt">3</td>
-            </tr>
-            <tr>
-              <td class="coverFile"><a href="Simulator.kt.gcov.html">Simulator.kt</a></td>
-              <td class="coverBar" align="center">
-                                <table border=0 cellspacing=0 cellpadding=1><tr><td class="coverBarOutline"><img src="../../amber.png" width=84 height=10 alt="83.9%"><img src="../../snow.png" width=16 height=10 alt="83.9%"></td></tr></table>
-              </td>
-              <td class="coverPerMed">83.9&nbsp;%</td>
-              <td class="coverNumDflt">56</td>
-              <td class="coverNumDflt">47</td>
-              <td class="coverNumDflt"><a href="Simulator.kt.gcov.html#L35" title="Go to first UBC line in Simulator.kt"><a href="Simulator.kt.gcov.html#L35" </a></td>
               <td class="coverNumDflt"></td>
-              <td class="coverNumDflt"><a href="Simulator.kt.gcov.html#L24" title="Go to first CBC line in Simulator.kt"><a href="Simulator.kt.gcov.html#L24" </a></td>
-              <td class="coverPerLo">62.5&nbsp;%</td>
-              <td class="coverNumDflt">8</td>
-              <td class="coverNumDflt">5</td>
               <td class="coverNumDflt">3</td>
               <td class="coverNumDflt"></td>
-              <td class="coverNumDflt">5</td>
-            </tr>
-            <tr>
-              <td class="coverFile"><a href="Interpreter.kt.gcov.html">Interpreter.kt</a></td>
-              <td class="coverBar" align="center">
-                                <table border=0 cellspacing=0 cellpadding=1><tr><td class="coverBarOutline"><img src="../../amber.png" width=84 height=10 alt="84.0%"><img src="../../snow.png" width=16 height=10 alt="84.0%"></td></tr></table>
-              </td>
-              <td class="coverPerMed">84.0&nbsp;%</td>
-              <td class="coverNumDflt">394</td>
-              <td class="coverNumDflt">331</td>
-              <td class="coverNumDflt"><a href="Interpreter.kt.gcov.html#L133" title="Go to first UBC line in Interpreter.kt"><a href="Interpreter.kt.gcov.html#L133" </a></td>
               <td class="coverNumDflt"></td>
-              <td class="coverNumDflt"><a href="Interpreter.kt.gcov.html#L34" title="Go to first CBC line in Interpreter.kt"><a href="Interpreter.kt.gcov.html#L34" </a></td>
-              <td class="coverPerHi">92.9&nbsp;%</td>
-              <td class="coverNumDflt">42</td>
-              <td class="coverNumDflt">39</td>
-              <td class="coverNumDflt">3</td>
-              <td class="coverNumDflt"></td>
-              <td class="coverNumDflt">39</td>
             </tr>
             <tr>
               <td class="coverFile"><a href="Values.kt.gcov.html">Values.kt</a></td>
               <td class="coverBar" align="center">
-                                <table border=0 cellspacing=0 cellpadding=1><tr><td class="coverBarOutline"><img src="../../amber.png" width=86 height=10 alt="85.7%"><img src="../../snow.png" width=14 height=10 alt="85.7%"></td></tr></table>
+                                <table border=0 cellspacing=0 cellpadding=1><tr><td class="coverBarOutline"><img src="../../amber.png" width=78 height=10 alt="77.5%"><img src="../../snow.png" width=22 height=10 alt="77.5%"></td></tr></table>
               </td>
-              <td class="coverPerMed">85.7&nbsp;%</td>
-              <td class="coverNumDflt">35</td>
-              <td class="coverNumDflt">30</td>
-              <td class="coverNumDflt"><a href="Values.kt.gcov.html#L22" title="Go to first UBC line in Values.kt"><a href="Values.kt.gcov.html#L22" </a></td>
-              <td class="coverNumDflt"><a href="Values.kt.gcov.html#L33" title="Go to first GBC line in Values.kt"><a href="Values.kt.gcov.html#L33" </a></td>
+              <td class="coverPerMed">77.5&nbsp;%</td>
+              <td class="coverNumDflt">40</td>
+              <td class="coverNumDflt">31</td>
+              <td class="tlaLBC tlaBgLBC"><a href="Values.kt.gcov.html#L78" class="tlaBgLBC title="Go to first LBC line in Values.kt"><a href="Values.kt.gcov.html#L78" class="tlaBgLBC </a></td>
+              <td class="tlaUIC tlaBgUIC"><a href="Values.kt.gcov.html#L30" class="tlaBgUIC title="Go to first UIC line in Values.kt"><a href="Values.kt.gcov.html#L30" class="tlaBgUIC </a></td>
+              <td class="coverNumDflt"></td>
+              <td class="coverNumDflt"><a href="Values.kt.gcov.html#L90" title="Go to first GBC line in Values.kt"><a href="Values.kt.gcov.html#L90" </a></td>
+              <td class="coverNumDflt"><a href="Values.kt.gcov.html#L37" title="Go to first GIC line in Values.kt"><a href="Values.kt.gcov.html#L37" </a></td>
               <td class="coverNumDflt"><a href="Values.kt.gcov.html#L15" title="Go to first CBC line in Values.kt"><a href="Values.kt.gcov.html#L15" </a></td>
-              <td class="coverPerLo">69.4&nbsp;%</td>
-              <td class="coverNumDflt">36</td>
+              <td class="coverNumDflt"><a href="Values.kt.gcov.html#L22" title="Go to first EUB line in Values.kt"><a href="Values.kt.gcov.html#L22" </a></td>
+              <td class="coverNumDflt"><a href="Values.kt.gcov.html#L25" title="Go to first ECB line in Values.kt"><a href="Values.kt.gcov.html#L25" </a></td>
+              <td class="coverPerLo">70.7&nbsp;%</td>
+              <td class="coverNumDflt">41</td>
+              <td class="coverNumDflt">29</td>
+              <td class="tlaUIC tlaBgUIC">12</td>
+              <td class="coverNumDflt"></td>
               <td class="coverNumDflt">25</td>
+              <td class="coverNumDflt">4</td>
               <td class="coverNumDflt">11</td>
-              <td class="coverNumDflt">1</td>
-              <td class="coverNumDflt">24</td>
+              <td class="coverNumDflt">21</td>
+            </tr>
+            <tr>
+              <td class="coverFile"><a href="Interpreter.kt.gcov.html">Interpreter.kt</a></td>
+              <td class="coverBar" align="center">
+                                <table border=0 cellspacing=0 cellpadding=1><tr><td class="coverBarOutline"><img src="../../amber.png" width=84 height=10 alt="84.4%"><img src="../../snow.png" width=16 height=10 alt="84.4%"></td></tr></table>
+              </td>
+              <td class="coverPerMed">84.4&nbsp;%</td>
+              <td class="coverNumDflt">449</td>
+              <td class="coverNumDflt">379</td>
+              <td class="tlaLBC tlaBgLBC"><a href="Interpreter.kt.gcov.html#L262" class="tlaBgLBC title="Go to first LBC line in Interpreter.kt"><a href="Interpreter.kt.gcov.html#L262" class="tlaBgLBC </a></td>
+              <td class="tlaUIC tlaBgUIC"><a href="Interpreter.kt.gcov.html#L260" class="tlaBgUIC title="Go to first UIC line in Interpreter.kt"><a href="Interpreter.kt.gcov.html#L260" class="tlaBgUIC </a></td>
+              <td class="coverNumDflt"><a href="Interpreter.kt.gcov.html#L145" title="Go to first UBC line in Interpreter.kt"><a href="Interpreter.kt.gcov.html#L145" </a></td>
+              <td class="coverNumDflt"><a href="Interpreter.kt.gcov.html#L133" title="Go to first GBC line in Interpreter.kt"><a href="Interpreter.kt.gcov.html#L133" </a></td>
+              <td class="coverNumDflt"><a href="Interpreter.kt.gcov.html#L256" title="Go to first GIC line in Interpreter.kt"><a href="Interpreter.kt.gcov.html#L256" </a></td>
+              <td class="coverNumDflt"><a href="Interpreter.kt.gcov.html#L34" title="Go to first CBC line in Interpreter.kt"><a href="Interpreter.kt.gcov.html#L34" </a></td>
+              <td class="coverNumDflt"><a href="Interpreter.kt.gcov.html#L257" title="Go to first EUB line in Interpreter.kt"><a href="Interpreter.kt.gcov.html#L257" </a></td>
+              <td class="coverNumDflt"><a href="Interpreter.kt.gcov.html#L268" title="Go to first ECB line in Interpreter.kt"><a href="Interpreter.kt.gcov.html#L268" </a></td>
+              <td class="coverPerHi">93.3&nbsp;%</td>
+              <td class="coverNumDflt">45</td>
+              <td class="coverNumDflt">42</td>
+              <td class="tlaUIC tlaBgUIC">3</td>
+              <td class="coverNumDflt"></td>
+              <td class="coverNumDflt">26</td>
+              <td class="coverNumDflt">16</td>
+              <td class="coverNumDflt">3</td>
+              <td class="coverNumDflt">23</td>
+            </tr>
+            <tr>
+              <td class="coverFile"><a href="Simulator.kt.gcov.html">Simulator.kt</a></td>
+              <td class="coverBar" align="center">
+                                <table border=0 cellspacing=0 cellpadding=1><tr><td class="coverBarOutline"><img src="../../amber.png" width=88 height=10 alt="87.5%"><img src="../../snow.png" width=12 height=10 alt="87.5%"></td></tr></table>
+              </td>
+              <td class="coverPerMed">87.5&nbsp;%</td>
+              <td class="coverNumDflt">56</td>
+              <td class="coverNumDflt">49</td>
+              <td class="coverNumDflt"></td>
+              <td class="coverNumDflt"></td>
+              <td class="coverNumDflt"><a href="Simulator.kt.gcov.html#L35" title="Go to first UBC line in Simulator.kt"><a href="Simulator.kt.gcov.html#L35" </a></td>
+              <td class="coverNumDflt"><a href="Simulator.kt.gcov.html#L60" title="Go to first GBC line in Simulator.kt"><a href="Simulator.kt.gcov.html#L60" </a></td>
+              <td class="coverNumDflt"></td>
+              <td class="coverNumDflt"><a href="Simulator.kt.gcov.html#L24" title="Go to first CBC line in Simulator.kt"><a href="Simulator.kt.gcov.html#L24" </a></td>
+              <td class="coverNumDflt"></td>
+              <td class="coverNumDflt"></td>
+              <td class="coverPerLo">62.5&nbsp;%</td>
+              <td class="coverNumDflt">8</td>
+              <td class="coverNumDflt">5</td>
+              <td class="coverNumDflt"></td>
+              <td class="coverNumDflt">3</td>
+              <td class="coverNumDflt"></td>
+              <td class="coverNumDflt">5</td>
+              <td class="coverNumDflt"></td>
+              <td class="coverNumDflt"></td>
             </tr>
             <tr>
               <td class="coverFile"><a href="V1ModelArchitecture.kt.gcov.html">V1ModelArchitecture.kt</a></td>
               <td class="coverBar" align="center">
-                                <table border=0 cellspacing=0 cellpadding=1><tr><td class="coverBarOutline"><img src="../../amber.png" width=88 height=10 alt="87.7%"><img src="../../snow.png" width=12 height=10 alt="87.7%"></td></tr></table>
+                                <table border=0 cellspacing=0 cellpadding=1><tr><td class="coverBarOutline"><img src="../../emerald.png" width=91 height=10 alt="91.2%"><img src="../../snow.png" width=9 height=10 alt="91.2%"></td></tr></table>
               </td>
-              <td class="coverPerMed">87.7&nbsp;%</td>
+              <td class="coverPerHi">91.2&nbsp;%</td>
               <td class="coverNumDflt">57</td>
-              <td class="coverNumDflt">50</td>
-              <td class="coverNumDflt"><a href="V1ModelArchitecture.kt.gcov.html#L44" title="Go to first UBC line in V1ModelArchitecture.kt"><a href="V1ModelArchitecture.kt.gcov.html#L44" </a></td>
+              <td class="coverNumDflt">52</td>
               <td class="coverNumDflt"></td>
+              <td class="coverNumDflt"></td>
+              <td class="coverNumDflt"><a href="V1ModelArchitecture.kt.gcov.html#L44" title="Go to first UBC line in V1ModelArchitecture.kt"><a href="V1ModelArchitecture.kt.gcov.html#L44" </a></td>
+              <td class="coverNumDflt"><a href="V1ModelArchitecture.kt.gcov.html#L96" title="Go to first GBC line in V1ModelArchitecture.kt"><a href="V1ModelArchitecture.kt.gcov.html#L96" </a></td>
+              <td class="coverNumDflt"><a href="V1ModelArchitecture.kt.gcov.html#L99" title="Go to first GIC line in V1ModelArchitecture.kt"><a href="V1ModelArchitecture.kt.gcov.html#L99" </a></td>
               <td class="coverNumDflt"><a href="V1ModelArchitecture.kt.gcov.html#L21" title="Go to first CBC line in V1ModelArchitecture.kt"><a href="V1ModelArchitecture.kt.gcov.html#L21" </a></td>
+              <td class="coverNumDflt"><a href="V1ModelArchitecture.kt.gcov.html#L98" title="Go to first EUB line in V1ModelArchitecture.kt"><a href="V1ModelArchitecture.kt.gcov.html#L98" </a></td>
+              <td class="coverNumDflt"><a href="V1ModelArchitecture.kt.gcov.html#L106" title="Go to first ECB line in V1ModelArchitecture.kt"><a href="V1ModelArchitecture.kt.gcov.html#L106" </a></td>
               <td class="coverPerHi">100.0&nbsp;%</td>
               <td class="coverNumDflt">2</td>
               <td class="coverNumDflt">2</td>
               <td class="coverNumDflt"></td>
               <td class="coverNumDflt"></td>
+              <td class="coverNumDflt"></td>
               <td class="coverNumDflt">2</td>
+              <td class="coverNumDflt"></td>
+              <td class="coverNumDflt"></td>
             </tr>
             <tr>
               <td class="coverFile"><a href="BitVector.kt.gcov.html">BitVector.kt</a></td>
@@ -217,33 +301,49 @@ Unchanged code was tested before and is still tested"> CBC</td>
               <td class="coverPerHi">92.5&nbsp;%</td>
               <td class="coverNumDflt">67</td>
               <td class="coverNumDflt">62</td>
+              <td class="coverNumDflt"></td>
+              <td class="coverNumDflt"></td>
               <td class="coverNumDflt"><a href="BitVector.kt.gcov.html#L43" title="Go to first UBC line in BitVector.kt"><a href="BitVector.kt.gcov.html#L43" </a></td>
               <td class="coverNumDflt"></td>
+              <td class="coverNumDflt"></td>
               <td class="coverNumDflt"><a href="BitVector.kt.gcov.html#L11" title="Go to first CBC line in BitVector.kt"><a href="BitVector.kt.gcov.html#L11" </a></td>
+              <td class="coverNumDflt"></td>
+              <td class="coverNumDflt"></td>
               <td class="coverPerHi">92.9&nbsp;%</td>
               <td class="coverNumDflt">42</td>
               <td class="coverNumDflt">39</td>
+              <td class="coverNumDflt"></td>
               <td class="coverNumDflt">3</td>
               <td class="coverNumDflt"></td>
               <td class="coverNumDflt">39</td>
+              <td class="coverNumDflt"></td>
+              <td class="coverNumDflt"></td>
             </tr>
             <tr>
               <td class="coverFile"><a href="DefaultValues.kt.gcov.html">DefaultValues.kt</a></td>
               <td class="coverBar" align="center">
-                                <table border=0 cellspacing=0 cellpadding=1><tr><td class="coverBarOutline"><img src="../../emerald.png" width=97 height=10 alt="96.6%"><img src="../../snow.png" width=3 height=10 alt="96.6%"></td></tr></table>
+                                <table border=0 cellspacing=0 cellpadding=1><tr><td class="coverBarOutline"><img src="../../emerald.png" width=96 height=10 alt="96.4%"><img src="../../snow.png" width=4 height=10 alt="96.4%"></td></tr></table>
               </td>
-              <td class="coverPerHi">96.6&nbsp;%</td>
-              <td class="coverNumDflt">29</td>
+              <td class="coverPerHi">96.4&nbsp;%</td>
               <td class="coverNumDflt">28</td>
-              <td class="coverNumDflt"><a href="DefaultValues.kt.gcov.html#L74" title="Go to first UBC line in DefaultValues.kt"><a href="DefaultValues.kt.gcov.html#L74" </a></td>
+              <td class="coverNumDflt">27</td>
+              <td class="tlaLBC tlaBgLBC"><a href="DefaultValues.kt.gcov.html#L70" class="tlaBgLBC title="Go to first LBC line in DefaultValues.kt"><a href="DefaultValues.kt.gcov.html#L70" class="tlaBgLBC </a></td>
               <td class="coverNumDflt"></td>
+              <td class="coverNumDflt"></td>
+              <td class="coverNumDflt"></td>
+              <td class="coverNumDflt"><a href="DefaultValues.kt.gcov.html#L67" title="Go to first GIC line in DefaultValues.kt"><a href="DefaultValues.kt.gcov.html#L67" </a></td>
               <td class="coverNumDflt"><a href="DefaultValues.kt.gcov.html#L29" title="Go to first CBC line in DefaultValues.kt"><a href="DefaultValues.kt.gcov.html#L29" </a></td>
+              <td class="coverNumDflt"><a href="DefaultValues.kt.gcov.html#L74" title="Go to first EUB line in DefaultValues.kt"><a href="DefaultValues.kt.gcov.html#L74" </a></td>
+              <td class="coverNumDflt"><a href="DefaultValues.kt.gcov.html#L61" title="Go to first ECB line in DefaultValues.kt"><a href="DefaultValues.kt.gcov.html#L61" </a></td>
               <td class="coverPerHi">100.0&nbsp;%</td>
-              <td class="coverNumDflt">2</td>
+              <td class="coverNumDflt">3</td>
+              <td class="coverNumDflt">3</td>
+              <td class="coverNumDflt"></td>
+              <td class="coverNumDflt"></td>
+              <td class="coverNumDflt">1</td>
               <td class="coverNumDflt">2</td>
               <td class="coverNumDflt"></td>
               <td class="coverNumDflt"></td>
-              <td class="coverNumDflt">2</td>
             </tr>
             <tr>
               <td class="coverFile"><a href="TableStore.kt.gcov.html">TableStore.kt</a></td>
@@ -253,15 +353,23 @@ Unchanged code was tested before and is still tested"> CBC</td>
               <td class="coverPerHi">97.1&nbsp;%</td>
               <td class="coverNumDflt">68</td>
               <td class="coverNumDflt">66</td>
+              <td class="coverNumDflt"></td>
+              <td class="coverNumDflt"></td>
               <td class="coverNumDflt"><a href="TableStore.kt.gcov.html#L120" title="Go to first UBC line in TableStore.kt"><a href="TableStore.kt.gcov.html#L120" </a></td>
               <td class="coverNumDflt"></td>
+              <td class="coverNumDflt"></td>
               <td class="coverNumDflt"><a href="TableStore.kt.gcov.html#L15" title="Go to first CBC line in TableStore.kt"><a href="TableStore.kt.gcov.html#L15" </a></td>
+              <td class="coverNumDflt"></td>
+              <td class="coverNumDflt"></td>
               <td class="coverPerHi">100.0&nbsp;%</td>
               <td class="coverNumDflt">16</td>
               <td class="coverNumDflt">16</td>
               <td class="coverNumDflt"></td>
               <td class="coverNumDflt"></td>
+              <td class="coverNumDflt"></td>
               <td class="coverNumDflt">16</td>
+              <td class="coverNumDflt"></td>
+              <td class="coverNumDflt"></td>
             </tr>
             <tr>
               <td class="coverFile"><a href="Architecture.kt.gcov.html">Architecture.kt</a></td>
@@ -273,13 +381,21 @@ Unchanged code was tested before and is still tested"> CBC</td>
               <td class="coverNumDflt">2</td>
               <td class="coverNumDflt"></td>
               <td class="coverNumDflt"></td>
+              <td class="coverNumDflt"></td>
+              <td class="coverNumDflt"></td>
+              <td class="coverNumDflt"></td>
               <td class="coverNumDflt"><a href="Architecture.kt.gcov.html#L44" title="Go to first CBC line in Architecture.kt"><a href="Architecture.kt.gcov.html#L44" </a></td>
+              <td class="coverNumDflt"></td>
+              <td class="coverNumDflt"></td>
               <td class="coverPerHi">100.0&nbsp;%</td>
               <td class="coverNumDflt">6</td>
               <td class="coverNumDflt">6</td>
               <td class="coverNumDflt"></td>
               <td class="coverNumDflt"></td>
+              <td class="coverNumDflt"></td>
               <td class="coverNumDflt">6</td>
+              <td class="coverNumDflt"></td>
+              <td class="coverNumDflt"></td>
             </tr>
             <tr>
               <td class="coverFile"><a href="Environment.kt.gcov.html">Environment.kt</a></td>
@@ -291,13 +407,21 @@ Unchanged code was tested before and is still tested"> CBC</td>
               <td class="coverNumDflt">40</td>
               <td class="coverNumDflt"></td>
               <td class="coverNumDflt"></td>
+              <td class="coverNumDflt"></td>
+              <td class="coverNumDflt"></td>
+              <td class="coverNumDflt"></td>
               <td class="coverNumDflt"><a href="Environment.kt.gcov.html#L16" title="Go to first CBC line in Environment.kt"><a href="Environment.kt.gcov.html#L16" </a></td>
+              <td class="coverNumDflt"></td>
+              <td class="coverNumDflt"></td>
               <td class="coverPerHi">100.0&nbsp;%</td>
               <td class="coverNumDflt">18</td>
               <td class="coverNumDflt">18</td>
               <td class="coverNumDflt"></td>
               <td class="coverNumDflt"></td>
+              <td class="coverNumDflt"></td>
               <td class="coverNumDflt">18</td>
+              <td class="coverNumDflt"></td>
+              <td class="coverNumDflt"></td>
             </tr>
           </table>
           </center>
