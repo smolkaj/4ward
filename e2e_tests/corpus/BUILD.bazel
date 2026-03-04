@@ -199,5 +199,6 @@ corpus_test_suite(
     tags = ["manual"],
     tests = [
         "bvec-hdr-bmv2",
+        "checksum2-bmv2",
     ],
 )
