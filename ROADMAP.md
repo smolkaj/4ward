@@ -64,35 +64,28 @@ and the P4Runtime server (track 4) is the integration point.
 
 ### Track 1: v1model spec compliance
 
-**Priority: top | Parallelizable: yes (within track)**
+**Priority: top | Parallelizable: yes (within and across subtracks)**
 
 Complete the v1model reference implementation. This is the foundation —
 without it, trace trees aren't useful, P4Runtime is limited, and the
 "spec-compliant reference implementation" claim doesn't hold.
 
-The remaining work is well-scoped: ~19 failing corpus tests, each exercising
-a specific missing feature. Multiple agents can work these in parallel since
-they're mostly independent (different externs, different value types, different
-interpreter paths).
+Three subtracks, each a different testing methodology:
 
-Key remaining features:
-- Const table entries (8 tests)
-- Header unions — remaining edge cases (10 tests)
-- `verify` / `verify_checksum` externs (6 tests)
-- Register `read` / `write` (2 tests)
-- Assorted: payload mismatches, integer literals, expression kinds
-- Skeleton includes fix — update `corpus.bzl` to declare skeleton `.p4` files
-  in `srcs` and add a `-I` flag. Unblocks **16 corpus tests** with zero
-  simulator work (the files are already exported by `@p4c`).
-- Remove p4testgen `max_tests=1` pins — 5 of 6 p4testgen tests are pinned to
-  avoid simulator bugs. Unpin and fix as the underlying features land.
-- Expand p4testgen coverage — extend from 10 programs to all passing corpus
-  tests for deeper path coverage.
-- BMv2 diff testing — run the same inputs through BMv2 and 4ward, compare
-  outputs. Catches spec compliance gaps that STF tests miss.
+- **1A: STF corpus** — make every v1model-capable p4c STF test pass.
+  132/213 passing today. Remaining gaps: header unions (10), verify/checksum
+  externs (6), payload mismatches (5), register/counter externs (3), and
+  assorted edge cases. Two categories are build plumbing, not simulator
+  work: skeleton includes (15 tests) and lookahead/advance (6 tests).
+- **1B: p4testgen** — unpin `max_tests = 1` limits, expand from 10 programs
+  to the full passing corpus, fix new failures. Deeper path coverage than
+  hand-written STFs.
+- **1C: BMv2 diff testing** — run the same inputs through BMv2 and 4ward,
+  compare outputs. Catches gaps that STF tests miss.
 
-**Done when:** all v1model-capable corpus tests pass and p4testgen runs
-unpinned across the full corpus.
+**Done when:** all v1model-capable corpus tests pass (1A), p4testgen runs
+unpinned across the full corpus (1B), and BMv2 diff testing surfaces no
+mismatches (1C).
 
 ### Track 2: infrastructure
 
@@ -123,7 +116,7 @@ profiles, replication) and return a tree of all possible executions. See
 This is what differentiates 4ward from every other P4 tool. BMv2 picks one
 path. Hardware picks one path. 4ward shows you all of them.
 
-The interpreter is already solid enough to build on (124 passing tests), and
+The interpreter is already solid enough to build on (132 passing tests), and
 action selectors are orthogonal to the remaining v1model gaps — no need to
 wait.
 
