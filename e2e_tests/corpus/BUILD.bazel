@@ -46,6 +46,7 @@ corpus_test_suite(
         "gauntlet_function_return-bmv2",
         "gauntlet_function_return_cast-bmv2",
         "gauntlet_hdr_assign_1-bmv2",
+        "gauntlet_hdr_assign_2-bmv2",
         "gauntlet_hdr_function_cast-bmv2",
         "gauntlet_hdr_in_value-bmv2",
         "gauntlet_hdr_init-bmv2",
