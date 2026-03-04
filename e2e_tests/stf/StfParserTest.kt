@@ -338,6 +338,50 @@ class StfParserTest {
   }
 
   // ---------------------------------------------------------------------------
+  // BMv2 dialect: hex wildcard ternary matches
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `add with hex wildcard ternary match`() {
+    // 0x****0101 → value = 0x0101, mask = 0x0000ffff
+    val stf = parse("""add t 10 f:0x****0101 a()""")
+    val m = (stf.tableEntries[0] as StfAddEntry).matches[0]
+    assertEquals(MatchKind.TERNARY, m.kind)
+    assertEquals("0x101", m.value)
+    assertEquals("0xffff", m.mask)
+  }
+
+  @Test
+  fun `add with hex wildcard mixed nibbles`() {
+    // 0x*F*0 → value = 0x0f00, mask = 0x0f0f (non-wildcard nibbles only)
+    val stf = parse("""add t 1 f:0x*F*0 a()""")
+    val m = (stf.tableEntries[0] as StfAddEntry).matches[0]
+    assertEquals(MatchKind.TERNARY, m.kind)
+    assertEquals("0xf00", m.value)
+    assertEquals("0xf0f", m.mask)
+  }
+
+  @Test
+  fun `add with all-wildcard hex match`() {
+    // 0x**** → value = 0, mask = 0
+    val stf = parse("""add t 1 f:0x**** a()""")
+    val m = (stf.tableEntries[0] as StfAddEntry).matches[0]
+    assertEquals(MatchKind.TERNARY, m.kind)
+    assertEquals("0x0", m.value)
+    assertEquals("0x0", m.mask)
+  }
+
+  @Test
+  fun `add with hex wildcard trailing star`() {
+    // 0x25** → value = 0x2500, mask = 0xff00
+    val stf = parse("""add t 100 f:0x25** a()""")
+    val m = (stf.tableEntries[0] as StfAddEntry).matches[0]
+    assertEquals(MatchKind.TERNARY, m.kind)
+    assertEquals("0x2500", m.value)
+    assertEquals("0xff00", m.mask)
+  }
+
+  // ---------------------------------------------------------------------------
   // p4testgen dialect: setdefault directive
   // ---------------------------------------------------------------------------
 
