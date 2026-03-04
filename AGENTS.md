@@ -28,7 +28,7 @@ bazel build //...          # build everything
 bazel test //...           # run all tests
 ./format.sh                # auto-format all files (clang-format + buildifier + ktfmt)
 ./lint.sh                  # lint all files (clang-tidy for C++, detekt for Kotlin)
-./coverage.sh              # collect code coverage (LCOV + optional HTML report)
+./coverage.sh              # collect code coverage (see --html, --baseline, --diff)
 ./diff-coverage.sh         # incremental coverage from a diff + LCOV file
 ./dev.sh help              # show all developer commands
 ```

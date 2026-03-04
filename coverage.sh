@@ -2,8 +2,14 @@
 # Collects Kotlin code coverage for the simulator library.
 #
 # Usage:
-#   ./coverage.sh              # run all tests, produce LCOV + optional HTML
-#   ./coverage.sh --html       # same, but require genhtml for HTML output
+#   ./coverage.sh                                # run tests, produce LCOV
+#   ./coverage.sh --html                         # also generate HTML report
+#   ./coverage.sh --html --baseline B --diff D   # HTML with differential coverage
+#
+# Options:
+#   --html              Generate an HTML report (requires genhtml / lcov).
+#   --baseline <file>   Baseline LCOV for differential coverage (genhtml --baseline-file).
+#   --diff <file>       Unified diff for differential coverage (genhtml --diff-file).
 #
 # Bazel 9's built-in `bazel coverage` pipeline doesn't produce LCOV data for
 # kt_jvm_test targets.  Two independent bugs conspire:
@@ -25,6 +31,18 @@
 #     that bypasses the broken path filtering.
 
 set -euo pipefail
+
+WANT_HTML=false
+BASELINE_FILE=""
+DIFF_FILE=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --html)     WANT_HTML=true; shift ;;
+    --baseline) BASELINE_FILE="${2:?--baseline requires a file argument}"; shift 2 ;;
+    --diff)     DIFF_FILE="${2:?--diff requires a file argument}"; shift 2 ;;
+    *)          echo "Unknown option: $1" >&2; exit 1 ;;
+  esac
+done
 
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
 REPORT_DIR="${REPO_ROOT}/coverage-report"
@@ -294,11 +312,15 @@ echo "Saved:        ${PERSISTENT}"
 
 # ── HTML report (optional) ───────────────────────────────────────────────────
 
+GENHTML_ARGS=(--quiet)
+[[ -n "${BASELINE_FILE}" ]] && GENHTML_ARGS+=(--baseline-file "${BASELINE_FILE}")
+[[ -n "${DIFF_FILE}" ]]     && GENHTML_ARGS+=(--diff-file "${DIFF_FILE}")
+
 if command -v genhtml >/dev/null 2>&1; then
   rm -rf "${REPORT_DIR}"
-  genhtml "${PERSISTENT}" --output-directory "${REPORT_DIR}" --quiet
+  genhtml "${PERSISTENT}" --output-directory "${REPORT_DIR}" "${GENHTML_ARGS[@]}"
   echo "HTML report:  ${REPORT_DIR}/index.html"
-elif [[ "${1:-}" == "--html" ]]; then
+elif "${WANT_HTML}"; then
   echo "Error: genhtml not found (install lcov: brew install lcov)" >&2
   exit 1
 fi
