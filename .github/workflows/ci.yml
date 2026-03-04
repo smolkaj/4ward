@@ -76,18 +76,37 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Mount Bazel cache
-        uses: actions/cache@v5
+      - name: Save start time
+        run: echo "START_TIME=$(date +%s)" >> "$GITHUB_ENV"
+
+      - name: Restore Bazel cache
+        uses: actions/cache/restore@v5
         with:
           path: ~/.cache/bazel
           key: bazel-${{ matrix.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
           restore-keys: bazel-${{ matrix.os }}-
 
-      - name: Build
-        run: bazel build //...
+      - name: Build and test
+        run: bazel test //...
 
-      - name: Test
-        run: bazel test //... --test_output=errors
+      - name: Calculate build duration
+        if: always()
+        run: echo "DURATION=$(( $(date +%s) - START_TIME ))" >> "$GITHUB_ENV"
+
+      # Only save cache on main (PR caches are scoped to their branch and
+      # evict the shared caches that all jobs depend on) or when the build
+      # was slow (>5 min), indicating a cache miss worth persisting.
+      # Remove the repository cache first to save ~500 MB.
+      - name: Compress cache
+        if: always() && (github.ref_name == 'main' || env.DURATION > 300)
+        run: rm -rf $(bazel info repository_cache)
+
+      - name: Save Bazel cache
+        uses: actions/cache/save@v5
+        if: always() && (github.ref_name == 'main' || env.DURATION > 300)
+        with:
+          path: ~/.cache/bazel
+          key: bazel-${{ matrix.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
 
 
   coverage:
@@ -102,12 +121,14 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Mount Bazel cache
-        uses: actions/cache@v5
+      # Restore-only: reuse the ubuntu build cache. Coverage adds
+      # instrumentation flags but most artifacts are shared.
+      - name: Restore Bazel cache
+        uses: actions/cache/restore@v5
         with:
           path: ~/.cache/bazel
-          key: bazel-coverage-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
-          restore-keys: bazel-coverage-
+          key: bazel-ubuntu-24.04-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          restore-keys: bazel-ubuntu-24.04-
 
       - name: Install lcov
         run: sudo apt install -y lcov
