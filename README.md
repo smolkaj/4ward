@@ -34,7 +34,7 @@ branch — delivered as a structured trace you can actually read.
 | | BMv2 | Real hardware | **4ward** |
 |---|---|---|---|
 | Runs P4 programs | sure | sure | **yep** |
-| Execution trace | nope | nope | **yes!** |
+| Execution trace | text | nope | **proto/JSON** |
 | Architecture-generic | nope | nope | **yes!** |
 | P4Runtime | sure | sure | **yep** |
 | Simple, readable codebase | ehh | ehh | **yes!** |
