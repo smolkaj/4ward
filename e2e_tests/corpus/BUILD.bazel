@@ -216,3 +216,13 @@ corpus_test_suite(
         "gauntlet_invalid_hdr_short_circuit-bmv2",
     ],
 )
+
+# Tests blocked on unsupported non-v1model/non-PSA architectures.
+# These fail at p4c-4ward compile time.
+corpus_test_suite(
+    name = "unsupported_arch_stf_corpus_test",
+    tags = ["manual"],
+    tests = [
+        "gauntlet_optional-bmv2",
+    ],
+)
