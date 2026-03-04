@@ -31,18 +31,18 @@
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryMed">82.9&nbsp;%</td>
+            <td class="headerCovTableEntryMed">85.7&nbsp;%</td>
             <td class="headerCovTableEntry">35</td>
-            <td class="headerCovTableEntry">29</td>
+            <td class="headerCovTableEntry">30</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-04 11:14:29</td>
+            <td class="headerValue">2026-03-04 11:17:25</td>
             <td></td>
             <td class="headerItem">Functions:</td>
-            <td class="headerCovTableEntryLo">66.7&nbsp;%</td>
+            <td class="headerCovTableEntryLo">69.4&nbsp;%</td>
             <td class="headerCovTableEntry">36</td>
-            <td class="headerCovTableEntry">24</td>
+            <td class="headerCovTableEntry">25</td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
                 </table>
@@ -92,7 +92,7 @@
 <span id="L30"><span class="lineNum">      30</span>              : }</span>
 <span id="L31"><span class="lineNum">      31</span>              : </span>
 <span id="L32"><span class="lineNum">      32</span>              : /** A P4 error value (one of the named error members, e.g. &quot;NoError&quot;). */</span>
-<span id="L33"><span class="lineNum">      33</span> <span class="tlaUNC tlaBgUNC">           0 : data class ErrorVal(val member: String) : Value()</span></span>
+<span id="L33"><span class="lineNum">      33</span> <span class="tlaGNC">           1 : data class ErrorVal(val member: String) : Value()</span></span>
 <span id="L34"><span class="lineNum">      34</span>              : </span>
 <span id="L35"><span class="lineNum">      35</span>              : /**</span>
 <span id="L36"><span class="lineNum">      36</span>              :  * A header instance.</span>
@@ -100,7 +100,7 @@
 <span id="L38"><span class="lineNum">      38</span>              :  * [valid] reflects the P4 validity bit. Fields are stored by name. Extracting a header sets valid =</span>
 <span id="L39"><span class="lineNum">      39</span>              :  * true; calling setInvalid() sets valid = false and zeros all fields.</span>
 <span id="L40"><span class="lineNum">      40</span>              :  */</span>
-<span id="L41"><span class="lineNum">      41</span> <span class="tlaGNC tlaBgGNC">           1 : data class HeaderVal(</span></span>
+<span id="L41"><span class="lineNum">      41</span> <span class="tlaGNC">           1 : data class HeaderVal(</span></span>
 <span id="L42"><span class="lineNum">      42</span> <span class="tlaGNC">           1 :   val typeName: String,</span></span>
 <span id="L43"><span class="lineNum">      43</span> <span class="tlaGNC">           1 :   val fields: MutableMap&lt;String, Value&gt; = mutableMapOf(),</span></span>
 <span id="L44"><span class="lineNum">      44</span> <span class="tlaGNC">           1 :   var valid: Boolean = false,</span></span>

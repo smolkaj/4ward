@@ -554,7 +554,7 @@ BRDA:242,0,0,1
 BRDA:242,0,1,1
 BRDA:251,0,0,1
 BRDA:251,0,1,1
-BRDA:252,0,0,0
+BRDA:252,0,0,1
 BRDA:252,0,1,1
 BRDA:253,0,0,1
 BRDA:253,0,1,0
@@ -1633,7 +1633,7 @@ FNDA:0,fourward/simulator/BoolVal$Companion::getTRUE ()Lfourward/simulator/BoolV
 FN:28,fourward/simulator/BoolVal$Companion::getFALSE ()Lfourward/simulator/BoolVal;
 FNDA:0,fourward/simulator/BoolVal$Companion::getFALSE ()Lfourward/simulator/BoolVal;
 FN:33,fourward/simulator/ErrorVal::<init> (Ljava/lang/String;)V
-FNDA:0,fourward/simulator/ErrorVal::<init> (Ljava/lang/String;)V
+FNDA:1,fourward/simulator/ErrorVal::<init> (Ljava/lang/String;)V
 FN:33,fourward/simulator/ErrorVal::getMember ()Ljava/lang/String;
 FNDA:0,fourward/simulator/ErrorVal::getMember ()Ljava/lang/String;
 FN:84,fourward/simulator/HeaderStackVal::<init> (Ljava/lang/String;Ljava/util/List;I)V
@@ -1697,7 +1697,7 @@ DA:22,0
 DA:25,1
 DA:27,1
 DA:28,1
-DA:33,0
+DA:33,1
 DA:41,1
 DA:42,1
 DA:43,1
@@ -1725,6 +1725,6 @@ DA:87,1
 DA:88,1
 DA:90,0
 DA:94,1
-LH:29
+LH:30
 LF:35
 end_of_record
