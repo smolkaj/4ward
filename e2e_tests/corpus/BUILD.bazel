@@ -224,6 +224,7 @@ corpus_test_suite(
         "issue1000-bmv2",  # unhandled expression kind: type
         "issue1049-bmv2",  # payload mismatch
         "issue1062-1-bmv2",  # expected packet on port 0 but got none
+        "issue1097-2-bmv2",  # unhandled method call: write (register extern)
     ],
 )
 
