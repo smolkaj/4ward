@@ -143,15 +143,21 @@ this:
 ```
 # Shared disk cache across worktrees — avoids recompiling p4c/Z3 in every
 # worktree. Grows without bounds; wipe with: rm -rf ~/.cache/bazel-disk
-build --disk_cache=~/.cache/bazel-disk
+build --disk_cache=/absolute/path/to/.cache/bazel-disk
 
 # Cap resources to keep the machine responsive when multiple agents build in
 # parallel. Tune to your machine (these values suit a MacBook Air M-series).
-build --local_cpu_resources=4
-build --local_ram_resources=8192
+# Only applied when explicitly opted in via: bazel build --config=throttle
+build:throttle --local_cpu_resources=4
+build:throttle --local_ram_resources=8192
 ```
 
-These settings are intentionally **not** checked into the repo `.bazelrc`:
-- `--disk_cache` has no garbage collection. If CI ever picked it up, the cache
-  would balloon.
-- Resource limits are machine-specific — CI runners have different specs.
+Notes:
+- Use an **absolute path** for `--disk_cache` (not `~`), since tilde in Bazel
+  output confuses agents into thinking it's an error.
+- Resource caps are behind `--config=throttle` so they don't affect normal
+  builds, `format.sh`, or `lint.sh`. Opt in when running multiple agents:
+  `bazel build --config=throttle //...`.
+- These settings are intentionally **not** checked into the repo `.bazelrc`:
+  `--disk_cache` has no garbage collection (would balloon CI), and resource
+  limits are machine-specific.
