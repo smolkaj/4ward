@@ -102,8 +102,8 @@ of this blocks the other tracks.
 - Re-enable buf lint (blocked on buf support for proto edition 2024).
 - Upstream p4c backend (blocked on landing the backend in p4c).
 
-This list will grow. See [docs/refactoring.md](docs/refactoring.md) for
-additional cleanup and tech debt items.
+This list will grow. See [REFACTORING.md](REFACTORING.md) for additional
+cleanup and tech debt items.
 
 ### Track 3: trace trees
 

@@ -85,6 +85,9 @@ Do not add features that are not exercised by an STF test in `e2e_tests/`.
 Find the relevant failing test, implement the missing feature in `simulator/`,
 and confirm no other tests regress: `bazel test //...`.
 
+If you take a shortcut or skip a corner case to make progress, note it in
+[LIMITATIONS.md](LIMITATIONS.md) so it doesn't get forgotten.
+
 ## P4 language notes
 
 4ward is a spec-compliant reference implementation. The authoritative source
