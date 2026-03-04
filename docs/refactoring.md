@@ -87,21 +87,6 @@ all call `p4_compile(name, p4_src)` instead of inlining the genrule.
 
 ---
 
-## Remove max_tests/seed pins from p4testgen tests
-
-**Files**: `e2e_tests/p4testgen/BUILD.bazel`
-
-**Problem**: Five of six p4testgen tests are pinned to `max_tests = 1,
-seed = 1` because deeper execution paths expose simulator bugs (packets
-dropped when expected). This defeats the purpose of multi-path testing.
-
-**Fix**: Fix the underlying simulator bugs so all paths pass, then remove
-the `max_tests`/`seed` overrides. The affected tests are: `opassign1-bmv2`,
-`gauntlet_nested_table_calls-bmv2`, `issue2343-bmv2`,
-`gauntlet_exit_combination_1-bmv2`, `gauntlet_exit_combination_2-bmv2`.
-
----
-
 ## Reuse simulator process across p4testgen sub-tests
 
 **Files**: `e2e_tests/stf/Runner.kt`, `e2e_tests/p4testgen/P4TestgenTest.kt`
