@@ -16,26 +16,38 @@ package fourward.simulator
 
 import fourward.ir.v1.Type
 import fourward.ir.v1.TypeDecl
+import java.math.BigInteger
 
 /**
  * Creates a zero/default [Value] for [type].
  *
- * bit<N> → [BitVal] zero, bool → [BoolVal] false, named types → recursively initialised header
- * (invalid) or struct. Returns [UnitVal] for unrecognised types.
+ * bit<N> → [BitVal] zero, int<N> → [IntVal] zero, bool → [BoolVal] false, named types → recursively
+ * initialised header (invalid), struct, or [BitVal] zero for serializable enums. varbit<N> and
+ * unrecognised types → [UnitVal].
  */
 internal fun defaultValue(type: Type, types: Map<String, TypeDecl>): Value =
   when {
     type.hasBit() -> BitVal(0L, type.bit.width)
+    type.hasSignedInt() -> IntVal(SignedBitVector(java.math.BigInteger.ZERO, type.signedInt.width))
     type.hasBoolean() -> BoolVal(false)
     type.hasNamed() -> defaultValue(type.named, types)
-    else -> UnitVal
+    type.hasHeaderStack() ->
+      HeaderStackVal(
+        elementTypeName = type.headerStack.elementType,
+        headers =
+          MutableList(type.headerStack.size.toInt()) {
+            defaultValue(type.headerStack.elementType, types) as HeaderVal
+          },
+      )
+    else -> UnitVal // varbit<N>: variable-length; no fixed default
   }
 
 /**
  * Creates a zero/default [Value] for the named type.
  *
  * Looks up [typeName] in [types]; returns [UnitVal] if not found. Headers are initially invalid
- * with zeroed fields; structs are recursively initialised.
+ * with zeroed fields; structs are recursively initialised. Serializable enums default to a zero
+ * [BitVal] of their underlying width.
  */
 internal fun defaultValue(typeName: String, types: Map<String, TypeDecl>): Value {
   val typeDecl = types[typeName] ?: return UnitVal
@@ -57,6 +69,8 @@ internal fun defaultValue(typeName: String, types: Map<String, TypeDecl>): Value
             .associate { f -> f.name to defaultValue(f.type, types) }
             .toMutableMap(),
       )
+    // Serializable enum: default to zero of the underlying bit width.
+    typeDecl.hasEnum() && typeDecl.enum.width > 0 -> BitVal(0L, typeDecl.enum.width)
     else -> UnitVal
   }
 }

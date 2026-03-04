@@ -57,9 +57,15 @@ data class HeaderVal(
    */
   fun setInvalid() {
     valid = false
-    // Retain the field keys but zero the values — the field types are
-    // needed to reconstruct zero values, so we zero them lazily on read.
-    fields.clear()
+    // Zero all fields (P4 spec §8.17). BMv2 treats fields of an invalid
+    // header as zero, so we reset them in place rather than clearing.
+    fields.replaceAll { _, v ->
+      when (v) {
+        is BitVal -> BitVal(0L, v.bits.width)
+        is BoolVal -> BoolVal(false)
+        else -> v
+      }
+    }
   }
 
   fun copy(): HeaderVal = HeaderVal(typeName, fields.toMutableMap(), valid)

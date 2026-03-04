@@ -36,6 +36,7 @@ def corpus_test_suite(name, tests, tags = []):
             srcs = [p4_src],
             outs = [test + ".txtpb"],
             cmd = "$(execpath //p4c_backend:p4c-4ward) -I $$(dirname $(execpath @p4c//:core_p4)) -o $@ $(SRCS)",
+            tags = tags,
             tools = [
                 "//p4c_backend:p4c-4ward",
                 "@p4c//:core_p4",
@@ -48,6 +49,7 @@ def corpus_test_suite(name, tests, tags = []):
             srcs = [stf_src],
             outs = [test + ".stf"],
             cmd = "cp $< $@",
+            tags = tags,
         )
 
         data.append(":" + test + "_pb")

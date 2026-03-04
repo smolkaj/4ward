@@ -26,12 +26,17 @@ Unit tests live alongside the source they test:
 ```sh
 bazel build //...          # build everything
 bazel test //...           # run all tests
+ibazel build //...         # rebuild automatically on file changes (preferred for interactive work)
 ./format.sh                # auto-format all files (clang-format + buildifier + ktfmt)
 ./lint.sh                  # lint all files (clang-tidy for C++, detekt for Kotlin)
 ./coverage.sh              # collect code coverage (see --html, --baseline, --diff)
 ./diff-coverage.sh         # incremental coverage from a diff + LCOV file
 ./dev.sh help              # show all developer commands
 ```
+
+**Prefer `ibazel` over `bazel` for any work that spans multiple edit/build
+cycles.** It keeps the Bazel server warm and rebuilds only affected targets,
+catching errors within seconds rather than minutes.
 
 All builds are hermetic. Do not install dependencies outside of Bazel.
 
@@ -43,6 +48,11 @@ formatting, clang-tidy, build+test (Ubuntu + macOS), and coverage.
 On PRs, a coverage report is published to GitHub Pages and linked from a bot
 comment that shows both absolute and incremental (diff) coverage. Reports are
 browsable at `https://smolkaj.github.io/4ward/pr/<number>/`.
+
+**CI is fast and has a warm remote cache — often faster than a cold local
+build.** When iterating on a fix, push early and use `gh run watch` to monitor
+results rather than waiting for a full local rebuild. Check CI logs with
+`gh run view --log-failed` to diagnose failures without pulling logs locally.
 
 ## Key design invariants — do not break these
 
@@ -130,6 +140,18 @@ changing `ir.proto` or `simulator.proto`:
 4. Make sure the relevant STF tests still pass.
 
 Never remove or renumber existing fields; add new ones instead.
+
+## Worktrees
+
+**Always work in a dedicated git worktree. Never make changes directly in the
+main tree.** This keeps the main tree clean and allows parallel work without
+conflicts. Create one with:
+
+```sh
+git worktree add ../4ward-<branch> -b <branch>
+```
+
+Rebase and squash when merging back to main.
 
 ## Local development
 

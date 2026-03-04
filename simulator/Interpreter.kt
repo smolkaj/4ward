@@ -11,6 +11,7 @@ import fourward.ir.v1.ParserDecl
 import fourward.ir.v1.Stmt
 import fourward.ir.v1.TableApplyExpr
 import fourward.ir.v1.TableBehavior
+import fourward.ir.v1.Type
 import fourward.ir.v1.UnaryOperator
 import fourward.sim.v1.ActionExecutionEvent
 import fourward.sim.v1.BranchEvent
@@ -433,6 +434,19 @@ class Interpreter(
     paramProtos: List<p4.v1.P4RuntimeOuterClass.Action.Param>,
     env: Environment,
   ) {
+    // NoAction is a P4 built-in no-op (P4 spec §12.7) that is implicitly available in
+    // every table. It may appear in const entries without being listed in the actions block,
+    // so it might not have been compiled into the IR. Handle it directly rather than
+    // requiring the backend to emit an explicit empty ActionDecl for it.
+    if (actionName == "NoAction") {
+      packetCtx?.addTraceEvent(
+        TraceEvent.newBuilder()
+          .setActionExecution(ActionExecutionEvent.newBuilder().setActionName(actionName))
+          .build()
+      )
+      return
+    }
+
     val actionDecl = actions[actionName] ?: error("unknown action: $actionName")
 
     val paramMap = mutableMapOf<String, com.google.protobuf.ByteString>()
@@ -530,25 +544,66 @@ class Interpreter(
     val header = evalExpr(call.argsList[0], env) as HeaderVal
     val headerDecl = (types[header.typeName] ?: error("type not found: ${header.typeName}")).header
 
+    // The 2-argument form b.extract(hdr, varbitBits) is used when the header contains a varbit
+    // field. The second argument gives the varbit field's runtime length in bits.
+    val varbitBits: Int =
+      if (call.argsCount > 1) (evalExpr(call.argsList[1], env) as BitVal).bits.value.toInt() else 0
+
     // Read the entire header at once and load it into a single BigInteger (MSB-first).
     // This handles sub-byte fields (e.g. IPv4's bit<4> version and ihl) correctly:
     // both fields live in the same byte and must be unpacked by shift+mask, not by
     // reading separate bytes.
-    val totalBits = headerDecl.fieldsList.sumOf { it.type.bit.width }
+    val totalBits = headerDecl.fieldsList.sumOf { fieldWireWidth(it.type, varbitBits) }
     val allBits = BigInteger(1, packet.extractBytes((totalBits + 7) / 8))
 
     val newFields = mutableMapOf<String, Value>()
     var bitOffset = 0
     for (field in headerDecl.fieldsList) {
-      val width = field.type.bit.width
+      val width = fieldWireWidth(field.type, varbitBits)
+      if (width == 0) continue // skip zero-width fields (unrecognised types)
       val mask = BigInteger.ONE.shiftLeft(width) - BigInteger.ONE
-      val bits = BitVector((allBits shr (totalBits - bitOffset - width)) and mask, width)
-      newFields[field.name] = BitVal(bits)
+      val raw = (allBits shr (totalBits - bitOffset - width)) and mask
+      newFields[field.name] = bitsToValue(field.type, raw, width)
       bitOffset += width
     }
     header.setValid(newFields)
     return UnitVal
   }
+
+  /**
+   * Returns the on-wire bit-width of a header field type.
+   *
+   * P4 spec §8.9.2: bool in a header occupies exactly 1 bit on the wire. int<N> and bit<N> occupy N
+   * bits. varbit<N> occupies [varbitBits] bits (caller must supply the runtime value). Serializable
+   * enums are looked up by name and use their declared underlying width.
+   */
+  private fun fieldWireWidth(type: Type, varbitBits: Int = 0): Int =
+    when {
+      type.hasBit() -> type.bit.width
+      type.hasSignedInt() -> type.signedInt.width
+      type.hasBoolean() -> 1
+      type.hasVarbit() -> varbitBits
+      type.hasNamed() -> {
+        val decl = types[type.named]
+        when {
+          decl != null && decl.hasEnum() -> decl.enum.width
+          else -> 0
+        }
+      }
+      else -> 0
+    }
+
+  /**
+   * Converts raw extracted bits to the appropriate [Value] for a header field.
+   *
+   * bit<N> → [BitVal], bool → [BoolVal], int<N> → [IntVal], varbit / enum → [BitVal].
+   */
+  private fun bitsToValue(type: Type, raw: BigInteger, width: Int): Value =
+    when {
+      type.hasBoolean() -> BoolVal(raw != BigInteger.ZERO)
+      type.hasSignedInt() -> IntVal(SignedBitVector.fromUnsignedBits(raw, width))
+      else -> BitVal(BitVector(raw, width))
+    }
 
   private fun execEmit(call: MethodCall, env: Environment): Value {
     emitValue(evalExpr(call.argsList[0], env))
@@ -570,16 +625,45 @@ class Interpreter(
         if (!value.valid) return
         val headerDecl =
           (types[value.typeName] ?: error("type not found: ${value.typeName}")).header
-        val totalBits = headerDecl.fieldsList.sumOf { it.type.bit.width }
+        // Compute total wire bits from field declarations; varbit fields use their stored BitVal
+        // width since we don't have the runtime length separately at emit time.
+        val totalBits =
+          headerDecl.fieldsList.sumOf { field ->
+            when (val v = value.fields[field.name]) {
+              is BitVal -> v.bits.width
+              is BoolVal -> 1
+              is IntVal -> v.bits.width
+              else -> 0
+            }
+          }
         var packedBits = BigInteger.ZERO
         var bitOffset = 0
         for (field in headerDecl.fieldsList) {
-          val fieldVal = value.fields[field.name] as BitVal
-          val shift = totalBits - bitOffset - fieldVal.bits.width
-          packedBits = packedBits or fieldVal.bits.value.shiftLeft(shift)
-          bitOffset += fieldVal.bits.width
+          val fieldBits: BigInteger
+          val width: Int
+          when (val fieldVal = value.fields[field.name]) {
+            is BitVal -> {
+              fieldBits = fieldVal.bits.value
+              width = fieldVal.bits.width
+            }
+            is BoolVal -> {
+              // P4 spec §8.9.2: bool occupies 1 bit on the wire.
+              fieldBits = if (fieldVal.value) BigInteger.ONE else BigInteger.ZERO
+              width = 1
+            }
+            is IntVal -> {
+              fieldBits = fieldVal.bits.toUnsigned().value
+              width = fieldVal.bits.width
+            }
+            else -> continue // UnitVal (e.g. varbit placeholder) — skip
+          }
+          if (totalBits > 0 && width > 0) {
+            val shift = totalBits - bitOffset - width
+            packedBits = packedBits or fieldBits.shiftLeft(shift)
+          }
+          bitOffset += width
         }
-        packet.emitBytes(BitVector(packedBits, totalBits).toByteArray())
+        if (totalBits > 0) packet.emitBytes(BitVector(packedBits, totalBits).toByteArray())
       }
       is StructVal -> {
         // Emit in the declaration order from the TypeDecl; fall back to map order if unknown.
