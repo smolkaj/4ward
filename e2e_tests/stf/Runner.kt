@@ -407,7 +407,7 @@ data class StfPacket(
   val expectedOutputs: MutableList<StfExpectedOutput>,
 )
 
-data class StfExpectedOutput(val port: Int, val payload: ByteArray, val mask: ByteArray)
+class StfExpectedOutput(val port: Int, val payload: ByteArray, val mask: ByteArray)
 
 /** A parsed `add` directive, before p4info resolution. */
 data class StfTableEntry(
