@@ -150,6 +150,7 @@ for what's next and [STATUS.md](STATUS.md) for daily progress.
 | [STATUS.md](STATUS.md) | Append-only log of daily progress |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to get involved |
 | [AGENTS.md](AGENTS.md) | Guide for AI coding agents |
+| [CLAUDE.md](CLAUDE.md) | Claude Code-specific instructions |
 | [LIMITATIONS.md](LIMITATIONS.md) | Known shortcuts and gaps |
 | [REFACTORING.md](REFACTORING.md) | Tech debt and cleanup backlog |
 
