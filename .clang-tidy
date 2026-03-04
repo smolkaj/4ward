@@ -15,10 +15,12 @@ Checks: >
   readability-*,
   -modernize-use-constraints,
   -modernize-use-trailing-return-type,
+  -google-readability-braces-around-statements,
   -readability-braces-around-statements,
   -readability-else-after-return,
   -readability-identifier-length,
   -readability-magic-numbers,
+  -performance-avoid-endl,
 
 # Treat all enabled checks as errors so CI fails on violations.
 WarningsAsErrors: "*"
@@ -27,10 +29,14 @@ WarningsAsErrors: "*"
 # p4c and other third-party headers pulled in via @p4c//.
 HeaderFilterRegex: "^p4c_backend/.*"
 
-# clang-tidy's include search path inside Bazel's sandbox is missing
-# /usr/include, so C headers like stdlib.h aren't found. Adding it
-# explicitly is harmless on macOS (nonexistent -isystem dirs are ignored).
-ExtraArgsBefore:
+# On Linux the C standard headers in /usr/include may not be on the search
+# path inside Bazel's sandbox.  We append it via ExtraArgs (not
+# ExtraArgsBefore) so it comes AFTER the C++ headers (e.g.
+# /usr/include/c++/14); otherwise #include_next from C++ wrappers
+# (cstdlib → stdlib.h) fails because the compiler deduplicates -isystem
+# paths, keeping only the first occurrence.
+# Harmless on macOS where /usr/include doesn't exist.
+ExtraArgs:
   - '-isystem/usr/include'
 
 CheckOptions:
@@ -59,11 +65,16 @@ CheckOptions:
     value: camelBack
   - key: readability-identifier-naming.ProtectedMemberSuffix
     value: _
-  # Google style uses kName for constants (k prefix + CamelCase).
+  # Google style uses kName for file/class-scope constants.  Local const
+  # variables follow the same camelBack convention as other variables.
   - key: readability-identifier-naming.ConstantCase
     value: CamelCase
   - key: readability-identifier-naming.ConstantPrefix
     value: k
+  - key: readability-identifier-naming.LocalConstantCase
+    value: camelBack
+  - key: readability-identifier-naming.LocalConstantPointerCase
+    value: camelBack
   - key: readability-identifier-naming.EnumCase
     value: CamelCase
   - key: readability-identifier-naming.EnumConstantCase

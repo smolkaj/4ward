@@ -74,7 +74,21 @@ class FourWardBackend : public Inspector {
   // detection) and typeMap_ directly.
   fourward::ir::v1::Type emitType(const IR::Type* type);
   fourward::ir::v1::Expr emitExpr(const IR::Expression* expr);
+  // emitExpr sub-dispatchers; bool-returning helpers return true when the
+  // caller should skip the trailing type-annotation logic.
+  static void emitConstantExpr(const IR::Constant* cnst,
+                               fourward::ir::v1::Expr* out);
+  bool emitMemberExpr(const IR::Member* mem, fourward::ir::v1::Expr* out);
+  void emitBinaryOpExpr(const IR::Operation_Binary* binop,
+                        fourward::ir::v1::Expr* out);
+  void emitUnaryOpExpr(const IR::Operation_Unary* unop,
+                       fourward::ir::v1::Expr* out);
+  bool emitMethodCallExpr(const IR::MethodCallExpression* mc,
+                          fourward::ir::v1::Expr* out);
   fourward::ir::v1::Stmt emitStmt(const IR::StatOrDecl* stmt);
+  void emitIfStmt(const IR::IfStatement* ifst, fourward::ir::v1::Stmt* out);
+  void emitSwitchStmt(const IR::SwitchStatement* sw,
+                      fourward::ir::v1::Stmt* out);
   fourward::ir::v1::BlockStmt emitBlock(const IR::BlockStatement* block);
 
   std::string outputFilePath() const;

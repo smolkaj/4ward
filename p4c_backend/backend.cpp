@@ -16,6 +16,7 @@
 
 #include "p4c_backend/backend.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -49,7 +50,8 @@ fourward::ir::v1::Type FourWardBackend::emitType(const IR::Type* type) {
     // underlying concrete types so the simulator sees bit widths instead of
     // opaque typedef names.
     const auto* decl = refMap_.getDeclaration(tn->path, false);
-    if (const auto* td = decl ? decl->to<IR::Type_Typedef>() : nullptr) {
+    if (const auto* td =
+            decl != nullptr ? decl->to<IR::Type_Typedef>() : nullptr) {
       return emitType(td->type);
     }
     out.set_named(tn->path->name.name.c_str());
@@ -83,14 +85,14 @@ fourward::ir::v1::Type FourWardBackend::emitType(const IR::Type* type) {
 static bool isTableApply(const IR::Expression* expr, const ReferenceMap& refMap,
                          std::string* tableName) {
   const auto* mc = expr->to<IR::MethodCallExpression>();
-  if (!mc) return false;
+  if (mc == nullptr) return false;
   const auto* mem = mc->method->to<IR::Member>();
-  if (!mem || mem->member != "apply") return false;
+  if (mem == nullptr || mem->member != "apply") return false;
   const auto* pe = mem->expr->to<IR::PathExpression>();
-  if (!pe) return false;
+  if (pe == nullptr) return false;
   const auto* decl = refMap.getDeclaration(pe->path);
-  if (!decl || !decl->is<IR::P4Table>()) return false;
-  if (tableName)
+  if (decl == nullptr || !decl->is<IR::P4Table>()) return false;
+  if (tableName != nullptr)
     *tableName = decl->to<IR::P4Table>()->name.originalName.c_str();
   return true;
 }
@@ -99,46 +101,13 @@ fourward::ir::v1::Expr FourWardBackend::emitExpr(const IR::Expression* expr) {
   fourward::ir::v1::Expr out;
 
   if (const auto* cnst = expr->to<IR::Constant>()) {
-    auto* lit = out.mutable_literal();
-    // Use big_integer for values that don't fit in 64 bits.
-    if (cnst->fitsUint64()) {
-      lit->set_integer(cnst->asUint64());
-    } else {
-      // Serialise as big-endian bytes using boost::multiprecision::export_bits.
-      std::string bytes;
-      auto v = cnst->value;
-      while (v != 0) {
-        bytes.push_back(static_cast<char>(static_cast<uint8_t>(v & 0xFF)));
-        v >>= 8;
-      }
-      std::reverse(bytes.begin(), bytes.end());
-      lit->set_big_integer(bytes);
-    }
+    emitConstantExpr(cnst, &out);
   } else if (const auto* b = expr->to<IR::BoolLiteral>()) {
     out.mutable_literal()->set_boolean(b->value);
   } else if (const auto* pe = expr->to<IR::PathExpression>()) {
     out.mutable_name_ref()->set_name(pe->path->name.name.c_str());
   } else if (const auto* mem = expr->to<IR::Member>()) {
-    std::string tableName;
-    if (isTableApply(mem->expr, refMap_, &tableName)) {
-      if (mem->member == "action_run") {
-        // Switch subject: no type annotation needed.
-        out.mutable_table_apply()->set_table_name(tableName);
-        return out;
-      }
-      // hit/miss: type annotation (bool) is added by the common block below.
-      auto* ta = out.mutable_table_apply();
-      ta->set_table_name(tableName);
-      if (mem->member == "hit" || mem->member == "miss") {
-        ta->set_access_kind(mem->member == "hit"
-                                ? fourward::ir::v1::TableApplyExpr::HIT
-                                : fourward::ir::v1::TableApplyExpr::MISS);
-      }
-    } else {
-      auto* fa = out.mutable_field_access();
-      *fa->mutable_expr() = emitExpr(mem->expr);
-      fa->set_field_name(mem->member.name.c_str());
-    }
+    if (emitMemberExpr(mem, &out)) return out;
   } else if (const auto* slice = expr->to<IR::Slice>()) {
     auto* s = out.mutable_slice();
     *s->mutable_expr() = emitExpr(slice->e0);
@@ -157,88 +126,16 @@ fourward::ir::v1::Expr FourWardBackend::emitExpr(const IR::Expression* expr) {
     *a->mutable_expr() = emitExpr(ai->left);
     *a->mutable_index() = emitExpr(ai->right);
   } else if (const auto* binop = expr->to<IR::Operation_Binary>()) {
-    auto* b = out.mutable_binary_op();
-    *b->mutable_left() = emitExpr(binop->left);
-    *b->mutable_right() = emitExpr(binop->right);
-
-    if (binop->is<IR::Add>())
-      b->set_op(fourward::ir::v1::BinaryOperator::ADD);
-    else if (binop->is<IR::Sub>())
-      b->set_op(fourward::ir::v1::BinaryOperator::SUB);
-    else if (binop->is<IR::Mul>())
-      b->set_op(fourward::ir::v1::BinaryOperator::MUL);
-    else if (binop->is<IR::Div>())
-      b->set_op(fourward::ir::v1::BinaryOperator::DIV);
-    else if (binop->is<IR::Mod>())
-      b->set_op(fourward::ir::v1::BinaryOperator::MOD);
-    else if (binop->is<IR::AddSat>())
-      b->set_op(fourward::ir::v1::BinaryOperator::ADD_SAT);
-    else if (binop->is<IR::SubSat>())
-      b->set_op(fourward::ir::v1::BinaryOperator::SUB_SAT);
-    else if (binop->is<IR::BAnd>())
-      b->set_op(fourward::ir::v1::BinaryOperator::BIT_AND);
-    else if (binop->is<IR::BOr>())
-      b->set_op(fourward::ir::v1::BinaryOperator::BIT_OR);
-    else if (binop->is<IR::BXor>())
-      b->set_op(fourward::ir::v1::BinaryOperator::BIT_XOR);
-    else if (binop->is<IR::Shl>())
-      b->set_op(fourward::ir::v1::BinaryOperator::SHL);
-    else if (binop->is<IR::Shr>())
-      b->set_op(fourward::ir::v1::BinaryOperator::SHR);
-    else if (binop->is<IR::Equ>())
-      b->set_op(fourward::ir::v1::BinaryOperator::EQ);
-    else if (binop->is<IR::Neq>())
-      b->set_op(fourward::ir::v1::BinaryOperator::NEQ);
-    else if (binop->is<IR::Lss>())
-      b->set_op(fourward::ir::v1::BinaryOperator::LT);
-    else if (binop->is<IR::Grt>())
-      b->set_op(fourward::ir::v1::BinaryOperator::GT);
-    else if (binop->is<IR::Leq>())
-      b->set_op(fourward::ir::v1::BinaryOperator::LE);
-    else if (binop->is<IR::Geq>())
-      b->set_op(fourward::ir::v1::BinaryOperator::GE);
-    else if (binop->is<IR::LAnd>())
-      b->set_op(fourward::ir::v1::BinaryOperator::AND);
-    else if (binop->is<IR::LOr>())
-      b->set_op(fourward::ir::v1::BinaryOperator::OR);
-    else
-      LOG1("WARNING: unhandled binary operator: " << binop->node_type_name());
+    emitBinaryOpExpr(binop, &out);
   } else if (const auto* unop = expr->to<IR::Operation_Unary>()) {
-    auto* u = out.mutable_unary_op();
-    *u->mutable_expr() = emitExpr(unop->expr);
-    if (unop->is<IR::Neg>())
-      u->set_op(fourward::ir::v1::UnaryOperator::NEG);
-    else if (unop->is<IR::Cmpl>())
-      u->set_op(fourward::ir::v1::UnaryOperator::BIT_NOT);
-    else if (unop->is<IR::LNot>())
-      u->set_op(fourward::ir::v1::UnaryOperator::NOT);
-    else
-      LOG1("WARNING: unhandled unary operator: " << unop->node_type_name());
+    emitUnaryOpExpr(unop, &out);
   } else if (const auto* mux = expr->to<IR::Mux>()) {
     auto* m = out.mutable_mux();
     *m->mutable_condition() = emitExpr(mux->e0);
     *m->mutable_then_expr() = emitExpr(mux->e1);
     *m->mutable_else_expr() = emitExpr(mux->e2);
   } else if (const auto* mc = expr->to<IR::MethodCallExpression>()) {
-    // Special case: table.apply() — emit as TableApplyExpr.
-    std::string tableName;
-    if (isTableApply(expr, refMap_, &tableName)) {
-      out.mutable_table_apply()->set_table_name(tableName);
-      return out;  // no type annotation for TableApplyExpr
-    }
-
-    auto* call = out.mutable_method_call();
-    // The method is typically a Member expression: target.method
-    if (const auto* mem = mc->method->to<IR::Member>()) {
-      *call->mutable_target() = emitExpr(mem->expr);
-      call->set_method(mem->member.name.c_str());
-    } else {
-      *call->mutable_target() = emitExpr(mc->method);
-      call->set_method("__call__");
-    }
-    for (const auto* arg : *mc->arguments) {
-      *call->add_args() = emitExpr(arg->expression);
-    }
+    if (emitMethodCallExpr(mc, &out)) return out;
   } else {
     LOG1("WARNING: unhandled expression " << expr->node_type_name());
   }
@@ -251,75 +148,213 @@ fourward::ir::v1::Expr FourWardBackend::emitExpr(const IR::Expression* expr) {
   return out;
 }
 
+void FourWardBackend::emitConstantExpr(const IR::Constant* cnst,
+                                       fourward::ir::v1::Expr* out) {
+  auto* lit = out->mutable_literal();
+  if (cnst->fitsUint64()) {
+    lit->set_integer(cnst->asUint64());
+  } else {
+    // Serialise as big-endian bytes.
+    std::string bytes;
+    auto v = cnst->value;
+    while (v != 0) {
+      bytes.push_back(static_cast<char>(static_cast<uint8_t>(v & 0xFF)));
+      v >>= 8;
+    }
+    std::ranges::reverse(bytes);
+    lit->set_big_integer(bytes);
+  }
+}
+
+bool FourWardBackend::emitMemberExpr(const IR::Member* mem,
+                                     fourward::ir::v1::Expr* out) {
+  std::string tableName;
+  if (isTableApply(mem->expr, refMap_, &tableName)) {
+    if (mem->member == "action_run") {
+      // Switch subject: no type annotation needed.
+      out->mutable_table_apply()->set_table_name(tableName);
+      return true;
+    }
+    // hit/miss: type annotation (bool) is added by the caller.
+    auto* ta = out->mutable_table_apply();
+    ta->set_table_name(tableName);
+    if (mem->member == "hit" || mem->member == "miss") {
+      ta->set_access_kind(mem->member == "hit"
+                              ? fourward::ir::v1::TableApplyExpr::HIT
+                              : fourward::ir::v1::TableApplyExpr::MISS);
+    }
+  } else {
+    auto* fa = out->mutable_field_access();
+    *fa->mutable_expr() = emitExpr(mem->expr);
+    fa->set_field_name(mem->member.name.c_str());
+  }
+  return false;
+}
+
+void FourWardBackend::emitBinaryOpExpr(const IR::Operation_Binary* binop,
+                                       fourward::ir::v1::Expr* out) {
+  auto* b = out->mutable_binary_op();
+  *b->mutable_left() = emitExpr(binop->left);
+  *b->mutable_right() = emitExpr(binop->right);
+
+  if (binop->is<IR::Add>())
+    b->set_op(fourward::ir::v1::BinaryOperator::ADD);
+  else if (binop->is<IR::Sub>())
+    b->set_op(fourward::ir::v1::BinaryOperator::SUB);
+  else if (binop->is<IR::Mul>())
+    b->set_op(fourward::ir::v1::BinaryOperator::MUL);
+  else if (binop->is<IR::Div>())
+    b->set_op(fourward::ir::v1::BinaryOperator::DIV);
+  else if (binop->is<IR::Mod>())
+    b->set_op(fourward::ir::v1::BinaryOperator::MOD);
+  else if (binop->is<IR::AddSat>())
+    b->set_op(fourward::ir::v1::BinaryOperator::ADD_SAT);
+  else if (binop->is<IR::SubSat>())
+    b->set_op(fourward::ir::v1::BinaryOperator::SUB_SAT);
+  else if (binop->is<IR::BAnd>())
+    b->set_op(fourward::ir::v1::BinaryOperator::BIT_AND);
+  else if (binop->is<IR::BOr>())
+    b->set_op(fourward::ir::v1::BinaryOperator::BIT_OR);
+  else if (binop->is<IR::BXor>())
+    b->set_op(fourward::ir::v1::BinaryOperator::BIT_XOR);
+  else if (binop->is<IR::Shl>())
+    b->set_op(fourward::ir::v1::BinaryOperator::SHL);
+  else if (binop->is<IR::Shr>())
+    b->set_op(fourward::ir::v1::BinaryOperator::SHR);
+  else if (binop->is<IR::Equ>())
+    b->set_op(fourward::ir::v1::BinaryOperator::EQ);
+  else if (binop->is<IR::Neq>())
+    b->set_op(fourward::ir::v1::BinaryOperator::NEQ);
+  else if (binop->is<IR::Lss>())
+    b->set_op(fourward::ir::v1::BinaryOperator::LT);
+  else if (binop->is<IR::Grt>())
+    b->set_op(fourward::ir::v1::BinaryOperator::GT);
+  else if (binop->is<IR::Leq>())
+    b->set_op(fourward::ir::v1::BinaryOperator::LE);
+  else if (binop->is<IR::Geq>())
+    b->set_op(fourward::ir::v1::BinaryOperator::GE);
+  else if (binop->is<IR::LAnd>())
+    b->set_op(fourward::ir::v1::BinaryOperator::AND);
+  else if (binop->is<IR::LOr>())
+    b->set_op(fourward::ir::v1::BinaryOperator::OR);
+  else
+    LOG1("WARNING: unhandled binary operator: " << binop->node_type_name());
+}
+
+void FourWardBackend::emitUnaryOpExpr(const IR::Operation_Unary* unop,
+                                      fourward::ir::v1::Expr* out) {
+  auto* u = out->mutable_unary_op();
+  *u->mutable_expr() = emitExpr(unop->expr);
+  if (unop->is<IR::Neg>())
+    u->set_op(fourward::ir::v1::UnaryOperator::NEG);
+  else if (unop->is<IR::Cmpl>())
+    u->set_op(fourward::ir::v1::UnaryOperator::BIT_NOT);
+  else if (unop->is<IR::LNot>())
+    u->set_op(fourward::ir::v1::UnaryOperator::NOT);
+  else
+    LOG1("WARNING: unhandled unary operator: " << unop->node_type_name());
+}
+
+bool FourWardBackend::emitMethodCallExpr(const IR::MethodCallExpression* mc,
+                                         fourward::ir::v1::Expr* out) {
+  // Special case: table.apply() — emit as TableApplyExpr.
+  std::string tableName;
+  if (isTableApply(mc, refMap_, &tableName)) {
+    out->mutable_table_apply()->set_table_name(tableName);
+    return true;  // no type annotation for TableApplyExpr
+  }
+
+  auto* call = out->mutable_method_call();
+  // The method is typically a Member expression: target.method
+  if (const auto* mem = mc->method->to<IR::Member>()) {
+    *call->mutable_target() = emitExpr(mem->expr);
+    call->set_method(mem->member.name.c_str());
+  } else {
+    *call->mutable_target() = emitExpr(mc->method);
+    call->set_method("__call__");
+  }
+  for (const auto* arg : *mc->arguments) {
+    *call->add_args() = emitExpr(arg->expression);
+  }
+  return false;
+}
+
 // =============================================================================
 // Statement emission
 // =============================================================================
 
-fourward::ir::v1::Stmt FourWardBackend::emitStmt(const IR::StatOrDecl* node) {
+fourward::ir::v1::Stmt FourWardBackend::emitStmt(const IR::StatOrDecl* stmt) {
   fourward::ir::v1::Stmt out;
 
-  if (const auto* assign = node->to<IR::AssignmentStatement>()) {
+  if (const auto* assign = stmt->to<IR::AssignmentStatement>()) {
     auto* a = out.mutable_assignment();
     *a->mutable_lhs() = emitExpr(assign->left);
     *a->mutable_rhs() = emitExpr(assign->right);
-  } else if (const auto* mc = node->to<IR::MethodCallStatement>()) {
+  } else if (const auto* mc = stmt->to<IR::MethodCallStatement>()) {
     *out.mutable_method_call()->mutable_call() = emitExpr(mc->methodCall);
-  } else if (const auto* ifst = node->to<IR::IfStatement>()) {
-    auto* i = out.mutable_if_stmt();
-    *i->mutable_condition() = emitExpr(ifst->condition);
-    // SimplifyControlFlow normally wraps branches in BlockStatements, but some
-    // downstream passes (e.g. LocalCopyPropagation) may produce bare
-    // statements.
-    auto emitBranch =
-        [&](const IR::Statement* stmt) -> fourward::ir::v1::BlockStmt {
-      if (const auto* blk = stmt->to<IR::BlockStatement>())
-        return emitBlock(blk);
-      fourward::ir::v1::BlockStmt branch;
-      // IR::EmptyStatement (produced by RemoveReturns for void-return branches)
-      // has no IR representation; skip it to avoid an empty Stmt{} in the
-      // output.
-      if (!stmt->is<IR::EmptyStatement>()) *branch.add_stmts() = emitStmt(stmt);
-      return branch;
-    };
-    *i->mutable_then_block() = emitBranch(ifst->ifTrue);
-    if (ifst->ifFalse) {
-      *i->mutable_else_block() = emitBranch(ifst->ifFalse);
-    }
-  } else if (const auto* sw = node->to<IR::SwitchStatement>()) {
-    auto* s = out.mutable_switch_stmt();
-    *s->mutable_subject() = emitExpr(sw->expression);
-    for (const auto* c : sw->cases) {
-      if (c->label->is<IR::DefaultExpression>()) {
-        if (const auto* b = c->statement->to<IR::BlockStatement>()) {
-          *s->mutable_default_block() = emitBlock(b);
-        }
-      } else {
-        auto* sc = s->add_cases();
-        if (const auto* pe = c->label->to<IR::PathExpression>()) {
-          // Use the original (pre-rename) action name to match p4info aliases.
-          sc->set_action_name(pe->path->name.originalName.c_str());
-        }
-        if (c->statement) {
-          if (const auto* b = c->statement->to<IR::BlockStatement>()) {
-            *sc->mutable_block() = emitBlock(b);
-          }
-        }
-      }
-    }
-  } else if (const auto* blk = node->to<IR::BlockStatement>()) {
+  } else if (const auto* ifst = stmt->to<IR::IfStatement>()) {
+    emitIfStmt(ifst, &out);
+  } else if (const auto* sw = stmt->to<IR::SwitchStatement>()) {
+    emitSwitchStmt(sw, &out);
+  } else if (const auto* blk = stmt->to<IR::BlockStatement>()) {
     *out.mutable_block() = emitBlock(blk);
-  } else if (node->is<IR::ExitStatement>()) {
+  } else if (stmt->is<IR::ExitStatement>()) {
     out.mutable_exit();
-  } else if (const auto* ret = node->to<IR::ReturnStatement>()) {
-    if (ret->expression) {
+  } else if (const auto* ret = stmt->to<IR::ReturnStatement>()) {
+    if (ret->expression != nullptr) {
       *out.mutable_return_stmt()->mutable_value() = emitExpr(ret->expression);
     } else {
       out.mutable_return_stmt();
     }
   } else {
-    LOG1("WARNING: unhandled statement " << node->node_type_name());
+    LOG1("WARNING: unhandled statement " << stmt->node_type_name());
   }
   return out;
+}
+
+void FourWardBackend::emitIfStmt(const IR::IfStatement* ifst,
+                                 fourward::ir::v1::Stmt* out) {
+  auto* i = out->mutable_if_stmt();
+  *i->mutable_condition() = emitExpr(ifst->condition);
+  // SimplifyControlFlow normally wraps branches in BlockStatements, but some
+  // downstream passes (e.g. LocalCopyPropagation) may produce bare statements.
+  auto emitBranch =
+      [&](const IR::Statement* stmt) -> fourward::ir::v1::BlockStmt {
+    if (const auto* blk = stmt->to<IR::BlockStatement>()) return emitBlock(blk);
+    fourward::ir::v1::BlockStmt branch;
+    // IR::EmptyStatement (produced by RemoveReturns for void-return branches)
+    // has no IR representation; skip it to avoid an empty Stmt{} in the output.
+    if (!stmt->is<IR::EmptyStatement>()) *branch.add_stmts() = emitStmt(stmt);
+    return branch;
+  };
+  *i->mutable_then_block() = emitBranch(ifst->ifTrue);
+  if (ifst->ifFalse != nullptr) {
+    *i->mutable_else_block() = emitBranch(ifst->ifFalse);
+  }
+}
+
+void FourWardBackend::emitSwitchStmt(const IR::SwitchStatement* sw,
+                                     fourward::ir::v1::Stmt* out) {
+  auto* s = out->mutable_switch_stmt();
+  *s->mutable_subject() = emitExpr(sw->expression);
+  for (const auto* c : sw->cases) {
+    if (c->label->is<IR::DefaultExpression>()) {
+      if (const auto* b = c->statement->to<IR::BlockStatement>()) {
+        *s->mutable_default_block() = emitBlock(b);
+      }
+    } else {
+      auto* sc = s->add_cases();
+      if (const auto* pe = c->label->to<IR::PathExpression>()) {
+        // Use the original (pre-rename) action name to match p4info aliases.
+        sc->set_action_name(pe->path->name.originalName.c_str());
+      }
+      if (c->statement != nullptr) {
+        if (const auto* b = c->statement->to<IR::BlockStatement>()) {
+          *sc->mutable_block() = emitBlock(b);
+        }
+      }
+    }
+  }
 }
 
 fourward::ir::v1::BlockStmt FourWardBackend::emitBlock(
@@ -418,7 +453,7 @@ void FourWardBackend::emitParser(const IR::P4Parser* parser) {
     }
 
     // accept/reject are terminal states with no selectExpression.
-    if (!state->selectExpression) {
+    if (state->selectExpression == nullptr) {
     } else if (const auto* sel =
                    state->selectExpression->to<IR::SelectExpression>()) {
       auto* selectTrans = ps->mutable_transition()->mutable_select();
@@ -477,7 +512,7 @@ void FourWardBackend::emitControl(const IR::P4Control* control) {
       auto* vd = cd->add_local_vars();
       vd->set_name(varDecl->name.name.c_str());
       *vd->mutable_type() = emitType(varDecl->type);
-      if (varDecl->initializer) {
+      if (varDecl->initializer != nullptr) {
         *vd->mutable_initializer() = emitExpr(varDecl->initializer);
       }
     }
@@ -525,7 +560,7 @@ void FourWardBackend::emitTable(const IR::P4Table* table) {
       break;
     }
   }
-  if (!p4Table) {
+  if (p4Table == nullptr) {
     LOG1("WARNING: no p4info table found for " << qualifiedName
                                                << "; skipping emitTable");
     return;
@@ -538,7 +573,7 @@ void FourWardBackend::emitTable(const IR::P4Table* table) {
   // field ID as a string; this is what TableStore.lookup compares against
   // FieldMatch.fieldId from P4Runtime write requests.
   const IR::Key* key = table->getKey();
-  if (!key) return;
+  if (key == nullptr) return;
   int keyIdx = 0;
   for (const auto* keyElem : key->keyElements) {
     if (keyIdx >= p4Table->match_fields_size()) break;
@@ -553,13 +588,14 @@ void FourWardBackend::emitArchitecture(const IR::ToplevelBlock* toplevel) {
   auto* arch = behavioral_->mutable_architecture();
 
   const auto* main = toplevel->getMain();
-  if (!main) return;
+  if (main == nullptr) return;
 
   std::string archName;
   if (main->type->name == "V1Switch") {
     archName = "v1model";
     arch->set_name(archName);
 
+    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     auto addStage = [&](const std::string& name, const std::string& blockName,
                         fourward::ir::v1::StageKind kind) {
       auto* stage = arch->add_stages();

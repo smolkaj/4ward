@@ -38,45 +38,47 @@
 #include "p4c_backend/midend.h"
 #include "p4c_backend/options.h"
 
-using namespace P4;
-
+// p4c APIs may throw; crashing on an unhandled exception is acceptable for a
+// compiler driver.
+// NOLINTNEXTLINE(bugprone-exception-escape)
 int main(int argc, char* const argv[]) {
   setup_gc_logging();
   setup_signals();
 
-  AutoCompileContext autoContext(
-      new P4CContextWithOptions<FourWard::FourWardOptions>);
+  P4::AutoCompileContext autoContext(
+      new P4::P4CContextWithOptions<P4::FourWard::FourWardOptions>);
   auto& options =
-      P4CContextWithOptions<FourWard::FourWardOptions>::get().options();
-  options.langVersion = CompilerOptions::FrontendVersion::P4_16;
+      P4::P4CContextWithOptions<P4::FourWard::FourWardOptions>::get().options();
+  options.langVersion = P4::CompilerOptions::FrontendVersion::P4_16;
 
   if (options.process(argc, argv) != nullptr) {
     options.setInputFile();
   }
-  if (::P4::errorCount() > 0) return 1;
+  if (P4::errorCount() > 0) return 1;
 
-  const IR::P4Program* program = parseP4File(options);
-  if (program == nullptr || ::P4::errorCount() > 0) return 1;
+  const P4::IR::P4Program* program = P4::parseP4File(options);
+  if (program == nullptr || P4::errorCount() > 0) return 1;
 
-  FrontEnd frontend;
+  P4::FrontEnd frontend;
   program = frontend.run(options, program);
-  if (program == nullptr || ::P4::errorCount() > 0) return 1;
+  if (program == nullptr || P4::errorCount() > 0) return 1;
 
   // Generate p4info from the post-frontend program (before midend
   // simplifications strip out information needed for the control-plane API).
-  auto p4Runtime = generateP4Runtime(program, "v1model"_cs);
-  if (::P4::errorCount() > 0) return 1;
+  using P4::literals::operator""_cs;
+  auto p4Runtime = P4::generateP4Runtime(program, "v1model"_cs);
+  if (P4::errorCount() > 0) return 1;
 
-  FourWard::MidEnd midend(options);
-  const IR::ToplevelBlock* toplevel = midend.process(program);
-  if (toplevel == nullptr || ::P4::errorCount() > 0) return 1;
+  P4::FourWard::MidEnd midend(options);
+  const P4::IR::ToplevelBlock* toplevel = midend.process(program);
+  if (toplevel == nullptr || P4::errorCount() > 0) return 1;
 
-  FourWard::FourWardBackend backend(options, midend.refMap, midend.typeMap);
+  P4::FourWard::FourWardBackend backend(options, midend.refMap, midend.typeMap);
   // setP4Info must come before process so emitTable can look up match field
   // IDs.
   backend.setP4Info(*p4Runtime.p4Info);
   backend.process(toplevel);
 
   if (!backend.writePipelineConfig()) return 1;
-  return ::P4::errorCount() > 0 ? 1 : 0;
+  return P4::errorCount() > 0 ? 1 : 0;
 }
