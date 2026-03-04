@@ -453,6 +453,10 @@ void FourWardBackend::setP4Info(p4::config::v1::P4Info p4info) {
   *pipelineConfig_.mutable_p4info() = std::move(p4info);
 }
 
+void FourWardBackend::setStaticEntries(p4::v1::WriteRequest entries) {
+  *pipelineConfig_.mutable_static_entries() = std::move(entries);
+}
+
 void FourWardBackend::emitTypeDecls(const IR::P4Program* program) {
   for (const auto* decl : *program->getDeclarations()) {
     if (const auto* hdr = decl->to<IR::Type_Header>()) {

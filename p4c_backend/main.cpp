@@ -75,6 +75,7 @@ int main(int argc, char* const argv[]) {
   // setP4Info must come before process so emitTable can look up match field
   // IDs.
   backend.setP4Info(*p4Runtime.p4Info);
+  backend.setStaticEntries(*p4Runtime.entries);
   backend.process(toplevel);
 
   if (!backend.writePipelineConfig()) return 1;

@@ -146,6 +146,19 @@ class TableStore {
           if (bits.value.and(mask) != want.and(mask)) return null
           score += entry.priority.toLong()
         }
+        match.hasRange() -> {
+          val lo = BigInteger(1, match.range.low.toByteArray())
+          val hi = BigInteger(1, match.range.high.toByteArray())
+          if (bits.value < lo || bits.value > hi) return null
+          score += entry.priority.toLong()
+        }
+        // P4 spec §14.2.1.3: optional match behaves like exact when present;
+        // omitted optional fields are wildcards (the FieldMatch is absent).
+        match.hasOptional() -> {
+          val want = BigInteger(1, match.optional.value.toByteArray())
+          if (bits.value != want) return null
+          score += Long.MAX_VALUE / 2
+        }
         else -> return null // unsupported match kind
       }
     }

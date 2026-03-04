@@ -29,6 +29,7 @@ edition = "2024";
 package fourward.ir.v1;
 
 import "p4/config/v1/p4info.proto";
+import "p4/v1/p4runtime.proto";
 
 option java_package = "fourward.ir.v1";
 
@@ -41,6 +42,11 @@ option java_package = "fourward.ir.v1";
 message PipelineConfig {
   p4.config.v1.P4Info p4info = 1;
   P4BehavioralConfig behavioral = 2;
+
+  // Static table entries declared with `const entries` in the P4 source.
+  // Populated by p4c's P4Runtime serializer; the simulator installs these
+  // into the table store at pipeline load time.
+  p4.v1.WriteRequest static_entries = 3;
 }
 
 message P4BehavioralConfig {
