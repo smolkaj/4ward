@@ -1,3 +1,5 @@
+# 4ward
+
 <p align="center">
   <img src="logo.svg" alt="4ward logo" width="200">
   <br><br>
