@@ -193,7 +193,7 @@ corpus_test_suite(
     name = "header_stack_stf_corpus_test",
     tags = ["manual"],
     tests = [
-        "array-copy-bmv2",
+        "array-copy-bmv2",  # field access on non-aggregate value: HeaderStackVal
     ],
 )
 
@@ -202,25 +202,26 @@ corpus_test_suite(
     name = "other_stf_corpus_test",
     tags = ["manual"],
     tests = [
-        "bvec-hdr-bmv2",
-        "checksum2-bmv2",
-        "checksum3-bmv2",
-        "equality-bmv2",
-        "gauntlet_index_1-bmv2",
-        "gauntlet_index_2-bmv2",
-        "gauntlet_index_4-bmv2",
-        "gauntlet_index_5-bmv2",
-        "gauntlet_index_6-bmv2",
-        "gauntlet_index_7-bmv2",
-        "gauntlet_index_8-bmv2",
-        "gauntlet_index_9-bmv2",
-        "gauntlet_invalid_hdr_short_circuit-bmv2",
-        "gauntlet_variable_shadowing-bmv2",
-        "header-bool-bmv2",
-        "header-stack-ops-bmv2",
-        "invalid-hdr-warnings3-bmv2",
-        "issue-2123-2-bmv2",
-        "issue-2123-3-bmv2",
+        "bvec-hdr-bmv2",  # expected packet on port 2 but got none; payload mismatch
+        "checksum2-bmv2",  # unhandled extern call: verify
+        "checksum3-bmv2",  # unhandled extern call: verify
+        "equality-bmv2",  # payload mismatch
+        "gauntlet_index_1-bmv2",  # field access on non-aggregate value: HeaderStackVal
+        "gauntlet_index_2-bmv2",  # field access on non-aggregate value: HeaderStackVal
+        "gauntlet_index_4-bmv2",  # field access on non-aggregate value: HeaderStackVal
+        "gauntlet_index_5-bmv2",  # field access on non-aggregate value: HeaderStackVal
+        "gauntlet_index_6-bmv2",  # field access on non-aggregate value: HeaderStackVal
+        "gauntlet_index_7-bmv2",  # field access on non-aggregate value: HeaderStackVal
+        "gauntlet_index_8-bmv2",  # field access on non-aggregate value: HeaderStackVal
+        "gauntlet_index_9-bmv2",  # field access on non-aggregate value: HeaderStackVal
+        "gauntlet_invalid_hdr_short_circuit-bmv2",  # payload mismatch
+        "gauntlet_variable_shadowing-bmv2",  # unknown table: c_t
+        "header-bool-bmv2",  # field access on non-aggregate value: UnitVal
+        "header-stack-ops-bmv2",  # unhandled extern call: verify
+        "invalid-hdr-warnings3-bmv2",  # unknown table: (empty name)
+        "issue-2123-2-bmv2",  # unhandled binary operator: BINARY_OPERATOR_UNSPECIFIED
+        "issue-2123-3-bmv2",  # unhandled expression kind: type
+        "issue1000-bmv2",  # unhandled expression kind: type
     ],
 )
 
@@ -229,7 +230,7 @@ corpus_test_suite(
     name = "slow_compile_stf_corpus_test",
     tags = ["manual"],
     tests = [
-        "gauntlet_various_ops-bmv2",
+        "gauntlet_various_ops-bmv2",  # p4c-4ward takes 10+ minutes
     ],
 )
 
@@ -239,6 +240,6 @@ corpus_test_suite(
     name = "unsupported_arch_stf_corpus_test",
     tags = ["manual"],
     tests = [
-        "gauntlet_optional-bmv2",
+        "gauntlet_optional-bmv2",  # unsupported architecture 'top'
     ],
 )
