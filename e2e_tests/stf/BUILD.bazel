@@ -13,6 +13,12 @@ kt_jvm_library(
     ],
 )
 
+# Shared test class used by both p4_stf_test and p4_testgen_test macros.
+exports_files(
+    ["StfTest.kt"],
+    visibility = ["//e2e_tests:__subpackages__"],
+)
+
 kt_jvm_test(
     name = "StfParserTest",
     srcs = ["StfParserTest.kt"],

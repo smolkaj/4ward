@@ -59,8 +59,8 @@ class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPat
       }
 
       // Install table entries.
-      for (stfEntry in stf.tableEntries) {
-        val writeReq = resolveTableEntry(stfEntry, config.p4Info)
+      for (directive in stf.tableEntries) {
+        val writeReq = resolveTableEntry(directive, config.p4Info)
         sendRequest(output, SimRequest.newBuilder().setWriteEntry(writeReq).build())
         val writeResp = readResponse(input)
         if (writeResp.hasError()) {
@@ -109,52 +109,24 @@ class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPat
   }
 
   private fun resolveTableEntry(
-    stfEntry: StfTableEntry,
+    directive: StfTableDirective,
     p4info: P4InfoOuterClass.P4Info,
   ): WriteEntryRequest {
     val table =
       p4info.tablesList.find {
-        it.preamble.alias == stfEntry.tableName || it.preamble.name == stfEntry.tableName
-      } ?: error("unknown table: ${stfEntry.tableName}")
-
-    val matchList =
-      stfEntry.matches.map { m ->
-        val mf =
-          table.matchFieldsList.find { it.name == m.fieldName }
-            ?: error("unknown match field '${m.fieldName}' in table '${stfEntry.tableName}'")
-        val fmBuilder = P4RuntimeOuterClass.FieldMatch.newBuilder().setFieldId(mf.id)
-        when (m.kind) {
-          MatchKind.EXACT ->
-            fmBuilder.setExact(
-              P4RuntimeOuterClass.FieldMatch.Exact.newBuilder()
-                .setValue(encodeValue(m.value, mf.bitwidth))
-            )
-          MatchKind.LPM ->
-            fmBuilder.setLpm(
-              P4RuntimeOuterClass.FieldMatch.LPM.newBuilder()
-                .setValue(encodeValue(m.value, mf.bitwidth))
-                .setPrefixLen(m.prefixLen!!)
-            )
-          MatchKind.TERNARY ->
-            fmBuilder.setTernary(
-              P4RuntimeOuterClass.FieldMatch.Ternary.newBuilder()
-                .setValue(encodeValue(m.value, mf.bitwidth))
-                .setMask(encodeValue(m.mask!!, mf.bitwidth))
-            )
-        }
-        fmBuilder.build()
-      }
+        it.preamble.alias == directive.tableName || it.preamble.name == directive.tableName
+      } ?: error("unknown table: ${directive.tableName}")
 
     val action =
       p4info.actionsList.find {
-        it.preamble.alias == stfEntry.actionName || it.preamble.name == stfEntry.actionName
-      } ?: error("unknown action: ${stfEntry.actionName}")
+        it.preamble.alias == directive.actionName || it.preamble.name == directive.actionName
+      } ?: error("unknown action: ${directive.actionName}")
 
     val paramsList =
       action.paramsList.mapIndexed { i, paramInfo ->
         val rawValue =
-          stfEntry.actionParams.getOrNull(i)
-            ?: error("missing param ${paramInfo.name} for action ${stfEntry.actionName}")
+          directive.actionParams.getOrNull(i)
+            ?: error("missing param ${paramInfo.name} for action ${directive.actionName}")
         P4RuntimeOuterClass.Action.Param.newBuilder()
           .setParamId(paramInfo.id)
           .setValue(encodeValue(rawValue, paramInfo.bitwidth))
@@ -164,7 +136,6 @@ class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPat
     val tableEntry =
       P4RuntimeOuterClass.TableEntry.newBuilder()
         .setTableId(table.preamble.id)
-        .addAllMatch(matchList)
         .setAction(
           P4RuntimeOuterClass.TableAction.newBuilder()
             .setAction(
@@ -174,15 +145,59 @@ class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPat
             )
         )
 
-    if (stfEntry.priority != null) tableEntry.setPriority(stfEntry.priority)
+    val updateType =
+      when (directive) {
+        is StfAddEntry -> {
+          tableEntry.addAllMatch(
+            directive.matches.map { m -> resolveMatchField(m, table, directive.tableName) }
+          )
+          if (directive.priority != null) tableEntry.setPriority(directive.priority)
+          P4RuntimeOuterClass.Update.Type.INSERT
+        }
+        is StfSetDefault -> {
+          tableEntry.setIsDefaultAction(true)
+          P4RuntimeOuterClass.Update.Type.MODIFY
+        }
+      }
 
     return WriteEntryRequest.newBuilder()
       .setUpdate(
         P4RuntimeOuterClass.Update.newBuilder()
-          .setType(P4RuntimeOuterClass.Update.Type.INSERT)
+          .setType(updateType)
           .setEntity(P4RuntimeOuterClass.Entity.newBuilder().setTableEntry(tableEntry))
       )
       .build()
+  }
+
+  private fun resolveMatchField(
+    m: StfMatchField,
+    table: P4InfoOuterClass.Table,
+    tableName: String,
+  ): P4RuntimeOuterClass.FieldMatch {
+    val mf =
+      table.matchFieldsList.find { it.name == m.fieldName }
+        ?: error("unknown match field '${m.fieldName}' in table '$tableName'")
+    val fmBuilder = P4RuntimeOuterClass.FieldMatch.newBuilder().setFieldId(mf.id)
+    when (m.kind) {
+      MatchKind.EXACT ->
+        fmBuilder.setExact(
+          P4RuntimeOuterClass.FieldMatch.Exact.newBuilder()
+            .setValue(encodeValue(m.value, mf.bitwidth))
+        )
+      MatchKind.LPM ->
+        fmBuilder.setLpm(
+          P4RuntimeOuterClass.FieldMatch.LPM.newBuilder()
+            .setValue(encodeValue(m.value, mf.bitwidth))
+            .setPrefixLen(m.prefixLen!!)
+        )
+      MatchKind.TERNARY ->
+        fmBuilder.setTernary(
+          P4RuntimeOuterClass.FieldMatch.Ternary.newBuilder()
+            .setValue(encodeValue(m.value, mf.bitwidth))
+            .setMask(encodeValue(m.mask!!, mf.bitwidth))
+        )
+    }
+    return fmBuilder.build()
   }
 
   private fun sendRequest(output: DataOutputStream, request: SimRequest) {
@@ -222,17 +237,31 @@ fun runStfTest(testName: String, pkg: String = "e2e_tests/$testName"): TestResul
   )
 }
 
+/**
+ * Derives the test name and package from Bazel's `TEST_TARGET` env var and runs the STF test.
+ *
+ * Used by per-test `kt_jvm_test` targets (e.g. p4testgen tests) where each test target corresponds
+ * to exactly one STF file.
+ */
+fun runStfTestFromEnv(): TestResult {
+  val target = System.getenv("TEST_TARGET") ?: error("TEST_TARGET not set")
+  val pkg = target.removePrefix("//").substringBefore(":")
+  val testName = target.substringAfterLast(":").removeSuffix("_test")
+  return runStfTest(testName, pkg)
+}
+
 private fun runStf(runfiles: String, configPath: Path, stfPath: Path): TestResult =
   StfRunner(Paths.get(runfiles, "_main/simulator/simulator"), configPath).run(stfPath)
 
 /** A parsed .stf file. */
-data class StfFile(val tableEntries: List<StfTableEntry>, val packets: List<StfPacket>) {
+data class StfFile(val tableEntries: List<StfTableDirective>, val packets: List<StfPacket>) {
   companion object {
     /**
      * Parses an STF file. Supported directives:
      * - `packet <port> <hex bytes>` — send a packet on ingress port
      * - `expect <port> <hex bytes>` — expect a packet on egress port
      * - `add <table> [priority] <field:value>... <action(params)>` — install table entry
+     * - `setdefault <table> <action(params)>` — override a table's default action
      * - `# comment`
      */
     fun parse(path: Path): StfFile {
@@ -243,7 +272,7 @@ data class StfFile(val tableEntries: List<StfTableEntry>, val packets: List<StfP
           .map { it.trim() }
           .filter { it.isNotEmpty() && !it.startsWith("#") }
 
-      val tableEntries = mutableListOf<StfTableEntry>()
+      val tableEntries = mutableListOf<StfTableDirective>()
       val packets = mutableListOf<StfPacket>()
       var current: StfPacket? = null
 
@@ -271,6 +300,13 @@ data class StfFile(val tableEntries: List<StfTableEntry>, val packets: List<StfP
             }
             tableEntries += parseAdd(tokens.drop(1))
           }
+          "setdefault" -> {
+            current?.let {
+              packets += it
+              current = null
+            }
+            tableEntries += parseSetDefault(tokens.drop(1))
+          }
         }
       }
       current?.let { packets += it }
@@ -282,10 +318,13 @@ data class StfFile(val tableEntries: List<StfTableEntry>, val packets: List<StfP
      * Parses the tokens after "add".
      *
      * Format: `TABLE [PRIORITY] FIELD:VALUE[/PREFIXLEN|&&&MASK]... ACTION([PARAMS])`
+     *
+     * p4testgen quotes identifiers (`"table"`, `"action"`, `"field"`), so we strip quotes
+     * throughout.
      */
-    private fun parseAdd(tokens: List<String>): StfTableEntry {
+    private fun parseAdd(tokens: List<String>): StfAddEntry {
       require(tokens.isNotEmpty()) { "add directive missing table name" }
-      val tableName = tokens[0]
+      val tableName = tokens[0].unquote()
       var idx = 1
 
       // Optional priority: a token that is a plain integer (no ':' or '(').
@@ -308,15 +347,36 @@ data class StfFile(val tableEntries: List<StfTableEntry>, val packets: List<StfP
       require(actionSpec.isNotEmpty()) { "add directive missing action" }
       val (actionName, actionParams) = parseActionSpec(actionSpec)
 
-      return StfTableEntry(tableName, priority, matches, actionName, actionParams)
+      return StfAddEntry(tableName, priority, matches, actionName, actionParams)
+    }
+
+    /**
+     * Parses the tokens after "setdefault".
+     *
+     * Format: `TABLE ACTION([PARAMS])`
+     */
+    private fun parseSetDefault(tokens: List<String>): StfSetDefault {
+      require(tokens.isNotEmpty()) { "setdefault directive missing table name" }
+      val tableName = tokens[0].unquote()
+      val actionSpec = tokens.drop(1).joinToString(" ")
+      require(actionSpec.isNotEmpty()) { "setdefault directive missing action" }
+      val (actionName, actionParams) = parseActionSpec(actionSpec)
+      return StfSetDefault(tableName, actionName, actionParams)
     }
 
     /** Parses `FIELD:VALUE[/PREFIXLEN]` or `FIELD:VALUE[&&&MASK]`. */
     private fun parseMatchField(token: String): StfMatchField {
       val colonIdx = token.indexOf(':')
       require(colonIdx > 0) { "invalid match field token: $token" }
-      val fieldName = token.substring(0, colonIdx)
+      val fieldName = token.substring(0, colonIdx).unquote()
       val rest = token.substring(colonIdx + 1)
+
+      // p4testgen uses binary wildcards: 0b1010**** where * bits are don't-care.
+      // Convert to value/mask ternary representation.
+      if (rest.startsWith("0b") && rest.contains('*')) {
+        val (value, mask) = parseBinaryWildcard(rest)
+        return StfMatchField(fieldName, MatchKind.TERNARY, value, mask = mask)
+      }
 
       return when {
         rest.contains("/") -> {
@@ -331,15 +391,25 @@ data class StfFile(val tableEntries: List<StfTableEntry>, val packets: List<StfP
       }
     }
 
-    /** Parses `actionName(param1, param2, ...)` and returns the name and param list. */
+    /**
+     * Parses `actionName(param1, param2, ...)` and returns the name and param list.
+     *
+     * p4testgen uses named params: `"action"("p1":val1,"p2":val2)`. We strip quotes from the action
+     * name and extract just the value part of each named param.
+     */
     private fun parseActionSpec(spec: String): Pair<String, List<String>> {
       val parenIdx = spec.indexOf('(')
       require(parenIdx > 0) { "invalid action spec: $spec" }
-      val name = spec.substring(0, parenIdx).trim()
+      val name = spec.substring(0, parenIdx).trim().unquote()
       val paramStr = spec.substring(parenIdx + 1).trimEnd(')', ' ')
       val params =
         if (paramStr.isBlank()) emptyList()
-        else paramStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+        else
+          paramStr
+            .split(",")
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .map { it.stripNamedParamPrefix() }
       return name to params
     }
   }
@@ -357,6 +427,7 @@ fun encodeValue(raw: String, bitwidth: Int): ByteString {
   val value =
     when {
       raw.startsWith("0x") || raw.startsWith("0X") -> BigInteger(raw.drop(2), 16)
+      raw.startsWith("0b") || raw.startsWith("0B") -> BigInteger(raw.drop(2), 2)
       raw.contains('.') -> {
         // Dotted-decimal IPv4 (e.g. "10.0.0.0"): pack octets into a 32-bit integer.
         val octets = raw.split('.')
@@ -388,14 +459,26 @@ data class StfPacket(
 
 class StfExpectedOutput(val port: Int, val payload: ByteArray, val mask: ByteArray)
 
-/** A parsed `add` directive, before p4info resolution. */
-data class StfTableEntry(
-  val tableName: String,
+/** A parsed table directive (`add` or `setdefault`), before p4info resolution. */
+sealed interface StfTableDirective {
+  val tableName: String
+  val actionName: String
+  val actionParams: List<String>
+}
+
+data class StfAddEntry(
+  override val tableName: String,
   val priority: Int?,
   val matches: List<StfMatchField>,
-  val actionName: String,
-  val actionParams: List<String>,
-)
+  override val actionName: String,
+  override val actionParams: List<String>,
+) : StfTableDirective
+
+data class StfSetDefault(
+  override val tableName: String,
+  override val actionName: String,
+  override val actionParams: List<String>,
+) : StfTableDirective
 
 data class StfMatchField(
   val fieldName: String,
@@ -411,14 +494,58 @@ enum class MatchKind {
   TERNARY,
 }
 
+/** Strips surrounding double-quotes, if present. */
+private fun String.unquote(): String =
+  if (length >= 2 && first() == '"' && last() == '"') substring(1, length - 1) else this
+
+/** Strips a `"name":` prefix from a p4testgen named action parameter, returning just the value. */
+private fun String.stripNamedParamPrefix(): String {
+  if (!startsWith('"')) return this
+  val sep = indexOf("\":", 1)
+  return if (sep >= 0) substring(sep + 2) else this
+}
+
+/**
+ * Parses a binary wildcard string like `0b1010****` into hex value and mask strings.
+ *
+ * Each `*` bit becomes a 0 in the value and a 0 in the mask; each `0`/`1` bit becomes its value in
+ * the value and a 1 in the mask. Returns hex strings for consistency with the other match value
+ * representations (all match values flow through [encodeValue] during p4info resolution).
+ */
+private fun parseBinaryWildcard(binStr: String): Pair<String, String> {
+  val bits = binStr.removePrefix("0b").removePrefix("0B")
+  var value = BigInteger.ZERO
+  var mask = BigInteger.ZERO
+  for (ch in bits) {
+    value = value.shiftLeft(1)
+    mask = mask.shiftLeft(1)
+    when (ch) {
+      '1' -> {
+        value = value.setBit(0)
+        mask = mask.setBit(0)
+      }
+      '0' -> {
+        mask = mask.setBit(0)
+      }
+      '*' -> {} // both stay 0
+      else -> error("unexpected character in binary wildcard: $ch")
+    }
+  }
+  return "0x${value.toString(16)}" to "0x${mask.toString(16)}"
+}
+
 private fun String.decodeHex(): ByteArray {
   val clean = replace(" ", "").lowercase()
   return ByteArray(clean.length / 2) { i -> clean.substring(i * 2, i * 2 + 2).toInt(16).toByte() }
 }
 
 /**
- * Parses a hex string that may contain `**` wildcard tokens (one per byte). Returns a (payload,
- * mask) pair: wildcard bytes have mask 0x00 (don't-care); normal bytes have mask 0xFF.
+ * Parses a hex string that may contain `*` wildcard characters. Returns a (payload, mask) pair
+ * where each nibble is independently masked: a concrete nibble gets mask 0xF, a `*` gets 0x0.
+ *
+ * This handles both hand-written STFs (which use `**` for a full wildcard byte) and p4testgen
+ * output (which uses `*` per nibble). The `**` case is just two consecutive wildcard nibbles, so
+ * the nibble-level logic handles both uniformly.
  */
 private fun decodeExpect(hexStr: String): Pair<ByteArray, ByteArray> {
   val clean = hexStr.replace(" ", "").lowercase()
@@ -427,14 +554,14 @@ private fun decodeExpect(hexStr: String): Pair<ByteArray, ByteArray> {
   val payload = ByteArray(n)
   val mask = ByteArray(n)
   for (i in 0 until n) {
-    val chunk = clean.substring(i * 2, i * 2 + 2)
-    if (chunk == "**") {
-      payload[i] = 0
-      mask[i] = 0
-    } else {
-      payload[i] = chunk.toInt(16).toByte()
-      mask[i] = 0xFF.toByte()
-    }
+    val hi = clean[i * 2]
+    val lo = clean[i * 2 + 1]
+    val hiVal = if (hi == '*') 0 else hi.digitToInt(16)
+    val loVal = if (lo == '*') 0 else lo.digitToInt(16)
+    val hiMask = if (hi == '*') 0 else 0xF
+    val loMask = if (lo == '*') 0 else 0xF
+    payload[i] = ((hiVal shl 4) or loVal).toByte()
+    mask[i] = ((hiMask shl 4) or loMask).toByte()
   }
   return payload to mask
 }

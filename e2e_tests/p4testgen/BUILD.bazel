@@ -1,0 +1,64 @@
+load("//e2e_tests:p4testgen.bzl", "p4_testgen_test")
+
+# p4testgen-generated STF tests. Each entry uses symbolic execution to generate
+# a path-covering test case, then runs it against the simulator.
+#
+# Tagged "testgen" so they can be run separately:
+#   bazel test //e2e_tests/p4testgen/...
+#
+# Tests that expose simulator bugs are additionally tagged "manual" so they
+# don't fail `bazel test //...`.
+
+# --- Passing tests ---
+
+p4_testgen_test(
+    name = "opassign1-bmv2",
+    tags = ["testgen"],
+)
+
+p4_testgen_test(
+    name = "gauntlet_nested_table_calls-bmv2",
+    tags = ["testgen"],
+)
+
+p4_testgen_test(
+    name = "issue2343-bmv2",
+    tags = ["testgen"],
+)
+
+p4_testgen_test(
+    name = "gauntlet_exit_combination_1-bmv2",
+    tags = ["testgen"],
+)
+
+p4_testgen_test(
+    name = "gauntlet_exit_combination_2-bmv2",
+    tags = ["testgen"],
+)
+
+p4_testgen_test(
+    name = "flag_lost-bmv2",
+    tags = ["testgen"],
+)
+
+# --- Failing tests (simulator bugs — packet dropped when expected) ---
+
+p4_testgen_test(
+    name = "gauntlet_action_mux-bmv2",
+    tags = ["manual", "testgen"],
+)
+
+p4_testgen_test(
+    name = "gauntlet_hdr_assign_1-bmv2",
+    tags = ["manual", "testgen"],
+)
+
+p4_testgen_test(
+    name = "issue2170-bmv2",
+    tags = ["manual", "testgen"],
+)
+
+p4_testgen_test(
+    name = "issue2205-bmv2",
+    tags = ["manual", "testgen"],
+)

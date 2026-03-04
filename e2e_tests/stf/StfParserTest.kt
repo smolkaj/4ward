@@ -187,7 +187,7 @@ class StfParserTest {
   fun `add exact match entry`() {
     val stf = parse("add port_table hdr.ethernet.etherType:0x0800 forward(1)")
     assertEquals(1, stf.tableEntries.size)
-    val entry = stf.tableEntries[0]
+    val entry = stf.tableEntries[0] as StfAddEntry
     assertEquals("port_table", entry.tableName)
     assertNull(entry.priority)
     assertEquals(1, entry.matches.size)
@@ -202,7 +202,7 @@ class StfParserTest {
   @Test
   fun `add entry with no action params`() {
     val stf = parse("add acl hdr.ipv4.protocol:0x11 drop()")
-    val entry = stf.tableEntries[0]
+    val entry = stf.tableEntries[0] as StfAddEntry
     assertEquals("drop", entry.actionName)
     assertTrue(entry.actionParams.isEmpty())
   }
@@ -210,7 +210,7 @@ class StfParserTest {
   @Test
   fun `add LPM entry`() {
     val stf = parse("add ipv4_lpm hdr.ipv4.dstAddr:10.0.0.0/24 forward(1)")
-    val m = stf.tableEntries[0].matches[0]
+    val m = (stf.tableEntries[0] as StfAddEntry).matches[0]
     assertEquals(MatchKind.LPM, m.kind)
     assertEquals("10.0.0.0", m.value)
     assertEquals(24, m.prefixLen)
@@ -219,7 +219,7 @@ class StfParserTest {
   @Test
   fun `add ternary entry with priority`() {
     val stf = parse("add acl 10 hdr.ipv4.protocol:0x06&&&0xff drop()")
-    val entry = stf.tableEntries[0]
+    val entry = stf.tableEntries[0] as StfAddEntry
     assertEquals(10, entry.priority)
     val m = entry.matches[0]
     assertEquals(MatchKind.TERNARY, m.kind)
@@ -230,7 +230,7 @@ class StfParserTest {
   @Test
   fun `add with multiple match fields`() {
     val stf = parse("add acl hdr.ipv4.protocol:0x06 hdr.tcp.dstPort:0x0050 drop()")
-    val entry = stf.tableEntries[0]
+    val entry = stf.tableEntries[0] as StfAddEntry
     assertEquals(2, entry.matches.size)
     assertEquals("hdr.ipv4.protocol", entry.matches[0].fieldName)
     assertEquals("hdr.tcp.dstPort", entry.matches[1].fieldName)
@@ -239,7 +239,7 @@ class StfParserTest {
   @Test
   fun `add with multiple action params`() {
     val stf = parse("add t key:0x01 action_two_params(10, 20)")
-    val entry = stf.tableEntries[0]
+    val entry = stf.tableEntries[0] as StfAddEntry
     assertEquals("action_two_params", entry.actionName)
     assertEquals(listOf("10", "20"), entry.actionParams)
   }
@@ -262,7 +262,147 @@ class StfParserTest {
   @Test
   fun `decimal match value`() {
     val stf = parse("add t port:80 a()")
-    assertEquals("80", stf.tableEntries[0].matches[0].value)
+    assertEquals("80", (stf.tableEntries[0] as StfAddEntry).matches[0].value)
+  }
+
+  // ---------------------------------------------------------------------------
+  // p4testgen dialect: quoted identifiers
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `add with quoted table and action names`() {
+    val stf = parse("""add "port_table" hdr.etherType:0x0800 "forward"(1)""")
+    val entry = stf.tableEntries[0] as StfAddEntry
+    assertEquals("port_table", entry.tableName)
+    assertEquals("forward", entry.actionName)
+    assertEquals(listOf("1"), entry.actionParams)
+  }
+
+  @Test
+  fun `add with quoted field names`() {
+    val stf = parse("""add "t" "hdr.ipv4.protocol":0x06 "drop"()""")
+    val entry = stf.tableEntries[0] as StfAddEntry
+    assertEquals("hdr.ipv4.protocol", entry.matches[0].fieldName)
+  }
+
+  // ---------------------------------------------------------------------------
+  // p4testgen dialect: named action params
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `add with named action params`() {
+    val stf = parse("""add "t" "key":0x01 "action"("port":1,"mask":0xff)""")
+    val entry = stf.tableEntries[0] as StfAddEntry
+    assertEquals("action", entry.actionName)
+    assertEquals(listOf("1", "0xff"), entry.actionParams)
+  }
+
+  @Test
+  fun `add with single named param`() {
+    val stf = parse("""add "t" "key":0x01 "fwd"("port":0x02)""")
+    assertEquals(listOf("0x02"), stf.tableEntries[0].actionParams)
+  }
+
+  // ---------------------------------------------------------------------------
+  // p4testgen dialect: binary wildcard matches
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `add with binary wildcard ternary match`() {
+    // 0b1010**** → value = 0xa0, mask = 0xf0
+    val stf = parse("""add "t" 10 "field":0b1010**** "drop"()""")
+    val entry = stf.tableEntries[0] as StfAddEntry
+    assertEquals(10, entry.priority)
+    val m = entry.matches[0]
+    assertEquals(MatchKind.TERNARY, m.kind)
+    assertEquals("0xa0", m.value)
+    assertEquals("0xf0", m.mask)
+  }
+
+  @Test
+  fun `add with all-wildcard binary match`() {
+    // 0b******** → value = 0x0, mask = 0x0
+    val stf = parse("""add "t" 1 "f":0b******** "a"()""")
+    val m = (stf.tableEntries[0] as StfAddEntry).matches[0]
+    assertEquals(MatchKind.TERNARY, m.kind)
+    assertEquals("0x0", m.value)
+    assertEquals("0x0", m.mask)
+  }
+
+  @Test
+  fun `add with all-concrete binary value is exact`() {
+    // 0b11001010 with no wildcards is treated as an exact match value.
+    val stf = parse("""add "t" 1 "f":0b11001010 "a"()""")
+    val m = (stf.tableEntries[0] as StfAddEntry).matches[0]
+    assertEquals(MatchKind.EXACT, m.kind)
+    assertEquals("0b11001010", m.value)
+  }
+
+  // ---------------------------------------------------------------------------
+  // p4testgen dialect: setdefault directive
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `setdefault with no params`() {
+    val stf = parse("""setdefault "my_table" "drop"()""")
+    assertEquals(1, stf.tableEntries.size)
+    val entry = stf.tableEntries[0] as StfSetDefault
+    assertEquals("my_table", entry.tableName)
+    assertEquals("drop", entry.actionName)
+    assertTrue(entry.actionParams.isEmpty())
+  }
+
+  @Test
+  fun `setdefault with named params`() {
+    val stf = parse("""setdefault "tbl" "act"("p1":0x01,"p2":0x02)""")
+    val entry = stf.tableEntries[0] as StfSetDefault
+    assertEquals("tbl", entry.tableName)
+    assertEquals("act", entry.actionName)
+    assertEquals(listOf("0x01", "0x02"), entry.actionParams)
+  }
+
+  @Test
+  fun `setdefault interleaved with packets`() {
+    val stf =
+      parse(
+        """
+        setdefault "t1" "drop"()
+        packet 0 AABB
+        expect 1 AABB
+        """
+          .trimIndent()
+      )
+    assertEquals(1, stf.tableEntries.size)
+    assertEquals(1, stf.packets.size)
+    assertTrue(stf.tableEntries[0] is StfSetDefault)
+  }
+
+  @Test
+  fun `add produces StfAddEntry`() {
+    val stf = parse("add t key:0x01 a()")
+    assertTrue(stf.tableEntries[0] is StfAddEntry)
+  }
+
+  // ---------------------------------------------------------------------------
+  // p4testgen dialect: nibble-level wildcards in expect
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `expect with nibble-level wildcards`() {
+    // "A*" → hi nibble = 0xA (mask 0xF), lo nibble = wildcard (mask 0x0)
+    val stf = parse("packet 0 AA\nexpect 1 A*BB")
+    val exp = stf.packets[0].expectedOutputs[0]
+    assertArrayEquals(byteArrayOf(0xA0.toByte(), 0xBB.toByte()), exp.payload)
+    assertArrayEquals(byteArrayOf(0xF0.toByte(), 0xFF.toByte()), exp.mask)
+  }
+
+  @Test
+  fun `expect with single nibble wildcard in low position`() {
+    // "*F" → hi nibble = wildcard, lo nibble = 0xF
+    val stf = parse("packet 0 AA\nexpect 1 *F")
+    val exp = stf.packets[0].expectedOutputs[0]
+    assertArrayEquals(byteArrayOf(0x0F.toByte()), exp.payload)
+    assertArrayEquals(byteArrayOf(0x0F.toByte()), exp.mask)
   }
 
   // ---------------------------------------------------------------------------
