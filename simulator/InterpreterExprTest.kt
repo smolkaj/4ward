@@ -459,6 +459,72 @@ class InterpreterExprTest {
   }
 
   // ---------------------------------------------------------------------------
+  // Header stack properties (P4 spec §8.18)
+  // ---------------------------------------------------------------------------
+
+  private fun headerStack(): Pair<Environment, HeaderStackVal> {
+    val env = emptyEnv
+    val hdr0 = HeaderVal("vlan_t", mutableMapOf("vid" to BitVal(10, 12)), valid = true)
+    val hdr1 = HeaderVal("vlan_t", mutableMapOf("vid" to BitVal(20, 12)), valid = true)
+    val stack = HeaderStackVal("vlan_t", mutableListOf(hdr0, hdr1))
+    env.define("stk", stack)
+    return env to stack
+  }
+
+  private fun stackFieldAccess(fieldName: String): Expr =
+    Expr.newBuilder()
+      .setFieldAccess(FieldAccess.newBuilder().setExpr(nameRef("stk")).setFieldName(fieldName))
+      .build()
+
+  @Test
+  fun `stack next returns element at nextIndex and advances`() {
+    val (env, stack) = headerStack()
+    val interp = interp()
+    val first = interp.evalExpr(stackFieldAccess("next"), env)
+    assertEquals(BitVal(10, 12), (first as HeaderVal).fields["vid"])
+    assertEquals(1, stack.nextIndex)
+    val second = interp.evalExpr(stackFieldAccess("next"), env)
+    assertEquals(BitVal(20, 12), (second as HeaderVal).fields["vid"])
+    assertEquals(2, stack.nextIndex)
+  }
+
+  @Test
+  fun `stack next throws on overflow`() {
+    val (env, stack) = headerStack()
+    stack.nextIndex = 2 // already past end
+    assertThrows(IllegalArgumentException::class.java) {
+      interp().evalExpr(stackFieldAccess("next"), env)
+    }
+  }
+
+  @Test
+  fun `stack last returns element before nextIndex`() {
+    val (env, stack) = headerStack()
+    stack.nextIndex = 2
+    val last = interp().evalExpr(stackFieldAccess("last"), env)
+    assertEquals(BitVal(20, 12), (last as HeaderVal).fields["vid"])
+  }
+
+  @Test
+  fun `stack last clamps to zero when nextIndex is zero`() {
+    val (env, _) = headerStack()
+    val last = interp().evalExpr(stackFieldAccess("last"), env)
+    assertEquals(BitVal(10, 12), (last as HeaderVal).fields["vid"])
+  }
+
+  @Test
+  fun `stack size returns fixed stack length`() {
+    val (env, _) = headerStack()
+    assertEquals(BitVal(2, 32), interp().evalExpr(stackFieldAccess("size"), env))
+  }
+
+  @Test
+  fun `stack lastIndex returns size minus one`() {
+    val (env, _) = headerStack()
+    assertEquals(BitVal(1, 32), interp().evalExpr(stackFieldAccess("lastIndex"), env))
+  }
+
+  // ---------------------------------------------------------------------------
   // Header validity method calls
   // ---------------------------------------------------------------------------
 
