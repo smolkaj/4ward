@@ -162,6 +162,9 @@ message HeaderUnionDecl {
 }
 message EnumDecl {
   repeated string members = 1;
+  // Underlying bit width for serializable enums (enum bit<N> E { ... }).
+  // Zero for uninterpreted (non-serializable) enums.
+  uint32 width = 2;
 }
 
 message FieldDecl {

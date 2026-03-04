@@ -57,7 +57,7 @@ target_to_bin_rel() {
 
 # ── Discover test targets ────────────────────────────────────────────────────
 
-TARGETS=$(bazel query 'kind(kt_jvm_test, //...)' 2>/dev/null)
+TARGETS=$(bazel query 'kind(kt_jvm_test, //...) - attr(tags, manual, //...)' 2>/dev/null)
 
 # ── Build with coverage instrumentation ──────────────────────────────────────
 
@@ -314,7 +314,15 @@ echo "Saved:        ${PERSISTENT}"
 
 GENHTML_ARGS=(--quiet)
 [[ -n "${BASELINE_FILE}" ]] && GENHTML_ARGS+=(--baseline-file "${BASELINE_FILE}")
-[[ -n "${DIFF_FILE}" ]]     && GENHTML_ARGS+=(--diff-file "${DIFF_FILE}")
+if [[ -n "${DIFF_FILE}" ]]; then
+  # Strip git's a/ b/ prefixes so paths match LCOV SF: lines.
+  STRIPPED_DIFF="${COVERAGE_WORKDIR}/stripped.diff"
+  sed 's|^--- a/|--- |; s|^+++ b/|+++ |' "${DIFF_FILE}" > "${STRIPPED_DIFF}"
+  # genhtml resolves diff paths to absolute but keeps LCOV SF: paths relative;
+  # suppress the resulting path-mismatch error (diff coverage numbers are
+  # computed separately by diff-coverage.sh and are unaffected).
+  GENHTML_ARGS+=(--diff-file "${STRIPPED_DIFF}" --ignore-errors path)
+fi
 
 if command -v genhtml >/dev/null 2>&1; then
   rm -rf "${REPORT_DIR}"

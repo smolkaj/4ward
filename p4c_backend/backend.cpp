@@ -21,6 +21,7 @@
 #include <string>
 
 #include "frontends/p4/coreLibrary.h"
+#include "frontends/p4/enumInstance.h"
 #include "google/protobuf/text_format.h"
 #include "lib/error.h"
 #include "lib/log.h"
@@ -133,6 +134,45 @@ fourward::ir::v1::Expr FourWardBackend::emitExpr(const IR::Expression* expr) {
         ta->set_access_kind(mem->member == "hit"
                                 ? fourward::ir::v1::TableApplyExpr::HIT
                                 : fourward::ir::v1::TableApplyExpr::MISS);
+      }
+    } else if (mem->expr->is<IR::TypeNameExpression>()) {
+      // Qualified enum/error member access: `error.NoError` or `MyEnum.Val`.
+      // The base TypeNameExpression has no runtime value of its own; the whole
+      // expression reduces to a compile-time literal.
+      const auto* exprType = typeMap_.getType(expr);
+      if (exprType && exprType->is<IR::Type_Error>()) {
+        // error.X → literal { error_member: "X" }
+        out.mutable_literal()->set_error_member(mem->member.name.c_str());
+      } else if (const auto* serEnum =
+                     exprType ? exprType->to<IR::Type_SerEnum>() : nullptr) {
+        // SerializableEnum.X → literal { integer: X.value }
+        // The underlying integer value is stored in the SerEnumMember after
+        // constant folding by the frontend.
+        const auto* decl = serEnum->getDeclByName(mem->member.name);
+        const auto* sem = decl ? decl->to<IR::SerEnumMember>() : nullptr;
+        const auto* cnst = sem ? sem->value->to<IR::Constant>() : nullptr;
+        if (cnst) {
+          auto* lit = out.mutable_literal();
+          if (cnst->fitsUint64()) {
+            lit->set_integer(cnst->asUint64());
+          } else {
+            std::string bytes;
+            auto v = cnst->value;
+            while (v != 0) {
+              bytes.push_back(
+                  static_cast<char>(static_cast<uint8_t>(v & 0xFF)));
+              v >>= 8;
+            }
+            std::reverse(bytes.begin(), bytes.end());
+            lit->set_big_integer(bytes);
+          }
+        } else {
+          LOG1("WARNING: could not resolve SerEnum member value for "
+               << mem->member.name);
+        }
+      } else {
+        LOG1("WARNING: unhandled TypeNameExpression member "
+             << mem->member.name);
       }
     } else {
       auto* fa = out.mutable_field_access();
@@ -381,8 +421,21 @@ void FourWardBackend::emitTypeDecls(const IR::P4Program* program) {
         fd->set_name(field->name.name.c_str());
         *fd->mutable_type() = emitType(field->type);
       }
+    } else if (const auto* serEnum = decl->to<IR::Type_SerEnum>()) {
+      // Serializable enums (enum bit<N> E { ... }) can appear as header field
+      // types; emit their underlying bit width so the simulator can compute
+      // wire offsets.
+      auto* td = behavioral_->add_types();
+      td->set_name(serEnum->name.name.c_str());
+      auto* edecl = td->mutable_enum_();
+      if (const auto* bits = serEnum->type->to<IR::Type_Bits>()) {
+        edecl->set_width(bits->size);
+      }
+      for (const auto* member : serEnum->members) {
+        edecl->add_members(member->name.name.c_str());
+      }
     }
-    // Enums and header unions: TODO
+    // Header unions: TODO
   }
 }
 

@@ -24,14 +24,16 @@ not list every changed line.
 
 ## Worktrees
 
-Always work in a worktree for non-trivial tasks. This avoids conflicts
-when parallel development is happening in the main tree. Rebase and squash
-when merging back.
+Always work in a dedicated worktree. Never make changes directly in the main
+tree. Rebase and squash when merging back.
 
 ## Tool use
 
 - Prefer `bazel build //...` and `bazel test //...` to direct invocations of
   `kotlinc`, `g++`, etc. The build is hermetic.
+- Use `ibazel build //...` for any work that spans multiple edit/build cycles.
+  Run it in the background at the start of a task so build errors surface
+  immediately rather than after a full rebuild.
 - Use `./format.sh` to format files, not manual edits.
 - Use `./lint.sh` to lint all code (clang-tidy for C++, detekt for Kotlin).
   Fix all warnings before marking a task complete.

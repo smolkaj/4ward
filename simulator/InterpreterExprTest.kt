@@ -565,7 +565,7 @@ class InterpreterExprTest {
         .build()
     interp().evalExpr(expr, env)
     assertFalse(hdr.valid)
-    // setInvalid() clears fields per P4 spec §8.17
-    assertTrue(hdr.fields.isEmpty())
+    // setInvalid() zeros fields in place per P4 spec §8.17 (BMv2 treats them as zero)
+    assertEquals(BitVal(0, 16), hdr.fields["etherType"])
   }
 }
