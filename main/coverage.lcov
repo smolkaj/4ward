@@ -127,7 +127,7 @@ BRDA:76,0,2,0
 BRDA:76,0,3,1
 BRDA:102,0,0,1
 BRDA:102,0,1,1
-BRDA:104,0,0,0
+BRDA:104,0,0,1
 BRDA:104,0,1,1
 BRDA:122,0,0,1
 BRDA:122,0,1,1
@@ -224,10 +224,10 @@ FN:41,fourward/simulator/DefaultValuesKt::defaultValue (Ljava/lang/String;Ljava/
 FNDA:1,fourward/simulator/DefaultValuesKt::defaultValue (Ljava/lang/String;Ljava/util/Map;)Lfourward/simulator/Value;
 BRDA:28,0,0,1
 BRDA:28,0,1,1
-BRDA:29,0,0,0
+BRDA:29,0,0,1
 BRDA:29,0,1,1
 BRDA:30,0,0,1
-BRDA:30,0,1,0
+BRDA:30,0,1,1
 BRDA:41,0,0,1
 BRDA:41,0,1,1
 BRDA:43,0,0,1
@@ -238,7 +238,7 @@ DA:27,1
 DA:28,1
 DA:29,1
 DA:30,1
-DA:31,0
+DA:31,1
 DA:32,1
 DA:41,1
 DA:42,1
@@ -256,7 +256,7 @@ DA:56,1
 DA:57,1
 DA:58,1
 DA:60,0
-LH:20
+LH:21
 LF:22
 end_of_record
 SF:simulator/Environment.kt
@@ -451,9 +451,9 @@ BRDA:92,0,1,1
 BRDA:96,0,0,1
 BRDA:96,0,1,1
 BRDA:116,0,0,1
-BRDA:116,0,1,0
+BRDA:116,0,1,1
 BRDA:117,0,0,1
-BRDA:117,0,1,0
+BRDA:117,0,1,1
 BRDA:130,0,0,0
 BRDA:130,0,1,1
 BRDA:131,0,0,1
@@ -482,13 +482,13 @@ BRDA:179,0,0,1
 BRDA:179,0,1,1
 BRDA:180,0,0,1
 BRDA:180,0,1,1
-BRDA:181,0,0,0
+BRDA:181,0,0,1
 BRDA:181,0,1,1
 BRDA:182,0,0,1
 BRDA:182,0,1,0
 BRDA:183,0,0,-
 BRDA:183,0,1,-
-BRDA:198,0,0,0
+BRDA:198,0,0,1
 BRDA:198,0,1,1
 BRDA:202,0,0,1
 BRDA:202,0,1,1
@@ -599,13 +599,13 @@ BRDA:334,0,20,1
 BRDA:348,0,0,1
 BRDA:348,0,1,1
 BRDA:349,0,0,1
-BRDA:349,0,1,0
+BRDA:349,0,1,1
 BRDA:350,0,0,1
-BRDA:350,0,1,0
+BRDA:350,0,1,1
 BRDA:351,0,0,1
-BRDA:351,0,1,0
+BRDA:351,0,1,1
 BRDA:352,0,0,1
-BRDA:352,0,1,0
+BRDA:352,0,1,1
 BRDA:353,0,0,1
 BRDA:353,0,1,0
 BRDA:353,0,2,1
@@ -672,7 +672,7 @@ BRDA:537,0,1,1
 BRDA:542,0,0,1
 BRDA:542,0,1,1
 BRDA:569,0,0,1
-BRDA:569,0,1,0
+BRDA:569,0,1,1
 BRDA:570,0,0,1
 BRDA:570,0,1,1
 BRDA:572,0,0,0
@@ -681,32 +681,32 @@ BRDA:573,0,0,1
 BRDA:573,0,1,1
 BRDA:576,0,0,1
 BRDA:576,0,1,1
-BRDA:584,0,0,-
-BRDA:584,0,1,-
-BRDA:586,0,0,-
-BRDA:586,0,1,-
-BRDA:587,0,0,-
-BRDA:587,0,1,-
-BRDA:588,0,0,-
-BRDA:588,0,1,-
-BRDA:589,0,0,-
-BRDA:589,0,1,-
+BRDA:584,0,0,1
+BRDA:584,0,1,0
+BRDA:586,0,0,1
+BRDA:586,0,1,0
+BRDA:587,0,0,1
+BRDA:587,0,1,0
+BRDA:588,0,0,1
+BRDA:588,0,1,1
+BRDA:589,0,0,0
+BRDA:589,0,1,1
 BRDA:592,0,0,-
 BRDA:592,0,1,-
 BRDA:605,0,0,1
 BRDA:605,0,1,1
-BRDA:611,0,0,0
+BRDA:611,0,0,1
 BRDA:611,0,1,1
 BRDA:612,0,0,0
 BRDA:612,0,1,1
 BRDA:617,0,0,1
-BRDA:617,0,1,0
+BRDA:617,0,1,1
 BRDA:620,0,0,1
 BRDA:620,0,1,1
 BRDA:621,0,0,1
 BRDA:621,0,1,0
-BRDA:625,0,0,-
-BRDA:625,0,1,-
+BRDA:625,0,0,1
+BRDA:625,0,1,0
 DA:33,1
 DA:34,1
 DA:35,1
@@ -752,7 +752,7 @@ DA:115,1
 DA:116,1
 DA:117,1
 DA:118,1
-DA:121,0
+DA:121,1
 DA:129,1
 DA:130,1
 DA:131,1
@@ -795,7 +795,7 @@ DA:190,1
 DA:191,1
 DA:194,1
 DA:198,1
-DA:199,0
+DA:199,1
 DA:202,1
 DA:203,1
 DA:205,1
@@ -1017,11 +1017,11 @@ DA:578,1
 DA:579,1
 DA:580,1
 DA:582,1
-DA:584,0
-DA:586,0
-DA:587,0
-DA:588,0
-DA:589,0
+DA:584,1
+DA:586,1
+DA:587,1
+DA:588,1
+DA:589,1
 DA:592,0
 DA:597,1
 DA:604,1
@@ -1038,23 +1038,23 @@ DA:619,1
 DA:620,1
 DA:621,1
 DA:622,0
-DA:625,0
-DA:627,0
-DA:628,0
-DA:629,0
-DA:630,0
-DA:631,0
-DA:632,0
-DA:633,0
-DA:634,0
-DA:636,0
-DA:637,0
-DA:638,0
+DA:625,1
+DA:627,1
+DA:628,1
+DA:629,1
+DA:630,1
+DA:631,1
+DA:632,1
+DA:633,1
+DA:634,1
+DA:636,1
+DA:637,1
+DA:638,1
 DA:640,0
 DA:642,1
 DA:648,1
 DA:651,0
-LH:282
+LH:301
 LF:347
 end_of_record
 SF:simulator/Main.kt
@@ -1482,8 +1482,8 @@ DA:98,0
 DA:106,1
 DA:107,1
 DA:108,1
-DA:109,0
-DA:110,0
+DA:109,1
+DA:110,1
 DA:114,1
 DA:117,1
 DA:118,1
@@ -1492,7 +1492,7 @@ DA:123,1
 DA:129,1
 DA:130,1
 DA:131,1
-LH:48
+LH:50
 LF:57
 end_of_record
 SF:simulator/Values.kt
@@ -1549,7 +1549,7 @@ FNDA:1,fourward/simulator/HeaderVal::setValid (Ljava/util/Map;)V
 FN:59,fourward/simulator/HeaderVal::setInvalid ()V
 FNDA:1,fourward/simulator/HeaderVal::setInvalid ()V
 FN:65,fourward/simulator/HeaderVal::copy ()Lfourward/simulator/HeaderVal;
-FNDA:0,fourward/simulator/HeaderVal::copy ()Lfourward/simulator/HeaderVal;
+FNDA:1,fourward/simulator/HeaderVal::copy ()Lfourward/simulator/HeaderVal;
 FN:22,fourward/simulator/IntVal::<init> (Lfourward/simulator/SignedBitVector;)V
 FNDA:0,fourward/simulator/IntVal::<init> (Lfourward/simulator/SignedBitVector;)V
 FN:22,fourward/simulator/IntVal::getBits ()Lfourward/simulator/SignedBitVector;
@@ -1559,7 +1559,7 @@ FNDA:1,fourward/simulator/StructVal::<init> (Ljava/lang/String;Ljava/util/Map;)V
 FN:72,fourward/simulator/StructVal::<init> (Ljava/lang/String;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 FNDA:0,fourward/simulator/StructVal::<init> (Ljava/lang/String;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 FN:72,fourward/simulator/StructVal::getTypeName ()Ljava/lang/String;
-FNDA:0,fourward/simulator/StructVal::getTypeName ()Ljava/lang/String;
+FNDA:1,fourward/simulator/StructVal::getTypeName ()Ljava/lang/String;
 FN:72,fourward/simulator/StructVal::getFields ()Ljava/util/Map;
 FNDA:1,fourward/simulator/StructVal::getFields ()Ljava/util/Map;
 FN:74,fourward/simulator/StructVal::copy ()Lfourward/simulator/StructVal;
@@ -1586,7 +1586,7 @@ DA:52,1
 DA:59,1
 DA:62,1
 DA:63,1
-DA:65,0
+DA:65,1
 DA:72,1
 DA:74,0
 DA:78,1
@@ -1596,6 +1596,6 @@ DA:81,1
 DA:82,1
 DA:84,0
 DA:88,1
-LH:25
+LH:26
 LF:30
 end_of_record
