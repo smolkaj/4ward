@@ -58,6 +58,8 @@ fourward::ir::v1::Type FourWardBackend::emitType(const IR::Type* type) {
     out.set_named(hdr->name.name.c_str());
   } else if (const auto* st = type->to<IR::Type_Struct>()) {
     out.set_named(st->name.name.c_str());
+  } else if (const auto* hu = type->to<IR::Type_HeaderUnion>()) {
+    out.set_named(hu->name.name.c_str());
   } else if (const auto* stack = type->to<IR::Type_Array>()) {
     auto* hs = out.mutable_header_stack();
     if (const auto* elemType = stack->elementType->to<IR::Type_Name>()) {
@@ -481,8 +483,16 @@ void FourWardBackend::emitTypeDecls(const IR::P4Program* program) {
       for (const auto* member : serEnum->members) {
         edecl->add_members(member->name.name.c_str());
       }
+    } else if (const auto* hu = decl->to<IR::Type_HeaderUnion>()) {
+      auto* td = behavioral_->add_types();
+      td->set_name(hu->name.name.c_str());
+      auto* udecl = td->mutable_header_union();
+      for (const auto* field : hu->fields) {
+        auto* fd = udecl->add_fields();
+        fd->set_name(field->name.name.c_str());
+        *fd->mutable_type() = emitType(field->type);
+      }
     }
-    // Header unions: TODO
   }
 }
 

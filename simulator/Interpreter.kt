@@ -394,13 +394,26 @@ class Interpreter(
   private fun evalMethodCall(call: MethodCall, env: Environment): Value {
     return when (call.method) {
       // Header validity methods: target is the header instance.
-      "isValid" -> BoolVal((evalExpr(call.target, env) as HeaderVal).valid)
+      "isValid" -> {
+        when (val target = evalExpr(call.target, env)) {
+          is HeaderVal -> BoolVal(target.valid)
+          // P4 spec §8.20: header union isValid() is true if any member is valid.
+          is StructVal -> BoolVal(target.fields.values.any { it is HeaderVal && it.valid })
+          else -> error("isValid on non-header: $target")
+        }
+      }
       "setValid" -> {
         (evalExpr(call.target, env) as HeaderVal).valid = true
         UnitVal
       }
       "setInvalid" -> {
-        (evalExpr(call.target, env) as HeaderVal).setInvalid()
+        when (val target = evalExpr(call.target, env)) {
+          is HeaderVal -> target.setInvalid()
+          // P4 spec §8.20: header union setInvalid() invalidates all members.
+          is StructVal ->
+            target.fields.values.forEach { if (it is HeaderVal) it.setInvalid() }
+          else -> error("setInvalid on non-header: $target")
+        }
         UnitVal
       }
       // packet_in.extract(hdr) / packet_out.emit(hdr): target is the extern object
@@ -684,9 +697,15 @@ class Interpreter(
       }
       is StructVal -> {
         // Emit in the declaration order from the TypeDecl; fall back to map order if unknown.
-        val structDecl = types[value.typeName]?.struct
-        if (structDecl != null) {
-          for (field in structDecl.fieldsList) {
+        val typeDecl = types[value.typeName]
+        val fieldDecls =
+          when {
+            typeDecl != null && typeDecl.hasStruct() -> typeDecl.struct.fieldsList
+            typeDecl != null && typeDecl.hasHeaderUnion() -> typeDecl.headerUnion.fieldsList
+            else -> null
+          }
+        if (fieldDecls != null) {
+          for (field in fieldDecls) {
             emitValue(value.fields[field.name] ?: continue)
           }
         } else {

@@ -54,6 +54,7 @@ corpus_test_suite(
         "gauntlet_hdr_int_initializer-bmv2",
         "gauntlet_hdr_out_in_action-bmv2",
         "gauntlet_hdr_set_valid-bmv2",
+        "header-bool-bmv2",
         "gauntlet_index_1-bmv2",
         "gauntlet_index_2-bmv2",
         "gauntlet_index_4-bmv2",
@@ -124,6 +125,8 @@ corpus_test_suite(
         "issue447-5-bmv2",
         "issue447-bmv2",
         "issue510-bmv2",
+        "issue561-1-bmv2",
+        "issue561-2-bmv2",
         "issue635-bmv2",
         "issue983-bmv2",
         "issue995-bmv2",
@@ -232,22 +235,19 @@ corpus_test_suite(
         "checksum2-bmv2",  # unhandled extern call: verify
         "checksum3-bmv2",  # unhandled extern call: verify
         "gauntlet_invalid_hdr_short_circuit-bmv2",  # payload mismatch
-        "header-bool-bmv2",  # field access on non-aggregate value: UnitVal
         "header-stack-ops-bmv2",  # unhandled extern call: verify
         "issue1049-bmv2",  # payload mismatch
         "issue1097-2-bmv2",  # unhandled method call: write (register extern)
         "issue1566-bmv2",  # integer literal without bit type
         "issue1814-1-bmv2",  # unhandled method call: read (register extern)
         "issue1824-bmv2",  # unhandled extern call: verify
-        "issue1879-bmv2",  # field access on non-aggregate value: UnitVal
+        "issue1879-bmv2",  # undefined variable: inf_0 (inlined function locals)
         "issue3488-1-bmv2",  # expected packet on port 2 but got none
-        "issue561-1-bmv2",  # field access on non-aggregate value: UnitVal
-        "issue561-2-bmv2",  # field access on non-aggregate value: UnitVal
-        "issue561-3-bmv2",  # field access on non-aggregate value: UnitVal
-        "issue561-4-bmv2",  # UnitVal cannot be cast to HeaderVal
-        "issue561-5-bmv2",  # UnitVal cannot be cast to HeaderVal
-        "issue561-6-bmv2",  # UnitVal cannot be cast to HeaderVal
-        "issue561-7-bmv2",  # UnitVal cannot be cast to HeaderVal
+        "issue561-3-bmv2",  # header union one-valid-at-a-time invariant
+        "issue561-4-bmv2",  # header stack of unions (StructVal as stack element)
+        "issue561-5-bmv2",  # header stack of unions (StructVal as stack element)
+        "issue561-6-bmv2",  # header stack of unions (StructVal as stack element)
+        "issue561-7-bmv2",  # header stack of unions (StructVal as stack element)
         "issue655-bmv2",  # unhandled extern call: verify_checksum
         "issue774-4-bmv2",  # undefined variable: arg
         "runtime-index-2-bmv2",  # integer literal without bit type

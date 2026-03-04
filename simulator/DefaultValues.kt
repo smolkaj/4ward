@@ -69,6 +69,17 @@ internal fun defaultValue(typeName: String, types: Map<String, TypeDecl>): Value
             .associate { f -> f.name to defaultValue(f.type, types) }
             .toMutableMap(),
       )
+    // Header union: members are headers, at most one valid at a time (P4 spec §8.20).
+    // Represented as a StructVal so field access works uniformly; validity is
+    // tracked per-member via HeaderVal.valid.
+    typeDecl.hasHeaderUnion() ->
+      StructVal(
+        typeName = typeName,
+        fields =
+          typeDecl.headerUnion.fieldsList
+            .associate { f -> f.name to defaultValue(f.type, types) }
+            .toMutableMap(),
+      )
     // Serializable enum: default to zero of the underlying bit width.
     typeDecl.hasEnum() && typeDecl.enum.width > 0 -> BitVal(0L, typeDecl.enum.width)
     else -> UnitVal
