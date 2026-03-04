@@ -15,22 +15,43 @@
 package fourward.e2e.corpus
 
 import fourward.e2e.TestResult
-import fourward.e2e.runStfTestFromEnv
+import fourward.e2e.runStfTest
+import java.nio.file.Files
+import java.nio.file.Paths
 import org.junit.Assert.fail
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 
 /**
- * Generic test class for p4c corpus STF tests.
+ * Parameterized test that runs all p4c corpus STF tests in a single JVM.
  *
- * The compiled pipeline config and STF file paths are injected via the environment variables
- * FOURWARD_TXTPB and FOURWARD_STF (rlocation paths set by the p4_stf_test Bazel macro). A single
- * instance of this class is reused for every corpus test target.
+ * Test names are discovered at runtime from the .stf files present in the runfiles directory. Each
+ * test launches a fresh simulator subprocess (the simulator resets state on each LoadPipeline), so
+ * tests remain isolated despite sharing a JVM.
  */
-class CorpusStfTest {
+@RunWith(Parameterized::class)
+class CorpusStfTest(private val testName: String) {
+
+  companion object {
+    @JvmStatic
+    @Parameterized.Parameters(name = "{0}")
+    fun testCases(): List<Array<String>> {
+      val r = System.getenv("JAVA_RUNFILES") ?: "."
+      val corpusDir = Paths.get(r, "_main/e2e_tests/corpus")
+      return Files.list(corpusDir).use { stream ->
+        stream
+          .filter { it.toString().endsWith(".stf") }
+          .map { arrayOf(it.fileName.toString().removeSuffix(".stf")) }
+          .sorted(Comparator.comparing { it[0] })
+          .toList()
+      }
+    }
+  }
 
   @Test
-  fun `corpus stf test`() {
-    val result = runStfTestFromEnv()
+  fun test() {
+    val result = runStfTest(testName, "e2e_tests/corpus")
     if (result is TestResult.Failure) fail(result.message)
   }
 }
