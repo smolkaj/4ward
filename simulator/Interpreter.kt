@@ -251,8 +251,9 @@ class Interpreter(
       lit.hasBoolean() -> BoolVal(lit.boolean)
       lit.hasErrorMember() -> ErrorVal(lit.errorMember)
       lit.hasInteger() -> {
-        val width = if (type.hasBit()) type.bit.width else error("integer literal without bit type")
-        BitVal(BitVector(BigInteger.valueOf(lit.integer.toLong()), width))
+        val v = BigInteger.valueOf(lit.integer.toLong())
+        if (type.hasBit()) BitVal(BitVector(v, type.bit.width))
+        else InfIntVal(v) // compile-time constant integer (P4 spec §8.1)
       }
       lit.hasBigInteger() -> {
         val width = type.bit.width
@@ -281,13 +282,29 @@ class Interpreter(
       is StructVal ->
         target.fields[fa.fieldName]
           ?: error("field ${fa.fieldName} not found in struct ${target.typeName}")
+      is HeaderStackVal -> evalHeaderStackProperty(target, fa.fieldName)
       else -> error("field access on non-aggregate value: $target")
     }
   }
 
+  /** P4 spec §8.18: header stack built-in properties. */
+  private fun evalHeaderStackProperty(stack: HeaderStackVal, name: String): Value =
+    when (name) {
+      "next" -> {
+        require(stack.nextIndex < stack.headers.size) {
+          "header stack overflow: nextIndex=${stack.nextIndex}, size=${stack.headers.size}"
+        }
+        stack.headers[stack.nextIndex].also { stack.nextIndex++ }
+      }
+      "last" -> stack.headers[(stack.nextIndex - 1).coerceAtLeast(0)]
+      "lastIndex" -> BitVal(stack.headers.size.toLong() - 1, 32)
+      "size" -> BitVal(stack.headers.size.toLong(), 32)
+      else -> error("unknown header stack property: $name")
+    }
+
   private fun evalArrayIndex(ai: fourward.ir.v1.ArrayIndex, env: Environment): Value {
     val stack = evalExpr(ai.expr, env) as? HeaderStackVal ?: error("array index on non-stack value")
-    val index = (evalExpr(ai.index, env) as BitVal).bits.value.toInt()
+    val index = intValue(evalExpr(ai.index, env))
     return stack.headers[index]
   }
 
@@ -310,6 +327,7 @@ class Interpreter(
         val sourceBits =
           when (inner) {
             is BitVal -> inner.bits.value
+            is InfIntVal -> inner.value
             is IntVal -> inner.bits.toUnsigned().value
             is BoolVal -> if (inner.value) BigInteger.ONE else BigInteger.ZERO
             else -> error("cannot cast $inner to bit<$targetWidth>")
@@ -318,20 +336,30 @@ class Interpreter(
       }
       cast.targetType.hasSignedInt() -> {
         val targetWidth = cast.targetType.signedInt.width
-        val sourceBits = (inner as BitVal).bits.value
+        val sourceBits =
+          when (inner) {
+            is BitVal -> inner.bits.value
+            is InfIntVal -> inner.value
+            else -> error("cannot cast $inner to int<$targetWidth>")
+          }
         IntVal(SignedBitVector.fromUnsignedBits(sourceBits, targetWidth))
       }
       cast.targetType.boolean -> {
-        val bits = (inner as BitVal).bits
-        BoolVal(bits.value != BigInteger.ZERO)
+        val v =
+          when (inner) {
+            is BitVal -> inner.bits.value
+            is InfIntVal -> inner.value
+            else -> error("cannot cast $inner to bool")
+          }
+        BoolVal(v != BigInteger.ZERO)
       }
       else -> error("unsupported cast target type: ${cast.targetType}")
     }
   }
 
   private fun evalBinaryOp(op: fourward.ir.v1.BinaryOp, env: Environment): Value {
-    val left = evalExpr(op.left, env)
-    val right = evalExpr(op.right, env)
+    // P4 spec §8.1: compile-time integers adopt the width of the other operand.
+    val (left, right) = coerceInfInts(evalExpr(op.left, env), evalExpr(op.right, env))
     return when (op.op) {
       BinaryOperator.ADD -> BitVal((left as BitVal).bits + (right as BitVal).bits)
       BinaryOperator.SUB -> BitVal((left as BitVal).bits - (right as BitVal).bits)
@@ -357,13 +385,33 @@ class Interpreter(
     }
   }
 
+  /** Extract a small integer from a [BitVal] or [InfIntVal]. */
+  private fun intValue(v: Value): Int =
+    when (v) {
+      is BitVal -> v.bits.value.toInt()
+      is InfIntVal -> v.value.toInt()
+      else -> error("expected integer value: $v")
+    }
+
+  /** P4 spec §8.1: InfInt adopts the width of the fixed-width operand. */
+  private fun coerceInfInts(left: Value, right: Value): Pair<Value, Value> =
+    when {
+      left is InfIntVal && right is BitVal -> left.toBitVal(right.bits.width) to right
+      right is InfIntVal && left is BitVal -> left to right.toBitVal((left as BitVal).bits.width)
+      else -> left to right
+    }
+
   private fun evalUnaryOp(op: fourward.ir.v1.UnaryOp, env: Environment): Value {
     val inner = evalExpr(op.expr, env)
     return when (op.op) {
       // Two's-complement negation: (2^N - x) mod 2^N = (0 - x) using wrapping subtraction.
       // BitVector.ofInt(-1, width) would violate the non-negative value invariant.
       UnaryOperator.NEG ->
-        (inner as BitVal).let { BitVal(BitVector.ofInt(0, it.bits.width) - it.bits) }
+        when (inner) {
+          is InfIntVal -> InfIntVal(inner.value.negate())
+          is BitVal -> BitVal(BitVector.ofInt(0, inner.bits.width) - inner.bits)
+          else -> error("NEG on non-numeric: $inner")
+        }
       UnaryOperator.BIT_NOT -> BitVal((inner as BitVal).bits.inv())
       UnaryOperator.NOT -> BoolVal(!(inner as BoolVal).value)
       else -> error("unhandled unary operator: ${op.op}")
@@ -377,13 +425,23 @@ class Interpreter(
   private fun evalMethodCall(call: MethodCall, env: Environment): Value {
     return when (call.method) {
       // Header validity methods: target is the header instance.
-      "isValid" -> BoolVal((evalExpr(call.target, env) as HeaderVal).valid)
+      "isValid" -> {
+        when (val target = evalExpr(call.target, env)) {
+          is HeaderVal -> BoolVal(target.valid)
+          is StructVal -> BoolVal(target.isUnionValid())
+          else -> error("isValid on non-header: $target")
+        }
+      }
       "setValid" -> {
         (evalExpr(call.target, env) as HeaderVal).valid = true
         UnitVal
       }
       "setInvalid" -> {
-        (evalExpr(call.target, env) as HeaderVal).setInvalid()
+        when (val target = evalExpr(call.target, env)) {
+          is HeaderVal -> target.setInvalid()
+          is StructVal -> target.invalidateUnion()
+          else -> error("setInvalid on non-header: $target")
+        }
         UnitVal
       }
       // packet_in.extract(hdr) / packet_out.emit(hdr): target is the extern object
@@ -541,7 +599,16 @@ class Interpreter(
 
   private fun execExtract(call: MethodCall, env: Environment): Value {
     // packet_in.extract(hdr.field): the header to extract into is args[0], not the target.
-    val header = evalExpr(call.argsList[0], env) as HeaderVal
+    // P4's don't-care extract `p.extract<T>(_)` compiles to extract(arg) where
+    // `arg` is an undeclared temporary. Create a throw-away header to consume bytes.
+    val arg = call.argsList[0]
+    val header =
+      if (arg.hasNameRef() && env.lookup(arg.nameRef.name) == null && arg.type.hasNamed()) {
+        defaultValue(arg.type.named, types) as? HeaderVal
+          ?: error("type not found for don't-care extract: ${arg.type.named}")
+      } else {
+        evalExpr(arg, env) as HeaderVal
+      }
     val headerDecl = (types[header.typeName] ?: error("type not found: ${header.typeName}")).header
 
     // The 2-argument form b.extract(hdr, varbitBits) is used when the header contains a varbit
@@ -667,14 +734,23 @@ class Interpreter(
       }
       is StructVal -> {
         // Emit in the declaration order from the TypeDecl; fall back to map order if unknown.
-        val structDecl = types[value.typeName]?.struct
-        if (structDecl != null) {
-          for (field in structDecl.fieldsList) {
+        val typeDecl = types[value.typeName]
+        val fieldDecls =
+          when {
+            typeDecl != null && typeDecl.hasStruct() -> typeDecl.struct.fieldsList
+            typeDecl != null && typeDecl.hasHeaderUnion() -> typeDecl.headerUnion.fieldsList
+            else -> null
+          }
+        if (fieldDecls != null) {
+          for (field in fieldDecls) {
             emitValue(value.fields[field.name] ?: continue)
           }
         } else {
           for (fieldVal in value.fields.values) emitValue(fieldVal)
         }
+      }
+      is HeaderStackVal -> {
+        for (header in value.headers) emitValue(header)
       }
       else -> {} // BoolVal, BitVal outside a header, UnitVal — not emittable
     }
@@ -705,6 +781,12 @@ class Interpreter(
           is StructVal -> target.fields[lhs.fieldAccess.fieldName] = value
           else -> error("field assignment on non-aggregate: $target")
         }
+      }
+      lhs.hasArrayIndex() -> {
+        val stack = evalExpr(lhs.arrayIndex.expr, env) as HeaderStackVal
+        val index = intValue(evalExpr(lhs.arrayIndex.index, env))
+        val copy = if (value is HeaderVal) value.copy() else value
+        stack.headers[index] = copy as HeaderVal
       }
       lhs.hasSlice() -> {
         // Slice assignment: update [hi:lo] bits of the target.

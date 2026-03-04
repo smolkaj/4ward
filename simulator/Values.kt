@@ -18,6 +18,18 @@ data class BitVal(val bits: BitVector) : Value() {
   constructor(value: Int, width: Int) : this(BitVector.ofInt(value, width))
 }
 
+/**
+ * A compile-time integer with infinite precision (P4 spec §8.1).
+ *
+ * InfInt values arise from untyped integer literals in the IR (e.g. shift amounts, constants). They
+ * adopt the width of the other operand when used in a binary operation.
+ */
+data class InfIntVal(val value: java.math.BigInteger) : Value() {
+  /** Coerce to a fixed-width [BitVal]. */
+  fun toBitVal(width: Int): BitVal =
+    BitVal(BitVector(value.mod(java.math.BigInteger.TWO.pow(width)), width))
+}
+
 /** An int<N> value (two's complement). */
 data class IntVal(val bits: SignedBitVector) : Value()
 
@@ -78,6 +90,14 @@ data class HeaderVal(
 data class StructVal(val typeName: String, val fields: MutableMap<String, Value> = mutableMapOf()) :
   Value() {
   fun copy(): StructVal = StructVal(typeName, fields.toMutableMap())
+
+  /** P4 spec §8.20: a header union is valid if any member header is valid. */
+  fun isUnionValid(): Boolean = fields.values.any { it is HeaderVal && it.valid }
+
+  /** P4 spec §8.20: invalidating a header union invalidates all member headers. */
+  fun invalidateUnion() {
+    fields.values.forEach { if (it is HeaderVal) it.setInvalid() }
+  }
 }
 
 /** A header stack (fixed-size array of headers with a next/last pointer). */

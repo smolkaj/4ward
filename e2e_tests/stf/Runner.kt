@@ -68,8 +68,14 @@ class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPat
         }
       }
 
-      // Send packets and check outputs.
+      // Send all packets and collect outputs, then match expects by port.
+      // Cross-port ordering is ignored; within the same port, outputs are
+      // matched FIFO (first output on that port satisfies the first expect
+      // for that port). This matches BMv2's STF semantics.
       val failures = mutableListOf<String>()
+      data class Output(val port: Int, val payload: ByteArray)
+      val outputQueue = mutableListOf<Output>()
+
       for (packet in stf.packets) {
         sendRequest(
           output,
@@ -86,17 +92,23 @@ class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPat
           failures += "ProcessPacket failed: ${resp.error.message}"
           continue
         }
-        val result = resp.processPacket
+        for (pkt in resp.processPacket.outputPacketsList) {
+          outputQueue += Output(pkt.egressPort, pkt.payload.toByteArray())
+        }
+      }
 
-        for (expected in packet.expectedOutputs) {
-          val actual = result.outputPacketsList.find { it.egressPort == expected.port }
-          when {
-            actual == null -> failures += "expected packet on port ${expected.port} but got none"
-            !actual.payload.toByteArray().matchesMasked(expected.payload, expected.mask) ->
-              failures +=
-                "port ${expected.port}: payload mismatch\n" +
-                  "  expected: ${expected.payload.hex(expected.mask)}\n" +
-                  "  actual:   ${actual.payload.toByteArray().hex()}"
+      // Match expects against the output queue in order.
+      for (expected in stf.expects) {
+        val idx = outputQueue.indexOfFirst { it.port == expected.port }
+        if (idx < 0) {
+          failures += "expected packet on port ${expected.port} but got none"
+        } else {
+          val actual = outputQueue.removeAt(idx)
+          if (!actual.payload.matchesMasked(expected.payload, expected.mask)) {
+            failures +=
+              "port ${expected.port}: payload mismatch\n" +
+                "  expected: ${expected.payload.hex(expected.mask)}\n" +
+                "  actual:   ${actual.payload.hex()}"
           }
         }
       }
@@ -241,7 +253,11 @@ fun runStf(runfiles: String, configPath: Path, stfPath: Path): TestResult =
   StfRunner(Paths.get(runfiles, "_main/simulator/simulator"), configPath).run(stfPath)
 
 /** A parsed .stf file. */
-data class StfFile(val tableEntries: List<StfTableDirective>, val packets: List<StfPacket>) {
+data class StfFile(
+  val tableEntries: List<StfTableDirective>,
+  val packets: List<StfPacket>,
+  val expects: List<StfExpectedOutput>,
+) {
   companion object {
     /**
      * Parses an STF file. Supported directives:
@@ -261,21 +277,15 @@ data class StfFile(val tableEntries: List<StfTableDirective>, val packets: List<
 
       val tableEntries = mutableListOf<StfTableDirective>()
       val packets = mutableListOf<StfPacket>()
-      var current: StfPacket? = null
-
-      fun flushPacket() {
-        current?.let { packets += it }
-        current = null
-      }
+      val expects = mutableListOf<StfExpectedOutput>()
 
       for (line in lines) {
         val tokens = line.split(Regex("\\s+"))
         when (tokens[0].lowercase()) {
           "packet" -> {
-            flushPacket()
             val port = tokens[1].toInt()
             val payload = tokens.drop(2).joinToString("").decodeHex()
-            current = StfPacket(port, payload, mutableListOf())
+            packets += StfPacket(port, payload)
           }
           "expect" -> {
             val port = tokens[1].toInt()
@@ -283,21 +293,14 @@ data class StfFile(val tableEntries: List<StfTableDirective>, val packets: List<
             // comparison, so strip it. It can appear standalone or appended to the last byte.
             val hexStr = tokens.drop(2).joinToString("").replace("$", "")
             val (payload, mask) = decodeExpect(hexStr)
-            current?.expectedOutputs?.add(StfExpectedOutput(port, payload, mask))
+            expects += StfExpectedOutput(port, payload, mask)
           }
-          "add" -> {
-            flushPacket()
-            tableEntries += parseAdd(tokens.drop(1))
-          }
-          "setdefault" -> {
-            flushPacket()
-            tableEntries += parseSetDefault(tokens.drop(1))
-          }
+          "add" -> tableEntries += parseAdd(tokens.drop(1))
+          "setdefault" -> tableEntries += parseSetDefault(tokens.drop(1))
         }
       }
-      flushPacket()
 
-      return StfFile(tableEntries, packets)
+      return StfFile(tableEntries, packets, expects)
     }
 
     /**
@@ -437,11 +440,7 @@ fun encodeValue(raw: String, bitwidth: Int): ByteString {
 // Data types
 // ---------------------------------------------------------------------------
 
-data class StfPacket(
-  val ingressPort: Int,
-  val payload: ByteArray,
-  val expectedOutputs: MutableList<StfExpectedOutput>,
-)
+data class StfPacket(val ingressPort: Int, val payload: ByteArray)
 
 class StfExpectedOutput(val port: Int, val payload: ByteArray, val mask: ByteArray)
 
@@ -485,9 +484,17 @@ private fun String.unquote(): String = removeSurrounding("\"")
 
 /** Strips a `"name":` prefix from a p4testgen named action parameter, returning just the value. */
 private fun String.stripNamedParamPrefix(): String {
-  if (!startsWith('"')) return this
-  val sep = indexOf("\":", 1)
-  return if (sep >= 0) substring(sep + 2) else this
+  // p4testgen: quoted named params like "param":value
+  if (startsWith('"')) {
+    val sep = indexOf("\":", 1)
+    return if (sep >= 0) substring(sep + 2) else this
+  }
+  // Unquoted named params like param:value (used in standard STF files).
+  val colon = indexOf(':')
+  if (colon > 0 && substring(0, colon).all { it.isLetterOrDigit() || it == '_' }) {
+    return substring(colon + 1)
+  }
+  return this
 }
 
 /**

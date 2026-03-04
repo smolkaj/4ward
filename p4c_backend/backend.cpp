@@ -16,6 +16,7 @@
 
 #include "p4c_backend/backend.h"
 
+#include <array>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -58,6 +59,8 @@ fourward::ir::v1::Type FourWardBackend::emitType(const IR::Type* type) {
     out.set_named(hdr->name.name.c_str());
   } else if (const auto* st = type->to<IR::Type_Struct>()) {
     out.set_named(st->name.name.c_str());
+  } else if (const auto* hu = type->to<IR::Type_HeaderUnion>()) {
+    out.set_named(hu->name.name.c_str());
   } else if (const auto* stack = type->to<IR::Type_Array>()) {
     auto* hs = out.mutable_header_stack();
     if (const auto* elemType = stack->elementType->to<IR::Type_Name>()) {
@@ -326,22 +329,71 @@ fourward::ir::v1::Stmt FourWardBackend::emitStmt(const IR::StatOrDecl* node) {
       *i->mutable_else_block() = emitBranch(ifst->ifFalse);
     }
   } else if (const auto* sw = node->to<IR::SwitchStatement>()) {
-    auto* s = out.mutable_switch_stmt();
-    *s->mutable_subject() = emitExpr(sw->expression);
+    // Detect value-based vs action_run switches: if any non-default case label
+    // is not a PathExpression, this is a value switch on a scalar expression.
+    bool isValueSwitch = false;
     for (const auto* c : sw->cases) {
-      if (c->label->is<IR::DefaultExpression>()) {
-        if (const auto* b = c->statement->to<IR::BlockStatement>()) {
-          *s->mutable_default_block() = emitBlock(b);
-        }
-      } else {
-        auto* sc = s->add_cases();
-        if (const auto* pe = c->label->to<IR::PathExpression>()) {
-          // Use the original (pre-rename) action name to match p4info aliases.
-          sc->set_action_name(pe->path->name.originalName.c_str());
-        }
+      if (!c->label->is<IR::DefaultExpression>() &&
+          !c->label->is<IR::PathExpression>()) {
+        isValueSwitch = true;
+        break;
+      }
+    }
+
+    if (isValueSwitch) {
+      // Emit value-based switch as an if-else chain:
+      //   if (subject == case1) { ... } else if (subject == case2) { ... } else
+      //   { default }
+      fourward::ir::v1::Stmt* cursor = &out;
+      for (const auto* c : sw->cases) {
+        if (c->label->is<IR::DefaultExpression>()) continue;
+        auto* ifStmt = cursor->mutable_if_stmt();
+        // condition: subject == case_value
+        auto* cond = ifStmt->mutable_condition()->mutable_binary_op();
+        cond->set_op(fourward::ir::v1::BinaryOperator::EQ);
+        *cond->mutable_left() = emitExpr(sw->expression);
+        *cond->mutable_right() = emitExpr(c->label);
         if (c->statement) {
           if (const auto* b = c->statement->to<IR::BlockStatement>()) {
-            *sc->mutable_block() = emitBlock(b);
+            *ifStmt->mutable_then_block() = emitBlock(b);
+          }
+        }
+        // Chain: set cursor to the else branch for the next case.
+        cursor = ifStmt->mutable_else_block()->add_stmts();
+      }
+      // Emit default case as the final else block.
+      for (const auto* c : sw->cases) {
+        if (c->label->is<IR::DefaultExpression>() && c->statement) {
+          if (const auto* b = c->statement->to<IR::BlockStatement>()) {
+            // cursor points to an empty stmt in the last else block; replace
+            // the surrounding block with the default's statements.
+            auto* parent = cursor->mutable_block();
+            for (const auto* s : b->components) {
+              *parent->add_stmts() = emitStmt(s);
+            }
+          }
+        }
+      }
+    } else {
+      // Action_run switch on a table apply result.
+      auto* s = out.mutable_switch_stmt();
+      *s->mutable_subject() = emitExpr(sw->expression);
+      for (const auto* c : sw->cases) {
+        if (c->label->is<IR::DefaultExpression>()) {
+          if (const auto* b = c->statement->to<IR::BlockStatement>()) {
+            *s->mutable_default_block() = emitBlock(b);
+          }
+        } else {
+          auto* sc = s->add_cases();
+          if (const auto* pe = c->label->to<IR::PathExpression>()) {
+            // Use the original (pre-rename) action name to match p4info
+            // aliases.
+            sc->set_action_name(pe->path->name.originalName.c_str());
+          }
+          if (c->statement) {
+            if (const auto* b = c->statement->to<IR::BlockStatement>()) {
+              *sc->mutable_block() = emitBlock(b);
+            }
           }
         }
       }
@@ -434,8 +486,16 @@ void FourWardBackend::emitTypeDecls(const IR::P4Program* program) {
       for (const auto* member : serEnum->members) {
         edecl->add_members(member->name.name.c_str());
       }
+    } else if (const auto* hu = decl->to<IR::Type_HeaderUnion>()) {
+      auto* td = behavioral_->add_types();
+      td->set_name(hu->name.name.c_str());
+      auto* udecl = td->mutable_header_union();
+      for (const auto* field : hu->fields) {
+        auto* fd = udecl->add_fields();
+        fd->set_name(field->name.name.c_str());
+        *fd->mutable_type() = emitType(field->type);
+      }
     }
-    // Header unions: TODO
   }
 }
 
@@ -478,14 +538,39 @@ void FourWardBackend::emitParser(const IR::P4Parser* parser) {
       for (const auto* key : sel->select->components) {
         *selectTrans->add_keys() = emitExpr(key);
       }
+      // Helper: emit a single keyset expression into a KeysetExpr proto.
+      auto emitKeyset = [this](fourward::ir::v1::KeysetExpr* k,
+                               const IR::Expression* expr) {
+        if (expr->is<IR::DefaultExpression>()) {
+          k->set_default_case(true);
+        } else if (const auto* range = expr->to<IR::Range>()) {
+          auto* r = k->mutable_range();
+          *r->mutable_lo() = emitExpr(range->left);
+          *r->mutable_hi() = emitExpr(range->right);
+        } else if (const auto* mask = expr->to<IR::Mask>()) {
+          auto* m = k->mutable_mask();
+          *m->mutable_value() = emitExpr(mask->left);
+          *m->mutable_mask() = emitExpr(mask->right);
+        } else {
+          *k->mutable_exact() = emitExpr(expr);
+        }
+      };
+
       for (const auto* sc : sel->selectCases) {
         if (sc->keyset->is<IR::DefaultExpression>()) {
           selectTrans->set_default_state(sc->state->path->name.name.c_str());
           continue;
         }
         auto* c = selectTrans->add_cases();
-        auto* k = c->add_keysets();
-        *k->mutable_exact() = emitExpr(sc->keyset);
+        // Multi-key selects use ListExpression; single-key selects have a
+        // scalar expression. Emit one KeysetExpr per key.
+        if (const auto* list = sc->keyset->to<IR::ListExpression>()) {
+          for (const auto* comp : list->components) {
+            emitKeyset(c->add_keysets(), comp);
+          }
+        } else {
+          emitKeyset(c->add_keysets(), sc->keyset);
+        }
         c->set_next_state(sc->state->path->name.name.c_str());
       }
     } else if (const auto* path =
@@ -568,18 +653,32 @@ void FourWardBackend::emitTable(const IR::P4Table* table) {
   const std::string tableName = table->name.originalName.c_str();
 
   // Look up the p4info table by qualified name to retrieve match field IDs.
-  // The qualified name is "controlName.tableName" (e.g.
-  // "MyIngress.port_table").
-  const std::string qualifiedName = controlName_ + "." + tableName;
+  // Try multiple strategies: (1) controlName.originalName for simple tables,
+  // (2) externalName() for tables from inlined sub-controls (where p4info uses
+  // dot-separated hierarchy like "ingress.c.t" but originalName has underscores
+  // like "c_t").
   const p4::config::v1::Table* p4Table = nullptr;
-  for (const auto& t : pipelineConfig_.p4info().tables()) {
-    if (t.preamble().name() == qualifiedName) {
-      p4Table = &t;
-      break;
+  {
+    std::array<std::string, 2> candidates = {
+        controlName_ + "." + tableName,
+        std::string(table->externalName().c_str()),
+    };
+    // externalName() may have a leading dot for fully-qualified names.
+    for (auto& c : candidates) {
+      if (!c.empty() && c[0] == '.') c = c.substr(1);
+    }
+    for (const auto& t : pipelineConfig_.p4info().tables()) {
+      for (const auto& c : candidates) {
+        if (t.preamble().name() == c) {
+          p4Table = &t;
+          break;
+        }
+      }
+      if (p4Table) break;
     }
   }
   if (!p4Table) {
-    LOG1("WARNING: no p4info table found for " << qualifiedName
+    LOG1("WARNING: no p4info table found for " << tableName
                                                << "; skipping emitTable");
     return;
   }
