@@ -19,6 +19,10 @@ This means correctness always wins over convenience, performance, or
 compatibility with non-standard behaviour. The simulator is meant to be the
 implementation you trust when you need to know what a P4 program *should* do.
 
+The north star is to replace BMv2 as the reference simulator in
+[DVaaS](https://github.com/sonic-net/sonic-pins/tree/main/dvaas). See
+[ROADMAP.md](ROADMAP.md) for the full picture.
+
 ## The big picture
 
 ```
