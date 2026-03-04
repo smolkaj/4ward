@@ -135,8 +135,12 @@ Curious about the design? [ARCHITECTURE.md](ARCHITECTURE.md) has the full story.
 
 ## Where things stand
 
-4ward is young and growing fast. Feature development is driven by the p4c STF
-test corpus — each new feature makes another batch of tests go green.
+4ward is young and growing fast. The goal is a spec-compliant reference
+simulator that goes beyond BMv2 — richer traces, exhaustive exploration of
+non-deterministic paths, and a codebase anyone can extend with ease. Anywhere you need a
+correct, observable P4 model — dataplane validation, CI pipelines, interactive
+debugging — 4ward aims to be the better choice. See [ROADMAP.md](ROADMAP.md)
+for the full picture.
 
 - [x] Proto IR schema
 - [x] Project skeleton
@@ -144,6 +148,7 @@ test corpus — each new feature makes another batch of tests go green.
 - [x] Simulator (passthrough)
 - [x] STF test runner
 - [ ] Full v1model support
+- [ ] Trace trees
 - [ ] P4Runtime server (Go)
 
 ## Want to help?

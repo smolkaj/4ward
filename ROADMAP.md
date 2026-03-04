@@ -98,42 +98,23 @@ unpinned across the full corpus.
 
 **Priority: nice to have | Parallelizable: yes**
 
-Build plumbing, CI improvements, testing tools. Not glamorous but high
-leverage — runs in parallel with v1model work (different files, different
-concerns).
+Build plumbing, CI improvements, cleanup. Picked up opportunistically — none
+of this blocks the other tracks.
 
-**Quick wins:**
+- Extract shared `p4_compile` genrule macro (copy-pasted across 8 locations).
+- `matchesMasked` internal visibility (`private` → `internal` one-liner).
+- Opt-out corpus model (auto-discovery + skip-list instead of allow-list).
+- Simulator process reuse in p4testgen (~330ms per sub-test overhead).
+- CI hygiene (`set -euo pipefail` in `format.sh`, pin tool versions).
+- Re-enable buf lint (blocked on buf support for proto edition 2024).
+- Upstream p4c backend (blocked on landing the backend in p4c).
 
-- **Extract shared `p4_compile` genrule macro** — the same compilation genrule
-  is copy-pasted across 8 locations (`corpus.bzl`, `p4testgen.bzl`, 6
-  `BUILD.bazel` files). Mechanical cleanup, reduces drift risk.
-- **`matchesMasked` internal visibility** — trivial `private` → `internal`
-  one-liner to eliminate a duplicated test helper.
-
-**Medium effort:**
-
-- **Opt-out corpus model** — replace the explicit allow-list in
-  `corpus/BUILD.bazel` with auto-discovery + skip-list (Bazel module
-  extension). Higher value as the corpus grows.
-- **Simulator process reuse in p4testgen** — each sub-test spawns a fresh
-  simulator process (~330ms overhead). 100 sub-tests = ~33s wasted. Fix:
-  persistent session with table-state reset between STFs.
-- **CI hygiene** — add `set -euo pipefail` to `format.sh`, pin
-  clang-format/clang-tidy versions.
-
-**Blocked on external dependencies:**
-
-- **Re-enable buf lint** — disabled pending buf support for proto edition 2024.
-  Proto breaking changes are not caught in CI until this is resolved.
-- **Upstream p4c backend** — remove the `@p4c` `git_override` fork once the
-  4ward backend lands upstream in p4c.
-
-This list will grow over time. See [docs/refactoring.md](docs/refactoring.md)
-for additional cleanup and tech debt items.
+This list will grow. See [docs/refactoring.md](docs/refactoring.md) for
+additional cleanup and tech debt items.
 
 ### Track 3: trace trees
 
-**Priority: medium — start now in parallel | Parallelizable: yes**
+**Priority: medium — start now | Parallelizable: yes**
 
 The killer feature. Fork at non-deterministic choice points (action selectors,
 profiles, replication) and return a tree of all possible executions. See
@@ -161,7 +142,7 @@ programs with action selectors and action profiles.
 
 ### Track 4: P4Runtime server
 
-**Priority: medium — start in parallel now | Parallelizable: yes (fully independent)**
+**Priority: medium — start now | Parallelizable: yes (fully independent)**
 
 A Go gRPC server that speaks P4Runtime to controllers and translates requests
 into `SimRequest` proto messages for the simulator. This is what turns 4ward
