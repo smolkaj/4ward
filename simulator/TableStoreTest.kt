@@ -159,6 +159,14 @@ class TableStoreTest {
   }
 
   @Test
+  fun `exact match hit with BoolVal key`() {
+    write(exactEntry(fieldId = 1, value = byteArrayOf(0x00), actionId = 42))
+    val result = store.lookup(TABLE_NAME, listOf("1" to BoolVal(false)))
+    assertTrue(result.hit)
+    assertEquals("action42", result.actionName)
+  }
+
+  @Test
   fun `exact match miss on different value`() {
     write(exactEntry(fieldId = 1, value = byteArrayOf(0x0A), actionId = 42))
     val result = store.lookup(TABLE_NAME, listOf("1" to BitVal(11, 8)))
