@@ -38,12 +38,12 @@ class P4RuntimeService(private val simulator: Simulator) :
   P4RuntimeGrpcKt.P4RuntimeCoroutineImplBase() {
 
   @Volatile private var currentConfig: PipelineConfig? = null
-  @Volatile private var isMasterElected = false
 
   private fun requirePipeline() {
     if (currentConfig == null) {
-      throw Status.FAILED_PRECONDITION
-        .withDescription("No pipeline loaded; call SetForwardingPipelineConfig first")
+      throw Status.FAILED_PRECONDITION.withDescription(
+          "No pipeline loaded; call SetForwardingPipelineConfig first"
+        )
         .asException()
     }
   }
@@ -57,8 +57,9 @@ class P4RuntimeService(private val simulator: Simulator) :
   ): SetForwardingPipelineConfigResponse {
     val fwdConfig = request.config
     if (!fwdConfig.hasP4Info() || fwdConfig.p4DeviceConfig.isEmpty) {
-      throw Status.INVALID_ARGUMENT
-        .withDescription("ForwardingPipelineConfig must include p4info and p4_device_config")
+      throw Status.INVALID_ARGUMENT.withDescription(
+          "ForwardingPipelineConfig must include p4info and p4_device_config"
+        )
         .asException()
     }
 
@@ -66,16 +67,14 @@ class P4RuntimeService(private val simulator: Simulator) :
       try {
         P4BehavioralConfig.parseFrom(fwdConfig.p4DeviceConfig)
       } catch (e: com.google.protobuf.InvalidProtocolBufferException) {
-        throw Status.INVALID_ARGUMENT
-          .withDescription("p4_device_config is not a valid P4BehavioralConfig: ${e.message}")
+        throw Status.INVALID_ARGUMENT.withDescription(
+            "p4_device_config is not a valid P4BehavioralConfig: ${e.message}"
+          )
           .asException()
       }
 
     val pipelineConfig =
-      PipelineConfig.newBuilder()
-        .setP4Info(fwdConfig.p4Info)
-        .setBehavioral(behavioral)
-        .build()
+      PipelineConfig.newBuilder().setP4Info(fwdConfig.p4Info).setBehavioral(behavioral).build()
 
     val simRequest =
       SimRequest.newBuilder()
@@ -84,8 +83,9 @@ class P4RuntimeService(private val simulator: Simulator) :
 
     val simResponse = synchronized(simulator) { simulator.handle(simRequest) }
     if (simResponse.hasError()) {
-      throw Status.INTERNAL
-        .withDescription("Simulator rejected pipeline: ${simResponse.error.message}")
+      throw Status.INTERNAL.withDescription(
+          "Simulator rejected pipeline: ${simResponse.error.message}"
+        )
         .asException()
     }
 
@@ -106,8 +106,7 @@ class P4RuntimeService(private val simulator: Simulator) :
           .build()
       val simResponse = synchronized(simulator) { simulator.handle(simRequest) }
       if (simResponse.hasError()) {
-        throw Status.INVALID_ARGUMENT
-          .withDescription("Write failed: ${simResponse.error.message}")
+        throw Status.INVALID_ARGUMENT.withDescription("Write failed: ${simResponse.error.message}")
           .asException()
       }
     }
@@ -126,14 +125,11 @@ class P4RuntimeService(private val simulator: Simulator) :
         .build()
     val simResponse = synchronized(simulator) { simulator.handle(simRequest) }
     if (simResponse.hasError()) {
-      throw Status.INTERNAL
-        .withDescription("Read failed: ${simResponse.error.message}")
+      throw Status.INTERNAL.withDescription("Read failed: ${simResponse.error.message}")
         .asException()
     }
     if (simResponse.readEntries.entitiesCount > 0) {
-      emit(
-        ReadResponse.newBuilder().addAllEntities(simResponse.readEntries.entitiesList).build()
-      )
+      emit(ReadResponse.newBuilder().addAllEntities(simResponse.readEntries.entitiesList).build())
     }
   }
 
@@ -146,7 +142,6 @@ class P4RuntimeService(private val simulator: Simulator) :
       requests.collect { msg ->
         when {
           msg.hasArbitration() -> {
-            isMasterElected = true
             emit(
               StreamMessageResponse.newBuilder()
                 .setArbitration(
@@ -154,8 +149,7 @@ class P4RuntimeService(private val simulator: Simulator) :
                     .setDeviceId(msg.arbitration.deviceId)
                     .setElectionId(msg.arbitration.electionId)
                     .setStatus(
-                      com.google.rpc.Status.newBuilder()
-                        .setCode(com.google.rpc.Code.OK_VALUE)
+                      com.google.rpc.Status.newBuilder().setCode(com.google.rpc.Code.OK_VALUE)
                     )
                 )
                 .build()
@@ -202,20 +196,18 @@ class P4RuntimeService(private val simulator: Simulator) :
     }
 
   /** Extracts ingress port from PacketOut metadata, defaulting to port 0. */
-  private fun extractIngressPort(
-    metadata: List<p4.v1.P4RuntimeOuterClass.PacketMetadata>
-  ): Int {
+  private fun extractIngressPort(metadata: List<p4.v1.P4RuntimeOuterClass.PacketMetadata>): Int {
     val portMeta = metadata.find { it.metadataId == INGRESS_PORT_METADATA_ID }
     return portMeta?.value?.toByteArray()?.fold(0) { acc, b -> (acc shl 8) or (b.toInt() and 0xFF) }
       ?: 0
   }
 
   private fun intToBytes(value: Int): ByteString {
-    // Encode as minimum-width big-endian (P4Runtime canonical form).
-    val bytes =
-      if (value <= 0xFF) byteArrayOf(value.toByte())
-      else byteArrayOf((value shr 8).toByte(), value.toByte())
-    return ByteString.copyFrom(bytes)
+    // Minimum-width unsigned big-endian (P4Runtime canonical form).
+    val bytes = ByteArray(4) { i -> (value shr ((3 - i) * 8) and 0xFF).toByte() }
+    val firstNonZero = bytes.indexOfFirst { it != 0.toByte() }
+    val start = if (firstNonZero < 0) 3 else firstNonZero
+    return ByteString.copyFrom(bytes, start, bytes.size - start)
   }
 
   // ---------------------------------------------------------------------------
@@ -225,8 +217,7 @@ class P4RuntimeService(private val simulator: Simulator) :
   override suspend fun getForwardingPipelineConfig(
     request: GetForwardingPipelineConfigRequest
   ): GetForwardingPipelineConfigResponse {
-    throw Status.UNIMPLEMENTED
-      .withDescription("GetForwardingPipelineConfig not yet implemented")
+    throw Status.UNIMPLEMENTED.withDescription("GetForwardingPipelineConfig not yet implemented")
       .asException()
   }
 

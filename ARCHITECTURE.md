@@ -158,16 +158,45 @@ No other P4 tool gives you this. BMv2 picks one path. Hardware picks one path.
 4ward can show you *all* paths — making it a powerful tool for testing,
 verification, and understanding complex P4 programs.
 
-## P4Runtime (Track 4)
+## P4Runtime (`p4runtime/`)
 
-Not yet! We're deliberately building the simulator first and getting it solid
-before adding the P4Runtime layer. When the time comes, the server will:
+The P4Runtime gRPC server is a thin translation layer between standard
+P4Runtime RPCs and the simulator's `SimRequest`/`SimResponse` protocol.
+All P4 logic stays in the simulator — the server just speaks gRPC.
 
-1. Speak P4Runtime gRPC to the controller.
-2. Translate requests into `SimRequest` proto messages.
-3. Forward them to the simulator.
+```
+Controller ──gRPC──▶ P4RuntimeService ──SimRequest──▶ Simulator
+                           │                              │
+                     translates protos              runs your program
+                     enforces preconditions          returns SimResponse
+```
 
-All the real P4 logic stays in the simulator where it belongs. See
+**Implemented RPCs:**
+
+| RPC | Status |
+|-----|--------|
+| `SetForwardingPipelineConfig` | Working — parses `P4BehavioralConfig` from `p4_device_config` bytes |
+| `Write` | Working — forwards `Update` protos directly to the simulator |
+| `Read` | Working — returns all table entries (wildcard read; filtering is TODO) |
+| `StreamChannel` | Working — arbitration + PacketOut→PacketIn via the simulator |
+| `GetForwardingPipelineConfig` | Stub (UNIMPLEMENTED) |
+| `Capabilities` | Stub (UNIMPLEMENTED) |
+
+**Key design decisions:**
+
+- **In-process, not subprocess.** The server calls `Simulator.handle()` directly
+  rather than piping through stdin/stdout. Same `SimRequest`/`SimResponse`
+  contract, just no serialization overhead.
+- **grpc-kotlin with coroutine Flows.** `StreamChannel` is a bidirectional
+  stream — Kotlin Flows map naturally to gRPC's streaming model.
+- **`synchronized(simulator)` for thread safety.** The simulator is
+  single-threaded; the gRPC server serializes concurrent requests with a lock.
+  Good enough for a reference implementation.
+- **Single controller.** First connection is master. No multi-controller
+  arbitration, no election ID tracking.
+
+**What's not here yet:** p4-constraints validation, `@p4runtime_translation`,
+digest support, idle timeout notifications, atomic write batches. See
 [ROADMAP.md](ROADMAP.md) Track 4 for the full scope.
 
 ## Why these languages?

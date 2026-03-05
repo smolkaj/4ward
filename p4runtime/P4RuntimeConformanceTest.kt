@@ -11,9 +11,6 @@ import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import p4.v1.P4RuntimeOuterClass.Entity
-import p4.v1.P4RuntimeOuterClass.ReadRequest
-import p4.v1.P4RuntimeOuterClass.SetForwardingPipelineConfigRequest
-import p4.v1.P4RuntimeOuterClass.StreamMessageResponse
 
 /**
  * P4Runtime conformance tests.
@@ -42,17 +39,13 @@ class P4RuntimeConformanceTest {
   // Fixture loading
   // ---------------------------------------------------------------------------
 
-  private fun loadBasicTableConfig(): PipelineConfig {
-    val r = System.getenv("JAVA_RUNFILES") ?: "."
-    val path = Paths.get(r, "_main/e2e_tests/basic_table/basic_table.txtpb")
-    val builder = PipelineConfig.newBuilder()
-    com.google.protobuf.TextFormat.merge(path.toFile().readText(), builder)
-    return builder.build()
-  }
+  private fun loadBasicTableConfig() = loadConfig("e2e_tests/basic_table/basic_table.txtpb")
 
-  private fun loadPassthroughConfig(): PipelineConfig {
+  private fun loadPassthroughConfig() = loadConfig("e2e_tests/passthrough/passthrough.txtpb")
+
+  private fun loadConfig(relativePath: String): PipelineConfig {
     val r = System.getenv("JAVA_RUNFILES") ?: "."
-    val path = Paths.get(r, "_main/e2e_tests/passthrough/passthrough.txtpb")
+    val path = Paths.get(r, "_main/$relativePath")
     val builder = PipelineConfig.newBuilder()
     com.google.protobuf.TextFormat.merge(path.toFile().readText(), builder)
     return builder.build()
@@ -96,7 +89,7 @@ class P4RuntimeConformanceTest {
   fun `4 - install table entry succeeds`() {
     val config = loadBasicTableConfig()
     harness.loadPipeline(config)
-    val entry = buildBasicTableEntry(config, dstAddr = 0x0800000001, port = 1)
+    val entry = buildExactEntry(config, matchValue = 0x0800, port = 1)
     val resp = harness.installEntry(entry)
     assertNotNull(resp)
   }
@@ -105,10 +98,10 @@ class P4RuntimeConformanceTest {
   fun `5 - modify existing entry succeeds`() {
     val config = loadBasicTableConfig()
     harness.loadPipeline(config)
-    val entry = buildBasicTableEntry(config, dstAddr = 0x0800000001, port = 1)
+    val entry = buildExactEntry(config, matchValue = 0x0800, port = 1)
     harness.installEntry(entry)
     // Modify to forward to a different port.
-    val modified = buildBasicTableEntry(config, dstAddr = 0x0800000001, port = 2)
+    val modified = buildExactEntry(config, matchValue = 0x0800, port = 2)
     val resp = harness.modifyEntry(modified)
     assertNotNull(resp)
   }
@@ -117,7 +110,7 @@ class P4RuntimeConformanceTest {
   fun `6 - delete entry succeeds`() {
     val config = loadBasicTableConfig()
     harness.loadPipeline(config)
-    val entry = buildBasicTableEntry(config, dstAddr = 0x0800000001, port = 1)
+    val entry = buildExactEntry(config, matchValue = 0x0800, port = 1)
     harness.installEntry(entry)
     val resp = harness.deleteEntry(entry)
     assertNotNull(resp)
@@ -128,9 +121,7 @@ class P4RuntimeConformanceTest {
     try {
       val entity =
         Entity.newBuilder()
-          .setTableEntry(
-            p4.v1.P4RuntimeOuterClass.TableEntry.newBuilder().setTableId(1).build()
-          )
+          .setTableEntry(p4.v1.P4RuntimeOuterClass.TableEntry.newBuilder().setTableId(1).build())
           .build()
       harness.installEntry(entity)
       fail("expected error for write without pipeline")
@@ -166,7 +157,7 @@ class P4RuntimeConformanceTest {
   fun `9 - read back installed entries matches written`() {
     val config = loadBasicTableConfig()
     harness.loadPipeline(config)
-    val entry = buildBasicTableEntry(config, dstAddr = 0x0800000001, port = 1)
+    val entry = buildExactEntry(config, matchValue = 0x0800, port = 1)
     harness.installEntry(entry)
     val entities = harness.readEntries()
     assertTrue("expected at least one entity", entities.isNotEmpty())
@@ -208,18 +199,15 @@ class P4RuntimeConformanceTest {
     assertTrue("expected at least 2 responses", responses.size >= 2)
     // First response is arbitration ack, second is PacketIn.
     assertTrue("expected packet_in", responses[1].hasPacket())
-    assertEquals(
-      com.google.protobuf.ByteString.copyFrom(payload),
-      responses[1].packet.payload,
-    )
+    assertEquals(com.google.protobuf.ByteString.copyFrom(payload), responses[1].packet.payload)
   }
 
   @Test
   fun `14 - PacketOut with table entries has correct forwarding`() {
     val config = loadBasicTableConfig()
     harness.loadPipeline(config)
-    // basic_table.p4 matches on etherType: install forward(port=1) for IPv4 (0x0800).
-    val entry = buildEtherTypeEntry(config, etherType = 0x0800, port = 1)
+    // basic_table.p4 matches on etherType: install forward(port=1) for IPv4.
+    val entry = buildExactEntry(config, matchValue = 0x0800, port = 1)
     harness.installEntry(entry)
     // Ethernet frame: dst=ff:ff:ff:ff:ff:ff src=00:00:00:00:00:01 etherType=0x0800 payload=DEAD
     val payload = buildEthernetFrame(etherType = 0x0800)
@@ -231,74 +219,28 @@ class P4RuntimeConformanceTest {
   @Test
   fun `15 - multiple packets preserve ordering`() {
     harness.loadPipeline(loadPassthroughConfig())
-    val payload1 = byteArrayOf(0x01, 0x02)
-    val payload2 = byteArrayOf(0x03, 0x04)
-    val r1 = harness.sendPacketViaStream(payload1)
-    val r2 = harness.sendPacketViaStream(payload2)
-    assertTrue("first packet returned", r1.any { it.hasPacket() })
-    assertTrue("second packet returned", r2.any { it.hasPacket() })
-    // Verify payloads match what was sent.
-    val pktIn1 = r1.first { it.hasPacket() }.packet
-    val pktIn2 = r2.first { it.hasPacket() }.packet
-    assertEquals(com.google.protobuf.ByteString.copyFrom(payload1), pktIn1.payload)
-    assertEquals(com.google.protobuf.ByteString.copyFrom(payload2), pktIn2.payload)
+    harness.openStream().use { stream ->
+      stream.arbitrate()
+      val payload1 = byteArrayOf(0x01, 0x02)
+      val payload2 = byteArrayOf(0x03, 0x04)
+      val pkt1 = stream.sendPacket(payload1)
+      val pkt2 = stream.sendPacket(payload2)
+      assertNotNull("first packet returned", pkt1)
+      assertNotNull("second packet returned", pkt2)
+      assertTrue("first is packet_in", pkt1!!.hasPacket())
+      assertTrue("second is packet_in", pkt2!!.hasPacket())
+      assertEquals(com.google.protobuf.ByteString.copyFrom(payload1), pkt1.packet.payload)
+      assertEquals(com.google.protobuf.ByteString.copyFrom(payload2), pkt2.packet.payload)
+    }
   }
 
   // =========================================================================
   // Helpers
   // =========================================================================
 
-  /**
-   * Builds a basic_table.p4 table entry: exact match on dst_addr, forward action with egress_port.
-   */
-  private fun buildBasicTableEntry(config: PipelineConfig, dstAddr: Long, port: Int): Entity {
-    val p4info = config.p4Info
-    val table = p4info.tablesList.first()
-    val forwardAction = p4info.actionsList.find { it.preamble.name.contains("forward") }!!
-
-    val matchField =
-      p4.v1.P4RuntimeOuterClass.FieldMatch.newBuilder()
-        .setFieldId(table.matchFieldsList.first().id)
-        .setExact(
-          p4.v1.P4RuntimeOuterClass.FieldMatch.Exact.newBuilder()
-            .setValue(
-              com.google.protobuf.ByteString.copyFrom(
-                longToBytes(dstAddr, (table.matchFieldsList.first().bitwidth + 7) / 8)
-              )
-            )
-        )
-        .build()
-
-    val actionParam =
-      p4.v1.P4RuntimeOuterClass.Action.Param.newBuilder()
-        .setParamId(forwardAction.paramsList.first().id)
-        .setValue(
-          com.google.protobuf.ByteString.copyFrom(
-            longToBytes(port.toLong(), (forwardAction.paramsList.first().bitwidth + 7) / 8)
-          )
-        )
-        .build()
-
-    val tableEntry =
-      p4.v1.P4RuntimeOuterClass.TableEntry.newBuilder()
-        .setTableId(table.preamble.id)
-        .addMatch(matchField)
-        .setAction(
-          p4.v1.P4RuntimeOuterClass.TableAction.newBuilder()
-            .setAction(
-              p4.v1.P4RuntimeOuterClass.Action.newBuilder()
-                .setActionId(forwardAction.preamble.id)
-                .addParams(actionParam)
-            )
-        )
-        .build()
-
-    return Entity.newBuilder().setTableEntry(tableEntry).build()
-  }
-
-  /** Builds a basic_table entry matching etherType → forward(port). */
+  /** Builds a table entry: exact match on the table's first field → forward(port). */
   @Suppress("MagicNumber")
-  private fun buildEtherTypeEntry(config: PipelineConfig, etherType: Int, port: Int): Entity {
+  private fun buildExactEntry(config: PipelineConfig, matchValue: Long, port: Int): Entity {
     val p4info = config.p4Info
     val table = p4info.tablesList.first()
     val forwardAction = p4info.actionsList.find { it.preamble.name.contains("forward") }!!
@@ -311,7 +253,7 @@ class P4RuntimeConformanceTest {
           p4.v1.P4RuntimeOuterClass.FieldMatch.Exact.newBuilder()
             .setValue(
               com.google.protobuf.ByteString.copyFrom(
-                longToBytes(etherType.toLong(), (matchField.bitwidth + 7) / 8)
+                longToBytes(matchValue, (matchField.bitwidth + 7) / 8)
               )
             )
         )

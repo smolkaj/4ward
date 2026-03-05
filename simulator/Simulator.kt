@@ -149,7 +149,7 @@ class Simulator {
     return SimResponse.newBuilder().setWriteEntry(WriteEntryResponse.getDefaultInstance()).build()
   }
 
-  @Suppress("UnusedParameter") // req will be used when read filters are implemented
+  @Suppress("UnusedParameter") // will be used when read filters are implemented
   private fun handleReadEntries(req: fourward.sim.v1.ReadEntriesRequest): SimResponse {
     val entities = tableStore.readAllEntities()
     return SimResponse.newBuilder()

@@ -8,10 +8,14 @@ import io.grpc.inprocess.InProcessChannelBuilder
 import io.grpc.inprocess.InProcessServerBuilder
 import java.io.Closeable
 import java.nio.file.Path
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.take
-import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.consumeAsFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import p4.v1.P4RuntimeGrpcKt.P4RuntimeCoroutineStub
 import p4.v1.P4RuntimeOuterClass.Entity
@@ -114,45 +118,79 @@ class P4RuntimeTestHarness : Closeable {
   // StreamChannel helpers
   // ---------------------------------------------------------------------------
 
+  /** Opens a persistent bidirectional stream. Callers should use [Closeable.use] for cleanup. */
+  fun openStream(): StreamSession = StreamSession()
+
   /**
-   * Performs master arbitration over a StreamChannel, sends a PacketOut, and collects the
-   * responses. Returns all StreamMessageResponse messages received (including the arbitration ack).
+   * Convenience: opens a stream, arbitrates, sends one PacketOut, and returns the responses.
+   *
+   * Use [openStream] for multi-packet scenarios.
    */
-  @Suppress("MagicNumber")
   fun sendPacketViaStream(
     payload: ByteArray,
     ingressPort: Int = 0,
-    expectedResponses: Int = 2, // 1 arbitration ack + 1 packet_in per output
-  ): List<StreamMessageResponse> = runBlocking {
-    val requestFlow = MutableSharedFlow<StreamMessageRequest>(replay = 16)
+    expectedResponses: Int = 2,
+  ): List<StreamMessageResponse> =
+    openStream().use { session ->
+      val responses = mutableListOf<StreamMessageResponse>()
+      responses.add(session.arbitrate())
+      if (expectedResponses > 1 && payload.isNotEmpty()) {
+        session.sendPacket(payload, ingressPort)?.let { responses.add(it) }
+      }
+      responses
+    }
 
-    // Arbitration: become master.
-    requestFlow.emit(
-      StreamMessageRequest.newBuilder()
-        .setArbitration(
-          MasterArbitrationUpdate.newBuilder()
-            .setDeviceId(1)
-            .setElectionId(Uint128.newBuilder().setHigh(0).setLow(1))
-        )
-        .build()
-    )
+  /**
+   * A persistent bidirectional StreamChannel session.
+   *
+   * Call [arbitrate] once to become master, then [sendPacket] for each packet. The session
+   * maintains a single gRPC stream, avoiding re-arbitration per packet.
+   */
+  inner class StreamSession : Closeable {
+    private val scope = CoroutineScope(Dispatchers.Default)
+    private val requestChannel = Channel<StreamMessageRequest>(Channel.UNLIMITED)
+    private val responseChannel = Channel<StreamMessageResponse>(Channel.UNLIMITED)
 
-    // PacketOut.
-    val packetOut =
-      PacketOut.newBuilder()
-        .setPayload(ByteString.copyFrom(payload))
-        .addMetadata(
-          p4.v1.P4RuntimeOuterClass.PacketMetadata.newBuilder()
-            .setMetadataId(1) // ingress_port
-            .setValue(ByteString.copyFrom(byteArrayOf(ingressPort.toByte())))
-        )
-        .build()
-    requestFlow.emit(StreamMessageRequest.newBuilder().setPacket(packetOut).build())
+    private val job =
+      scope.launch {
+        stub.streamChannel(requestChannel.consumeAsFlow()).collect { responseChannel.send(it) }
+      }
 
-    val responseFlow = stub.streamChannel(requestFlow.take(2))
+    fun arbitrate(deviceId: Long = 1, electionId: Long = 1): StreamMessageResponse = runBlocking {
+      requestChannel.send(
+        StreamMessageRequest.newBuilder()
+          .setArbitration(
+            MasterArbitrationUpdate.newBuilder()
+              .setDeviceId(deviceId)
+              .setElectionId(Uint128.newBuilder().setHigh(0).setLow(electionId))
+          )
+          .build()
+      )
+      withTimeout(STREAM_TIMEOUT_MS) { responseChannel.receive() }
+    }
 
-    withTimeoutOrNull(STREAM_TIMEOUT_MS) { responseFlow.take(expectedResponses).toList() }
-      ?: emptyList()
+    @Suppress("MagicNumber")
+    fun sendPacket(payload: ByteArray, ingressPort: Int = 0): StreamMessageResponse? = runBlocking {
+      requestChannel.send(
+        StreamMessageRequest.newBuilder()
+          .setPacket(
+            PacketOut.newBuilder()
+              .setPayload(ByteString.copyFrom(payload))
+              .addMetadata(
+                p4.v1.P4RuntimeOuterClass.PacketMetadata.newBuilder()
+                  .setMetadataId(1) // ingress_port
+                  .setValue(portToBytes(ingressPort))
+              )
+          )
+          .build()
+      )
+      withTimeoutOrNull(STREAM_TIMEOUT_MS) { responseChannel.receive() }
+    }
+
+    override fun close() {
+      requestChannel.close()
+      scope.cancel()
+    }
   }
 
   override fun close() {
@@ -162,5 +200,13 @@ class P4RuntimeTestHarness : Closeable {
 
   companion object {
     private const val STREAM_TIMEOUT_MS = 5000L
+
+    /** Minimum-width unsigned big-endian encoding of a port number. */
+    private fun portToBytes(port: Int): ByteString {
+      val bytes = ByteArray(4) { i -> (port shr ((3 - i) * 8) and 0xFF).toByte() }
+      val firstNonZero = bytes.indexOfFirst { it != 0.toByte() }
+      val start = if (firstNonZero < 0) 3 else firstNonZero
+      return ByteString.copyFrom(bytes, start, bytes.size - start)
+    }
   }
 }
