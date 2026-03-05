@@ -1,10 +1,5 @@
 # Expected trace tree for no_fork: zero-fork tree (no ForkNode).
 # Parser transition + table hit + action execution — nothing else.
-#
-# TODO(PR 2): update to match actual simulator output. Known diffs:
-# - table/action names use p4info aliases ("routing", "forward"), not
-#   qualified names ("MyIngress.routing", "MyIngress.forward")
-# - table_lookup.matched_entry is populated on hit (omitted here)
 events {
   parser_transition {
     parser_name: "MyParser"
@@ -14,14 +9,35 @@ events {
 }
 events {
   table_lookup {
-    table_name: "MyIngress.routing"
+    table_name: "routing"
     hit: true
-    action_name: "MyIngress.forward"
+    matched_entry {
+      table_id: 34192369
+      match {
+        field_id: 1
+        exact {
+          value: "\377\377\377\377\377\377"
+        }
+      }
+      action {
+        action {
+          action_id: 29683729
+          params {
+            param_id: 1
+            value: "\000\001"
+          }
+        }
+      }
+    }
+    action_name: "forward"
   }
 }
 events {
   action_execution {
-    action_name: "MyIngress.forward"
-    params { key: "port" value: "\000\001" }
+    action_name: "forward"
+    params {
+      key: "port"
+      value: "\000\001"
+    }
   }
 }
