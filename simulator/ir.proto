@@ -363,7 +363,8 @@ message Expr {
     UnaryOp unary_op = 9;
     MethodCall method_call = 10;
     TableApplyExpr table_apply = 11;
-    MuxExpr mux = 12;  // condition ? then_expr : else_expr
+    MuxExpr mux = 12;             // condition ? then_expr : else_expr
+    StructExpr struct_expr = 13;  // { field1, field2, ... }
   }
 
   Type type = 100;  // always present
@@ -374,6 +375,17 @@ message MuxExpr {
   Expr condition = 1;
   Expr then_expr = 2;
   Expr else_expr = 3;
+}
+
+// Struct/tuple literal expression: { field1 = expr1, field2 = expr2, ... }
+// Used by externs like verify_checksum whose data argument is a list expression
+// that p4c lowers to a StructExpression.
+message StructExpr {
+  repeated StructExprField fields = 1;
+}
+message StructExprField {
+  string name = 1;
+  Expr value = 2;
 }
 
 message Literal {

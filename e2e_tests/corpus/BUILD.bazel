@@ -31,6 +31,8 @@ corpus_test_suite(
         "arith5-bmv2",
         "array-copy-bmv2",
         "bvec-hdr-bmv2",
+        "checksum2-bmv2",
+        "checksum3-bmv2",
         "default-action-arg-bmv2",
         "default_action-bmv2",
         "equality-varbit-bmv2",
@@ -161,6 +163,7 @@ corpus_test_suite(
         "issue561-6-bmv2",
         "issue561-7-bmv2",
         "issue635-bmv2",
+        "issue655-bmv2",
         "issue774-4-bmv2",
         "issue983-bmv2",
         "issue995-bmv2",
@@ -206,7 +209,7 @@ corpus_test_suite(
         "constant-in-calculation-bmv2",  # unhandled extern call: hash
         "enum-bmv2",  # missing ConvertEnums midend pass
         "extern-funcs-bmv2",  # unhandled extern call: extern_func
-        "ipv6-switch-ml-bmv2",  # multicast replication not implemented
+        "ipv6-switch-ml-bmv2",  # 128-bit IPv6 address slicing mismatch
     ],
 )
 
@@ -278,14 +281,11 @@ corpus_test_suite(
     name = "other_stf_corpus_test",
     tags = ["manual"],
     tests = [
-        "checksum2-bmv2",  # unhandled extern call: verify_checksum
-        "checksum3-bmv2",  # unhandled extern call: update_checksum
         "header-stack-ops-bmv2",  # unhandled extern call: push_front/pop_front
         "issue1049-bmv2",  # unhandled extern call: hash
-        "issue655-bmv2",  # unhandled extern call: verify_checksum
         "table-entries-priority-bmv2",  # BMv2 @priority uses lower-is-better; P4Runtime uses higher-is-better
         "ternary2-bmv2",  # per-table action specialization lost (single p4info action ID)
-        "v1model-special-ops-bmv2",  # unhandled extern call: verify_checksum
+        "v1model-special-ops-bmv2",  # needs resubmit/recirculate
     ],
 )
 

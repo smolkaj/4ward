@@ -159,7 +159,6 @@ class V1ModelArchitecture : Architecture {
    */
   private fun initPipelineState(ctx: PipelineContext, decisions: ForkDecisions): PipelineState {
     val packetCtx = PacketContext(ctx.payload)
-    val interpreter = Interpreter(ctx.config, ctx.tableStore, packetCtx, decisions)
     val env = Environment()
     val config = ctx.config
     val typesByName = config.typesList.associateBy { it.name }
@@ -189,6 +188,11 @@ class V1ModelArchitecture : Architecture {
     standardMetadata.fields["ingress_port"] = BitVal(ctx.ingressPort.toLong(), PORT_BITS)
     standardMetadata.fields["packet_length"] = BitVal(ctx.payload.size.toLong(), INT32_BITS)
     standardMetadata.fields["parser_error"] = ErrorVal("NoError")
+
+    val interpreter =
+      Interpreter(ctx.config, ctx.tableStore, packetCtx, decisions) {
+        standardMetadata.fields["checksum_error"] = BitVal(1L, 1)
+      }
 
     val sharedByType =
       mapOf(

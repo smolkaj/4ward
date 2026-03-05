@@ -282,6 +282,13 @@ fourward::ir::v1::Expr FourWardBackend::emitExpr(const IR::Expression* expr) {
     for (const auto* arg : *mc->arguments) {
       *call->add_args() = emitExpr(arg->expression);
     }
+  } else if (const auto* se = expr->to<IR::StructExpression>()) {
+    auto* s = out.mutable_struct_expr();
+    for (const auto* comp : se->components) {
+      auto* field = s->add_fields();
+      field->set_name(comp->name.name.c_str());
+      *field->mutable_value() = emitExpr(comp->expression);
+    }
   } else {
     LOG1("WARNING: unhandled expression " << expr->node_type_name());
   }
