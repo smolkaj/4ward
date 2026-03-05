@@ -76,9 +76,9 @@ with pattern matching are tailor-made for tree-walking interpreters.
 - **Python?** Weak type system, slow test execution.
 - **Java?** Kotlin, but worse. Verbose, no sealed `when`, no data classes.
 
-The p4c backend is still C++ (because p4c is C++). The two halves communicate
-through a language-neutral protobuf IR — the simulator's language choice doesn't
-ripple into the ecosystem.
+You don't need to know Kotlin to use 4ward. The p4c backend is C++, and the two
+halves communicate through a language-neutral protobuf IR — the language choice
+is invisible to users and the wider P4 ecosystem.
 
 ## Quick start
 
