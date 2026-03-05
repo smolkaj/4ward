@@ -6,7 +6,7 @@ events {
   }
   source_info {
     file: "e2e_tests/trace_tree/clone_last_wins.p4"
-    line: 881
+    line: 22
     column: 10
     source_fragment: "start"
   }
@@ -17,7 +17,7 @@ events {
   }
   source_info {
     file: "e2e_tests/trace_tree/clone_last_wins.p4"
-    line: 894
+    line: 35
     column: 8
     source_fragment: "clone(CloneType.I2E, 32w200)"
   }
@@ -28,7 +28,7 @@ events {
   }
   source_info {
     file: "e2e_tests/trace_tree/clone_last_wins.p4"
-    line: 895
+    line: 36
     column: 8
     source_fragment: "clone(CloneType.I2E, 32w100)"
   }

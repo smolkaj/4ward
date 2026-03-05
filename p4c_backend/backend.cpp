@@ -311,7 +311,7 @@ fourward::ir::v1::SourceInfo FourWardBackend::emitSourceInfo(
   auto si = node->getSourceInfo();
   if (si.isValid()) {
     out.set_file(si.getSourceFile().c_str());
-    out.set_line(si.getStart().getLineNumber());
+    out.set_line(si.toPosition().sourceLine);
     out.set_column(si.getStart().getColumnNumber());
   }
   out.set_source_fragment(node->toString().c_str());

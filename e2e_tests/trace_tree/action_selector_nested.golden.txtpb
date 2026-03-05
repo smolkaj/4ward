@@ -6,7 +6,7 @@ events {
   }
   source_info {
     file: "e2e_tests/trace_tree/action_selector_nested.p4"
-    line: 881
+    line: 22
     column: 10
     source_fragment: "start"
   }
@@ -31,7 +31,7 @@ events {
   }
   source_info {
     file: "e2e_tests/trace_tree/action_selector_nested.p4"
-    line: 921
+    line: 62
     column: 8
     source_fragment: "stage1.apply()"
   }
@@ -51,7 +51,7 @@ fork_outcome {
         }
         source_info {
           file: "e2e_tests/trace_tree/action_selector_nested.p4"
-          line: 921
+          line: 62
           column: 8
           source_fragment: "stage1.apply()"
         }
@@ -76,7 +76,7 @@ fork_outcome {
         }
         source_info {
           file: "e2e_tests/trace_tree/action_selector_nested.p4"
-          line: 922
+          line: 63
           column: 8
           source_fragment: "stage2.apply()"
         }
@@ -96,7 +96,7 @@ fork_outcome {
               }
               source_info {
                 file: "e2e_tests/trace_tree/action_selector_nested.p4"
-                line: 922
+                line: 63
                 column: 8
                 source_fragment: "stage2.apply()"
               }
@@ -122,7 +122,7 @@ fork_outcome {
               }
               source_info {
                 file: "e2e_tests/trace_tree/action_selector_nested.p4"
-                line: 922
+                line: 63
                 column: 8
                 source_fragment: "stage2.apply()"
               }
@@ -151,7 +151,7 @@ fork_outcome {
         }
         source_info {
           file: "e2e_tests/trace_tree/action_selector_nested.p4"
-          line: 921
+          line: 62
           column: 8
           source_fragment: "stage1.apply()"
         }
@@ -176,7 +176,7 @@ fork_outcome {
         }
         source_info {
           file: "e2e_tests/trace_tree/action_selector_nested.p4"
-          line: 922
+          line: 63
           column: 8
           source_fragment: "stage2.apply()"
         }
@@ -196,7 +196,7 @@ fork_outcome {
               }
               source_info {
                 file: "e2e_tests/trace_tree/action_selector_nested.p4"
-                line: 922
+                line: 63
                 column: 8
                 source_fragment: "stage2.apply()"
               }
@@ -222,7 +222,7 @@ fork_outcome {
               }
               source_info {
                 file: "e2e_tests/trace_tree/action_selector_nested.p4"
-                line: 922
+                line: 63
                 column: 8
                 source_fragment: "stage2.apply()"
               }

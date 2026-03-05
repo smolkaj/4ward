@@ -6,7 +6,7 @@ events {
   }
   source_info {
     file: "e2e_tests/trace_tree/multicast_drop_replica.p4"
-    line: 881
+    line: 22
     column: 10
     source_fragment: "start"
   }
@@ -23,7 +23,7 @@ fork_outcome {
         }
         source_info {
           file: "e2e_tests/trace_tree/multicast_drop_replica.p4"
-          line: 900
+          line: 41
           column: 8
           source_fragment: "IfStatement"
         }
@@ -46,7 +46,7 @@ fork_outcome {
         }
         source_info {
           file: "e2e_tests/trace_tree/multicast_drop_replica.p4"
-          line: 900
+          line: 41
           column: 8
           source_fragment: "IfStatement"
         }
@@ -57,7 +57,7 @@ fork_outcome {
         }
         source_info {
           file: "e2e_tests/trace_tree/multicast_drop_replica.p4"
-          line: 901
+          line: 42
           column: 12
           source_fragment: "mark_to_drop(smeta)"
         }
@@ -80,7 +80,7 @@ fork_outcome {
         }
         source_info {
           file: "e2e_tests/trace_tree/multicast_drop_replica.p4"
-          line: 900
+          line: 41
           column: 8
           source_fragment: "IfStatement"
         }

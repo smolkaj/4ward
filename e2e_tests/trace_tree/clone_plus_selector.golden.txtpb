@@ -6,7 +6,7 @@ events {
   }
   source_info {
     file: "e2e_tests/trace_tree/clone_plus_selector.p4"
-    line: 882
+    line: 23
     column: 10
     source_fragment: "start"
   }
@@ -17,7 +17,7 @@ events {
   }
   source_info {
     file: "e2e_tests/trace_tree/clone_plus_selector.p4"
-    line: 910
+    line: 51
     column: 8
     source_fragment: "clone(CloneType.I2E, 32w100)"
   }
@@ -42,7 +42,7 @@ events {
   }
   source_info {
     file: "e2e_tests/trace_tree/clone_plus_selector.p4"
-    line: 911
+    line: 52
     column: 8
     source_fragment: "ecmp.apply()"
   }
@@ -62,7 +62,7 @@ fork_outcome {
         }
         source_info {
           file: "e2e_tests/trace_tree/clone_plus_selector.p4"
-          line: 911
+          line: 52
           column: 8
           source_fragment: "ecmp.apply()"
         }
@@ -107,7 +107,7 @@ fork_outcome {
         }
         source_info {
           file: "e2e_tests/trace_tree/clone_plus_selector.p4"
-          line: 911
+          line: 52
           column: 8
           source_fragment: "ecmp.apply()"
         }

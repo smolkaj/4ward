@@ -6,7 +6,7 @@ events {
   }
   source_info {
     file: "e2e_tests/trace_tree/action_selector_3.p4"
-    line: 881
+    line: 22
     column: 10
     source_fragment: "start"
   }
@@ -31,7 +31,7 @@ events {
   }
   source_info {
     file: "e2e_tests/trace_tree/action_selector_3.p4"
-    line: 908
+    line: 49
     column: 12
     source_fragment: "ecmp.apply()"
   }
@@ -51,7 +51,7 @@ fork_outcome {
         }
         source_info {
           file: "e2e_tests/trace_tree/action_selector_3.p4"
-          line: 908
+          line: 49
           column: 12
           source_fragment: "ecmp.apply()"
         }
@@ -77,7 +77,7 @@ fork_outcome {
         }
         source_info {
           file: "e2e_tests/trace_tree/action_selector_3.p4"
-          line: 908
+          line: 49
           column: 12
           source_fragment: "ecmp.apply()"
         }
@@ -103,7 +103,7 @@ fork_outcome {
         }
         source_info {
           file: "e2e_tests/trace_tree/action_selector_3.p4"
-          line: 908
+          line: 49
           column: 12
           source_fragment: "ecmp.apply()"
         }

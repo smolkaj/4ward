@@ -6,7 +6,7 @@ events {
   }
   source_info {
     file: "e2e_tests/trace_tree/selector_exit.p4"
-    line: 883
+    line: 24
     column: 10
     source_fragment: "start"
   }
@@ -31,7 +31,7 @@ events {
   }
   source_info {
     file: "e2e_tests/trace_tree/selector_exit.p4"
-    line: 919
+    line: 60
     column: 8
     source_fragment: "selector_table.apply()"
   }
@@ -51,7 +51,7 @@ fork_outcome {
         }
         source_info {
           file: "e2e_tests/trace_tree/selector_exit.p4"
-          line: 919
+          line: 60
           column: 8
           source_fragment: "selector_table.apply()"
         }
@@ -79,7 +79,7 @@ fork_outcome {
         }
         source_info {
           file: "e2e_tests/trace_tree/selector_exit.p4"
-          line: 920
+          line: 61
           column: 8
           source_fragment: "after_selector.apply()"
         }
@@ -90,7 +90,7 @@ fork_outcome {
         }
         source_info {
           file: "e2e_tests/trace_tree/selector_exit.p4"
-          line: 920
+          line: 61
           column: 8
           source_fragment: "after_selector.apply()"
         }
@@ -116,7 +116,7 @@ fork_outcome {
         }
         source_info {
           file: "e2e_tests/trace_tree/selector_exit.p4"
-          line: 919
+          line: 60
           column: 8
           source_fragment: "selector_table.apply()"
         }

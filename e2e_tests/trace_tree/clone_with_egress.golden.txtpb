@@ -6,7 +6,7 @@ events {
   }
   source_info {
     file: "e2e_tests/trace_tree/clone_with_egress.p4"
-    line: 883
+    line: 24
     column: 10
     source_fragment: "start"
   }
@@ -17,7 +17,7 @@ events {
   }
   source_info {
     file: "e2e_tests/trace_tree/clone_with_egress.p4"
-    line: 896
+    line: 37
     column: 8
     source_fragment: "clone3(CloneType.I2E, 32w100, {})"
   }
@@ -50,7 +50,7 @@ fork_outcome {
         }
         source_info {
           file: "e2e_tests/trace_tree/clone_with_egress.p4"
-          line: 914
+          line: 55
           column: 12
           source_fragment: "egress_classify.apply()"
         }
@@ -61,7 +61,7 @@ fork_outcome {
         }
         source_info {
           file: "e2e_tests/trace_tree/clone_with_egress.p4"
-          line: 914
+          line: 55
           column: 12
           source_fragment: "egress_classify.apply()"
         }
@@ -100,7 +100,7 @@ fork_outcome {
         }
         source_info {
           file: "e2e_tests/trace_tree/clone_with_egress.p4"
-          line: 914
+          line: 55
           column: 12
           source_fragment: "egress_classify.apply()"
         }
@@ -111,7 +111,7 @@ fork_outcome {
         }
         source_info {
           file: "e2e_tests/trace_tree/clone_with_egress.p4"
-          line: 914
+          line: 55
           column: 12
           source_fragment: "egress_classify.apply()"
         }

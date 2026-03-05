@@ -6,7 +6,7 @@ events {
   }
   source_info {
     file: "e2e_tests/trace_tree/multicast_selector.p4"
-    line: 882
+    line: 23
     column: 10
     source_fragment: "start"
   }
@@ -36,7 +36,7 @@ fork_outcome {
         }
         source_info {
           file: "e2e_tests/trace_tree/multicast_selector.p4"
-          line: 917
+          line: 58
           column: 12
           source_fragment: "egress_selector.apply()"
         }
@@ -52,7 +52,7 @@ fork_outcome {
               }
               source_info {
                 file: "e2e_tests/trace_tree/multicast_selector.p4"
-                line: 917
+                line: 58
                 column: 12
                 source_fragment: "egress_selector.apply()"
               }
@@ -74,7 +74,7 @@ fork_outcome {
               }
               source_info {
                 file: "e2e_tests/trace_tree/multicast_selector.p4"
-                line: 917
+                line: 58
                 column: 12
                 source_fragment: "egress_selector.apply()"
               }
@@ -113,7 +113,7 @@ fork_outcome {
         }
         source_info {
           file: "e2e_tests/trace_tree/multicast_selector.p4"
-          line: 917
+          line: 58
           column: 12
           source_fragment: "egress_selector.apply()"
         }
@@ -129,7 +129,7 @@ fork_outcome {
               }
               source_info {
                 file: "e2e_tests/trace_tree/multicast_selector.p4"
-                line: 917
+                line: 58
                 column: 12
                 source_fragment: "egress_selector.apply()"
               }
@@ -151,7 +151,7 @@ fork_outcome {
               }
               source_info {
                 file: "e2e_tests/trace_tree/multicast_selector.p4"
-                line: 917
+                line: 58
                 column: 12
                 source_fragment: "egress_selector.apply()"
               }

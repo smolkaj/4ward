@@ -6,7 +6,7 @@ events {
   }
   source_info {
     file: "e2e_tests/trace_tree/clone_and_multicast.p4"
-    line: 882
+    line: 23
     column: 10
     source_fragment: "start"
   }
@@ -17,7 +17,7 @@ events {
   }
   source_info {
     file: "e2e_tests/trace_tree/clone_and_multicast.p4"
-    line: 894
+    line: 35
     column: 8
     source_fragment: "clone(CloneType.I2E, 32w100)"
   }

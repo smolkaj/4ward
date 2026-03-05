@@ -6,7 +6,7 @@ events {
   }
   source_info {
     file: "e2e_tests/trace_tree/no_fork.p4"
-    line: 881
+    line: 22
     column: 10
     source_fragment: "start"
   }
@@ -37,7 +37,7 @@ events {
   }
   source_info {
     file: "e2e_tests/trace_tree/no_fork.p4"
-    line: 900
+    line: 41
     column: 12
     source_fragment: "routing.apply()"
   }
@@ -52,7 +52,7 @@ events {
   }
   source_info {
     file: "e2e_tests/trace_tree/no_fork.p4"
-    line: 900
+    line: 41
     column: 12
     source_fragment: "routing.apply()"
   }
