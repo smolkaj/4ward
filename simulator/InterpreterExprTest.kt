@@ -8,6 +8,7 @@ import fourward.ir.v1.Cast
 import fourward.ir.v1.Concat
 import fourward.ir.v1.Expr
 import fourward.ir.v1.FieldAccess
+import fourward.ir.v1.IntType
 import fourward.ir.v1.Literal
 import fourward.ir.v1.MethodCall
 import fourward.ir.v1.MuxExpr
@@ -50,6 +51,13 @@ class InterpreterExprTest {
       .setType(Type.newBuilder().setBit(BitType.newBuilder().setWidth(width)))
       .build()
 
+  /** Signed integer literal of [value] in [width] bits. */
+  private fun signedBit(value: Long, width: Int): Expr =
+    Expr.newBuilder()
+      .setLiteral(Literal.newBuilder().setInteger(value))
+      .setType(Type.newBuilder().setSignedInt(IntType.newBuilder().setWidth(width)))
+      .build()
+
   private fun boolLit(v: Boolean): Expr =
     Expr.newBuilder()
       .setLiteral(Literal.newBuilder().setBoolean(v))
@@ -78,6 +86,15 @@ class InterpreterExprTest {
   @Test
   fun `integer literal evaluates to BitVal`() {
     assertEquals(BitVal(42, 8), interp().evalExpr(bit(42, 8), emptyEnv))
+  }
+
+  @Test
+  fun `signed integer literal evaluates to IntVal`() {
+    val result = interp().evalExpr(signedBit(42, 8), emptyEnv)
+    assertEquals(
+      IntVal(SignedBitVector.fromUnsignedBits(java.math.BigInteger.valueOf(42), 8)),
+      result,
+    )
   }
 
   @Test

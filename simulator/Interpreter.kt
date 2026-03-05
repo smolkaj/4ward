@@ -252,12 +252,19 @@ class Interpreter(
       lit.hasErrorMember() -> ErrorVal(lit.errorMember)
       lit.hasInteger() -> {
         val v = BigInteger.valueOf(lit.integer.toLong())
-        if (type.hasBit()) BitVal(BitVector(v, type.bit.width))
-        else InfIntVal(v) // compile-time constant integer (P4 spec §8.1)
+        when {
+          type.hasBit() -> BitVal(BitVector(v, type.bit.width))
+          type.hasSignedInt() -> IntVal(SignedBitVector.fromUnsignedBits(v, type.signedInt.width))
+          else -> InfIntVal(v) // compile-time constant integer (P4 spec §8.1)
+        }
       }
       lit.hasBigInteger() -> {
-        val width = type.bit.width
-        BitVal(BitVector(BigInteger(1, lit.bigInteger.toByteArray()), width))
+        val v = BigInteger(1, lit.bigInteger.toByteArray())
+        when {
+          type.hasSignedInt() -> IntVal(SignedBitVector.fromUnsignedBits(v, type.signedInt.width))
+          type.hasBit() -> BitVal(BitVector(v, type.bit.width))
+          else -> error("big integer literal with unexpected type: $type")
+        }
       }
       else -> error("unhandled literal kind: $lit")
     }
