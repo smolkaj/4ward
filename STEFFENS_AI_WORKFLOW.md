@@ -25,27 +25,31 @@ claude --dangerously-skip-permissions
 Your job is to steer its attention, not transfer your understanding.
 
 ## After submitting a PR
-- What's next?
+- "What's next?"
   - *Leverages the agents valuable context instead of discarding it!*
-- Let's zoom out and talk big picture. Where are we? Where are we going?
+- "Let's zoom out and talk big picture. Where are we? Where are we going?"
   — *Forces the AI to reconstruct the big picture from the codebase itself.*
 
 ## Reviewing the AIs code
-- In hindsight, anything you'd refactor?
+- "In hindsight, anything you'd refactor?"
   — *Leverages the context the AI already built during implementation to self-critique.*
-- Do we need to add unit tests?
-- Do we need to update documentation?
-- /simplify
+- "Do we need to add unit tests?"
+  - *The AI knows better than you, unless you are willing to read all its code!*
+- "Do we need to update documentation?"
+  - *The AI knows better than you, unless you are willing to read all its code!*
+- "/simplify"
+- Most of the time, I don't try to understand the AIs code. Most of the time, I don't even read it.
+- "Check CI and merge once it passes."
 
 ## Letting the AI do Code Reviews
-- Review this PR
-- Do you understand the intent of this PR?
+- "Review this PR"
+- "Do you understand the intent of this PR?"
   — *Makes the AI prove it has the right context before you trust its review.*
-- Is this the most optimal way to do it?
-- What would be a better way?
-- Have you looked into this part, this part, this part (point to relevant parts)
+- "Is this the most optimal way to do it?"
+- "What would be a better way?"
+- "Have you looked into this part, this part, this part" (point to relevant parts)
   — *You're directing attention, not explaining.*
-- Could we do even better if we did a refactor?
+- "Could we do even better if we did a refactor?"
 
 
 ## Resources
