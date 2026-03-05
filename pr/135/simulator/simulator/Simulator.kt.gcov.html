@@ -35,22 +35,22 @@ Unchanged code was tested before and is still tested">Covered</td>
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryMed">89.0&nbsp;%</td>
+            <td class="headerCovTableEntryHi">94.5&nbsp;%</td>
             <td class="headerCovTableEntry">73</td>
-            <td class="headerCovTableEntry">65</td>
-            <td class="headerCovTableEntry"><a href="#L34" title="goto first UBC">8</a></td>
-            <td class="headerCovTableEntry"><a href="#L23" title="goto first CBC">65</a></td>
+            <td class="headerCovTableEntry">69</td>
+            <td class="headerCovTableEntry"><a href="#L34" title="goto first UBC">4</a></td>
+            <td class="headerCovTableEntry"><a href="#L23" title="goto first CBC">69</a></td>
           </tr>
           <tr>
             <td class="headerItem">Current Date:</td>
-            <td class="headerValue">2026-03-05 09:40:55</td>
+            <td class="headerValue">2026-03-05 09:50:40</td>
             <td></td>
             <td class="headerItem">Functions:</td>
-            <td class="headerCovTableEntryLo">66.7&nbsp;%</td>
+            <td class="headerCovTableEntryMed">88.9&nbsp;%</td>
             <td class="headerCovTableEntry">9</td>
-            <td class="headerCovTableEntry">6</td>
-            <td class="headerCovTableEntry">3</td>
-            <td class="headerCovTableEntry">6</td>
+            <td class="headerCovTableEntry">8</td>
+            <td class="headerCovTableEntry">1</td>
+            <td class="headerCovTableEntry">8</td>
           </tr>
           <tr>
             <td class="headerItem">Baseline:</td>
@@ -59,7 +59,7 @@ Unchanged code was tested before and is still tested">Covered</td>
           </tr>
           <tr>
             <td class="headerItem">Baseline Date:</td>
-            <td class="headerValue">2026-03-05 09:36:58</td>
+            <td class="headerValue">2026-03-05 09:46:56</td>
             <td></td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
@@ -168,7 +168,7 @@ Unchanged code was tested before and is still tested">Covered</td>
 <span id="L88"><span class="lineNum">      88</span> <span class="tlaCBC">              1 :                 .build()</span></span>
 <span id="L89"><span class="lineNum">      89</span>                 :             }</span>
 <span id="L90"><span class="lineNum">      90</span> <a href="#L155" class="tlaBgUBC"  title="Next UBC group">Not covered</a><span class="tlaUBC tlaBgUBC">           0 :           else emptyList()</span></span>
-<span id="L91"><span class="lineNum">      91</span> <a href="#top" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :         tableStore.setDefaultAction(tableName, actionName, params)</span></span>
+<span id="L91"><span class="lineNum">      91</span> <a href="#L162" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :         tableStore.setDefaultAction(tableName, actionName, params)</span></span>
 <span id="L92"><span class="lineNum">      92</span>                 :       }</span>
 <span id="L93"><span class="lineNum">      93</span>                 :     }</span>
 <span id="L94"><span class="lineNum">      94</span>                 : </span>
@@ -239,10 +239,10 @@ Unchanged code was tested before and is still tested">Covered</td>
 <span id="L159"><span class="lineNum">     159</span>                 :   // Helpers</span>
 <span id="L160"><span class="lineNum">     160</span>                 :   // -------------------------------------------------------------------------</span>
 <span id="L161"><span class="lineNum">     161</span>                 : </span>
-<span id="L162"><span class="lineNum">     162</span> <span class="tlaUBC">              0 :   private fun simError(message: String, code: ErrorCode = ErrorCode.INTERNAL_ERROR): SimResponse =</span></span>
-<span id="L163"><span class="lineNum">     163</span> <span class="tlaUBC">              0 :     SimResponse.newBuilder()</span></span>
-<span id="L164"><span class="lineNum">     164</span> <span class="tlaUBC">              0 :       .setError(ErrorResponse.newBuilder().setMessage(message).setCode(code))</span></span>
-<span id="L165"><span class="lineNum">     165</span> <span class="tlaUBC">              0 :       .build()</span></span>
+<span id="L162"><span class="lineNum">     162</span> <a href="#top" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :   private fun simError(message: String, code: ErrorCode = ErrorCode.INTERNAL_ERROR): SimResponse =</span></span>
+<span id="L163"><span class="lineNum">     163</span> <span class="tlaCBC">              1 :     SimResponse.newBuilder()</span></span>
+<span id="L164"><span class="lineNum">     164</span> <span class="tlaCBC">              1 :       .setError(ErrorResponse.newBuilder().setMessage(message).setCode(code))</span></span>
+<span id="L165"><span class="lineNum">     165</span> <span class="tlaCBC">              1 :       .build()</span></span>
 <span id="L166"><span class="lineNum">     166</span>                 : }</span>
         </pre>
               </td>
