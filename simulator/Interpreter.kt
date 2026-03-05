@@ -743,22 +743,17 @@ class Interpreter(
     }
   }
 
-  /**
-   * If [expr] is a field access into a header union, enforce one-valid-at-a-time (P4 §8.20).
-   *
-   * When [parentOverride] is provided, uses it instead of re-evaluating the parent expression. This
-   * avoids double-evaluation of side-effecting expressions like `.next` on header stacks.
-   */
-  private fun invalidateUnionSiblings(
-    expr: Expr,
-    target: HeaderVal,
-    env: Environment,
-    parentOverride: StructVal? = null,
-  ) {
-    if (!expr.hasFieldAccess()) return
-    val parentType = expr.fieldAccess.expr.type
-    if (!parentType.hasNamed() || types[parentType.named]?.hasHeaderUnion() != true) return
-    val parent = parentOverride ?: (evalExpr(expr.fieldAccess.expr, env) as StructVal)
+  /** Whether [expr] is a field access into a header union. */
+  private fun isUnionFieldAccess(expr: Expr): Boolean =
+    expr.hasFieldAccess() &&
+      expr.fieldAccess.expr.type.let { t ->
+        t.hasNamed() && types[t.named]?.hasHeaderUnion() == true
+      }
+
+  /** If [expr] is a field access into a header union, enforce one-valid-at-a-time (P4 §8.20). */
+  private fun invalidateUnionSiblings(expr: Expr, target: HeaderVal, env: Environment) {
+    if (!isUnionFieldAccess(expr)) return
+    val parent = evalExpr(expr.fieldAccess.expr, env) as StructVal
     parent.invalidateUnionExcept(target)
   }
 
@@ -771,23 +766,21 @@ class Interpreter(
     // P4's don't-care extract `p.extract<T>(_)` compiles to extract(arg) where
     // `arg` is an undeclared temporary. Create a throw-away header to consume bytes.
     val arg = call.argsList[0]
-    // When the arg is a field access into a union (e.g. hdr.u.next.byte), evaluate
-    // the union parent once and cache it so invalidateUnionSiblings doesn't
-    // re-evaluate side-effecting expressions like `.next` on header stacks.
-    var unionParent: StructVal? = null
+    // When the arg is a field access into a union (e.g. hdr.u.next.byte), resolve the
+    // union parent once and invalidate siblings inline. This avoids re-evaluating
+    // side-effecting expressions like `.next` on header stacks.
+    var unionHandled = false
     val header =
       if (arg.hasNameRef() && env.lookup(arg.nameRef.name) == null && arg.type.hasNamed()) {
         defaultValue(arg.type.named, types) as? HeaderVal
           ?: error("type not found for don't-care extract: ${arg.type.named}")
-      } else if (
-        arg.hasFieldAccess() &&
-          arg.fieldAccess.expr.type.hasNamed() &&
-          types[arg.fieldAccess.expr.type.named]?.hasHeaderUnion() == true
-      ) {
-        // Parent is a header union — resolve it once and extract the member header.
+      } else if (isUnionFieldAccess(arg)) {
+        // Parent is a header union — resolve it once, invalidate siblings (P4 §8.20).
         val parent = evalExpr(arg.fieldAccess.expr, env) as StructVal
-        unionParent = parent
-        parent.fields[arg.fieldAccess.fieldName] as HeaderVal
+        val member = parent.fields[arg.fieldAccess.fieldName] as HeaderVal
+        parent.invalidateUnionExcept(member)
+        unionHandled = true
+        member
       } else {
         evalExpr(arg, env) as HeaderVal
       }
@@ -832,7 +825,7 @@ class Interpreter(
       newFields[field.name] = bitsToValue(field.type, raw, width)
       bitOffset += width
     }
-    invalidateUnionSiblings(call.argsList[0], header, env, unionParent)
+    if (!unionHandled) invalidateUnionSiblings(call.argsList[0], header, env)
     header.setValid(newFields)
     return UnitVal
   }
