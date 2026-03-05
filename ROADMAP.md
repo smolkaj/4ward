@@ -136,34 +136,26 @@ still pass.
 
 **Priority: medium — start now | Parallelizable: yes**
 
-A **P4Runtime reference implementation**: a gRPC server that speaks P4Runtime
-to controllers and forwards requests to the simulator. Beautiful, simple,
-correct, 100% spec-compliant.
+A gRPC server that speaks P4Runtime to controllers and forwards requests to
+the simulator. Goals:
 
-Beyond basic P4Runtime, the server must support features that BMv2 lacks and
-that SAI P4 requires:
-
-- **`@p4runtime_translation`** — bidirectional translation between
-  controller-facing values (e.g., string port names) and data-plane values
-  (e.g., integer port IDs). SAI P4 uses `@p4runtime_translation("", string)`
-  on all ID types including ports. The P4Runtime spec is underspecified here;
-  we'll need to fill in the gaps pragmatically, guided by SAI P4's
-  conventions.
-- **[p4-constraints](https://github.com/p4lang/p4-constraints)** — a
-  constraint language for validating table entries and action parameters at
-  write time (via `@entry_restriction` and `@action_restriction`
-  annotations). E.g., "VRF must be non-zero", "IPv4 prefix length 0..32".
-- **Strict validation** — enforce message validity rigorously. In `--strict`
-  mode, also enforce recommended (not just required) properties from the
-  P4Runtime spec.
-- **Actionable error messages** — when a Write fails, the error should tell
-  you exactly what's wrong and how to fix it. Not `INVALID_ARGUMENT`, but
+- **Correctness, simplicity, readability.** Not performance.
+- **100% spec-compliant.** Follow the P4Runtime spec to the letter.
+- **`@p4runtime_translation`.** Bidirectional translation between
+  controller-facing and data-plane values. SAI P4 translates all ID types
+  (including ports) to strings via `@p4runtime_translation("", string)`.
+  The spec is underspecified here; fill gaps guided by SAI P4 conventions.
+- **[p4-constraints](https://github.com/p4lang/p4-constraints).** Validate
+  table entries and action parameters against `@entry_restriction` and
+  `@action_restriction` annotations at write time.
+- **Strict validation.** Enforce message validity rigorously. `--strict`
+  mode additionally enforces recommended (not just required) properties.
+- **Actionable error messages.** Not `INVALID_ARGUMENT`, but
   `table 'ipv4_table' entry violates constraint: vrf_id must be non-zero`.
 
-**Done when:** SAI P4 can be loaded via `SetForwardingPipelineConfig`, table
-entries can be installed and validated (including p4-constraints and
-`@p4runtime_translation`), and packets can be sent and received via
-`StreamChannel` — all through standard P4Runtime gRPC.
+**Done when:** SAI P4 works end-to-end through standard P4Runtime:
+`SetForwardingPipelineConfig`, `Write` (with p4-constraints and
+`@p4runtime_translation` validation), `Read`, and `StreamChannel` packet I/O.
 
 ### Track 5: architecture expansion (PSA, then PNA/TNA)
 
