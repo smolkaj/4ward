@@ -67,6 +67,7 @@ kt_jvm_library(
         ["*.kt"],
         exclude = ["*Test.kt"],
     ),
+    visibility = ["//visibility:public"],
     deps = [
         ":ir_java_proto",
         ":p4runtime_java_proto",

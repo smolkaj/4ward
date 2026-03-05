@@ -10,6 +10,7 @@ genrule(
         "@p4c//:core_p4",
         "@p4c//:p4include",
     ],
+    visibility = ["//p4runtime:__pkg__"],
 )
 
 kt_jvm_test(
