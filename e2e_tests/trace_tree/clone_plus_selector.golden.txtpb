@@ -1,9 +1,6 @@
 # Expected trace tree for clone_plus_selector: clone fork + selector fork.
 # First fork at clone; within the "original" branch, a second fork at the
 # selector table.
-#
-# TODO(PR 4): populate clone subtree with actual egress pipeline events.
-# TODO(PR 3): update selector member labels/params once implemented.
 events {
   parser_transition {
     parser_name: "MyParser"
@@ -23,9 +20,21 @@ fork {
     subtree {
       events {
         table_lookup {
-          table_name: "MyIngress.ecmp"
+          table_name: "ecmp"
           hit: true
-          action_name: "MyIngress.set_port"
+          matched_entry {
+            table_id: 43283160
+            match {
+              field_id: 1
+              exact {
+                value: "\377\377\377\377\377\377"
+              }
+            }
+            action {
+              action_profile_group_id: 1
+            }
+          }
+          action_name: "set_port"
         }
       }
       fork {
@@ -35,8 +44,11 @@ fork {
           subtree {
             events {
               action_execution {
-                action_name: "MyIngress.set_port"
-                params { key: "port" value: "\000\001" }
+                action_name: "set_port"
+                params {
+                  key: "port"
+                  value: "\000\001"
+                }
               }
             }
           }
@@ -46,8 +58,11 @@ fork {
           subtree {
             events {
               action_execution {
-                action_name: "MyIngress.set_port"
-                params { key: "port" value: "\000\002" }
+                action_name: "set_port"
+                params {
+                  key: "port"
+                  value: "\000\002"
+                }
               }
             }
           }
@@ -58,7 +73,6 @@ fork {
   branches {
     label: "clone"
     subtree {
-      # Cloned packet enters the egress pipeline.
     }
   }
 }

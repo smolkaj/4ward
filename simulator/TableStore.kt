@@ -51,6 +51,11 @@ class TableStore {
   // tableName → action_profile_id (populated from p4info at load time)
   private val tableActionProfile: MutableMap<String, Int> = mutableMapOf()
 
+  // PRE (Packet Replication Engine) storage
+  private val cloneSessions: MutableMap<Int, P4RuntimeOuterClass.CloneSessionEntry> = mutableMapOf()
+  private val multicastGroups: MutableMap<Int, P4RuntimeOuterClass.MulticastGroupEntry> =
+    mutableMapOf()
+
   fun setForcedHit(tableName: String, actionName: String) {
     forcedHits[tableName] = actionName
   }
@@ -77,6 +82,8 @@ class TableStore {
     profileMembers.clear()
     profileGroups.clear()
     tableActionProfile.clear()
+    cloneSessions.clear()
+    multicastGroups.clear()
 
     // Register which tables use action profiles (implementation_id != 0).
     for (table in p4infoTables) {
@@ -114,6 +121,7 @@ class TableStore {
     when {
       entity.hasActionProfileMember() -> writeProfileMember(entity.actionProfileMember)
       entity.hasActionProfileGroup() -> writeProfileGroup(entity.actionProfileGroup)
+      entity.hasPacketReplicationEngineEntry() -> writePreEntry(entity.packetReplicationEngineEntry)
       else -> writeTableEntry(update)
     }
   }
@@ -143,6 +151,21 @@ class TableStore {
   private fun writeProfileGroup(group: P4RuntimeOuterClass.ActionProfileGroup) {
     profileGroups.getOrPut(group.actionProfileId) { mutableMapOf() }[group.groupId] = group
   }
+
+  private fun writePreEntry(pre: P4RuntimeOuterClass.PacketReplicationEngineEntry) {
+    when {
+      pre.hasCloneSessionEntry() ->
+        cloneSessions[pre.cloneSessionEntry.sessionId] = pre.cloneSessionEntry
+      pre.hasMulticastGroupEntry() ->
+        multicastGroups[pre.multicastGroupEntry.multicastGroupId] = pre.multicastGroupEntry
+    }
+  }
+
+  fun getCloneSession(sessionId: Int): P4RuntimeOuterClass.CloneSessionEntry? =
+    cloneSessions[sessionId]
+
+  fun getMulticastGroup(groupId: Int): P4RuntimeOuterClass.MulticastGroupEntry? =
+    multicastGroups[groupId]
 
   // -------------------------------------------------------------------------
   // Lookup

@@ -15,7 +15,6 @@ import fourward.ir.v1.Type
 import fourward.ir.v1.UnaryOperator
 import fourward.sim.v1.ActionExecutionEvent
 import fourward.sim.v1.BranchEvent
-import fourward.sim.v1.ForkReason
 import fourward.sim.v1.ParserTransitionEvent
 import fourward.sim.v1.TableLookupEvent
 import fourward.sim.v1.TraceEvent
@@ -36,7 +35,7 @@ class Interpreter(
   private val config: P4BehavioralConfig,
   private val tableStore: TableStore,
   private val packetCtx: PacketContext? = null,
-  private val forcedSelections: Map<String, Int> = emptyMap(),
+  private val decisions: ForkDecisions = ForkDecisions(),
 ) {
   private val parsers: Map<String, ParserDecl> = config.parsersList.associateBy { it.name }
 
@@ -594,7 +593,7 @@ class Interpreter(
     )
 
     if (result.members != null) {
-      val forced = forcedSelections[tableName]
+      val forced = decisions.selectorMembers[tableName]
       if (forced != null) {
         // Re-execution with a forced member — execute that member's action directly.
         val member =
@@ -604,12 +603,7 @@ class Interpreter(
         return TableResult(result.hit, member.actionName)
       }
       // First encounter: throw to let the architecture build the trace tree.
-      throw ForkException(
-        tableName,
-        ForkReason.ACTION_SELECTOR,
-        result.members,
-        packetCtx!!.getEvents(),
-      )
+      throw ActionSelectorFork(tableName, result.members, packetCtx!!.getEvents())
     }
 
     val params = result.entry?.action?.action?.paramsList ?: result.actionParams
@@ -709,6 +703,7 @@ class Interpreter(
   // Extern function calls  (method == "__call__", target is a NameRef)
   // -------------------------------------------------------------------------
 
+  @Suppress("ThrowsCount")
   private fun execExternCall(call: MethodCall, env: Environment): Value {
     val funcName = call.target.nameRef.name
     return when (funcName) {
@@ -725,6 +720,22 @@ class Interpreter(
         if (!condition) {
           val err = (evalExpr(call.argsList[1], env) as ErrorVal).member
           throw ParserErrorException(err, "verify failed: $err")
+        }
+        UnitVal
+      }
+      // clone(type, session) / clone3(type, session, data): P4 v1model I2E/E2E clone.
+      "clone",
+      "clone3" -> {
+        val sessionId = (evalExpr(call.argsList[1], env) as BitVal).bits.value.toInt()
+        packetCtx?.addTraceEvent(
+          TraceEvent.newBuilder()
+            .setClone(fourward.sim.v1.CloneEvent.newBuilder().setSessionId(sessionId))
+            .build()
+        )
+        when (decisions.cloneMode) {
+          CloneMode.THROW -> throw CloneFork(sessionId, packetCtx!!.getEvents())
+          CloneMode.SUPPRESS -> {} // already recorded event, continue normally
+          CloneMode.EXECUTE_CLONE -> throw JumpToEgressException()
         }
         UnitVal
       }
@@ -980,14 +991,43 @@ class ExitException : Exception()
 class ReturnException(val value: Value) : Exception()
 
 /**
- * Thrown when a table with an action selector implementation hits a group entry.
+ * Thrown at non-deterministic choice points to signal the architecture to fork the trace tree.
  *
- * The architecture catches this and re-executes the pipeline for each group member, building the
- * trace tree by stripping shared prefixes.
+ * The architecture catches this and re-executes the pipeline for each branch, building a tree by
+ * stripping shared prefix events.
  */
-class ForkException(
+sealed class ForkException(val eventsBeforeFork: List<TraceEvent>) : Exception()
+
+/** Fork at an action selector group hit — one branch per group member. */
+class ActionSelectorFork(
   val tableName: String,
-  val reason: ForkReason,
   val members: List<TableStore.MemberAction>,
-  val eventsBeforeFork: List<TraceEvent>,
-) : Exception()
+  eventsBeforeFork: List<TraceEvent>,
+) : ForkException(eventsBeforeFork)
+
+/** Fork at a clone() call — "original" and "clone" branches. */
+class CloneFork(val sessionId: Int, eventsBeforeFork: List<TraceEvent>) :
+  ForkException(eventsBeforeFork)
+
+/** Fork at the ingress→egress boundary when mcast_grp is set — one branch per replica. */
+class MulticastFork(val replicas: List<MulticastReplica>, eventsBeforeFork: List<TraceEvent>) :
+  ForkException(eventsBeforeFork)
+
+/** Thrown during clone-branch re-execution to skip remaining ingress and jump to egress. */
+class JumpToEgressException : Exception()
+
+/** Policies for re-execution of a pipeline branch in the trace tree. */
+data class ForkDecisions(
+  val selectorMembers: Map<String, Int> = emptyMap(),
+  val cloneMode: CloneMode = CloneMode.THROW,
+  val cloneSessionId: Int = 0,
+  val multicastReplica: MulticastReplica? = null,
+)
+
+enum class CloneMode {
+  THROW,
+  SUPPRESS,
+  EXECUTE_CLONE,
+}
+
+data class MulticastReplica(val rid: Int, val port: Int)

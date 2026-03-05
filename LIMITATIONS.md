@@ -30,10 +30,12 @@ guilt — just write it down so someone can find it later.
 
 - **`ReadEntries` is a stub.** The `ReadEntriesRequest` handler returns an
   empty response (`Simulator.kt:143`).
-- **No clone, resubmit, or recirculate.** `V1ModelArchitecture` defines the
-  stage pipeline but does not implement packet cloning, resubmission, or
-  recirculation. Packets are processed in a single ingress→egress pass.
-- **No multicast.** Multicast group replication is not implemented.
+- **Clone: I2E only, no metadata preservation.** `clone()` and `clone3()`
+  support ingress-to-egress cloning. E2E clone, `clone3` metadata field
+  lists, resubmit, and recirculate are not implemented.
+- **Multicast: basic replication only.** Multicast group replication works
+  for the trace tree (forking per replica). PRE entries are installed via
+  P4Runtime `PacketReplicationEngineEntry`.
 
 ## Header types
 

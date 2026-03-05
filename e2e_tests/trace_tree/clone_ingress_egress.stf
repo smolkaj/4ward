@@ -1,3 +1,4 @@
 # clone_ingress_egress.stf — clone3 from ingress to egress.
 
+mirroring_add 100 1
 packet 0 FFFFFFFFFFFF 000000000001 0800

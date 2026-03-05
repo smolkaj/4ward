@@ -536,6 +536,100 @@ class TableStoreTest {
   }
 
   // ---------------------------------------------------------------------------
+  // PRE: clone sessions and multicast groups
+  // ---------------------------------------------------------------------------
+
+  private fun writeCloneSession(sessionId: Int, egressPort: Int) {
+    store.write(
+      Update.newBuilder()
+        .setType(Update.Type.INSERT)
+        .setEntity(
+          Entity.newBuilder()
+            .setPacketReplicationEngineEntry(
+              P4RuntimeOuterClass.PacketReplicationEngineEntry.newBuilder()
+                .setCloneSessionEntry(
+                  P4RuntimeOuterClass.CloneSessionEntry.newBuilder()
+                    .setSessionId(sessionId)
+                    .addReplicas(P4RuntimeOuterClass.Replica.newBuilder().setEgressPort(egressPort))
+                )
+            )
+        )
+        .build()
+    )
+  }
+
+  private fun writeMulticastGroup(groupId: Int, replicas: List<Pair<Int, Int>>) {
+    store.write(
+      Update.newBuilder()
+        .setType(Update.Type.INSERT)
+        .setEntity(
+          Entity.newBuilder()
+            .setPacketReplicationEngineEntry(
+              P4RuntimeOuterClass.PacketReplicationEngineEntry.newBuilder()
+                .setMulticastGroupEntry(
+                  P4RuntimeOuterClass.MulticastGroupEntry.newBuilder()
+                    .setMulticastGroupId(groupId)
+                    .addAllReplicas(
+                      replicas.map { (rid, port) ->
+                        P4RuntimeOuterClass.Replica.newBuilder()
+                          .setInstance(rid)
+                          .setEgressPort(port)
+                          .build()
+                      }
+                    )
+                )
+            )
+        )
+        .build()
+    )
+  }
+
+  @Test
+  fun `clone session round-trip`() {
+    writeCloneSession(sessionId = 100, egressPort = 5)
+    val session = store.getCloneSession(100)
+    assertNotNull(session)
+    assertEquals(100, session!!.sessionId)
+    assertEquals(5, session.replicasList[0].egressPort)
+  }
+
+  @Test
+  fun `clone session miss returns null`() {
+    assertNull(store.getCloneSession(999))
+  }
+
+  @Test
+  fun `multicast group round-trip`() {
+    writeMulticastGroup(groupId = 1, replicas = listOf(0 to 1, 0 to 2, 0 to 3))
+    val group = store.getMulticastGroup(1)
+    assertNotNull(group)
+    assertEquals(1, group!!.multicastGroupId)
+    assertEquals(3, group.replicasCount)
+    assertEquals(1, group.replicasList[0].egressPort)
+    assertEquals(2, group.replicasList[1].egressPort)
+    assertEquals(3, group.replicasList[2].egressPort)
+  }
+
+  @Test
+  fun `multicast group miss returns null`() {
+    assertNull(store.getMulticastGroup(999))
+  }
+
+  @Test
+  fun `loadMappings clears PRE entries`() {
+    writeCloneSession(sessionId = 1, egressPort = 5)
+    writeMulticastGroup(groupId = 1, replicas = listOf(0 to 1))
+
+    store.loadMappings(
+      tableNameById = mapOf(TABLE_ID to TABLE_NAME),
+      actionNameById = ACTION_ID_TO_NAME,
+    )
+
+    assertNull(store.getCloneSession(1))
+    assertNull(store.getMulticastGroup(1))
+  }
+
+  // ---------------------------------------------------------------------------
   // Constants
   // ---------------------------------------------------------------------------
 

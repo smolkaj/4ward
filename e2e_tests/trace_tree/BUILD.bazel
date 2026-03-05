@@ -18,14 +18,9 @@ _P4_PROGRAMS = [
     "multicast",
 ]
 
-_PASSING = [
-    "action_selector_3",
-    "action_selector_miss",
-    "action_selector_nested",
-    "no_fork",
-]
+_PASSING = _P4_PROGRAMS
 
-_MANUAL = [p for p in _P4_PROGRAMS if p not in _PASSING]
+_MANUAL = []
 
 [genrule(
     name = "%s_pb" % name,
