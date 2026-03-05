@@ -1,37 +1,62 @@
 # 4ward — Status
 
-> Append-only log. Add new entries at the bottom; do not edit past entries.
+> Reverse-chronological log. Add new entries at the top (below this header).
 > See [ROADMAP.md](ROADMAP.md) for the big picture.
 
-## 2026-03-03
+## 2026-03-05
 
-**Day one.** Stood up the project end-to-end: proto IR, p4c backend, Kotlin
-simulator, STF test runner, CI pipeline, coverage reporting.
+Three big milestones: **v1model is essentially complete**, **trace trees are
+fully operational**, and **the project has a clear north star with a
+parallelizable roadmap**. The simulator now passes 94% of v1model corpus tests
+(up from 58% yesterday) and produces forking trace trees at every
+non-deterministic choice point — the feature that makes 4ward fundamentally
+better than BMv2 for dataplane validation.
 
-### What landed (PRs #1–#38)
+### v1model: 176/187 passing (~94%)
 
-- **Simulator core**: interpreter with v1model architecture support — tables
-  (exact, LPM, ternary), header manipulation, control flow (exit, switch,
-  nested tables), type casting, side effects, mux operator,
-  `table.apply().hit/.miss/.action_run`.
-- **p4c backend**: C++ plugin emitting proto IR from P4 source. Three
-  quick-wins (#27) jumped corpus pass rate from 26 to 90 tests: `**` wildcard
-  match, `standard_metadata_t` initialization, and `IR::ArrayIndex`.
-- **STF test infrastructure**: parameterized corpus harness batching 90+ tests
-  into a single JVM (#30), p4testgen integration for automated path-covering
-  tests (#36).
-- **CI/CD**: GitHub Actions with formatting, clang-tidy, build+test (Ubuntu +
-  macOS), JaCoCo coverage with differential reports on PRs, BuildBuddy remote
-  cache, self-hosted GitHub Pages coverage reports.
-- **Developer tooling**: `format.sh`, `lint.sh`, `coverage.sh`,
-  `diff-coverage.sh`, `dev.sh` runner, parallel-worktree `~/.bazelrc` docs.
+Went from 124 to 176 passing corpus tests in a single sprint. The remaining
+11 are mostly lookahead/advance (6 tests needing p4c backend work) plus 5
+scattered gaps. The v1model interpreter now handles the full breadth of P4
+features: all extern types (registers, counters, checksums, hashes), header
+unions and stacks with full push/pop/extract semantics, parser error recovery,
+and enum promotion through a new midend pass.
 
-### Where are we? Where are we going?
+### Trace trees: from schema to shipping
 
-90 corpus tests passing out of ~140 tracked. 6 hand-written feature tests
-(passthrough, basic_table, lpm_routing, ternary_acl, multi_table,
-switch_action_run). ~50 tests remain unclassified — need to test each one and
-sort into passing or failing.
+Trace trees went from a proto definition to a complete implementation in one
+day. The simulator now forks execution at action selectors, clone sessions,
+and multicast groups — producing a tree of all possible packet outcomes in a
+single pass. Every trace event carries source location info back to the P4
+source. All 7 golden tests pass (zero-fork, 3 selector variants, clone,
+clone+selector, multicast). This is the core differentiator for DVaaS
+integration: where BMv2 requires brittle hacks to extract non-deterministic
+behaviors, 4ward returns them natively.
+
+### Clear north star, parallelizable roadmap
+
+Defined the project's end state — replace BMv2 in DVaaS and fully support
+SAI P4 — and broke the path there into 5 independent tracks
+([ROADMAP.md](ROADMAP.md)). Tracks 1 (v1model), 3 (trace trees), and 4
+(P4Runtime) can all proceed in parallel with no cross-dependencies. This
+matters because it means multiple agents can work simultaneously on different
+tracks without stepping on each other. Supporting docs:
+[LIMITATIONS.md](LIMITATIONS.md), [REFACTORING.md](REFACTORING.md),
+[STEFFENS_AI_WORKFLOW.md](STEFFENS_AI_WORKFLOW.md).
+
+Also: fixed a coverage regression, added unit tests for core simulator files,
+documented BMv2 simple_switch as the v1model reference spec.
+
+### What's next
+
+- **Finish v1model corpus (1A)** — 11 tests to go. Lookahead/advance (6) is
+  the biggest cluster, needs p4c backend support for `lookahead()` return
+  values.
+- **Unpin p4testgen (1B)** — 6 programs running but pinned to `max_tests=1`.
+  Unpinning will surface deeper path-coverage failures (#41).
+- **BMv2 diff testing (1C)** — not started yet.
+- **P4Runtime server** — plan finalized (Kotlin, in-process, grpc-java stubs),
+  implementation starting. First milestone: gRPC skeleton +
+  `SetForwardingPipelineConfig`.
 
 ## 2026-03-04
 
@@ -189,57 +214,32 @@ Next highest-impact items:
 3. **verify/verify_checksum externs** (6 tests) — implement the extern calls
 4. **Register read/write + counter** (3 tests) — implement extern methods
 
-## 2026-03-05
+## 2026-03-03
 
-Three big milestones: **v1model is essentially complete**, **trace trees are
-fully operational**, and **the project has a clear north star with a
-parallelizable roadmap**. The simulator now passes 94% of v1model corpus tests
-(up from 58% yesterday) and produces forking trace trees at every
-non-deterministic choice point — the feature that makes 4ward fundamentally
-better than BMv2 for dataplane validation.
+**Day one.** Stood up the project end-to-end: proto IR, p4c backend, Kotlin
+simulator, STF test runner, CI pipeline, coverage reporting.
 
-### v1model: 176/187 passing (~94%)
+### What landed (PRs #1–#38)
 
-Went from 124 to 176 passing corpus tests in a single sprint. The remaining
-11 are mostly lookahead/advance (6 tests needing p4c backend work) plus 5
-scattered gaps. The v1model interpreter now handles the full breadth of P4
-features: all extern types (registers, counters, checksums, hashes), header
-unions and stacks with full push/pop/extract semantics, parser error recovery,
-and enum promotion through a new midend pass.
+- **Simulator core**: interpreter with v1model architecture support — tables
+  (exact, LPM, ternary), header manipulation, control flow (exit, switch,
+  nested tables), type casting, side effects, mux operator,
+  `table.apply().hit/.miss/.action_run`.
+- **p4c backend**: C++ plugin emitting proto IR from P4 source. Three
+  quick-wins (#27) jumped corpus pass rate from 26 to 90 tests: `**` wildcard
+  match, `standard_metadata_t` initialization, and `IR::ArrayIndex`.
+- **STF test infrastructure**: parameterized corpus harness batching 90+ tests
+  into a single JVM (#30), p4testgen integration for automated path-covering
+  tests (#36).
+- **CI/CD**: GitHub Actions with formatting, clang-tidy, build+test (Ubuntu +
+  macOS), JaCoCo coverage with differential reports on PRs, BuildBuddy remote
+  cache, self-hosted GitHub Pages coverage reports.
+- **Developer tooling**: `format.sh`, `lint.sh`, `coverage.sh`,
+  `diff-coverage.sh`, `dev.sh` runner, parallel-worktree `~/.bazelrc` docs.
 
-### Trace trees: from schema to shipping
+### Where are we? Where are we going?
 
-Trace trees went from a proto definition to a complete implementation in one
-day. The simulator now forks execution at action selectors, clone sessions,
-and multicast groups — producing a tree of all possible packet outcomes in a
-single pass. Every trace event carries source location info back to the P4
-source. All 7 golden tests pass (zero-fork, 3 selector variants, clone,
-clone+selector, multicast). This is the core differentiator for DVaaS
-integration: where BMv2 requires brittle hacks to extract non-deterministic
-behaviors, 4ward returns them natively.
-
-### Clear north star, parallelizable roadmap
-
-Defined the project's end state — replace BMv2 in DVaaS and fully support
-SAI P4 — and broke the path there into 5 independent tracks
-([ROADMAP.md](ROADMAP.md)). Tracks 1 (v1model), 3 (trace trees), and 4
-(P4Runtime) can all proceed in parallel with no cross-dependencies. This
-matters because it means multiple agents can work simultaneously on different
-tracks without stepping on each other. Supporting docs:
-[LIMITATIONS.md](LIMITATIONS.md), [REFACTORING.md](REFACTORING.md),
-[STEFFENS_AI_WORKFLOW.md](STEFFENS_AI_WORKFLOW.md).
-
-Also: fixed a coverage regression, added unit tests for core simulator files,
-documented BMv2 simple_switch as the v1model reference spec.
-
-### What's next
-
-- **Finish v1model corpus (1A)** — 11 tests to go. Lookahead/advance (6) is
-  the biggest cluster, needs p4c backend support for `lookahead()` return
-  values.
-- **Unpin p4testgen (1B)** — 6 programs running but pinned to `max_tests=1`.
-  Unpinning will surface deeper path-coverage failures (#41).
-- **BMv2 diff testing (1C)** — not started yet.
-- **P4Runtime server** — plan finalized (Kotlin, in-process, grpc-java stubs),
-  implementation starting. First milestone: gRPC skeleton +
-  `SetForwardingPipelineConfig`.
+90 corpus tests passing out of ~140 tracked. 6 hand-written feature tests
+(passthrough, basic_table, lpm_routing, ternary_acl, multi_table,
+switch_action_run). ~50 tests remain unclassified — need to test each one and
+sort into passing or failing.
