@@ -408,17 +408,17 @@ LH:38
 LF:42
 end_of_record
 SF:simulator/Interpreter.kt
-FN:977,fourward/simulator/ExitException::<init> ()V
+FN:1001,fourward/simulator/ExitException::<init> ()V
 FNDA:1,fourward/simulator/ExitException::<init> ()V
-FN:988,fourward/simulator/ForkException::<init> (Ljava/lang/String;Lfourward/sim/v1/ForkReason;Ljava/util/List;Ljava/util/List;)V
+FN:1012,fourward/simulator/ForkException::<init> (Ljava/lang/String;Lfourward/sim/v1/ForkReason;Ljava/util/List;Ljava/util/List;)V
 FNDA:0,fourward/simulator/ForkException::<init> (Ljava/lang/String;Lfourward/sim/v1/ForkReason;Ljava/util/List;Ljava/util/List;)V
-FN:989,fourward/simulator/ForkException::getTableName ()Ljava/lang/String;
+FN:1013,fourward/simulator/ForkException::getTableName ()Ljava/lang/String;
 FNDA:0,fourward/simulator/ForkException::getTableName ()Ljava/lang/String;
-FN:990,fourward/simulator/ForkException::getReason ()Lfourward/sim/v1/ForkReason;
+FN:1014,fourward/simulator/ForkException::getReason ()Lfourward/sim/v1/ForkReason;
 FNDA:0,fourward/simulator/ForkException::getReason ()Lfourward/sim/v1/ForkReason;
-FN:991,fourward/simulator/ForkException::getMembers ()Ljava/util/List;
+FN:1015,fourward/simulator/ForkException::getMembers ()Ljava/util/List;
 FNDA:0,fourward/simulator/ForkException::getMembers ()Ljava/util/List;
-FN:992,fourward/simulator/ForkException::getEventsBeforeFork ()Ljava/util/List;
+FN:1016,fourward/simulator/ForkException::getEventsBeforeFork ()Ljava/util/List;
 FNDA:0,fourward/simulator/ForkException::getEventsBeforeFork ()Ljava/util/List;
 FN:35,fourward/simulator/Interpreter::<init> (Lfourward/ir/v1/P4BehavioralConfig;Lfourward/simulator/TableStore;Lfourward/simulator/PacketContext;Ljava/util/Map;)V
 FNDA:1,fourward/simulator/Interpreter::<init> (Lfourward/ir/v1/P4BehavioralConfig;Lfourward/simulator/TableStore;Lfourward/simulator/PacketContext;Ljava/util/Map;)V
@@ -488,21 +488,23 @@ FN:681,fourward/simulator/Interpreter::execInlineActionCall (Ljava/lang/String;L
 FNDA:1,fourward/simulator/Interpreter::execInlineActionCall (Ljava/lang/String;Ljava/util/List;Lfourward/simulator/Environment;)Lfourward/simulator/Value;
 FN:713,fourward/simulator/Interpreter::execExternCall (Lfourward/ir/v1/MethodCall;Lfourward/simulator/Environment;)Lfourward/simulator/Value;
 FNDA:0,fourward/simulator/Interpreter::execExternCall (Lfourward/ir/v1/MethodCall;Lfourward/simulator/Environment;)Lfourward/simulator/Value;
-FN:737,fourward/simulator/Interpreter::invalidateUnionSiblings (Lfourward/ir/v1/Expr;Lfourward/simulator/HeaderVal;Lfourward/simulator/Environment;)V
-FNDA:1,fourward/simulator/Interpreter::invalidateUnionSiblings (Lfourward/ir/v1/Expr;Lfourward/simulator/HeaderVal;Lfourward/simulator/Environment;)V
-FN:751,fourward/simulator/Interpreter::execExtract (Lfourward/ir/v1/MethodCall;Lfourward/simulator/Environment;)Lfourward/simulator/Value;
+FN:747,fourward/simulator/Interpreter::invalidateUnionSiblings (Lfourward/ir/v1/Expr;Lfourward/simulator/HeaderVal;Lfourward/simulator/Environment;Lfourward/simulator/StructVal;)V
+FNDA:1,fourward/simulator/Interpreter::invalidateUnionSiblings (Lfourward/ir/v1/Expr;Lfourward/simulator/HeaderVal;Lfourward/simulator/Environment;Lfourward/simulator/StructVal;)V
+FN:741,fourward/simulator/Interpreter::invalidateUnionSiblings$default (Lfourward/simulator/Interpreter;Lfourward/ir/v1/Expr;Lfourward/simulator/HeaderVal;Lfourward/simulator/Environment;Lfourward/simulator/StructVal;ILjava/lang/Object;)V
+FNDA:1,fourward/simulator/Interpreter::invalidateUnionSiblings$default (Lfourward/simulator/Interpreter;Lfourward/ir/v1/Expr;Lfourward/simulator/HeaderVal;Lfourward/simulator/Environment;Lfourward/simulator/StructVal;ILjava/lang/Object;)V
+FN:762,fourward/simulator/Interpreter::execExtract (Lfourward/ir/v1/MethodCall;Lfourward/simulator/Environment;)Lfourward/simulator/Value;
 FNDA:1,fourward/simulator/Interpreter::execExtract (Lfourward/ir/v1/MethodCall;Lfourward/simulator/Environment;)Lfourward/simulator/Value;
-FN:813,fourward/simulator/Interpreter::fieldWireWidth (Lfourward/ir/v1/Type;I)I
+FN:837,fourward/simulator/Interpreter::fieldWireWidth (Lfourward/ir/v1/Type;I)I
 FNDA:1,fourward/simulator/Interpreter::fieldWireWidth (Lfourward/ir/v1/Type;I)I
-FN:812,fourward/simulator/Interpreter::fieldWireWidth$default (Lfourward/simulator/Interpreter;Lfourward/ir/v1/Type;IILjava/lang/Object;)I
+FN:836,fourward/simulator/Interpreter::fieldWireWidth$default (Lfourward/simulator/Interpreter;Lfourward/ir/v1/Type;IILjava/lang/Object;)I
 FNDA:0,fourward/simulator/Interpreter::fieldWireWidth$default (Lfourward/simulator/Interpreter;Lfourward/ir/v1/Type;IILjava/lang/Object;)I
-FN:834,fourward/simulator/Interpreter::bitsToValue (Lfourward/ir/v1/Type;Ljava/math/BigInteger;I)Lfourward/simulator/Value;
+FN:858,fourward/simulator/Interpreter::bitsToValue (Lfourward/ir/v1/Type;Ljava/math/BigInteger;I)Lfourward/simulator/Value;
 FNDA:1,fourward/simulator/Interpreter::bitsToValue (Lfourward/ir/v1/Type;Ljava/math/BigInteger;I)Lfourward/simulator/Value;
-FN:841,fourward/simulator/Interpreter::execEmit (Lfourward/ir/v1/MethodCall;Lfourward/simulator/Environment;)Lfourward/simulator/Value;
+FN:865,fourward/simulator/Interpreter::execEmit (Lfourward/ir/v1/MethodCall;Lfourward/simulator/Environment;)Lfourward/simulator/Value;
 FNDA:1,fourward/simulator/Interpreter::execEmit (Lfourward/ir/v1/MethodCall;Lfourward/simulator/Environment;)Lfourward/simulator/Value;
-FN:855,fourward/simulator/Interpreter::emitValue (Lfourward/simulator/Value;)V
+FN:879,fourward/simulator/Interpreter::emitValue (Lfourward/simulator/Value;)V
 FNDA:1,fourward/simulator/Interpreter::emitValue (Lfourward/simulator/Value;)V
-FN:931,fourward/simulator/Interpreter::setLValue (Lfourward/ir/v1/Expr;Lfourward/simulator/Value;Lfourward/simulator/Environment;)V
+FN:955,fourward/simulator/Interpreter::setLValue (Lfourward/ir/v1/Expr;Lfourward/simulator/Value;Lfourward/simulator/Environment;)V
 FNDA:1,fourward/simulator/Interpreter::setLValue (Lfourward/ir/v1/Expr;Lfourward/simulator/Value;Lfourward/simulator/Environment;)V
 FN:58,fourward/simulator/Interpreter::actions$lambda$0$index (Ljava/util/Map;Lfourward/ir/v1/ActionDecl;)V
 FNDA:1,fourward/simulator/Interpreter::actions$lambda$0$index (Ljava/util/Map;Lfourward/ir/v1/ActionDecl;)V
@@ -512,9 +514,9 @@ FN:576,fourward/simulator/Interpreter$TableResult::getHit ()Z
 FNDA:1,fourward/simulator/Interpreter$TableResult::getHit ()Z
 FN:576,fourward/simulator/Interpreter$TableResult::getActionName ()Ljava/lang/String;
 FNDA:1,fourward/simulator/Interpreter$TableResult::getActionName ()Ljava/lang/String;
-FN:980,fourward/simulator/ReturnException::<init> (Lfourward/simulator/Value;)V
+FN:1004,fourward/simulator/ReturnException::<init> (Lfourward/simulator/Value;)V
 FNDA:0,fourward/simulator/ReturnException::<init> (Lfourward/simulator/Value;)V
-FN:980,fourward/simulator/ReturnException::getValue ()Lfourward/simulator/Value;
+FN:1004,fourward/simulator/ReturnException::getValue ()Lfourward/simulator/Value;
 FNDA:0,fourward/simulator/ReturnException::getValue ()Lfourward/simulator/Value;
 BRDA:58,0,0,1
 BRDA:58,0,1,0
@@ -877,136 +879,148 @@ BRDA:723,0,0,-
 BRDA:723,0,1,-
 BRDA:725,0,0,-
 BRDA:725,0,1,-
-BRDA:737,0,0,1
-BRDA:737,0,1,1
-BRDA:739,0,0,1
-BRDA:739,0,1,0
-BRDA:739,0,2,1
-BRDA:739,0,3,0
-BRDA:739,0,4,1
-BRDA:739,0,5,0
-BRDA:739,0,6,0
-BRDA:739,0,7,1
-BRDA:753,0,0,1
-BRDA:753,0,1,0
-BRDA:753,0,2,0
-BRDA:753,0,3,1
-BRDA:753,0,4,0
-BRDA:753,0,5,0
-BRDA:754,0,0,-
-BRDA:754,0,1,-
-BRDA:754,0,2,-
-BRDA:754,0,3,-
-BRDA:759,0,0,0
-BRDA:759,0,1,1
-BRDA:764,0,0,0
-BRDA:764,0,1,1
-BRDA:767,0,0,0
-BRDA:767,0,1,1
-BRDA:768,0,0,-
-BRDA:768,0,1,-
+BRDA:747,0,0,1
+BRDA:747,0,1,1
+BRDA:749,0,0,1
+BRDA:749,0,1,0
+BRDA:749,0,2,1
+BRDA:749,0,3,0
+BRDA:749,0,4,1
+BRDA:749,0,5,0
+BRDA:749,0,6,0
+BRDA:749,0,7,1
+BRDA:750,0,0,1
+BRDA:750,0,1,0
+BRDA:768,0,0,1
+BRDA:768,0,1,0
+BRDA:768,0,2,0
+BRDA:768,0,3,1
+BRDA:768,0,4,0
+BRDA:768,0,5,0
+BRDA:769,0,0,-
+BRDA:769,0,1,-
+BRDA:769,0,2,-
+BRDA:769,0,3,-
+BRDA:772,0,0,0
+BRDA:772,0,1,1
+BRDA:773,0,0,-
+BRDA:773,0,1,-
 BRDA:774,0,0,-
 BRDA:774,0,1,-
 BRDA:774,0,2,-
 BRDA:774,0,3,-
-BRDA:775,0,0,-
-BRDA:775,0,1,-
-BRDA:775,0,2,-
-BRDA:775,0,3,-
-BRDA:787,0,0,1
-BRDA:787,0,1,1
-BRDA:792,0,0,1
-BRDA:792,0,1,1
-BRDA:794,0,0,1
-BRDA:794,0,1,0
-BRDA:814,0,0,1
-BRDA:814,0,1,0
-BRDA:815,0,0,-
-BRDA:815,0,1,-
-BRDA:816,0,0,-
-BRDA:816,0,1,-
-BRDA:817,0,0,-
-BRDA:817,0,1,-
-BRDA:818,0,0,-
-BRDA:818,0,1,-
-BRDA:821,0,0,-
-BRDA:821,0,1,-
-BRDA:821,0,2,-
-BRDA:821,0,3,-
-BRDA:835,0,0,0
-BRDA:835,0,1,1
-BRDA:835,0,2,0
-BRDA:835,0,3,0
-BRDA:836,0,0,0
-BRDA:836,0,1,1
-BRDA:856,0,0,1
-BRDA:856,0,1,0
-BRDA:857,0,0,1
-BRDA:857,0,1,1
+BRDA:774,0,4,-
+BRDA:774,0,5,-
+BRDA:783,0,0,0
+BRDA:783,0,1,1
+BRDA:788,0,0,0
+BRDA:788,0,1,1
+BRDA:791,0,0,0
+BRDA:791,0,1,1
+BRDA:792,0,0,-
+BRDA:792,0,1,-
+BRDA:798,0,0,-
+BRDA:798,0,1,-
+BRDA:798,0,2,-
+BRDA:798,0,3,-
+BRDA:799,0,0,-
+BRDA:799,0,1,-
+BRDA:799,0,2,-
+BRDA:799,0,3,-
+BRDA:811,0,0,1
+BRDA:811,0,1,1
+BRDA:816,0,0,1
+BRDA:816,0,1,1
+BRDA:818,0,0,1
+BRDA:818,0,1,0
+BRDA:838,0,0,1
+BRDA:838,0,1,0
+BRDA:839,0,0,-
+BRDA:839,0,1,-
+BRDA:840,0,0,-
+BRDA:840,0,1,-
+BRDA:841,0,0,-
+BRDA:841,0,1,-
+BRDA:842,0,0,-
+BRDA:842,0,1,-
+BRDA:845,0,0,-
+BRDA:845,0,1,-
+BRDA:845,0,2,-
+BRDA:845,0,3,-
 BRDA:859,0,0,0
 BRDA:859,0,1,1
-BRDA:863,0,0,1
-BRDA:863,0,1,1
-BRDA:865,0,0,1
-BRDA:865,0,1,0
-BRDA:866,0,0,-
-BRDA:866,0,1,-
-BRDA:867,0,0,-
-BRDA:867,0,1,-
-BRDA:873,0,0,1
-BRDA:873,0,1,1
-BRDA:877,0,0,1
-BRDA:877,0,1,0
-BRDA:881,0,0,-
-BRDA:881,0,1,-
-BRDA:883,0,0,-
-BRDA:883,0,1,-
-BRDA:886,0,0,-
-BRDA:886,0,1,-
-BRDA:892,0,0,1
-BRDA:892,0,1,0
-BRDA:892,0,2,1
-BRDA:892,0,3,0
-BRDA:898,0,0,1
-BRDA:898,0,1,0
-BRDA:900,0,0,-
-BRDA:900,0,1,-
+BRDA:859,0,2,0
+BRDA:859,0,3,0
+BRDA:860,0,0,0
+BRDA:860,0,1,1
+BRDA:880,0,0,1
+BRDA:880,0,1,0
+BRDA:881,0,0,1
+BRDA:881,0,1,1
+BRDA:883,0,0,0
+BRDA:883,0,1,1
+BRDA:887,0,0,1
+BRDA:887,0,1,1
+BRDA:889,0,0,1
+BRDA:889,0,1,0
+BRDA:890,0,0,-
+BRDA:890,0,1,-
+BRDA:891,0,0,-
+BRDA:891,0,1,-
+BRDA:897,0,0,1
+BRDA:897,0,1,1
+BRDA:901,0,0,1
+BRDA:901,0,1,0
 BRDA:905,0,0,-
 BRDA:905,0,1,-
-BRDA:905,0,2,-
-BRDA:905,0,3,-
-BRDA:906,0,0,-
-BRDA:906,0,1,-
-BRDA:906,0,2,-
-BRDA:906,0,3,-
-BRDA:909,0,0,-
-BRDA:909,0,1,-
+BRDA:907,0,0,-
+BRDA:907,0,1,-
 BRDA:910,0,0,-
 BRDA:910,0,1,-
-BRDA:911,0,0,-
-BRDA:911,0,1,-
-BRDA:914,0,0,-
-BRDA:914,0,1,-
-BRDA:917,0,0,-
-BRDA:917,0,1,-
-BRDA:918,0,0,-
-BRDA:918,0,1,-
-BRDA:933,0,0,0
-BRDA:933,0,1,1
-BRDA:934,0,0,0
-BRDA:934,0,1,1
-BRDA:938,0,0,1
-BRDA:938,0,1,1
-BRDA:941,0,0,1
-BRDA:941,0,1,0
-BRDA:944,0,0,0
-BRDA:944,0,1,1
-BRDA:945,0,0,1
-BRDA:945,0,1,0
-BRDA:949,0,0,-
-BRDA:949,0,1,-
-BRDA:954,0,0,-
-BRDA:954,0,1,-
+BRDA:916,0,0,1
+BRDA:916,0,1,0
+BRDA:916,0,2,1
+BRDA:916,0,3,0
+BRDA:922,0,0,1
+BRDA:922,0,1,0
+BRDA:924,0,0,-
+BRDA:924,0,1,-
+BRDA:929,0,0,-
+BRDA:929,0,1,-
+BRDA:929,0,2,-
+BRDA:929,0,3,-
+BRDA:930,0,0,-
+BRDA:930,0,1,-
+BRDA:930,0,2,-
+BRDA:930,0,3,-
+BRDA:933,0,0,-
+BRDA:933,0,1,-
+BRDA:934,0,0,-
+BRDA:934,0,1,-
+BRDA:935,0,0,-
+BRDA:935,0,1,-
+BRDA:938,0,0,-
+BRDA:938,0,1,-
+BRDA:941,0,0,-
+BRDA:941,0,1,-
+BRDA:942,0,0,-
+BRDA:942,0,1,-
+BRDA:957,0,0,0
+BRDA:957,0,1,1
+BRDA:958,0,0,0
+BRDA:958,0,1,1
+BRDA:962,0,0,1
+BRDA:962,0,1,1
+BRDA:965,0,0,1
+BRDA:965,0,1,0
+BRDA:968,0,0,0
+BRDA:968,0,1,1
+BRDA:969,0,0,1
+BRDA:969,0,1,0
+BRDA:973,0,0,-
+BRDA:973,0,1,-
+BRDA:978,0,0,-
+BRDA:978,0,1,-
 DA:35,1
 DA:36,1
 DA:37,1
@@ -1407,153 +1421,163 @@ DA:726,0
 DA:727,0
 DA:729,0
 DA:731,0
-DA:737,1
-DA:738,1
-DA:739,1
-DA:740,1
 DA:741,1
+DA:745,1
+DA:747,1
+DA:748,1
+DA:749,1
+DA:750,1
 DA:751,1
 DA:752,1
-DA:753,1
-DA:754,0
-DA:755,0
-DA:757,1
-DA:759,1
-DA:763,1
-DA:764,1
+DA:762,1
+DA:766,1
 DA:767,1
-DA:768,0
+DA:768,1
 DA:769,0
 DA:770,0
-DA:771,0
+DA:772,1
+DA:773,0
 DA:774,0
-DA:775,0
-DA:776,0
 DA:777,0
 DA:778,0
+DA:779,0
+DA:781,1
+DA:783,1
 DA:787,1
 DA:788,1
-DA:790,1
 DA:791,1
-DA:792,1
-DA:793,1
-DA:794,1
-DA:795,1
-DA:796,1
-DA:797,1
-DA:798,1
-DA:800,1
-DA:801,1
-DA:802,1
-DA:812,0
-DA:813,1
+DA:792,0
+DA:793,0
+DA:794,0
+DA:795,0
+DA:798,0
+DA:799,0
+DA:800,0
+DA:801,0
+DA:802,0
+DA:811,1
+DA:812,1
 DA:814,1
-DA:815,0
-DA:816,0
-DA:817,0
-DA:818,0
-DA:819,0
-DA:820,0
-DA:821,0
-DA:822,0
-DA:825,0
+DA:815,1
+DA:816,1
+DA:817,1
+DA:818,1
+DA:819,1
+DA:820,1
+DA:821,1
+DA:822,1
+DA:824,1
+DA:825,1
 DA:826,1
-DA:834,1
-DA:835,1
-DA:836,1
+DA:836,0
 DA:837,1
 DA:838,1
-DA:841,1
-DA:842,1
-DA:855,1
-DA:856,1
-DA:857,1
+DA:839,0
+DA:840,0
+DA:841,0
+DA:842,0
+DA:843,0
+DA:844,0
+DA:845,0
+DA:846,0
+DA:849,0
+DA:850,1
 DA:858,1
 DA:859,1
+DA:860,1
+DA:861,1
 DA:862,1
-DA:863,1
-DA:864,1
 DA:865,1
-DA:866,0
-DA:867,0
-DA:868,0
-DA:869,1
-DA:871,1
-DA:872,1
-DA:873,1
-DA:874,1
-DA:875,1
-DA:876,1
-DA:877,1
-DA:878,1
+DA:866,1
 DA:879,1
-DA:881,0
-DA:883,0
-DA:884,0
-DA:886,0
-DA:887,0
-DA:888,0
+DA:880,1
+DA:881,1
+DA:882,1
+DA:883,1
+DA:886,1
+DA:887,1
+DA:888,1
+DA:889,1
 DA:890,0
-DA:892,1
+DA:891,0
+DA:892,0
 DA:893,1
-DA:894,1
+DA:895,1
 DA:896,1
+DA:897,1
 DA:898,1
-DA:900,0
-DA:902,0
-DA:903,0
-DA:904,0
+DA:899,1
+DA:900,1
+DA:901,1
+DA:902,1
+DA:903,1
 DA:905,0
-DA:906,0
 DA:907,0
-DA:909,0
+DA:908,0
 DA:910,0
 DA:911,0
+DA:912,0
 DA:914,0
-DA:917,0
-DA:918,0
+DA:916,1
+DA:917,1
+DA:918,1
+DA:920,1
 DA:922,1
-DA:931,1
-DA:932,1
-DA:933,1
-DA:934,1
-DA:935,1
-DA:937,1
-DA:938,1
-DA:939,1
-DA:941,1
-DA:942,1
-DA:943,1
-DA:944,1
-DA:945,1
-DA:946,0
-DA:949,0
-DA:950,0
-DA:951,0
-DA:952,0
-DA:954,0
-DA:956,0
-DA:957,0
-DA:958,0
-DA:959,0
-DA:960,0
-DA:961,0
-DA:962,0
-DA:963,0
-DA:965,0
-DA:966,0
-DA:967,0
-DA:969,0
-DA:971,1
-DA:977,1
+DA:924,0
+DA:926,0
+DA:927,0
+DA:928,0
+DA:929,0
+DA:930,0
+DA:931,0
+DA:933,0
+DA:934,0
+DA:935,0
+DA:938,0
+DA:941,0
+DA:942,0
+DA:946,1
+DA:955,1
+DA:956,1
+DA:957,1
+DA:958,1
+DA:959,1
+DA:961,1
+DA:962,1
+DA:963,1
+DA:965,1
+DA:966,1
+DA:967,1
+DA:968,1
+DA:969,1
+DA:970,0
+DA:973,0
+DA:974,0
+DA:975,0
+DA:976,0
+DA:978,0
 DA:980,0
-DA:988,0
+DA:981,0
+DA:982,0
+DA:983,0
+DA:984,0
+DA:985,0
+DA:986,0
+DA:987,0
 DA:989,0
 DA:990,0
 DA:991,0
-DA:992,0
-LH:311
-LF:545
+DA:993,0
+DA:995,1
+DA:1001,1
+DA:1004,0
+DA:1012,0
+DA:1013,0
+DA:1014,0
+DA:1015,0
+DA:1016,0
+LH:316
+LF:555
 end_of_record
 SF:simulator/Main.kt
 FN:22,fourward/simulator/MainKt::main ()V
@@ -2282,19 +2306,19 @@ FN:49,fourward/simulator/ErrorVal::<init> (Ljava/lang/String;)V
 FNDA:0,fourward/simulator/ErrorVal::<init> (Ljava/lang/String;)V
 FN:49,fourward/simulator/ErrorVal::getMember ()Ljava/lang/String;
 FNDA:0,fourward/simulator/ErrorVal::getMember ()Ljava/lang/String;
-FN:113,fourward/simulator/HeaderStackVal::<init> (Ljava/lang/String;Ljava/util/List;I)V
+FN:118,fourward/simulator/HeaderStackVal::<init> (Ljava/lang/String;Ljava/util/List;I)V
 FNDA:1,fourward/simulator/HeaderStackVal::<init> (Ljava/lang/String;Ljava/util/List;I)V
-FN:113,fourward/simulator/HeaderStackVal::<init> (Ljava/lang/String;Ljava/util/List;IILkotlin/jvm/internal/DefaultConstructorMarker;)V
+FN:118,fourward/simulator/HeaderStackVal::<init> (Ljava/lang/String;Ljava/util/List;IILkotlin/jvm/internal/DefaultConstructorMarker;)V
 FNDA:1,fourward/simulator/HeaderStackVal::<init> (Ljava/lang/String;Ljava/util/List;IILkotlin/jvm/internal/DefaultConstructorMarker;)V
-FN:114,fourward/simulator/HeaderStackVal::getElementTypeName ()Ljava/lang/String;
+FN:119,fourward/simulator/HeaderStackVal::getElementTypeName ()Ljava/lang/String;
 FNDA:0,fourward/simulator/HeaderStackVal::getElementTypeName ()Ljava/lang/String;
-FN:115,fourward/simulator/HeaderStackVal::getHeaders ()Ljava/util/List;
+FN:120,fourward/simulator/HeaderStackVal::getHeaders ()Ljava/util/List;
 FNDA:1,fourward/simulator/HeaderStackVal::getHeaders ()Ljava/util/List;
-FN:116,fourward/simulator/HeaderStackVal::getNextIndex ()I
+FN:121,fourward/simulator/HeaderStackVal::getNextIndex ()I
 FNDA:1,fourward/simulator/HeaderStackVal::getNextIndex ()I
-FN:116,fourward/simulator/HeaderStackVal::setNextIndex (I)V
+FN:121,fourward/simulator/HeaderStackVal::setNextIndex (I)V
 FNDA:1,fourward/simulator/HeaderStackVal::setNextIndex (I)V
-FN:119,fourward/simulator/HeaderStackVal::getSize ()I
+FN:124,fourward/simulator/HeaderStackVal::getSize ()I
 FNDA:0,fourward/simulator/HeaderStackVal::getSize ()I
 FN:57,fourward/simulator/HeaderVal::<init> (Ljava/lang/String;Ljava/util/Map;Z)V
 FNDA:1,fourward/simulator/HeaderVal::<init> (Ljava/lang/String;Ljava/util/Map;Z)V
@@ -2344,7 +2368,7 @@ FN:103,fourward/simulator/StructVal::invalidateUnion ()V
 FNDA:0,fourward/simulator/StructVal::invalidateUnion ()V
 FN:108,fourward/simulator/StructVal::invalidateUnionExcept (Lfourward/simulator/HeaderVal;)V
 FNDA:1,fourward/simulator/StructVal::invalidateUnionExcept (Lfourward/simulator/HeaderVal;)V
-FN:123,fourward/simulator/UnitVal::<init> ()V
+FN:128,fourward/simulator/UnitVal::<init> ()V
 FNDA:1,fourward/simulator/UnitVal::<init> ()V
 BRDA:80,0,0,1
 BRDA:80,0,1,0
@@ -2396,13 +2420,13 @@ DA:103,0
 DA:104,0
 DA:108,1
 DA:109,1
-DA:113,1
-DA:114,1
-DA:115,1
-DA:116,1
-DA:117,1
-DA:119,0
-DA:123,1
+DA:118,1
+DA:119,1
+DA:120,1
+DA:121,1
+DA:122,1
+DA:124,0
+DA:128,1
 LH:31
 LF:43
 end_of_record
