@@ -503,8 +503,8 @@ enum class MatchKind {
 private fun String.unquote(): String = removeSurrounding("\"")
 
 /**
- * Splits a possibly-named action param (`"name":value` or `name:value`) into
- * its name (null if positional) and value.
+ * Splits a possibly-named action param (`"name":value` or `name:value`) into its name (null if
+ * positional) and value.
  */
 private fun String.splitNamedParam(): Pair<String?, String> {
   // p4testgen: quoted named params like "param":value
