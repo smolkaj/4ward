@@ -140,6 +140,7 @@ corpus_test_suite(
         "issue510-bmv2",
         "issue561-1-bmv2",
         "issue561-2-bmv2",
+        "issue561-3-bmv2",
         "issue635-bmv2",
         "issue774-4-bmv2",
         "issue983-bmv2",
@@ -158,6 +159,11 @@ corpus_test_suite(
         "table-entries-range-bmv2",
         "table-entries-ser-enum-bmv2",
         "table-entries-ternary-bmv2",
+        "union-bmv2",
+        "union-valid-bmv2",
+        "union1-bmv2",
+        "union2-bmv2",
+        "union3-bmv2",
         "v1model-const-entries-bmv2",
     ],
 )
@@ -263,7 +269,6 @@ corpus_test_suite(
         "issue1824-bmv2",  # unhandled extern call: verify
         "issue1879-bmv2",  # undefined variable: inf_0 (inlined function locals)
         "issue3488-1-bmv2",  # expected packet on port 2 but got none
-        "issue561-3-bmv2",  # header union one-valid-at-a-time invariant
         "issue561-4-bmv2",  # header stack of unions (StructVal as stack element)
         "issue561-5-bmv2",  # header stack of unions (StructVal as stack element)
         "issue561-6-bmv2",  # header stack of unions (StructVal as stack element)
@@ -275,11 +280,6 @@ corpus_test_suite(
         "table-entries-priority-bmv2",  # BMv2 @priority uses lower-is-better; P4Runtime uses higher-is-better
         "ternary2-bmv2",  # payload mismatch
         "test-parserinvalidargument-error-bmv2",  # payload mismatch
-        "union-bmv2",  # field access on non-aggregate value: UnitVal
-        "union-valid-bmv2",  # field access on non-aggregate value: UnitVal
-        "union1-bmv2",  # field access on non-aggregate value: UnitVal
-        "union2-bmv2",  # field access on non-aggregate value: UnitVal
-        "union3-bmv2",  # field access on non-aggregate value: UnitVal
         "v1model-special-ops-bmv2",  # unhandled extern call: verify_checksum
     ],
 )

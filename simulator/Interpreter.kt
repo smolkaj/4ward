@@ -513,7 +513,16 @@ class Interpreter(
         }
       }
       "setValid" -> {
-        (evalExpr(call.target, env) as HeaderVal).valid = true
+        val target = evalExpr(call.target, env) as HeaderVal
+        // P4 spec §8.20: setting a union member valid invalidates all other members.
+        if (call.target.hasFieldAccess()) {
+          val parentType = call.target.fieldAccess.expr.type
+          if (parentType.hasNamed() && types[parentType.named]?.hasHeaderUnion() == true) {
+            val union = evalExpr(call.target.fieldAccess.expr, env) as StructVal
+            union.fields.values.forEach { if (it is HeaderVal && it !== target) it.setInvalid() }
+          }
+        }
+        target.valid = true
         UnitVal
       }
       "setInvalid" -> {
@@ -712,6 +721,15 @@ class Interpreter(
       val raw = (allBits shr (totalBits - bitOffset - width)) and mask
       newFields[field.name] = bitsToValue(field.type, raw, width)
       bitOffset += width
+    }
+    // P4 spec §8.20: extracting into a union member invalidates all other members.
+    val arg0 = call.argsList[0]
+    if (arg0.hasFieldAccess()) {
+      val parentType = arg0.fieldAccess.expr.type
+      if (parentType.hasNamed() && types[parentType.named]?.hasHeaderUnion() == true) {
+        val union = evalExpr(arg0.fieldAccess.expr, env) as StructVal
+        union.fields.values.forEach { if (it is HeaderVal && it !== header) it.setInvalid() }
+      }
     }
     header.setValid(newFields)
     return UnitVal
