@@ -130,7 +130,7 @@ pass, and you've shipped a feature. It's surprisingly satisfying.
 We also have:
 - **Unit tests** for the tricky stuff: bit-precise arithmetic, match kinds
   (LPM, ternary), select expression semantics.
-- **P4TestGen**: symbolic execution (Z3) to generate path-covering tests.
+- **P4TestGen** (planned): symbolic execution to generate path-covering tests.
 - **BMv2 diff testing** (maybe, someday): run the same inputs through BMv2 and
   4ward and compare outputs.
 
