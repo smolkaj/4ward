@@ -79,7 +79,7 @@ ergonomics (sealed classes, pattern matching).
 - **Java?** Kotlin, but worse. Verbose, no sealed `when`, no data classes.
 
 **You don't need to know Kotlin to contribute to 4ward!** The AI writes the
-code — you just need to know P4.
+code — you just need to know your requirements.
 
 **You don't need to know Kotlin to use 4ward.** The p4c backend is C++, and the
 two halves communicate through a language-neutral protobuf IR — the language
