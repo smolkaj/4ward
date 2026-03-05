@@ -45,6 +45,7 @@ branch — delivered as a structured trace tree you can actually read.
 | P4Runtime | sure | has gaps | **100% spec-compliant (planned)** |
 | Easy to extend | ehh | ehh | **if AI can extend it, anyone can** |
 | Simple, readable codebase | ehh | ehh | **yes!** |
+| Fast, rigorous CI | nope | slow | **[~2 min](https://4ward.buildbuddy.io/trends/)** |
 
 4ward is a **spec-compliant reference implementation** of the
 [P4₁₆ language](https://p4.org/wp-content/uploads/sites/53/2024/10/P4-16-spec-v1.2.5.html),
