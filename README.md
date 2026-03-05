@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="logo.svg" alt="4ward logo" width="200">
+  <img src="docs/logo.svg" alt="4ward logo" width="200">
   <br><br>
   <strong>Your P4 programs, finally explained.</strong>
   <br><br>
@@ -119,12 +119,12 @@ No printf debugging. No Wireshark. No guessing.
     └── <feature>/          Hand-written feature tests (passthrough, lpm, …)
 ```
 
-Curious about the design? [ARCHITECTURE.md](ARCHITECTURE.md) has the full story.
+Curious about the design? [ARCHITECTURE.md](docs/ARCHITECTURE.md) has the full story.
 
 ## Where things stand
 
 4ward is pre-1.0 and growing fast. The core pipeline works end-to-end. See
-[ROADMAP.md](ROADMAP.md) for what's next and [STATUS.md](STATUS.md) for
+[ROADMAP.md](docs/ROADMAP.md) for what's next and [STATUS.md](docs/STATUS.md) for
 daily progress.
 
 **CAUTION:** We will aggressively refactor to build the best system we can;
@@ -134,21 +134,21 @@ nothing is sacred except correctness and the test suite — until we reach 1.0.
 
 | Document | Purpose |
 |---|---|
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Design rationale and component overview |
-| [ROADMAP.md](ROADMAP.md) | Development tracks, priorities, and sequencing |
-| [STATUS.md](STATUS.md) | Append-only log of daily progress |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | How to get involved |
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Design rationale and component overview |
+| [ROADMAP.md](docs/ROADMAP.md) | Development tracks, priorities, and sequencing |
+| [STATUS.md](docs/STATUS.md) | Append-only log of daily progress |
+| [CONTRIBUTING.md](docs/CONTRIBUTING.md) | How to get involved |
 | [AGENTS.md](AGENTS.md) | Guide for AI coding agents |
 | [CLAUDE.md](CLAUDE.md) | Claude Code-specific instructions |
-| [LIMITATIONS.md](LIMITATIONS.md) | Known shortcuts and gaps |
-| [REFACTORING.md](REFACTORING.md) | Tech debt and cleanup backlog |
-| [AI_WORKFLOW.md](AI_WORKFLOW.md) | How to develop with AI agents |
+| [LIMITATIONS.md](docs/LIMITATIONS.md) | Known shortcuts and gaps |
+| [REFACTORING.md](docs/REFACTORING.md) | Tech debt and cleanup backlog |
+| [AI_WORKFLOW.md](docs/AI_WORKFLOW.md) | How to develop with AI agents |
 
 ## Want to help?
 
 We'd love that! The easiest way to contribute is to pick a failing STF test and
 make it pass — they're naturally well-scoped and self-contained. See
-[CONTRIBUTING.md](CONTRIBUTING.md) for the full details.
+[CONTRIBUTING.md](docs/CONTRIBUTING.md) for the full details.
 
 ## License
 

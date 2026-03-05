@@ -44,8 +44,8 @@ feature or resolving an ambiguity, consult:
 - Use `ibazel build //...` for any work that spans multiple edit/build cycles.
   Run it in the background at the start of a task so build errors surface
   immediately rather than after a full rebuild.
-- Use `./format.sh` to format files, not manual edits.
-- Use `./lint.sh` to lint all code (clang-tidy for C++, detekt for Kotlin).
+- Use `./tools/format.sh` to format files, not manual edits.
+- Use `./tools/lint.sh` to lint all code (clang-tidy for C++, detekt for Kotlin).
   Fix all warnings before marking a task complete.
 - Do not install anything with `apt`, `brew`, or `pip`; declare dependencies
   in `MODULE.bazel` instead.

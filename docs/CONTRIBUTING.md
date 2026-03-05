@@ -34,14 +34,14 @@ Bazel versions again). Works on macOS and Ubuntu.
 
 4ward is developed with AI coding agents — the human's job is to steer and
 review, not to type every line. We strongly encourage you to work this way
-too. The repo is designed for it: [AGENTS.md](AGENTS.md) and
-[CLAUDE.md](CLAUDE.md) give agents the context they need to make good changes
+too. The repo is designed for it: [AGENTS.md](../AGENTS.md) and
+[CLAUDE.md](../CLAUDE.md) give agents the context they need to make good changes
 autonomously, and `bazel test //...` is the definition of done.
 
 If you're new to AI-assisted development on complex codebases, see
 [AI_WORKFLOW.md](AI_WORKFLOW.md).
 
-Run `./dev.sh help` for a summary of available developer commands.
+Run `./tools/dev.sh help` for a summary of available developer commands.
 
 ## Making changes
 
@@ -49,7 +49,7 @@ Run `./dev.sh help` for a summary of available developer commands.
 2. Make your change. New behaviour needs a test (usually an STF test does the
    trick).
 3. Run `bazel test //...` — everything should be green.
-4. Run `./format.sh` to auto-format everything.
+4. Run `./tools/format.sh` to auto-format everything.
 5. Open a **draft** PR explaining what you changed and why.
 
 Don't worry about getting it perfect on the first try — that's what review is

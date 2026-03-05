@@ -44,11 +44,11 @@ jobs:
       # format.sh modifies files in-place; the diff check below catches any
       # changes, so we use a single "run and diff" pattern for both clang-format
       # and buildifier rather than separate --dry-run/--check invocations.
-      - run: ./format.sh
+      - run: ./tools/format.sh
       - name: Check formatting diff
         run: |
           if changed=$(git diff-index --name-only HEAD --) && [[ -n "$changed" ]]; then
-            echo -e "Please run format.sh. Files needing formatting:\n$changed"
+            echo -e "Please run ./tools/format.sh. Files needing formatting:\n$changed"
             exit 1
           fi
 
@@ -187,7 +187,7 @@ jobs:
           if [[ -s /tmp/baseline.lcov && -s /tmp/pr.diff ]]; then
             ARGS+=(--baseline /tmp/baseline.lcov --diff /tmp/pr.diff)
           fi
-          ./coverage.sh "${ARGS[@]}"
+          ./tools/coverage.sh "${ARGS[@]}"
 
       - name: Calculate build duration
         if: always()
@@ -220,7 +220,7 @@ jobs:
 
       - name: Compute diff coverage
         if: github.event_name == 'pull_request'
-        run: ./diff-coverage.sh /tmp/pr.diff coverage.lcov >> "$GITHUB_ENV"
+        run: ./tools/diff-coverage.sh /tmp/pr.diff coverage.lcov >> "$GITHUB_ENV"
 
       - name: Publish HTML report to GitHub Pages
         if: github.event_name == 'pull_request'

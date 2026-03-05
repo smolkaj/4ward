@@ -3,7 +3,7 @@
 ## Repository map
 
 ```
-ARCHITECTURE.md              Design rationale. Read this first.
+docs/ARCHITECTURE.md         Design rationale. Read this first.
 simulator/ir.proto           The behavioral IR. The core contract of the project.
 simulator/simulator.proto    The simulator service protocol (stdin/stdout IPC).
 simulator/*.kt               Kotlin simulator (the heart of 4ward).
@@ -23,11 +23,11 @@ Unit tests live alongside the source they test (`FooTest.kt` next to `Foo.kt`).
 bazel build //...          # build everything
 bazel test //...           # run all tests
 ibazel build //...         # rebuild automatically on file changes (preferred for interactive work)
-./format.sh                # auto-format all files (clang-format + buildifier + ktfmt)
-./lint.sh                  # lint all files (clang-tidy for C++, detekt for Kotlin)
-./coverage.sh              # collect code coverage (see --html, --baseline, --diff)
-./diff-coverage.sh         # incremental coverage from a diff + LCOV file
-./dev.sh help              # show all developer commands
+./tools/format.sh          # auto-format all files (clang-format + buildifier + ktfmt)
+./tools/lint.sh            # lint all files (clang-tidy for C++, detekt for Kotlin)
+./tools/coverage.sh        # collect code coverage (see --html, --baseline, --diff)
+./tools/diff-coverage.sh   # incremental coverage from a diff + LCOV file
+./tools/dev.sh help        # show all developer commands
 ```
 
 **Prefer `ibazel` over `bazel` for any work that spans multiple edit/build
@@ -72,7 +72,7 @@ results rather than waiting for a full local rebuild. Check CI logs with
 
 ## Style
 
-Style is enforced by `./format.sh` (formatting) and `./lint.sh` (linting). Run
+Style is enforced by `./tools/format.sh` (formatting) and `./tools/lint.sh` (linting). Run
 both before completing a task. Fix all warnings.
 
 **Proto conventions**: field names in `snake_case`, enum values in
@@ -86,7 +86,7 @@ Find the relevant failing test, implement the missing feature in `simulator/`,
 and confirm no other tests regress: `bazel test //...`.
 
 If you take a shortcut or skip a corner case to make progress, note it in
-[LIMITATIONS.md](LIMITATIONS.md) so it doesn't get forgotten, and leave a
+[LIMITATIONS.md](docs/LIMITATIONS.md) so it doesn't get forgotten, and leave a
 `TODO(<scope>)` comment at the site — e.g. `TODO(PR 3): update names to match
 actual simulator output`. The scope should identify the task, PR, or issue that
 will resolve it. This applies to any code that is intentionally incomplete:
@@ -128,9 +128,9 @@ Update both sides and make sure the relevant STF tests still pass.
 
 Consider whether your change affects any documentation:
 
-- **[LIMITATIONS.md](LIMITATIONS.md)** — did you add a shortcut, discover a
+- **[LIMITATIONS.md](docs/LIMITATIONS.md)** — did you add a shortcut, discover a
   gap, or resolve an existing limitation?
-- **[REFACTORING.md](REFACTORING.md)** — did you notice tech debt worth
+- **[REFACTORING.md](docs/REFACTORING.md)** — did you notice tech debt worth
   tracking, or complete an item already listed?
 
 ## Worktrees
