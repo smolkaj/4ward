@@ -245,7 +245,7 @@ class TableStore {
       val bits =
         when (value) {
           is BitVal -> value.bits
-          is BoolVal -> BitVector.ofInt(if (value.value) 1 else 0, 1)
+          is BoolVal -> if (value.value) BOOL_TRUE_BITS else BOOL_FALSE_BITS
           else -> return null
         }
 
@@ -290,5 +290,10 @@ class TableStore {
       }
     }
     return score
+  }
+
+  companion object {
+    private val BOOL_TRUE_BITS = BitVector.ofInt(1, 1)
+    private val BOOL_FALSE_BITS = BitVector.ofInt(0, 1)
   }
 }
