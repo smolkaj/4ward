@@ -72,36 +72,40 @@ bazel test //...
 
 ## See what your packets are up to
 
-P4 programs have non-deterministic choice points — action selectors,
-multicast, clone. Other tools pick one path. 4ward shows you *all* of them
-as a **trace tree**:
+P4 programs have non-deterministic choice points — action selectors, multicast,
+clone. Other tools pick one path. 4ward shows you *all* of them as a **trace
+tree**.
 
-```
-                    ┌─ parse ─ table lookup ─┐
-                    │                        │
-         packet ────┤       (shared prefix)  ├─── action_selector ─┐
-                    │                        │                     │
-                    └────────────────────────┘        ┌────────────┼────────────┐
-                                                      │            │            │
-                                                  member_0     member_1     member_2
-                                                      │            │            │
-                                                   trace …     trace …     trace …
+Here's a [63-line P4 program](e2e_tests/trace_tree/clone_with_egress.p4) that
+clones a packet and forwards the original and clone out of two different ports:
+
+```sh
+bazel test //e2e_tests/trace_tree:golden_trace_tree_test \
+  --test_filter=clone_with_egress --test_output=all
 ```
 
-Here's what that looks like in practice — an ECMP program where the selector
-can pick one of three members:
+One packet goes in, two come out — here's the trace
+([full version](e2e_tests/trace_tree/clone_with_egress.golden.txtpb)):
 
 ```protobuf
-# shared prefix: parser + table lookup (same for all paths)
 events { parser_transition { from_state: "start"  to_state: "accept" } }
-events { table_lookup       { table_name: "ecmp"   hit: true          } }
-
-# fork: one branch per action selector member
-fork {
-  reason: ACTION_SELECTOR
-  branches { ... member_0 → port 1 ... }
-  branches { ... member_1 → port 2 ... }
-  branches { ... member_2 → port 3 ... }
+events { clone { session_id: 100 } }
+fork_outcome {
+  reason: CLONE
+  branches {
+    label: "original"
+    subtree {
+      events { table_lookup { action_name: "tag_original" } }
+      packet_outcome { output { egress_port: 2 } }
+    }
+  }
+  branches {
+    label: "clone"
+    subtree {
+      events { table_lookup { action_name: "tag_clone" } }
+      packet_outcome { output { egress_port: 3 } }
+    }
+  }
 }
 ```
 
