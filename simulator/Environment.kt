@@ -101,6 +101,8 @@ class PacketContext(payload: ByteArray) {
     traceEvents.add(event)
   }
 
+  fun getEvents(): List<TraceEvent> = traceEvents.toList()
+
   fun buildTrace(): TraceTree = TraceTree.newBuilder().addAllEvents(traceEvents).build()
 }
 

@@ -1,3 +1,13 @@
 # action_selector_nested.stf — two selector tables, nested forks.
 
+member sel1 0 set_tag tag=0x01
+member sel1 1 set_tag tag=0x02
+group sel1 1 0 1
+add stage1 hdr.ethernet.dstAddr:0xFFFFFFFFFFFF group=1
+
+member sel2 0 set_port port=0x0001
+member sel2 1 set_port port=0x0002
+group sel2 1 0 1
+add stage2 hdr.ethernet.etherType:0x0800 group=1
+
 packet 0 FFFFFFFFFFFF 000000000001 0800

@@ -118,6 +118,8 @@ fun runStf(runfiles: String, configPath: Path, stfPath: Path): TestResult =
 /** A parsed .stf file. */
 data class StfFile(
   val tableEntries: List<StfTableDirective>,
+  val memberDirectives: List<StfMemberDirective>,
+  val groupDirectives: List<StfGroupDirective>,
   val packets: List<StfPacket>,
   val expects: List<StfExpectedOutput>,
 ) {
@@ -126,8 +128,11 @@ data class StfFile(
      * Parses an STF file. Supported directives:
      * - `packet <port> <hex bytes>` — send a packet on ingress port
      * - `expect <port> <hex bytes>` — expect a packet on egress port
-     * - `add <table> [priority] <field:value>... <action(params)>` — install table entry
+     * - `add <table> [priority] <field:value>... <action(params)>` or `add <table> <field:value>...
+     *   group=<gid>` — install table entry
      * - `setdefault <table> <action(params)>` — override a table's default action
+     * - `member <profile> <member_id> <action(params)>` — action profile member
+     * - `group <profile> <group_id> <member_id>...` — action profile group
      * - `# comment`
      */
     fun parse(path: Path): StfFile {
@@ -139,6 +144,8 @@ data class StfFile(
           .filter { it.isNotEmpty() && !it.startsWith("#") }
 
       val tableEntries = mutableListOf<StfTableDirective>()
+      val memberDirectives = mutableListOf<StfMemberDirective>()
+      val groupDirectives = mutableListOf<StfGroupDirective>()
       val packets = mutableListOf<StfPacket>()
       val expects = mutableListOf<StfExpectedOutput>()
 
@@ -160,10 +167,12 @@ data class StfFile(
           }
           "add" -> tableEntries += parseAdd(tokens.drop(1))
           "setdefault" -> tableEntries += parseSetDefault(tokens.drop(1))
+          "member" -> memberDirectives += parseMember(tokens.drop(1))
+          "group" -> groupDirectives += parseGroup(tokens.drop(1))
         }
       }
 
-      return StfFile(tableEntries, packets, expects)
+      return StfFile(tableEntries, memberDirectives, groupDirectives, packets, expects)
     }
 
     /**
@@ -186,11 +195,17 @@ data class StfFile(
         idx++
       }
 
-      // Collect match fields until we hit a token containing '(' (the action).
+      // Collect match fields until we hit a token containing '(' (the action) or 'group='.
       val matches = mutableListOf<StfMatchField>()
-      while (idx < tokens.size && !tokens[idx].contains('(')) {
+      while (idx < tokens.size && !tokens[idx].contains('(') && !tokens[idx].startsWith("group=")) {
         matches += parseMatchField(tokens[idx])
         idx++
+      }
+
+      // Check for group reference: `group=<gid>`
+      if (idx < tokens.size && tokens[idx].startsWith("group=")) {
+        val groupId = tokens[idx].removePrefix("group=").toInt()
+        return StfAddEntry(tableName, priority, matches, groupId = groupId)
       }
 
       // The remaining token(s) form the action spec: name(param1, param2, ...).
@@ -199,7 +214,13 @@ data class StfFile(
       require(actionSpec.isNotEmpty()) { "add directive missing action" }
       val (actionName, actionParams) = parseActionSpec(actionSpec)
 
-      return StfAddEntry(tableName, priority, matches, actionName, actionParams)
+      return StfAddEntry(
+        tableName,
+        priority,
+        matches,
+        actionName = actionName,
+        actionParams = actionParams,
+      )
     }
 
     /**
@@ -265,6 +286,31 @@ data class StfFile(
         else paramStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }
       return name to params
     }
+
+    /** Parses: `member <profile> <member_id> <action_name> [<param>=<hex> ...]` */
+    @Suppress("MagicNumber")
+    private fun parseMember(tokens: List<String>): StfMemberDirective {
+      require(tokens.size >= 3) { "member directive needs at least profile, id, and action" }
+      val profileName = tokens[0]
+      val memberId = tokens[1].toInt()
+      val actionName = tokens[2]
+      val params =
+        tokens.drop(3).associate { token ->
+          val (name, value) = token.split("=", limit = 2)
+          name to value
+        }
+      return StfMemberDirective(profileName, memberId, actionName, params)
+    }
+
+    /** Parses: `group <profile> <group_id> <member_id> [<member_id> ...]` */
+    @Suppress("MagicNumber")
+    private fun parseGroup(tokens: List<String>): StfGroupDirective {
+      require(tokens.size >= 3) { "group directive needs at least profile, group_id, and members" }
+      val profileName = tokens[0]
+      val groupId = tokens[1].toInt()
+      val memberIds = tokens.drop(2).map { it.toInt() }
+      return StfGroupDirective(profileName, groupId, memberIds)
+    }
   }
 }
 
@@ -277,46 +323,41 @@ fun resolveStfTableEntry(
   directive: StfTableDirective,
   p4info: P4InfoOuterClass.P4Info,
 ): WriteEntryRequest {
-  val table =
-    p4info.tablesList.find {
-      it.preamble.alias == directive.tableName || it.preamble.name == directive.tableName
-    }
-      // BMv2 STF files may use partially-qualified names like "c.t" for
-      // "ingress.c.t". Fall back to suffix matching.
-      ?: p4info.tablesList.find { it.preamble.name.endsWith(".${directive.tableName}") }
-      ?: error("unknown table: ${directive.tableName}")
+  val table = findTable(directive.tableName, p4info)
 
-  val action =
-    p4info.actionsList.find {
-      it.preamble.alias == directive.actionName || it.preamble.name == directive.actionName
-    }
-      ?: p4info.actionsList.find { it.preamble.name.endsWith(".${directive.actionName}") }
-      ?: error("unknown action: ${directive.actionName}")
+  val tableEntry = P4RuntimeOuterClass.TableEntry.newBuilder().setTableId(table.preamble.id)
 
-  val paramsList =
-    action.paramsList.mapIndexed { i, paramInfo ->
-      // Named params (e.g. "val:0x7f") are resolved by name; unnamed by position.
-      val raw =
-        directive.actionParams.find { it.extractParamName() == paramInfo.name }
-          ?: directive.actionParams.getOrNull(i)
-          ?: error("missing param ${paramInfo.name} for action ${directive.actionName}")
-      P4RuntimeOuterClass.Action.Param.newBuilder()
-        .setParamId(paramInfo.id)
-        .setValue(encodeValue(raw.stripNamedParamPrefix(), paramInfo.bitwidth))
-        .build()
-    }
+  // Group reference: set action_profile_group_id instead of a direct action.
+  val isGroupEntry = directive is StfAddEntry && directive.groupId != null
+  if (isGroupEntry) {
+    tableEntry.setAction(
+      P4RuntimeOuterClass.TableAction.newBuilder()
+        .setActionProfileGroupId((directive as StfAddEntry).groupId!!)
+    )
+  } else {
+    val action = findAction(directive.actionName, p4info)
 
-  val tableEntry =
-    P4RuntimeOuterClass.TableEntry.newBuilder()
-      .setTableId(table.preamble.id)
-      .setAction(
-        P4RuntimeOuterClass.TableAction.newBuilder()
-          .setAction(
-            P4RuntimeOuterClass.Action.newBuilder()
-              .setActionId(action.preamble.id)
-              .addAllParams(paramsList)
-          )
-      )
+    val paramsList =
+      action.paramsList.mapIndexed { i, paramInfo ->
+        val raw =
+          directive.actionParams.find { it.extractParamName() == paramInfo.name }
+            ?: directive.actionParams.getOrNull(i)
+            ?: error("missing param ${paramInfo.name} for action ${directive.actionName}")
+        P4RuntimeOuterClass.Action.Param.newBuilder()
+          .setParamId(paramInfo.id)
+          .setValue(encodeValue(raw.stripNamedParamPrefix(), paramInfo.bitwidth))
+          .build()
+      }
+
+    tableEntry.setAction(
+      P4RuntimeOuterClass.TableAction.newBuilder()
+        .setAction(
+          P4RuntimeOuterClass.Action.newBuilder()
+            .setActionId(action.preamble.id)
+            .addAllParams(paramsList)
+        )
+    )
+  }
 
   val updateType =
     when (directive) {
@@ -341,6 +382,93 @@ fun resolveStfTableEntry(
     )
     .build()
 }
+
+/** Resolves an STF member directive to a P4Runtime WriteEntryRequest. */
+fun resolveStfMember(
+  directive: StfMemberDirective,
+  p4info: P4InfoOuterClass.P4Info,
+): WriteEntryRequest {
+  val profile = findActionProfile(directive.profileName, p4info)
+  val action = findAction(directive.actionName, p4info)
+
+  val paramsList =
+    action.paramsList.map { paramInfo ->
+      val raw =
+        directive.params[paramInfo.name]
+          ?: error("missing param ${paramInfo.name} for action ${directive.actionName}")
+      P4RuntimeOuterClass.Action.Param.newBuilder()
+        .setParamId(paramInfo.id)
+        .setValue(encodeValue(raw, paramInfo.bitwidth))
+        .build()
+    }
+
+  val member =
+    P4RuntimeOuterClass.ActionProfileMember.newBuilder()
+      .setActionProfileId(profile.preamble.id)
+      .setMemberId(directive.memberId)
+      .setAction(
+        P4RuntimeOuterClass.Action.newBuilder()
+          .setActionId(action.preamble.id)
+          .addAllParams(paramsList)
+      )
+      .build()
+
+  return WriteEntryRequest.newBuilder()
+    .setUpdate(
+      P4RuntimeOuterClass.Update.newBuilder()
+        .setType(P4RuntimeOuterClass.Update.Type.INSERT)
+        .setEntity(P4RuntimeOuterClass.Entity.newBuilder().setActionProfileMember(member))
+    )
+    .build()
+}
+
+/** Resolves an STF group directive to a P4Runtime WriteEntryRequest. */
+fun resolveStfGroup(
+  directive: StfGroupDirective,
+  p4info: P4InfoOuterClass.P4Info,
+): WriteEntryRequest {
+  val profile = findActionProfile(directive.profileName, p4info)
+
+  val group =
+    P4RuntimeOuterClass.ActionProfileGroup.newBuilder()
+      .setActionProfileId(profile.preamble.id)
+      .setGroupId(directive.groupId)
+      .addAllMembers(
+        directive.memberIds.map { memberId ->
+          P4RuntimeOuterClass.ActionProfileGroup.Member.newBuilder()
+            .setMemberId(memberId)
+            .setWeight(1)
+            .build()
+        }
+      )
+      .build()
+
+  return WriteEntryRequest.newBuilder()
+    .setUpdate(
+      P4RuntimeOuterClass.Update.newBuilder()
+        .setType(P4RuntimeOuterClass.Update.Type.INSERT)
+        .setEntity(P4RuntimeOuterClass.Entity.newBuilder().setActionProfileGroup(group))
+    )
+    .build()
+}
+
+private fun findTable(name: String, p4info: P4InfoOuterClass.P4Info): P4InfoOuterClass.Table =
+  p4info.tablesList.find { it.preamble.alias == name || it.preamble.name == name }
+    ?: p4info.tablesList.find { it.preamble.name.endsWith(".$name") }
+    ?: error("unknown table: $name")
+
+private fun findAction(name: String, p4info: P4InfoOuterClass.P4Info): P4InfoOuterClass.Action =
+  p4info.actionsList.find { it.preamble.alias == name || it.preamble.name == name }
+    ?: p4info.actionsList.find { it.preamble.name.endsWith(".$name") }
+    ?: error("unknown action: $name")
+
+private fun findActionProfile(
+  name: String,
+  p4info: P4InfoOuterClass.P4Info,
+): P4InfoOuterClass.ActionProfile =
+  p4info.actionProfilesList.find { it.preamble.alias == name || it.preamble.name == name }
+    ?: p4info.actionProfilesList.find { it.preamble.name.endsWith(".$name") }
+    ?: error("unknown action profile: $name")
 
 private fun resolveStfMatchField(
   m: StfMatchField,
@@ -432,8 +560,9 @@ data class StfAddEntry(
   override val tableName: String,
   val priority: Int?,
   val matches: List<StfMatchField>,
-  override val actionName: String,
-  override val actionParams: List<String>,
+  override val actionName: String = "",
+  override val actionParams: List<String> = emptyList(),
+  val groupId: Int? = null,
 ) : StfTableDirective
 
 data class StfSetDefault(
@@ -455,6 +584,15 @@ enum class MatchKind {
   LPM,
   TERNARY,
 }
+
+data class StfMemberDirective(
+  val profileName: String,
+  val memberId: Int,
+  val actionName: String,
+  val params: Map<String, String>,
+)
+
+data class StfGroupDirective(val profileName: String, val groupId: Int, val memberIds: List<Int>)
 
 /** Strips surrounding double-quotes, if present. */
 private fun String.unquote(): String = removeSurrounding("\"")

@@ -1,8 +1,5 @@
 # Expected trace tree for action_selector_nested: depth-2 fork tree.
 # stage1 forks into 2 branches; within each, stage2 forks into 2 branches.
-#
-# TODO(PR 3): update with actual member labels/params once action selector
-# forking is implemented. Current structure and values are placeholders.
 events {
   parser_transition {
     parser_name: "MyParser"
@@ -12,9 +9,21 @@ events {
 }
 events {
   table_lookup {
-    table_name: "MyIngress.stage1"
+    table_name: "stage1"
     hit: true
-    action_name: "MyIngress.set_tag"
+    matched_entry {
+      table_id: 39353596
+      match {
+        field_id: 1
+        exact {
+          value: "\377\377\377\377\377\377"
+        }
+      }
+      action {
+        action_profile_group_id: 1
+      }
+    }
+    action_name: "set_tag"
   }
 }
 fork {
@@ -24,15 +33,30 @@ fork {
     subtree {
       events {
         action_execution {
-          action_name: "MyIngress.set_tag"
-          params { key: "tag" value: "\001" }
+          action_name: "set_tag"
+          params {
+            key: "tag_1"
+            value: "\001"
+          }
         }
       }
       events {
         table_lookup {
-          table_name: "MyIngress.stage2"
+          table_name: "stage2"
           hit: true
-          action_name: "MyIngress.set_port"
+          matched_entry {
+            table_id: 35100795
+            match {
+              field_id: 1
+              exact {
+                value: "\b\000"
+              }
+            }
+            action {
+              action_profile_group_id: 1
+            }
+          }
+          action_name: "set_port"
         }
       }
       fork {
@@ -42,8 +66,11 @@ fork {
           subtree {
             events {
               action_execution {
-                action_name: "MyIngress.set_port"
-                params { key: "port" value: "\000\001" }
+                action_name: "set_port"
+                params {
+                  key: "port"
+                  value: "\000\001"
+                }
               }
             }
           }
@@ -53,8 +80,11 @@ fork {
           subtree {
             events {
               action_execution {
-                action_name: "MyIngress.set_port"
-                params { key: "port" value: "\000\002" }
+                action_name: "set_port"
+                params {
+                  key: "port"
+                  value: "\000\002"
+                }
               }
             }
           }
@@ -67,15 +97,30 @@ fork {
     subtree {
       events {
         action_execution {
-          action_name: "MyIngress.set_tag"
-          params { key: "tag" value: "\002" }
+          action_name: "set_tag"
+          params {
+            key: "tag_1"
+            value: "\002"
+          }
         }
       }
       events {
         table_lookup {
-          table_name: "MyIngress.stage2"
+          table_name: "stage2"
           hit: true
-          action_name: "MyIngress.set_port"
+          matched_entry {
+            table_id: 35100795
+            match {
+              field_id: 1
+              exact {
+                value: "\b\000"
+              }
+            }
+            action {
+              action_profile_group_id: 1
+            }
+          }
+          action_name: "set_port"
         }
       }
       fork {
@@ -85,8 +130,11 @@ fork {
           subtree {
             events {
               action_execution {
-                action_name: "MyIngress.set_port"
-                params { key: "port" value: "\000\001" }
+                action_name: "set_port"
+                params {
+                  key: "port"
+                  value: "\000\001"
+                }
               }
             }
           }
@@ -96,8 +144,11 @@ fork {
           subtree {
             events {
               action_execution {
-                action_name: "MyIngress.set_port"
-                params { key: "port" value: "\000\002" }
+                action_name: "set_port"
+                params {
+                  key: "port"
+                  value: "\000\002"
+                }
               }
             }
           }

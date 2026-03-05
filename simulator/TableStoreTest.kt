@@ -3,10 +3,13 @@ package fourward.simulator
 import com.google.protobuf.ByteString
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import p4.config.v1.P4InfoOuterClass
+import p4.v1.P4RuntimeOuterClass
 import p4.v1.P4RuntimeOuterClass.Action
 import p4.v1.P4RuntimeOuterClass.Entity
 import p4.v1.P4RuntimeOuterClass.FieldMatch
@@ -354,12 +357,186 @@ class TableStoreTest {
   }
 
   // ---------------------------------------------------------------------------
+  // Action profiles
+  // ---------------------------------------------------------------------------
+
+  /** Creates a TableStore with an action-profile-backed table for profile tests. */
+  private fun storeWithProfile(): TableStore {
+    val store = TableStore()
+    val p4infoTable =
+      P4InfoOuterClass.Table.newBuilder()
+        .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(PROFILE_TABLE_ID))
+        .setImplementationId(PROFILE_ID)
+        .build()
+    store.loadMappings(
+      tableNameById = mapOf(PROFILE_TABLE_ID to PROFILE_TABLE_NAME),
+      actionNameById = ACTION_ID_TO_NAME,
+      p4infoTables = listOf(p4infoTable),
+    )
+    return store
+  }
+
+  private fun writeMember(store: TableStore, memberId: Int, actionId: Int, paramValue: Byte) {
+    store.write(
+      Update.newBuilder()
+        .setType(Update.Type.INSERT)
+        .setEntity(
+          Entity.newBuilder()
+            .setActionProfileMember(
+              P4RuntimeOuterClass.ActionProfileMember.newBuilder()
+                .setActionProfileId(PROFILE_ID)
+                .setMemberId(memberId)
+                .setAction(
+                  Action.newBuilder()
+                    .setActionId(actionId)
+                    .addParams(
+                      Action.Param.newBuilder()
+                        .setParamId(1)
+                        .setValue(ByteString.copyFrom(byteArrayOf(paramValue)))
+                    )
+                )
+            )
+        )
+        .build()
+    )
+  }
+
+  private fun writeGroup(store: TableStore, groupId: Int, memberIds: List<Int>) {
+    store.write(
+      Update.newBuilder()
+        .setType(Update.Type.INSERT)
+        .setEntity(
+          Entity.newBuilder()
+            .setActionProfileGroup(
+              P4RuntimeOuterClass.ActionProfileGroup.newBuilder()
+                .setActionProfileId(PROFILE_ID)
+                .setGroupId(groupId)
+                .addAllMembers(
+                  memberIds.map { mid ->
+                    P4RuntimeOuterClass.ActionProfileGroup.Member.newBuilder()
+                      .setMemberId(mid)
+                      .setWeight(1)
+                      .build()
+                  }
+                )
+            )
+        )
+        .build()
+    )
+  }
+
+  private fun writeGroupEntry(store: TableStore, fieldValue: Byte, groupId: Int) {
+    store.write(
+      Update.newBuilder()
+        .setType(Update.Type.INSERT)
+        .setEntity(
+          Entity.newBuilder()
+            .setTableEntry(
+              TableEntry.newBuilder()
+                .setTableId(PROFILE_TABLE_ID)
+                .addMatch(
+                  FieldMatch.newBuilder()
+                    .setFieldId(1)
+                    .setExact(
+                      FieldMatch.Exact.newBuilder()
+                        .setValue(ByteString.copyFrom(byteArrayOf(fieldValue)))
+                    )
+                )
+                .setAction(TableAction.newBuilder().setActionProfileGroupId(groupId))
+            )
+        )
+        .build()
+    )
+  }
+
+  private fun writeMemberEntry(store: TableStore, fieldValue: Byte, memberId: Int) {
+    store.write(
+      Update.newBuilder()
+        .setType(Update.Type.INSERT)
+        .setEntity(
+          Entity.newBuilder()
+            .setTableEntry(
+              TableEntry.newBuilder()
+                .setTableId(PROFILE_TABLE_ID)
+                .addMatch(
+                  FieldMatch.newBuilder()
+                    .setFieldId(1)
+                    .setExact(
+                      FieldMatch.Exact.newBuilder()
+                        .setValue(ByteString.copyFrom(byteArrayOf(fieldValue)))
+                    )
+                )
+                .setAction(TableAction.newBuilder().setActionProfileMemberId(memberId))
+            )
+        )
+        .build()
+    )
+  }
+
+  @Test
+  fun `group entry lookup returns members for forking`() {
+    val s = storeWithProfile()
+    writeMember(s, memberId = 0, actionId = 10, paramValue = 1)
+    writeMember(s, memberId = 1, actionId = 20, paramValue = 2)
+    writeGroup(s, groupId = 1, memberIds = listOf(0, 1))
+    writeGroupEntry(s, fieldValue = 0x0A, groupId = 1)
+
+    val result = s.lookup(PROFILE_TABLE_NAME, listOf("1" to BitVal(0x0A, 8)))
+    assertTrue(result.hit)
+    assertNotNull(result.members)
+    assertEquals(2, result.members!!.size)
+    assertEquals(0, result.members!![0].memberId)
+    assertEquals("action10", result.members!![0].actionName)
+    assertEquals(1, result.members!![1].memberId)
+    assertEquals("action20", result.members!![1].actionName)
+  }
+
+  @Test
+  fun `direct member entry lookup returns no members`() {
+    val s = storeWithProfile()
+    writeMember(s, memberId = 5, actionId = 42, paramValue = 0x7F)
+    writeMemberEntry(s, fieldValue = 0x0B, memberId = 5)
+
+    val result = s.lookup(PROFILE_TABLE_NAME, listOf("1" to BitVal(0x0B, 8)))
+    assertTrue(result.hit)
+    assertNull(result.members)
+    assertEquals("action42", result.actionName)
+  }
+
+  @Test
+  fun `group entry miss returns default action without members`() {
+    val s = storeWithProfile()
+    s.setDefaultAction(PROFILE_TABLE_NAME, "drop")
+
+    val result = s.lookup(PROFILE_TABLE_NAME, listOf("1" to BitVal(0xFF, 8)))
+    assertFalse(result.hit)
+    assertNull(result.members)
+    assertEquals("drop", result.actionName)
+  }
+
+  @Test
+  fun `group member params are preserved through lookup`() {
+    val s = storeWithProfile()
+    writeMember(s, memberId = 0, actionId = 10, paramValue = 0x42)
+    writeGroup(s, groupId = 1, memberIds = listOf(0))
+    writeGroupEntry(s, fieldValue = 0x0A, groupId = 1)
+
+    val result = s.lookup(PROFILE_TABLE_NAME, listOf("1" to BitVal(0x0A, 8)))
+    val params = result.members!![0].params
+    assertEquals(1, params.size)
+    assertEquals(ByteString.copyFrom(byteArrayOf(0x42)), params[0].value)
+  }
+
+  // ---------------------------------------------------------------------------
   // Constants
   // ---------------------------------------------------------------------------
 
   companion object {
     private const val TABLE_ID = 1
     private const val TABLE_NAME = "myTable"
+    private const val PROFILE_TABLE_ID = 2
+    private const val PROFILE_TABLE_NAME = "selectorTable"
+    private const val PROFILE_ID = 100
     private val ACTION_ID_TO_NAME =
       listOf(10, 20, 42, 50, 77, 99, 100, 200).associateWith { "action$it" }
   }

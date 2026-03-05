@@ -2,6 +2,9 @@ package fourward.simulator
 
 import fourward.ir.v1.P4BehavioralConfig
 import fourward.ir.v1.StageKind
+import fourward.sim.v1.ForkBranch
+import fourward.sim.v1.ForkNode
+import fourward.sim.v1.TraceTree
 
 /**
  * v1model pipeline implementation.
@@ -20,15 +23,70 @@ import fourward.ir.v1.StageKind
  */
 class V1ModelArchitecture : Architecture {
 
+  /** Invariant inputs to the pipeline, shared across fork re-executions. */
+  private data class PipelineContext(
+    val ingressPort: UInt,
+    val payload: ByteArray,
+    val config: P4BehavioralConfig,
+    val tableStore: TableStore,
+  )
+
   override fun processPacket(
     ingressPort: UInt,
     payload: ByteArray,
     config: P4BehavioralConfig,
     tableStore: TableStore,
   ): PipelineResult {
-    val packetCtx = PacketContext(payload)
-    val interpreter = Interpreter(config, tableStore, packetCtx)
+    val ctx = PipelineContext(ingressPort, payload, config, tableStore)
+    return buildTraceTree(ctx, emptyMap(), prefixLength = 0)
+  }
+
+  /**
+   * Recursively builds a trace tree by re-executing the pipeline for each fork branch.
+   *
+   * When a [ForkException] is thrown (e.g. action selector group hit), this method re-executes the
+   * full pipeline once per group member with that member "forced", and assembles the results into a
+   * [TraceTree] with a [ForkNode]. Shared prefix events are stripped from branches.
+   */
+  private fun buildTraceTree(
+    ctx: PipelineContext,
+    forcedSelections: Map<String, Int>,
+    prefixLength: Int,
+  ): PipelineResult {
+    try {
+      val (outputs, trace) = runPipeline(ctx, forcedSelections)
+      val stripped =
+        TraceTree.newBuilder().addAllEvents(trace.eventsList.drop(prefixLength)).build()
+      return PipelineResult(outputs, stripped)
+    } catch (fork: ForkException) {
+      val levelEvents = fork.eventsBeforeFork.drop(prefixLength)
+      val branches =
+        fork.members.map { member ->
+          val newForced = forcedSelections + (fork.tableName to member.memberId)
+          val branchResult = buildTraceTree(ctx, newForced, fork.eventsBeforeFork.size)
+          ForkBranch.newBuilder()
+            .setLabel("member_${member.memberId}")
+            .setSubtree(branchResult.trace)
+            .build()
+        }
+      val tree =
+        TraceTree.newBuilder()
+          .addAllEvents(levelEvents)
+          .setFork(ForkNode.newBuilder().setReason(fork.reason).addAllBranches(branches))
+          .build()
+      return PipelineResult(emptyList(), tree)
+    }
+  }
+
+  /** Executes the full v1model pipeline once, returning output packets and flat trace. */
+  private fun runPipeline(
+    ctx: PipelineContext,
+    forcedSelections: Map<String, Int>,
+  ): PipelineResult {
+    val packetCtx = PacketContext(ctx.payload)
+    val interpreter = Interpreter(ctx.config, ctx.tableStore, packetCtx, forcedSelections)
     val env = Environment()
+    val config = ctx.config
 
     val typesByName = config.typesList.associateBy { it.name }
 
@@ -57,8 +115,8 @@ class V1ModelArchitecture : Architecture {
     check("packet_length" in standardMetadata.fields) {
       "$standardMetaTypeName has no packet_length"
     }
-    standardMetadata.fields["ingress_port"] = BitVal(ingressPort.toLong(), PORT_BITS)
-    standardMetadata.fields["packet_length"] = BitVal(payload.size.toLong(), INT32_BITS)
+    standardMetadata.fields["ingress_port"] = BitVal(ctx.ingressPort.toLong(), PORT_BITS)
+    standardMetadata.fields["packet_length"] = BitVal(ctx.payload.size.toLong(), INT32_BITS)
     standardMetadata.fields["parser_error"] = ErrorVal("NoError")
 
     // Map each shared type name to its initialised object so we can bind whatever

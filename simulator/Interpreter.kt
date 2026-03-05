@@ -15,6 +15,7 @@ import fourward.ir.v1.Type
 import fourward.ir.v1.UnaryOperator
 import fourward.sim.v1.ActionExecutionEvent
 import fourward.sim.v1.BranchEvent
+import fourward.sim.v1.ForkReason
 import fourward.sim.v1.ParserTransitionEvent
 import fourward.sim.v1.TableLookupEvent
 import fourward.sim.v1.TraceEvent
@@ -35,6 +36,7 @@ class Interpreter(
   private val config: P4BehavioralConfig,
   private val tableStore: TableStore,
   private val packetCtx: PacketContext? = null,
+  private val forcedSelections: Map<String, Int> = emptyMap(),
 ) {
   private val parsers: Map<String, ParserDecl> = config.parsersList.associateBy { it.name }
 
@@ -381,6 +383,7 @@ class Interpreter(
     }
   }
 
+  @Suppress("CyclomaticComplexMethod")
   private fun evalBinaryOp(op: fourward.ir.v1.BinaryOp, env: Environment): Value {
     // P4 spec §8.1: compile-time integers adopt the width of the other operand.
     val (left, right) = coerceInfInts(evalExpr(op.left, env), evalExpr(op.right, env))
@@ -561,6 +564,25 @@ class Interpreter(
         )
         .build()
     )
+
+    if (result.members != null) {
+      val forced = forcedSelections[tableName]
+      if (forced != null) {
+        // Re-execution with a forced member — execute that member's action directly.
+        val member =
+          result.members.find { it.memberId == forced }
+            ?: error("forced member $forced not found in table $tableName")
+        execAction(member.actionName, member.params, env)
+        return TableResult(result.hit, member.actionName)
+      }
+      // First encounter: throw to let the architecture build the trace tree.
+      throw ForkException(
+        tableName,
+        ForkReason.ACTION_SELECTOR,
+        result.members,
+        packetCtx!!.getEvents(),
+      )
+    }
 
     val params = result.entry?.action?.action?.paramsList ?: result.actionParams
     execAction(result.actionName, params, env)
@@ -930,3 +952,16 @@ class ExitException : Exception()
 
 /** Thrown by a `return` statement inside an action or function. */
 class ReturnException(val value: Value) : Exception()
+
+/**
+ * Thrown when a table with an action selector implementation hits a group entry.
+ *
+ * The architecture catches this and re-executes the pipeline for each group member, building the
+ * trace tree by stripping shared prefixes.
+ */
+class ForkException(
+  val tableName: String,
+  val reason: ForkReason,
+  val members: List<TableStore.MemberAction>,
+  val eventsBeforeFork: List<TraceEvent>,
+) : Exception()

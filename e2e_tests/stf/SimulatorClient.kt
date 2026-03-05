@@ -64,7 +64,7 @@ class SimulatorClient(simulatorBinary: Path) : Closeable {
 
   override fun close() {
     output.close()
-    process.destroy()
+    process.destroyForcibly().waitFor()
     input.close()
   }
 }
