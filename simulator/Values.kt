@@ -98,6 +98,11 @@ data class StructVal(val typeName: String, val fields: MutableMap<String, Value>
   fun invalidateUnion() {
     fields.values.forEach { if (it is HeaderVal) it.setInvalid() }
   }
+
+  /** P4 spec §8.20: setting a union member valid invalidates all other members. */
+  fun invalidateUnionExcept(keep: HeaderVal) {
+    fields.values.forEach { if (it is HeaderVal && it !== keep) it.setInvalid() }
+  }
 }
 
 /** A header stack (fixed-size array of headers with a next/last pointer). */

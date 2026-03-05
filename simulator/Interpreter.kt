@@ -675,13 +675,12 @@ class Interpreter(
     }
   }
 
-  /** P4 spec §8.20: if [expr] is a field access into a header union, invalidate all siblings. */
+  /** If [expr] is a field access into a header union, enforce one-valid-at-a-time (P4 §8.20). */
   private fun invalidateUnionSiblings(expr: Expr, target: HeaderVal, env: Environment) {
     if (!expr.hasFieldAccess()) return
     val parentType = expr.fieldAccess.expr.type
     if (!parentType.hasNamed() || types[parentType.named]?.hasHeaderUnion() != true) return
-    val union = evalExpr(expr.fieldAccess.expr, env) as StructVal
-    union.fields.values.forEach { if (it is HeaderVal && it !== target) it.setInvalid() }
+    (evalExpr(expr.fieldAccess.expr, env) as StructVal).invalidateUnionExcept(target)
   }
 
   // -------------------------------------------------------------------------
