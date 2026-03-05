@@ -37,10 +37,7 @@ The north star is to replace BMv2 as the reference simulator in
 ┌─────────────────────────────────────────────────────────────────┐
 │ runtime                                                         │
 │                                                                 │
-│  Controller ──P4Runtime──▶ 4ward server (Go, future)           │
-│                                  │                              │
-│                           SimRequest/Response                   │
-│                           (proto over stdin/stdout)             │
+│  Controller ──P4Runtime──▶ P4Runtime server                     │
 │                                  │                              │
 │                                  ▼                              │
 │  packet ──────────────────▶ 4ward sim ──▶ output packets       │
@@ -161,18 +158,17 @@ No other P4 tool gives you this. BMv2 picks one path. Hardware picks one path.
 4ward can show you *all* paths — making it a powerful tool for testing,
 verification, and understanding complex P4 programs.
 
-## P4Runtime (future)
+## P4Runtime (Track 4)
 
 Not yet! We're deliberately building the simulator first and getting it solid
-before adding the P4Runtime layer. When the time comes, it'll be a Go binary
-that:
+before adding the P4Runtime layer. When the time comes, the server will:
 
-1. Speaks P4Runtime gRPC to the controller.
-2. Translates requests into `SimRequest` proto messages.
-3. Forwards them to the simulator over stdin/stdout.
+1. Speak P4Runtime gRPC to the controller.
+2. Translate requests into `SimRequest` proto messages.
+3. Forward them to the simulator.
 
-The Go server will be a thin adapter — all the real P4 logic stays in the Kotlin
-simulator where it belongs.
+All the real P4 logic stays in the simulator where it belongs. See
+[ROADMAP.md](ROADMAP.md) Track 4 for the full scope.
 
 ## Why these languages?
 
@@ -180,8 +176,6 @@ simulator where it belongs.
   interpreting a tree-structured IR. Plus, `BigInteger` handles arbitrary-width
   bit vectors without us having to write our own bignum library (no thank you).
 - **C++**: p4c is C++, so the backend has to be C++. Simple as that.
-- **Go** (future P4Runtime server): gRPC is a first-class citizen in Go, and the
-  server will be thin enough that Go's simplicity is a feature, not a limitation.
 
 ## Why proto edition 2024?
 

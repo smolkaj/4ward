@@ -4,22 +4,33 @@ This document describes the main development tracks, their priorities, and how
 they can be parallelized. See [STATUS.md](STATUS.md) for daily progress and
 [ARCHITECTURE.md](ARCHITECTURE.md) for design details.
 
-## North star: replace BMv2 in DVaaS
+## North star
 
-[DVaaS](https://github.com/sonic-net/sonic-pins/tree/main/dvaas) (Dataplane
-Validation as a Service) validates switch behavior by sending synthesized
-packets to both a switch under test and a reference P4 simulator, then
-comparing outputs. Today that reference simulator is BMv2.
+Two goals, mostly orthogonal:
 
-4ward should replace BMv2 in DVaaS. This is compelling because:
+1. **Replace BMv2 in [DVaaS](https://github.com/sonic-net/sonic-pins/tree/main/dvaas).**
+   DVaaS (Dataplane Validation as a Service) validates switch behavior by
+   sending synthesized packets to both a switch under test and a reference P4
+   simulator, then comparing outputs. Today that reference simulator is BMv2.
 
-- **Spec compliance without workarounds.** DVaaS currently needs a
-  "BMv2-compatible config" that papers over BMv2's missing features (e.g.
-  `@p4runtime_translation`). 4ward aims to be spec-compliant out of the box.
-- **Trace trees eliminate false positives.** DVaaS flags mismatches when the
-  switch's action selector hash picks a different group member than BMv2's.
-  With trace trees, 4ward can report all valid outputs — a switch result that
-  matches *any* valid path is correct, not a false failure.
+2. **Full [SAI P4](https://github.com/sonic-net/sonic-pins/tree/main/sai_p4) support.**
+   SAI P4 is a 27-table v1model program that models the SONiC Switch
+   Abstraction Interface. It makes heavy use of features that BMv2 handles
+   poorly or not at all — `@p4runtime_translation`, `@entry_restriction` /
+   `@action_restriction`
+   ([p4-constraints](https://github.com/p4lang/p4-constraints)),
+   `@refers_to` — requiring DVaaS to maintain a "BMv2-compatible config" that
+   papers over the gaps.
+
+4ward aims to handle all of this correctly, out of the box:
+
+- **Spec compliance without workarounds.** Full support for
+  `@p4runtime_translation` (including SAI P4's convention of string-translated
+  port IDs), p4-constraints validation, and all v1model features SAI P4 uses.
+- **Trace trees replace brittle hacks.** DVaaS currently uses hacks to
+  extract all possible traces from BMv2 at non-deterministic choice points
+  (e.g., action selectors), but this is brittle and inefficient. 4ward
+  produces trace trees natively — all valid outputs in a single pass.
 - **Richer traces.** DVaaS already augments test vectors with packet traces.
   4ward's structured proto traces are more powerful than BMv2's textual
   traces.
@@ -58,7 +69,9 @@ comparing outputs. Today that reference simulator is BMv2.
 
 This north star connects all the tracks: v1model completeness (track 1) makes
 4ward a credible reference, trace trees (track 3) make it *better* than BMv2,
-and the P4Runtime server (track 4) is the integration point.
+and the P4Runtime server (track 4) is the integration point — with
+`@p4runtime_translation` and p4-constraints support making it a P4Runtime
+reference implementation in its own right.
 
 ## Tracks
 
@@ -119,20 +132,38 @@ Work breakdown:
 **Done when:** all 7 golden trace tree tests pass and all existing corpus tests
 still pass.
 
-### Track 4: P4Runtime server
+### Track 4: P4Runtime reference implementation
 
-**Priority: medium — start now | Parallelizable: yes (fully independent)**
+**Priority: medium — start now | Parallelizable: yes**
 
-A Go gRPC server that speaks P4Runtime to controllers and translates requests
-into `SimRequest` proto messages for the simulator. This is what turns 4ward
-from a testing tool into something you can plug into a real SDN stack.
+A **P4Runtime reference implementation**: a gRPC server that speaks P4Runtime
+to controllers and forwards requests to the simulator. Beautiful, simple,
+correct, 100% spec-compliant.
 
-Fully independent of the other tracks — different language (Go), different
-codebase, communicates with the simulator only via the proto service protocol.
-Can work with whatever subset of v1model is already passing.
+Beyond basic P4Runtime, the server must support features that BMv2 lacks and
+that SAI P4 requires:
 
-**Done when:** a controller can install table entries and send/receive packets
-through 4ward via standard P4Runtime.
+- **`@p4runtime_translation`** — bidirectional translation between
+  controller-facing values (e.g., string port names) and data-plane values
+  (e.g., integer port IDs). SAI P4 uses `@p4runtime_translation("", string)`
+  on all ID types including ports. The P4Runtime spec is underspecified here;
+  we'll need to fill in the gaps pragmatically, guided by SAI P4's
+  conventions.
+- **[p4-constraints](https://github.com/p4lang/p4-constraints)** — a
+  constraint language for validating table entries and action parameters at
+  write time (via `@entry_restriction` and `@action_restriction`
+  annotations). E.g., "VRF must be non-zero", "IPv4 prefix length 0..32".
+- **Strict validation** — enforce message validity rigorously. In `--strict`
+  mode, also enforce recommended (not just required) properties from the
+  P4Runtime spec.
+- **Actionable error messages** — when a Write fails, the error should tell
+  you exactly what's wrong and how to fix it. Not `INVALID_ARGUMENT`, but
+  `table 'ipv4_table' entry violates constraint: vrf_id must be non-zero`.
+
+**Done when:** SAI P4 can be loaded via `SetForwardingPipelineConfig`, table
+entries can be installed and validated (including p4-constraints and
+`@p4runtime_translation`), and packets can be sent and received via
+`StreamChannel` — all through standard P4Runtime gRPC.
 
 ### Track 5: architecture expansion (PSA, then PNA/TNA)
 
