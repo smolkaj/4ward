@@ -32,16 +32,16 @@
             <td></td>
             <td class="headerItem">Lines:</td>
             <td class="headerCovTableEntryLo">0.0&nbsp;%</td>
-            <td class="headerCovTableEntry">4</td>
+            <td class="headerCovTableEntry">1</td>
             <td class="headerCovTableEntry">0</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-05 07:54:03</td>
+            <td class="headerValue">2026-03-05 08:24:24</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryLo">0.0&nbsp;%</td>
-            <td class="headerCovTableEntry">6</td>
+            <td class="headerCovTableEntry">2</td>
             <td class="headerCovTableEntry">0</td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
@@ -87,7 +87,7 @@
 <span id="L25"><span class="lineNum">      25</span>              :    * - Setting up the initial environment (standard metadata, header validity).</span>
 <span id="L26"><span class="lineNum">      26</span>              :    * - Running each pipeline stage in the correct order.</span>
 <span id="L27"><span class="lineNum">      27</span>              :    * - Handling architecture-specific operations (clone, resubmit, etc.).</span>
-<span id="L28"><span class="lineNum">      28</span>              :    * - Returning the output packets.</span>
+<span id="L28"><span class="lineNum">      28</span>              :    * - Returning the trace tree (with packet outcomes at leaves).</span>
 <span id="L29"><span class="lineNum">      29</span>              :    */</span>
 <span id="L30"><span class="lineNum">      30</span>              :   fun processPacket(</span>
 <span id="L31"><span class="lineNum">      31</span>              :     ingressPort: UInt,</span>
@@ -100,15 +100,10 @@
 <span id="L38"><span class="lineNum">      38</span>              : /**</span>
 <span id="L39"><span class="lineNum">      39</span>              :  * The result of running a packet through the pipeline.</span>
 <span id="L40"><span class="lineNum">      40</span>              :  *</span>
-<span id="L41"><span class="lineNum">      41</span>              :  * [outputPackets] are the packets to emit (port, payload). [trace] is the execution trace tree</span>
-<span id="L42"><span class="lineNum">      42</span>              :  * across all pipeline stages, with forks at non-deterministic choice points.</span>
+<span id="L41"><span class="lineNum">      41</span>              :  * The [trace] tree carries the complete execution trace. Leaf nodes contain [PacketOutcome]s</span>
+<span id="L42"><span class="lineNum">      42</span>              :  * (output packets or drops); fork nodes represent non-deterministic choice points.</span>
 <span id="L43"><span class="lineNum">      43</span>              :  */</span>
-<span id="L44"><span class="lineNum">      44</span> <span class="tlaUNC tlaBgUNC">           0 : data class PipelineResult(</span></span>
-<span id="L45"><span class="lineNum">      45</span> <span class="tlaUNC">           0 :   val outputPackets: List&lt;OutputPacket&gt;,</span></span>
-<span id="L46"><span class="lineNum">      46</span> <span class="tlaUNC">           0 :   val trace: fourward.sim.v1.TraceTree,</span></span>
-<span id="L47"><span class="lineNum">      47</span>              : )</span>
-<span id="L48"><span class="lineNum">      48</span>              : </span>
-<span id="L49"><span class="lineNum">      49</span> <span class="tlaUNC">           0 : data class OutputPacket(val port: UInt, val payload: ByteArray)</span></span>
+<span id="L44"><span class="lineNum">      44</span> <span class="tlaUNC tlaBgUNC">           0 : data class PipelineResult(val trace: fourward.sim.v1.TraceTree)</span></span>
         </pre>
               </td>
             </tr>
