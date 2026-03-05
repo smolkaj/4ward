@@ -73,7 +73,7 @@ Add new fields instead.
 ## On correctness
 
 4ward is a spec-compliant reference implementation: it should behave exactly as
-the [P4₁₆ spec](https://p4.org/wp-content/uploads/sites/53/2024/10/P4-16-spec-v1.2.5.html)
+the [P4₁₆ spec](https://p4.org/wp-content/uploads/sites/53/p4-spec/docs/p4-16-working-draft.html)
 describes. When you're unsure about a language detail, check the spec. If the
 spec is ambiguous, follow p4c's behaviour and document the ambiguity in a
 comment citing the relevant section.

@@ -100,7 +100,7 @@ implementations.
 
 4ward is a spec-compliant reference implementation. The authoritative source
 for language semantics is the
-[P4₁₆ Language Specification (v1.2.5)](https://p4.org/wp-content/uploads/sites/53/2024/10/P4-16-spec-v1.2.5.html).
+[P4₁₆ Language Specification](https://p4.org/wp-content/uploads/sites/53/p4-spec/docs/p4-16-working-draft.html).
 **When in doubt, consult the spec.** If the spec is ambiguous, follow p4c's
 behaviour and document the ambiguity with a comment citing the relevant spec
 section.

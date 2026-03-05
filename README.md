@@ -35,6 +35,13 @@ branch — delivered as a structured trace tree you can actually read.
 
 ## Why 4ward?
 
+4ward is a **spec-compliant reference implementation** of the
+[P4₁₆ language](https://p4.org/wp-content/uploads/sites/53/p4-spec/docs/p4-16-working-draft.html)
+and [P4Runtime](https://p4lang.github.io/p4runtime/spec/main/P4Runtime-Spec.html),
+optimised for **correctness, observability, and extensibility** rather than
+performance. Think of it as a debugger that speaks P4, not a production data
+plane.
+
 | | Real hardware | BMv2 | **4ward** |
 |---|---|---|---|
 | Runs P4 programs | sure | sure | **yep** |
@@ -47,14 +54,9 @@ branch — delivered as a structured trace tree you can actually read.
 | Simple, readable codebase | ehh | ehh | **yes!** |
 | Fast, rigorous CI | nope | slow | **[~2 min](https://4ward.buildbuddy.io/trends/)** |
 
-4ward is a **spec-compliant reference implementation** of the
-[P4₁₆ language](https://p4.org/wp-content/uploads/sites/53/2024/10/P4-16-spec-v1.2.5.html),
-optimised for **correctness and observability** rather than performance. Think of
-it as a debugger that speaks P4, not a production data plane.
-
 ## Quick start
 
-Tested on macOS and Ubuntu. You need [Bazel](https://bazel.build) 9+ (or just
+[Tested on](https://4ward.buildbuddy.io/tests/) macOS and Ubuntu. You need [Bazel](https://bazel.build) 9+ (or just
 grab [Bazelisk](https://github.com/bazelbuild/bazelisk) and forget about it)
 and a C++20 compiler for the p4c backend. Everything else is hermetic — Bazel
 handles it.
