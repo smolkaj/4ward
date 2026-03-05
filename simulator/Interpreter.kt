@@ -513,7 +513,9 @@ class Interpreter(
         }
       }
       "setValid" -> {
-        (evalExpr(call.target, env) as HeaderVal).valid = true
+        val target = evalExpr(call.target, env) as HeaderVal
+        invalidateUnionSiblings(call.target, target, env)
+        target.valid = true
         UnitVal
       }
       "setInvalid" -> {
@@ -673,6 +675,14 @@ class Interpreter(
     }
   }
 
+  /** If [expr] is a field access into a header union, enforce one-valid-at-a-time (P4 §8.20). */
+  private fun invalidateUnionSiblings(expr: Expr, target: HeaderVal, env: Environment) {
+    if (!expr.hasFieldAccess()) return
+    val parentType = expr.fieldAccess.expr.type
+    if (!parentType.hasNamed() || types[parentType.named]?.hasHeaderUnion() != true) return
+    (evalExpr(expr.fieldAccess.expr, env) as StructVal).invalidateUnionExcept(target)
+  }
+
   // -------------------------------------------------------------------------
   // Packet extract / emit
   // -------------------------------------------------------------------------
@@ -713,6 +723,7 @@ class Interpreter(
       newFields[field.name] = bitsToValue(field.type, raw, width)
       bitOffset += width
     }
+    invalidateUnionSiblings(call.argsList[0], header, env)
     header.setValid(newFields)
     return UnitVal
   }
