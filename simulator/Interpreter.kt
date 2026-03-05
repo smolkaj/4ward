@@ -410,8 +410,18 @@ class Interpreter(
       // bit<N>-only operations (no int<N> equivalent in P4 spec).
       BinaryOperator.DIV -> BitVal((left as BitVal).bits / (right as BitVal).bits)
       BinaryOperator.MOD -> BitVal((left as BitVal).bits % (right as BitVal).bits)
-      BinaryOperator.ADD_SAT -> BitVal((left as BitVal).bits.addSat((right as BitVal).bits))
-      BinaryOperator.SUB_SAT -> BitVal((left as BitVal).bits.subSat((right as BitVal).bits))
+      BinaryOperator.ADD_SAT ->
+        when (left) {
+          is BitVal -> BitVal(left.bits.addSat((right as BitVal).bits))
+          is IntVal -> IntVal(left.bits.addSat((right as IntVal).bits))
+          else -> error("ADD_SAT on non-fixed-width: $left")
+        }
+      BinaryOperator.SUB_SAT ->
+        when (left) {
+          is BitVal -> BitVal(left.bits.subSat((right as BitVal).bits))
+          is IntVal -> IntVal(left.bits.subSat((right as IntVal).bits))
+          else -> error("SUB_SAT on non-fixed-width: $left")
+        }
       BinaryOperator.SHL -> BitVal((left as BitVal).bits.shl(intValue(right)))
       BinaryOperator.SHR -> BitVal((left as BitVal).bits.shr(intValue(right)))
       // Equality uses data-class structural equality (works for both bit<N> and int<N>).
@@ -691,6 +701,24 @@ class Interpreter(
     // field. The second argument gives the varbit field's runtime length in bits.
     val varbitBits: Int =
       if (call.argsCount > 1) (evalExpr(call.argsList[1], env) as BitVal).bits.value.toInt() else 0
+
+    // P4 spec §12.8.1: varbit length must be a multiple of 8.
+    if (varbitBits > 0 && varbitBits % 8 != 0) {
+      throw ParserErrorException(
+        "ParserInvalidArgument",
+        "varbit extract length $varbitBits is not a multiple of 8",
+      )
+    }
+    // P4 spec §12.8.1: varbit length must not exceed the declared max width.
+    if (varbitBits > 0) {
+      val varbitField = headerDecl.fieldsList.find { it.type.hasVarbit() }
+      if (varbitField != null && varbitBits > varbitField.type.varbit.maxWidth) {
+        throw ParserErrorException(
+          "HeaderTooShort",
+          "varbit extract length $varbitBits exceeds max width ${varbitField.type.varbit.maxWidth}",
+        )
+      }
+    }
 
     // Read the entire header at once and load it into a single BigInteger (MSB-first).
     // This handles sub-byte fields (e.g. IPv4's bit<4> version and ihl) correctly:

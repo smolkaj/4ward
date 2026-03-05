@@ -71,9 +71,14 @@ class Simulator {
     tableStore.loadMappings(tableNameById, actionNameById)
 
     for (table in config.p4Info.tablesList) {
-      if (table.constDefaultActionId != 0) {
+      // const_default_action_id: immutable default set in the P4 source with `const`.
+      // initial_default_action: mutable default set in the P4 source without `const`.
+      val defaultActionId =
+        if (table.constDefaultActionId != 0) table.constDefaultActionId
+        else if (table.hasInitialDefaultAction()) table.initialDefaultAction.actionId else 0
+      if (defaultActionId != 0) {
         val tableName = tableNameById[table.preamble.id] ?: continue
-        val actionName = actionNameById[table.constDefaultActionId] ?: "NoAction"
+        val actionName = actionNameById[defaultActionId] ?: "NoAction"
         tableStore.setDefaultAction(tableName, actionName)
       }
     }
