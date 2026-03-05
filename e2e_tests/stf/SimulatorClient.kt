@@ -10,6 +10,7 @@ import java.io.Closeable
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.nio.file.Path
+import java.util.concurrent.TimeUnit
 
 /**
  * Client for the 4ward simulator subprocess protocol.
@@ -64,7 +65,16 @@ class SimulatorClient(simulatorBinary: Path) : Closeable {
 
   override fun close() {
     output.close()
-    process.destroyForcibly().waitFor()
+    // Graceful shutdown so JaCoCo's shutdown hook can flush coverage data.
+    // Fall back to SIGKILL if the process doesn't exit promptly.
+    process.destroy()
+    if (!process.waitFor(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+      process.destroyForcibly().waitFor()
+    }
     input.close()
+  }
+
+  private companion object {
+    const val SHUTDOWN_TIMEOUT_SECONDS = 5L
   }
 }

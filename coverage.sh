@@ -1,15 +1,22 @@
 #!/usr/bin/env bash
-# Collects Kotlin code coverage for the simulator library.
+# Collects Kotlin test coverage for the simulator library.
+#
+# Coverage comes from two sources:
+#   1. Unit tests (kt_jvm_test targets) — instrumented directly by JaCoCo.
+#   2. E2e tests — the simulator subprocess inherits COVERAGE=1 and JaCoCo
+#      flushes probe data on graceful shutdown (SIGTERM).
 #
 # Usage:
 #   ./coverage.sh                                # run tests, produce LCOV
 #   ./coverage.sh --html                         # also generate HTML report
 #   ./coverage.sh --html --baseline B --diff D   # HTML with differential coverage
+#   ./coverage.sh --min-coverage 80              # fail if coverage < 80%
 #
 # Options:
 #   --html              Generate an HTML report (requires genhtml / lcov).
 #   --baseline <file>   Baseline LCOV for differential coverage (genhtml --baseline-file).
 #   --diff <file>       Unified diff for differential coverage (genhtml --diff-file).
+#   --min-coverage <N>  Fail if line coverage percentage is below N (default: none).
 #
 # Bazel 9's built-in `bazel coverage` pipeline doesn't produce LCOV data for
 # kt_jvm_test targets.  Two independent bugs conspire:
@@ -35,12 +42,14 @@ set -euo pipefail
 WANT_HTML=false
 BASELINE_FILE=""
 DIFF_FILE=""
+MIN_COVERAGE=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --html)     WANT_HTML=true; shift ;;
-    --baseline) BASELINE_FILE="${2:?--baseline requires a file argument}"; shift 2 ;;
-    --diff)     DIFF_FILE="${2:?--diff requires a file argument}"; shift 2 ;;
-    *)          echo "Unknown option: $1" >&2; exit 1 ;;
+    --html)         WANT_HTML=true; shift ;;
+    --baseline)     BASELINE_FILE="${2:?--baseline requires a file argument}"; shift 2 ;;
+    --diff)         DIFF_FILE="${2:?--diff requires a file argument}"; shift 2 ;;
+    --min-coverage) MIN_COVERAGE="${2:?--min-coverage requires a number}"; shift 2 ;;
+    *)              echo "Unknown option: $1" >&2; exit 1 ;;
   esac
 done
 
@@ -302,6 +311,11 @@ echo "LCOV report: ${MERGED}"
 if [[ ${total_lf} -gt 0 ]]; then
   pct=$(( 100 * total_lh / total_lf ))
   echo "Line coverage: ${total_lh}/${total_lf} (${pct}%)"
+fi
+
+if [[ -n "${MIN_COVERAGE}" && ${total_lf} -gt 0 && ${pct} -lt ${MIN_COVERAGE} ]]; then
+  echo "Error: line coverage ${pct}% is below minimum ${MIN_COVERAGE}%" >&2
+  exit 1
 fi
 
 # ── Persist LCOV ─────────────────────────────────────────────────────────────
