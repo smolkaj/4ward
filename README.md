@@ -55,52 +55,6 @@ plane.
 | Fast, rigorous CI | nope | slow | **[~2 min](https://4ward.buildbuddy.io/trends/)** |
 | Development pace | slow | slow | **[AI-fast](docs/AI_WORKFLOW.md)** |
 
-## Should you trust AI-written code?
-
-4ward is **[100% AI-written](docs/AI_WORKFLOW.md)** — every line, every test,
-every doc you're reading right now. Naturally, you might wonder: should you
-trust the output?
-
-The answer isn't "trust the AI." It's **trust the tests.**
-
-4ward uses three independent testing layers, each with a different source of
-truth:
-
-- **200+ conformance tests** from p4c's own test suite — hand-written
-  expectations by the people who built the language.
-- **Symbolic path exploration** via p4testgen — auto-generated tests that
-  systematically cover execution paths humans wouldn't think to exercise.
-- **Differential testing** against BMv2 — run identical inputs through the
-  reference implementation and 4ward, compare every output.
-
-When three independent oracles agree, the code is correct — regardless of who
-wrote it. This is how production compilers like GCC and LLVM are tested. See
-[Testing Strategy](docs/TESTING_STRATEGY.md) for the full story.
-
-## Why Kotlin?
-
-The P4 ecosystem is C++. So why isn't 4ward?
-
-Since no one needs to hold language minutiae in their head — the
-[AI writes the code](docs/AI_WORKFLOW.md) — we're free to pick the best
-language for the problem, not the most familiar one.
-
-**Why not C++?** Its top strengths — speed, ecosystem familiarity —
-don't matter here. Its top weaknesses — compile times, complexity — matter a lot.
-
-**Why Kotlin?** Fast builds, simple language, strong type system, excellent
-ergonomics (sealed classes, pattern matching).
-
-**Why not…**
-- **Rust?** Borrow checker is overkill — we don't need manual memory control.
-- **Go?** Weaker type system — no algebraic data types, no pattern matching.
-- **Python?** Weak type system, slow test execution.
-- **Java?** Kotlin, but worse. Verbose, no sealed `when`, no data classes.
-
-**You don't need to know Kotlin to contribute to 4ward!**
-[The AI writes the code](docs/AI_WORKFLOW.md) — you just need to know your
-requirements.
-
 ## Quick start
 
 [Tested on](https://4ward.buildbuddy.io/tests/) macOS and Ubuntu. You need [Bazel](https://bazel.build) 9+ (or just
@@ -152,6 +106,52 @@ fork {
 ```
 
 No printf debugging. No Wireshark. No guessing.
+
+## Should you trust AI-written code?
+
+4ward is **[100% AI-written](docs/AI_WORKFLOW.md)** — every line, every test,
+every doc you're reading right now. Naturally, you might wonder: should you
+trust the output?
+
+The answer isn't "trust the AI." It's **trust the tests.**
+
+4ward uses three independent testing layers, each with a different source of
+truth:
+
+- **200+ conformance tests** from p4c's own test suite — hand-written
+  expectations by the people who built the language.
+- **Symbolic path exploration** via p4testgen — auto-generated tests that
+  systematically cover execution paths humans wouldn't think to exercise.
+- **Differential testing** against BMv2 — run identical inputs through the
+  reference implementation and 4ward, compare every output.
+
+When three independent oracles agree, the code is correct — regardless of who
+wrote it. This is how production compilers like GCC and LLVM are tested. See
+[Testing Strategy](docs/TESTING_STRATEGY.md) for the full story.
+
+## Why Kotlin?
+
+The P4 ecosystem is C++. So why isn't 4ward?
+
+Since no one needs to hold language minutiae in their head — the
+[AI writes the code](docs/AI_WORKFLOW.md) — we're free to pick the best
+language for the problem, not the most familiar one.
+
+**Why not C++?** Its top strengths — speed, ecosystem familiarity —
+don't matter here. Its top weaknesses — compile times, complexity — matter a lot.
+
+**Why Kotlin?** Fast builds, simple language, strong type system, excellent
+ergonomics (sealed classes, pattern matching).
+
+**Why not…**
+- **Rust?** Borrow checker is overkill — we don't need manual memory control.
+- **Go?** Weaker type system — no algebraic data types, no pattern matching.
+- **Python?** Weak type system, slow test execution.
+- **Java?** Kotlin, but worse. Verbose, no sealed `when`, no data classes.
+
+**You don't need to know Kotlin to contribute to 4ward!**
+[The AI writes the code](docs/AI_WORKFLOW.md) — you just need to know your
+requirements.
 
 ## Project structure
 
