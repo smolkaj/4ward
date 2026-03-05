@@ -1,1 +1,1 @@
-genhtml /home/runner/work/4ward/4ward/coverage.lcov --output-directory /home/runner/work/4ward/4ward/coverage-report --quiet --baseline-file /tmp/baseline.lcov --diff-file /tmp/tmp.qxX9h21Z5y/stripped.diff --ignore-errors path,unmapped
+genhtml /home/runner/work/4ward/4ward/coverage.lcov --output-directory /home/runner/work/4ward/4ward/coverage-report --quiet --baseline-file /tmp/baseline.lcov --diff-file /tmp/tmp.Kc9N9dj1NJ/stripped.diff --ignore-errors path,unmapped
