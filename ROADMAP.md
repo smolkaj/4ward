@@ -113,23 +113,17 @@ The killer feature. Fork at non-deterministic choice points (action selectors,
 profiles, replication) and return a tree of all possible executions. See
 [ARCHITECTURE.md](ARCHITECTURE.md) for the full design vision.
 
-This is what differentiates 4ward from every other P4 tool. BMv2 picks one
-path. Hardware picks one path. 4ward shows you all of them.
-
-The interpreter is already solid enough to build on, and action selectors are
-orthogonal to the remaining v1model gaps — no need to wait.
-
 Work breakdown:
-1. **Proto + golden tests**: `TraceTree` schema, golden test harness, 7
-   failing tests covering all fork types.
-2. **Zero-fork tree**: simulator produces `TraceTree` instead of flat `Trace`.
-   Existing tests pass unchanged; `no_fork` golden test passes.
-3. **Action selector forking**: IR support, deep copy, `TraceTreeBuilder`,
-   interpreter forks at selector tables. 3 golden tests pass.
-4. **Clone + multicast forking**: fork at clone/multicast points. 3 golden
-   tests pass.
 
-**Done when:** all 7 golden trace tree tests pass and all existing corpus tests
+1. **Proto + golden tests.** `TraceTree` schema, golden test harness,
+   failing tests covering all fork types.
+2. **Zero-fork tree.** Simulator produces `TraceTree` instead of flat `Trace`.
+   Existing tests pass unchanged; `no_fork` golden test passes.
+3. **Action selector forking.** IR support, deep copy, `TraceTreeBuilder`,
+   interpreter forks at selector tables.
+4. **Clone + multicast forking.** Fork at clone/multicast points.
+
+**Done when:** all golden trace tree tests pass and all existing corpus tests
 still pass.
 
 ### Track 4: P4Runtime reference implementation
@@ -161,12 +155,10 @@ the simulator. Goals:
 
 **Priority: not now**
 
-Broaden P4 program support beyond v1model. PSA is the obvious next target —
-existing corpus tests provide acceptance criteria. But each architecture is a
-significant lift (new pipeline structure, new metadata, new externs) and
-v1model should be solid first. The architecture interface (`Architecture.kt`)
-is already designed for pluggability, so this will be straightforward when the
-time comes.
+4ward treats architectures as plugins — the `Architecture` interface is
+designed for modularity from day one. PSA is the next target, with existing
+corpus tests as acceptance criteria. Each architecture is a significant lift
+(pipeline structure, metadata, externs), so v1model should be solid first.
 
 **Done when:** PSA corpus tests pass.
 
