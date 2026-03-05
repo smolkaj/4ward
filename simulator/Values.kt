@@ -109,10 +109,15 @@ data class StructVal(val typeName: String, val fields: MutableMap<String, Value>
   }
 }
 
-/** A header stack (fixed-size array of headers with a next/last pointer). */
+/**
+ * A header stack (fixed-size array of headers with a next/last pointer).
+ *
+ * Elements are typically [HeaderVal] but may be [StructVal] for header-union stacks (P4 spec
+ * §8.18).
+ */
 data class HeaderStackVal(
   val elementTypeName: String,
-  val headers: MutableList<HeaderVal>,
+  val headers: MutableList<Value>,
   var nextIndex: Int = 0,
 ) : Value() {
   val size: Int

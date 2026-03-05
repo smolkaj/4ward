@@ -36,7 +36,7 @@ internal fun defaultValue(type: Type, types: Map<String, TypeDecl>): Value =
         elementTypeName = type.headerStack.elementType,
         headers =
           MutableList(type.headerStack.size.toInt()) {
-            defaultValue(type.headerStack.elementType, types) as HeaderVal
+            defaultValue(type.headerStack.elementType, types)
           },
       )
     else -> UnitVal // varbit<N>: variable-length; no fixed default
