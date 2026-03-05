@@ -62,7 +62,7 @@ handles it.
 # Build everything.
 bazel build //...
 
-# Run all tests (200+ end-to-end scenarios).
+# Run all tests.
 bazel test //...
 ```
 
