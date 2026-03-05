@@ -819,4 +819,146 @@ class InterpreterExprTest {
 
     assertEquals(BitVal(42, 16), env.lookup("result"))
   }
+
+  // ---------------------------------------------------------------------------
+  // Header stack push_front / pop_front (P4 spec §8.18)
+  // ---------------------------------------------------------------------------
+
+  /** Config with a simple 8-bit header type for stack tests. */
+  private val stackTestConfig =
+    P4BehavioralConfig.newBuilder()
+      .addTypes(
+        fourward.ir.v1.TypeDecl.newBuilder()
+          .setName("h_t")
+          .setHeader(
+            fourward.ir.v1.HeaderDecl.newBuilder()
+              .addFields(
+                fourward.ir.v1.FieldDecl.newBuilder()
+                  .setName("f")
+                  .setType(Type.newBuilder().setBit(BitType.newBuilder().setWidth(8)))
+              )
+          )
+      )
+      .build()
+
+  private fun stackInterp() = Interpreter(stackTestConfig, TableStore())
+
+  private fun makeStack(vararg validFields: Int?): HeaderStackVal {
+    val headers =
+      validFields.map { v ->
+        if (v != null) HeaderVal("h_t", mutableMapOf("f" to BitVal(v.toLong(), 8)), valid = true)
+        else HeaderVal("h_t", mutableMapOf("f" to BitVal(0L, 8)), valid = false)
+      }
+    return HeaderStackVal("h_t", headers.toMutableList())
+  }
+
+  private fun stackMethodCall(stackName: String, method: String, count: Int): Expr =
+    Expr.newBuilder()
+      .setMethodCall(
+        MethodCall.newBuilder()
+          .setTarget(nameRef(stackName))
+          .setMethod(method)
+          .addArgs(bit(count.toLong(), 32))
+      )
+      .setType(boolType())
+      .build()
+
+  @Test
+  fun `push_front shifts elements up and inserts invalid headers`() {
+    val stack = makeStack(0x11, 0x22, 0x33, null, null)
+    val env = emptyEnv
+    env.define("s", stack)
+
+    stackInterp().evalExpr(stackMethodCall("s", "push_front", 2), env)
+
+    // First 2 elements should be invalid (new); elements shifted up by 2.
+    assertFalse((stack.headers[0] as HeaderVal).valid)
+    assertFalse((stack.headers[1] as HeaderVal).valid)
+    assertTrue((stack.headers[2] as HeaderVal).valid)
+    assertEquals(BitVal(0x11, 8), (stack.headers[2] as HeaderVal).fields["f"])
+    assertTrue((stack.headers[3] as HeaderVal).valid)
+    assertEquals(BitVal(0x22, 8), (stack.headers[3] as HeaderVal).fields["f"])
+    // Element at index 4 is 0x33 shifted from index 2.
+    assertTrue((stack.headers[4] as HeaderVal).valid)
+    assertEquals(BitVal(0x33, 8), (stack.headers[4] as HeaderVal).fields["f"])
+  }
+
+  @Test
+  fun `pop_front shifts elements down and inserts invalid headers at end`() {
+    val stack = makeStack(0x11, 0x22, 0x33, 0x44, 0x55)
+    val env = emptyEnv
+    env.define("s", stack)
+
+    stackInterp().evalExpr(stackMethodCall("s", "pop_front", 2), env)
+
+    // Elements shifted down by 2; last 2 should be invalid.
+    assertTrue((stack.headers[0] as HeaderVal).valid)
+    assertEquals(BitVal(0x33, 8), (stack.headers[0] as HeaderVal).fields["f"])
+    assertTrue((stack.headers[1] as HeaderVal).valid)
+    assertEquals(BitVal(0x44, 8), (stack.headers[1] as HeaderVal).fields["f"])
+    assertTrue((stack.headers[2] as HeaderVal).valid)
+    assertEquals(BitVal(0x55, 8), (stack.headers[2] as HeaderVal).fields["f"])
+    assertFalse((stack.headers[3] as HeaderVal).valid)
+    assertFalse((stack.headers[4] as HeaderVal).valid)
+  }
+
+  @Test
+  fun `push_front updates nextIndex`() {
+    val stack = makeStack(0x11, 0x22, null)
+    stack.nextIndex = 2
+    val env = emptyEnv
+    env.define("s", stack)
+
+    stackInterp().evalExpr(stackMethodCall("s", "push_front", 1), env)
+
+    // nextIndex should increase by count, clamped to size.
+    assertEquals(3, stack.nextIndex)
+  }
+
+  @Test
+  fun `pop_front updates nextIndex`() {
+    val stack = makeStack(0x11, 0x22, 0x33)
+    stack.nextIndex = 3
+    val env = emptyEnv
+    env.define("s", stack)
+
+    stackInterp().evalExpr(stackMethodCall("s", "pop_front", 2), env)
+
+    // nextIndex should decrease by count, clamped to 0.
+    assertEquals(1, stack.nextIndex)
+  }
+
+  @Test
+  fun `push_front with count exceeding size clamps to size`() {
+    val stack = makeStack(0x11, 0x22, 0x33)
+    stack.nextIndex = 2
+    val env = emptyEnv
+    env.define("s", stack)
+
+    stackInterp().evalExpr(stackMethodCall("s", "push_front", 10), env)
+
+    // All elements should be invalid (pushed off the end).
+    for (i in 0 until stack.size) {
+      assertFalse((stack.headers[i] as HeaderVal).valid)
+    }
+    // nextIndex clamped to stack size.
+    assertEquals(3, stack.nextIndex)
+  }
+
+  @Test
+  fun `pop_front with count exceeding size clamps to size`() {
+    val stack = makeStack(0x11, 0x22, 0x33)
+    stack.nextIndex = 3
+    val env = emptyEnv
+    env.define("s", stack)
+
+    stackInterp().evalExpr(stackMethodCall("s", "pop_front", 10), env)
+
+    // All elements should be invalid (popped off the front).
+    for (i in 0 until stack.size) {
+      assertFalse((stack.headers[i] as HeaderVal).valid)
+    }
+    // nextIndex clamped to 0.
+    assertEquals(0, stack.nextIndex)
+  }
 }

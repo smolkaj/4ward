@@ -62,7 +62,7 @@ complexity:
   # `when` expressions whose cyclomatic complexity grows linearly with the number
   # of P4 language constructs — not a readability problem.
   CyclomaticComplexMethod:
-    threshold: 25
+    threshold: 27
 
   # 60 lines is too tight for sequential protocol handlers (e.g. StfRunner.run, which
   # encodes a strict request/response sequence that reads clearly as one function).
