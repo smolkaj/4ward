@@ -188,3 +188,22 @@ Next highest-impact items:
    enforcement; issue561-4–7 need `HeaderStackVal` to accept union elements
 3. **verify/verify_checksum externs** (6 tests) — implement the extern calls
 4. **Register read/write + counter** (3 tests) — implement extern methods
+
+## 2026-03-04 (evening)
+
+**Track 3 kickoff: trace tree proto + golden tests** (PR #101).
+
+### What landed
+
+- **`TraceTree` proto schema** — replaced flat `Trace` with recursive
+  `TraceTree` (events + optional `ForkNode`). `ForkReason` enum covers action
+  selectors, clone, and multicast. Zero-fork tree is structurally equivalent to
+  the old flat trace, so all 142 existing tests pass unchanged.
+- **7 golden trace tree tests** — TDD-style: all written up front, all expected
+  to fail. Tagged `manual` so they don't break CI. Cover: zero-fork, 3
+  selector variants, clone, clone+selector, multicast.
+- **`SimulatorClient`** — extracted shared simulator subprocess protocol from
+  `StfRunner` so both STF tests and golden tests use the same wire protocol
+  client.
+- **TODO convention** — added to `AGENTS.md`: leave `TODO(<scope>)` comments on
+  any intentionally incomplete code (shortcuts, placeholders, limitations).

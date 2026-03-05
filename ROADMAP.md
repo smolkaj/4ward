@@ -111,17 +111,17 @@ action selectors are orthogonal to the remaining v1model gaps — no need to
 wait.
 
 Work breakdown:
-1. **Testing harness**: golden tests that snapshot trace tree output (proto
-   text or JSON) for small P4 programs with action selectors. The golden file
-   is the spec.
-2. **Design**: proto schema for tree-structured traces, forking semantics,
-   output format.
-3. **Implement**: interpreter changes to fork execution, trace tree
-   construction, flag and annotation support.
-4. **Polish**: trace tree visualization, diffing tools, documentation.
+1. **Proto + golden tests**: `TraceTree` schema, golden test harness, 7
+   failing tests covering all fork types.
+2. **Zero-fork tree**: simulator produces `TraceTree` instead of flat `Trace`.
+   Existing tests pass unchanged; `no_fork` golden test passes.
+3. **Action selector forking**: IR support, deep copy, `TraceTreeBuilder`,
+   interpreter forks at selector tables. 3 golden tests pass.
+4. **Clone + multicast forking**: fork at clone/multicast points. 3 golden
+   tests pass.
 
-**Done when:** `--nondeterministic-selectors` produces correct trace trees for
-programs with action selectors and action profiles.
+**Done when:** all 7 golden trace tree tests pass and all existing corpus tests
+still pass.
 
 ### Track 4: P4Runtime server
 
