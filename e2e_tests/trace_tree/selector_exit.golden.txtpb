@@ -1,0 +1,84 @@
+events {
+  parser_transition {
+    parser_name: "MyParser"
+    from_state: "start"
+    to_state: "accept"
+  }
+}
+events {
+  table_lookup {
+    table_name: "selector_table"
+    hit: true
+    matched_entry {
+      table_id: 46743760
+      match {
+        field_id: 1
+        exact {
+          value: "\377\377\377\377\377\377"
+        }
+      }
+      action {
+        action_profile_group_id: 1
+      }
+    }
+    action_name: "set_port"
+  }
+}
+fork {
+  reason: ACTION_SELECTOR
+  branches {
+    label: "member_0"
+    subtree {
+      events {
+        action_execution {
+          action_name: "set_port"
+          params {
+            key: "port"
+            value: "\000\001"
+          }
+        }
+      }
+      events {
+        table_lookup {
+          table_name: "after_selector"
+          hit: true
+          matched_entry {
+            table_id: 41238816
+            match {
+              field_id: 1
+              exact {
+                value: "\b\000"
+              }
+            }
+            action {
+              action {
+                action_id: 21723794
+              }
+            }
+            is_const: true
+          }
+          action_name: "overwrite"
+        }
+      }
+      events {
+        action_execution {
+          action_name: "overwrite"
+        }
+      }
+    }
+  }
+  branches {
+    label: "member_1"
+    subtree {
+      events {
+        action_execution {
+          action_name: "set_port_and_exit"
+          params {
+            key: "port_2"
+            value: "\000\001"
+          }
+        }
+      }
+    }
+  }
+}

@@ -243,8 +243,10 @@ class V1ModelArchitecture : Architecture {
     // All paths write egress_port into standardMetadata so the egress read is uniform.
     if (jumpToEgress) {
       // Clone branch: set instance_type and egress_port from clone session config.
-      val session = ctx.tableStore.getCloneSession(decisions.cloneSessionId)
-      val clonePort = session?.replicasList?.firstOrNull()?.egressPort ?: 0
+      val session =
+        ctx.tableStore.getCloneSession(decisions.cloneSessionId)
+          ?: error("unknown clone session: ${decisions.cloneSessionId}")
+      val clonePort = session.replicasList.firstOrNull()?.egressPort ?: 0
       s.standardMetadata.fields["instance_type"] = BitVal(CLONE_I2E_INSTANCE_TYPE, INT32_BITS)
       s.standardMetadata.fields["egress_port"] = BitVal(clonePort.toLong(), PORT_BITS)
     } else {

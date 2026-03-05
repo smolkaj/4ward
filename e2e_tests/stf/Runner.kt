@@ -49,42 +49,10 @@ class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPat
         return TestResult.Failure("LoadPipeline failed: ${loadResp.error.message}")
       }
 
-      // Install PRE entries (clone sessions, multicast groups).
-      for (mirror in stf.pre.mirroringAdds) {
-        val writeResp = sim.writeEntry(resolveStfMirroringAdd(mirror))
-        if (writeResp.hasError()) {
-          return TestResult.Failure("WriteEntry (mirroring) failed: ${writeResp.error.message}")
-        }
-      }
-      val mcNodes = stf.pre.mcNodeCreates.associateBy { it.rid }
-      for (mcGroup in stf.pre.mcGroupCreates) {
-        val writeResp =
-          sim.writeEntry(
-            resolveStfMulticastGroup(mcGroup.groupId, mcNodes, stf.pre.mcNodeAssociates)
-          )
-        if (writeResp.hasError()) {
-          return TestResult.Failure("WriteEntry (multicast) failed: ${writeResp.error.message}")
-        }
-      }
-
-      // Install action profile members, groups, and table entries.
-      for (member in stf.memberDirectives) {
-        val writeResp = sim.writeEntry(resolveStfMember(member, config.p4Info))
-        if (writeResp.hasError()) {
-          return TestResult.Failure("WriteEntry (member) failed: ${writeResp.error.message}")
-        }
-      }
-      for (group in stf.groupDirectives) {
-        val writeResp = sim.writeEntry(resolveStfGroup(group, config.p4Info))
-        if (writeResp.hasError()) {
-          return TestResult.Failure("WriteEntry (group) failed: ${writeResp.error.message}")
-        }
-      }
-      for (directive in stf.tableEntries) {
-        val writeResp = sim.writeEntry(resolveStfTableEntry(directive, config.p4Info))
-        if (writeResp.hasError()) {
-          return TestResult.Failure("WriteEntry failed: ${writeResp.error.message}")
-        }
+      try {
+        installStfEntries(sim, stf, config.p4Info)
+      } catch (e: IllegalStateException) {
+        return TestResult.Failure(e.message ?: "WriteEntry failed")
       }
 
       val failures = mutableListOf<String>()
@@ -120,6 +88,35 @@ class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPat
       return if (failures.isEmpty()) TestResult.Pass
       else TestResult.Failure(failures.joinToString("\n"))
     }
+  }
+}
+
+/**
+ * Installs all STF-declared entries (PRE, action profile members/groups, table entries) into the
+ * simulator. Throws [IllegalStateException] on write failure.
+ */
+fun installStfEntries(sim: SimulatorClient, stf: StfFile, p4Info: P4InfoOuterClass.P4Info) {
+  for (mirror in stf.pre.mirroringAdds) {
+    val resp = sim.writeEntry(resolveStfMirroringAdd(mirror))
+    if (resp.hasError()) error("WriteEntry (mirroring) failed: ${resp.error.message}")
+  }
+  val mcNodes = stf.pre.mcNodeCreates.associateBy { it.rid }
+  for (mcGroup in stf.pre.mcGroupCreates) {
+    val resp =
+      sim.writeEntry(resolveStfMulticastGroup(mcGroup.groupId, mcNodes, stf.pre.mcNodeAssociates))
+    if (resp.hasError()) error("WriteEntry (multicast) failed: ${resp.error.message}")
+  }
+  for (member in stf.memberDirectives) {
+    val resp = sim.writeEntry(resolveStfMember(member, p4Info))
+    if (resp.hasError()) error("WriteEntry (member) failed: ${resp.error.message}")
+  }
+  for (group in stf.groupDirectives) {
+    val resp = sim.writeEntry(resolveStfGroup(group, p4Info))
+    if (resp.hasError()) error("WriteEntry (group) failed: ${resp.error.message}")
+  }
+  for (directive in stf.tableEntries) {
+    val resp = sim.writeEntry(resolveStfTableEntry(directive, p4Info))
+    if (resp.hasError()) error("WriteEntry (table) failed: ${resp.error.message}")
   }
 }
 

@@ -3,11 +3,7 @@ package fourward.e2e.tracetree
 import com.google.protobuf.TextFormat
 import fourward.e2e.SimulatorClient
 import fourward.e2e.StfFile
-import fourward.e2e.resolveStfGroup
-import fourward.e2e.resolveStfMember
-import fourward.e2e.resolveStfMirroringAdd
-import fourward.e2e.resolveStfMulticastGroup
-import fourward.e2e.resolveStfTableEntry
+import fourward.e2e.installStfEntries
 import fourward.ir.v1.PipelineConfig
 import fourward.sim.v1.TraceTree
 import java.nio.file.Path
@@ -85,33 +81,7 @@ class GoldenTraceTreeTest(private val testName: String) {
       val loadResp = sim.loadPipeline(config)
       if (loadResp.hasError()) fail("LoadPipeline failed: ${loadResp.error.message}")
 
-      // Install PRE entries (clone sessions, multicast groups).
-      for (mirror in stf.pre.mirroringAdds) {
-        val writeResp = sim.writeEntry(resolveStfMirroringAdd(mirror))
-        if (writeResp.hasError()) fail("WriteEntry (mirroring) failed: ${writeResp.error.message}")
-      }
-      val mcNodes = stf.pre.mcNodeCreates.associateBy { it.rid }
-      for (mcGroup in stf.pre.mcGroupCreates) {
-        val writeResp =
-          sim.writeEntry(
-            resolveStfMulticastGroup(mcGroup.groupId, mcNodes, stf.pre.mcNodeAssociates)
-          )
-        if (writeResp.hasError()) fail("WriteEntry (multicast) failed: ${writeResp.error.message}")
-      }
-
-      // Install action profile members, groups, and table entries.
-      for (member in stf.memberDirectives) {
-        val writeResp = sim.writeEntry(resolveStfMember(member, config.p4Info))
-        if (writeResp.hasError()) fail("WriteEntry (member) failed: ${writeResp.error.message}")
-      }
-      for (group in stf.groupDirectives) {
-        val writeResp = sim.writeEntry(resolveStfGroup(group, config.p4Info))
-        if (writeResp.hasError()) fail("WriteEntry (group) failed: ${writeResp.error.message}")
-      }
-      for (directive in stf.tableEntries) {
-        val writeResp = sim.writeEntry(resolveStfTableEntry(directive, config.p4Info))
-        if (writeResp.hasError()) fail("WriteEntry failed: ${writeResp.error.message}")
-      }
+      installStfEntries(sim, stf, config.p4Info)
 
       val packet = stf.packets.first()
       val resp = sim.processPacket(packet.ingressPort, packet.payload)

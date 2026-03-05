@@ -1,0 +1,7 @@
+# selector_exit.stf — action selector where member 1 calls exit.
+
+member sel 0 set_port port=0x0001
+member sel 1 set_port_and_exit port=0x0001
+group sel 1 0 1
+add selector_table hdr.ethernet.dstAddr:0xFFFFFFFFFFFF group=1
+packet 0 FFFFFFFFFFFF 000000000001 0800
