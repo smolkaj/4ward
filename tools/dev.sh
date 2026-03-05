@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Developer task runner. Run `./dev.sh help` to see available commands.
+# Developer task runner. Run `./tools/dev.sh help` to see available commands.
 
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 cmd_help() {
   cat <<'EOF'
@@ -30,19 +30,19 @@ cmd_test() {
 }
 
 cmd_fmt() {
-  exec "${REPO_ROOT}/format.sh" "$@"
+  exec "${REPO_ROOT}/tools/format.sh" "$@"
 }
 
 cmd_lint() {
-  exec "${REPO_ROOT}/lint.sh" "$@"
+  exec "${REPO_ROOT}/tools/lint.sh" "$@"
 }
 
 cmd_coverage() {
-  exec "${REPO_ROOT}/coverage.sh" "$@"
+  exec "${REPO_ROOT}/tools/coverage.sh" "$@"
 }
 
 cmd_diff_coverage() {
-  exec "${REPO_ROOT}/diff-coverage.sh" "$@"
+  exec "${REPO_ROOT}/tools/diff-coverage.sh" "$@"
 }
 
 # Dispatch.

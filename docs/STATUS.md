@@ -41,7 +41,7 @@ SAI P4 — and broke the path there into 5 independent tracks
 matters because it means multiple agents can work simultaneously on different
 tracks without stepping on each other. Supporting docs:
 [LIMITATIONS.md](LIMITATIONS.md), [REFACTORING.md](REFACTORING.md),
-[STEFFENS_AI_WORKFLOW.md](STEFFENS_AI_WORKFLOW.md).
+[AI_WORKFLOW.md](AI_WORKFLOW.md).
 
 Also: fixed a coverage regression, added unit tests for core simulator files,
 documented BMv2 simple_switch as the v1model reference spec.

@@ -3,7 +3,7 @@
 This is the "how does this thing actually work?" document. It walks through the
 components, how they talk to each other, and why we made the choices we did.
 
-If you just want to use 4ward, the [README](README.md) is all you need. If you
+If you just want to use 4ward, the [README](../README.md) is all you need. If you
 want to hack on it, keep reading.
 
 ## Design goal: spec-compliant reference implementation

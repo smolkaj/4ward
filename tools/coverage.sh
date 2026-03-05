@@ -53,7 +53,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 REPORT_DIR="${REPO_ROOT}/coverage-report"
 COVERAGE_WORKDIR=$(mktemp -d)
 trap 'rm -rf "${COVERAGE_WORKDIR}"' EXIT
