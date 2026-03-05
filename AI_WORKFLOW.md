@@ -1,6 +1,8 @@
-# Steffen's AI Workflow
+# AI Workflow
 
-NOTE: AI is a rapidly evolving field, and I am still learning.
+> **Personal field notes from [@smolkaj](https://github.com/smolkaj).**
+> AI-assisted development is evolving fast and so is this document — treat it
+> as practitioner notes, not project doctrine.
 
 I use Claude Code from the terminal.
 ```

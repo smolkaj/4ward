@@ -2,6 +2,10 @@
   <img src="logo.svg" alt="4ward logo" width="200">
   <br><br>
   <strong>Your P4 programs, finally explained.</strong>
+  <br><br>
+  <a href="https://github.com/smolkaj/4ward/actions/workflows/ci.yml"><img src="https://github.com/smolkaj/4ward/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://smolkaj.github.io/4ward/main/"><img src="https://img.shields.io/badge/coverage-report-blue" alt="Coverage"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue" alt="License"></a>
 </p>
 
 # 4ward
@@ -39,7 +43,7 @@ branch — delivered as a structured trace tree you can actually read.
 | All possible traces | nope | not natively | **trace trees!** |
 | Architecture-generic | nope | nope | **by design** |
 | P4Runtime | sure | has gaps | **100% spec-compliant (planned)** |
-| AI friendly | nope | nope | **built by AI, for everyone** |
+| Easy to extend | ehh | ehh | **if AI can extend it, anyone can** |
 | Simple, readable codebase | ehh | ehh | **yes!** |
 
 4ward is a **spec-compliant reference implementation** of the
@@ -49,24 +53,17 @@ it as a debugger that speaks P4, not a production data plane.
 
 ## Quick start
 
-You need [Bazel](https://bazel.build) 9+ (or just grab
-[Bazelisk](https://github.com/bazelbuild/bazelisk) and forget about it) and a
-C++20 compiler for the p4c backend. Everything else is hermetic — Bazel handles
-it.
+Tested on macOS and Ubuntu. You need [Bazel](https://bazel.build) 9+ (or just
+grab [Bazelisk](https://github.com/bazelbuild/bazelisk) and forget about it)
+and a C++20 compiler for the p4c backend. Everything else is hermetic — Bazel
+handles it.
 
 ```sh
 # Build everything.
 bazel build //...
 
-# Run all tests.
+# Run all tests (200+ end-to-end scenarios).
 bazel test //...
-
-# Compile a P4 program to the proto IR.
-bazel run //p4c_backend:p4c-4ward -- --arch v1model \
-  $(pwd)/my_program.p4 -o $(pwd)/my_program.txtpb
-
-# Simulate it (reads an STF scenario on stdin).
-bazel run //simulator:simulator -- $(pwd)/my_program.txtpb < input.stf
 ```
 
 ## See what your packets are up to
@@ -140,7 +137,7 @@ understand not just what your program *did*, but everything it *can* do.
 ├── p4c_backend/            p4c backend plugin (C++, emits the proto IR)
 └── e2e_tests/
     ├── stf/                STF runner (shared subprocess + packet I/O)
-    ├── corpus/             p4c STF corpus (216 tests, bulk regression)
+    ├── corpus/             p4c STF corpus (bulk regression)
     ├── trace_tree/         Golden trace-tree tests
     ├── p4testgen/          p4testgen integration (auto-generated paths)
     └── <feature>/          Hand-written feature tests (passthrough, lpm, …)
@@ -167,7 +164,7 @@ and [STATUS.md](STATUS.md) for daily progress.
 | [CLAUDE.md](CLAUDE.md) | Claude Code-specific instructions |
 | [LIMITATIONS.md](LIMITATIONS.md) | Known shortcuts and gaps |
 | [REFACTORING.md](REFACTORING.md) | Tech debt and cleanup backlog |
-| [STEFFENS_AI_WORKFLOW.md](STEFFENS_AI_WORKFLOW.md) | AI prompting principles and workflow |
+| [AI_WORKFLOW.md](AI_WORKFLOW.md) | How to develop with AI agents |
 
 ## Want to help?
 
