@@ -29,9 +29,10 @@ guilt — just write it down so someone can find it later.
   request's entity filter. Per-table and per-entry reads are not implemented.
 - **No p4-constraints validation.** `Write` does not enforce `@entry_restriction`
   or `@action_restriction` annotations from the P4 source.
-- **No `@p4runtime_translation`.** Controller-facing values are passed through
-  to the simulator without translation. SAI P4 programs (which translate all
-  IDs to strings) will not work correctly until this is implemented.
+- **`@p4runtime_translation`: `sdn_bitwidth` only.** Bitwidth-based translation
+  (e.g. 9-bit port → 32-bit SDN) is implemented. String-based translation
+  (`sdn_string`) is not — SAI P4 programs that translate IDs to strings will
+  not work correctly.
 - **Missing RPCs.** `GetForwardingPipelineConfig` and `Capabilities` return
   UNIMPLEMENTED.
 - **No digests, idle timeouts, or atomic write batches.**

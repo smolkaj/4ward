@@ -1,8 +1,10 @@
 package fourward.p4runtime
 
 import fourward.ir.v1.PipelineConfig
+import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildEthernetFrame
+import fourward.p4runtime.P4RuntimeTestHarness.Companion.loadConfig
+import fourward.p4runtime.P4RuntimeTestHarness.Companion.longToBytes
 import io.grpc.StatusException
-import java.nio.file.Paths
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -39,17 +41,11 @@ class P4RuntimeConformanceTest {
   // Fixture loading
   // ---------------------------------------------------------------------------
 
-  private fun loadBasicTableConfig() = loadConfig("e2e_tests/basic_table/basic_table.txtpb")
+  private fun loadBasicTableConfig() =
+    P4RuntimeTestHarness.loadConfig("e2e_tests/basic_table/basic_table.txtpb")
 
-  private fun loadPassthroughConfig() = loadConfig("e2e_tests/passthrough/passthrough.txtpb")
-
-  private fun loadConfig(relativePath: String): PipelineConfig {
-    val r = System.getenv("JAVA_RUNFILES") ?: "."
-    val path = Paths.get(r, "_main/$relativePath")
-    val builder = PipelineConfig.newBuilder()
-    com.google.protobuf.TextFormat.merge(path.toFile().readText(), builder)
-    return builder.build()
-  }
+  private fun loadPassthroughConfig() =
+    P4RuntimeTestHarness.loadConfig("e2e_tests/passthrough/passthrough.txtpb")
 
   // =========================================================================
   // SetForwardingPipelineConfig (scenarios 1-3)
@@ -284,32 +280,5 @@ class P4RuntimeConformanceTest {
         .build()
 
     return Entity.newBuilder().setTableEntry(tableEntry).build()
-  }
-
-  /** Builds a minimal Ethernet frame: dst=FF:FF:FF:FF:FF:FF src=00:00:00:00:00:01 + etherType. */
-  @Suppress("MagicNumber")
-  private fun buildEthernetFrame(etherType: Int): ByteArray {
-    val frame = ByteArray(18) // 14-byte header + 4 bytes payload
-    // Dst MAC: broadcast
-    for (i in 0 until 6) frame[i] = 0xFF.toByte()
-    // Src MAC: 00:00:00:00:00:01
-    frame[11] = 0x01
-    // EtherType (big-endian)
-    frame[12] = (etherType shr 8).toByte()
-    frame[13] = (etherType and 0xFF).toByte()
-    // Payload
-    frame[14] = 0xDE.toByte()
-    frame[15] = 0xAD.toByte()
-    frame[16] = 0xBE.toByte()
-    frame[17] = 0xEF.toByte()
-    return frame
-  }
-
-  private fun longToBytes(value: Long, byteLen: Int): ByteArray {
-    val bytes = ByteArray(byteLen)
-    for (i in 0 until byteLen) {
-      bytes[byteLen - 1 - i] = (value shr (i * 8) and 0xFF).toByte()
-    }
-    return bytes
   }
 }

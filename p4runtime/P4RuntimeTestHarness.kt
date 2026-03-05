@@ -208,5 +208,38 @@ class P4RuntimeTestHarness : Closeable {
       val start = if (firstNonZero < 0) 3 else firstNonZero
       return ByteString.copyFrom(bytes, start, bytes.size - start)
     }
+
+    /** Loads a PipelineConfig from a Bazel runfiles-relative text proto path. */
+    fun loadConfig(relativePath: String): PipelineConfig {
+      val r = System.getenv("JAVA_RUNFILES") ?: "."
+      val path = java.nio.file.Paths.get(r, "_main/$relativePath")
+      val builder = PipelineConfig.newBuilder()
+      com.google.protobuf.TextFormat.merge(path.toFile().readText(), builder)
+      return builder.build()
+    }
+
+    /** Builds a minimal Ethernet frame: dst=FF:FF:FF:FF:FF:FF src=00:00:00:00:00:01 + etherType. */
+    @Suppress("MagicNumber")
+    fun buildEthernetFrame(etherType: Int): ByteArray {
+      val frame = ByteArray(18) // 14-byte header + 4 bytes payload
+      for (i in 0 until 6) frame[i] = 0xFF.toByte()
+      frame[11] = 0x01
+      frame[12] = (etherType shr 8).toByte()
+      frame[13] = (etherType and 0xFF).toByte()
+      frame[14] = 0xDE.toByte()
+      frame[15] = 0xAD.toByte()
+      frame[16] = 0xBE.toByte()
+      frame[17] = 0xEF.toByte()
+      return frame
+    }
+
+    /** Encodes a long value as unsigned big-endian bytes with the given byte length. */
+    fun longToBytes(value: Long, byteLen: Int): ByteArray {
+      val bytes = ByteArray(byteLen)
+      for (i in 0 until byteLen) {
+        bytes[byteLen - 1 - i] = (value shr (i * 8) and 0xFF).toByte()
+      }
+      return bytes
+    }
   }
 }
