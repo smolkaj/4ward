@@ -31,6 +31,9 @@ class TableStore {
 
   private val defaultActions: MutableMap<String, DefaultAction> = mutableMapOf()
 
+  // registerName -> index -> stored value (persists across packets)
+  private val registers: MutableMap<String, MutableMap<Int, Value>> = mutableMapOf()
+
   // For unit tests that cannot easily construct TableEntry protos: makes lookup() return
   // hit=true with this action rather than searching the entry list.
   private val forcedHits: MutableMap<String, String> = mutableMapOf()
@@ -70,6 +73,7 @@ class TableStore {
     this.actionNameById = actionNameById
     tables.clear()
     forcedHits.clear()
+    registers.clear()
     profileMembers.clear()
     profileGroups.clear()
     tableActionProfile.clear()
@@ -89,6 +93,16 @@ class TableStore {
     params: List<p4.v1.P4RuntimeOuterClass.Action.Param> = emptyList(),
   ) {
     defaultActions[tableName] = DefaultAction(actionName, params)
+  }
+
+  // -------------------------------------------------------------------------
+  // Registers
+  // -------------------------------------------------------------------------
+
+  fun registerRead(name: String, index: Int): Value? = registers[name]?.get(index)
+
+  fun registerWrite(name: String, index: Int, value: Value) {
+    registers.getOrPut(name) { mutableMapOf() }[index] = value
   }
 
   // -------------------------------------------------------------------------
@@ -228,7 +242,12 @@ class TableStore {
         keyValues.find { it.first == match.fieldId.toString() }
           ?: return null // no key value for this match field
 
-      val bits = (value as? BitVal)?.bits ?: return null
+      val bits =
+        when (value) {
+          is BitVal -> value.bits
+          is BoolVal -> if (value.value) BOOL_TRUE_BITS else BOOL_FALSE_BITS
+          else -> return null
+        }
 
       when {
         match.hasExact() -> {
@@ -271,5 +290,10 @@ class TableStore {
       }
     }
     return score
+  }
+
+  companion object {
+    private val BOOL_TRUE_BITS = BitVector.ofInt(1, 1)
+    private val BOOL_FALSE_BITS = BitVector.ofInt(0, 1)
   }
 }

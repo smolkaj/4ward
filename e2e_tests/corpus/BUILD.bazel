@@ -116,6 +116,9 @@ corpus_test_suite(
         "issue-2123-3-bmv2",
         "issue1000-bmv2",
         "issue1062-1-bmv2",
+        "issue1097-2-bmv2",
+        "issue1566-bmv2",
+        "issue1814-1-bmv2",
         "issue1824-bmv2",
         "issue2147-bmv2",
         "issue2153-bmv2",
@@ -158,6 +161,7 @@ corpus_test_suite(
         "runtime-index-2-bmv2",
         "runtime-index-bmv2",
         "saturated-bmv2",
+        "stack_complex-bmv2",
         "table-entries-exact-bmv2",
         "table-entries-exact-ternary-bmv2",
         "table-entries-lpm-bmv2",
@@ -267,16 +271,12 @@ corpus_test_suite(
         "gauntlet_invalid_hdr_short_circuit-bmv2",  # un-parsed payload appended after deparser
         "header-stack-ops-bmv2",  # unhandled extern call: push_front/pop_front
         "issue1049-bmv2",  # unhandled extern call: hash
-        "issue1097-2-bmv2",  # unhandled method call: write (register extern)
-        "issue1566-bmv2",  # unhandled method call: count (counter extern)
-        "issue1814-1-bmv2",  # unhandled method call: read (register extern)
         "issue1879-bmv2",  # undefined variable: inf_0 (inlined function locals)
         "issue561-4-bmv2",  # header stack of unions (StructVal as stack element)
         "issue561-5-bmv2",  # header stack of unions (StructVal as stack element)
         "issue561-6-bmv2",  # header stack of unions (StructVal as stack element)
         "issue561-7-bmv2",  # header stack of unions (StructVal as stack element)
         "issue655-bmv2",  # unhandled extern call: verify_checksum
-        "stack_complex-bmv2",  # field access on non-aggregate value: HeaderStackVal
         "subparser-with-header-stack-bmv2",  # undefined variable: inlined function locals
         "table-entries-priority-bmv2",  # BMv2 @priority uses lower-is-better; P4Runtime uses higher-is-better
         "ternary2-bmv2",  # per-table action specialization lost (single p4info action ID)
