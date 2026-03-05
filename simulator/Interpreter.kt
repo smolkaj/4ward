@@ -76,7 +76,18 @@ class Interpreter(
 
   fun runParser(parserName: String, env: Environment) {
     val parser = parsers[parserName] ?: error("unknown parser: $parserName")
-    runParserState(parser, "start", env)
+    env.pushScope()
+    try {
+      for (varDecl in parser.localVarsList) {
+        val init =
+          if (varDecl.hasInitializer()) evalExpr(varDecl.initializer, env)
+          else defaultValue(varDecl.type, types)
+        env.define(varDecl.name, init)
+      }
+      runParserState(parser, "start", env)
+    } finally {
+      env.popScope()
+    }
   }
 
   private fun runParserState(parser: ParserDecl, startState: String, env: Environment) {
@@ -932,9 +943,16 @@ class Interpreter(
       }
       lhs.hasFieldAccess() -> {
         val target = evalExpr(lhs.fieldAccess.expr, env)
+        // Copy aggregates to prevent aliasing (same reason as nameRef above).
+        val copy =
+          when (value) {
+            is HeaderVal -> value.copy()
+            is StructVal -> value.copy()
+            else -> value
+          }
         when (target) {
-          is HeaderVal -> target.fields[lhs.fieldAccess.fieldName] = value
-          is StructVal -> target.fields[lhs.fieldAccess.fieldName] = value
+          is HeaderVal -> target.fields[lhs.fieldAccess.fieldName] = copy
+          is StructVal -> target.fields[lhs.fieldAccess.fieldName] = copy
           else -> error("field assignment on non-aggregate: $target")
         }
       }

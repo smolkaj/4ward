@@ -1,0 +1,5 @@
+# Corrected STF: upstream expects 14 bytes but un-parsed payload (3 bytes)
+# must be appended after deparsed headers per v1model semantics.
+# See V1ModelArchitecture.kt: outputPayload() + drainRemainingInput().
+packet 0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+expect 0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00

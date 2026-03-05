@@ -205,6 +205,7 @@ message ParserDecl {
   string name = 1;
   repeated ParamDecl params = 2;
   repeated ParserState states = 3;
+  repeated VarDecl local_vars = 4;
 }
 
 message ParserState {

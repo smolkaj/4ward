@@ -17,7 +17,7 @@ This creates:
 
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
 
-def corpus_test_suite(name, tests, tags = [], includes = []):
+def corpus_test_suite(name, tests, tags = [], includes = [], stf_overrides = {}):
     """Compiles p4c corpus P4 files and runs all STF tests in a single JVM.
 
     Args:
@@ -27,6 +27,9 @@ def corpus_test_suite(name, tests, tags = [], includes = []):
         includes: extra P4 file labels needed as #include dependencies (e.g.
                   skeleton headers). Their directory is added to the p4c
                   include path.
+        stf_overrides: dict mapping test base names to local STF file labels,
+                  overriding the upstream @p4c STF. Use when the upstream STF
+                  expectation is wrong (e.g. missing un-parsed payload).
     """
     data = ["//simulator"]
 
@@ -39,7 +42,6 @@ def corpus_test_suite(name, tests, tags = [], includes = []):
 
     for test in tests:
         p4_src = "@p4c//testdata/p4_16_samples:" + test + ".p4"
-        stf_src = "@p4c//testdata/p4_16_samples:" + test + ".stf"
 
         native.genrule(
             name = test + "_pb",
@@ -54,16 +56,20 @@ def corpus_test_suite(name, tests, tags = [], includes = []):
             ],
         )
 
-        native.genrule(
-            name = test + "_stf",
-            srcs = [stf_src],
-            outs = [test + ".stf"],
-            cmd = "cp $< $@",
-            tags = tags,
-        )
+        if test in stf_overrides:
+            # Local override: use the file directly, no genrule needed.
+            data.append(stf_overrides[test])
+        else:
+            native.genrule(
+                name = test + "_stf",
+                srcs = ["@p4c//testdata/p4_16_samples:" + test + ".stf"],
+                outs = [test + ".stf"],
+                cmd = "cp $< $@",
+                tags = tags,
+            )
+            data.append(":" + test + "_stf")
 
         data.append(":" + test + "_pb")
-        data.append(":" + test + "_stf")
 
     kt_jvm_test(
         name = name,

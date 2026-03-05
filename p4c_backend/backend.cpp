@@ -526,6 +526,18 @@ void FourWardBackend::emitParser(const IR::P4Parser* parser) {
     }
   }
 
+  // Emit parser-local variables (e.g. from inlined sub-parsers).
+  for (const auto* decl : parser->parserLocals) {
+    if (const auto* varDecl = decl->to<IR::Declaration_Variable>()) {
+      auto* vd = pd->add_local_vars();
+      vd->set_name(varDecl->name.name.c_str());
+      *vd->mutable_type() = emitType(varDecl->type);
+      if (varDecl->initializer) {
+        *vd->mutable_initializer() = emitExpr(varDecl->initializer);
+      }
+    }
+  }
+
   for (const auto* state : parser->states) {
     auto* ps = pd->add_states();
     ps->set_name(state->name.name.c_str());
