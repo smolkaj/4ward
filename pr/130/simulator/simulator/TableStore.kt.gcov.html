@@ -35,22 +35,22 @@ Unchanged code was tested before and is still tested">Covered</td>
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">94.4&nbsp;%</td>
+            <td class="headerCovTableEntryHi">96.3&nbsp;%</td>
             <td class="headerCovTableEntry">161</td>
-            <td class="headerCovTableEntry">152</td>
-            <td class="headerCovTableEntry"><a href="#L109" title="goto first UBC">9</a></td>
-            <td class="headerCovTableEntry"><a href="#L11" title="goto first CBC">152</a></td>
+            <td class="headerCovTableEntry">155</td>
+            <td class="headerCovTableEntry"><a href="#L223" title="goto first UBC">6</a></td>
+            <td class="headerCovTableEntry"><a href="#L11" title="goto first CBC">155</a></td>
           </tr>
           <tr>
             <td class="headerItem">Current Date:</td>
-            <td class="headerValue">2026-03-05 08:19:56</td>
+            <td class="headerValue">2026-03-05 08:51:09</td>
             <td></td>
             <td class="headerItem">Functions:</td>
-            <td class="headerCovTableEntryHi">95.0&nbsp;%</td>
+            <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
             <td class="headerCovTableEntry">40</td>
-            <td class="headerCovTableEntry">38</td>
-            <td class="headerCovTableEntry">2</td>
-            <td class="headerCovTableEntry">38</td>
+            <td class="headerCovTableEntry">40</td>
+            <td class="headerCovTableEntry"></td>
+            <td class="headerCovTableEntry">40</td>
           </tr>
           <tr>
             <td class="headerItem">Baseline:</td>
@@ -59,7 +59,7 @@ Unchanged code was tested before and is still tested">Covered</td>
           </tr>
           <tr>
             <td class="headerItem">Baseline Date:</td>
-            <td class="headerValue">2026-03-05 08:16:53</td>
+            <td class="headerValue">2026-03-05 08:47:01</td>
             <td></td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
@@ -88,7 +88,7 @@ Unchanged code was tested before and is still tested">Covered</td>
 <span id="L8"><span class="lineNum">       8</span>                 : import p4.v1.P4RuntimeOuterClass.Update</span>
 <span id="L9"><span class="lineNum">       9</span>                 : </span>
 <span id="L10"><span class="lineNum">      10</span>                 : /** Interprets a protobuf [ByteString] as an unsigned big-endian integer. */</span>
-<span id="L11"><span class="lineNum">      11</span> <a href="#L120" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 : private fun ByteString.toUnsignedBigInteger(): BigInteger = BigInteger(1, toByteArray())</span></span>
+<span id="L11"><span class="lineNum">      11</span> <a href="#L224" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 : private fun ByteString.toUnsignedBigInteger(): BigInteger = BigInteger(1, toByteArray())</span></span>
 <span id="L12"><span class="lineNum">      12</span>                 : </span>
 <span id="L13"><span class="lineNum">      13</span>                 : /**</span>
 <span id="L14"><span class="lineNum">      14</span>                 :  * Stores and looks up P4 table entries for all tables in a loaded pipeline.</span>
@@ -186,18 +186,18 @@ Unchanged code was tested before and is still tested">Covered</td>
 <span id="L106"><span class="lineNum">     106</span>                 :   // Registers</span>
 <span id="L107"><span class="lineNum">     107</span>                 :   // -------------------------------------------------------------------------</span>
 <span id="L108"><span class="lineNum">     108</span>                 : </span>
-<span id="L109"><span class="lineNum">     109</span> <a href="#L223" class="tlaBgUBC"  title="Next UBC group">Not covered</a><span class="tlaUBC tlaBgUBC">           0 :   fun registerRead(name: String, index: Int): Value? = registers[name]?.get(index)</span></span>
+<span id="L109"><span class="lineNum">     109</span> <span class="tlaCBC">              1 :   fun registerRead(name: String, index: Int): Value? = registers[name]?.get(index)</span></span>
 <span id="L110"><span class="lineNum">     110</span>                 : </span>
 <span id="L111"><span class="lineNum">     111</span>                 :   fun registerWrite(name: String, index: Int, value: Value) {</span>
-<span id="L112"><span class="lineNum">     112</span> <span class="tlaUBC">              0 :     registers.getOrPut(name) { mutableMapOf() }[index] = value</span></span>
-<span id="L113"><span class="lineNum">     113</span> <span class="tlaUBC">              0 :   }</span></span>
+<span id="L112"><span class="lineNum">     112</span> <span class="tlaCBC">              1 :     registers.getOrPut(name) { mutableMapOf() }[index] = value</span></span>
+<span id="L113"><span class="lineNum">     113</span> <span class="tlaCBC">              1 :   }</span></span>
 <span id="L114"><span class="lineNum">     114</span>                 : </span>
 <span id="L115"><span class="lineNum">     115</span>                 :   // -------------------------------------------------------------------------</span>
 <span id="L116"><span class="lineNum">     116</span>                 :   // Write</span>
 <span id="L117"><span class="lineNum">     117</span>                 :   // -------------------------------------------------------------------------</span>
 <span id="L118"><span class="lineNum">     118</span>                 : </span>
 <span id="L119"><span class="lineNum">     119</span>                 :   fun write(update: Update) {</span>
-<span id="L120"><span class="lineNum">     120</span> <a href="#L224" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :     val entity = update.entity</span></span>
+<span id="L120"><span class="lineNum">     120</span> <span class="tlaCBC">              1 :     val entity = update.entity</span></span>
 <span id="L121"><span class="lineNum">     121</span> <span class="tlaCBC">              1 :     when {</span></span>
 <span id="L122"><span class="lineNum">     122</span> <span class="tlaCBC">              1 :       entity.hasActionProfileMember() -&gt; writeProfileMember(entity.actionProfileMember)</span></span>
 <span id="L123"><span class="lineNum">     123</span> <span class="tlaCBC">              1 :       entity.hasActionProfileGroup() -&gt; writeProfileGroup(entity.actionProfileGroup)</span></span>
