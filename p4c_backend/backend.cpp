@@ -174,8 +174,8 @@ fourward::ir::v1::Expr FourWardBackend::emitExpr(const IR::Expression* expr) {
                << mem->member.name);
         }
       } else {
-        LOG1("WARNING: unhandled TypeNameExpression member "
-             << mem->member.name);
+        // Plain (non-serializable) enum member, e.g. HashAlgorithm.crc16.
+        out.mutable_literal()->set_enum_member(mem->member.name.c_str());
       }
     } else {
       auto* fa = out.mutable_field_access();

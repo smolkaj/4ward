@@ -262,6 +262,7 @@ class Interpreter(
     when {
       lit.hasBoolean() -> BoolVal(lit.boolean)
       lit.hasErrorMember() -> ErrorVal(lit.errorMember)
+      lit.hasEnumMember() -> EnumVal(lit.enumMember)
       lit.hasInteger() -> {
         val v = BigInteger.valueOf(lit.integer.toLong())
         when {
@@ -762,7 +763,8 @@ class Interpreter(
         if (condition) {
           val data = evalExpr(call.argsList[1], env) as StructVal
           val expected = evalExpr(call.argsList[2], env) as BitVal
-          val computed = onesComplementChecksum(data)
+          val algo = (evalExpr(call.argsList[3], env) as EnumVal).member
+          val computed = computeHash(algo, data)
           if (computed != expected.bits.value) {
             onChecksumError?.invoke()
           }
@@ -775,10 +777,24 @@ class Interpreter(
         val condition = (evalExpr(call.argsList[0], env) as BoolVal).value
         if (condition) {
           val data = evalExpr(call.argsList[1], env) as StructVal
-          val computed = onesComplementChecksum(data)
+          val algo = (evalExpr(call.argsList[3], env) as EnumVal).member
+          val computed = computeHash(algo, data)
           val checksumWidth = call.argsList[2].type.bit.width
           setLValue(call.argsList[2], BitVal(BitVector(computed, checksumWidth)), env)
         }
+        UnitVal
+      }
+      // hash(out result, in algo, in base, in data, in max): v1model hash extern.
+      // See https://github.com/p4lang/behavioral-model/blob/main/docs/simple_switch.md
+      "hash" -> {
+        val algo = (evalExpr(call.argsList[1], env) as EnumVal).member
+        val base = (evalExpr(call.argsList[2], env) as BitVal).bits.value
+        val data = evalExpr(call.argsList[3], env) as StructVal
+        val max = (evalExpr(call.argsList[4], env) as BitVal).bits.value
+        val hashVal = computeHash(algo, data)
+        val result = if (max > BigInteger.ZERO) base + hashVal.mod(max) else base
+        val resultWidth = call.argsList[0].type.bit.width
+        setLValue(call.argsList[0], BitVal(BitVector(result, resultWidth)), env)
         UnitVal
       }
       else -> error("unhandled extern call: $funcName")

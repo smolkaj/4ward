@@ -697,6 +697,17 @@ class InterpreterExprTest {
   // ---------------------------------------------------------------------------
 
   @Test
+  fun `enum member literal evaluates to EnumVal`() {
+    val expr =
+      Expr.newBuilder()
+        .setLiteral(Literal.newBuilder().setEnumMember("crc16"))
+        .setType(Type.newBuilder().setNamed("HashAlgorithm"))
+        .build()
+    val result = interp().evalExpr(expr, emptyEnv)
+    assertEquals(EnumVal("crc16"), result)
+  }
+
+  @Test
   fun `struct expression evaluates to StructVal with evaluated fields`() {
     val expr =
       Expr.newBuilder()
@@ -717,5 +728,95 @@ class InterpreterExprTest {
     assertEquals("my_tuple", sv.typeName)
     assertEquals(BitVal(0xAB, 8), sv.fields["a"])
     assertEquals(BitVal(0xCD, 8), sv.fields["b"])
+  }
+
+  // ---------------------------------------------------------------------------
+  // hash extern
+  // ---------------------------------------------------------------------------
+
+  /** Builds an enum member literal, e.g. HashAlgorithm.crc16. */
+  private fun enumLit(member: String, typeName: String): Expr =
+    Expr.newBuilder()
+      .setLiteral(Literal.newBuilder().setEnumMember(member))
+      .setType(Type.newBuilder().setNamed(typeName))
+      .build()
+
+  /**
+   * Builds a hash(__call__) method call expression: hash(out result, in algo, in base, in data, in
+   * max)
+   */
+  private fun hashCall(resultRef: Expr, algo: Expr, base: Expr, data: Expr, max: Expr): Expr =
+    Expr.newBuilder()
+      .setMethodCall(
+        MethodCall.newBuilder()
+          .setTarget(Expr.newBuilder().setNameRef(NameRef.newBuilder().setName("hash")).build())
+          .setMethod("__call__")
+          .addArgs(resultRef)
+          .addArgs(algo)
+          .addArgs(base)
+          .addArgs(data)
+          .addArgs(max)
+      )
+      .build()
+
+  @Test
+  fun `hash extern computes crc16 with base and modulo`() {
+    // hash(result, crc16, 0, { 16w1 }, 4) → crc16([0x00,0x01]) % 4 = 1
+    val env = emptyEnv
+    env.define("result", BitVal(0, 16))
+
+    val resultRef =
+      Expr.newBuilder()
+        .setNameRef(NameRef.newBuilder().setName("result"))
+        .setType(bitType(16))
+        .build()
+    val data =
+      Expr.newBuilder()
+        .setStructExpr(
+          fourward.ir.v1.StructExpr.newBuilder()
+            .addFields(
+              fourward.ir.v1.StructExprField.newBuilder().setName("d").setValue(bit(1, 16))
+            )
+        )
+        .setType(Type.newBuilder().setNamed("data_t"))
+        .build()
+
+    interp()
+      .evalExpr(
+        hashCall(resultRef, enumLit("crc16", "HashAlgorithm"), bit(0, 10), data, bit(4, 10)),
+        env,
+      )
+
+    assertEquals(BitVal(1, 16), env.lookup("result"))
+  }
+
+  @Test
+  fun `hash extern with max zero returns base`() {
+    val env = emptyEnv
+    env.define("result", BitVal(0, 16))
+
+    val resultRef =
+      Expr.newBuilder()
+        .setNameRef(NameRef.newBuilder().setName("result"))
+        .setType(bitType(16))
+        .build()
+    val data =
+      Expr.newBuilder()
+        .setStructExpr(
+          fourward.ir.v1.StructExpr.newBuilder()
+            .addFields(
+              fourward.ir.v1.StructExprField.newBuilder().setName("d").setValue(bit(0xFF, 8))
+            )
+        )
+        .setType(Type.newBuilder().setNamed("data_t"))
+        .build()
+
+    interp()
+      .evalExpr(
+        hashCall(resultRef, enumLit("csum16", "HashAlgorithm"), bit(42, 16), data, bit(0, 16)),
+        env,
+      )
+
+    assertEquals(BitVal(42, 16), env.lookup("result"))
   }
 }

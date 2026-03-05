@@ -394,6 +394,8 @@ message Literal {
     bytes big_integer = 2;  // big-endian bytes for bit<N> where N > 64
     bool boolean = 3;
     string error_member = 4;  // e.g. "NoError", "PacketTooShort"
+    string enum_member =
+        5;  // plain (non-serializable) enum member, e.g. "crc16"
   }
 }
 
