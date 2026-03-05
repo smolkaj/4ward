@@ -92,6 +92,12 @@ Build plumbing, CI improvements, cleanup. Picked up opportunistically — none
 of this blocks the other tracks. See [REFACTORING.md](REFACTORING.md) for
 the full list.
 
+One notable gap: **unit test coverage is low.** The simulator is heavily
+exercised by e2e tests (corpus, trace tree, p4testgen), but JaCoCo only
+instruments unit tests — so the coverage report undercounts significantly.
+Improving unit test coverage is valuable independently: unit tests are faster,
+more targeted, and catch regressions closer to the source.
+
 ### Track 3: trace trees
 
 **Priority: medium — start now | Parallelizable: yes**

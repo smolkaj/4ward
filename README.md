@@ -4,7 +4,7 @@
   <strong>Your P4 programs, finally explained.</strong>
   <br><br>
   <a href="https://github.com/smolkaj/4ward/actions/workflows/ci.yml"><img src="https://github.com/smolkaj/4ward/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://smolkaj.github.io/4ward/main/"><img src="https://img.shields.io/badge/coverage-report-blue" alt="Coverage"></a>
+  <a href="https://smolkaj.github.io/4ward/main/"><img src="https://img.shields.io/badge/unit_test_coverage-report-blue" alt="Unit test coverage"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue" alt="License"></a>
 </p>
 
