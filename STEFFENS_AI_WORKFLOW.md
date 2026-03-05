@@ -9,20 +9,25 @@ claude --dangerously-skip-permissions
 
 ## Principles
 
-*Principle*: Ask, don't tell.
-*Justification*:
+**Principle**: Ask, don't tell.
+
+**Justification**:
 - Telling the AI what to do is far too much work. Let the AI do the thinking!
   Help it course correct by asking questions.
-*Takeaway*: Don't micromanage! Treat the AI like a trusted L5, not like an L3.
 
-*Principle*: Don't provide context — let the AI build its own.
-*Justification*:
+**Takeaway**: Don't micromanage! Treat the AI like a trusted L5, not like an L3.
+
+**Principle**: Don't provide context — let the AI build its own.
+
+**Justification**:
 - Explaining is tedious and slow.
-- The AI is much faster at reading and synthesizing than you are at explaining.
-- The AI will build a much deeper understanding through self-exploration (much 
+- AI is much faster at reading and synthesizing than you are at explaining.
+- AI will build a deeper understanding through self-exploration (much 
   like a human, but WAY faster!)
-*Takeaway*: Ask questions that make the AI gather and reconstruct context itself.
-Your job is to steer its attention, not transfer your understanding.
+
+**Takeaway**:
+- Ask questions that make the AI gather and reconstruct context itself.
+- Your job is to steer its attention, not transfer your understanding.
 
 ## After submitting a PR
 - "What's next?"
