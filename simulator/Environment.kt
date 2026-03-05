@@ -81,6 +81,10 @@ class PacketContext(payload: ByteArray) {
 
   fun extractBytes(count: Int): ByteArray = buffer.read(count)
 
+  fun peekBytes(count: Int): ByteArray = buffer.peek(count)
+
+  fun advanceBits(bits: Int) = buffer.advanceBits(bits)
+
   fun emitBytes(bytes: ByteArray) {
     outputBuffer.write(bytes)
   }
@@ -141,5 +145,26 @@ private class PacketBuffer(private val data: ByteArray) {
       )
     }
     return data.copyOfRange(offset, offset + count).also { offset += count }
+  }
+
+  /** Peeks at the next [count] bytes without advancing the cursor (P4 spec §12.8.2). */
+  fun peek(count: Int): ByteArray {
+    if (count > remaining()) {
+      throw PacketTooShortException(
+        "lookahead: need $count bytes but only ${remaining()} remain in packet"
+      )
+    }
+    return data.copyOfRange(offset, offset + count)
+  }
+
+  /** Advances the cursor by [bits] bits, which must be a multiple of 8 (P4 spec §12.8.3). */
+  fun advanceBits(bits: Int) {
+    val bytes = bits / 8
+    if (bytes > remaining()) {
+      throw PacketTooShortException(
+        "advance: need $bytes bytes but only ${remaining()} remain in packet"
+      )
+    }
+    offset += bytes
   }
 }
