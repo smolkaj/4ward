@@ -19,6 +19,9 @@ _P4_PROGRAMS = [
 ]
 
 _PASSING = [
+    "action_selector_3",
+    "action_selector_miss",
+    "action_selector_nested",
     "no_fork",
 ]
 

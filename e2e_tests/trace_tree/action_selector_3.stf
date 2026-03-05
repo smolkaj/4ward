@@ -1,5 +1,9 @@
 # action_selector_3.stf — 3 members in the ECMP group.
-# Table entries and action profile members will be installed via P4Runtime
-# once the simulator supports action profiles.  For now, just send a packet.
+
+member ecmp_selector 0 set_port port=0x0001
+member ecmp_selector 1 set_port port=0x0002
+member ecmp_selector 2 set_port port=0x0003
+group ecmp_selector 1 0 1 2
+add ecmp hdr.ethernet.dstAddr:0xFFFFFFFFFFFF group=1
 
 packet 0 FFFFFFFFFFFF 000000000001 0800

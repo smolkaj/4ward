@@ -3,6 +3,8 @@ package fourward.e2e.tracetree
 import com.google.protobuf.TextFormat
 import fourward.e2e.SimulatorClient
 import fourward.e2e.StfFile
+import fourward.e2e.resolveStfGroup
+import fourward.e2e.resolveStfMember
 import fourward.e2e.resolveStfTableEntry
 import fourward.ir.v1.PipelineConfig
 import fourward.sim.v1.TraceTree
@@ -81,6 +83,14 @@ class GoldenTraceTreeTest(private val testName: String) {
       val loadResp = sim.loadPipeline(config)
       if (loadResp.hasError()) fail("LoadPipeline failed: ${loadResp.error.message}")
 
+      for (member in stf.memberDirectives) {
+        val writeResp = sim.writeEntry(resolveStfMember(member, config.p4Info))
+        if (writeResp.hasError()) fail("WriteEntry (member) failed: ${writeResp.error.message}")
+      }
+      for (group in stf.groupDirectives) {
+        val writeResp = sim.writeEntry(resolveStfGroup(group, config.p4Info))
+        if (writeResp.hasError()) fail("WriteEntry (group) failed: ${writeResp.error.message}")
+      }
       for (directive in stf.tableEntries) {
         val writeResp = sim.writeEntry(resolveStfTableEntry(directive, config.p4Info))
         if (writeResp.hasError()) fail("WriteEntry failed: ${writeResp.error.message}")

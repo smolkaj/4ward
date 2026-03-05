@@ -2,6 +2,8 @@ package fourward.simulator
 
 import com.google.protobuf.ByteString
 import java.math.BigInteger
+import p4.config.v1.P4InfoOuterClass
+import p4.v1.P4RuntimeOuterClass
 import p4.v1.P4RuntimeOuterClass.TableEntry
 import p4.v1.P4RuntimeOuterClass.Update
 
@@ -33,6 +35,19 @@ class TableStore {
   // hit=true with this action rather than searching the entry list.
   private val forcedHits: MutableMap<String, String> = mutableMapOf()
 
+  // Action profile storage: action_profile_id → member_id → ActionProfileMember
+  private val profileMembers:
+    MutableMap<Int, MutableMap<Int, P4RuntimeOuterClass.ActionProfileMember>> =
+    mutableMapOf()
+
+  // Action profile storage: action_profile_id → group_id → ActionProfileGroup
+  private val profileGroups:
+    MutableMap<Int, MutableMap<Int, P4RuntimeOuterClass.ActionProfileGroup>> =
+    mutableMapOf()
+
+  // tableName → action_profile_id (populated from p4info at load time)
+  private val tableActionProfile: MutableMap<String, Int> = mutableMapOf()
+
   fun setForcedHit(tableName: String, actionName: String) {
     forcedHits[tableName] = actionName
   }
@@ -46,11 +61,26 @@ class TableStore {
    *
    * Must be called before [write] or [lookup]. Calling it again (pipeline reload) resets all state.
    */
-  fun loadMappings(tableNameById: Map<Int, String>, actionNameById: Map<Int, String>) {
+  fun loadMappings(
+    tableNameById: Map<Int, String>,
+    actionNameById: Map<Int, String>,
+    p4infoTables: List<P4InfoOuterClass.Table> = emptyList(),
+  ) {
     this.tableNameById = tableNameById
     this.actionNameById = actionNameById
     tables.clear()
     forcedHits.clear()
+    profileMembers.clear()
+    profileGroups.clear()
+    tableActionProfile.clear()
+
+    // Register which tables use action profiles (implementation_id != 0).
+    for (table in p4infoTables) {
+      if (table.implementationId != 0) {
+        val tableName = tableNameById[table.preamble.id] ?: continue
+        tableActionProfile[tableName] = table.implementationId
+      }
+    }
   }
 
   fun setDefaultAction(
@@ -66,6 +96,15 @@ class TableStore {
   // -------------------------------------------------------------------------
 
   fun write(update: Update) {
+    val entity = update.entity
+    when {
+      entity.hasActionProfileMember() -> writeProfileMember(entity.actionProfileMember)
+      entity.hasActionProfileGroup() -> writeProfileGroup(entity.actionProfileGroup)
+      else -> writeTableEntry(update)
+    }
+  }
+
+  private fun writeTableEntry(update: Update) {
     val entry = update.entity.tableEntry
     val tableName = tableNameById[entry.tableId] ?: error("unknown table ID: ${entry.tableId}")
 
@@ -83,15 +122,30 @@ class TableStore {
     }
   }
 
+  private fun writeProfileMember(member: P4RuntimeOuterClass.ActionProfileMember) {
+    profileMembers.getOrPut(member.actionProfileId) { mutableMapOf() }[member.memberId] = member
+  }
+
+  private fun writeProfileGroup(group: P4RuntimeOuterClass.ActionProfileGroup) {
+    profileGroups.getOrPut(group.actionProfileId) { mutableMapOf() }[group.groupId] = group
+  }
+
   // -------------------------------------------------------------------------
   // Lookup
   // -------------------------------------------------------------------------
+
+  data class MemberAction(
+    val memberId: Int,
+    val actionName: String,
+    val params: List<P4RuntimeOuterClass.Action.Param>,
+  )
 
   data class LookupResult(
     val hit: Boolean,
     val entry: TableEntry?,
     val actionName: String,
     val actionParams: List<p4.v1.P4RuntimeOuterClass.Action.Param> = emptyList(),
+    val members: List<MemberAction>? = null,
   )
 
   /**
@@ -121,10 +175,46 @@ class TableStore {
       candidates.maxByOrNull { it.score }
         ?: return LookupResult(false, null, default.name, default.params)
 
-    val actionId = best.entry.action.action.actionId
-    val actionName = actionNameById[actionId] ?: error("unknown action ID: $actionId")
-    return LookupResult(true, best.entry, actionName)
+    val tableAction = best.entry.action
+
+    // Action profile group: resolve group → members → individual actions.
+    if (tableAction.hasActionProfileGroupId() && tableAction.actionProfileGroupId != 0) {
+      val profileId =
+        tableActionProfile[tableName] ?: error("table $tableName has no action profile")
+      val group =
+        profileGroups[profileId]?.get(tableAction.actionProfileGroupId)
+          ?: error("unknown group ${tableAction.actionProfileGroupId} in profile $profileId")
+      val members =
+        group.membersList.map { groupMember ->
+          val member =
+            profileMembers[profileId]?.get(groupMember.memberId)
+              ?: error("unknown member ${groupMember.memberId} in profile $profileId")
+          MemberAction(
+            groupMember.memberId,
+            resolveActionName(member.action.actionId),
+            member.action.paramsList,
+          )
+        }
+      // Use the first member's action name for the table_lookup event.
+      val actionName = members.firstOrNull()?.actionName ?: "NoAction"
+      return LookupResult(true, best.entry, actionName, members)
+    }
+
+    // Action profile member (direct, no group): resolve to a single action.
+    if (tableAction.hasActionProfileMemberId() && tableAction.actionProfileMemberId != 0) {
+      val profileId =
+        tableActionProfile[tableName] ?: error("table $tableName has no action profile")
+      val member =
+        profileMembers[profileId]?.get(tableAction.actionProfileMemberId)
+          ?: error("unknown member ${tableAction.actionProfileMemberId} in profile $profileId")
+      return LookupResult(true, best.entry, resolveActionName(member.action.actionId))
+    }
+
+    return LookupResult(true, best.entry, resolveActionName(best.entry.action.action.actionId))
   }
+
+  private fun resolveActionName(actionId: Int): String =
+    actionNameById[actionId] ?: error("unknown action ID: $actionId")
 
   /**
    * Scores an entry against [keyValues]. Returns null if the entry does not match. Returns a
