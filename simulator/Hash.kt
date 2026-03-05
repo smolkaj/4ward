@@ -42,16 +42,14 @@ fun onesComplementChecksum(data: StructVal): BigInteger {
 /**
  * CRC-16/ARC (IBM/LHA) — the variant used by BMv2's `HashAlgorithm.crc16`.
  *
- * Parameters: poly=0x8005, init=0, reflect_in=true, reflect_out=true, xor_out=0. Uses the
- * reflected algorithm (shift right with reflected polynomial) to avoid per-byte bit reversal.
+ * Parameters: poly=0x8005, init=0, reflect_in=true, reflect_out=true, xor_out=0. Uses the reflected
+ * algorithm (shift right with reflected polynomial) to avoid per-byte bit reversal.
  */
 private fun crc16(data: ByteArray): Int {
   var crc = 0
   for (byte in data) {
     crc = crc xor (byte.toInt() and BYTE_MASK)
-    repeat(Byte.SIZE_BITS) {
-      crc = if (crc and 1 != 0) (crc ushr 1) xor CRC16_POLY else crc ushr 1
-    }
+    repeat(Byte.SIZE_BITS) { crc = if (crc and 1 != 0) (crc ushr 1) xor CRC16_POLY else crc ushr 1 }
   }
   return crc and CRC16_MASK
 }
