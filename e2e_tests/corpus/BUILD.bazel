@@ -36,6 +36,8 @@ corpus_test_suite(
         "constant-in-calculation-bmv2",
         "default-action-arg-bmv2",
         "default_action-bmv2",
+        "enum-bmv2",
+        "equality-bmv2",
         "equality-varbit-bmv2",
         "flag_lost-bmv2",
         "gauntlet_action_mux-bmv2",
@@ -210,7 +212,6 @@ corpus_test_suite(
     ],
     tags = ["manual"],
     tests = [
-        "enum-bmv2",  # missing ConvertEnums midend pass
         "extern-funcs-bmv2",  # unhandled extern call: extern_func
     ],
 )
@@ -268,22 +269,12 @@ corpus_test_suite(
     ],
 )
 
-# Tests blocked on header stack operations (push/pop, size/lastIndex).
-# These fail with header stack-related errors.
-corpus_test_suite(
-    name = "header_stack_stf_corpus_test",
-    tags = ["manual"],
-    tests = [
-        "equality-bmv2",  # header stack comparison (struct equality with stacks)
-    ],
-)
-
 # Tests blocked on various unclassified missing features.
 corpus_test_suite(
     name = "other_stf_corpus_test",
     tags = ["manual"],
     tests = [
-        "table-entries-priority-bmv2",  # p4c ignores @priority; BMv2 handles it via non-P4Runtime path
+        "table-entries-priority-bmv2",  # p4c P4Runtime serializer ignores @priority on const entries
         "ternary2-bmv2",  # per-table action specialization lost (single p4info action ID)
         "v1model-special-ops-bmv2",  # needs resubmit/recirculate
     ],

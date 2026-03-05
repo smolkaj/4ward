@@ -36,6 +36,7 @@ MidEnd::MidEnd(FourWardOptions& options) {
       new P4::FlattenHeaders(&typeMap),
       new P4::EliminateTuples(&typeMap),
       new P4::CopyStructures(&typeMap),
+      new P4::SimplifyComparisons(&typeMap),
       new P4::LocalCopyPropagation(&typeMap),
       new P4::SimplifyKey(
           &typeMap,
