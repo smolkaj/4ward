@@ -583,6 +583,46 @@ class InterpreterExprTest {
     assertTrue(hdr.valid)
   }
 
+  @Test
+  fun `setValid on union member invalidates siblings`() {
+    val memberA = HeaderVal(typeName = "A_t", valid = true)
+    val memberB = HeaderVal(typeName = "B_t", valid = false)
+    val union = StructVal("U", mutableMapOf("a" to memberA, "b" to memberB))
+    val env = emptyEnv
+    env.define("u", union)
+
+    // Build: u.b.setValid()  with u typed as named "U"
+    val unionRef =
+      Expr.newBuilder()
+        .setNameRef(NameRef.newBuilder().setName("u"))
+        .setType(Type.newBuilder().setNamed("U"))
+        .build()
+    val memberAccess =
+      Expr.newBuilder()
+        .setFieldAccess(FieldAccess.newBuilder().setExpr(unionRef).setFieldName("b"))
+        .setType(Type.newBuilder().setNamed("B_t"))
+        .build()
+    val expr =
+      Expr.newBuilder()
+        .setMethodCall(MethodCall.newBuilder().setTarget(memberAccess).setMethod("setValid"))
+        .setType(boolType())
+        .build()
+
+    // Register "U" as a header_union type so invalidateUnionSiblings fires.
+    val config =
+      P4BehavioralConfig.newBuilder()
+        .addTypes(
+          fourward.ir.v1.TypeDecl.newBuilder()
+            .setName("U")
+            .setHeaderUnion(fourward.ir.v1.HeaderUnionDecl.getDefaultInstance())
+        )
+        .build()
+    Interpreter(config, TableStore()).evalExpr(expr, env)
+
+    assertTrue(memberB.valid)
+    assertFalse(memberA.valid)
+  }
+
   // ---------------------------------------------------------------------------
   // Mux (ternary) operator
   // ---------------------------------------------------------------------------
