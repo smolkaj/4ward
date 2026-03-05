@@ -41,8 +41,8 @@ comparing outputs. Today that reference simulator is BMv2.
   fallthrough, no missing cases. The type system catches what the agent
   misses, making it safe to move fast.
 - **Testing from day one.** Fast CI on GitHub Actions, extensive e2e test
-  coverage (200+ STF corpus tests, p4testgen path coverage), and unit tests
-  for every tricky invariant. Testing is not an afterthought — it's what
+  coverage (STF corpus, p4testgen path coverage), and unit tests for every
+  tricky invariant. Testing is not an afterthought — it's what
   drives development. The failing-test list *is* the feature backlog, and
   `bazel test //...` is the definition of done.
 - **Architecture pluggability.** Adding a new P4 architecture means
@@ -73,10 +73,7 @@ without it, trace trees aren't useful, P4Runtime is limited, and the
 Three subtracks, each a different testing methodology:
 
 - **1A: STF corpus** — make every v1model-capable p4c STF test pass.
-  132/213 passing today. Remaining gaps: header unions (10), verify/checksum
-  externs (6), payload mismatches (5), register/counter externs (3), and
-  assorted edge cases. Two categories are build plumbing, not simulator
-  work: skeleton includes (15 tests) and lookahead/advance (6 tests).
+  See [STATUS.md](STATUS.md) for current counts and remaining gaps.
 - **1B: p4testgen** — unpin `max_tests = 1` limits, expand from 10 programs
   to the full passing corpus, fix new failures. Deeper path coverage than
   hand-written STFs.
@@ -106,9 +103,8 @@ profiles, replication) and return a tree of all possible executions. See
 This is what differentiates 4ward from every other P4 tool. BMv2 picks one
 path. Hardware picks one path. 4ward shows you all of them.
 
-The interpreter is already solid enough to build on (132 passing tests), and
-action selectors are orthogonal to the remaining v1model gaps — no need to
-wait.
+The interpreter is already solid enough to build on, and action selectors are
+orthogonal to the remaining v1model gaps — no need to wait.
 
 Work breakdown:
 1. **Proto + golden tests**: `TraceTree` schema, golden test harness, 7
@@ -143,7 +139,7 @@ through 4ward via standard P4Runtime.
 **Priority: not now**
 
 Broaden P4 program support beyond v1model. PSA is the obvious next target —
-25 corpus tests already provide acceptance criteria. But each architecture is a
+existing corpus tests provide acceptance criteria. But each architecture is a
 significant lift (new pipeline structure, new metadata, new externs) and
 v1model should be solid first. The architecture interface (`Architecture.kt`)
 is already designed for pluggability, so this will be straightforward when the
