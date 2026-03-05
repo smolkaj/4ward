@@ -15,13 +15,12 @@ import p4.v1.P4RuntimeOuterClass.Entity
 /**
  * Tests for @p4runtime_translation support.
  *
- * Uses the translated_type.p4 fixture which declares:
- *   @p4runtime_translation("test.port_id", 32)
- *   type bit<9> port_id_t;
+ * Uses the translated_type.p4 fixture which declares: @p4runtime_translation("test.port_id", 32)
+ * type bit<9> port_id_t;
  *
- * The `forward` action takes a `port_id_t port` parameter. The p4info reports
- * bitwidth=32 (SDN width), but the dataplane type is bit<9>. The translation
- * layer must convert between these representations on Write and Read.
+ * The `forward` action takes a `port_id_t port` parameter. The p4info reports bitwidth=32 (SDN
+ * width), but the dataplane type is bit<9>. The translation layer must convert between these
+ * representations on Write and Read.
  *
  * The table's match field (hdr.ethernet.etherType) is bit<16> and NOT translated.
  */
@@ -63,9 +62,8 @@ class P4RuntimeTranslationTest {
     // The returned value must be in SDN (32-bit) representation.
     // P4Runtime canonical form: minimum-width unsigned big-endian, so port=1 → 0x01.
     // But the key point is the value must represent 1, not be truncated or garbled.
-    val portValue = portParam.value.toByteArray().fold(0L) { acc, b ->
-      (acc shl 8) or (b.toLong() and 0xFF)
-    }
+    val portValue =
+      portParam.value.toByteArray().fold(0L) { acc, b -> (acc shl 8) or (b.toLong() and 0xFF) }
     assertEquals("port value should round-trip correctly", 1L, portValue)
   }
 
@@ -80,9 +78,8 @@ class P4RuntimeTranslationTest {
     assertEquals(1, entities.size)
 
     val portParam = entities[0].tableEntry.action.action.paramsList.find { it.paramId == 1 }!!
-    val portValue = portParam.value.toByteArray().fold(0L) { acc, b ->
-      (acc shl 8) or (b.toLong() and 0xFF)
-    }
+    val portValue =
+      portParam.value.toByteArray().fold(0L) { acc, b -> (acc shl 8) or (b.toLong() and 0xFF) }
     assertEquals("port 256 should round-trip through translation", 256L, portValue)
   }
 
@@ -100,9 +97,8 @@ class P4RuntimeTranslationTest {
     val portParam = entities[0].tableEntry.action.action.paramsList.find { it.paramId == 1 }!!
 
     // Read must return port=7 in a form that's valid for the SDN bitwidth (32-bit).
-    val portValue = portParam.value.toByteArray().fold(0L) { acc, b ->
-      (acc shl 8) or (b.toLong() and 0xFF)
-    }
+    val portValue =
+      portParam.value.toByteArray().fold(0L) { acc, b -> (acc shl 8) or (b.toLong() and 0xFF) }
     assertEquals(7L, portValue)
   }
 
@@ -138,11 +134,7 @@ class P4RuntimeTranslationTest {
     // The packet should be forwarded — verify we get it back.
     // (The egress port is in packet_in metadata, but we primarily care that forwarding happened.)
     val packetIn = responses[1].packet
-    assertEquals(
-      "payload should match",
-      ByteString.copyFrom(payload),
-      packetIn.payload,
-    )
+    assertEquals("payload should match", ByteString.copyFrom(payload), packetIn.payload)
   }
 
   @Test
@@ -157,9 +149,8 @@ class P4RuntimeTranslationTest {
 
     // Verify egress port metadata reports port 2.
     val egressMeta = responses[1].packet.metadataList.find { it.metadataId == 2 }
-    val egressPort = egressMeta?.value?.toByteArray()?.fold(0) { acc, b ->
-      (acc shl 8) or (b.toInt() and 0xFF)
-    }
+    val egressPort =
+      egressMeta?.value?.toByteArray()?.fold(0) { acc, b -> (acc shl 8) or (b.toInt() and 0xFF) }
     assertEquals("egress port should be 2", 2, egressPort)
   }
 
@@ -180,11 +171,7 @@ class P4RuntimeTranslationTest {
         .setFieldId(matchField.id)
         .setExact(
           p4.v1.P4RuntimeOuterClass.FieldMatch.Exact.newBuilder()
-            .setValue(
-              ByteString.copyFrom(
-                longToBytes(matchValue, (matchField.bitwidth + 7) / 8)
-              )
-            )
+            .setValue(ByteString.copyFrom(longToBytes(matchValue, (matchField.bitwidth + 7) / 8)))
         )
         .build()
 
@@ -210,5 +197,4 @@ class P4RuntimeTranslationTest {
 
     return Entity.newBuilder().setTableEntry(tableEntry).build()
   }
-
 }

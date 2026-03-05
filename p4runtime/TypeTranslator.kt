@@ -16,19 +16,19 @@ import p4.v1.P4RuntimeOuterClass.Update
  *     @p4runtime_translation("test.port_id", 32)
  *     type bit<9> port_id_t;
  *
- * Here the controller uses 32-bit values while the data plane uses 9-bit values. This class
- * handles the bidirectional conversion so the P4RuntimeService can pass correct values to the
- * simulator and return correct values to the controller.
+ * Here the controller uses 32-bit values while the data plane uses 9-bit values. This class handles
+ * the bidirectional conversion so the P4RuntimeService can pass correct values to the simulator and
+ * return correct values to the controller.
  *
- * Built from both the p4info (which declares translated types and SDN bitwidths) and the
- * behavioral IR (which has the original data-plane bitwidths).
+ * Built from both the p4info (which declares translated types and SDN bitwidths) and the behavioral
+ * IR (which has the original data-plane bitwidths).
  */
-class TypeTranslator private constructor(
-  private val paramTranslations: Map<Long, ParamTranslation>,
-) {
+class TypeTranslator
+private constructor(private val paramTranslations: Map<Long, ParamTranslation>) {
 
   /** Returns true if this translator has any translated types to handle. */
-  val hasTranslations: Boolean get() = paramTranslations.isNotEmpty()
+  val hasTranslations: Boolean
+    get() = paramTranslations.isNotEmpty()
 
   /**
    * Translates a Write update from SDN to data-plane representation.
@@ -41,15 +41,18 @@ class TypeTranslator private constructor(
     val entry = update.entity.tableEntry
     if (!entry.hasAction() || !entry.action.hasAction()) return update
     val action = entry.action.action
-    val translatedParams = canonicalizeParams(action.actionId, action.paramsList)
-      ?: return update
-    return update.toBuilder()
+    val translatedParams = canonicalizeParams(action.actionId, action.paramsList) ?: return update
+    return update
+      .toBuilder()
       .setEntity(
-        update.entity.toBuilder()
+        update.entity
+          .toBuilder()
           .setTableEntry(
-            entry.toBuilder()
+            entry
+              .toBuilder()
               .setAction(
-                entry.action.toBuilder()
+                entry.action
+                  .toBuilder()
                   .setAction(action.toBuilder().clearParams().addAllParams(translatedParams))
               )
           )
@@ -60,8 +63,8 @@ class TypeTranslator private constructor(
   /**
    * Translates a Read entity from data-plane to SDN representation.
    *
-   * For each action parameter that uses a translated type, the value is widened from the
-   * data-plane bitwidth to the SDN bitwidth.
+   * For each action parameter that uses a translated type, the value is widened from the data-plane
+   * bitwidth to the SDN bitwidth.
    */
   fun translateForRead(entity: Entity): Entity {
     if (!entity.hasTableEntry()) return entity
@@ -70,11 +73,14 @@ class TypeTranslator private constructor(
     val action = entry.action.action
     val translatedParams = canonicalizeParams(action.actionId, action.paramsList)
     translatedParams ?: return entity
-    return entity.toBuilder()
+    return entity
+      .toBuilder()
       .setTableEntry(
-        entry.toBuilder()
+        entry
+          .toBuilder()
           .setAction(
-            entry.action.toBuilder()
+            entry.action
+              .toBuilder()
               .setAction(action.toBuilder().clearParams().addAllParams(translatedParams))
           )
       )
@@ -87,15 +93,16 @@ class TypeTranslator private constructor(
     params: List<p4.v1.P4RuntimeOuterClass.Action.Param>,
   ): List<p4.v1.P4RuntimeOuterClass.Action.Param>? {
     var changed = false
-    val result = params.map { param ->
-      val key = paramKey(actionId, param.paramId)
-      if (paramTranslations.containsKey(key)) {
-        changed = true
-        param.toBuilder().setValue(canonicalizeValue(param.value)).build()
-      } else {
-        param
+    val result =
+      params.map { param ->
+        val key = paramKey(actionId, param.paramId)
+        if (paramTranslations.containsKey(key)) {
+          changed = true
+          param.toBuilder().setValue(canonicalizeValue(param.value)).build()
+        } else {
+          param
+        }
       }
-    }
     return if (changed) result else null
   }
 
@@ -106,9 +113,8 @@ class TypeTranslator private constructor(
      * Returns a translator with no translations if the p4info has no translated types.
      */
     fun create(p4info: P4Info, behavioral: P4BehavioralConfig): TypeTranslator {
-      val translatedTypes = p4info.typeInfo.newTypesMap.filter { (_, spec) ->
-        spec.hasTranslatedType()
-      }
+      val translatedTypes =
+        p4info.typeInfo.newTypesMap.filter { (_, spec) -> spec.hasTranslatedType() }
       if (translatedTypes.isEmpty()) return TypeTranslator(emptyMap())
 
       // Build a lookup from behavioral action name → param name → dataplane bitwidth.
@@ -117,9 +123,7 @@ class TypeTranslator private constructor(
       // Resolve p4info action names → behavioral action names (same logic as Simulator).
       val behavioralActionNames =
         (behavioral.actionsList + behavioral.controlsList.flatMap { it.localActionsList })
-          .flatMap { action ->
-            listOfNotNull(action.name, action.currentName.ifEmpty { null })
-          }
+          .flatMap { action -> listOfNotNull(action.name, action.currentName.ifEmpty { null }) }
 
       val paramTranslations = mutableMapOf<Long, ParamTranslation>()
 
@@ -167,9 +171,7 @@ class TypeTranslator private constructor(
     }
 
     private fun resolveName(alias: String, candidates: List<String>): String =
-      candidates.find { it == alias }
-        ?: candidates.find { it.endsWith("_$alias") }
-        ?: alias
+      candidates.find { it == alias } ?: candidates.find { it.endsWith("_$alias") } ?: alias
 
     /** Encodes (actionId, paramId) as a single Long for fast lookup. */
     private fun paramKey(actionId: Int, paramId: Int): Long =
@@ -178,9 +180,9 @@ class TypeTranslator private constructor(
     /**
      * Re-encodes a value as minimum-width unsigned big-endian bytes (P4Runtime canonical form).
      *
-     * For `sdn_bitwidth` translation the numeric value is identical in both representations —
-     * only the byte encoding changes. The actual bitwidth constraint is enforced by the
-     * simulator's interpreter (BitVector truncation), not here.
+     * For `sdn_bitwidth` translation the numeric value is identical in both representations — only
+     * the byte encoding changes. The actual bitwidth constraint is enforced by the simulator's
+     * interpreter (BitVector truncation), not here.
      */
     internal fun canonicalizeValue(value: ByteString): ByteString {
       val bytes = value.toByteArray()
