@@ -4,9 +4,8 @@ load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
 # Trace tree golden tests (Track 3)
 #
 # Each test compiles a P4 program, sends a packet, and compares the resulting
-# TraceTree against a golden .txtpb file.  All tests are expected to fail
-# until the corresponding feature is implemented.  They are tagged "manual"
-# so they don't break CI.
+# TraceTree against a golden .txtpb file.  Passing tests run in CI; tests for
+# unimplemented features are tagged "manual".
 # =============================================================================
 
 _P4_PROGRAMS = [
@@ -18,6 +17,12 @@ _P4_PROGRAMS = [
     "clone_plus_selector",
     "multicast",
 ]
+
+_PASSING = [
+    "no_fork",
+]
+
+_MANUAL = [p for p in _P4_PROGRAMS if p not in _PASSING]
 
 [genrule(
     name = "%s_pb" % name,
@@ -31,22 +36,36 @@ _P4_PROGRAMS = [
     ],
 ) for name in _P4_PROGRAMS]
 
+_TEST_DEPS = [
+    "//e2e_tests/stf:stf_runner",
+    "//simulator:ir_java_proto",
+    "//simulator:p4runtime_java_proto",
+    "//simulator:simulator_java_proto",
+    "@maven//:com_google_protobuf_protobuf_java",
+    "@maven//:junit_junit",
+]
+
 kt_jvm_test(
     name = "golden_trace_tree_test",
     srcs = ["GoldenTraceTreeTest.kt"],
-    data = ["%s.stf" % n for n in _P4_PROGRAMS] +
-           ["%s.golden.txtpb" % n for n in _P4_PROGRAMS] +
-           [":%s_pb" % n for n in _P4_PROGRAMS] + [
+    data = ["%s.stf" % n for n in _PASSING] +
+           ["%s.golden.txtpb" % n for n in _PASSING] +
+           [":%s_pb" % n for n in _PASSING] + [
+        "//simulator",
+    ],
+    test_class = "fourward.e2e.tracetree.GoldenTraceTreeTest",
+    deps = _TEST_DEPS,
+)
+
+kt_jvm_test(
+    name = "golden_trace_tree_test_manual",
+    srcs = ["GoldenTraceTreeTest.kt"],
+    data = ["%s.stf" % n for n in _MANUAL] +
+           ["%s.golden.txtpb" % n for n in _MANUAL] +
+           [":%s_pb" % n for n in _MANUAL] + [
         "//simulator",
     ],
     tags = ["manual"],
     test_class = "fourward.e2e.tracetree.GoldenTraceTreeTest",
-    deps = [
-        "//e2e_tests/stf:stf_runner",
-        "//simulator:ir_java_proto",
-        "//simulator:p4runtime_java_proto",
-        "//simulator:simulator_java_proto",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:junit_junit",
-    ],
+    deps = _TEST_DEPS,
 )
