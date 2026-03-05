@@ -54,6 +54,33 @@ plane.
 | Simple, readable codebase | ehh | ehh | **yes!** |
 | Fast, rigorous CI | nope | slow | **[~2 min](https://4ward.buildbuddy.io/trends/)** |
 
+## Why Kotlin?
+
+The P4 ecosystem is C++. So why isn't 4ward?
+
+4ward is **100% AI-written**. Humans define requirements, design the testing
+strategy, and ask the right questions. AI agents write every line of code,
+including the tests. Formatters, linters, and the compiler enforce mechanical
+correctness. No one needs to hold language minutiae in their head — so we're
+free to pick the best language for the problem, not the most familiar one.
+
+**Why not C++?** Its top strengths — speed, ecosystem familiarity —
+don't matter here. Its top weaknesses — compile times, complexity — matter a lot.
+
+**Why Kotlin?** Fast builds, simple language, strong type system, memory-safe,
+and sealed classes with pattern matching — *perfect* for a tree-walking
+interpreter over a typed IR.
+
+**Why not…**
+- **Rust?** Borrow checker is overkill — we don't need manual memory control.
+- **Go?** Weaker type system — no algebraic data types, no pattern matching.
+- **Python?** Weak type system, slow test execution.
+- **Java?** Kotlin, but worse. Verbose, no sealed `when`, no data classes.
+
+The p4c backend is still C++ (because p4c is C++). The two halves communicate
+through a language-neutral protobuf IR — the simulator's language choice doesn't
+ripple into the ecosystem.
+
 ## Quick start
 
 [Tested on](https://4ward.buildbuddy.io/tests/) macOS and Ubuntu. You need [Bazel](https://bazel.build) 9+ (or just
