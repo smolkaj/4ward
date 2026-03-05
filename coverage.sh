@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
-# Collects Kotlin code coverage for the simulator library.
+# Collects Kotlin unit test coverage for the simulator library.
+#
+# NOTE: This only instruments kt_jvm_test targets. E2e tests (corpus, trace
+# tree, p4testgen) run the simulator as a subprocess and are not captured by
+# JaCoCo, so the reported coverage undercounts actual code exercised.
 #
 # Usage:
 #   ./coverage.sh                                # run tests, produce LCOV
