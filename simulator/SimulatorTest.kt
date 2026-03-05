@@ -82,9 +82,7 @@ class SimulatorTest {
       .build()
 
   private fun processPacketRequest(): SimRequest =
-    SimRequest.newBuilder()
-      .setProcessPacket(ProcessPacketRequest.getDefaultInstance())
-      .build()
+    SimRequest.newBuilder().setProcessPacket(ProcessPacketRequest.getDefaultInstance()).build()
 
   private fun p4infoTable(id: Int, alias: String): P4InfoOuterClass.Table =
     P4InfoOuterClass.Table.newBuilder()

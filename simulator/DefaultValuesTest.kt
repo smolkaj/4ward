@@ -61,12 +61,18 @@ class DefaultValuesTest {
   fun `signed int type defaults to zero IntVal, not BitVal`() {
     // assertEquals already enforces the type — if defaultValue returned a BitVal, it wouldn't
     // equal an IntVal.
-    assertEquals(IntVal(SignedBitVector(BigInteger.ZERO, 32)), defaultValue(intType(32), emptyMap()))
+    assertEquals(
+      IntVal(SignedBitVector(BigInteger.ZERO, 32)),
+      defaultValue(intType(32), emptyMap()),
+    )
   }
 
   @Test
   fun `boolean type defaults to false`() {
-    assertEquals(BoolVal(false), defaultValue(Type.newBuilder().setBoolean(true).build(), emptyMap()))
+    assertEquals(
+      BoolVal(false),
+      defaultValue(Type.newBuilder().setBoolean(true).build(), emptyMap()),
+    )
   }
 
   // ---------------------------------------------------------------------------
