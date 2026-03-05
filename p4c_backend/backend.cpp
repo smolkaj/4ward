@@ -741,6 +741,19 @@ void FourWardBackend::emitTable(const IR::P4Table* table) {
     *tk->mutable_expr() = emitExpr(keyElem->expression);
     ++keyIdx;
   }
+
+  // Record per-table action specializations so the interpreter can resolve
+  // the correct midend copy when the p4info returns a single original name.
+  const auto* actionList = table->getActionList();
+  if (actionList) {
+    for (const auto* ale : actionList->actionList) {
+      auto id = ale->getName();
+      if (id.name != id.originalName) {
+        (*tb->mutable_action_overrides())[id.originalName.c_str()] =
+            id.name.c_str();
+      }
+    }
+  }
 }
 
 void FourWardBackend::emitArchitecture(const IR::ToplevelBlock* toplevel) {

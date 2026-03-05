@@ -191,6 +191,7 @@ corpus_test_suite(
         "table-entries-range-bmv2",
         "table-entries-ser-enum-bmv2",
         "table-entries-ternary-bmv2",
+        "ternary2-bmv2",
         "test-parserinvalidargument-error-bmv2",
         "union-bmv2",
         "union-valid-bmv2",
@@ -275,7 +276,6 @@ corpus_test_suite(
     name = "other_stf_corpus_test",
     tags = ["manual"],
     tests = [
-        "ternary2-bmv2",  # per-table action specialization lost (single p4info action ID)
         "v1model-special-ops-bmv2",  # needs resubmit/recirculate
     ],
 )

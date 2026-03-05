@@ -10,6 +10,7 @@ import fourward.ir.v1.Expr
 import fourward.ir.v1.FieldAccess
 import fourward.ir.v1.IfStmt
 import fourward.ir.v1.Literal
+import fourward.ir.v1.MethodCallStmt
 import fourward.ir.v1.NameRef
 import fourward.ir.v1.P4BehavioralConfig
 import fourward.ir.v1.Stmt
@@ -412,5 +413,67 @@ class InterpreterControlTest {
       )
       .runControl("MyControl", env)
     assertEquals(BitVal(2, 8), env.lookup("x"))
+  }
+
+  // ---------------------------------------------------------------------------
+  // Per-table action override resolution
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Config with table "t" having action_overrides "setbyte" → "setbyte_1". The first copy
+   * ("setbyte") sets x=1; the second copy ("setbyte_1") sets x=2.
+   */
+  private fun actionOverrideConfig(controlBody: Stmt): P4BehavioralConfig =
+    P4BehavioralConfig.newBuilder()
+      .addTables(TableBehavior.newBuilder().setName("t").putActionOverrides("setbyte", "setbyte_1"))
+      .addActions(ActionDecl.newBuilder().setName("setbyte").addBody(assign("x", bit(1, 8))))
+      .addActions(
+        ActionDecl.newBuilder()
+          .setName("setbyte")
+          .setCurrentName("setbyte_1")
+          .addBody(assign("x", bit(2, 8)))
+      )
+      .addControls(ControlDecl.newBuilder().setName("MyControl").addApplyBody(controlBody))
+      .build()
+
+  @Test
+  fun `action override resolves per-table specialized copy`() {
+    // The p4info returns "setbyte" for all tables, but action_overrides maps it
+    // to "setbyte_1" for table "t", so setbyte_1's body should execute (x=2).
+    val ts = TableStore().also { it.setForcedHit("t", "setbyte") }
+    val applyTable =
+      Stmt.newBuilder()
+        .setMethodCall(
+          MethodCallStmt.newBuilder()
+            .setCall(Expr.newBuilder().setTableApply(TableApplyExpr.newBuilder().setTableName("t")))
+        )
+        .build()
+    val env = emptyEnv
+    env.define("x", BitVal(0, 8))
+    interp(actionOverrideConfig(applyTable), ts).runControl("MyControl", env)
+    assertEquals(BitVal(2, 8), env.lookup("x"))
+  }
+
+  @Test
+  fun `action override returns original name for switch matching`() {
+    // The override resolves to "setbyte_1" for execution, but the switch
+    // statement should match on the original name "setbyte".
+    val ts = TableStore().also { it.setForcedHit("t", "setbyte") }
+    val config =
+      actionOverrideConfig(
+        switchOn(
+          "t",
+          mapOf("setbyte" to listOf(assign("y", bit(10, 8)))),
+          listOf(assign("y", bit(20, 8))),
+        )
+      )
+    val env = emptyEnv
+    env.define("x", BitVal(0, 8))
+    env.define("y", BitVal(0, 8))
+    interp(config, ts).runControl("MyControl", env)
+    // The override executed setbyte_1's body (x=2)
+    assertEquals(BitVal(2, 8), env.lookup("x"))
+    // The switch matched on the original name "setbyte" (y=10, not default 20)
+    assertEquals(BitVal(10, 8), env.lookup("y"))
   }
 }

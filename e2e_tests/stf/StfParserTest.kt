@@ -574,12 +574,17 @@ class StfParserTest {
   }
 
   // ---------------------------------------------------------------------------
-  // matchesMasked (via expect parsing + manual comparison)
+  // matchesMasked — mirrors the private function in Runner.kt
   // ---------------------------------------------------------------------------
 
-  private fun ByteArray.matchesMasked(expected: ByteArray, mask: ByteArray): Boolean {
-    if (size != expected.size) return false
-    return indices.all { i ->
+  private fun ByteArray.matchesMasked(
+    expected: ByteArray,
+    mask: ByteArray,
+    exactLength: Boolean = true,
+  ): Boolean {
+    if (exactLength && size != expected.size) return false
+    if (size < expected.size) return false
+    return expected.indices.all { i ->
       (this[i].toInt() and mask[i].toInt()) == (expected[i].toInt() and mask[i].toInt())
     }
   }
@@ -589,7 +594,7 @@ class StfParserTest {
     val actual = byteArrayOf(0xAA.toByte(), 0xBB.toByte())
     val expected = byteArrayOf(0xAA.toByte(), 0xBB.toByte())
     val mask = byteArrayOf(0xFF.toByte(), 0xFF.toByte())
-    assertTrue(actual.matchesMasked(expected, mask))
+    assertTrue(actual.matchesMasked(expected, mask, exactLength = true))
   }
 
   @Test
@@ -597,7 +602,7 @@ class StfParserTest {
     val actual = byteArrayOf(0xAA.toByte(), 0xBB.toByte())
     val expected = byteArrayOf(0xAA.toByte(), 0xCC.toByte())
     val mask = byteArrayOf(0xFF.toByte(), 0xFF.toByte())
-    assertTrue(!actual.matchesMasked(expected, mask))
+    assertTrue(!actual.matchesMasked(expected, mask, exactLength = true))
   }
 
   @Test
@@ -605,7 +610,7 @@ class StfParserTest {
     val actual = byteArrayOf(0xDE.toByte(), 0xAD.toByte())
     val expected = byteArrayOf(0x00, 0x00)
     val mask = byteArrayOf(0x00, 0x00)
-    assertTrue(actual.matchesMasked(expected, mask))
+    assertTrue(actual.matchesMasked(expected, mask, exactLength = true))
   }
 
   @Test
@@ -613,14 +618,53 @@ class StfParserTest {
     val actual = byteArrayOf(0xFF.toByte(), 0xBB.toByte())
     val expected = byteArrayOf(0x00, 0xBB.toByte())
     val mask = byteArrayOf(0x00, 0xFF.toByte()) // first byte is wildcard
-    assertTrue(actual.matchesMasked(expected, mask))
+    assertTrue(actual.matchesMasked(expected, mask, exactLength = true))
   }
 
   @Test
-  fun `matchesMasked length mismatch is never equal`() {
+  fun `matchesMasked actual shorter than expected always fails`() {
     val actual = byteArrayOf(0xAA.toByte())
     val expected = byteArrayOf(0xAA.toByte(), 0xBB.toByte())
     val mask = byteArrayOf(0xFF.toByte(), 0xFF.toByte())
-    assertTrue(!actual.matchesMasked(expected, mask))
+    assertTrue(!actual.matchesMasked(expected, mask, exactLength = true))
+    assertTrue(!actual.matchesMasked(expected, mask, exactLength = false))
+  }
+
+  @Test
+  fun `matchesMasked prefix mode allows longer actual`() {
+    val actual = byteArrayOf(0xAA.toByte(), 0xBB.toByte(), 0xCC.toByte(), 0xDD.toByte())
+    val expected = byteArrayOf(0xAA.toByte(), 0xBB.toByte())
+    val mask = byteArrayOf(0xFF.toByte(), 0xFF.toByte())
+    // exactLength=true: mismatch (lengths differ)
+    assertTrue(!actual.matchesMasked(expected, mask, exactLength = true))
+    // exactLength=false: matches on the prefix
+    assertTrue(actual.matchesMasked(expected, mask, exactLength = false))
+  }
+
+  @Test
+  fun `matchesMasked prefix mode still checks content`() {
+    val actual = byteArrayOf(0xAA.toByte(), 0xFF.toByte(), 0xCC.toByte())
+    val expected = byteArrayOf(0xAA.toByte(), 0xBB.toByte())
+    val mask = byteArrayOf(0xFF.toByte(), 0xFF.toByte())
+    // Second byte differs, so even in prefix mode it should fail
+    assertTrue(!actual.matchesMasked(expected, mask, exactLength = false))
+  }
+
+  // ---------------------------------------------------------------------------
+  // Expect parsing: exactLength ($ marker)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `expect with dollar sign sets exactLength true`() {
+    val stf = parse("expect 1 AABB$")
+    assertEquals(1, stf.expects.size)
+    assertTrue(stf.expects[0].exactLength)
+  }
+
+  @Test
+  fun `expect without dollar sign sets exactLength false`() {
+    val stf = parse("expect 1 AABB")
+    assertEquals(1, stf.expects.size)
+    assertTrue(!stf.expects[0].exactLength)
   }
 }

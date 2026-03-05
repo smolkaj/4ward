@@ -110,9 +110,12 @@ persistent session that resets table state between STFs.
 
 **Problem**: `matchesMasked` is `private` in `Runner.kt`, so
 `StfParserTest.kt` has an identical copy to test the logic independently.
+Kotlin `internal` visibility doesn't cross Bazel target boundaries (each
+`kt_jvm_library`/`kt_jvm_test` is a separate module).
 
-**Fix**: Change visibility from `private` to `internal` so the test can
-import the production implementation directly.
+**Fix**: Move `matchesMasked` to a shared utility in a common target that
+both `stf_runner` and `StfParserTest` depend on, or merge the test into the
+same target.
 
 ---
 
