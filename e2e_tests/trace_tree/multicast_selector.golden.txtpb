@@ -5,7 +5,7 @@ events {
     to_state: "accept"
   }
 }
-fork {
+fork_outcome {
   reason: MULTICAST
   branches {
     label: "replica_0_port_1"
@@ -29,7 +29,7 @@ fork {
           action_name: "tag_a"
         }
       }
-      fork {
+      fork_outcome {
         reason: ACTION_SELECTOR
         branches {
           label: "member_0"
@@ -37,6 +37,12 @@ fork {
             events {
               action_execution {
                 action_name: "tag_a"
+              }
+            }
+            packet_outcome {
+              output {
+                egress_port: 1
+                payload: "\252\252\252\252\252\252\000\000\000\000\000\001\b\000"
               }
             }
           }
@@ -47,6 +53,12 @@ fork {
             events {
               action_execution {
                 action_name: "tag_b"
+              }
+            }
+            packet_outcome {
+              output {
+                egress_port: 1
+                payload: "\273\273\273\273\273\273\000\000\000\000\000\001\b\000"
               }
             }
           }
@@ -76,7 +88,7 @@ fork {
           action_name: "tag_a"
         }
       }
-      fork {
+      fork_outcome {
         reason: ACTION_SELECTOR
         branches {
           label: "member_0"
@@ -84,6 +96,12 @@ fork {
             events {
               action_execution {
                 action_name: "tag_a"
+              }
+            }
+            packet_outcome {
+              output {
+                egress_port: 2
+                payload: "\252\252\252\252\252\252\000\000\000\000\000\001\b\000"
               }
             }
           }
@@ -94,6 +112,12 @@ fork {
             events {
               action_execution {
                 action_name: "tag_b"
+              }
+            }
+            packet_outcome {
+              output {
+                egress_port: 2
+                payload: "\273\273\273\273\273\273\000\000\000\000\000\001\b\000"
               }
             }
           }

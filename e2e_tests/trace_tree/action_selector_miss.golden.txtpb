@@ -1,6 +1,3 @@
-# Expected trace tree for action_selector_miss: zero-fork tree on miss.
-# The selector table misses, so the default action (drop) runs directly
-# with no forking.
 events {
   parser_transition {
     parser_name: "MyParser"
@@ -18,5 +15,10 @@ events {
 events {
   action_execution {
     action_name: "drop"
+  }
+}
+packet_outcome {
+  drop {
+    reason: MARK_TO_DROP
   }
 }

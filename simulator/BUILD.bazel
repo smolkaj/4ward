@@ -157,6 +157,7 @@ kt_jvm_test(
     srcs = ["EnvironmentTest.kt"],
     test_class = "fourward.simulator.EnvironmentTest",
     deps = [
+        ":simulator_java_proto",
         ":simulator_lib",
         "@maven//:junit_junit",
     ],

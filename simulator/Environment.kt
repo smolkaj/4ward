@@ -1,7 +1,6 @@
 package fourward.simulator
 
 import fourward.sim.v1.TraceEvent
-import fourward.sim.v1.TraceTree
 import java.io.ByteArrayOutputStream
 
 /**
@@ -92,6 +91,18 @@ class PacketContext(payload: ByteArray) {
   fun drainRemainingInput(): ByteArray = buffer.readAll()
 
   // -------------------------------------------------------------------------
+  // Clone
+  // -------------------------------------------------------------------------
+
+  /**
+   * Session ID from the last clone()/clone3() call, or null if no clone was requested.
+   *
+   * BMv2 last-writer-wins: if multiple clone calls occur during ingress, only the last one takes
+   * effect. The architecture checks this at the ingress→egress boundary.
+   */
+  var pendingCloneSessionId: Int? = null
+
+  // -------------------------------------------------------------------------
   // Trace
   // -------------------------------------------------------------------------
 
@@ -102,8 +113,6 @@ class PacketContext(payload: ByteArray) {
   }
 
   fun getEvents(): List<TraceEvent> = traceEvents.toList()
-
-  fun buildTrace(): TraceTree = TraceTree.newBuilder().addAllEvents(traceEvents).build()
 }
 
 /**

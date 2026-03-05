@@ -1,0 +1,6 @@
+# clone_last_wins.stf — two clone sessions, last-writer-wins.
+# Session 200 → port 2, session 100 → port 1.  Only session 100 should take effect.
+
+mirroring_add 200 2
+mirroring_add 100 1
+packet 0 FFFFFFFFFFFF 000000000001 0800

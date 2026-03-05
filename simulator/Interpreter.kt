@@ -186,7 +186,8 @@ class Interpreter(
 
   private fun execStmt(stmt: Stmt, env: Environment) {
     when {
-      stmt.hasAssignment() -> execAssignment(stmt.assignment, env)
+      stmt.hasAssignment() ->
+        setLValue(stmt.assignment.lhs, evalExpr(stmt.assignment.rhs, env), env)
       stmt.hasMethodCall() -> evalExpr(stmt.methodCall.call, env) // result discarded
       stmt.hasIfStmt() -> execIf(stmt.ifStmt, env)
       stmt.hasSwitchStmt() -> execSwitch(stmt.switchStmt, env)
@@ -195,11 +196,6 @@ class Interpreter(
       stmt.hasReturnStmt() -> throw ReturnException(evalExpr(stmt.returnStmt.value, env))
       else -> error("unhandled statement kind: $stmt")
     }
-  }
-
-  private fun execAssignment(assign: fourward.ir.v1.AssignmentStmt, env: Environment) {
-    val rval = evalExpr(assign.rhs, env)
-    setLValue(assign.lhs, rval, env)
   }
 
   private fun execIf(ifStmt: fourward.ir.v1.IfStmt, env: Environment) {
@@ -317,8 +313,8 @@ class Interpreter(
         stack.headers[stack.nextIndex].also { stack.nextIndex++ }
       }
       "last" -> stack.headers[(stack.nextIndex - 1).coerceAtLeast(0)]
-      "lastIndex" -> BitVal(stack.headers.size.toLong() - 1, 32)
-      "size" -> BitVal(stack.headers.size.toLong(), 32)
+      "lastIndex" -> BitVal(stack.headers.size.toLong() - 1, STACK_PROPERTY_BITS)
+      "size" -> BitVal(stack.headers.size.toLong(), STACK_PROPERTY_BITS)
       else -> error("unknown header stack property: $name")
     }
 
@@ -738,8 +734,10 @@ class Interpreter(
         UnitVal
       }
       // clone(type, session) / clone3(type, session, data): P4 v1model I2E/E2E clone.
+      // Records the clone intent; the architecture checks pendingCloneSessionId at the
+      // ingress→egress boundary and forks there. Multiple calls use last-writer-wins,
+      // matching BMv2 simple_switch semantics.
       // See https://github.com/p4lang/behavioral-model/blob/main/docs/simple_switch.md
-      // TODO(v1model): only I2E is implemented; BMv2 uses last-writer-wins for multiple calls.
       "clone",
       "clone3" -> {
         val sessionId = (evalExpr(call.argsList[1], env) as BitVal).bits.value.toInt()
@@ -748,11 +746,7 @@ class Interpreter(
             .setClone(fourward.sim.v1.CloneEvent.newBuilder().setSessionId(sessionId))
             .build()
         )
-        when (decisions.cloneMode) {
-          CloneMode.THROW -> throw CloneFork(sessionId, packetCtx!!.getEvents())
-          CloneMode.SUPPRESS -> {} // already recorded event, continue normally
-          CloneMode.EXECUTE_CLONE -> throw JumpToEgressException()
-        }
+        packetCtx?.pendingCloneSessionId = sessionId
         UnitVal
       }
       // verify_checksum(condition, data, checksum, algo): v1model §14.
@@ -801,6 +795,7 @@ class Interpreter(
     }
   }
 
+  /** Whether [expr] is a field access into a header union. */
   /** Whether [expr] is a field access into a header union. */
   private fun isUnionFieldAccess(expr: Expr): Boolean =
     expr.hasFieldAccess() &&
@@ -939,50 +934,7 @@ class Interpreter(
    */
   private fun emitValue(value: Value) {
     when (value) {
-      is HeaderVal -> {
-        if (!value.valid) return
-        val headerDecl =
-          (types[value.typeName] ?: error("type not found: ${value.typeName}")).header
-        // Compute total wire bits from field declarations; varbit fields use their stored BitVal
-        // width since we don't have the runtime length separately at emit time.
-        val totalBits =
-          headerDecl.fieldsList.sumOf { field ->
-            when (val v = value.fields[field.name]) {
-              is BitVal -> v.bits.width
-              is BoolVal -> 1
-              is IntVal -> v.bits.width
-              else -> 0
-            }
-          }
-        var packedBits = BigInteger.ZERO
-        var bitOffset = 0
-        for (field in headerDecl.fieldsList) {
-          val fieldBits: BigInteger
-          val width: Int
-          when (val fieldVal = value.fields[field.name]) {
-            is BitVal -> {
-              fieldBits = fieldVal.bits.value
-              width = fieldVal.bits.width
-            }
-            is BoolVal -> {
-              // P4 spec §8.9.2: bool occupies 1 bit on the wire.
-              fieldBits = if (fieldVal.value) BigInteger.ONE else BigInteger.ZERO
-              width = 1
-            }
-            is IntVal -> {
-              fieldBits = fieldVal.bits.toUnsigned().value
-              width = fieldVal.bits.width
-            }
-            else -> continue // UnitVal (e.g. varbit placeholder) — skip
-          }
-          if (totalBits > 0 && width > 0) {
-            val shift = totalBits - bitOffset - width
-            packedBits = packedBits or fieldBits.shiftLeft(shift)
-          }
-          bitOffset += width
-        }
-        if (totalBits > 0) packet.emitBytes(BitVector(packedBits, totalBits).toByteArray())
-      }
+      is HeaderVal -> emitHeader(value)
       is StructVal -> {
         // Emit in the declaration order from the TypeDecl; fall back to map order if unknown.
         val typeDecl = types[value.typeName]
@@ -1005,6 +957,51 @@ class Interpreter(
       }
       else -> {} // BoolVal, BitVal outside a header, UnitVal — not emittable
     }
+  }
+
+  /** Packs a valid header's fields into bytes (MSB-first) and appends to the output buffer. */
+  private fun emitHeader(header: HeaderVal) {
+    if (!header.valid) return
+    val headerDecl = (types[header.typeName] ?: error("type not found: ${header.typeName}")).header
+    // Compute total wire bits from field declarations; varbit fields use their stored BitVal
+    // width since we don't have the runtime length separately at emit time.
+    val totalBits =
+      headerDecl.fieldsList.sumOf { field ->
+        when (val v = header.fields[field.name]) {
+          is BitVal -> v.bits.width
+          is BoolVal -> 1
+          is IntVal -> v.bits.width
+          else -> 0
+        }
+      }
+    var packedBits = BigInteger.ZERO
+    var bitOffset = 0
+    for (field in headerDecl.fieldsList) {
+      val fieldBits: BigInteger
+      val width: Int
+      when (val fieldVal = header.fields[field.name]) {
+        is BitVal -> {
+          fieldBits = fieldVal.bits.value
+          width = fieldVal.bits.width
+        }
+        is BoolVal -> {
+          // P4 spec §8.9.2: bool occupies 1 bit on the wire.
+          fieldBits = if (fieldVal.value) BigInteger.ONE else BigInteger.ZERO
+          width = 1
+        }
+        is IntVal -> {
+          fieldBits = fieldVal.bits.toUnsigned().value
+          width = fieldVal.bits.width
+        }
+        else -> continue // UnitVal (e.g. varbit placeholder) — skip
+      }
+      if (totalBits > 0 && width > 0) {
+        val shift = totalBits - bitOffset - width
+        packedBits = packedBits or fieldBits.shiftLeft(shift)
+      }
+      bitOffset += width
+    }
+    if (totalBits > 0) packet.emitBytes(BitVector(packedBits, totalBits).toByteArray())
   }
 
   // -------------------------------------------------------------------------
@@ -1055,6 +1052,11 @@ class Interpreter(
       else -> error("unhandled lvalue kind: $lhs")
     }
   }
+
+  companion object {
+    // P4 spec §8.18: header stack lastIndex/size are bit<32>.
+    private const val STACK_PROPERTY_BITS = 32
+  }
 }
 
 /**
@@ -1080,7 +1082,7 @@ class ActionSelectorFork(
   eventsBeforeFork: List<TraceEvent>,
 ) : ForkException(eventsBeforeFork)
 
-/** Fork at a clone() call — "original" and "clone" branches. */
+/** Fork at the ingress→egress boundary when a clone was requested — "original" and "clone". */
 class CloneFork(val sessionId: Int, eventsBeforeFork: List<TraceEvent>) :
   ForkException(eventsBeforeFork)
 
@@ -1088,21 +1090,20 @@ class CloneFork(val sessionId: Int, eventsBeforeFork: List<TraceEvent>) :
 class MulticastFork(val replicas: List<MulticastReplica>, eventsBeforeFork: List<TraceEvent>) :
   ForkException(eventsBeforeFork)
 
-/** Thrown during clone-branch re-execution to skip remaining ingress and jump to egress. */
-class JumpToEgressException : Exception()
-
-/** Policies for re-execution of a pipeline branch in the trace tree. */
+/**
+ * Policies for re-execution of a pipeline branch in the trace tree.
+ *
+ * @property selectorMembers Forced member selections per table (action selector branches).
+ * @property suppressClone If true, skip clone forking at the boundary (original branch).
+ * @property cloneBranchSessionId If non-null, this is a clone branch — set up clone metadata at the
+ *   boundary using this session ID instead of forking.
+ * @property multicastReplica If non-null, force this replica instead of forking at multicast.
+ */
 data class ForkDecisions(
   val selectorMembers: Map<String, Int> = emptyMap(),
-  val cloneMode: CloneMode = CloneMode.THROW,
-  val cloneSessionId: Int = 0,
+  val suppressClone: Boolean = false,
+  val cloneBranchSessionId: Int? = null,
   val multicastReplica: MulticastReplica? = null,
 )
-
-enum class CloneMode {
-  THROW,
-  SUPPRESS,
-  EXECUTE_CLONE,
-}
 
 data class MulticastReplica(val rid: Int, val port: Int)

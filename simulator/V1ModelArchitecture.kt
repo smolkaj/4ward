@@ -3,9 +3,13 @@ package fourward.simulator
 import fourward.ir.v1.P4BehavioralConfig
 import fourward.ir.v1.PipelineStage
 import fourward.ir.v1.StageKind
+import fourward.sim.v1.Drop
+import fourward.sim.v1.DropReason
+import fourward.sim.v1.Fork
 import fourward.sim.v1.ForkBranch
-import fourward.sim.v1.ForkNode
 import fourward.sim.v1.ForkReason
+import fourward.sim.v1.PacketOutcome
+import fourward.sim.v1.TraceEvent
 import fourward.sim.v1.TraceTree
 
 /**
@@ -19,7 +23,7 @@ import fourward.sim.v1.TraceTree
  * Architecture-specific behaviour implemented here:
  * - standard_metadata_t initialisation and egress_spec routing.
  * - mark_to_drop() (sets egress_spec to DROP_PORT = 511).
- * - clone (I2E) via ForkException / re-execution.
+ * - clone (I2E) at the ingress→egress boundary (last-writer-wins for multiple calls).
  * - multicast group replication via ForkException / re-execution.
  *
  * References:
@@ -71,8 +75,7 @@ class V1ModelArchitecture : Architecture {
    *
    * When a [ForkException] is thrown (action selector, clone, or multicast), this method
    * re-executes the full pipeline once per branch with appropriate [ForkDecisions], and assembles
-   * the results into a [TraceTree] with a [ForkNode]. Shared prefix events are stripped from
-   * branches.
+   * the results into a [TraceTree] with a [Fork]. Shared prefix events are stripped from branches.
    */
   private fun buildTraceTree(
     ctx: PipelineContext,
@@ -80,19 +83,19 @@ class V1ModelArchitecture : Architecture {
     prefixLength: Int,
   ): PipelineResult {
     try {
-      val (outputs, trace) = runPipeline(ctx, decisions)
-      val stripped =
-        TraceTree.newBuilder().addAllEvents(trace.eventsList.drop(prefixLength)).build()
-      return PipelineResult(outputs, stripped)
+      val trace = runPipeline(ctx, decisions)
+      val stripped = TraceTree.newBuilder().addAllEvents(trace.eventsList.drop(prefixLength))
+      if (trace.hasPacketOutcome()) stripped.setPacketOutcome(trace.packetOutcome)
+      return PipelineResult(stripped.build())
     } catch (fork: ForkException) {
       val levelEvents = fork.eventsBeforeFork.drop(prefixLength)
       val (reason, branches) = buildForkBranches(ctx, decisions, fork)
       val tree =
         TraceTree.newBuilder()
           .addAllEvents(levelEvents)
-          .setFork(ForkNode.newBuilder().setReason(reason).addAllBranches(branches))
+          .setForkOutcome(Fork.newBuilder().setReason(reason).addAllBranches(branches))
           .build()
-      return PipelineResult(emptyList(), tree)
+      return PipelineResult(tree)
     }
   }
 
@@ -115,9 +118,8 @@ class V1ModelArchitecture : Architecture {
         ForkReason.ACTION_SELECTOR to branches
       }
       is CloneFork -> {
-        val originalDecisions = decisions.copy(cloneMode = CloneMode.SUPPRESS)
-        val cloneDecisions =
-          decisions.copy(cloneMode = CloneMode.EXECUTE_CLONE, cloneSessionId = fork.sessionId)
+        val originalDecisions = decisions.copy(suppressClone = true)
+        val cloneDecisions = decisions.copy(cloneBranchSessionId = fork.sessionId)
         val branches =
           listOf(
             forkBranch("original", ctx, originalDecisions, fork.eventsBeforeFork.size),
@@ -214,9 +216,9 @@ class V1ModelArchitecture : Architecture {
     return PipelineState(packetCtx, interpreter, env, standardMetadata, config)
   }
 
-  /** Executes the full v1model pipeline once, returning output packets and flat trace. */
+  /** Executes the full v1model pipeline once, returning a flat trace tree with a leaf outcome. */
   @Suppress("LoopWithTooManyJumpStatements")
-  private fun runPipeline(ctx: PipelineContext, decisions: ForkDecisions): PipelineResult {
+  private fun runPipeline(ctx: PipelineContext, decisions: ForkDecisions): TraceTree {
     val s = initPipelineState(ctx, decisions)
 
     // --- Parser ---
@@ -224,7 +226,7 @@ class V1ModelArchitecture : Architecture {
       try {
         s.interpreter.runParser(s.parserStage.blockName, s.env)
       } catch (e: ExitException) {
-        return PipelineResult(emptyList(), s.packetCtx.buildTrace())
+        return buildDropTrace(s.packetCtx.getEvents(), DropReason.MARK_TO_DROP)
       } catch (e: ParserErrorException) {
         // BMv2 v1model: parser errors don't drop the packet. Set parser_error and
         // continue to the ingress pipeline, letting the P4 program decide the fate.
@@ -233,30 +235,31 @@ class V1ModelArchitecture : Architecture {
     }
 
     // --- Ingress controls (verify checksum, ingress) ---
-    // JumpToEgressException signals clone-branch re-execution: stop ingress, run egress only.
-    var jumpToEgress = false
     for (stage in s.ingressControls) {
       try {
         s.interpreter.runControl(stage.blockName, s.env)
       } catch (_: ExitException) {
         break
-      } catch (_: JumpToEgressException) {
-        jumpToEgress = true
-        break
       }
     }
 
-    // --- Ingress→egress boundary: clone / multicast metadata setup ---
-    // All paths write egress_port into standardMetadata so the egress read is uniform.
-    if (jumpToEgress) {
-      // Clone branch: set instance_type and egress_port from clone session config.
+    // --- Ingress→egress boundary: clone / multicast / unicast routing ---
+    // BMv2 processes clone at the boundary (not at the call site), so multiple clone()
+    // calls during ingress use last-writer-wins. The architecture forks here.
+    val pendingClone = s.packetCtx.pendingCloneSessionId
+    if (decisions.cloneBranchSessionId != null) {
+      // Clone branch re-execution: set up clone metadata and continue to egress.
       val session =
-        ctx.tableStore.getCloneSession(decisions.cloneSessionId)
-          ?: error("unknown clone session: ${decisions.cloneSessionId}")
+        ctx.tableStore.getCloneSession(decisions.cloneBranchSessionId)
+          ?: error("unknown clone session: ${decisions.cloneBranchSessionId}")
       val clonePort = session.replicasList.firstOrNull()?.egressPort ?: 0
       s.standardMetadata.fields["instance_type"] = BitVal(CLONE_I2E_INSTANCE_TYPE, INT32_BITS)
       s.standardMetadata.fields["egress_port"] = BitVal(clonePort.toLong(), PORT_BITS)
+    } else if (pendingClone != null && !decisions.suppressClone) {
+      // First encounter of a pending clone: fork into original + clone branches.
+      throw CloneFork(pendingClone, s.packetCtx.getEvents())
     } else {
+      // Original branch (suppressClone=true) or no clone: check multicast, then unicast.
       val mcastGrp = (s.standardMetadata.fields["mcast_grp"] as? BitVal)?.bits?.value?.toInt() ?: 0
       if (mcastGrp != 0 && decisions.multicastReplica == null) {
         val group =
@@ -291,7 +294,7 @@ class V1ModelArchitecture : Architecture {
 
     // Port 511 is the v1model drop port (mark_to_drop sets egress_spec = 511).
     if (egressPort == DROP_PORT) {
-      return PipelineResult(emptyList(), s.packetCtx.buildTrace())
+      return buildDropTrace(s.packetCtx.getEvents(), DropReason.MARK_TO_DROP)
     }
 
     // --- Deparser ---
@@ -303,8 +306,22 @@ class V1ModelArchitecture : Architecture {
     // In P4, the deparser emits re-serialised headers; the remaining payload
     // is transparently forwarded after them.
     val outputBytes = s.packetCtx.outputPayload() + s.packetCtx.drainRemainingInput()
-    val output = OutputPacket(egressPort.toUInt(), outputBytes)
-    return PipelineResult(listOf(output), s.packetCtx.buildTrace())
+    return buildOutputTrace(s.packetCtx.getEvents(), egressPort, outputBytes)
+  }
+
+  private fun buildDropTrace(events: List<TraceEvent>, reason: DropReason): TraceTree {
+    val outcome = PacketOutcome.newBuilder().setDrop(Drop.newBuilder().setReason(reason)).build()
+    return TraceTree.newBuilder().addAllEvents(events).setPacketOutcome(outcome).build()
+  }
+
+  private fun buildOutputTrace(events: List<TraceEvent>, port: Int, payload: ByteArray): TraceTree {
+    val output =
+      fourward.sim.v1.OutputPacket.newBuilder()
+        .setEgressPort(port)
+        .setPayload(com.google.protobuf.ByteString.copyFrom(payload))
+        .build()
+    val outcome = PacketOutcome.newBuilder().setOutput(output).build()
+    return TraceTree.newBuilder().addAllEvents(events).setPacketOutcome(outcome).build()
   }
 
   companion object {

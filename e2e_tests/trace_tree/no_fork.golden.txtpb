@@ -1,5 +1,3 @@
-# Expected trace tree for no_fork: zero-fork tree (no ForkNode).
-# Parser transition + table hit + action execution — nothing else.
 events {
   parser_transition {
     parser_name: "MyParser"
@@ -39,5 +37,11 @@ events {
       key: "port"
       value: "\000\001"
     }
+  }
+}
+packet_outcome {
+  output {
+    egress_port: 1
+    payload: "\377\377\377\377\377\377\000\000\000\000\000\001\b\000"
   }
 }

@@ -5,7 +5,7 @@ events {
     to_state: "accept"
   }
 }
-fork {
+fork_outcome {
   reason: MULTICAST
   branches {
     label: "replica_0_port_1"
@@ -13,6 +13,12 @@ fork {
       events {
         branch {
           taken: false
+        }
+      }
+      packet_outcome {
+        output {
+          egress_port: 1
+          payload: "\377\377\377\377\377\377\000\000\000\000\000\001\b\000"
         }
       }
     }
@@ -25,6 +31,12 @@ fork {
           taken: true
         }
       }
+      packet_outcome {
+        output {
+          egress_port: 2
+          payload: "\377\377\377\377\377\377\000\000\000\000\000\001\b\000"
+        }
+      }
     }
   }
   branches {
@@ -33,6 +45,12 @@ fork {
       events {
         branch {
           taken: false
+        }
+      }
+      packet_outcome {
+        output {
+          egress_port: 3
+          payload: "\377\377\377\377\377\377\000\000\000\000\000\001\b\000"
         }
       }
     }

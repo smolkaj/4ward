@@ -4,7 +4,6 @@ import fourward.ir.v1.PipelineConfig
 import fourward.sim.v1.ErrorCode
 import fourward.sim.v1.ErrorResponse
 import fourward.sim.v1.LoadPipelineResponse
-import fourward.sim.v1.OutputPacket
 import fourward.sim.v1.ProcessPacketResponse
 import fourward.sim.v1.ReadEntriesResponse
 import fourward.sim.v1.SimRequest
@@ -127,18 +126,15 @@ class Simulator {
         tableStore = tableStore,
       )
 
-    val response =
-      ProcessPacketResponse.newBuilder()
-        .addAllOutputPackets(
-          result.outputPackets.map { pkt ->
-            OutputPacket.newBuilder()
-              .setEgressPort(pkt.port.toInt())
-              .setPayload(com.google.protobuf.ByteString.copyFrom(pkt.payload))
-              .build()
-          }
-        )
-        .setTrace(result.trace)
-        .build()
+    // Output packets are extracted from trace tree leaves — the tree is the single source
+    // of truth for packet outcomes. Non-forking trees have a single leaf; forking trees
+    // (non-deterministic programs) have no output_packets in the response.
+    val trace = result.trace
+    val responseBuilder = ProcessPacketResponse.newBuilder().setTrace(trace)
+    if (trace.hasPacketOutcome() && trace.packetOutcome.hasOutput()) {
+      responseBuilder.addOutputPackets(trace.packetOutcome.output)
+    }
+    val response = responseBuilder.build()
 
     return SimResponse.newBuilder().setProcessPacket(response).build()
   }

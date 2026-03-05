@@ -10,7 +10,7 @@ events {
     session_id: 100
   }
 }
-fork {
+fork_outcome {
   reason: CLONE
   branches {
     label: "original"
@@ -40,6 +40,12 @@ fork {
       events {
         action_execution {
           action_name: "tag_original"
+        }
+      }
+      packet_outcome {
+        output {
+          egress_port: 2
+          payload: "\252\252\252\252\252\252\000\000\000\000\000\001\b\000"
         }
       }
     }
@@ -72,6 +78,12 @@ fork {
       events {
         action_execution {
           action_name: "tag_clone"
+        }
+      }
+      packet_outcome {
+        output {
+          egress_port: 3
+          payload: "\377\377\377\377\377\377\273\273\273\273\273\273\b\000"
         }
       }
     }

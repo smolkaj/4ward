@@ -41,11 +41,18 @@ complexity:
   LongParameterList:
     excludes: ['**/test/**', '**/*Test.kt']
 
+  # The default (150 lines) is unreasonable for tree-walking interpreters whose
+  # size scales linearly with the number of language constructs. The more targeted
+  # TooManyFunctions and CyclomaticComplexMethod checks catch actual complexity.
+  LargeClass:
+    threshold: 1000
+
   # 11 is far too low for operator-rich value classes like BitVector (21 functions)
-  # or large dispatch classes like Interpreter. Google style sets no hard limit.
+  # or dispatch classes like Interpreter (one function per AST node kind).
+  # Google style sets no hard limit.
   TooManyFunctions:
     thresholdInFiles: 60
-    thresholdInClasses: 30
+    thresholdInClasses: 45
     thresholdInInterfaces: 30
     thresholdInObjects: 30
     thresholdInEnums: 11

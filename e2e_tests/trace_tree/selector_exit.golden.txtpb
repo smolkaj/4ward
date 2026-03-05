@@ -24,7 +24,7 @@ events {
     action_name: "set_port"
   }
 }
-fork {
+fork_outcome {
   reason: ACTION_SELECTOR
   branches {
     label: "member_0"
@@ -65,6 +65,12 @@ fork {
           action_name: "overwrite"
         }
       }
+      packet_outcome {
+        output {
+          egress_port: 9
+          payload: "\377\377\377\377\377\377\000\000\000\000\000\001\b\000"
+        }
+      }
     }
   }
   branches {
@@ -77,6 +83,12 @@ fork {
             key: "port_2"
             value: "\000\001"
           }
+        }
+      }
+      packet_outcome {
+        output {
+          egress_port: 1
+          payload: "\377\377\377\377\377\377\000\000\000\000\000\001\b\000"
         }
       }
     }

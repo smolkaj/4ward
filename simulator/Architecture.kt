@@ -25,7 +25,7 @@ interface Architecture {
    * - Setting up the initial environment (standard metadata, header validity).
    * - Running each pipeline stage in the correct order.
    * - Handling architecture-specific operations (clone, resubmit, etc.).
-   * - Returning the output packets.
+   * - Returning the trace tree (with packet outcomes at leaves).
    */
   fun processPacket(
     ingressPort: UInt,
@@ -38,12 +38,7 @@ interface Architecture {
 /**
  * The result of running a packet through the pipeline.
  *
- * [outputPackets] are the packets to emit (port, payload). [trace] is the execution trace tree
- * across all pipeline stages, with forks at non-deterministic choice points.
+ * The [trace] tree carries the complete execution trace. Leaf nodes contain [PacketOutcome]s
+ * (output packets or drops); fork nodes represent non-deterministic choice points.
  */
-data class PipelineResult(
-  val outputPackets: List<OutputPacket>,
-  val trace: fourward.sim.v1.TraceTree,
-)
-
-data class OutputPacket(val port: UInt, val payload: ByteArray)
+data class PipelineResult(val trace: fourward.sim.v1.TraceTree)
