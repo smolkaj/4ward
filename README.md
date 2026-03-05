@@ -88,8 +88,7 @@ as a **trace tree**:
                                                    trace …     trace …     trace …
 ```
 
-Here's what that looks like in practice — an ECMP program where the selector
-can pick one of three members:
+Here's an ECMP program where the selector can pick one of three members:
 
 ```protobuf
 # shared prefix: parser + table lookup (same for all paths)
@@ -149,7 +148,7 @@ ergonomics (sealed classes, pattern matching).
 - **Python?** Weak type system, slow test execution.
 - **Java?** Kotlin, but worse. Verbose, no sealed `when`, no data classes.
 
-**You don't need to know Kotlin to contribute to 4ward!**
+**You don't need to know Kotlin to contribute to 4ward.**
 [The AI writes the code](docs/AI_WORKFLOW.md) — you just need to know your
 requirements.
 
@@ -180,16 +179,14 @@ Curious about the design? [ARCHITECTURE.md](docs/ARCHITECTURE.md) has the full s
 [ROADMAP.md](docs/ROADMAP.md) for where we are going and [STATUS.md](docs/STATUS.md)
 for daily progress.
 
-**CAUTION:** We will aggressively refactor to build the best system we can;
-nothing is sacred except correctness and the test suite — until we reach 1.0.
+**CAUTION:** Nothing is sacred except correctness and the test suite — we'll
+aggressively refactor until 1.0.
 
 ## CI that has your back
 
-We think fast, reliable CI is key to keeping developers happy and productive.
-
-Every PR gets built, linted, and tested in about 2 minutes — with a differential coverage
-report in about 5. No flakes, no "works on my machine." See for yourself on the
-[BuildBuddy dashboard](https://4ward.buildbuddy.io/trends/).
+Every PR gets built, linted, and tested in about 2 minutes — with a differential
+coverage report in about 5. No flakes, no "works on my machine." See for
+yourself on the [BuildBuddy dashboard](https://4ward.buildbuddy.io/trends/).
 
 ## Documentation
 
@@ -198,12 +195,12 @@ report in about 5. No flakes, no "works on my machine." See for yourself on the
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Design rationale and component overview |
 | [ROADMAP.md](docs/ROADMAP.md) | Development tracks, priorities, and sequencing |
 | [STATUS.md](docs/STATUS.md) | Append-only log of daily progress |
-| [CONTRIBUTING.md](docs/CONTRIBUTING.md) | How to get involved |
-| [AGENTS.md](AGENTS.md) | Guide for AI coding agents |
-| [CLAUDE.md](CLAUDE.md) | Claude Code-specific instructions |
 | [LIMITATIONS.md](docs/LIMITATIONS.md) | Known shortcuts and gaps |
 | [REFACTORING.md](docs/REFACTORING.md) | Tech debt and cleanup backlog |
+| [CONTRIBUTING.md](docs/CONTRIBUTING.md) | How to get involved |
 | [AI_WORKFLOW.md](docs/AI_WORKFLOW.md) | How to develop with AI agents |
+| [AGENTS.md](AGENTS.md) | Guide for AI coding agents |
+| [CLAUDE.md](CLAUDE.md) | Claude Code-specific instructions |
 
 ## Want to help?
 
