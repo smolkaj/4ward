@@ -1,5 +1,8 @@
 # Refactoring Backlog
 
+Remove entries once they are resolved. This file should only contain open
+tech debt — not a history of past refactors.
+
 ---
 
 ## Corpus tests: opt-out instead of opt-in
