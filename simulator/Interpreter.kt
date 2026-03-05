@@ -345,19 +345,18 @@ class Interpreter(
         val targetWidth = cast.targetType.signedInt.width
         when (inner) {
           // int<N> → int<M>: preserve the signed value (sign-extends or truncates).
-          is IntVal -> {
-            val truncated =
-              SignedBitVector.fromUnsignedBits(
-                inner.bits.value.mod(java.math.BigInteger.TWO.pow(targetWidth)),
-                targetWidth,
-              )
-            // If widening, sign-extend by using the original signed value directly.
+          // int<N> → int<M>: sign-extend if widening, truncate if narrowing.
+          is IntVal ->
             if (targetWidth >= inner.bits.width) {
               IntVal(SignedBitVector(inner.bits.value, targetWidth))
             } else {
-              IntVal(truncated)
+              IntVal(
+                SignedBitVector.fromUnsignedBits(
+                  inner.bits.value.mod(java.math.BigInteger.TWO.pow(targetWidth)),
+                  targetWidth,
+                )
+              )
             }
-          }
           else -> {
             val sourceBits =
               when (inner) {
@@ -462,22 +461,9 @@ class Interpreter(
   private fun coerceInfInts(left: Value, right: Value): Pair<Value, Value> =
     when {
       left is InfIntVal && right is BitVal -> left.toBitVal(right.bits.width) to right
-      right is InfIntVal && left is BitVal -> left to right.toBitVal((left as BitVal).bits.width)
-      left is InfIntVal && right is IntVal ->
-        IntVal(
-          SignedBitVector.fromUnsignedBits(
-            left.value.mod(java.math.BigInteger.TWO.pow(right.bits.width)),
-            right.bits.width,
-          )
-        ) to right
-      right is InfIntVal && left is IntVal ->
-        left to
-          IntVal(
-            SignedBitVector.fromUnsignedBits(
-              right.value.mod(java.math.BigInteger.TWO.pow(left.bits.width)),
-              left.bits.width,
-            )
-          )
+      right is InfIntVal && left is BitVal -> left to right.toBitVal(left.bits.width)
+      left is InfIntVal && right is IntVal -> left.toIntVal(right.bits.width) to right
+      right is InfIntVal && left is IntVal -> left to right.toIntVal(left.bits.width)
       else -> left to right
     }
 

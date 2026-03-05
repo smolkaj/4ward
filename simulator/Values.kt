@@ -25,9 +25,13 @@ data class BitVal(val bits: BitVector) : Value() {
  * adopt the width of the other operand when used in a binary operation.
  */
 data class InfIntVal(val value: java.math.BigInteger) : Value() {
-  /** Coerce to a fixed-width [BitVal]. */
+  /** Coerce to a fixed-width unsigned [BitVal]. */
   fun toBitVal(width: Int): BitVal =
     BitVal(BitVector(value.mod(java.math.BigInteger.TWO.pow(width)), width))
+
+  /** Coerce to a fixed-width signed [IntVal]. */
+  fun toIntVal(width: Int): IntVal =
+    IntVal(SignedBitVector.fromUnsignedBits(value.mod(java.math.BigInteger.TWO.pow(width)), width))
 }
 
 /** An int<N> value (two's complement). */

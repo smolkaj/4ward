@@ -8,7 +8,6 @@ import fourward.ir.v1.PipelineConfig
 import fourward.sim.v1.TraceTree
 import java.nio.file.Path
 import java.nio.file.Paths
-import org.junit.Assert.assertEquals
 import org.junit.Assert.fail
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -54,13 +53,13 @@ class GoldenTraceTreeTest(private val testName: String) {
 
     val expected = loadGoldenTraceTree(goldenPath)
     val actual = captureTraceTree(r, configPath, stfPath)
-    assertEquals(
-      "Trace tree mismatch for $testName.\n" +
-        "Expected:\n${TextFormat.printer().printToString(expected)}\n" +
-        "Actual:\n${TextFormat.printer().printToString(actual)}",
-      expected,
-      actual,
-    )
+    if (expected != actual) {
+      fail(
+        "Trace tree mismatch for $testName.\n" +
+          "Expected:\n${TextFormat.printer().printToString(expected)}\n" +
+          "Actual:\n${TextFormat.printer().printToString(actual)}"
+      )
+    }
   }
 
   private fun loadGoldenTraceTree(path: Path): TraceTree {

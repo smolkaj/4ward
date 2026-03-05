@@ -23,7 +23,9 @@ import java.nio.file.Path
 class SimulatorClient(simulatorBinary: Path) : Closeable {
 
   private val process: Process =
-    ProcessBuilder(simulatorBinary.toString()).redirectErrorStream(false).start()
+    ProcessBuilder(simulatorBinary.toString())
+      .redirectError(ProcessBuilder.Redirect.INHERIT)
+      .start()
 
   private val input = DataInputStream(process.inputStream.buffered())
   private val output = DataOutputStream(process.outputStream.buffered())
@@ -61,6 +63,8 @@ class SimulatorClient(simulatorBinary: Path) : Closeable {
   }
 
   override fun close() {
+    output.close()
     process.destroy()
+    input.close()
   }
 }
