@@ -4,6 +4,12 @@ events {
     from_state: "start"
     to_state: "accept"
   }
+  source_info {
+    file: "e2e_tests/trace_tree/action_selector_nested.p4"
+    line: 881
+    column: 10
+    source_fragment: "start"
+  }
 }
 events {
   table_lookup {
@@ -23,6 +29,12 @@ events {
     }
     action_name: "set_tag"
   }
+  source_info {
+    file: "e2e_tests/trace_tree/action_selector_nested.p4"
+    line: 921
+    column: 8
+    source_fragment: "stage1.apply()"
+  }
 }
 fork_outcome {
   reason: ACTION_SELECTOR
@@ -36,6 +48,12 @@ fork_outcome {
             key: "tag_1"
             value: "\001"
           }
+        }
+        source_info {
+          file: "e2e_tests/trace_tree/action_selector_nested.p4"
+          line: 921
+          column: 8
+          source_fragment: "stage1.apply()"
         }
       }
       events {
@@ -56,6 +74,12 @@ fork_outcome {
           }
           action_name: "set_port"
         }
+        source_info {
+          file: "e2e_tests/trace_tree/action_selector_nested.p4"
+          line: 922
+          column: 8
+          source_fragment: "stage2.apply()"
+        }
       }
       fork_outcome {
         reason: ACTION_SELECTOR
@@ -69,6 +93,12 @@ fork_outcome {
                   key: "port"
                   value: "\000\001"
                 }
+              }
+              source_info {
+                file: "e2e_tests/trace_tree/action_selector_nested.p4"
+                line: 922
+                column: 8
+                source_fragment: "stage2.apply()"
               }
             }
             packet_outcome {
@@ -89,6 +119,12 @@ fork_outcome {
                   key: "port"
                   value: "\000\002"
                 }
+              }
+              source_info {
+                file: "e2e_tests/trace_tree/action_selector_nested.p4"
+                line: 922
+                column: 8
+                source_fragment: "stage2.apply()"
               }
             }
             packet_outcome {
@@ -113,6 +149,12 @@ fork_outcome {
             value: "\002"
           }
         }
+        source_info {
+          file: "e2e_tests/trace_tree/action_selector_nested.p4"
+          line: 921
+          column: 8
+          source_fragment: "stage1.apply()"
+        }
       }
       events {
         table_lookup {
@@ -132,6 +174,12 @@ fork_outcome {
           }
           action_name: "set_port"
         }
+        source_info {
+          file: "e2e_tests/trace_tree/action_selector_nested.p4"
+          line: 922
+          column: 8
+          source_fragment: "stage2.apply()"
+        }
       }
       fork_outcome {
         reason: ACTION_SELECTOR
@@ -145,6 +193,12 @@ fork_outcome {
                   key: "port"
                   value: "\000\001"
                 }
+              }
+              source_info {
+                file: "e2e_tests/trace_tree/action_selector_nested.p4"
+                line: 922
+                column: 8
+                source_fragment: "stage2.apply()"
               }
             }
             packet_outcome {
@@ -165,6 +219,12 @@ fork_outcome {
                   key: "port"
                   value: "\000\002"
                 }
+              }
+              source_info {
+                file: "e2e_tests/trace_tree/action_selector_nested.p4"
+                line: 922
+                column: 8
+                source_fragment: "stage2.apply()"
               }
             }
             packet_outcome {

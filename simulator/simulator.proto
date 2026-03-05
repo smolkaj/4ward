@@ -150,6 +150,8 @@ message TraceEvent {
     MarkToDropEvent mark_to_drop = 6;
     CloneEvent clone = 7;
   }
+
+  fourward.ir.v1.SourceInfo source_info = 100;
 }
 
 // Fired on every parser state transition, including the final transition to

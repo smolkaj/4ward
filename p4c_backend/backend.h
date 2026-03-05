@@ -80,6 +80,7 @@ class FourWardBackend : public Inspector {
   fourward::ir::v1::Expr emitExpr(const IR::Expression* expr);
   fourward::ir::v1::Stmt emitStmt(const IR::StatOrDecl* stmt);
   fourward::ir::v1::BlockStmt emitBlock(const IR::BlockStatement* block);
+  fourward::ir::v1::SourceInfo emitSourceInfo(const IR::Node* node);
 
   std::string outputFilePath() const;
 };

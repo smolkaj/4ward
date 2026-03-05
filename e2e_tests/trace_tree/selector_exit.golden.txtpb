@@ -4,6 +4,12 @@ events {
     from_state: "start"
     to_state: "accept"
   }
+  source_info {
+    file: "e2e_tests/trace_tree/selector_exit.p4"
+    line: 883
+    column: 10
+    source_fragment: "start"
+  }
 }
 events {
   table_lookup {
@@ -23,6 +29,12 @@ events {
     }
     action_name: "set_port"
   }
+  source_info {
+    file: "e2e_tests/trace_tree/selector_exit.p4"
+    line: 919
+    column: 8
+    source_fragment: "selector_table.apply()"
+  }
 }
 fork_outcome {
   reason: ACTION_SELECTOR
@@ -36,6 +48,12 @@ fork_outcome {
             key: "port"
             value: "\000\001"
           }
+        }
+        source_info {
+          file: "e2e_tests/trace_tree/selector_exit.p4"
+          line: 919
+          column: 8
+          source_fragment: "selector_table.apply()"
         }
       }
       events {
@@ -59,10 +77,22 @@ fork_outcome {
           }
           action_name: "overwrite"
         }
+        source_info {
+          file: "e2e_tests/trace_tree/selector_exit.p4"
+          line: 920
+          column: 8
+          source_fragment: "after_selector.apply()"
+        }
       }
       events {
         action_execution {
           action_name: "overwrite"
+        }
+        source_info {
+          file: "e2e_tests/trace_tree/selector_exit.p4"
+          line: 920
+          column: 8
+          source_fragment: "after_selector.apply()"
         }
       }
       packet_outcome {
@@ -83,6 +113,12 @@ fork_outcome {
             key: "port_2"
             value: "\000\001"
           }
+        }
+        source_info {
+          file: "e2e_tests/trace_tree/selector_exit.p4"
+          line: 919
+          column: 8
+          source_fragment: "selector_table.apply()"
         }
       }
       packet_outcome {

@@ -4,6 +4,12 @@ events {
     from_state: "start"
     to_state: "accept"
   }
+  source_info {
+    file: "e2e_tests/trace_tree/multicast_drop_replica.p4"
+    line: 881
+    column: 10
+    source_fragment: "start"
+  }
 }
 fork_outcome {
   reason: MULTICAST
@@ -12,7 +18,14 @@ fork_outcome {
     subtree {
       events {
         branch {
+          control_name: "MyEgress"
           taken: false
+        }
+        source_info {
+          file: "e2e_tests/trace_tree/multicast_drop_replica.p4"
+          line: 900
+          column: 8
+          source_fragment: "IfStatement"
         }
       }
       packet_outcome {
@@ -28,7 +41,25 @@ fork_outcome {
     subtree {
       events {
         branch {
+          control_name: "MyEgress"
           taken: true
+        }
+        source_info {
+          file: "e2e_tests/trace_tree/multicast_drop_replica.p4"
+          line: 900
+          column: 8
+          source_fragment: "IfStatement"
+        }
+      }
+      events {
+        mark_to_drop {
+          reason: MARK_TO_DROP
+        }
+        source_info {
+          file: "e2e_tests/trace_tree/multicast_drop_replica.p4"
+          line: 901
+          column: 12
+          source_fragment: "mark_to_drop(smeta)"
         }
       }
       packet_outcome {
@@ -44,7 +75,14 @@ fork_outcome {
     subtree {
       events {
         branch {
+          control_name: "MyEgress"
           taken: false
+        }
+        source_info {
+          file: "e2e_tests/trace_tree/multicast_drop_replica.p4"
+          line: 900
+          column: 8
+          source_fragment: "IfStatement"
         }
       }
       packet_outcome {

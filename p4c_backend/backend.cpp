@@ -302,6 +302,23 @@ fourward::ir::v1::Expr FourWardBackend::emitExpr(const IR::Expression* expr) {
 }
 
 // =============================================================================
+// Source location
+// =============================================================================
+
+fourward::ir::v1::SourceInfo FourWardBackend::emitSourceInfo(
+    const IR::Node* node) {
+  fourward::ir::v1::SourceInfo out;
+  auto si = node->getSourceInfo();
+  if (si.isValid()) {
+    out.set_file(si.getSourceFile().c_str());
+    out.set_line(si.getStart().getLineNumber());
+    out.set_column(si.getStart().getColumnNumber());
+  }
+  out.set_source_fragment(node->toString().c_str());
+  return out;
+}
+
+// =============================================================================
 // Statement emission
 // =============================================================================
 
@@ -418,6 +435,7 @@ fourward::ir::v1::Stmt FourWardBackend::emitStmt(const IR::StatOrDecl* node) {
   } else {
     LOG1("WARNING: unhandled statement " << node->node_type_name());
   }
+  *out.mutable_source_info() = emitSourceInfo(node);
   return out;
 }
 
@@ -548,6 +566,7 @@ void FourWardBackend::emitParser(const IR::P4Parser* parser) {
   for (const auto* state : parser->states) {
     auto* ps = pd->add_states();
     ps->set_name(state->name.name.c_str());
+    *ps->mutable_source_info() = emitSourceInfo(state);
 
     for (const auto* stmt : state->components) {
       *ps->add_stmts() = emitStmt(stmt);

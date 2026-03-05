@@ -221,3 +221,15 @@ kt_jvm_test(
         "@maven//:junit_junit",
     ],
 )
+
+kt_jvm_test(
+    name = "InterpreterTraceEventTest",
+    srcs = ["InterpreterTraceEventTest.kt"],
+    test_class = "fourward.simulator.InterpreterTraceEventTest",
+    deps = [
+        ":ir_java_proto",
+        ":simulator_java_proto",
+        ":simulator_lib",
+        "@maven//:junit_junit",
+    ],
+)

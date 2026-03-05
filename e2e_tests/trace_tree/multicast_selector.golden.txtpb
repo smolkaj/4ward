@@ -4,6 +4,12 @@ events {
     from_state: "start"
     to_state: "accept"
   }
+  source_info {
+    file: "e2e_tests/trace_tree/multicast_selector.p4"
+    line: 882
+    column: 10
+    source_fragment: "start"
+  }
 }
 fork_outcome {
   reason: MULTICAST
@@ -28,6 +34,12 @@ fork_outcome {
           }
           action_name: "tag_a"
         }
+        source_info {
+          file: "e2e_tests/trace_tree/multicast_selector.p4"
+          line: 917
+          column: 12
+          source_fragment: "egress_selector.apply()"
+        }
       }
       fork_outcome {
         reason: ACTION_SELECTOR
@@ -37,6 +49,12 @@ fork_outcome {
             events {
               action_execution {
                 action_name: "tag_a"
+              }
+              source_info {
+                file: "e2e_tests/trace_tree/multicast_selector.p4"
+                line: 917
+                column: 12
+                source_fragment: "egress_selector.apply()"
               }
             }
             packet_outcome {
@@ -53,6 +71,12 @@ fork_outcome {
             events {
               action_execution {
                 action_name: "tag_b"
+              }
+              source_info {
+                file: "e2e_tests/trace_tree/multicast_selector.p4"
+                line: 917
+                column: 12
+                source_fragment: "egress_selector.apply()"
               }
             }
             packet_outcome {
@@ -87,6 +111,12 @@ fork_outcome {
           }
           action_name: "tag_a"
         }
+        source_info {
+          file: "e2e_tests/trace_tree/multicast_selector.p4"
+          line: 917
+          column: 12
+          source_fragment: "egress_selector.apply()"
+        }
       }
       fork_outcome {
         reason: ACTION_SELECTOR
@@ -96,6 +126,12 @@ fork_outcome {
             events {
               action_execution {
                 action_name: "tag_a"
+              }
+              source_info {
+                file: "e2e_tests/trace_tree/multicast_selector.p4"
+                line: 917
+                column: 12
+                source_fragment: "egress_selector.apply()"
               }
             }
             packet_outcome {
@@ -112,6 +148,12 @@ fork_outcome {
             events {
               action_execution {
                 action_name: "tag_b"
+              }
+              source_info {
+                file: "e2e_tests/trace_tree/multicast_selector.p4"
+                line: 917
+                column: 12
+                source_fragment: "egress_selector.apply()"
               }
             }
             packet_outcome {
