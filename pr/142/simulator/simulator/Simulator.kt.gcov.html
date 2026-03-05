@@ -25,48 +25,32 @@
             <td width="5%" class="headerCovTableHead">Coverage</td>
             <td width="5%" class="headerCovTableHead" title="Covered + Uncovered code (not including EUB, ECB, DUB, DCB categories)">Total</td>
             <td width="5%" class="headerCovTableHead" title="Exercised code only (CBC + GBC + GNC + GIC)">Hit</td>
-            <td width="5%" class="headerCovTableHeadUIC" title="Uncovered Included Code (# => 0):
-Previously unused code is untested">Included (not covered)</td>
             <td width="5%" class="headerCovTableHeadUBC" title="Uncovered Baseline Code (0 => 0):
 Unchanged code was untested before, is untested now">Not covered</td>
-            <td width="5%" class="headerCovTableHeadGIC" title="Gained Included Coverage (# => 1):
-Previously unused code is tested now">Included (covered)</td>
             <td width="5%" class="headerCovTableHeadCBC" title="Covered Baseline Code (1 => 1):
 Unchanged code was tested before and is still tested">Covered</td>
-            <td width="5%" class="headerCovTableHeadEUB" title="Excluded Uncovered Baseline (0 => #):
-Previously untested code is unused now">Excluded (not covered)</td>
-            <td width="5%" class="headerCovTableHeadECB" title="Excluded Covered Baseline (1 => #):
-Previously tested code is unused now">Excluded (covered)</td>
           </tr>
           <tr>
             <td class="headerItem">Current:</td>
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">90.8&nbsp;%</td>
-            <td class="headerCovTableEntry">76</td>
+            <td class="headerCovTableEntryHi">94.5&nbsp;%</td>
+            <td class="headerCovTableEntry">73</td>
             <td class="headerCovTableEntry">69</td>
-            <td class="headerCovTableEntry"><a href="#L154" title="goto first UIC">3</a></td>
             <td class="headerCovTableEntry"><a href="#L34" title="goto first UBC">4</a></td>
-            <td class="headerCovTableEntry"><a href="#L166" title="goto first GIC">2</a></td>
-            <td class="headerCovTableEntry"><a href="#L23" title="goto first CBC">67</a></td>
-            <td class="headerCovTableEntry"></td>
-            <td class="headerCovTableEntry"><a href="#L162" title="goto first ECB">2</a></td>
+            <td class="headerCovTableEntry"><a href="#L23" title="goto first CBC">69</a></td>
           </tr>
           <tr>
             <td class="headerItem">Current Date:</td>
-            <td class="headerValue">2026-03-05 17:41:59</td>
+            <td class="headerValue">2026-03-05 17:47:43</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryMed">88.9&nbsp;%</td>
             <td class="headerCovTableEntry">9</td>
             <td class="headerCovTableEntry">8</td>
             <td class="headerCovTableEntry">1</td>
-            <td class="headerCovTableEntry"></td>
-            <td class="headerCovTableEntry">2</td>
-            <td class="headerCovTableEntry">6</td>
-            <td class="headerCovTableEntry">1</td>
-            <td class="headerCovTableEntry">2</td>
+            <td class="headerCovTableEntry">8</td>
           </tr>
           <tr>
             <td class="headerItem">Baseline:</td>
@@ -75,7 +59,7 @@ Previously tested code is unused now">Excluded (covered)</td>
           </tr>
           <tr>
             <td class="headerItem">Baseline Date:</td>
-            <td class="headerValue">2026-03-05 17:38:17</td>
+            <td class="headerValue">2026-03-05 17:43:29</td>
             <td></td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
@@ -184,7 +168,7 @@ Previously tested code is unused now">Excluded (covered)</td>
 <span id="L88"><span class="lineNum">      88</span> <span class="tlaCBC">              1 :                 .build()</span></span>
 <span id="L89"><span class="lineNum">      89</span>                 :             }</span>
 <span id="L90"><span class="lineNum">      90</span> <a href="#L155" class="tlaBgUBC"  title="Next UBC group">Not covered</a><span class="tlaUBC tlaBgUBC">           0 :           else emptyList()</span></span>
-<span id="L91"><span class="lineNum">      91</span> <a href="#L164" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :         tableStore.setDefaultAction(tableName, actionName, params)</span></span>
+<span id="L91"><span class="lineNum">      91</span> <a href="#L162" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :         tableStore.setDefaultAction(tableName, actionName, params)</span></span>
 <span id="L92"><span class="lineNum">      92</span>                 :       }</span>
 <span id="L93"><span class="lineNum">      93</span>                 :     }</span>
 <span id="L94"><span class="lineNum">      94</span>                 : </span>
@@ -245,23 +229,21 @@ Previously tested code is unused now">Excluded (covered)</td>
 <span id="L149"><span class="lineNum">     149</span> <span class="tlaCBC">              1 :     return SimResponse.newBuilder().setWriteEntry(WriteEntryResponse.getDefaultInstance()).build()</span></span>
 <span id="L150"><span class="lineNum">     150</span>                 :   }</span>
 <span id="L151"><span class="lineNum">     151</span>                 : </span>
-<span id="L152"><span class="lineNum">     152</span>                 :   @Suppress(&quot;UnusedParameter&quot;) // will be used when read filters are implemented</span>
+<span id="L152"><span class="lineNum">     152</span>                 :   @Suppress(&quot;UnusedParameter&quot;) // req will be used when read filters are implemented</span>
 <span id="L153"><span class="lineNum">     153</span>                 :   private fun handleReadEntries(req: fourward.sim.v1.ReadEntriesRequest): SimResponse {</span>
-<span id="L154"><span class="lineNum">     154</span> <a href="#L156" class="tlaBgUIC"  title="Next UIC group">Included (not covered)</a><span class="tlaUIC tlaBgUIC">           0 :     val entities = tableStore.readAllEntities()</span></span>
-<span id="L155"><span class="lineNum">     155</span> <a href="#top" class="tlaBgUBC"  title="Next UBC group">Not covered</a><span class="tlaUBC tlaBgUBC">           0 :     return SimResponse.newBuilder()</span></span>
-<span id="L156"><span class="lineNum">     156</span> <a href="#top" class="tlaBgUIC"  title="Next UIC group">Included (not covered)</a><span class="tlaUIC tlaBgUIC">           0 :       .setReadEntries(ReadEntriesResponse.newBuilder().addAllEntities(entities))</span></span>
-<span id="L157"><span class="lineNum">     157</span> <span class="tlaUIC">              0 :       .build()</span></span>
-<span id="L158"><span class="lineNum">     158</span>                 :   }</span>
-<span id="L159"><span class="lineNum">     159</span>                 : </span>
+<span id="L154"><span class="lineNum">     154</span>                 :     // TODO: implement read support.</span>
+<span id="L155"><span class="lineNum">     155</span> <a href="#top" class="tlaBgUBC"  title="Next UBC group">Not covered</a><span class="tlaUBC tlaBgUBC">           0 :     return SimResponse.newBuilder().setReadEntries(ReadEntriesResponse.getDefaultInstance()).build()</span></span>
+<span id="L156"><span class="lineNum">     156</span>                 :   }</span>
+<span id="L157"><span class="lineNum">     157</span>                 : </span>
+<span id="L158"><span class="lineNum">     158</span>                 :   // -------------------------------------------------------------------------</span>
+<span id="L159"><span class="lineNum">     159</span>                 :   // Helpers</span>
 <span id="L160"><span class="lineNum">     160</span>                 :   // -------------------------------------------------------------------------</span>
-<span id="L161"><span class="lineNum">     161</span>                 :   // Helpers</span>
-<span id="L162"><span class="lineNum">     162</span> <a href="#top" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :   // -------------------------------------------------------------------------</span></span>
-<span id="L163"><span class="lineNum">     163</span> <span class="tlaECB">                : </span></span>
-<span id="L164"><span class="lineNum">     164</span> <a href="#top" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :   private fun simError(message: String, code: ErrorCode = ErrorCode.INTERNAL_ERROR): SimResponse =</span></span>
-<span id="L165"><span class="lineNum">     165</span> <span class="tlaCBC">              1 :     SimResponse.newBuilder()</span></span>
-<span id="L166"><span class="lineNum">     166</span> <a href="#top" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :       .setError(ErrorResponse.newBuilder().setMessage(message).setCode(code))</span></span>
-<span id="L167"><span class="lineNum">     167</span> <span class="tlaGIC">              1 :       .build()</span></span>
-<span id="L168"><span class="lineNum">     168</span>                 : }</span>
+<span id="L161"><span class="lineNum">     161</span>                 : </span>
+<span id="L162"><span class="lineNum">     162</span> <a href="#top" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :   private fun simError(message: String, code: ErrorCode = ErrorCode.INTERNAL_ERROR): SimResponse =</span></span>
+<span id="L163"><span class="lineNum">     163</span> <span class="tlaCBC">              1 :     SimResponse.newBuilder()</span></span>
+<span id="L164"><span class="lineNum">     164</span> <span class="tlaCBC">              1 :       .setError(ErrorResponse.newBuilder().setMessage(message).setCode(code))</span></span>
+<span id="L165"><span class="lineNum">     165</span> <span class="tlaCBC">              1 :       .build()</span></span>
+<span id="L166"><span class="lineNum">     166</span>                 : }</span>
         </pre>
               </td>
             </tr>
