@@ -151,7 +151,7 @@ ergonomics (sealed classes, pattern matching).
 - **Rust?** Borrow checker is overkill — we don't need manual memory control.
 - **Go?** Weaker type system — no algebraic data types, no pattern matching.
 - **Python?** Weak type system, slow test execution.
-- **Java?** Kotlin, but worse. Verbose, no sealed `when`, no data classes.
+- **Java?** Kotlin, but worse.
 
 **You don't need to know Kotlin to contribute to 4ward!**
 [The AI writes the code](docs/AI_WORKFLOW.md) — you just need to know your
