@@ -61,7 +61,9 @@ The P4 ecosystem is C++. So why isn't 4ward?
 4ward is **100% AI-written**. Humans define requirements, design the testing
 strategy, and ask the right questions. AI agents write every line of code,
 including the tests. Formatters, linters, and the compiler enforce mechanical
-correctness. No one needs to hold language minutiae in their head — so we're
+correctness. End-to-end test corpora, P4TestGen, and differential testing against
+BMv2 ensure semantic correctness. No one needs to hold language minutiae in their
+head — so we're
 free to pick the best language for the problem, not the most familiar one.
 
 **Why not C++?** Its top strengths — speed, ecosystem familiarity —
