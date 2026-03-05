@@ -183,7 +183,7 @@ jobs:
 
       - name: Run coverage
         run: |
-          ARGS=(--html)
+          ARGS=(--html --min-coverage 80)
           if [[ -s /tmp/baseline.lcov && -s /tmp/pr.diff ]]; then
             ARGS+=(--baseline /tmp/baseline.lcov --diff /tmp/pr.diff)
           fi
