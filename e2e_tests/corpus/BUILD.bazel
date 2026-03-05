@@ -187,6 +187,7 @@ corpus_test_suite(
         "table-entries-exact-ternary-bmv2",
         "table-entries-lpm-bmv2",
         "table-entries-optional-bmv2",
+        "table-entries-priority-bmv2",
         "table-entries-range-bmv2",
         "table-entries-ser-enum-bmv2",
         "table-entries-ternary-bmv2",
@@ -274,7 +275,6 @@ corpus_test_suite(
     name = "other_stf_corpus_test",
     tags = ["manual"],
     tests = [
-        "table-entries-priority-bmv2",  # p4c P4Runtime serializer ignores @priority on const entries
         "ternary2-bmv2",  # per-table action specialization lost (single p4info action ID)
         "v1model-special-ops-bmv2",  # needs resubmit/recirculate
     ],
