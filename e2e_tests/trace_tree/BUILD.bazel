@@ -15,7 +15,10 @@ _P4_PROGRAMS = [
     "action_selector_nested",
     "clone_ingress_egress",
     "clone_plus_selector",
+    "clone_with_egress",
     "multicast",
+    "multicast_drop_replica",
+    "selector_exit",
 ]
 
 _PASSING = _P4_PROGRAMS

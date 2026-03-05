@@ -1,0 +1,6 @@
+# multicast_drop_replica.stf — multicast where egress drops port 2.
+
+mc_mgrp_create 1
+mc_node_create 0 1 2 3
+mc_node_associate 1 0
+packet 0 FFFFFFFFFFFF 000000000001 0800

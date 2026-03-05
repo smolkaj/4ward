@@ -1,0 +1,40 @@
+events {
+  parser_transition {
+    parser_name: "MyParser"
+    from_state: "start"
+    to_state: "accept"
+  }
+}
+fork {
+  reason: MULTICAST
+  branches {
+    label: "replica_0_port_1"
+    subtree {
+      events {
+        branch {
+          taken: false
+        }
+      }
+    }
+  }
+  branches {
+    label: "replica_0_port_2"
+    subtree {
+      events {
+        branch {
+          taken: true
+        }
+      }
+    }
+  }
+  branches {
+    label: "replica_0_port_3"
+    subtree {
+      events {
+        branch {
+          taken: false
+        }
+      }
+    }
+  }
+}

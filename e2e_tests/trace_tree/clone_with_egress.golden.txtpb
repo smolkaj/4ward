@@ -1,0 +1,79 @@
+events {
+  parser_transition {
+    parser_name: "MyParser"
+    from_state: "start"
+    to_state: "accept"
+  }
+}
+events {
+  clone {
+    session_id: 100
+  }
+}
+fork {
+  reason: CLONE
+  branches {
+    label: "original"
+    subtree {
+      events {
+        table_lookup {
+          table_name: "egress_classify"
+          hit: true
+          matched_entry {
+            table_id: 43808281
+            match {
+              field_id: 1
+              exact {
+                value: "\000\000\000\000"
+              }
+            }
+            action {
+              action {
+                action_id: 23337001
+              }
+            }
+            is_const: true
+          }
+          action_name: "tag_original"
+        }
+      }
+      events {
+        action_execution {
+          action_name: "tag_original"
+        }
+      }
+    }
+  }
+  branches {
+    label: "clone"
+    subtree {
+      events {
+        table_lookup {
+          table_name: "egress_classify"
+          hit: true
+          matched_entry {
+            table_id: 43808281
+            match {
+              field_id: 1
+              exact {
+                value: "\000\000\000\001"
+              }
+            }
+            action {
+              action {
+                action_id: 20863306
+              }
+            }
+            is_const: true
+          }
+          action_name: "tag_clone"
+        }
+      }
+      events {
+        action_execution {
+          action_name: "tag_clone"
+        }
+      }
+    }
+  }
+}

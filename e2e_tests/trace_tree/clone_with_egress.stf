@@ -1,0 +1,5 @@
+# clone_with_egress.stf — clone where egress behavior differs per branch.
+# Clone session 100 sends clones to port 3.
+
+mirroring_add 100 3
+packet 0 FFFFFFFFFFFF 000000000001 0800
