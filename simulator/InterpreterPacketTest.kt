@@ -16,8 +16,10 @@ package fourward.simulator
 
 import fourward.ir.v1.BitType
 import fourward.ir.v1.Expr
+import fourward.ir.v1.FieldAccess
 import fourward.ir.v1.FieldDecl
 import fourward.ir.v1.HeaderDecl
+import fourward.ir.v1.HeaderUnionDecl
 import fourward.ir.v1.MethodCall
 import fourward.ir.v1.NameRef
 import fourward.ir.v1.P4BehavioralConfig
@@ -25,6 +27,7 @@ import fourward.ir.v1.Type
 import fourward.ir.v1.TypeDecl
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -235,5 +238,116 @@ class InterpreterPacketTest {
     interp.evalExpr(packetCall("emit", "hdr"), env)
 
     assertArrayEquals(input, pktCtx.outputPayload())
+  }
+
+  // ---------------------------------------------------------------------------
+  // extract into header union members (P4 §8.20)
+  // ---------------------------------------------------------------------------
+
+  private fun namedType(name: String): Type = Type.newBuilder().setNamed(name).build()
+
+  private fun headerUnionType(typeName: String, vararg members: Pair<String, String>): TypeDecl =
+    TypeDecl.newBuilder()
+      .setName(typeName)
+      .setHeaderUnion(
+        HeaderUnionDecl.newBuilder().also { u ->
+          for ((name, headerTypeName) in members) {
+            u.addFields(FieldDecl.newBuilder().setName(name).setType(namedType(headerTypeName)))
+          }
+        }
+      )
+      .build()
+
+  /** Builds an extract call whose argument is a field access: `pkt.extract(unionVar.member)`. */
+  private fun unionExtractCall(unionVar: String, member: String, unionTypeName: String): Expr =
+    Expr.newBuilder()
+      .setMethodCall(
+        MethodCall.newBuilder()
+          .setTarget(nameRef("pkt"))
+          .setMethod("extract")
+          .addArgs(
+            Expr.newBuilder()
+              .setFieldAccess(
+                FieldAccess.newBuilder()
+                  .setExpr(
+                    Expr.newBuilder()
+                      .setNameRef(NameRef.newBuilder().setName(unionVar))
+                      .setType(namedType(unionTypeName))
+                  )
+                  .setFieldName(member)
+              )
+          )
+      )
+      .build()
+
+  @Test
+  fun `extract into union member invalidates siblings`() {
+    // Union with two 8-bit headers: extracting into member "a" should invalidate "b".
+    val hdrA = headerType("a_t", "f" to 8)
+    val hdrB = headerType("b_t", "f" to 8)
+    val union = headerUnionType("u_t", "a" to "a_t", "b" to "b_t")
+
+    val memberA = HeaderVal("a_t", mutableMapOf("f" to BitVal(0, 8)), valid = false)
+    val memberB = HeaderVal("b_t", mutableMapOf("f" to BitVal(0x42, 8)), valid = true)
+    val unionVal = StructVal("u_t", mutableMapOf("a" to memberA, "b" to memberB))
+
+    val pktCtx = PacketContext(byteArrayOf(0x01))
+    val env = Environment()
+    env.define("u", unionVal)
+
+    interp(pktCtx, hdrA, hdrB, union).evalExpr(unionExtractCall("u", "a", "u_t"), env)
+
+    // Member "a" should be valid with extracted data.
+    assertTrue(memberA.valid)
+    assertEquals(BitVal(1, 8), memberA.fields["f"])
+    // Member "b" should be invalidated (P4 §8.20: one-valid-at-a-time).
+    assertFalse(memberB.valid)
+  }
+
+  @Test
+  fun `extract into union member when no sibling was valid`() {
+    // Both members start invalid; extract should still set the target valid.
+    val hdrA = headerType("a_t", "f" to 8)
+    val hdrB = headerType("b_t", "f" to 8)
+    val union = headerUnionType("u_t", "a" to "a_t", "b" to "b_t")
+
+    val memberA = HeaderVal("a_t", mutableMapOf("f" to BitVal(0, 8)), valid = false)
+    val memberB = HeaderVal("b_t", mutableMapOf("f" to BitVal(0, 8)), valid = false)
+    val unionVal = StructVal("u_t", mutableMapOf("a" to memberA, "b" to memberB))
+
+    val pktCtx = PacketContext(byteArrayOf(0xFF.toByte()))
+    val env = Environment()
+    env.define("u", unionVal)
+
+    interp(pktCtx, hdrA, hdrB, union).evalExpr(unionExtractCall("u", "a", "u_t"), env)
+
+    assertTrue(memberA.valid)
+    assertEquals(BitVal(0xFF, 8), memberA.fields["f"])
+    assertFalse(memberB.valid)
+  }
+
+  @Test
+  fun `sequential union extracts swap validity`() {
+    // Extract "a", then extract "b" — only "b" should be valid at the end.
+    val hdrA = headerType("a_t", "f" to 8)
+    val hdrB = headerType("b_t", "f" to 8)
+    val union = headerUnionType("u_t", "a" to "a_t", "b" to "b_t")
+
+    val memberA = HeaderVal("a_t", mutableMapOf("f" to BitVal(0, 8)), valid = false)
+    val memberB = HeaderVal("b_t", mutableMapOf("f" to BitVal(0, 8)), valid = false)
+    val unionVal = StructVal("u_t", mutableMapOf("a" to memberA, "b" to memberB))
+
+    val pktCtx = PacketContext(byteArrayOf(0x01, 0x02))
+    val env = Environment()
+    env.define("u", unionVal)
+
+    val interp = interp(pktCtx, hdrA, hdrB, union)
+    interp.evalExpr(unionExtractCall("u", "a", "u_t"), env)
+    interp.evalExpr(unionExtractCall("u", "b", "u_t"), env)
+
+    // After second extract, "a" is invalidated and "b" is valid.
+    assertFalse(memberA.valid)
+    assertTrue(memberB.valid)
+    assertEquals(BitVal(2, 8), memberB.fields["f"])
   }
 }
