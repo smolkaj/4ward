@@ -34,10 +34,10 @@ branch — delivered as a structured trace tree you can actually read.
 | | Real hardware | BMv2 | **4ward** |
 |---|---|---|---|
 | Runs P4 programs | sure | sure | **yep** |
-| Spec-compliant | varies | needs workarounds | **out of the box** |
+| Spec-compliant | varies | needs workarounds | **by design** |
 | Trace format | nope | text | **proto/JSON** |
 | All possible traces | nope | not natively | **trace trees!** |
-| Architecture-generic | nope | nope | **yes!** |
+| Architecture-generic | nope | nope | **by design** |
 | P4Runtime | sure | has gaps | **100% spec-compliant (planned)** |
 | AI friendly | nope | nope | **built by AI, for everyone** |
 | Simple, readable codebase | ehh | ehh | **yes!** |
@@ -71,29 +71,37 @@ bazel run //simulator:simulator -- $(pwd)/my_program.txtpb < input.stf
 
 ## See what your packets are up to
 
-Given a simple IPv4 forwarding program, 4ward produces trace trees like this:
+Given a program with an ECMP action selector, 4ward produces a trace tree
+showing every possible path — shared prefix first, then a fork for each
+selector member:
 
-```json
-{
-  "events": [
-    {"parserTransition": {"parserName": "MyParser", "fromState": "start",         "toState": "parse_ethernet"}},
-    {"parserTransition": {"parserName": "MyParser", "fromState": "parse_ethernet","toState": "parse_ipv4"}},
-    {"parserTransition": {"parserName": "MyParser", "fromState": "parse_ipv4",    "toState": "accept"}},
-    {"tableLookup": {
-       "tableName": "ipv4_lpm", "hit": true, "actionName": "set_nhop",
-       "matchedEntry": {
-         "tableId": 37298292,
-         "match": [{"fieldId": 1, "lpm": {"value": "CgAAAA==", "prefixLen": 24}}],
-         "action": {"action": {"actionId": 28792498, "params": [{"paramId": 1, "value": "AQ=="}]}}
-       }
-    }},
-    {"actionExecution": {"actionName": "set_nhop", "params": {"port": "AQ=="}}},
-    {"branch":          {"controlName": "MyIngress", "taken": false}}
-  ]
+```protobuf
+# shared prefix: parser + table lookup (same for all paths)
+events { parser_transition { from_state: "start"  to_state: "accept" } }
+events { table_lookup       { table_name: "ecmp"   hit: true          } }
+
+# fork: one branch per action selector member
+fork {
+  reason: ACTION_SELECTOR
+  branches {
+    label: "member_0"
+    subtree { events { action_execution { action_name: "set_port"
+                                          params { key: "port" value: "\001" } } } }
+  }
+  branches {
+    label: "member_1"
+    subtree { events { action_execution { action_name: "set_port"
+                                          params { key: "port" value: "\002" } } } }
+  }
+  branches {
+    label: "member_2"
+    subtree { events { action_execution { action_name: "set_port"
+                                          params { key: "port" value: "\003" } } } }
+  }
 }
 ```
 
-No printf debugging. No Wireshark. No guessing. Just the trace tree.
+No printf debugging. No Wireshark. No guessing.
 
 ## Not just one trace — all of them
 
@@ -118,8 +126,6 @@ Other tools pick one path and show you what happened. 4ward will show you what
 
 Since execution paths share a common prefix, the tree is compact — shared work
 is represented once, and each fork node is labeled with the choice being made.
-A flag like `--nondeterministic-selectors` tells the simulator to fork at every
-action selector; P4 annotations give fine-grained per-selector control.
 
 This is 4ward's killer feature: the tool you reach for when you need to
 understand not just what your program *did*, but everything it *can* do.
