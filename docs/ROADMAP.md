@@ -55,7 +55,8 @@ Two goals, mostly orthogonal:
   coverage (STF corpus, p4testgen path coverage), and unit tests for every
   tricky invariant. Testing is not an afterthought — it's what
   drives development. The failing-test list *is* the feature backlog, and
-  `bazel test //...` is the definition of done.
+  `bazel test //...` is the definition of done. See
+  [TESTING_STRATEGY.md](TESTING_STRATEGY.md) for the full philosophy.
 - **Architecture pluggability.** Adding a new P4 architecture means
   implementing a Kotlin interface, not forking the codebase.
 
