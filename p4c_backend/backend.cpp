@@ -54,6 +54,12 @@ fourward::ir::v1::Type FourWardBackend::emitType(const IR::Type* type) {
     if (const auto* td = decl ? decl->to<IR::Type_Typedef>() : nullptr) {
       return emitType(td->type);
     }
+    // P4's `type` keyword (Type_Newtype) creates a distinct named type, but
+    // the simulator only needs the underlying bit width — resolve it here so
+    // action params and struct fields get concrete types.
+    if (const auto* nt = decl ? decl->to<IR::Type_Newtype>() : nullptr) {
+      return emitType(nt->type);
+    }
     out.set_named(tn->path->name.name.c_str());
   } else if (const auto* hdr = type->to<IR::Type_Header>()) {
     out.set_named(hdr->name.name.c_str());

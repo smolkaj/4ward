@@ -38,6 +38,7 @@ class P4RuntimeService(private val simulator: Simulator) :
   P4RuntimeGrpcKt.P4RuntimeCoroutineImplBase() {
 
   @Volatile private var currentConfig: PipelineConfig? = null
+  @Volatile private var typeTranslator: TypeTranslator? = null
 
   private fun requirePipeline() {
     if (currentConfig == null) {
@@ -90,6 +91,7 @@ class P4RuntimeService(private val simulator: Simulator) :
     }
 
     currentConfig = pipelineConfig
+    typeTranslator = TypeTranslator.create(fwdConfig.p4Info, behavioral)
     return SetForwardingPipelineConfigResponse.getDefaultInstance()
   }
 
@@ -99,7 +101,9 @@ class P4RuntimeService(private val simulator: Simulator) :
 
   override suspend fun write(request: WriteRequest): WriteResponse {
     requirePipeline()
-    for (update in request.updatesList) {
+    val translator = typeTranslator?.takeIf { it.hasTranslations }
+    for (rawUpdate in request.updatesList) {
+      val update = translator?.translateForWrite(rawUpdate) ?: rawUpdate
       val simRequest =
         SimRequest.newBuilder()
           .setWriteEntry(WriteEntryRequest.newBuilder().setUpdate(update))
@@ -129,7 +133,14 @@ class P4RuntimeService(private val simulator: Simulator) :
         .asException()
     }
     if (simResponse.readEntries.entitiesCount > 0) {
-      emit(ReadResponse.newBuilder().addAllEntities(simResponse.readEntries.entitiesList).build())
+      val translator = typeTranslator?.takeIf { it.hasTranslations }
+      val entities =
+        if (translator != null) {
+          simResponse.readEntries.entitiesList.map { translator.translateForRead(it) }
+        } else {
+          simResponse.readEntries.entitiesList
+        }
+      emit(ReadResponse.newBuilder().addAllEntities(entities).build())
     }
   }
 
