@@ -17,14 +17,12 @@ private fun concatFields(data: StructVal): BitVector? =
   data.fields.values.map { (it as BitVal).bits }.reduceOrNull { acc, bv -> acc.concat(bv) }
 
 /**
- * Ones' complement (csum16) checksum over the fields of a struct.
+ * Ones' complement (csum16) checksum over a bit vector.
  *
- * Concatenates all fields into a bit string, pads to a 16-bit boundary, sums all 16-bit words with
- * end-around carry, and returns the complement. This is the standard Internet checksum (RFC 1071)
- * used by IPv4, TCP, and UDP.
+ * Pads to a 16-bit boundary, sums all 16-bit words with end-around carry, and returns the
+ * complement. This is the standard Internet checksum (RFC 1071) used by IPv4, TCP, and UDP.
  */
-fun onesComplementChecksum(data: StructVal): BigInteger {
-  val combined = concatFields(data) ?: return BigInteger.ZERO
+private fun onesComplementChecksumBits(combined: BitVector): BigInteger {
   val totalWidth = combined.width
   val padded = ((totalWidth + CSUM_WORD_BITS - 1) / CSUM_WORD_BITS) * CSUM_WORD_BITS
   var bits = combined.value.shiftLeft(padded - totalWidth)
@@ -37,6 +35,12 @@ fun onesComplementChecksum(data: StructVal): BigInteger {
     sum = sum.and(CSUM_MASK).add(sum.shiftRight(CSUM_WORD_BITS))
   }
   return CSUM_MASK.subtract(sum)
+}
+
+/** Ones' complement (csum16) checksum over the fields of a struct. */
+fun onesComplementChecksum(data: StructVal): BigInteger {
+  val combined = concatFields(data) ?: return BigInteger.ZERO
+  return onesComplementChecksumBits(combined)
 }
 
 /**
@@ -73,17 +77,36 @@ private fun structToBytes(data: StructVal): ByteArray =
 /**
  * Computes a hash over [data] using the specified [algorithm].
  *
- * Supports csum16 (ones' complement), crc16, and crc32 — the algorithms used by BMv2's
+ * Supports csum16 (ones' complement), crc16, crc32, and identity — the algorithms used by BMv2's
  * simple_switch. Returns the raw hash value as a [BigInteger].
  */
 fun computeHash(algorithm: String, data: StructVal): BigInteger =
+  computeHashWithPayload(algorithm, data, ByteArray(0))
+
+/**
+ * Like [computeHash] but appends [payload] (the unparsed packet remainder) to the hash input.
+ *
+ * Used by the `_with_payload` checksum externs (v1model §14) which include the packet body beyond
+ * the parsed headers in the checksum computation.
+ */
+fun computeHashWithPayload(algorithm: String, data: StructVal, payload: ByteArray): BigInteger =
   when (algorithm) {
-    "csum16" -> onesComplementChecksum(data)
-    "crc16" -> BigInteger.valueOf(crc16(structToBytes(data)).toLong())
-    "crc32" -> BigInteger.valueOf(crc32(structToBytes(data)))
-    "identity" -> {
-      val bytes = structToBytes(data)
-      if (bytes.isEmpty()) BigInteger.ZERO else BigInteger(1, bytes)
+    "csum16" -> {
+      val fieldBits = concatFields(data)
+      val payloadBits =
+        if (payload.isNotEmpty()) BitVector(BigInteger(1, payload), payload.size * 8) else null
+      val combined =
+        listOfNotNull(fieldBits, payloadBits).reduceOrNull { a, b -> a.concat(b) }
+          ?: return BigInteger.ZERO
+      onesComplementChecksumBits(combined)
     }
-    else -> error("unsupported hash algorithm: $algorithm")
+    else -> {
+      val bytes = structToBytes(data) + payload
+      when (algorithm) {
+        "crc16" -> BigInteger.valueOf(crc16(bytes).toLong())
+        "crc32" -> BigInteger.valueOf(crc32(bytes))
+        "identity" -> if (bytes.isEmpty()) BigInteger.ZERO else BigInteger(1, bytes)
+        else -> error("unsupported hash algorithm: $algorithm")
+      }
+    }
   }
