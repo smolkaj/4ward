@@ -1,0 +1,10 @@
+# multicast_selector.stf — multicast + egress action selector.
+
+mc_mgrp_create 1
+mc_node_create 0 1 2
+mc_node_associate 1 0
+member egress_sel 0 tag_a
+member egress_sel 1 tag_b
+group egress_sel 1 0 1
+add egress_selector hdr.ethernet.dstAddr:0xFFFFFFFFFFFF group=1
+packet 0 FFFFFFFFFFFF 000000000001 0800

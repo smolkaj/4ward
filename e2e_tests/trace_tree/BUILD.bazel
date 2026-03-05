@@ -13,11 +13,13 @@ _P4_PROGRAMS = [
     "action_selector_3",
     "action_selector_miss",
     "action_selector_nested",
+    "clone_and_multicast",
     "clone_ingress_egress",
     "clone_plus_selector",
     "clone_with_egress",
     "multicast",
     "multicast_drop_replica",
+    "multicast_selector",
     "selector_exit",
 ]
 

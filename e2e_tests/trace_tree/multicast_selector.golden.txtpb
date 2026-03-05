@@ -1,0 +1,104 @@
+events {
+  parser_transition {
+    parser_name: "MyParser"
+    from_state: "start"
+    to_state: "accept"
+  }
+}
+fork {
+  reason: MULTICAST
+  branches {
+    label: "replica_0_port_1"
+    subtree {
+      events {
+        table_lookup {
+          table_name: "egress_selector"
+          hit: true
+          matched_entry {
+            table_id: 43223807
+            match {
+              field_id: 1
+              exact {
+                value: "\377\377\377\377\377\377"
+              }
+            }
+            action {
+              action_profile_group_id: 1
+            }
+          }
+          action_name: "tag_a"
+        }
+      }
+      fork {
+        reason: ACTION_SELECTOR
+        branches {
+          label: "member_0"
+          subtree {
+            events {
+              action_execution {
+                action_name: "tag_a"
+              }
+            }
+          }
+        }
+        branches {
+          label: "member_1"
+          subtree {
+            events {
+              action_execution {
+                action_name: "tag_b"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  branches {
+    label: "replica_0_port_2"
+    subtree {
+      events {
+        table_lookup {
+          table_name: "egress_selector"
+          hit: true
+          matched_entry {
+            table_id: 43223807
+            match {
+              field_id: 1
+              exact {
+                value: "\377\377\377\377\377\377"
+              }
+            }
+            action {
+              action_profile_group_id: 1
+            }
+          }
+          action_name: "tag_a"
+        }
+      }
+      fork {
+        reason: ACTION_SELECTOR
+        branches {
+          label: "member_0"
+          subtree {
+            events {
+              action_execution {
+                action_name: "tag_a"
+              }
+            }
+          }
+        }
+        branches {
+          label: "member_1"
+          subtree {
+            events {
+              action_execution {
+                action_name: "tag_b"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
