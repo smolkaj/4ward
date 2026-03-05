@@ -9,13 +9,43 @@ private const val CRC16_POLY = 0xA001
 private const val BYTE_MASK = 0xFF
 private const val CRC16_MASK = 0xFFFF
 
+private const val CSUM_WORD_BITS = 16
+private val CSUM_MASK = BigInteger.TWO.pow(CSUM_WORD_BITS).subtract(BigInteger.ONE)
+
+/** Concatenates all [BitVal] fields in a [StructVal] into a single [BitVector]. */
+private fun concatFields(data: StructVal): BitVector? =
+  data.fields.values.map { (it as BitVal).bits }.reduceOrNull { acc, bv -> acc.concat(bv) }
+
+/**
+ * Ones' complement (csum16) checksum over the fields of a struct.
+ *
+ * Concatenates all fields into a bit string, pads to a 16-bit boundary, sums all 16-bit words with
+ * end-around carry, and returns the complement. This is the standard Internet checksum (RFC 1071)
+ * used by IPv4, TCP, and UDP.
+ */
+fun onesComplementChecksum(data: StructVal): BigInteger {
+  val combined = concatFields(data) ?: return BigInteger.ZERO
+  val totalWidth = combined.width
+  val padded = ((totalWidth + CSUM_WORD_BITS - 1) / CSUM_WORD_BITS) * CSUM_WORD_BITS
+  var bits = combined.value.shiftLeft(padded - totalWidth)
+  var sum = BigInteger.ZERO
+  for (i in 0 until padded / CSUM_WORD_BITS) {
+    val word = bits.shiftRight(padded - (i + 1) * CSUM_WORD_BITS).and(CSUM_MASK)
+    sum = sum.add(word)
+  }
+  while (sum > CSUM_MASK) {
+    sum = sum.and(CSUM_MASK).add(sum.shiftRight(CSUM_WORD_BITS))
+  }
+  return CSUM_MASK.subtract(sum)
+}
+
 /**
  * CRC-16/ARC (IBM/LHA) — the variant used by BMv2's `HashAlgorithm.crc16`.
  *
  * Parameters: poly=0x8005, init=0, reflect_in=true, reflect_out=true, xor_out=0. Uses the
  * reflected algorithm (shift right with reflected polynomial) to avoid per-byte bit reversal.
  */
-fun crc16(data: ByteArray): Int {
+private fun crc16(data: ByteArray): Int {
   var crc = 0
   for (byte in data) {
     crc = crc xor (byte.toInt() and BYTE_MASK)
@@ -32,17 +62,15 @@ fun crc16(data: ByteArray): Int {
  * Delegates to [java.util.zip.CRC32] which implements the same algorithm (poly=0x04C11DB7,
  * init=0xFFFFFFFF, reflect_in=true, reflect_out=true, xor_out=0xFFFFFFFF).
  */
-fun crc32(data: ByteArray): Long {
+private fun crc32(data: ByteArray): Long {
   val crc = CRC32()
   crc.update(data)
   return crc.value
 }
 
 /** Converts a [StructVal]'s fields to a big-endian byte array for hashing. */
-fun structToBytes(data: StructVal): ByteArray {
-  val combined =
-    data.fields.values.map { (it as BitVal).bits }.reduceOrNull { acc, bv -> acc.concat(bv) }
-      ?: return ByteArray(0)
+private fun structToBytes(data: StructVal): ByteArray {
+  val combined = concatFields(data) ?: return ByteArray(0)
   val totalBits = combined.width
   val totalBytes = (totalBits + 7) / 8
   val padded = combined.value.shiftLeft(totalBytes * 8 - totalBits)
