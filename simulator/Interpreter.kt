@@ -530,6 +530,25 @@ class Interpreter(
       // (not in env); the header is the first argument.
       "extract" -> execExtract(call, env)
       "emit" -> execEmit(call, env)
+      // register.read(dst, index): reads the value at index into the out param dst.
+      "read" -> {
+        val regName = call.target.nameRef.name
+        val index = (evalExpr(call.argsList[1], env) as BitVal).bits.value.toInt()
+        val value =
+          tableStore.registerRead(regName, index) ?: defaultValue(call.argsList[0].type, types)
+        setLValue(call.argsList[0], value, env)
+        UnitVal
+      }
+      // register.write(index, value): stores value at index.
+      "write" -> {
+        val regName = call.target.nameRef.name
+        val index = (evalExpr(call.argsList[0], env) as BitVal).bits.value.toInt()
+        val value = evalExpr(call.argsList[1], env)
+        tableStore.registerWrite(regName, index, value)
+        UnitVal
+      }
+      // counter.count(index): fire-and-forget side-effect, invisible to data plane.
+      "count" -> UnitVal
       // "__call__" is used for free functions and direct action calls. Check actions first;
       // fall back to extern handling (mark_to_drop, etc.) for unrecognised names.
       "__call__" -> {
