@@ -110,7 +110,10 @@ class PacketContext(payload: ByteArray) {
  * In v1model/BMv2, this corresponds to a `PacketTooShort` parser error. The packet is dropped
  * rather than propagating as a simulator processing failure.
  */
-class PacketTooShortException(message: String) : Exception(message)
+class PacketTooShortException(message: String) : ParserErrorException("PacketTooShort", message)
+
+/** Thrown by the interpreter when a parser error occurs (P4 spec §12.8). */
+open class ParserErrorException(val errorName: String, message: String) : Exception(message)
 
 /** A simple byte-level cursor over a packet buffer. */
 private class PacketBuffer(private val data: ByteArray) {

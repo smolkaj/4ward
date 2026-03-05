@@ -155,6 +155,23 @@ data class SignedBitVector(val value: BigInteger, val width: Int) {
     }
   }
 
+  /** Saturating addition: clamps to [minVal, maxVal] on overflow. */
+  fun addSat(other: SignedBitVector): SignedBitVector {
+    require(width == other.width)
+    val result = value + other.value
+    return SignedBitVector(result.coerceIn(minVal, maxVal), width)
+  }
+
+  /** Saturating subtraction: clamps to [minVal, maxVal] on underflow. */
+  fun subSat(other: SignedBitVector): SignedBitVector {
+    require(width == other.width)
+    val result = value - other.value
+    return SignedBitVector(result.coerceIn(minVal, maxVal), width)
+  }
+
+  private val minVal by lazy { BigInteger.TWO.pow(width - 1).negate() }
+  private val maxVal by lazy { BigInteger.TWO.pow(width - 1) - BigInteger.ONE }
+
   /** Reinterprets the bits as an unsigned [BitVector]. */
   fun toUnsigned(): BitVector {
     val unsigned =

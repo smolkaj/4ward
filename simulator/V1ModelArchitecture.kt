@@ -59,6 +59,7 @@ class V1ModelArchitecture : Architecture {
     }
     standardMetadata.fields["ingress_port"] = BitVal(ingressPort.toLong(), PORT_BITS)
     standardMetadata.fields["packet_length"] = BitVal(payload.size.toLong(), INT32_BITS)
+    standardMetadata.fields["parser_error"] = ErrorVal("NoError")
 
     // Map each shared type name to its initialised object so we can bind whatever
     // local parameter names each stage uses (e.g. "smeta" vs "standard_metadata").
@@ -93,10 +94,10 @@ class V1ModelArchitecture : Architecture {
         interpreter.runParser(parserStage.blockName, env)
       } catch (e: ExitException) {
         return PipelineResult(emptyList(), packetCtx.buildTrace())
-      } catch (e: PacketTooShortException) {
+      } catch (e: ParserErrorException) {
         // BMv2 v1model: parser errors don't drop the packet. Set parser_error and
         // continue to the ingress pipeline, letting the P4 program decide the fate.
-        standardMetadata.fields["parser_error"] = ErrorVal("PacketTooShort")
+        standardMetadata.fields["parser_error"] = ErrorVal(e.errorName)
       }
     }
 
