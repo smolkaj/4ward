@@ -4,6 +4,12 @@ events {
     from_state: "start"
     to_state: "accept"
   }
+  source_info {
+    file: "e2e_tests/trace_tree/multicast.p4"
+    line: 21
+    column: 10
+    source_fragment: "start"
+  }
 }
 fork_outcome {
   reason: MULTICAST

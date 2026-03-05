@@ -4,6 +4,12 @@ events {
     from_state: "start"
     to_state: "accept"
   }
+  source_info {
+    file: "e2e_tests/trace_tree/no_fork.p4"
+    line: 22
+    column: 10
+    source_fragment: "start"
+  }
 }
 events {
   table_lookup {
@@ -29,6 +35,12 @@ events {
     }
     action_name: "forward"
   }
+  source_info {
+    file: "e2e_tests/trace_tree/no_fork.p4"
+    line: 41
+    column: 12
+    source_fragment: "routing.apply()"
+  }
 }
 events {
   action_execution {
@@ -37,6 +49,12 @@ events {
       key: "port"
       value: "\000\001"
     }
+  }
+  source_info {
+    file: "e2e_tests/trace_tree/no_fork.p4"
+    line: 41
+    column: 12
+    source_fragment: "routing.apply()"
   }
 }
 packet_outcome {

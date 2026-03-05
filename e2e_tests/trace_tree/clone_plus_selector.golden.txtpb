@@ -4,10 +4,22 @@ events {
     from_state: "start"
     to_state: "accept"
   }
+  source_info {
+    file: "e2e_tests/trace_tree/clone_plus_selector.p4"
+    line: 23
+    column: 10
+    source_fragment: "start"
+  }
 }
 events {
   clone {
     session_id: 100
+  }
+  source_info {
+    file: "e2e_tests/trace_tree/clone_plus_selector.p4"
+    line: 51
+    column: 8
+    source_fragment: "clone(CloneType.I2E, 32w100)"
   }
 }
 events {
@@ -28,6 +40,12 @@ events {
     }
     action_name: "set_port"
   }
+  source_info {
+    file: "e2e_tests/trace_tree/clone_plus_selector.p4"
+    line: 52
+    column: 8
+    source_fragment: "ecmp.apply()"
+  }
 }
 fork_outcome {
   reason: ACTION_SELECTOR
@@ -41,6 +59,12 @@ fork_outcome {
             key: "port"
             value: "\000\001"
           }
+        }
+        source_info {
+          file: "e2e_tests/trace_tree/clone_plus_selector.p4"
+          line: 52
+          column: 8
+          source_fragment: "ecmp.apply()"
         }
       }
       fork_outcome {
@@ -80,6 +104,12 @@ fork_outcome {
             key: "port"
             value: "\000\002"
           }
+        }
+        source_info {
+          file: "e2e_tests/trace_tree/clone_plus_selector.p4"
+          line: 52
+          column: 8
+          source_fragment: "ecmp.apply()"
         }
       }
       fork_outcome {

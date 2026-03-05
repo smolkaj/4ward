@@ -4,15 +4,33 @@ events {
     from_state: "start"
     to_state: "accept"
   }
+  source_info {
+    file: "e2e_tests/trace_tree/clone_last_wins.p4"
+    line: 22
+    column: 10
+    source_fragment: "start"
+  }
 }
 events {
   clone {
     session_id: 200
   }
+  source_info {
+    file: "e2e_tests/trace_tree/clone_last_wins.p4"
+    line: 35
+    column: 8
+    source_fragment: "clone(CloneType.I2E, 32w200)"
+  }
 }
 events {
   clone {
     session_id: 100
+  }
+  source_info {
+    file: "e2e_tests/trace_tree/clone_last_wins.p4"
+    line: 36
+    column: 8
+    source_fragment: "clone(CloneType.I2E, 32w100)"
   }
 }
 fork_outcome {

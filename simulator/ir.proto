@@ -213,6 +213,8 @@ message ParserState {
   string name = 1;
   repeated Stmt stmts = 2;
   Transition transition = 3;
+
+  SourceInfo source_info = 100;
 }
 
 message Transition {
@@ -292,6 +294,21 @@ message TableKey {
 }
 
 // =============================================================================
+// Source location
+// =============================================================================
+
+// Source location from the P4 compiler, attached to statements and parser
+// states so the simulator can propagate it into trace events.
+message SourceInfo {
+  string file = 1;
+  uint32 line = 2;
+  uint32 column = 3;
+  // Reconstructed P4 source text for the node (e.g. "mark_to_drop(sm)" or
+  // "hdr.ipv4.isValid()").
+  string source_fragment = 4;
+}
+
+// =============================================================================
 // Statements
 // =============================================================================
 
@@ -305,6 +322,8 @@ message Stmt {
     ExitStmt exit = 6;
     ReturnStmt return_stmt = 7;
   }
+
+  SourceInfo source_info = 100;
 }
 
 message AssignmentStmt {

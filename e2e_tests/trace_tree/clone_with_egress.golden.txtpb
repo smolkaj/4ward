@@ -4,10 +4,22 @@ events {
     from_state: "start"
     to_state: "accept"
   }
+  source_info {
+    file: "e2e_tests/trace_tree/clone_with_egress.p4"
+    line: 24
+    column: 10
+    source_fragment: "start"
+  }
 }
 events {
   clone {
     session_id: 100
+  }
+  source_info {
+    file: "e2e_tests/trace_tree/clone_with_egress.p4"
+    line: 37
+    column: 8
+    source_fragment: "clone3(CloneType.I2E, 32w100, {})"
   }
 }
 fork_outcome {
@@ -36,10 +48,22 @@ fork_outcome {
           }
           action_name: "tag_original"
         }
+        source_info {
+          file: "e2e_tests/trace_tree/clone_with_egress.p4"
+          line: 55
+          column: 12
+          source_fragment: "egress_classify.apply()"
+        }
       }
       events {
         action_execution {
           action_name: "tag_original"
+        }
+        source_info {
+          file: "e2e_tests/trace_tree/clone_with_egress.p4"
+          line: 55
+          column: 12
+          source_fragment: "egress_classify.apply()"
         }
       }
       packet_outcome {
@@ -74,10 +98,22 @@ fork_outcome {
           }
           action_name: "tag_clone"
         }
+        source_info {
+          file: "e2e_tests/trace_tree/clone_with_egress.p4"
+          line: 55
+          column: 12
+          source_fragment: "egress_classify.apply()"
+        }
       }
       events {
         action_execution {
           action_name: "tag_clone"
+        }
+        source_info {
+          file: "e2e_tests/trace_tree/clone_with_egress.p4"
+          line: 55
+          column: 12
+          source_fragment: "egress_classify.apply()"
         }
       }
       packet_outcome {

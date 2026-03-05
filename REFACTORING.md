@@ -128,25 +128,18 @@ Blocked on buf support for proto edition 2024.
 
 ---
 
-## Trace tree golden files: approximate → exact
+## Extract shared interpreter test helpers
 
-**Files**: `e2e_tests/trace_tree/*.golden.txtpb`
+**Files**: `simulator/Interpreter*Test.kt` (6 files)
 
-**Problem**: The golden trace tree files written in PR 1 are approximations —
-they don't match actual simulator output. Specific issues:
+**Problem**: Proto-building helpers (`boolLit`, `bit`, `nameRef`, `ifStmt`,
+`controlConfig`) are duplicated as private functions across 6 test files.
+The copies are identical or near-identical (some add optional parameters).
 
-- **Name mismatches**: golden files use qualified names
-  (`MyIngress.routing`) but the simulator uses p4info aliases (`routing`).
-- **Missing `matched_entry`**: the `table_lookup` event includes the full
-  `TableEntry` proto on hit, omitted in the golden files.
-- **Empty clone/multicast subtrees**: fork branches for clone and multicast
-  have no events, making the assertion structurally weak.
-- **Placeholder selector labels and params**: action selector member names
-  and parameter values are guesses.
-
-**Fix**: As each feature is implemented (PRs 2–4), capture the actual
-simulator output and update the corresponding golden files to match exactly.
-Mark each golden file done by removing its TODO comment.
+**Fix**: Extract into a shared `InterpreterTestDsl.kt` test utility. The
+most general version of each helper (e.g. `controlConfig` with a
+`controlName` parameter, `ifStmt` with optional `sourceInfo`) subsumes
+the others.
 
 ---
 

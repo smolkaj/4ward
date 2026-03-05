@@ -4,6 +4,12 @@ events {
     from_state: "start"
     to_state: "accept"
   }
+  source_info {
+    file: "e2e_tests/trace_tree/action_selector_miss.p4"
+    line: 22
+    column: 10
+    source_fragment: "start"
+  }
 }
 events {
   table_lookup {
@@ -11,10 +17,33 @@ events {
     hit: false
     action_name: "drop"
   }
+  source_info {
+    file: "e2e_tests/trace_tree/action_selector_miss.p4"
+    line: 49
+    column: 12
+    source_fragment: "ecmp.apply()"
+  }
 }
 events {
   action_execution {
     action_name: "drop"
+  }
+  source_info {
+    file: "e2e_tests/trace_tree/action_selector_miss.p4"
+    line: 49
+    column: 12
+    source_fragment: "ecmp.apply()"
+  }
+}
+events {
+  mark_to_drop {
+    reason: MARK_TO_DROP
+  }
+  source_info {
+    file: "e2e_tests/trace_tree/action_selector_miss.p4"
+    line: 35
+    column: 20
+    source_fragment: "mark_to_drop(smeta)"
   }
 }
 packet_outcome {

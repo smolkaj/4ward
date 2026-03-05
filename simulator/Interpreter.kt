@@ -8,6 +8,7 @@ import fourward.ir.v1.Literal
 import fourward.ir.v1.MethodCall
 import fourward.ir.v1.P4BehavioralConfig
 import fourward.ir.v1.ParserDecl
+import fourward.ir.v1.SourceInfo
 import fourward.ir.v1.Stmt
 import fourward.ir.v1.TableApplyExpr
 import fourward.ir.v1.TableBehavior
@@ -15,6 +16,8 @@ import fourward.ir.v1.Type
 import fourward.ir.v1.UnaryOperator
 import fourward.sim.v1.ActionExecutionEvent
 import fourward.sim.v1.BranchEvent
+import fourward.sim.v1.DropReason
+import fourward.sim.v1.MarkToDropEvent
 import fourward.sim.v1.ParserTransitionEvent
 import fourward.sim.v1.TableLookupEvent
 import fourward.sim.v1.TraceEvent
@@ -70,6 +73,19 @@ class Interpreter(
 
   private val types = config.typesList.associateBy { it.name }
 
+  /** Source info of the statement currently being executed, for trace events. */
+  private var currentSourceInfo: SourceInfo? = null
+
+  /** Name of the control block currently being executed, for BranchEvent. */
+  private var currentControlName: String? = null
+
+  /** Builds a TraceEvent with source info attached, if available. */
+  private fun traceEventBuilder(sourceInfo: SourceInfo? = currentSourceInfo): TraceEvent.Builder {
+    val b = TraceEvent.newBuilder()
+    sourceInfo?.let { b.sourceInfo = it }
+    return b
+  }
+
   // -------------------------------------------------------------------------
   // Parser
   // -------------------------------------------------------------------------
@@ -97,7 +113,7 @@ class Interpreter(
         }
 
       packetCtx?.addTraceEvent(
-        TraceEvent.newBuilder()
+        traceEventBuilder(if (state.hasSourceInfo()) state.sourceInfo else null)
           .setParserTransition(
             ParserTransitionEvent.newBuilder()
               .setParserName(parser.name)
@@ -153,6 +169,7 @@ class Interpreter(
 
   fun runControl(controlName: String, env: Environment) {
     val control = controls[controlName] ?: error("unknown control: $controlName")
+    currentControlName = controlName
     withLocalScope(control.localVarsList, env) { execBlock(control.applyBodyList, env) }
   }
 
@@ -185,6 +202,7 @@ class Interpreter(
   }
 
   private fun execStmt(stmt: Stmt, env: Environment) {
+    if (stmt.hasSourceInfo()) currentSourceInfo = stmt.sourceInfo else currentSourceInfo = null
     when {
       stmt.hasAssignment() ->
         setLValue(stmt.assignment.lhs, evalExpr(stmt.assignment.rhs, env), env)
@@ -201,10 +219,12 @@ class Interpreter(
   private fun execIf(ifStmt: fourward.ir.v1.IfStmt, env: Environment) {
     val condition = (evalExpr(ifStmt.condition, env) as BoolVal).value
 
-    // The control name is not directly available in the Stmt proto; we use
-    // a placeholder here. A richer trace could include source location info.
     packetCtx?.addTraceEvent(
-      TraceEvent.newBuilder().setBranch(BranchEvent.newBuilder().setTaken(condition)).build()
+      traceEventBuilder()
+        .setBranch(
+          BranchEvent.newBuilder().setControlName(currentControlName ?: "").setTaken(condition)
+        )
+        .build()
     )
 
     if (condition) {
@@ -618,7 +638,7 @@ class Interpreter(
     val result = tableStore.lookup(tableName, keyValues)
 
     packetCtx?.addTraceEvent(
-      TraceEvent.newBuilder()
+      traceEventBuilder()
         .setTableLookup(
           TableLookupEvent.newBuilder()
             .setTableName(tableName)
@@ -659,7 +679,7 @@ class Interpreter(
     // requiring the backend to emit an explicit empty ActionDecl for it.
     if (actionName == "NoAction") {
       packetCtx?.addTraceEvent(
-        TraceEvent.newBuilder()
+        traceEventBuilder()
           .setActionExecution(ActionExecutionEvent.newBuilder().setActionName(actionName))
           .build()
       )
@@ -686,7 +706,7 @@ class Interpreter(
       }
 
       packetCtx?.addTraceEvent(
-        TraceEvent.newBuilder()
+        traceEventBuilder()
           .setActionExecution(
             ActionExecutionEvent.newBuilder()
               .setActionName(actionName)
@@ -746,6 +766,11 @@ class Interpreter(
     return when (funcName) {
       // mark_to_drop(standard_metadata): sets egress_spec to the v1model drop port (511).
       "mark_to_drop" -> {
+        packetCtx?.addTraceEvent(
+          traceEventBuilder()
+            .setMarkToDrop(MarkToDropEvent.newBuilder().setReason(DropReason.MARK_TO_DROP))
+            .build()
+        )
         val smeta = evalExpr(call.argsList[0], env) as StructVal
         smeta.fields["egress_spec"] =
           BitVal(V1ModelArchitecture.DROP_PORT.toLong(), V1ModelArchitecture.PORT_BITS)
@@ -769,7 +794,7 @@ class Interpreter(
       "clone3" -> {
         val sessionId = (evalExpr(call.argsList[1], env) as BitVal).bits.value.toInt()
         packetCtx?.addTraceEvent(
-          TraceEvent.newBuilder()
+          traceEventBuilder()
             .setClone(fourward.sim.v1.CloneEvent.newBuilder().setSessionId(sessionId))
             .build()
         )
@@ -822,7 +847,6 @@ class Interpreter(
     }
   }
 
-  /** Whether [expr] is a field access into a header union. */
   /** Whether [expr] is a field access into a header union. */
   private fun isUnionFieldAccess(expr: Expr): Boolean =
     expr.hasFieldAccess() &&
