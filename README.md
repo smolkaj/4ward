@@ -70,7 +70,7 @@ free to pick the best language for the problem, not the most familiar one.
 don't matter here. Its top weaknesses — compile times, complexity — matter a lot.
 
 **Why Kotlin?** Fast builds, simple language, strong type system, excellent
-ergonomics for tree-walking interpreters (sealed classes, pattern matching).
+ergonomics (sealed classes, pattern matching).
 
 **Why not…**
 - **Rust?** Borrow checker is overkill — we don't need manual memory control.
