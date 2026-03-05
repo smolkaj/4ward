@@ -74,4 +74,28 @@ class BitVectorTest {
     val s = SignedBitVector(BigInteger.valueOf(-1), 8)
     assertEquals(BitVector.ofInt(0xFF, 8), s.toUnsigned())
   }
+
+  @Test
+  fun `signed saturating addition clamps to max`() {
+    // int<16>: 32766 |+| 10 = 32767 (clamped from 32776)
+    val a = SignedBitVector(BigInteger.valueOf(32766), 16)
+    val b = SignedBitVector(BigInteger.valueOf(10), 16)
+    assertEquals(SignedBitVector(BigInteger.valueOf(32767), 16), a.addSat(b))
+  }
+
+  @Test
+  fun `signed saturating subtraction clamps to min`() {
+    // int<16>: -32766 |-| 10 = -32768 (clamped from -32776)
+    val a = SignedBitVector(BigInteger.valueOf(-32766), 16)
+    val b = SignedBitVector(BigInteger.valueOf(10), 16)
+    assertEquals(SignedBitVector(BigInteger.valueOf(-32768), 16), a.subSat(b))
+  }
+
+  @Test
+  fun `signed saturation no-ops within range`() {
+    val a = SignedBitVector(BigInteger.valueOf(10), 16)
+    val b = SignedBitVector(BigInteger.valueOf(20), 16)
+    assertEquals(SignedBitVector(BigInteger.valueOf(30), 16), a.addSat(b))
+    assertEquals(SignedBitVector(BigInteger.valueOf(-10), 16), a.subSat(b))
+  }
 }
