@@ -68,46 +68,9 @@ bazel test //...
 
 ## See what your packets are up to
 
-Given a program with an ECMP action selector, 4ward produces a trace tree
-showing every possible path — shared prefix first, then a fork for each
-selector member:
-
-```protobuf
-# shared prefix: parser + table lookup (same for all paths)
-events { parser_transition { from_state: "start"  to_state: "accept" } }
-events { table_lookup       { table_name: "ecmp"   hit: true          } }
-
-# fork: one branch per action selector member
-fork {
-  reason: ACTION_SELECTOR
-  branches {
-    label: "member_0"
-    subtree { events { action_execution { action_name: "set_port"
-                                          params { key: "port" value: "\001" } } } }
-  }
-  branches {
-    label: "member_1"
-    subtree { events { action_execution { action_name: "set_port"
-                                          params { key: "port" value: "\002" } } } }
-  }
-  branches {
-    label: "member_2"
-    subtree { events { action_execution { action_name: "set_port"
-                                          params { key: "port" value: "\003" } } } }
-  }
-}
-```
-
-No printf debugging. No Wireshark. No guessing.
-
-## Not just one trace — all of them
-
-P4 programs have non-deterministic choice points. Action selectors pick a group
-member based on an opaque hash. Action profiles let the controller choose
-between multiple actions. Multicast replicates packets to different ports.
-
-Other tools pick one path and show you what happened. 4ward will show you what
-*could* happen — all possible executions, returned as a **trace tree**:
+P4 programs have non-deterministic choice points — action selectors,
+multicast, clone. Other tools pick one path. 4ward shows you *all* of them
+as a **trace tree**:
 
 ```
                     ┌─ parse ─ table lookup ─┐
@@ -121,11 +84,24 @@ Other tools pick one path and show you what happened. 4ward will show you what
                                                    trace …     trace …     trace …
 ```
 
-Since execution paths share a common prefix, the tree is compact — shared work
-is represented once, and each fork node is labeled with the choice being made.
+Here's what that looks like in practice — an ECMP program where the selector
+can pick one of three members:
 
-This is 4ward's killer feature: the tool you reach for when you need to
-understand not just what your program *did*, but everything it *can* do.
+```protobuf
+# shared prefix: parser + table lookup (same for all paths)
+events { parser_transition { from_state: "start"  to_state: "accept" } }
+events { table_lookup       { table_name: "ecmp"   hit: true          } }
+
+# fork: one branch per action selector member
+fork {
+  reason: ACTION_SELECTOR
+  branches { ... member_0 → port 1 ... }
+  branches { ... member_1 → port 2 ... }
+  branches { ... member_2 → port 3 ... }
+}
+```
+
+No printf debugging. No Wireshark. No guessing.
 
 ## Project structure
 
