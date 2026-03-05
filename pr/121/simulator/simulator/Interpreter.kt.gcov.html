@@ -47,31 +47,31 @@ Previously tested code is unused now">Excluded (covered)</td>
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryLo">55.8&nbsp;%</td>
+            <td class="headerCovTableEntryLo">57.8&nbsp;%</td>
             <td class="headerCovTableEntry">604</td>
-            <td class="headerCovTableEntry">337</td>
-            <td class="headerCovTableEntry"><a href="#L282" title="goto first LBC">30</a></td>
-            <td class="headerCovTableEntry"><a href="#L271" title="goto first UIC">98</a></td>
-            <td class="headerCovTableEntry"><a href="#L100" title="goto first UBC">139</a></td>
-            <td class="headerCovTableEntry"><a href="#L270" title="goto first GBC">50</a></td>
-            <td class="headerCovTableEntry"><a href="#L283" title="goto first GIC">94</a></td>
-            <td class="headerCovTableEntry"><a href="#L34" title="goto first CBC">193</a></td>
+            <td class="headerCovTableEntry">349</td>
+            <td class="headerCovTableEntry"><a href="#L282" title="goto first LBC">26</a></td>
+            <td class="headerCovTableEntry"><a href="#L271" title="goto first UIC">91</a></td>
+            <td class="headerCovTableEntry"><a href="#L100" title="goto first UBC">138</a></td>
+            <td class="headerCovTableEntry"><a href="#L270" title="goto first GBC">51</a></td>
+            <td class="headerCovTableEntry"><a href="#L283" title="goto first GIC">101</a></td>
+            <td class="headerCovTableEntry"><a href="#L34" title="goto first CBC">197</a></td>
             <td class="headerCovTableEntry"><a href="#L273" title="goto first EUB">69</a></td>
             <td class="headerCovTableEntry"><a href="#L288" title="goto first ECB">113</a></td>
           </tr>
           <tr>
             <td class="headerItem">Current Date:</td>
-            <td class="headerValue">2026-03-05 07:26:09</td>
+            <td class="headerValue">2026-03-05 07:31:54</td>
             <td></td>
             <td class="headerItem">Functions:</td>
-            <td class="headerCovTableEntryLo">67.6&nbsp;%</td>
+            <td class="headerCovTableEntryLo">69.0&nbsp;%</td>
             <td class="headerCovTableEntry">71</td>
-            <td class="headerCovTableEntry">48</td>
+            <td class="headerCovTableEntry">49</td>
             <td class="headerCovTableEntry"></td>
-            <td class="headerCovTableEntry">21</td>
+            <td class="headerCovTableEntry">20</td>
             <td class="headerCovTableEntry">2</td>
             <td class="headerCovTableEntry"></td>
-            <td class="headerCovTableEntry">33</td>
+            <td class="headerCovTableEntry">34</td>
             <td class="headerCovTableEntry">15</td>
             <td class="headerCovTableEntry">21</td>
             <td class="headerCovTableEntry">33</td>
@@ -83,7 +83,7 @@ Previously tested code is unused now">Excluded (covered)</td>
           </tr>
           <tr>
             <td class="headerItem">Baseline Date:</td>
-            <td class="headerValue">2026-03-05 07:23:12</td>
+            <td class="headerValue">2026-03-05 07:28:33</td>
             <td></td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
@@ -634,7 +634,7 @@ Previously tested code is unused now">Excluded (covered)</td>
 <span id="L530"><span class="lineNum">     530</span> <a href="#L537" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :       &quot;isValid&quot; -&gt; {</span></span>
 <span id="L531"><span class="lineNum">     531</span> <a href="#L538" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :         when (val target = evalExpr(call.target, env)) {</span></span>
 <span id="L532"><span class="lineNum">     532</span> <a href="#L545" class="tlaBgGBC"  title="Next GBC group">Newly covered</a><span class="tlaGBC tlaBgGBC">           1 :           is HeaderVal -&gt; BoolVal(target.valid)</span></span>
-<span id="L533"><span class="lineNum">     533</span> <a href="#L790" class="tlaBgLBC"  title="Next LBC group">Coverage lost</a><span class="tlaLBC tlaBgLBC">           0 :           is StructVal -&gt; BoolVal(target.isUnionValid())</span></span>
+<span id="L533"><span class="lineNum">     533</span> <a href="#L798" class="tlaBgLBC"  title="Next LBC group">Coverage lost</a><span class="tlaLBC tlaBgLBC">           0 :           is StructVal -&gt; BoolVal(target.isUnionValid())</span></span>
 <span id="L534"><span class="lineNum">     534</span> <a href="#L541" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :           else -&gt; error(&quot;isValid on non-header: $target&quot;)</span></span>
 <span id="L535"><span class="lineNum">     535</span>                 :         }</span>
 <span id="L536"><span class="lineNum">     536</span>                 :       }</span>
@@ -655,7 +655,7 @@ Previously tested code is unused now">Excluded (covered)</td>
 <span id="L551"><span class="lineNum">     551</span>                 :       // packet_in.extract(hdr) / packet_out.emit(hdr): target is the extern object</span>
 <span id="L552"><span class="lineNum">     552</span> <a href="#L576" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :       // (not in env); the header is the first argument.</span></span>
 <span id="L553"><span class="lineNum">     553</span> <a href="#L577" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :       &quot;extract&quot; -&gt; execExtract(call, env)</span></span>
-<span id="L554"><span class="lineNum">     554</span> <a href="#L589" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :       &quot;emit&quot; -&gt; execEmit(call, env)</span></span>
+<span id="L554"><span class="lineNum">     554</span> <a href="#L579" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :       &quot;emit&quot; -&gt; execEmit(call, env)</span></span>
 <span id="L555"><span class="lineNum">     555</span>                 :       // register.read(dst, index): reads the value at index into the out param dst.</span>
 <span id="L556"><span class="lineNum">     556</span> <a href="#L565" class="tlaBgEUB"  title="Next EUB group">Excluded (not covered)</a><span class="tlaEUB tlaBgEUB">             :       &quot;read&quot; -&gt; {</span></span>
 <span id="L557"><span class="lineNum">     557</span> <a href="#L566" class="tlaBgUBC"  title="Next UBC group">Not covered</a><span class="tlaUBC tlaBgUBC">           0 :         val regName = call.target.nameRef.name</span></span>
@@ -674,13 +674,13 @@ Previously tested code is unused now">Excluded (covered)</td>
 <span id="L570"><span class="lineNum">     570</span> <a href="#L573" class="tlaBgUIC"  title="Next UIC group">Included (not covered)</a><span class="tlaUIC tlaBgUIC">           0 :         UnitVal</span></span>
 <span id="L571"><span class="lineNum">     571</span>                 :       }</span>
 <span id="L572"><span class="lineNum">     572</span> <a href="#L580" class="tlaBgEUB"  title="Next EUB group">Excluded (not covered)</a><span class="tlaEUB tlaBgEUB">             :       // counter.count(index): fire-and-forget side-effect, invisible to data plane.</span></span>
-<span id="L573"><span class="lineNum">     573</span> <a href="#L579" class="tlaBgUIC"  title="Next UIC group">Included (not covered)</a><span class="tlaUIC tlaBgUIC">           0 :       &quot;count&quot; -&gt; UnitVal</span></span>
+<span id="L573"><span class="lineNum">     573</span> <a href="#L581" class="tlaBgUIC"  title="Next UIC group">Included (not covered)</a><span class="tlaUIC tlaBgUIC">           0 :       &quot;count&quot; -&gt; UnitVal</span></span>
 <span id="L574"><span class="lineNum">     574</span>                 :       // &quot;__call__&quot; is used for free functions and direct action calls. Check actions first;</span>
 <span id="L575"><span class="lineNum">     575</span>                 :       // fall back to extern handling (mark_to_drop, etc.) for unrecognised names.</span>
 <span id="L576"><span class="lineNum">     576</span> <a href="#L588" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :       &quot;__call__&quot; -&gt; {</span></span>
 <span id="L577"><span class="lineNum">     577</span> <a href="#L592" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :         val funcName = call.target.nameRef.name</span></span>
 <span id="L578"><span class="lineNum">     578</span> <a href="#L597" class="tlaBgGBC"  title="Next GBC group">Newly covered</a><span class="tlaGBC tlaBgGBC">           1 :         if (funcName in actions) execInlineActionCall(funcName, call.argsList, env)</span></span>
-<span id="L579"><span class="lineNum">     579</span> <a href="#L581" class="tlaBgUIC"  title="Next UIC group">Included (not covered)</a><span class="tlaUIC tlaBgUIC">           0 :         else execExternCall(call, env)</span></span>
+<span id="L579"><span class="lineNum">     579</span> <a href="#L589" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :         else execExternCall(call, env)</span></span>
 <span id="L580"><span class="lineNum">     580</span> <a href="#L605" class="tlaBgEUB"  title="Next EUB group">Excluded (not covered)</a><span class="tlaEUB tlaBgEUB">             :       }</span></span>
 <span id="L581"><span class="lineNum">     581</span> <a href="#L604" class="tlaBgUIC"  title="Next UIC group">Included (not covered)</a><span class="tlaUIC tlaBgUIC">           0 :       else -&gt; error(&quot;unhandled method call: ${call.method} on ${call.target}&quot;)</span></span>
 <span id="L582"><span class="lineNum">     582</span>                 :     }</span>
@@ -767,7 +767,7 @@ Previously tested code is unused now">Excluded (covered)</td>
 <span id="L663"><span class="lineNum">     663</span> <a href="#L670" class="tlaBgUIC"  title="Next UIC group">Included (not covered)</a><span class="tlaUIC tlaBgUIC">           0 :       }</span></span>
 <span id="L664"><span class="lineNum">     664</span> <a href="#L674" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             : </span></span>
 <span id="L665"><span class="lineNum">     665</span> <a href="#L698" class="tlaBgGBC"  title="Next GBC group">Newly covered</a><span class="tlaGBC tlaBgGBC">           1 :       packetCtx?.addTraceEvent(</span></span>
-<span id="L666"><span class="lineNum">     666</span> <a href="#L722" class="tlaBgUBC"  title="Next UBC group">Not covered</a><span class="tlaUBC tlaBgUBC">           0 :         TraceEvent.newBuilder()</span></span>
+<span id="L666"><span class="lineNum">     666</span> <a href="#L726" class="tlaBgUBC"  title="Next UBC group">Not covered</a><span class="tlaUBC tlaBgUBC">           0 :         TraceEvent.newBuilder()</span></span>
 <span id="L667"><span class="lineNum">     667</span> <span class="tlaUBC">              0 :           .setActionExecution(</span></span>
 <span id="L668"><span class="lineNum">     668</span> <span class="tlaUBC">              0 :             ActionExecutionEvent.newBuilder()</span></span>
 <span id="L669"><span class="lineNum">     669</span> <span class="tlaUBC">              0 :               .setActionName(actionName)</span></span>
@@ -793,14 +793,14 @@ Previously tested code is unused now">Excluded (covered)</td>
 <span id="L689"><span class="lineNum">     689</span> <a href="#L692" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :     val actionDecl = actions[actionName]!!</span></span>
 <span id="L690"><span class="lineNum">     690</span> <a href="#L703" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :     val argValues = args.map { evalExpr(it, env) }</span></span>
 <span id="L691"><span class="lineNum">     691</span> <a href="#L702" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             : </span></span>
-<span id="L692"><span class="lineNum">     692</span> <a href="#L814" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :     env.pushScope()</span></span>
+<span id="L692"><span class="lineNum">     692</span> <a href="#L790" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :     env.pushScope()</span></span>
 <span id="L693"><span class="lineNum">     693</span> <span class="tlaCBC">              1 :     try {</span></span>
 <span id="L694"><span class="lineNum">     694</span> <span class="tlaCBC">              1 :       actionDecl.paramsList.forEachIndexed { i, param -&gt;</span></span>
 <span id="L695"><span class="lineNum">     695</span> <span class="tlaCBC">              1 :         env.define(param.name, argValues.getOrElse(i) { UnitVal })</span></span>
 <span id="L696"><span class="lineNum">     696</span> <span class="tlaCBC">              1 :       }</span></span>
 <span id="L697"><span class="lineNum">     697</span> <span class="tlaCBC">              1 :       try {</span></span>
-<span id="L698"><span class="lineNum">     698</span> <a href="#L838" class="tlaBgGBC"  title="Next GBC group">Newly covered</a><span class="tlaGBC tlaBgGBC">           1 :         execBlock(actionDecl.bodyList, env)</span></span>
-<span id="L699"><span class="lineNum">     699</span> <a href="#L723" class="tlaBgUIC"  title="Next UIC group">Included (not covered)</a><span class="tlaUIC tlaBgUIC">           0 :       } catch (_: ReturnException) {</span></span>
+<span id="L698"><span class="lineNum">     698</span> <a href="#L722" class="tlaBgGBC"  title="Next GBC group">Newly covered</a><span class="tlaGBC tlaBgGBC">           1 :         execBlock(actionDecl.bodyList, env)</span></span>
+<span id="L699"><span class="lineNum">     699</span> <a href="#L729" class="tlaBgUIC"  title="Next UIC group">Included (not covered)</a><span class="tlaUIC tlaBgUIC">           0 :       } catch (_: ReturnException) {</span></span>
 <span id="L700"><span class="lineNum">     700</span>                 :         // P4 action return exits the body without a value; fall through to writeback.</span>
 <span id="L701"><span class="lineNum">     701</span>                 :       }</span>
 <span id="L702"><span class="lineNum">     702</span> <a href="#L704" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :       // Write back inout/out parameters before the scope is popped.</span></span>
@@ -814,7 +814,7 @@ Previously tested code is unused now">Excluded (covered)</td>
 <span id="L710"><span class="lineNum">     710</span> <a href="#L712" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :     } finally {</span></span>
 <span id="L711"><span class="lineNum">     711</span> <a href="#L713" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :       env.popScope()</span></span>
 <span id="L712"><span class="lineNum">     712</span> <a href="#L797" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :     }</span></span>
-<span id="L713"><span class="lineNum">     713</span> <a href="#L804" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :     return UnitVal</span></span>
+<span id="L713"><span class="lineNum">     713</span> <a href="#L723" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :     return UnitVal</span></span>
 <span id="L714"><span class="lineNum">     714</span>                 :   }</span>
 <span id="L715"><span class="lineNum">     715</span>                 : </span>
 <span id="L716"><span class="lineNum">     716</span>                 :   // -------------------------------------------------------------------------</span>
@@ -823,8 +823,8 @@ Previously tested code is unused now">Excluded (covered)</td>
 <span id="L719"><span class="lineNum">     719</span>                 : </span>
 <span id="L720"><span class="lineNum">     720</span>                 :   @Suppress(&quot;ThrowsCount&quot;)</span>
 <span id="L721"><span class="lineNum">     721</span> <a href="#L725" class="tlaBgEUB"  title="Next EUB group">Excluded (not covered)</a><span class="tlaEUB tlaBgEUB">             :   private fun execExternCall(call: MethodCall, env: Environment): Value {</span></span>
-<span id="L722"><span class="lineNum">     722</span> <a href="#L726" class="tlaBgUBC"  title="Next UBC group">Not covered</a><span class="tlaUBC tlaBgUBC">           0 :     val funcName = call.target.nameRef.name</span></span>
-<span id="L723"><span class="lineNum">     723</span> <a href="#L729" class="tlaBgUIC"  title="Next UIC group">Included (not covered)</a><span class="tlaUIC tlaBgUIC">           0 :     return when (funcName) {</span></span>
+<span id="L722"><span class="lineNum">     722</span> <a href="#L838" class="tlaBgGBC"  title="Next GBC group">Newly covered</a><span class="tlaGBC tlaBgGBC">           1 :     val funcName = call.target.nameRef.name</span></span>
+<span id="L723"><span class="lineNum">     723</span> <a href="#L788" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :     return when (funcName) {</span></span>
 <span id="L724"><span class="lineNum">     724</span>                 :       // mark_to_drop(standard_metadata): sets egress_spec to the v1model drop port (511).</span>
 <span id="L725"><span class="lineNum">     725</span> <a href="#L732" class="tlaBgEUB"  title="Next EUB group">Excluded (not covered)</a><span class="tlaEUB tlaBgEUB">             :       &quot;mark_to_drop&quot; -&gt; {</span></span>
 <span id="L726"><span class="lineNum">     726</span> <a href="#L733" class="tlaBgUBC"  title="Next UBC group">Not covered</a><span class="tlaUBC tlaBgUBC">           0 :         val smeta = evalExpr(call.argsList[0], env) as StructVal</span></span>
@@ -884,20 +884,20 @@ Previously tested code is unused now">Excluded (covered)</td>
 <span id="L780"><span class="lineNum">     780</span> <span class="tlaUBC">              0 :           val checksumWidth = call.argsList[2].type.bit.width</span></span>
 <span id="L781"><span class="lineNum">     781</span> <a href="#L783" class="tlaBgUIC"  title="Next UIC group">Included (not covered)</a><span class="tlaUIC tlaBgUIC">           0 :           setLValue(call.argsList[2], BitVal(BitVector(computed, checksumWidth)), env)</span></span>
 <span id="L782"><span class="lineNum">     782</span> <a href="#L784" class="tlaBgEUB"  title="Next EUB group">Excluded (not covered)</a><span class="tlaEUB tlaBgEUB">             :         }</span></span>
-<span id="L783"><span class="lineNum">     783</span> <a href="#L788" class="tlaBgUIC"  title="Next UIC group">Included (not covered)</a><span class="tlaUIC tlaBgUIC">           0 :         UnitVal</span></span>
+<span id="L783"><span class="lineNum">     783</span> <a href="#L831" class="tlaBgUIC"  title="Next UIC group">Included (not covered)</a><span class="tlaUIC tlaBgUIC">           0 :         UnitVal</span></span>
 <span id="L784"><span class="lineNum">     784</span> <a href="#L817" class="tlaBgEUB"  title="Next EUB group">Excluded (not covered)</a><span class="tlaEUB tlaBgEUB">             :       }</span></span>
 <span id="L785"><span class="lineNum">     785</span>                 :       // hash(out result, in algo, in base, in data, in max): v1model hash extern.</span>
 <span id="L786"><span class="lineNum">     786</span>                 :       // See https://github.com/p4lang/behavioral-model/blob/main/docs/simple_switch.md</span>
 <span id="L787"><span class="lineNum">     787</span>                 :       &quot;hash&quot; -&gt; {</span>
-<span id="L788"><span class="lineNum">     788</span> <a href="#L794" class="tlaBgUIC"  title="Next UIC group">Included (not covered)</a><span class="tlaUIC tlaBgUIC">           0 :         val algo = (evalExpr(call.argsList[1], env) as EnumVal).member</span></span>
-<span id="L789"><span class="lineNum">     789</span> <span class="tlaUIC">              0 :         val base = (evalExpr(call.argsList[2], env) as BitVal).bits.value</span></span>
-<span id="L790"><span class="lineNum">     790</span> <a href="#L798" class="tlaBgLBC"  title="Next LBC group">Coverage lost</a><span class="tlaLBC tlaBgLBC">           0 :         val data = evalExpr(call.argsList[3], env) as StructVal</span></span>
-<span id="L791"><span class="lineNum">     791</span> <span class="tlaLBC">              0 :         val max = (evalExpr(call.argsList[4], env) as BitVal).bits.value</span></span>
-<span id="L792"><span class="lineNum">     792</span> <span class="tlaLBC">              0 :         val hashVal = computeHash(algo, data)</span></span>
-<span id="L793"><span class="lineNum">     793</span> <span class="tlaLBC">              0 :         val result = if (max &gt; BigInteger.ZERO) base + hashVal.mod(max) else base</span></span>
-<span id="L794"><span class="lineNum">     794</span> <a href="#L831" class="tlaBgUIC"  title="Next UIC group">Included (not covered)</a><span class="tlaUIC tlaBgUIC">           0 :         val resultWidth = call.argsList[0].type.bit.width</span></span>
-<span id="L795"><span class="lineNum">     795</span> <span class="tlaUIC">              0 :         setLValue(call.argsList[0], BitVal(BitVector(result, resultWidth)), env)</span></span>
-<span id="L796"><span class="lineNum">     796</span> <span class="tlaUIC">              0 :         UnitVal</span></span>
+<span id="L788"><span class="lineNum">     788</span> <a href="#L794" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :         val algo = (evalExpr(call.argsList[1], env) as EnumVal).member</span></span>
+<span id="L789"><span class="lineNum">     789</span> <span class="tlaGIC">              1 :         val base = (evalExpr(call.argsList[2], env) as BitVal).bits.value</span></span>
+<span id="L790"><span class="lineNum">     790</span> <a href="#L814" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :         val data = evalExpr(call.argsList[3], env) as StructVal</span></span>
+<span id="L791"><span class="lineNum">     791</span> <span class="tlaCBC">              1 :         val max = (evalExpr(call.argsList[4], env) as BitVal).bits.value</span></span>
+<span id="L792"><span class="lineNum">     792</span> <span class="tlaCBC">              1 :         val hashVal = computeHash(algo, data)</span></span>
+<span id="L793"><span class="lineNum">     793</span> <span class="tlaCBC">              1 :         val result = if (max &gt; BigInteger.ZERO) base + hashVal.mod(max) else base</span></span>
+<span id="L794"><span class="lineNum">     794</span> <a href="#L804" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :         val resultWidth = call.argsList[0].type.bit.width</span></span>
+<span id="L795"><span class="lineNum">     795</span> <span class="tlaGIC">              1 :         setLValue(call.argsList[0], BitVal(BitVector(result, resultWidth)), env)</span></span>
+<span id="L796"><span class="lineNum">     796</span> <span class="tlaGIC">              1 :         UnitVal</span></span>
 <span id="L797"><span class="lineNum">     797</span> <a href="#L799" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :       }</span></span>
 <span id="L798"><span class="lineNum">     798</span> <a href="#L858" class="tlaBgLBC"  title="Next LBC group">Coverage lost</a><span class="tlaLBC tlaBgLBC">           0 :       else -&gt; error(&quot;unhandled extern call: $funcName&quot;)</span></span>
 <span id="L799"><span class="lineNum">     799</span> <a href="#L810" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :     }</span></span>
