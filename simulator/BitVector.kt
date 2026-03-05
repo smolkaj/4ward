@@ -169,11 +169,8 @@ data class SignedBitVector(val value: BigInteger, val width: Int) {
     return SignedBitVector(result.coerceIn(minVal, maxVal), width)
   }
 
-  private val minVal
-    get() = BigInteger.TWO.pow(width - 1).negate()
-
-  private val maxVal
-    get() = BigInteger.TWO.pow(width - 1) - BigInteger.ONE
+  private val minVal by lazy { BigInteger.TWO.pow(width - 1).negate() }
+  private val maxVal by lazy { BigInteger.TWO.pow(width - 1) - BigInteger.ONE }
 
   /** Reinterprets the bits as an unsigned [BitVector]. */
   fun toUnsigned(): BitVector {

@@ -703,15 +703,14 @@ class Interpreter(
     val varbitBits: Int =
       if (call.argsCount > 1) (evalExpr(call.argsList[1], env) as BitVal).bits.value.toInt() else 0
 
-    // P4 spec §12.8.1: varbit length must be a multiple of 8.
-    if (varbitBits > 0 && varbitBits % 8 != 0) {
-      throw ParserErrorException(
-        "ParserInvalidArgument",
-        "varbit extract length $varbitBits is not a multiple of 8",
-      )
-    }
-    // P4 spec §12.8.1: varbit length must not exceed the declared max width.
+    // P4 spec §12.8.1: validate varbit extract constraints.
     if (varbitBits > 0) {
+      if (varbitBits % 8 != 0) {
+        throw ParserErrorException(
+          "ParserInvalidArgument",
+          "varbit extract length $varbitBits is not a multiple of 8",
+        )
+      }
       val varbitField = headerDecl.fieldsList.find { it.type.hasVarbit() }
       if (varbitField != null && varbitBits > varbitField.type.varbit.maxWidth) {
         throw ParserErrorException(
