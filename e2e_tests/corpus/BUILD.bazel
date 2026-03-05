@@ -120,7 +120,9 @@ corpus_test_suite(
         "gauntlet_uninitialized_bool_struct-bmv2",
         "gauntlet_variable_shadowing-bmv2",
         "header-bool-bmv2",
+        "header-stack-ops-bmv2",
         "invalid-hdr-warnings3-bmv2",
+        "ipv6-switch-ml-bmv2",
         "issue-2123-2-bmv2",
         "issue-2123-3-bmv2",
         "issue1000-bmv2",
@@ -210,7 +212,6 @@ corpus_test_suite(
     tests = [
         "enum-bmv2",  # missing ConvertEnums midend pass
         "extern-funcs-bmv2",  # unhandled extern call: extern_func
-        "ipv6-switch-ml-bmv2",  # 128-bit IPv6 address slicing mismatch
     ],
 )
 
@@ -282,7 +283,6 @@ corpus_test_suite(
     name = "other_stf_corpus_test",
     tags = ["manual"],
     tests = [
-        "header-stack-ops-bmv2",  # unhandled extern call: push_front/pop_front
         "table-entries-priority-bmv2",  # p4c ignores @priority; BMv2 handles it via non-P4Runtime path
         "ternary2-bmv2",  # per-table action specialization lost (single p4info action ID)
         "v1model-special-ops-bmv2",  # needs resubmit/recirculate

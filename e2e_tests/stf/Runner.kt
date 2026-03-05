@@ -2,12 +2,22 @@ package fourward.e2e
 
 import com.google.protobuf.ByteString
 import fourward.ir.v1.PipelineConfig
+import fourward.sim.v1.TraceTree
 import fourward.sim.v1.WriteEntryRequest
 import java.math.BigInteger
 import java.nio.file.Path
 import java.nio.file.Paths
 import p4.config.v1.P4InfoOuterClass
 import p4.v1.P4RuntimeOuterClass
+
+/** Recursively collects output packets from trace tree leaves (for forking programs). */
+private fun collectOutputsFromTrace(tree: TraceTree): List<fourward.sim.v1.OutputPacket> =
+  when {
+    tree.hasForkOutcome() ->
+      tree.forkOutcome.branchesList.flatMap { collectOutputsFromTrace(it.subtree) }
+    tree.hasPacketOutcome() && tree.packetOutcome.hasOutput() -> listOf(tree.packetOutcome.output)
+    else -> emptyList()
+  }
 
 /** BMv2 STF files use `$N` for array indices; normalize to `[N]`. */
 private val ARRAY_INDEX_REGEX = Regex("\\$(\\d+)")
@@ -63,7 +73,14 @@ class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPat
           failures += "ProcessPacket failed: ${resp.error.message}"
           continue
         }
-        for (pkt in resp.processPacket.outputPacketsList) {
+        // For non-forking programs, output_packets is populated. For forking
+        // programs (multicast, clone, action selector), outputs live only in
+        // trace tree leaves — collect them recursively.
+        val pkts =
+          resp.processPacket.outputPacketsList.ifEmpty {
+            collectOutputsFromTrace(resp.processPacket.trace)
+          }
+        for (pkt in pkts) {
           outputQueue += Output(pkt.egressPort, pkt.payload.toByteArray())
         }
       }

@@ -544,6 +544,33 @@ class Interpreter(
         }
         UnitVal
       }
+      // P4 spec §8.18: header stack push_front/pop_front.
+      "push_front" -> {
+        val stack = evalExpr(call.target, env) as HeaderStackVal
+        val count = intValue(evalExpr(call.argsList[0], env)).coerceAtMost(stack.size)
+        // Shift elements toward higher indices; first `count` become invalid.
+        for (i in (stack.size - 1) downTo count) {
+          stack.headers[i] = stack.headers[i - count]
+        }
+        for (i in 0 until count) {
+          stack.headers[i] = defaultValue(stack.elementTypeName, types)
+        }
+        stack.nextIndex = (stack.nextIndex + count).coerceAtMost(stack.size)
+        UnitVal
+      }
+      "pop_front" -> {
+        val stack = evalExpr(call.target, env) as HeaderStackVal
+        val count = intValue(evalExpr(call.argsList[0], env)).coerceAtMost(stack.size)
+        // Shift elements toward lower indices; last `count` become invalid.
+        for (i in 0 until stack.size - count) {
+          stack.headers[i] = stack.headers[i + count]
+        }
+        for (i in stack.size - count until stack.size) {
+          stack.headers[i] = defaultValue(stack.elementTypeName, types)
+        }
+        stack.nextIndex = (stack.nextIndex - count).coerceAtLeast(0)
+        UnitVal
+      }
       // packet_in.extract(hdr) / packet_out.emit(hdr): target is the extern object
       // (not in env); the header is the first argument.
       "extract" -> execExtract(call, env)
