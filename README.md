@@ -111,12 +111,14 @@ No printf debugging. No Wireshark. No guessing.
 │   ├── ir.proto            Behavioral IR (the contract between backend & sim)
 │   └── simulator.proto     Simulator service protocol (stdin/stdout framing)
 ├── p4c_backend/            p4c backend plugin (C++, emits the proto IR)
-└── e2e_tests/
-    ├── stf/                STF runner (shared subprocess + packet I/O)
-    ├── corpus/             p4c STF corpus (bulk regression)
-    ├── trace_tree/         Golden trace-tree tests
-    ├── p4testgen/          p4testgen integration (auto-generated paths)
-    └── <feature>/          Hand-written feature tests (passthrough, lpm, …)
+├── e2e_tests/
+│   ├── stf/                STF runner (shared subprocess + packet I/O)
+│   ├── corpus/             p4c STF corpus (bulk regression)
+│   ├── trace_tree/         Golden trace-tree tests
+│   ├── p4testgen/          p4testgen integration (auto-generated paths)
+│   └── <feature>/          Hand-written feature tests (passthrough, lpm, …)
+├── docs/                   Project documentation
+└── tools/                  Developer scripts (format, lint, coverage, …)
 ```
 
 Curious about the design? [ARCHITECTURE.md](docs/ARCHITECTURE.md) has the full story.
