@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-05 01:01:28</td>
+            <td class="headerValue">2026-03-05 01:05:30</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -62,8 +62,8 @@
 <pre class="source">
 <span id="L1"><span class="lineNum">       1</span>              : package fourward.simulator</span>
 <span id="L2"><span class="lineNum">       2</span>              : </span>
-<span id="L3"><span class="lineNum">       3</span>              : import fourward.sim.v1.Trace</span>
-<span id="L4"><span class="lineNum">       4</span>              : import fourward.sim.v1.TraceEvent</span>
+<span id="L3"><span class="lineNum">       3</span>              : import fourward.sim.v1.TraceEvent</span>
+<span id="L4"><span class="lineNum">       4</span>              : import fourward.sim.v1.TraceTree</span>
 <span id="L5"><span class="lineNum">       5</span>              : import java.io.ByteArrayOutputStream</span>
 <span id="L6"><span class="lineNum">       6</span>              : </span>
 <span id="L7"><span class="lineNum">       7</span>              : /**</span>
@@ -163,7 +163,7 @@
 <span id="L101"><span class="lineNum">     101</span> <span class="tlaGNC">           1 :     traceEvents.add(event)</span></span>
 <span id="L102"><span class="lineNum">     102</span> <span class="tlaGNC">           1 :   }</span></span>
 <span id="L103"><span class="lineNum">     103</span>              : </span>
-<span id="L104"><span class="lineNum">     104</span> <span class="tlaGNC">           1 :   fun buildTrace(): Trace = Trace.newBuilder().addAllEvents(traceEvents).build()</span></span>
+<span id="L104"><span class="lineNum">     104</span> <span class="tlaGNC">           1 :   fun buildTrace(): TraceTree = TraceTree.newBuilder().addAllEvents(traceEvents).build()</span></span>
 <span id="L105"><span class="lineNum">     105</span>              : }</span>
 <span id="L106"><span class="lineNum">     106</span>              : </span>
 <span id="L107"><span class="lineNum">     107</span>              : /**</span>
