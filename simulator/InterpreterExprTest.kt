@@ -691,4 +691,31 @@ class InterpreterExprTest {
     // setInvalid() zeros fields in place per P4 spec §8.17 (BMv2 treats them as zero)
     assertEquals(BitVal(0, 16), hdr.fields["etherType"])
   }
+
+  // ---------------------------------------------------------------------------
+  // StructExpr evaluation
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `struct expression evaluates to StructVal with evaluated fields`() {
+    val expr =
+      Expr.newBuilder()
+        .setStructExpr(
+          fourward.ir.v1.StructExpr.newBuilder()
+            .addFields(
+              fourward.ir.v1.StructExprField.newBuilder().setName("a").setValue(bit(0xAB, 8))
+            )
+            .addFields(
+              fourward.ir.v1.StructExprField.newBuilder().setName("b").setValue(bit(0xCD, 8))
+            )
+        )
+        .setType(Type.newBuilder().setNamed("my_tuple"))
+        .build()
+
+    val result = interp().evalExpr(expr, emptyEnv)
+    val sv = result as StructVal
+    assertEquals("my_tuple", sv.typeName)
+    assertEquals(BitVal(0xAB, 8), sv.fields["a"])
+    assertEquals(BitVal(0xCD, 8), sv.fields["b"])
+  }
 }

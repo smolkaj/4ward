@@ -88,6 +88,16 @@ kt_jvm_binary(
 # =============================================================================
 
 kt_jvm_test(
+    name = "ChecksumTest",
+    srcs = ["ChecksumTest.kt"],
+    test_class = "fourward.simulator.ChecksumTest",
+    deps = [
+        ":simulator_lib",
+        "@maven//:junit_junit",
+    ],
+)
+
+kt_jvm_test(
     name = "BitVectorTest",
     srcs = ["BitVectorTest.kt"],
     test_class = "fourward.simulator.BitVectorTest",

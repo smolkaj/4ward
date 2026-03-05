@@ -36,6 +36,7 @@ class Interpreter(
   private val tableStore: TableStore,
   private val packetCtx: PacketContext? = null,
   private val decisions: ForkDecisions = ForkDecisions(),
+  private val onChecksumError: (() -> Unit)? = null,
 ) {
   private val parsers: Map<String, ParserDecl> = config.parsersList.associateBy { it.name }
 
@@ -245,6 +246,7 @@ class Interpreter(
       expr.hasUnaryOp() -> evalUnaryOp(expr.unaryOp, env)
       expr.hasMethodCall() -> evalMethodCall(expr.methodCall, env)
       expr.hasMux() -> evalMux(expr.mux, env)
+      expr.hasStructExpr() -> evalStructExpr(expr.structExpr, expr.type, env)
       expr.hasTableApply() -> {
         val result = applyTable(expr.tableApply.tableName, env)
         when (expr.tableApply.accessKind) {
@@ -510,6 +512,17 @@ class Interpreter(
     if ((evalExpr(mux.condition, env) as BoolVal).value) evalExpr(mux.thenExpr, env)
     else evalExpr(mux.elseExpr, env)
 
+  private fun evalStructExpr(
+    se: fourward.ir.v1.StructExpr,
+    type: fourward.ir.v1.Type,
+    env: Environment,
+  ): Value {
+    require(type.hasNamed()) { "StructExpr must have a named type, got: $type" }
+    val typeName = type.named
+    val fields = se.fieldsList.associateTo(mutableMapOf()) { f -> f.name to evalExpr(f.value, env) }
+    return StructVal(typeName, fields)
+  }
+
   private fun evalMethodCall(call: MethodCall, env: Environment): Value {
     return when (call.method) {
       // Header validity methods: target is the header instance.
@@ -736,6 +749,33 @@ class Interpreter(
           CloneMode.THROW -> throw CloneFork(sessionId, packetCtx!!.getEvents())
           CloneMode.SUPPRESS -> {} // already recorded event, continue normally
           CloneMode.EXECUTE_CLONE -> throw JumpToEgressException()
+        }
+        UnitVal
+      }
+      // verify_checksum(condition, data, checksum, algo): v1model §14.
+      // Computes hash over data fields and compares with checksum; sets
+      // standard_metadata.checksum_error = 1 on mismatch.
+      "verify_checksum" -> {
+        val condition = (evalExpr(call.argsList[0], env) as BoolVal).value
+        if (condition) {
+          val data = evalExpr(call.argsList[1], env) as StructVal
+          val expected = evalExpr(call.argsList[2], env) as BitVal
+          val computed = onesComplementChecksum(data)
+          if (computed != expected.bits.value) {
+            onChecksumError?.invoke()
+          }
+        }
+        UnitVal
+      }
+      // update_checksum(condition, data, checksum, algo): v1model §14.
+      // Computes hash over data fields and writes result into checksum (out param).
+      "update_checksum" -> {
+        val condition = (evalExpr(call.argsList[0], env) as BoolVal).value
+        if (condition) {
+          val data = evalExpr(call.argsList[1], env) as StructVal
+          val computed = onesComplementChecksum(data)
+          val checksumWidth = call.argsList[2].type.bit.width
+          setLValue(call.argsList[2], BitVal(BitVector(computed, checksumWidth)), env)
         }
         UnitVal
       }
