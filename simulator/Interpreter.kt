@@ -668,6 +668,15 @@ class Interpreter(
           BitVal(V1ModelArchitecture.DROP_PORT.toLong(), V1ModelArchitecture.PORT_BITS)
         UnitVal
       }
+      // verify(condition, error): P4 spec §12.8 parser assertion.
+      "verify" -> {
+        val condition = (evalExpr(call.argsList[0], env) as BoolVal).value
+        if (!condition) {
+          val err = (evalExpr(call.argsList[1], env) as ErrorVal).member
+          throw ParserErrorException(err, "verify failed: $err")
+        }
+        UnitVal
+      }
       else -> error("unhandled extern call: $funcName")
     }
   }
