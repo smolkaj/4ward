@@ -1,0 +1,74 @@
+package fourward.simulator
+
+import java.math.BigInteger
+import java.util.zip.CRC32
+
+// CRC-16/ARC reflected polynomial (0x8005 reflected = 0xA001).
+// This matches boost::crc_16_type used by BMv2.
+private const val CRC16_POLY = 0xA001
+private const val BYTE_MASK = 0xFF
+private const val CRC16_MASK = 0xFFFF
+
+/**
+ * CRC-16/ARC (IBM/LHA) — the variant used by BMv2's `HashAlgorithm.crc16`.
+ *
+ * Parameters: poly=0x8005, init=0, reflect_in=true, reflect_out=true, xor_out=0. Uses the
+ * reflected algorithm (shift right with reflected polynomial) to avoid per-byte bit reversal.
+ */
+fun crc16(data: ByteArray): Int {
+  var crc = 0
+  for (byte in data) {
+    crc = crc xor (byte.toInt() and BYTE_MASK)
+    repeat(Byte.SIZE_BITS) {
+      crc = if (crc and 1 != 0) (crc ushr 1) xor CRC16_POLY else crc ushr 1
+    }
+  }
+  return crc and CRC16_MASK
+}
+
+/**
+ * CRC-32 (ISO-HDLC) — the variant used by BMv2's `HashAlgorithm.crc32`.
+ *
+ * Delegates to [java.util.zip.CRC32] which implements the same algorithm (poly=0x04C11DB7,
+ * init=0xFFFFFFFF, reflect_in=true, reflect_out=true, xor_out=0xFFFFFFFF).
+ */
+fun crc32(data: ByteArray): Long {
+  val crc = CRC32()
+  crc.update(data)
+  return crc.value
+}
+
+/** Converts a [StructVal]'s fields to a big-endian byte array for hashing. */
+fun structToBytes(data: StructVal): ByteArray {
+  val combined =
+    data.fields.values.map { (it as BitVal).bits }.reduceOrNull { acc, bv -> acc.concat(bv) }
+      ?: return ByteArray(0)
+  val totalBits = combined.width
+  val totalBytes = (totalBits + 7) / 8
+  val padded = combined.value.shiftLeft(totalBytes * 8 - totalBits)
+  val raw = padded.toByteArray()
+  // BigInteger.toByteArray() may include a leading sign byte or be shorter than totalBytes.
+  return when {
+    raw.size == totalBytes -> raw
+    raw.size > totalBytes -> raw.copyOfRange(raw.size - totalBytes, raw.size)
+    else -> ByteArray(totalBytes - raw.size) + raw
+  }
+}
+
+/**
+ * Computes a hash over [data] using the specified [algorithm].
+ *
+ * Supports csum16 (ones' complement), crc16, and crc32 — the algorithms used by BMv2's
+ * simple_switch. Returns the raw hash value as a [BigInteger].
+ */
+fun computeHash(algorithm: String, data: StructVal): BigInteger =
+  when (algorithm) {
+    "csum16" -> onesComplementChecksum(data)
+    "crc16" -> BigInteger.valueOf(crc16(structToBytes(data)).toLong())
+    "crc32" -> BigInteger.valueOf(crc32(structToBytes(data)))
+    "identity" -> {
+      val bytes = structToBytes(data)
+      if (bytes.isEmpty()) BigInteger.ZERO else BigInteger(1, bytes)
+    }
+    else -> error("unsupported hash algorithm: $algorithm")
+  }

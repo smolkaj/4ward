@@ -33,6 +33,7 @@ corpus_test_suite(
         "bvec-hdr-bmv2",
         "checksum2-bmv2",
         "checksum3-bmv2",
+        "constant-in-calculation-bmv2",
         "default-action-arg-bmv2",
         "default_action-bmv2",
         "equality-varbit-bmv2",
@@ -123,6 +124,7 @@ corpus_test_suite(
         "issue-2123-2-bmv2",
         "issue-2123-3-bmv2",
         "issue1000-bmv2",
+        "issue1049-bmv2",
         "issue1062-1-bmv2",
         "issue1097-2-bmv2",
         "issue1566-bmv2",
@@ -206,7 +208,6 @@ corpus_test_suite(
     ],
     tags = ["manual"],
     tests = [
-        "constant-in-calculation-bmv2",  # unhandled extern call: hash
         "enum-bmv2",  # missing ConvertEnums midend pass
         "extern-funcs-bmv2",  # unhandled extern call: extern_func
         "ipv6-switch-ml-bmv2",  # 128-bit IPv6 address slicing mismatch
@@ -282,8 +283,7 @@ corpus_test_suite(
     tags = ["manual"],
     tests = [
         "header-stack-ops-bmv2",  # unhandled extern call: push_front/pop_front
-        "issue1049-bmv2",  # unhandled extern call: hash
-        "table-entries-priority-bmv2",  # BMv2 @priority uses lower-is-better; P4Runtime uses higher-is-better
+        "table-entries-priority-bmv2",  # p4c ignores @priority; BMv2 handles it via non-P4Runtime path
         "ternary2-bmv2",  # per-table action specialization lost (single p4info action ID)
         "v1model-special-ops-bmv2",  # needs resubmit/recirculate
     ],

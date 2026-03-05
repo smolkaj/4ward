@@ -98,6 +98,16 @@ kt_jvm_test(
 )
 
 kt_jvm_test(
+    name = "HashTest",
+    srcs = ["HashTest.kt"],
+    test_class = "fourward.simulator.HashTest",
+    deps = [
+        ":simulator_lib",
+        "@maven//:junit_junit",
+    ],
+)
+
+kt_jvm_test(
     name = "BitVectorTest",
     srcs = ["BitVectorTest.kt"],
     test_class = "fourward.simulator.BitVectorTest",

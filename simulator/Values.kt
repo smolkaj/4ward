@@ -48,6 +48,9 @@ data class BoolVal(val value: Boolean) : Value() {
 /** A P4 error value (one of the named error members, e.g. "NoError"). */
 data class ErrorVal(val member: String) : Value()
 
+/** A plain (non-serializable) P4 enum value, e.g. HashAlgorithm.crc16. */
+data class EnumVal(val member: String) : Value()
+
 /**
  * A header instance.
  *
