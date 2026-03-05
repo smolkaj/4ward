@@ -9,8 +9,11 @@ import fourward.ir.v1.MethodCall
 import fourward.ir.v1.MethodCallStmt
 import fourward.ir.v1.NameRef
 import fourward.ir.v1.P4BehavioralConfig
+import fourward.ir.v1.ParserDecl
+import fourward.ir.v1.ParserState
 import fourward.ir.v1.SourceInfo
 import fourward.ir.v1.Stmt
+import fourward.ir.v1.Transition
 import fourward.ir.v1.Type
 import fourward.sim.v1.DropReason
 import org.junit.Assert.assertEquals
@@ -72,9 +75,7 @@ class InterpreterTraceEventTest {
 
   private fun controlConfig(controlName: String, vararg stmts: Stmt): P4BehavioralConfig =
     P4BehavioralConfig.newBuilder()
-      .addControls(
-        ControlDecl.newBuilder().setName(controlName).addAllApplyBody(stmts.toList())
-      )
+      .addControls(ControlDecl.newBuilder().setName(controlName).addAllApplyBody(stmts.toList()))
       .build()
 
   private fun standardMetadataEnv(): Environment {
@@ -86,6 +87,22 @@ class InterpreterTraceEventTest {
       )
     env.define("sm", sm)
     return env
+  }
+
+  private fun sourceInfo(file: String, line: Int, fragment: String): SourceInfo =
+    SourceInfo.newBuilder().setFile(file).setLine(line).setSourceFragment(fragment).build()
+
+  private fun parserState(
+    name: String,
+    nextState: String,
+    sourceInfo: SourceInfo? = null,
+  ): ParserState {
+    val builder =
+      ParserState.newBuilder()
+        .setName(name)
+        .setTransition(Transition.newBuilder().setNextState(nextState))
+    if (sourceInfo != null) builder.sourceInfo = sourceInfo
+    return builder.build()
   }
 
   // ---------------------------------------------------------------------------
@@ -161,5 +178,75 @@ class InterpreterTraceEventTest {
     val branchEvents = pktCtx.getEvents().filter { it.hasBranch() }
     assertEquals(1, branchEvents.size)
     assertFalse(branchEvents[0].hasSourceInfo())
+  }
+
+  // ---------------------------------------------------------------------------
+  // Test 5: parser transitions carry source_info from ParserState
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `parser transition carries source_info from ParserState`() {
+    val si = sourceInfo("test.p4", 10, "start")
+    val parser =
+      ParserDecl.newBuilder().setName("P").addStates(parserState("start", "accept", si)).build()
+    val config = P4BehavioralConfig.newBuilder().addParsers(parser).build()
+    val pktCtx = PacketContext(byteArrayOf())
+    Interpreter(config, TableStore(), pktCtx).runParser("P", Environment())
+
+    val transitions = pktCtx.getEvents().filter { it.hasParserTransition() }
+    assertEquals(1, transitions.size)
+    assertTrue(transitions[0].hasSourceInfo())
+    assertEquals("test.p4", transitions[0].sourceInfo.file)
+    assertEquals(10, transitions[0].sourceInfo.line)
+    assertEquals("start", transitions[0].sourceInfo.sourceFragment)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Test 6: multi-state parser — each transition gets its own source_info
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `multi-state parser transitions each carry their own source_info`() {
+    val si1 = sourceInfo("test.p4", 10, "start")
+    val si2 = sourceInfo("test.p4", 20, "parse_header")
+    val parser =
+      ParserDecl.newBuilder()
+        .setName("P")
+        .addStates(parserState("start", "parse_header", si1))
+        .addStates(parserState("parse_header", "accept", si2))
+        .build()
+    val config = P4BehavioralConfig.newBuilder().addParsers(parser).build()
+    val pktCtx = PacketContext(byteArrayOf())
+    Interpreter(config, TableStore(), pktCtx).runParser("P", Environment())
+
+    val transitions = pktCtx.getEvents().filter { it.hasParserTransition() }
+    assertEquals(2, transitions.size)
+    assertEquals("start", transitions[0].sourceInfo.sourceFragment)
+    assertEquals(10, transitions[0].sourceInfo.line)
+    assertEquals("parse_header", transitions[1].sourceInfo.sourceFragment)
+    assertEquals(20, transitions[1].sourceInfo.line)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Test 7: sequential statements each carry their own source_info
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `sequential statements carry independent source_info`() {
+    val si1 = sourceInfo("test.p4", 10, "if (true)")
+    val si2 = sourceInfo("test.p4", 20, "mark_to_drop(sm)")
+    val config =
+      controlConfig("MyIngress", ifStmt(boolLit(true), sourceInfo = si1), markToDropStmt(si2))
+    val env = standardMetadataEnv()
+    val pktCtx = PacketContext(byteArrayOf())
+    Interpreter(config, TableStore(), pktCtx).runControl("MyIngress", env)
+
+    val events = pktCtx.getEvents()
+    val branchEvent = events.first { it.hasBranch() }
+    val markToDropEvent = events.first { it.hasMarkToDrop() }
+    assertEquals("if (true)", branchEvent.sourceInfo.sourceFragment)
+    assertEquals(10, branchEvent.sourceInfo.line)
+    assertEquals("mark_to_drop(sm)", markToDropEvent.sourceInfo.sourceFragment)
+    assertEquals(20, markToDropEvent.sourceInfo.line)
   }
 }
