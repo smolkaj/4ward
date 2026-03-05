@@ -91,7 +91,9 @@ class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPat
           failures += "expected packet on port ${expected.port} but got none"
         } else {
           val actual = outputQueue.removeAt(idx)
-          if (!actual.payload.matchesMasked(expected.payload, expected.mask)) {
+          if (
+            !actual.payload.matchesMasked(expected.payload, expected.mask, expected.exactLength)
+          ) {
             failures +=
               "port ${expected.port}: payload mismatch\n" +
                 "  expected: ${expected.payload.hex(expected.mask)}\n" +
@@ -230,11 +232,13 @@ data class StfFile(
           }
           "expect" -> {
             val port = tokens[1].toInt()
-            // "$" marks end-of-packet (length assertion); our runner already does exact-length
-            // comparison, so strip it. It can appear standalone or appended to the last byte.
-            val hexStr = tokens.drop(2).joinToString("").replace("$", "")
+            val raw = tokens.drop(2).joinToString("")
+            // "$" marks end-of-packet: assert actual length == expected length.
+            // Without "$", trailing bytes in actual are ignored (BMv2 semantics).
+            val exactLength = raw.contains('$')
+            val hexStr = raw.replace("$", "")
             val (payload, mask) = decodeExpect(hexStr)
-            expects += StfExpectedOutput(port, payload, mask)
+            expects += StfExpectedOutput(port, payload, mask, exactLength)
           }
           "add" -> tableEntries += parseAdd(tokens.drop(1))
           "setdefault" -> tableEntries += parseSetDefault(tokens.drop(1))
@@ -613,6 +617,13 @@ private fun writeEntryRequest(
     .setUpdate(P4RuntimeOuterClass.Update.newBuilder().setType(type).setEntity(entity))
     .build()
 
+/** Returns a bit-precise hex mask for the given bitwidth (e.g. 9 → "0x01FF", 16 → "0xFFFF"). */
+private fun allOnesMask(bitwidth: Int): String {
+  val byteLen = (bitwidth + 7) / 8
+  val value = BigInteger.ONE.shiftLeft(bitwidth).subtract(BigInteger.ONE)
+  return "0x" + value.toString(16).padStart(byteLen * 2, '0')
+}
+
 private fun findTable(name: String, p4info: P4InfoOuterClass.P4Info): P4InfoOuterClass.Table =
   p4info.tablesList.find { it.preamble.alias == name || it.preamble.name == name }
     ?: p4info.tablesList.find { it.preamble.name.endsWith(".$name") }
@@ -648,24 +659,39 @@ private fun resolveStfMatchField(
       }
       ?: error("unknown match field '${m.fieldName}' in table '$tableName'")
   val fmBuilder = P4RuntimeOuterClass.FieldMatch.newBuilder().setFieldId(mf.id)
-  when (m.kind) {
-    MatchKind.EXACT ->
-      fmBuilder.setExact(
-        P4RuntimeOuterClass.FieldMatch.Exact.newBuilder()
-          .setValue(encodeValue(m.value, mf.bitwidth))
-      )
-    MatchKind.LPM ->
+  val encodedValue = encodeValue(m.value, mf.bitwidth)
+
+  // BMv2 STF values without wildcards parse as EXACT, but the table's
+  // match_type may differ.  Promote to the p4info type so that
+  // priority-based scoring (ternary/range) and optional semantics work.
+  val p4infoType = mf.matchType
+  when {
+    m.kind == MatchKind.LPM ->
       fmBuilder.setLpm(
         P4RuntimeOuterClass.FieldMatch.LPM.newBuilder()
-          .setValue(encodeValue(m.value, mf.bitwidth))
+          .setValue(encodedValue)
           .setPrefixLen(m.prefixLen!!)
       )
-    MatchKind.TERNARY ->
+    m.kind == MatchKind.TERNARY ||
+      (m.kind == MatchKind.EXACT &&
+        p4infoType == P4InfoOuterClass.MatchField.MatchType.TERNARY) -> {
+      val mask = m.mask ?: allOnesMask(mf.bitwidth)
       fmBuilder.setTernary(
         P4RuntimeOuterClass.FieldMatch.Ternary.newBuilder()
-          .setValue(encodeValue(m.value, mf.bitwidth))
-          .setMask(encodeValue(m.mask!!, mf.bitwidth))
+          .setValue(encodedValue)
+          .setMask(encodeValue(mask, mf.bitwidth))
       )
+    }
+    m.kind == MatchKind.EXACT && p4infoType == P4InfoOuterClass.MatchField.MatchType.RANGE ->
+      fmBuilder.setRange(
+        P4RuntimeOuterClass.FieldMatch.Range.newBuilder().setLow(encodedValue).setHigh(encodedValue)
+      )
+    m.kind == MatchKind.EXACT && p4infoType == P4InfoOuterClass.MatchField.MatchType.OPTIONAL ->
+      fmBuilder.setOptional(
+        P4RuntimeOuterClass.FieldMatch.Optional.newBuilder().setValue(encodedValue)
+      )
+    else ->
+      fmBuilder.setExact(P4RuntimeOuterClass.FieldMatch.Exact.newBuilder().setValue(encodedValue))
   }
   return fmBuilder.build()
 }
@@ -708,7 +734,12 @@ fun encodeValue(raw: String, bitwidth: Int): ByteString {
 
 data class StfPacket(val ingressPort: Int, val payload: ByteArray)
 
-class StfExpectedOutput(val port: Int, val payload: ByteArray, val mask: ByteArray)
+class StfExpectedOutput(
+  val port: Int,
+  val payload: ByteArray,
+  val mask: ByteArray,
+  val exactLength: Boolean = false,
+)
 
 /** A parsed table directive (`add` or `setdefault`), before p4info resolution. */
 sealed interface StfTableDirective {
@@ -873,10 +904,20 @@ private fun decodeExpect(hexStr: String): Pair<ByteArray, ByteArray> {
   return payload to mask
 }
 
-/** Returns true iff every non-wildcard byte (mask != 0) matches expected. */
-private fun ByteArray.matchesMasked(expected: ByteArray, mask: ByteArray): Boolean {
-  if (size != expected.size) return false
-  return indices.all { i ->
+/**
+ * Returns true iff every non-wildcard byte (mask != 0) matches expected.
+ *
+ * When [exactLength] is true, actual and expected must have the same length. When false, actual may
+ * be longer — trailing bytes are ignored (BMv2 STF semantics for expects without a trailing `$`).
+ */
+private fun ByteArray.matchesMasked(
+  expected: ByteArray,
+  mask: ByteArray,
+  exactLength: Boolean,
+): Boolean {
+  if (exactLength && size != expected.size) return false
+  if (size < expected.size) return false
+  return expected.indices.all { i ->
     (this[i].toInt() and mask[i].toInt()) == (expected[i].toInt() and mask[i].toInt())
   }
 }

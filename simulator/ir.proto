@@ -286,6 +286,12 @@ message TableBehavior {
   // In the same order as p4info match_fields. The simulator evaluates each
   // expression to produce the lookup key.
   repeated TableKey keys = 2;
+
+  // Maps original action name → midend-specialized name for this table.
+  // When p4c duplicates an action for per-table specialization (e.g.
+  // "setbyte" → "setbyte_1"), the p4info still uses the single original
+  // action ID. This map lets the interpreter resolve the correct copy.
+  map<string, string> action_overrides = 3;
 }
 
 message TableKey {

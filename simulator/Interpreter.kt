@@ -656,15 +656,20 @@ class Interpreter(
         val member =
           result.members.find { it.memberId == forced }
             ?: error("forced member $forced not found in table $tableName")
-        execAction(member.actionName, member.params, env)
+        val resolvedMember =
+          tableBehavior.actionOverridesMap[member.actionName] ?: member.actionName
+        execAction(resolvedMember, member.params, env)
         return TableResult(result.hit, member.actionName)
       }
       // First encounter: throw to let the architecture build the trace tree.
       throw ActionSelectorFork(tableName, result.members, packetCtx!!.getEvents())
     }
 
+    // Resolve per-table action specialization: the p4info uses original names,
+    // but the midend may have created per-table copies with distinct bodies.
+    val resolvedName = tableBehavior.actionOverridesMap[result.actionName] ?: result.actionName
     val params = result.entry?.action?.action?.paramsList ?: result.actionParams
-    execAction(result.actionName, params, env)
+    execAction(resolvedName, params, env)
     return TableResult(result.hit, result.actionName)
   }
 
