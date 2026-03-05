@@ -153,6 +153,7 @@ for what's next and [STATUS.md](STATUS.md) for daily progress.
 | [CLAUDE.md](CLAUDE.md) | Claude Code-specific instructions |
 | [LIMITATIONS.md](LIMITATIONS.md) | Known shortcuts and gaps |
 | [REFACTORING.md](REFACTORING.md) | Tech debt and cleanup backlog |
+| [STEFFENS_AI_WORKFLOW.md](STEFFENS_AI_WORKFLOW.md) | AI prompting principles and workflow |
 
 ## Want to help?
 
