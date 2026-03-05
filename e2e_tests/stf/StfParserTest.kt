@@ -512,6 +512,29 @@ class StfParserTest {
   }
 
   // ---------------------------------------------------------------------------
+  // resolveStfMulticastGroup — node handle keying
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `resolveStfMulticastGroup resolves nodes by sequential handle not by rid`() {
+    // BMv2 assigns handles 0, 1, 2... as nodes are created.
+    // mc_node_associate references these handles (list indices), not the node RIDs.
+    val nodes =
+      listOf(
+        StfMcNodeCreate(rid = 400, ports = listOf(6)),
+        StfMcNodeCreate(rid = 401, ports = listOf(7)),
+        StfMcNodeCreate(rid = 402, ports = listOf(8)),
+      )
+    val assocs = listOf(StfMcNodeAssociate(groupId = 1, nodeHandle = 0))
+    val req = resolveStfMulticastGroup(1, nodes, assocs)
+    val group = req.update.entity.packetReplicationEngineEntry.multicastGroupEntry
+    assertEquals(1, group.multicastGroupId)
+    assertEquals(1, group.replicasCount)
+    assertEquals(6, group.replicasList[0].egressPort)
+    assertEquals(400, group.replicasList[0].instance)
+  }
+
+  // ---------------------------------------------------------------------------
   // encodeValue
   // ---------------------------------------------------------------------------
 
