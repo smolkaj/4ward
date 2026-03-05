@@ -94,6 +94,9 @@ class PacketContext(payload: ByteArray) {
   /** Returns all bytes not yet consumed by the parser (the un-parsed packet body). */
   fun drainRemainingInput(): ByteArray = buffer.readAll()
 
+  /** Peeks at remaining input bytes without consuming them. */
+  fun peekRemainingInput(): ByteArray = buffer.peekAll()
+
   // -------------------------------------------------------------------------
   // Clone
   // -------------------------------------------------------------------------
@@ -137,6 +140,9 @@ private class PacketBuffer(private val data: ByteArray) {
   fun remaining(): Int = data.size - offset
 
   fun readAll(): ByteArray = data.copyOfRange(offset, data.size).also { offset = data.size }
+
+  /** Returns all remaining bytes without advancing the cursor. */
+  fun peekAll(): ByteArray = data.copyOfRange(offset, data.size)
 
   fun read(count: Int): ByteArray {
     if (count > remaining()) {

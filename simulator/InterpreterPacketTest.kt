@@ -27,6 +27,7 @@ import fourward.ir.v1.P4BehavioralConfig
 import fourward.ir.v1.StructDecl
 import fourward.ir.v1.Type
 import fourward.ir.v1.TypeDecl
+import fourward.ir.v1.VarbitType
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -492,5 +493,83 @@ class InterpreterPacketTest {
     assertThrows(PacketTooShortException::class.java) {
       interp(pktCtx, type).evalExpr(advanceCall(16), env)
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // varbit extract with zero-length varbit field
+  // ---------------------------------------------------------------------------
+
+  private fun varbitType(maxWidth: Int): Type =
+    Type.newBuilder().setVarbit(VarbitType.newBuilder().setMaxWidth(maxWidth)).build()
+
+  /** Builds a header TypeDecl with a trailing varbit field. */
+  private fun headerTypeWithVarbit(
+    typeName: String,
+    fixedFields: List<Pair<String, Int>>,
+    varbitFieldName: String,
+    varbitMaxWidth: Int,
+  ): TypeDecl =
+    TypeDecl.newBuilder()
+      .setName(typeName)
+      .setHeader(
+        HeaderDecl.newBuilder().also { hdr ->
+          for ((name, width) in fixedFields) {
+            hdr.addFields(FieldDecl.newBuilder().setName(name).setType(bitType(width)))
+          }
+          hdr.addFields(
+            FieldDecl.newBuilder().setName(varbitFieldName).setType(varbitType(varbitMaxWidth))
+          )
+        }
+      )
+      .build()
+
+  /** Builds a 2-arg extract call: `pkt.extract(headerVarName, varbitBits)`. */
+  private fun varbitExtractCall(headerVarName: String, varbitBits: Int): Expr =
+    Expr.newBuilder()
+      .setMethodCall(
+        MethodCall.newBuilder()
+          .setTarget(nameRef("pkt"))
+          .setMethod("extract")
+          .addArgs(nameRef(headerVarName))
+          .addArgs(
+            Expr.newBuilder()
+              .setLiteral(Literal.newBuilder().setInteger(varbitBits.toLong()))
+              .setType(bitType(32))
+          )
+      )
+      .build()
+
+  @Test
+  fun `extract with zero-length varbit stores field as BitVal(0, 0)`() {
+    // Simplified IPv4-like header: 8-bit fixed field + varbit<320> options.
+    // When varbitBits=0, the varbit field should still exist in the header's fields map.
+    val type = headerTypeWithVarbit("ipv4_t", listOf("ihl" to 8), "options", 320)
+    val pktCtx = PacketContext(byteArrayOf(0x05))
+    val env = Environment()
+    val header = HeaderVal(typeName = "ipv4_t", valid = false)
+    env.define("hdr", header)
+
+    interp(pktCtx, type).evalExpr(varbitExtractCall("hdr", 0), env)
+
+    assertTrue(header.valid)
+    assertEquals(BitVal(5, 8), header.fields["ihl"])
+    // The varbit field must be present even with width 0.
+    assertEquals(BitVal(0, 0), header.fields["options"])
+  }
+
+  @Test
+  fun `extract with non-zero varbit stores field with correct width`() {
+    // 8-bit fixed + 16-bit varbit options.
+    val type = headerTypeWithVarbit("ipv4_t", listOf("ihl" to 8), "options", 320)
+    val pktCtx = PacketContext(byteArrayOf(0x06, 0xAB.toByte(), 0xCD.toByte()))
+    val env = Environment()
+    val header = HeaderVal(typeName = "ipv4_t", valid = false)
+    env.define("hdr", header)
+
+    interp(pktCtx, type).evalExpr(varbitExtractCall("hdr", 16), env)
+
+    assertTrue(header.valid)
+    assertEquals(BitVal(6, 8), header.fields["ihl"])
+    assertEquals(BitVal(0xABCD, 16), header.fields["options"])
   }
 }

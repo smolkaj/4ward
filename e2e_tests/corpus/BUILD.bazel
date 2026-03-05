@@ -31,6 +31,8 @@ corpus_test_suite(
         "arith5-bmv2",
         "array-copy-bmv2",
         "bvec-hdr-bmv2",
+        "checksum-l4-bmv2",
+        "checksum1-bmv2",
         "checksum2-bmv2",
         "checksum3-bmv2",
         "constant-in-calculation-bmv2",
@@ -255,17 +257,6 @@ corpus_test_suite(
         "psa-top-level-assignments-bmv2",
         "psa-unicast-or-drop-bmv2",
         "psa-unicast-or-drop-corrected-bmv2",
-    ],
-)
-
-# Tests blocked on checksum/varbit extern support (verify_checksum_with_payload,
-# varbit field access by name).
-corpus_test_suite(
-    name = "checksum_stf_corpus_test",
-    tags = ["manual"],
-    tests = [
-        "checksum-l4-bmv2",
-        "checksum1-bmv2",
     ],
 )
 

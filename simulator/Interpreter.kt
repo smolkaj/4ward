@@ -813,30 +813,37 @@ class Interpreter(
         packetCtx?.pendingCloneSessionId = sessionId
         UnitVal
       }
-      // verify_checksum(condition, data, checksum, algo): v1model §14.
-      // Computes hash over data fields and compares with checksum; sets
-      // standard_metadata.checksum_error = 1 on mismatch.
-      "verify_checksum" -> {
+      // verify_checksum[_with_payload](condition, data, checksum, algo): v1model §14.
+      // Computes hash over data fields (and optionally the unparsed packet body) and
+      // compares with checksum; sets standard_metadata.checksum_error = 1 on mismatch.
+      "verify_checksum",
+      "verify_checksum_with_payload" -> {
         val condition = (evalExpr(call.argsList[0], env) as BoolVal).value
         if (condition) {
           val data = evalExpr(call.argsList[1], env) as StructVal
           val expected = evalExpr(call.argsList[2], env) as BitVal
           val algo = (evalExpr(call.argsList[3], env) as EnumVal).member
-          val computed = computeHash(algo, data)
+          val payload =
+            if (funcName.endsWith("_with_payload")) packet.peekRemainingInput() else ByteArray(0)
+          val computed = computeHashWithPayload(algo, data, payload)
           if (computed != expected.bits.value) {
             onChecksumError?.invoke()
           }
         }
         UnitVal
       }
-      // update_checksum(condition, data, checksum, algo): v1model §14.
-      // Computes hash over data fields and writes result into checksum (out param).
-      "update_checksum" -> {
+      // update_checksum[_with_payload](condition, data, checksum, algo): v1model §14.
+      // Computes hash over data fields (and optionally the unparsed packet body) and
+      // writes result into checksum (out param).
+      "update_checksum",
+      "update_checksum_with_payload" -> {
         val condition = (evalExpr(call.argsList[0], env) as BoolVal).value
         if (condition) {
           val data = evalExpr(call.argsList[1], env) as StructVal
           val algo = (evalExpr(call.argsList[3], env) as EnumVal).member
-          val computed = computeHash(algo, data)
+          val payload =
+            if (funcName.endsWith("_with_payload")) packet.peekRemainingInput() else ByteArray(0)
+          val computed = computeHashWithPayload(algo, data, payload)
           val checksumWidth = call.argsList[2].type.bit.width
           setLValue(call.argsList[2], BitVal(BitVector(computed, checksumWidth)), env)
         }
@@ -969,7 +976,12 @@ class Interpreter(
     val result = mutableMapOf<String, Value>()
     var bitOffset = 0
     for ((field, width) in fields.zip(widths)) {
-      if (width == 0) continue
+      if (width == 0) {
+        // Zero-width varbit fields still need a map entry so checksum StructExprs
+        // can reference them (e.g. hdr.ipv4.options when IHL=5).
+        if (field.type.hasVarbit()) result[field.name] = BitVal(BitVector(BigInteger.ZERO, 0))
+        continue
+      }
       val mask = BigInteger.ONE.shiftLeft(width) - BigInteger.ONE
       val raw = (allBits shr (totalBits - bitOffset - width)) and mask
       result[field.name] = bitsToValue(field.type, raw, width)

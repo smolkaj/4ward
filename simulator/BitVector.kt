@@ -11,9 +11,14 @@ import java.math.BigInteger
 data class BitVector(val value: BigInteger, val width: Int) {
 
   init {
-    require(width > 0) { "width must be positive, got $width" }
+    // Width 0 is valid for varbit fields with no runtime data (e.g. IPv4 options when IHL=5).
+    require(width >= 0) { "width must be non-negative, got $width" }
     require(value >= BigInteger.ZERO) { "value must be non-negative, got $value" }
-    require(value < BigInteger.TWO.pow(width)) { "value $value does not fit in $width bits" }
+    if (width > 0) {
+      require(value < BigInteger.TWO.pow(width)) { "value $value does not fit in $width bits" }
+    } else {
+      require(value == BigInteger.ZERO) { "zero-width BitVector must have value 0" }
+    }
   }
 
   // Arithmetic — all results are truncated to [width] bits.
