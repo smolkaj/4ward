@@ -79,10 +79,11 @@ wrote it. This is how production compilers like GCC and LLVM are tested. See
 
 ## Why Kotlin?
 
-The P4 ecosystem is C++. So why isn't 4ward? Since no one needs to hold
-language minutiae in their head — the [AI writes the code](docs/AI_WORKFLOW.md)
-— we're free to pick the best language for the problem, not the most familiar
-one.
+The P4 ecosystem is C++. So why isn't 4ward?
+
+Since no one needs to hold language minutiae in their head — the
+[AI writes the code](docs/AI_WORKFLOW.md) — we're free to pick the best
+language for the problem, not the most familiar one.
 
 **Why not C++?** Its top strengths — speed, ecosystem familiarity —
 don't matter here. Its top weaknesses — compile times, complexity — matter a lot.
@@ -99,10 +100,6 @@ ergonomics (sealed classes, pattern matching).
 **You don't need to know Kotlin to contribute to 4ward!**
 [The AI writes the code](docs/AI_WORKFLOW.md) — you just need to know your
 requirements.
-
-**You don't need to know Kotlin to use 4ward.** The p4c backend is C++, and the
-two halves communicate through a language-neutral protobuf IR — the language
-choice is invisible to users and the wider P4 ecosystem.
 
 ## Quick start
 
