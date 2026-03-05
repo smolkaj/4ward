@@ -76,18 +76,7 @@ class Interpreter(
 
   fun runParser(parserName: String, env: Environment) {
     val parser = parsers[parserName] ?: error("unknown parser: $parserName")
-    env.pushScope()
-    try {
-      for (varDecl in parser.localVarsList) {
-        val init =
-          if (varDecl.hasInitializer()) evalExpr(varDecl.initializer, env)
-          else defaultValue(varDecl.type, types)
-        env.define(varDecl.name, init)
-      }
-      runParserState(parser, "start", env)
-    } finally {
-      env.popScope()
-    }
+    withLocalScope(parser.localVarsList, env) { runParserState(parser, "start", env) }
   }
 
   private fun runParserState(parser: ParserDecl, startState: String, env: Environment) {
@@ -164,15 +153,24 @@ class Interpreter(
 
   fun runControl(controlName: String, env: Environment) {
     val control = controls[controlName] ?: error("unknown control: $controlName")
+    withLocalScope(control.localVarsList, env) { execBlock(control.applyBodyList, env) }
+  }
+
+  /** Pushes a scope, defines [localVars], runs [body], then pops the scope. */
+  private inline fun withLocalScope(
+    localVars: List<fourward.ir.v1.VarDecl>,
+    env: Environment,
+    body: () -> Unit,
+  ) {
     env.pushScope()
     try {
-      for (varDecl in control.localVarsList) {
+      for (varDecl in localVars) {
         val init =
           if (varDecl.hasInitializer()) evalExpr(varDecl.initializer, env)
           else defaultValue(varDecl.type, types)
         env.define(varDecl.name, init)
       }
-      execBlock(control.applyBodyList, env)
+      body()
     } finally {
       env.popScope()
     }
@@ -928,28 +926,20 @@ class Interpreter(
   // -------------------------------------------------------------------------
 
   private fun setLValue(lhs: Expr, value: Value, env: Environment) {
+    // P4 assignment is copy-by-value. Headers and structs carry mutable fields maps,
+    // so we copy them to prevent aliasing (e.g. `x = h.h; x.a = 2` must not modify `h.h.a`).
+    val copy =
+      when (value) {
+        is HeaderVal -> value.copy()
+        is StructVal -> value.copy()
+        else -> value
+      }
     when {
       lhs.hasNameRef() -> {
-        // P4 assignment is copy-by-value. Headers and structs carry a mutable fields map,
-        // so we copy them here to prevent aliasing (e.g. `x = h.h; x.a = 2` must not
-        // modify `h.h.a`).
-        val copy =
-          when (value) {
-            is HeaderVal -> value.copy()
-            is StructVal -> value.copy()
-            else -> value
-          }
         env.update(lhs.nameRef.name, copy)
       }
       lhs.hasFieldAccess() -> {
         val target = evalExpr(lhs.fieldAccess.expr, env)
-        // Copy aggregates to prevent aliasing (same reason as nameRef above).
-        val copy =
-          when (value) {
-            is HeaderVal -> value.copy()
-            is StructVal -> value.copy()
-            else -> value
-          }
         when (target) {
           is HeaderVal -> target.fields[lhs.fieldAccess.fieldName] = copy
           is StructVal -> target.fields[lhs.fieldAccess.fieldName] = copy
@@ -959,7 +949,6 @@ class Interpreter(
       lhs.hasArrayIndex() -> {
         val stack = evalExpr(lhs.arrayIndex.expr, env) as HeaderStackVal
         val index = intValue(evalExpr(lhs.arrayIndex.index, env))
-        val copy = if (value is HeaderVal) value.copy() else value
         stack.headers[index] = copy as HeaderVal
       }
       lhs.hasSlice() -> {
