@@ -21,8 +21,13 @@ class TableStore {
   // tableName -> list of entries, ordered by insertion (priority is explicit in the entry)
   private val tables: MutableMap<String, MutableList<TableEntry>> = mutableMapOf()
 
-  // tableName -> default action name (from p4info)
-  private val defaultActions: MutableMap<String, String> = mutableMapOf()
+  // tableName -> default action name + arguments (from p4info)
+  private data class DefaultAction(
+    val name: String,
+    val params: List<p4.v1.P4RuntimeOuterClass.Action.Param> = emptyList(),
+  )
+
+  private val defaultActions: MutableMap<String, DefaultAction> = mutableMapOf()
 
   // For unit tests that cannot easily construct TableEntry protos: makes lookup() return
   // hit=true with this action rather than searching the entry list.
@@ -48,8 +53,12 @@ class TableStore {
     forcedHits.clear()
   }
 
-  fun setDefaultAction(tableName: String, actionName: String) {
-    defaultActions[tableName] = actionName
+  fun setDefaultAction(
+    tableName: String,
+    actionName: String,
+    params: List<p4.v1.P4RuntimeOuterClass.Action.Param> = emptyList(),
+  ) {
+    defaultActions[tableName] = DefaultAction(actionName, params)
   }
 
   // -------------------------------------------------------------------------
@@ -78,7 +87,12 @@ class TableStore {
   // Lookup
   // -------------------------------------------------------------------------
 
-  data class LookupResult(val hit: Boolean, val entry: TableEntry?, val actionName: String)
+  data class LookupResult(
+    val hit: Boolean,
+    val entry: TableEntry?,
+    val actionName: String,
+    val actionParams: List<p4.v1.P4RuntimeOuterClass.Action.Param> = emptyList(),
+  )
 
   /**
    * Looks up [keyValues] in [tableName]. Returns the best-matching entry or, on a miss, the default
@@ -93,7 +107,7 @@ class TableStore {
     }
 
     val entries = tables[tableName] ?: emptyList<TableEntry>()
-    val defaultAction = defaultActions[tableName] ?: "NoAction"
+    val default = defaultActions[tableName] ?: DefaultAction("NoAction")
 
     data class Candidate(val entry: TableEntry, val score: Long)
 
@@ -104,7 +118,8 @@ class TableStore {
       }
 
     val best =
-      candidates.maxByOrNull { it.score } ?: return LookupResult(false, null, defaultAction)
+      candidates.maxByOrNull { it.score }
+        ?: return LookupResult(false, null, default.name, default.params)
 
     val actionId = best.entry.action.action.actionId
     val actionName = actionNameById[actionId] ?: error("unknown action ID: $actionId")
