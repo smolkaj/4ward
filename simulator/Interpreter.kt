@@ -407,9 +407,10 @@ class Interpreter(
       BinaryOperator.BIT_AND -> liftBitwise(left, right) { a, b -> a and b }
       BinaryOperator.BIT_OR -> liftBitwise(left, right) { a, b -> a or b }
       BinaryOperator.BIT_XOR -> liftBitwise(left, right) { a, b -> a xor b }
-      // bit<N>-only operations (no int<N> equivalent in P4 spec).
+      // bit<N>-only: division/modulo are unsigned-only in P4.
       BinaryOperator.DIV -> BitVal((left as BitVal).bits / (right as BitVal).bits)
       BinaryOperator.MOD -> BitVal((left as BitVal).bits % (right as BitVal).bits)
+      // Saturating ops can't use liftBitwise: signed/unsigned have different clamp bounds.
       BinaryOperator.ADD_SAT ->
         when (left) {
           is BitVal -> BitVal(left.bits.addSat((right as BitVal).bits))
