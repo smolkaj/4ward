@@ -318,10 +318,11 @@ if [[ -n "${DIFF_FILE}" ]]; then
   # Strip git's a/ b/ prefixes so paths match LCOV SF: lines.
   STRIPPED_DIFF="${COVERAGE_WORKDIR}/stripped.diff"
   sed 's|^--- a/|--- |; s|^+++ b/|+++ |' "${DIFF_FILE}" > "${STRIPPED_DIFF}"
-  # genhtml resolves diff paths to absolute but keeps LCOV SF: paths relative;
-  # suppress the resulting path-mismatch error (diff coverage numbers are
-  # computed separately by diff-coverage.sh and are unaffected).
-  GENHTML_ARGS+=(--diff-file "${STRIPPED_DIFF}" --ignore-errors path)
+  # genhtml resolves diff paths to absolute but keeps LCOV SF: paths relative
+  # (path), and line-number shifts between baseline and current cause unmapped
+  # TLA categories (unmapped). Suppress both — diff coverage numbers are
+  # computed separately by diff-coverage.sh and are unaffected.
+  GENHTML_ARGS+=(--diff-file "${STRIPPED_DIFF}" --ignore-errors path,unmapped)
 fi
 
 if command -v genhtml >/dev/null 2>&1; then

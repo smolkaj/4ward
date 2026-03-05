@@ -86,7 +86,12 @@ Find the relevant failing test, implement the missing feature in `simulator/`,
 and confirm no other tests regress: `bazel test //...`.
 
 If you take a shortcut or skip a corner case to make progress, note it in
-[LIMITATIONS.md](LIMITATIONS.md) so it doesn't get forgotten.
+[LIMITATIONS.md](LIMITATIONS.md) so it doesn't get forgotten, and leave a
+`TODO(<scope>)` comment at the site — e.g. `TODO(PR 3): update names to match
+actual simulator output`. The scope should identify the task, PR, or issue that
+will resolve it. This applies to any code that is intentionally incomplete:
+shortcuts, known limitations, placeholder/approximate data, stub
+implementations.
 
 ## P4 language notes
 

@@ -1,0 +1,108 @@
+# Expected trace tree for action_selector_nested: depth-2 fork tree.
+# stage1 forks into 2 branches; within each, stage2 forks into 2 branches.
+#
+# TODO(PR 3): update with actual member labels/params once action selector
+# forking is implemented. Current structure and values are placeholders.
+events {
+  parser_transition {
+    parser_name: "MyParser"
+    from_state: "start"
+    to_state: "accept"
+  }
+}
+events {
+  table_lookup {
+    table_name: "MyIngress.stage1"
+    hit: true
+    action_name: "MyIngress.set_tag"
+  }
+}
+fork {
+  reason: ACTION_SELECTOR
+  branches {
+    label: "member_0"
+    subtree {
+      events {
+        action_execution {
+          action_name: "MyIngress.set_tag"
+          params { key: "tag" value: "\001" }
+        }
+      }
+      events {
+        table_lookup {
+          table_name: "MyIngress.stage2"
+          hit: true
+          action_name: "MyIngress.set_port"
+        }
+      }
+      fork {
+        reason: ACTION_SELECTOR
+        branches {
+          label: "member_0"
+          subtree {
+            events {
+              action_execution {
+                action_name: "MyIngress.set_port"
+                params { key: "port" value: "\000\001" }
+              }
+            }
+          }
+        }
+        branches {
+          label: "member_1"
+          subtree {
+            events {
+              action_execution {
+                action_name: "MyIngress.set_port"
+                params { key: "port" value: "\000\002" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  branches {
+    label: "member_1"
+    subtree {
+      events {
+        action_execution {
+          action_name: "MyIngress.set_tag"
+          params { key: "tag" value: "\002" }
+        }
+      }
+      events {
+        table_lookup {
+          table_name: "MyIngress.stage2"
+          hit: true
+          action_name: "MyIngress.set_port"
+        }
+      }
+      fork {
+        reason: ACTION_SELECTOR
+        branches {
+          label: "member_0"
+          subtree {
+            events {
+              action_execution {
+                action_name: "MyIngress.set_port"
+                params { key: "port" value: "\000\001" }
+              }
+            }
+          }
+        }
+        branches {
+          label: "member_1"
+          subtree {
+            events {
+              action_execution {
+                action_name: "MyIngress.set_port"
+                params { key: "port" value: "\000\002" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

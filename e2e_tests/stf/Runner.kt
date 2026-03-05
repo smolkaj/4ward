@@ -2,13 +2,7 @@ package fourward.e2e
 
 import com.google.protobuf.ByteString
 import fourward.ir.v1.PipelineConfig
-import fourward.sim.v1.LoadPipelineRequest
-import fourward.sim.v1.ProcessPacketRequest
-import fourward.sim.v1.SimRequest
-import fourward.sim.v1.SimResponse
 import fourward.sim.v1.WriteEntryRequest
-import java.io.DataInputStream
-import java.io.DataOutputStream
 import java.math.BigInteger
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -33,9 +27,13 @@ private val ARRAY_INDEX_REGEX = Regex("\\$(\\d+)")
  * 5. Reports pass/fail.
  */
 class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPath: Path) {
-  // The run function is a single sequential protocol: load pipeline → install entries →
-  // send packets → compare. Splitting it would require passing mutable state between
-  // helper functions, making the protocol harder to follow.
+
+  /**
+   * Runs an STF test: loads the pipeline, installs entries, sends packets, and compares output.
+   *
+   * Cross-port ordering is ignored; within the same port, outputs are matched FIFO (first output on
+   * that port satisfies the first expect for that port). This matches BMv2's STF semantics.
+   */
   @Suppress("NestedBlockDepth")
   fun run(stfPath: Path): TestResult {
     val stf = StfFile.parse(stfPath)
@@ -43,54 +41,25 @@ class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPat
     com.google.protobuf.TextFormat.merge(pipelineConfigPath.toFile().readText(), builder)
     val config = builder.build()
 
-    val process = ProcessBuilder(simulatorBinary.toString()).redirectErrorStream(false).start()
-
-    val input = DataInputStream(process.inputStream.buffered())
-    val output = DataOutputStream(process.outputStream.buffered())
-
-    try {
-      // Load the pipeline.
-      sendRequest(
-        output,
-        SimRequest.newBuilder()
-          .setLoadPipeline(LoadPipelineRequest.newBuilder().setConfig(config))
-          .build(),
-      )
-      val loadResp = readResponse(input)
+    SimulatorClient(simulatorBinary).use { sim ->
+      val loadResp = sim.loadPipeline(config)
       if (loadResp.hasError()) {
         return TestResult.Failure("LoadPipeline failed: ${loadResp.error.message}")
       }
 
-      // Install table entries.
       for (directive in stf.tableEntries) {
-        val writeReq = resolveTableEntry(directive, config.p4Info)
-        sendRequest(output, SimRequest.newBuilder().setWriteEntry(writeReq).build())
-        val writeResp = readResponse(input)
+        val writeResp = sim.writeEntry(resolveStfTableEntry(directive, config.p4Info))
         if (writeResp.hasError()) {
           return TestResult.Failure("WriteEntry failed: ${writeResp.error.message}")
         }
       }
 
-      // Send all packets and collect outputs, then match expects by port.
-      // Cross-port ordering is ignored; within the same port, outputs are
-      // matched FIFO (first output on that port satisfies the first expect
-      // for that port). This matches BMv2's STF semantics.
       val failures = mutableListOf<String>()
       data class Output(val port: Int, val payload: ByteArray)
       val outputQueue = mutableListOf<Output>()
 
       for (packet in stf.packets) {
-        sendRequest(
-          output,
-          SimRequest.newBuilder()
-            .setProcessPacket(
-              ProcessPacketRequest.newBuilder()
-                .setIngressPort(packet.ingressPort)
-                .setPayload(com.google.protobuf.ByteString.copyFrom(packet.payload))
-            )
-            .build(),
-        )
-        val resp = readResponse(input)
+        val resp = sim.processPacket(packet.ingressPort, packet.payload)
         if (resp.hasError()) {
           failures += "ProcessPacket failed: ${resp.error.message}"
           continue
@@ -100,7 +69,6 @@ class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPat
         }
       }
 
-      // Match expects against the output queue in order.
       for (expected in stf.expects) {
         val idx = outputQueue.indexOfFirst { it.port == expected.port }
         if (idx < 0) {
@@ -118,131 +86,7 @@ class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPat
 
       return if (failures.isEmpty()) TestResult.Pass
       else TestResult.Failure(failures.joinToString("\n"))
-    } finally {
-      process.destroy()
     }
-  }
-
-  private fun resolveTableEntry(
-    directive: StfTableDirective,
-    p4info: P4InfoOuterClass.P4Info,
-  ): WriteEntryRequest {
-    val table =
-      p4info.tablesList.find {
-        it.preamble.alias == directive.tableName || it.preamble.name == directive.tableName
-      }
-        // BMv2 STF files may use partially-qualified names like "c.t" for
-        // "ingress.c.t". Fall back to suffix matching.
-        ?: p4info.tablesList.find { it.preamble.name.endsWith(".${directive.tableName}") }
-        ?: error("unknown table: ${directive.tableName}")
-
-    val action =
-      p4info.actionsList.find {
-        it.preamble.alias == directive.actionName || it.preamble.name == directive.actionName
-      }
-        ?: p4info.actionsList.find { it.preamble.name.endsWith(".${directive.actionName}") }
-        ?: error("unknown action: ${directive.actionName}")
-
-    val paramsList =
-      action.paramsList.mapIndexed { i, paramInfo ->
-        // Named params (e.g. "val:0x7f") are resolved by name; unnamed by position.
-        val raw =
-          directive.actionParams.find { it.extractParamName() == paramInfo.name }
-            ?: directive.actionParams.getOrNull(i)
-            ?: error("missing param ${paramInfo.name} for action ${directive.actionName}")
-        P4RuntimeOuterClass.Action.Param.newBuilder()
-          .setParamId(paramInfo.id)
-          .setValue(encodeValue(raw.stripNamedParamPrefix(), paramInfo.bitwidth))
-          .build()
-      }
-
-    val tableEntry =
-      P4RuntimeOuterClass.TableEntry.newBuilder()
-        .setTableId(table.preamble.id)
-        .setAction(
-          P4RuntimeOuterClass.TableAction.newBuilder()
-            .setAction(
-              P4RuntimeOuterClass.Action.newBuilder()
-                .setActionId(action.preamble.id)
-                .addAllParams(paramsList)
-            )
-        )
-
-    val updateType =
-      when (directive) {
-        is StfAddEntry -> {
-          tableEntry.addAllMatch(
-            directive.matches.map { m -> resolveMatchField(m, table, directive.tableName) }
-          )
-          if (directive.priority != null) tableEntry.setPriority(directive.priority)
-          P4RuntimeOuterClass.Update.Type.INSERT
-        }
-        is StfSetDefault -> {
-          tableEntry.setIsDefaultAction(true)
-          P4RuntimeOuterClass.Update.Type.MODIFY
-        }
-      }
-
-    return WriteEntryRequest.newBuilder()
-      .setUpdate(
-        P4RuntimeOuterClass.Update.newBuilder()
-          .setType(updateType)
-          .setEntity(P4RuntimeOuterClass.Entity.newBuilder().setTableEntry(tableEntry))
-      )
-      .build()
-  }
-
-  private fun resolveMatchField(
-    m: StfMatchField,
-    table: P4InfoOuterClass.Table,
-    tableName: String,
-  ): P4RuntimeOuterClass.FieldMatch {
-    // BMv2 STF files strip the outermost struct prefix from field names
-    // (e.g. p4info "hdrs.data.f1" → STF "data.f1") and use $N for array
-    // indices (p4info "extra[0].h" → STF "extra$0.h").
-    val stfNorm = m.fieldName.replace(ARRAY_INDEX_REGEX, "[$1]")
-    val mf =
-      table.matchFieldsList.find { it.name == m.fieldName || it.name == stfNorm }
-        ?: table.matchFieldsList.find {
-          val suffix = it.name.substringAfter(".")
-          suffix == m.fieldName || suffix == stfNorm
-        }
-        ?: error("unknown match field '${m.fieldName}' in table '$tableName'")
-    val fmBuilder = P4RuntimeOuterClass.FieldMatch.newBuilder().setFieldId(mf.id)
-    when (m.kind) {
-      MatchKind.EXACT ->
-        fmBuilder.setExact(
-          P4RuntimeOuterClass.FieldMatch.Exact.newBuilder()
-            .setValue(encodeValue(m.value, mf.bitwidth))
-        )
-      MatchKind.LPM ->
-        fmBuilder.setLpm(
-          P4RuntimeOuterClass.FieldMatch.LPM.newBuilder()
-            .setValue(encodeValue(m.value, mf.bitwidth))
-            .setPrefixLen(m.prefixLen!!)
-        )
-      MatchKind.TERNARY ->
-        fmBuilder.setTernary(
-          P4RuntimeOuterClass.FieldMatch.Ternary.newBuilder()
-            .setValue(encodeValue(m.value, mf.bitwidth))
-            .setMask(encodeValue(m.mask!!, mf.bitwidth))
-        )
-    }
-    return fmBuilder.build()
-  }
-
-  private fun sendRequest(output: DataOutputStream, request: SimRequest) {
-    val bytes = request.toByteArray()
-    output.writeInt(bytes.size)
-    output.write(bytes)
-    output.flush()
-  }
-
-  private fun readResponse(input: DataInputStream): SimResponse {
-    val length = input.readInt()
-    val bytes = ByteArray(length)
-    input.readFully(bytes)
-    return SimResponse.parseFrom(bytes)
   }
 }
 
@@ -422,6 +266,119 @@ data class StfFile(
       return name to params
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// Table entry resolution
+// ---------------------------------------------------------------------------
+
+/** Resolves an STF table directive against the p4info to produce a [WriteEntryRequest]. */
+fun resolveStfTableEntry(
+  directive: StfTableDirective,
+  p4info: P4InfoOuterClass.P4Info,
+): WriteEntryRequest {
+  val table =
+    p4info.tablesList.find {
+      it.preamble.alias == directive.tableName || it.preamble.name == directive.tableName
+    }
+      // BMv2 STF files may use partially-qualified names like "c.t" for
+      // "ingress.c.t". Fall back to suffix matching.
+      ?: p4info.tablesList.find { it.preamble.name.endsWith(".${directive.tableName}") }
+      ?: error("unknown table: ${directive.tableName}")
+
+  val action =
+    p4info.actionsList.find {
+      it.preamble.alias == directive.actionName || it.preamble.name == directive.actionName
+    }
+      ?: p4info.actionsList.find { it.preamble.name.endsWith(".${directive.actionName}") }
+      ?: error("unknown action: ${directive.actionName}")
+
+  val paramsList =
+    action.paramsList.mapIndexed { i, paramInfo ->
+      // Named params (e.g. "val:0x7f") are resolved by name; unnamed by position.
+      val raw =
+        directive.actionParams.find { it.extractParamName() == paramInfo.name }
+          ?: directive.actionParams.getOrNull(i)
+          ?: error("missing param ${paramInfo.name} for action ${directive.actionName}")
+      P4RuntimeOuterClass.Action.Param.newBuilder()
+        .setParamId(paramInfo.id)
+        .setValue(encodeValue(raw.stripNamedParamPrefix(), paramInfo.bitwidth))
+        .build()
+    }
+
+  val tableEntry =
+    P4RuntimeOuterClass.TableEntry.newBuilder()
+      .setTableId(table.preamble.id)
+      .setAction(
+        P4RuntimeOuterClass.TableAction.newBuilder()
+          .setAction(
+            P4RuntimeOuterClass.Action.newBuilder()
+              .setActionId(action.preamble.id)
+              .addAllParams(paramsList)
+          )
+      )
+
+  val updateType =
+    when (directive) {
+      is StfAddEntry -> {
+        tableEntry.addAllMatch(
+          directive.matches.map { m -> resolveStfMatchField(m, table, directive.tableName) }
+        )
+        if (directive.priority != null) tableEntry.setPriority(directive.priority)
+        P4RuntimeOuterClass.Update.Type.INSERT
+      }
+      is StfSetDefault -> {
+        tableEntry.setIsDefaultAction(true)
+        P4RuntimeOuterClass.Update.Type.MODIFY
+      }
+    }
+
+  return WriteEntryRequest.newBuilder()
+    .setUpdate(
+      P4RuntimeOuterClass.Update.newBuilder()
+        .setType(updateType)
+        .setEntity(P4RuntimeOuterClass.Entity.newBuilder().setTableEntry(tableEntry))
+    )
+    .build()
+}
+
+private fun resolveStfMatchField(
+  m: StfMatchField,
+  table: P4InfoOuterClass.Table,
+  tableName: String,
+): P4RuntimeOuterClass.FieldMatch {
+  // BMv2 STF files strip the outermost struct prefix from field names
+  // (e.g. p4info "hdrs.data.f1" → STF "data.f1") and use $N for array
+  // indices (p4info "extra[0].h" → STF "extra$0.h").
+  val stfNorm = m.fieldName.replace(ARRAY_INDEX_REGEX, "[$1]")
+  val mf =
+    table.matchFieldsList.find { it.name == m.fieldName || it.name == stfNorm }
+      ?: table.matchFieldsList.find {
+        val suffix = it.name.substringAfter(".")
+        suffix == m.fieldName || suffix == stfNorm
+      }
+      ?: error("unknown match field '${m.fieldName}' in table '$tableName'")
+  val fmBuilder = P4RuntimeOuterClass.FieldMatch.newBuilder().setFieldId(mf.id)
+  when (m.kind) {
+    MatchKind.EXACT ->
+      fmBuilder.setExact(
+        P4RuntimeOuterClass.FieldMatch.Exact.newBuilder()
+          .setValue(encodeValue(m.value, mf.bitwidth))
+      )
+    MatchKind.LPM ->
+      fmBuilder.setLpm(
+        P4RuntimeOuterClass.FieldMatch.LPM.newBuilder()
+          .setValue(encodeValue(m.value, mf.bitwidth))
+          .setPrefixLen(m.prefixLen!!)
+      )
+    MatchKind.TERNARY ->
+      fmBuilder.setTernary(
+        P4RuntimeOuterClass.FieldMatch.Ternary.newBuilder()
+          .setValue(encodeValue(m.value, mf.bitwidth))
+          .setMask(encodeValue(m.mask!!, mf.bitwidth))
+      )
+  }
+  return fmBuilder.build()
 }
 
 // ---------------------------------------------------------------------------

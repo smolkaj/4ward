@@ -1,0 +1,3 @@
+# action_selector_nested.stf — two selector tables, nested forks.
+
+packet 0 FFFFFFFFFFFF 000000000001 0800

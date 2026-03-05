@@ -1,0 +1,55 @@
+# Expected trace tree for action_selector_3: fork with 3 branches.
+# Parser events are shared (prefix); the fork occurs at the selector table.
+#
+# TODO(PR 3): update with actual member labels/params once action selector
+# forking is implemented. Current labels and param values are placeholders.
+events {
+  parser_transition {
+    parser_name: "MyParser"
+    from_state: "start"
+    to_state: "accept"
+  }
+}
+events {
+  table_lookup {
+    table_name: "MyIngress.ecmp"
+    hit: true
+    action_name: "MyIngress.set_port"
+  }
+}
+fork {
+  reason: ACTION_SELECTOR
+  branches {
+    label: "member_0"
+    subtree {
+      events {
+        action_execution {
+          action_name: "MyIngress.set_port"
+          params { key: "port" value: "\000\001" }
+        }
+      }
+    }
+  }
+  branches {
+    label: "member_1"
+    subtree {
+      events {
+        action_execution {
+          action_name: "MyIngress.set_port"
+          params { key: "port" value: "\000\002" }
+        }
+      }
+    }
+  }
+  branches {
+    label: "member_2"
+    subtree {
+      events {
+        action_execution {
+          action_name: "MyIngress.set_port"
+          params { key: "port" value: "\000\003" }
+        }
+      }
+    }
+  }
+}

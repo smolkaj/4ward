@@ -1,0 +1,35 @@
+# Expected trace tree for action_selector_miss: zero-fork tree on miss.
+# The selector table misses, so the default action (drop) runs directly
+# with no forking.
+#
+# TODO(PR 3): update to match actual simulator output for a selector table
+# miss. Event sequence and names are approximate.
+events {
+  parser_transition {
+    parser_name: "MyParser"
+    from_state: "start"
+    to_state: "accept"
+  }
+}
+events {
+  table_lookup {
+    table_name: "MyIngress.ecmp"
+    action_name: "MyIngress.drop"
+  }
+}
+events {
+  action_execution {
+    action_name: "MyIngress.drop"
+  }
+}
+events {
+  extern_call {
+    extern_instance_name: "mark_to_drop"
+    method: "__call__"
+  }
+}
+events {
+  drop {
+    reason: MARK_TO_DROP
+  }
+}

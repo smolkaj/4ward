@@ -1,0 +1,5 @@
+# action_selector_3.stf — 3 members in the ECMP group.
+# Table entries and action profile members will be installed via P4Runtime
+# once the simulator supports action profiles.  For now, just send a packet.
+
+packet 0 FFFFFFFFFFFF 000000000001 0800

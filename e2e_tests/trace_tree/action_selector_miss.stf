@@ -1,0 +1,4 @@
+# action_selector_miss.stf — no table entries installed, so lookup misses.
+# The default action (drop) should run without forking.
+
+packet 0 FFFFFFFFFFFF 000000000001 0800

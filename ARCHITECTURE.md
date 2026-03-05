@@ -137,33 +137,23 @@ We also have:
 - **BMv2 diff testing** (maybe, someday): run the same inputs through BMv2 and
   4ward and compare outputs.
 
-## Trace trees (future)
+## Trace trees
 
-Today, 4ward returns a single execution trace per packet — a linear sequence of
-events. But P4 programs can have non-deterministic choice points, most notably
-**action selectors** where the selected group member depends on a hash that is
-opaque to the programmer. Other sources include action profiles, packet
-replication (clone, multicast), and random externs.
+4ward's output format is a **trace tree** (`TraceTree` in `simulator.proto`) —
+a recursive structure where each node contains a sequence of events and an
+optional fork. At non-deterministic choice points (action selectors, clone,
+multicast), execution forks into branches, one per possible outcome. A program
+with no non-determinism produces a zero-fork tree that is structurally
+equivalent to a flat trace — there is no separate "flat trace" format.
 
-The key insight: even when these choices are technically deterministic (governed
-by a hash algorithm or controller configuration), it's often more useful to
-reason about them as non-deterministic — "what *could* happen to my packet?"
-rather than "what happens with this specific hash seed?"
+The key insight: even when choices like action selector hashing are technically
+deterministic, it's often more useful to reason about them as
+non-deterministic — "what *could* happen to my packet?" rather than "what
+happens with this specific hash seed?"
 
-4ward will support a mode where, instead of picking one path, the simulator
-forks at every non-deterministic choice point and returns a **trace tree**: a
-tree of events where each fork node is labeled with the choice being made, and
-the subtrees represent the possible continuations. Since execution paths share
-a common prefix (parsing and early pipeline stages are typically deterministic),
-the tree is much more compact than a flat list of traces.
-
-**Control mechanisms:**
-
-- A simulator flag (e.g. `--nondeterministic-selectors`) to treat all action
-  selectors as non-deterministic — fork at every selector instead of evaluating
-  the hash.
-- P4 annotations for fine-grained control: mark specific selectors as
-  non-deterministic (or deterministic) regardless of the global flag.
+**Status:** The `TraceTree` proto schema is defined and the simulator produces
+zero-fork trees. Forking (action selectors, clone, multicast) is under active
+development — see [ROADMAP.md](ROADMAP.md) Track 3.
 
 **Why this matters:**
 

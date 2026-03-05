@@ -38,9 +38,12 @@ interface Architecture {
 /**
  * The result of running a packet through the pipeline.
  *
- * [outputPackets] are the packets to emit (port, payload). [trace] is the combined execution trace
- * across all pipeline stages.
+ * [outputPackets] are the packets to emit (port, payload). [trace] is the execution trace tree
+ * across all pipeline stages, with forks at non-deterministic choice points.
  */
-data class PipelineResult(val outputPackets: List<OutputPacket>, val trace: fourward.sim.v1.Trace)
+data class PipelineResult(
+  val outputPackets: List<OutputPacket>,
+  val trace: fourward.sim.v1.TraceTree,
+)
 
 data class OutputPacket(val port: UInt, val payload: ByteArray)
