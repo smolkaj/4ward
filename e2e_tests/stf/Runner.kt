@@ -11,6 +11,8 @@ import p4.v1.P4RuntimeOuterClass
 
 /** BMv2 STF files use `$N` for array indices; normalize to `[N]`. */
 private val ARRAY_INDEX_REGEX = Regex("\\$(\\d+)")
+private val WHITESPACE_REGEX = Regex("\\s+")
+private val INTEGER_REGEX = Regex("\\d+")
 
 /**
  * Runs a single STF test against the 4ward simulator.
@@ -47,6 +49,37 @@ class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPat
         return TestResult.Failure("LoadPipeline failed: ${loadResp.error.message}")
       }
 
+      // Install PRE entries (clone sessions, multicast groups).
+      for (mirror in stf.pre.mirroringAdds) {
+        val writeResp = sim.writeEntry(resolveStfMirroringAdd(mirror))
+        if (writeResp.hasError()) {
+          return TestResult.Failure("WriteEntry (mirroring) failed: ${writeResp.error.message}")
+        }
+      }
+      val mcNodes = stf.pre.mcNodeCreates.associateBy { it.rid }
+      for (mcGroup in stf.pre.mcGroupCreates) {
+        val writeResp =
+          sim.writeEntry(
+            resolveStfMulticastGroup(mcGroup.groupId, mcNodes, stf.pre.mcNodeAssociates)
+          )
+        if (writeResp.hasError()) {
+          return TestResult.Failure("WriteEntry (multicast) failed: ${writeResp.error.message}")
+        }
+      }
+
+      // Install action profile members, groups, and table entries.
+      for (member in stf.memberDirectives) {
+        val writeResp = sim.writeEntry(resolveStfMember(member, config.p4Info))
+        if (writeResp.hasError()) {
+          return TestResult.Failure("WriteEntry (member) failed: ${writeResp.error.message}")
+        }
+      }
+      for (group in stf.groupDirectives) {
+        val writeResp = sim.writeEntry(resolveStfGroup(group, config.p4Info))
+        if (writeResp.hasError()) {
+          return TestResult.Failure("WriteEntry (group) failed: ${writeResp.error.message}")
+        }
+      }
       for (directive in stf.tableEntries) {
         val writeResp = sim.writeEntry(resolveStfTableEntry(directive, config.p4Info))
         if (writeResp.hasError()) {
@@ -115,11 +148,20 @@ fun runStfTest(testName: String, pkg: String = "e2e_tests/$testName"): TestResul
 fun runStf(runfiles: String, configPath: Path, stfPath: Path): TestResult =
   StfRunner(Paths.get(runfiles, "_main/simulator/simulator"), configPath).run(stfPath)
 
+/** Packet Replication Engine configuration parsed from STF directives. */
+data class StfPreConfig(
+  val mirroringAdds: List<StfMirroringAdd> = emptyList(),
+  val mcGroupCreates: List<StfMcGroupCreate> = emptyList(),
+  val mcNodeCreates: List<StfMcNodeCreate> = emptyList(),
+  val mcNodeAssociates: List<StfMcNodeAssociate> = emptyList(),
+)
+
 /** A parsed .stf file. */
 data class StfFile(
   val tableEntries: List<StfTableDirective>,
   val memberDirectives: List<StfMemberDirective>,
   val groupDirectives: List<StfGroupDirective>,
+  val pre: StfPreConfig,
   val packets: List<StfPacket>,
   val expects: List<StfExpectedOutput>,
 ) {
@@ -133,8 +175,13 @@ data class StfFile(
      * - `setdefault <table> <action(params)>` — override a table's default action
      * - `member <profile> <member_id> <action(params)>` — action profile member
      * - `group <profile> <group_id> <member_id>...` — action profile group
+     * - `mirroring_add <session_id> <egress_port>` — clone session
+     * - `mc_mgrp_create <group_id>` — multicast group
+     * - `mc_node_create <rid> <port> [<port> ...]` — multicast node
+     * - `mc_node_associate <group_id> <node_handle>` — associate node with group
      * - `# comment`
      */
+    @Suppress("CyclomaticComplexMethod")
     fun parse(path: Path): StfFile {
       val lines =
         path
@@ -146,11 +193,15 @@ data class StfFile(
       val tableEntries = mutableListOf<StfTableDirective>()
       val memberDirectives = mutableListOf<StfMemberDirective>()
       val groupDirectives = mutableListOf<StfGroupDirective>()
+      val mirroringAdds = mutableListOf<StfMirroringAdd>()
+      val mcGroupCreates = mutableListOf<StfMcGroupCreate>()
+      val mcNodeCreates = mutableListOf<StfMcNodeCreate>()
+      val mcNodeAssociates = mutableListOf<StfMcNodeAssociate>()
       val packets = mutableListOf<StfPacket>()
       val expects = mutableListOf<StfExpectedOutput>()
 
       for (line in lines) {
-        val tokens = line.split(Regex("\\s+"))
+        val tokens = line.split(WHITESPACE_REGEX)
         when (tokens[0].lowercase()) {
           "packet" -> {
             val port = tokens[1].toInt()
@@ -169,10 +220,21 @@ data class StfFile(
           "setdefault" -> tableEntries += parseSetDefault(tokens.drop(1))
           "member" -> memberDirectives += parseMember(tokens.drop(1))
           "group" -> groupDirectives += parseGroup(tokens.drop(1))
+          "mirroring_add" -> mirroringAdds += parseMirroringAdd(tokens.drop(1))
+          "mc_mgrp_create" -> mcGroupCreates += parseMcGroupCreate(tokens.drop(1))
+          "mc_node_create" -> mcNodeCreates += parseMcNodeCreate(tokens.drop(1))
+          "mc_node_associate" -> mcNodeAssociates += parseMcNodeAssociate(tokens.drop(1))
         }
       }
 
-      return StfFile(tableEntries, memberDirectives, groupDirectives, packets, expects)
+      return StfFile(
+        tableEntries,
+        memberDirectives,
+        groupDirectives,
+        StfPreConfig(mirroringAdds, mcGroupCreates, mcNodeCreates, mcNodeAssociates),
+        packets,
+        expects,
+      )
     }
 
     /**
@@ -190,7 +252,7 @@ data class StfFile(
 
       // Optional priority: a token that is a plain integer (no ':' or '(').
       var priority: Int? = null
-      if (idx < tokens.size && tokens[idx].matches(Regex("\\d+"))) {
+      if (idx < tokens.size && tokens[idx].matches(INTEGER_REGEX)) {
         priority = tokens[idx].toInt()
         idx++
       }
@@ -311,6 +373,30 @@ data class StfFile(
       val memberIds = tokens.drop(2).map { it.toInt() }
       return StfGroupDirective(profileName, groupId, memberIds)
     }
+
+    /** Parses: `mirroring_add <session_id> <egress_port>` */
+    private fun parseMirroringAdd(tokens: List<String>): StfMirroringAdd {
+      require(tokens.size >= 2) { "mirroring_add needs session_id and egress_port" }
+      return StfMirroringAdd(tokens[0].toInt(), tokens[1].toInt())
+    }
+
+    /** Parses: `mc_mgrp_create <group_id>` */
+    private fun parseMcGroupCreate(tokens: List<String>): StfMcGroupCreate {
+      require(tokens.isNotEmpty()) { "mc_mgrp_create needs group_id" }
+      return StfMcGroupCreate(tokens[0].toInt())
+    }
+
+    /** Parses: `mc_node_create <rid> <port> [<port> ...]` */
+    private fun parseMcNodeCreate(tokens: List<String>): StfMcNodeCreate {
+      require(tokens.size >= 2) { "mc_node_create needs rid and at least one port" }
+      return StfMcNodeCreate(tokens[0].toInt(), tokens.drop(1).map { it.toInt() })
+    }
+
+    /** Parses: `mc_node_associate <group_id> <node_handle>` */
+    private fun parseMcNodeAssociate(tokens: List<String>): StfMcNodeAssociate {
+      require(tokens.size >= 2) { "mc_node_associate needs group_id and node_handle" }
+      return StfMcNodeAssociate(tokens[0].toInt(), tokens[1].toInt())
+    }
   }
 }
 
@@ -374,13 +460,10 @@ fun resolveStfTableEntry(
       }
     }
 
-  return WriteEntryRequest.newBuilder()
-    .setUpdate(
-      P4RuntimeOuterClass.Update.newBuilder()
-        .setType(updateType)
-        .setEntity(P4RuntimeOuterClass.Entity.newBuilder().setTableEntry(tableEntry))
-    )
-    .build()
+  return writeEntryRequest(
+    P4RuntimeOuterClass.Entity.newBuilder().setTableEntry(tableEntry).build(),
+    updateType,
+  )
 }
 
 /** Resolves an STF member directive to a P4Runtime WriteEntryRequest. */
@@ -413,13 +496,9 @@ fun resolveStfMember(
       )
       .build()
 
-  return WriteEntryRequest.newBuilder()
-    .setUpdate(
-      P4RuntimeOuterClass.Update.newBuilder()
-        .setType(P4RuntimeOuterClass.Update.Type.INSERT)
-        .setEntity(P4RuntimeOuterClass.Entity.newBuilder().setActionProfileMember(member))
-    )
-    .build()
+  return writeEntryRequest(
+    P4RuntimeOuterClass.Entity.newBuilder().setActionProfileMember(member).build()
+  )
 }
 
 /** Resolves an STF group directive to a P4Runtime WriteEntryRequest. */
@@ -443,14 +522,72 @@ fun resolveStfGroup(
       )
       .build()
 
-  return WriteEntryRequest.newBuilder()
-    .setUpdate(
-      P4RuntimeOuterClass.Update.newBuilder()
-        .setType(P4RuntimeOuterClass.Update.Type.INSERT)
-        .setEntity(P4RuntimeOuterClass.Entity.newBuilder().setActionProfileGroup(group))
-    )
-    .build()
+  return writeEntryRequest(
+    P4RuntimeOuterClass.Entity.newBuilder().setActionProfileGroup(group).build()
+  )
 }
+
+/** Resolves a mirroring_add directive to a P4Runtime WriteEntryRequest (clone session). */
+fun resolveStfMirroringAdd(directive: StfMirroringAdd): WriteEntryRequest {
+  val session =
+    P4RuntimeOuterClass.CloneSessionEntry.newBuilder()
+      .setSessionId(directive.sessionId)
+      .addReplicas(P4RuntimeOuterClass.Replica.newBuilder().setEgressPort(directive.egressPort))
+      .build()
+
+  return writeEntryRequest(
+    P4RuntimeOuterClass.Entity.newBuilder()
+      .setPacketReplicationEngineEntry(
+        P4RuntimeOuterClass.PacketReplicationEngineEntry.newBuilder().setCloneSessionEntry(session)
+      )
+      .build()
+  )
+}
+
+/**
+ * Resolves multicast STF directives into a P4Runtime WriteEntryRequest.
+ *
+ * BMv2 STF uses three directives to configure multicast: mc_mgrp_create, mc_node_create, and
+ * mc_node_associate. We merge them into a single MulticastGroupEntry with all replicas.
+ */
+fun resolveStfMulticastGroup(
+  groupId: Int,
+  nodes: Map<Int, StfMcNodeCreate>,
+  associations: List<StfMcNodeAssociate>,
+): WriteEntryRequest {
+  val replicas =
+    associations
+      .filter { it.groupId == groupId }
+      .flatMap { assoc ->
+        val node = nodes[assoc.nodeHandle] ?: error("unknown mc node handle: ${assoc.nodeHandle}")
+        node.ports.map { port ->
+          P4RuntimeOuterClass.Replica.newBuilder().setEgressPort(port).setInstance(node.rid).build()
+        }
+      }
+
+  val group =
+    P4RuntimeOuterClass.MulticastGroupEntry.newBuilder()
+      .setMulticastGroupId(groupId)
+      .addAllReplicas(replicas)
+      .build()
+
+  return writeEntryRequest(
+    P4RuntimeOuterClass.Entity.newBuilder()
+      .setPacketReplicationEngineEntry(
+        P4RuntimeOuterClass.PacketReplicationEngineEntry.newBuilder().setMulticastGroupEntry(group)
+      )
+      .build()
+  )
+}
+
+/** Wraps a P4Runtime Entity in a WriteEntryRequest with the given update type. */
+private fun writeEntryRequest(
+  entity: P4RuntimeOuterClass.Entity,
+  type: P4RuntimeOuterClass.Update.Type = P4RuntimeOuterClass.Update.Type.INSERT,
+): WriteEntryRequest =
+  WriteEntryRequest.newBuilder()
+    .setUpdate(P4RuntimeOuterClass.Update.newBuilder().setType(type).setEntity(entity))
+    .build()
 
 private fun findTable(name: String, p4info: P4InfoOuterClass.P4Info): P4InfoOuterClass.Table =
   p4info.tablesList.find { it.preamble.alias == name || it.preamble.name == name }
@@ -593,6 +730,14 @@ data class StfMemberDirective(
 )
 
 data class StfGroupDirective(val profileName: String, val groupId: Int, val memberIds: List<Int>)
+
+data class StfMirroringAdd(val sessionId: Int, val egressPort: Int)
+
+data class StfMcGroupCreate(val groupId: Int)
+
+data class StfMcNodeCreate(val rid: Int, val ports: List<Int>)
+
+data class StfMcNodeAssociate(val groupId: Int, val nodeHandle: Int)
 
 /** Strips surrounding double-quotes, if present. */
 private fun String.unquote(): String = removeSurrounding("\"")

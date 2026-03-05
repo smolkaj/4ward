@@ -5,6 +5,8 @@ import fourward.e2e.SimulatorClient
 import fourward.e2e.StfFile
 import fourward.e2e.resolveStfGroup
 import fourward.e2e.resolveStfMember
+import fourward.e2e.resolveStfMirroringAdd
+import fourward.e2e.resolveStfMulticastGroup
 import fourward.e2e.resolveStfTableEntry
 import fourward.ir.v1.PipelineConfig
 import fourward.sim.v1.TraceTree
@@ -83,6 +85,21 @@ class GoldenTraceTreeTest(private val testName: String) {
       val loadResp = sim.loadPipeline(config)
       if (loadResp.hasError()) fail("LoadPipeline failed: ${loadResp.error.message}")
 
+      // Install PRE entries (clone sessions, multicast groups).
+      for (mirror in stf.pre.mirroringAdds) {
+        val writeResp = sim.writeEntry(resolveStfMirroringAdd(mirror))
+        if (writeResp.hasError()) fail("WriteEntry (mirroring) failed: ${writeResp.error.message}")
+      }
+      val mcNodes = stf.pre.mcNodeCreates.associateBy { it.rid }
+      for (mcGroup in stf.pre.mcGroupCreates) {
+        val writeResp =
+          sim.writeEntry(
+            resolveStfMulticastGroup(mcGroup.groupId, mcNodes, stf.pre.mcNodeAssociates)
+          )
+        if (writeResp.hasError()) fail("WriteEntry (multicast) failed: ${writeResp.error.message}")
+      }
+
+      // Install action profile members, groups, and table entries.
       for (member in stf.memberDirectives) {
         val writeResp = sim.writeEntry(resolveStfMember(member, config.p4Info))
         if (writeResp.hasError()) fail("WriteEntry (member) failed: ${writeResp.error.message}")

@@ -449,6 +449,69 @@ class StfParserTest {
   }
 
   // ---------------------------------------------------------------------------
+  // PRE directives: mirroring_add, mc_mgrp_create, mc_node_create, mc_node_associate
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `mirroring_add parsed into pre config`() {
+    val stf = parse("mirroring_add 100 5\npacket 0 FF")
+    assertEquals(1, stf.pre.mirroringAdds.size)
+    assertEquals(100, stf.pre.mirroringAdds[0].sessionId)
+    assertEquals(5, stf.pre.mirroringAdds[0].egressPort)
+  }
+
+  @Test
+  fun `mc_mgrp_create parsed into pre config`() {
+    val stf = parse("mc_mgrp_create 7\npacket 0 FF")
+    assertEquals(1, stf.pre.mcGroupCreates.size)
+    assertEquals(7, stf.pre.mcGroupCreates[0].groupId)
+  }
+
+  @Test
+  fun `mc_node_create parsed with multiple ports`() {
+    val stf = parse("mc_node_create 0 1 2 3\npacket 0 FF")
+    assertEquals(1, stf.pre.mcNodeCreates.size)
+    val node = stf.pre.mcNodeCreates[0]
+    assertEquals(0, node.rid)
+    assertEquals(listOf(1, 2, 3), node.ports)
+  }
+
+  @Test
+  fun `mc_node_associate parsed into pre config`() {
+    val stf = parse("mc_node_associate 1 0\npacket 0 FF")
+    assertEquals(1, stf.pre.mcNodeAssociates.size)
+    assertEquals(1, stf.pre.mcNodeAssociates[0].groupId)
+    assertEquals(0, stf.pre.mcNodeAssociates[0].nodeHandle)
+  }
+
+  @Test
+  fun `full multicast PRE config parsed together`() {
+    val stf =
+      parse(
+        """
+        mc_mgrp_create 1
+        mc_node_create 0 1 2 3
+        mc_node_associate 1 0
+        packet 0 FF
+        """
+          .trimIndent()
+      )
+    assertEquals(1, stf.pre.mcGroupCreates.size)
+    assertEquals(1, stf.pre.mcNodeCreates.size)
+    assertEquals(1, stf.pre.mcNodeAssociates.size)
+    assertEquals(listOf(1, 2, 3), stf.pre.mcNodeCreates[0].ports)
+  }
+
+  @Test
+  fun `empty file has empty pre config`() {
+    val stf = parse("packet 0 FF")
+    assertTrue(stf.pre.mirroringAdds.isEmpty())
+    assertTrue(stf.pre.mcGroupCreates.isEmpty())
+    assertTrue(stf.pre.mcNodeCreates.isEmpty())
+    assertTrue(stf.pre.mcNodeAssociates.isEmpty())
+  }
+
+  // ---------------------------------------------------------------------------
   // encodeValue
   // ---------------------------------------------------------------------------
 
