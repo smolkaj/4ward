@@ -19,8 +19,9 @@ issues) where helpful. Do not add comments that merely restate the code.
 ## Pull requests
 
 Open PRs in draft mode (`gh pr create --draft`). Rebase onto `origin/main`
-before submitting. The description should explain motivation and approach,
-not list every changed line.
+before submitting. Lead with the win — what changed for the project, how it
+fits into the big picture. Be concise and punchy. Don't drown achievements
+in low-level details; the diff already has those.
 
 ## Worktrees
 

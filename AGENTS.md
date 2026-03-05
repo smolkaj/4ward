@@ -127,6 +127,12 @@ expression inside `Simulator.handleLoadPipeline()`.
 Proto changes affect both the p4c backend (C++) and the simulator (Kotlin).
 Update both sides and make sure the relevant STF tests still pass.
 
+## Pull request descriptions
+
+Lead with the win — what changed for the project, how it fits into the big
+picture. Be concise and punchy. Don't drown achievements in low-level details;
+the diff already has those.
+
 ## Before submitting a PR
 
 Consider whether your change affects any documentation:
