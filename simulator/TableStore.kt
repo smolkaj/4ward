@@ -197,7 +197,7 @@ class TableStore {
         }
       // Use the first member's action name for the table_lookup event.
       val actionName = members.firstOrNull()?.actionName ?: "NoAction"
-      return LookupResult(true, best.entry, actionName, members)
+      return LookupResult(true, best.entry, actionName, members = members)
     }
 
     // Action profile member (direct, no group): resolve to a single action.

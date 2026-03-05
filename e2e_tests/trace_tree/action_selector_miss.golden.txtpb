@@ -1,7 +1,6 @@
 # Expected trace tree for action_selector_miss: zero-fork tree on miss.
-# The selector table misses, so the default action (NoAction) runs directly
-# with no forking. The P4 source declares drop() as default, but p4c compiles
-# const_default_action_id to NoAction when the table has an implementation.
+# The selector table misses, so the default action (drop) runs directly
+# with no forking.
 events {
   parser_transition {
     parser_name: "MyParser"
@@ -13,11 +12,11 @@ events {
   table_lookup {
     table_name: "ecmp"
     hit: false
-    action_name: "NoAction"
+    action_name: "drop"
   }
 }
 events {
   action_execution {
-    action_name: "NoAction"
+    action_name: "drop"
   }
 }
