@@ -1,0 +1,121 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - coverage.lcov - simulator/simulator/Checksum.kt</title>
+  <link rel="stylesheet" type="text/css" href="../../gcov.css">
+</head>
+
+<body>
+
+          <table width="100%" border=0 cellspacing=0 cellpadding=0>
+            <tr><td class="title">LCOV - differential code coverage report</td></tr>
+            <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+
+            <tr>
+              <td width="100%">
+                <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="10%" class="headerValue"><a href="../../index.html">top level</a> - <a href="index.html">simulator/simulator</a> - Checksum.kt<span style="font-size: 80%;"> (source / <a href="Checksum.kt.func-c.html">functions</a>)</span></td>
+            <td width="5%"></td>
+            <td width="5%"></td>
+            <td width="5%" class="headerCovTableHead">Coverage</td>
+            <td width="5%" class="headerCovTableHead" title="Covered + Uncovered code (not including EUB, ECB, DUB, DCB categories)">Total</td>
+            <td width="5%" class="headerCovTableHead" title="Exercised code only (CBC + GBC + GNC + GIC)">Hit</td>
+            <td width="5%" class="headerCovTableHeadCBC" title="Covered Baseline Code (1 => 1):
+Unchanged code was tested before and is still tested">Covered</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Current:</td>
+            <td class="headerValue">coverage.lcov</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
+            <td class="headerCovTableEntry">14</td>
+            <td class="headerCovTableEntry">14</td>
+            <td class="headerCovTableEntry"><a href="#L6" title="goto first CBC">14</a></td>
+          </tr>
+          <tr>
+            <td class="headerItem">Current Date:</td>
+            <td class="headerValue">2026-03-05 07:50:57</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
+            <td class="headerCovTableEntry">2</td>
+            <td class="headerCovTableEntry">2</td>
+            <td class="headerCovTableEntry">2</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Baseline:</td>
+            <td class="headerValue">baseline.lcov</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td class="headerItem">Baseline Date:</td>
+            <td class="headerValue">2026-03-05 07:48:34</td>
+            <td></td>
+          </tr>
+                  <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+          </table>
+
+          <table cellpadding=0 cellspacing=0 border=0>
+            <tr>
+              <td><br></td>
+            </tr>
+            <tr>
+              <td>
+<pre class="sourceHeading">           TLA  Line data    Source code</pre>
+<pre class="source">
+<span id="L1"><span class="lineNum">       1</span>                 : package fourward.simulator</span>
+<span id="L2"><span class="lineNum">       2</span>                 : </span>
+<span id="L3"><span class="lineNum">       3</span>                 : import java.math.BigInteger</span>
+<span id="L4"><span class="lineNum">       4</span>                 : </span>
+<span id="L5"><span class="lineNum">       5</span>                 : private const val CSUM_WORD_BITS = 16</span>
+<span id="L6"><span class="lineNum">       6</span> <a href="#top" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 : private val CSUM_MASK = BigInteger.TWO.pow(CSUM_WORD_BITS).subtract(BigInteger.ONE)</span></span>
+<span id="L7"><span class="lineNum">       7</span>                 : </span>
+<span id="L8"><span class="lineNum">       8</span>                 : /**</span>
+<span id="L9"><span class="lineNum">       9</span>                 :  * Ones' complement (csum16) checksum over the fields of a struct.</span>
+<span id="L10"><span class="lineNum">      10</span>                 :  *</span>
+<span id="L11"><span class="lineNum">      11</span>                 :  * Concatenates all fields into a bit string, pads to a 16-bit boundary, sums all 16-bit words with</span>
+<span id="L12"><span class="lineNum">      12</span>                 :  * end-around carry, and returns the complement. This is the standard Internet checksum (RFC 1071)</span>
+<span id="L13"><span class="lineNum">      13</span>                 :  * used by IPv4, TCP, and UDP.</span>
+<span id="L14"><span class="lineNum">      14</span>                 :  */</span>
+<span id="L15"><span class="lineNum">      15</span>                 : fun onesComplementChecksum(data: StructVal): BigInteger {</span>
+<span id="L16"><span class="lineNum">      16</span> <span class="tlaCBC">              1 :   val combined =</span></span>
+<span id="L17"><span class="lineNum">      17</span> <span class="tlaCBC">              1 :     data.fields.values.map { (it as BitVal).bits }.reduceOrNull { acc, bv -&gt; acc.concat(bv) }</span></span>
+<span id="L18"><span class="lineNum">      18</span> <span class="tlaCBC">              1 :       ?: return BigInteger.ZERO</span></span>
+<span id="L19"><span class="lineNum">      19</span> <span class="tlaCBC">              1 :   val totalWidth = combined.width</span></span>
+<span id="L20"><span class="lineNum">      20</span> <span class="tlaCBC">              1 :   val padded = ((totalWidth + CSUM_WORD_BITS - 1) / CSUM_WORD_BITS) * CSUM_WORD_BITS</span></span>
+<span id="L21"><span class="lineNum">      21</span> <span class="tlaCBC">              1 :   var bits = combined.value.shiftLeft(padded - totalWidth)</span></span>
+<span id="L22"><span class="lineNum">      22</span> <span class="tlaCBC">              1 :   var sum = BigInteger.ZERO</span></span>
+<span id="L23"><span class="lineNum">      23</span> <span class="tlaCBC">              1 :   for (i in 0 until padded / CSUM_WORD_BITS) {</span></span>
+<span id="L24"><span class="lineNum">      24</span> <span class="tlaCBC">              1 :     val word = bits.shiftRight(padded - (i + 1) * CSUM_WORD_BITS).and(CSUM_MASK)</span></span>
+<span id="L25"><span class="lineNum">      25</span> <span class="tlaCBC">              1 :     sum = sum.add(word)</span></span>
+<span id="L26"><span class="lineNum">      26</span>                 :   }</span>
+<span id="L27"><span class="lineNum">      27</span> <span class="tlaCBC">              1 :   while (sum &gt; CSUM_MASK) {</span></span>
+<span id="L28"><span class="lineNum">      28</span> <span class="tlaCBC">              1 :     sum = sum.and(CSUM_MASK).add(sum.shiftRight(CSUM_WORD_BITS))</span></span>
+<span id="L29"><span class="lineNum">      29</span>                 :   }</span>
+<span id="L30"><span class="lineNum">      30</span> <span class="tlaCBC">              1 :   return CSUM_MASK.subtract(sum)</span></span>
+<span id="L31"><span class="lineNum">      31</span>                 : }</span>
+        </pre>
+              </td>
+            </tr>
+          </table>
+          <br>
+
+          <table width="100%" border=0 cellspacing=0 cellpadding=0>
+            <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+            <tr><td class="versionInfo">Generated by: <a href="https://github.com//linux-test-project/lcov" target="_parent">LCOV version 2.0-1</a></td></tr>
+          </table>
+          <br>
+
+</body>
+</html>
