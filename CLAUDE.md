@@ -30,9 +30,12 @@ tree. Rebase and squash when merging back.
 ## P4 spec compliance
 
 4ward is a spec-compliant reference implementation. When implementing a
-feature or resolving an ambiguity, consult the
-[P4₁₆ Language Specification (v1.2.5)](https://p4.org/wp-content/uploads/sites/53/2024/10/P4-16-spec-v1.2.5.html).
-Cite spec section numbers in comments on non-obvious semantics.
+feature or resolving an ambiguity, consult:
+- [P4₁₆ Language Specification (v1.2.5)](https://p4.org/wp-content/uploads/sites/53/2024/10/P4-16-spec-v1.2.5.html)
+  — the language spec. Cite section numbers in comments on non-obvious semantics.
+- [BMv2 simple_switch documentation](https://github.com/p4lang/behavioral-model/blob/main/docs/simple_switch.md)
+  — the de facto spec for v1model architecture semantics (clone/resubmit/recirculate
+  ordering, last-writer-wins, metadata preservation, ingress→egress boundary).
 
 ## Tool use
 

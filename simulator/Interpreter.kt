@@ -724,6 +724,8 @@ class Interpreter(
         UnitVal
       }
       // clone(type, session) / clone3(type, session, data): P4 v1model I2E/E2E clone.
+      // See https://github.com/p4lang/behavioral-model/blob/main/docs/simple_switch.md
+      // TODO(v1model): only I2E is implemented; BMv2 uses last-writer-wins for multiple calls.
       "clone",
       "clone3" -> {
         val sessionId = (evalExpr(call.argsList[1], env) as BitVal).bits.value.toInt()
