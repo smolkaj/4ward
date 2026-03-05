@@ -58,7 +58,7 @@ plane.
 
 The P4 ecosystem is C++. So why isn't 4ward?
 
-4ward is **100% AI-written**. Humans define requirements, design the testing
+4ward is **[100% AI-written](docs/AI_WORKFLOW.md)**. Humans define requirements, design the testing
 strategy, and ask the right questions. AI agents write every line of code,
 including the tests. Formatters, linters, and the compiler enforce mechanical
 correctness. The [p4c STF test corpus](https://github.com/p4lang/p4c/tree/main/testdata),
