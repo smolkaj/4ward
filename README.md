@@ -140,9 +140,8 @@ nothing is sacred except correctness and the test suite — until we reach 1.0.
 
 We think fast, reliable CI is key to keeping developers happy and productive.
 
-Every PR gets built, linted, and tested on both Ubuntu and macOS in about
-2 minutes — with a differential coverage report in about 5. No flakes, no
-"works on my machine." See for yourself on the
+Every PR gets built, linted, and tested in about 2 minutes — with a differential coverage
+report in about 5. No flakes, no "works on my machine." See for yourself on the
 [BuildBuddy dashboard](https://4ward.buildbuddy.io/trends/).
 
 ## Documentation
