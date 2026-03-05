@@ -22,7 +22,9 @@ import fourward.sim.v1.TraceTree
  * - clone (I2E) via ForkException / re-execution.
  * - multicast group replication via ForkException / re-execution.
  *
- * Reference: https://github.com/p4lang/p4c/blob/main/p4include/v1model.p4
+ * References:
+ * - v1model.p4: https://github.com/p4lang/p4c/blob/main/p4include/v1model.p4
+ * - BMv2 simple_switch semantics: https://github.com/p4lang/behavioral-model/blob/main/docs/simple_switch.md
  */
 class V1ModelArchitecture : Architecture {
 

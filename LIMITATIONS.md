@@ -18,10 +18,11 @@ guilt — just write it down so someone can find it later.
 
 ## Externs
 
-- **`mark_to_drop` is the only extern function.** All other v1model externs
-  — `hash`, `verify_checksum`, `update_checksum`, `verify`, `random`,
-  `digest`, `log_msg` — are unimplemented and will crash with
-  `"unhandled extern call"`. Blocks ~6 corpus tests (verify/checksum).
+- **Limited extern functions.** `mark_to_drop`, `verify`, `clone`, and
+  `clone3` are implemented. All other v1model externs — `hash`,
+  `verify_checksum`, `update_checksum`, `random`, `digest`, `log_msg` —
+  are unimplemented and will crash with `"unhandled extern call"`.
+  Blocks ~6 corpus tests (verify/checksum).
 - **No register, counter, or meter support.** Extern object methods
   (`register.read`/`.write`, `counter.count`, etc.) are not implemented.
   Blocks ~3 corpus tests.
@@ -32,7 +33,9 @@ guilt — just write it down so someone can find it later.
   empty response (`Simulator.kt:143`).
 - **Clone: I2E only, no metadata preservation.** `clone()` and `clone3()`
   support ingress-to-egress cloning. E2E clone, `clone3` metadata field
-  lists, resubmit, and recirculate are not implemented.
+  lists, resubmit, and recirculate are not implemented. Multiple clone
+  calls in one pipeline are not handled correctly — BMv2 uses
+  last-writer-wins semantics, but 4ward forks on the first call.
 - **Multicast: basic replication only.** Multicast group replication works
   for the trace tree (forking per replica). PRE entries are installed via
   P4Runtime `PacketReplicationEngineEntry`.
