@@ -31,18 +31,18 @@
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">95.5&nbsp;%</td>
-            <td class="headerCovTableEntry">67</td>
-            <td class="headerCovTableEntry">64</td>
+            <td class="headerCovTableEntryHi">97.3&nbsp;%</td>
+            <td class="headerCovTableEntry">75</td>
+            <td class="headerCovTableEntry">73</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-05 01:32:31</td>
+            <td class="headerValue">2026-03-05 01:36:09</td>
             <td></td>
             <td class="headerItem">Functions:</td>
-            <td class="headerCovTableEntryHi">97.6&nbsp;%</td>
-            <td class="headerCovTableEntry">42</td>
-            <td class="headerCovTableEntry">41</td>
+            <td class="headerCovTableEntryHi">97.9&nbsp;%</td>
+            <td class="headerCovTableEntry">48</td>
+            <td class="headerCovTableEntry">47</td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
                 </table>
@@ -102,12 +102,12 @@
 <span id="L40"><span class="lineNum">      40</span> <span class="tlaGNC">           1 :     requireSameWidth(other)</span></span>
 <span id="L41"><span class="lineNum">      41</span> <span class="tlaGNC">           1 :     val result = value - other.value</span></span>
 <span id="L42"><span class="lineNum">      42</span> <span class="tlaGNC">           1 :     return if (result &lt; BigInteger.ZERO) BitVector(BigInteger.ZERO, width)</span></span>
-<span id="L43"><span class="lineNum">      43</span> <span class="tlaUNC tlaBgUNC">           0 :     else BitVector(result, width)</span></span>
+<span id="L43"><span class="lineNum">      43</span> <span class="tlaGNC">           1 :     else BitVector(result, width)</span></span>
 <span id="L44"><span class="lineNum">      44</span>              :   }</span>
 <span id="L45"><span class="lineNum">      45</span>              : </span>
 <span id="L46"><span class="lineNum">      46</span>              :   // Bitwise operations — operands must have the same width.</span>
 <span id="L47"><span class="lineNum">      47</span>              : </span>
-<span id="L48"><span class="lineNum">      48</span> <span class="tlaGNC tlaBgGNC">           1 :   infix fun and(other: BitVector): BitVector = binaryOp(other) { a, b -&gt; a and b }</span></span>
+<span id="L48"><span class="lineNum">      48</span> <span class="tlaGNC">           1 :   infix fun and(other: BitVector): BitVector = binaryOp(other) { a, b -&gt; a and b }</span></span>
 <span id="L49"><span class="lineNum">      49</span>              : </span>
 <span id="L50"><span class="lineNum">      50</span> <span class="tlaGNC">           1 :   infix fun or(other: BitVector): BitVector = binaryOp(other) { a, b -&gt; a or b }</span></span>
 <span id="L51"><span class="lineNum">      51</span>              : </span>
@@ -217,26 +217,43 @@
 <span id="L155"><span class="lineNum">     155</span>              :     }</span>
 <span id="L156"><span class="lineNum">     156</span> <span class="tlaGNC tlaBgGNC">           1 :   }</span></span>
 <span id="L157"><span class="lineNum">     157</span>              : </span>
-<span id="L158"><span class="lineNum">     158</span>              :   /** Reinterprets the bits as an unsigned [BitVector]. */</span>
-<span id="L159"><span class="lineNum">     159</span>              :   fun toUnsigned(): BitVector {</span>
-<span id="L160"><span class="lineNum">     160</span> <span class="tlaGNC">           1 :     val unsigned =</span></span>
-<span id="L161"><span class="lineNum">     161</span> <span class="tlaGNC">           1 :       if (value &lt; BigInteger.ZERO) {</span></span>
-<span id="L162"><span class="lineNum">     162</span> <span class="tlaGNC">           1 :         value + BigInteger.TWO.pow(width)</span></span>
-<span id="L163"><span class="lineNum">     163</span>              :       } else {</span>
-<span id="L164"><span class="lineNum">     164</span> <span class="tlaGNC">           1 :         value</span></span>
-<span id="L165"><span class="lineNum">     165</span>              :       }</span>
-<span id="L166"><span class="lineNum">     166</span> <span class="tlaGNC">           1 :     return BitVector(unsigned, width)</span></span>
-<span id="L167"><span class="lineNum">     167</span>              :   }</span>
-<span id="L168"><span class="lineNum">     168</span>              : </span>
-<span id="L169"><span class="lineNum">     169</span>              :   companion object {</span>
-<span id="L170"><span class="lineNum">     170</span>              :     /** Constructs from raw unsigned bits (performs sign extension). */</span>
-<span id="L171"><span class="lineNum">     171</span>              :     fun fromUnsignedBits(bits: BigInteger, width: Int): SignedBitVector {</span>
-<span id="L172"><span class="lineNum">     172</span> <span class="tlaGNC">           1 :       val signBit = BigInteger.ONE.shiftLeft(width - 1)</span></span>
-<span id="L173"><span class="lineNum">     173</span> <span class="tlaGNC">           1 :       val value = if (bits &gt;= signBit) bits - signBit.shiftLeft(1) else bits</span></span>
-<span id="L174"><span class="lineNum">     174</span> <span class="tlaGNC">           1 :       return SignedBitVector(value, width)</span></span>
-<span id="L175"><span class="lineNum">     175</span>              :     }</span>
-<span id="L176"><span class="lineNum">     176</span>              :   }</span>
-<span id="L177"><span class="lineNum">     177</span>              : }</span>
+<span id="L158"><span class="lineNum">     158</span>              :   /** Saturating addition: clamps to [minVal, maxVal] on overflow. */</span>
+<span id="L159"><span class="lineNum">     159</span>              :   fun addSat(other: SignedBitVector): SignedBitVector {</span>
+<span id="L160"><span class="lineNum">     160</span> <span class="tlaGNC">           1 :     require(width == other.width)</span></span>
+<span id="L161"><span class="lineNum">     161</span> <span class="tlaGNC">           1 :     val result = value + other.value</span></span>
+<span id="L162"><span class="lineNum">     162</span> <span class="tlaGNC">           1 :     return SignedBitVector(result.coerceIn(minVal, maxVal), width)</span></span>
+<span id="L163"><span class="lineNum">     163</span>              :   }</span>
+<span id="L164"><span class="lineNum">     164</span>              : </span>
+<span id="L165"><span class="lineNum">     165</span>              :   /** Saturating subtraction: clamps to [minVal, maxVal] on underflow. */</span>
+<span id="L166"><span class="lineNum">     166</span>              :   fun subSat(other: SignedBitVector): SignedBitVector {</span>
+<span id="L167"><span class="lineNum">     167</span> <span class="tlaGNC">           1 :     require(width == other.width)</span></span>
+<span id="L168"><span class="lineNum">     168</span> <span class="tlaGNC">           1 :     val result = value - other.value</span></span>
+<span id="L169"><span class="lineNum">     169</span> <span class="tlaGNC">           1 :     return SignedBitVector(result.coerceIn(minVal, maxVal), width)</span></span>
+<span id="L170"><span class="lineNum">     170</span>              :   }</span>
+<span id="L171"><span class="lineNum">     171</span>              : </span>
+<span id="L172"><span class="lineNum">     172</span> <span class="tlaGNC">           1 :   private val minVal by lazy { BigInteger.TWO.pow(width - 1).negate() }</span></span>
+<span id="L173"><span class="lineNum">     173</span> <span class="tlaGNC">           1 :   private val maxVal by lazy { BigInteger.TWO.pow(width - 1) - BigInteger.ONE }</span></span>
+<span id="L174"><span class="lineNum">     174</span>              : </span>
+<span id="L175"><span class="lineNum">     175</span>              :   /** Reinterprets the bits as an unsigned [BitVector]. */</span>
+<span id="L176"><span class="lineNum">     176</span>              :   fun toUnsigned(): BitVector {</span>
+<span id="L177"><span class="lineNum">     177</span> <span class="tlaGNC">           1 :     val unsigned =</span></span>
+<span id="L178"><span class="lineNum">     178</span> <span class="tlaGNC">           1 :       if (value &lt; BigInteger.ZERO) {</span></span>
+<span id="L179"><span class="lineNum">     179</span> <span class="tlaGNC">           1 :         value + BigInteger.TWO.pow(width)</span></span>
+<span id="L180"><span class="lineNum">     180</span>              :       } else {</span>
+<span id="L181"><span class="lineNum">     181</span> <span class="tlaGNC">           1 :         value</span></span>
+<span id="L182"><span class="lineNum">     182</span>              :       }</span>
+<span id="L183"><span class="lineNum">     183</span> <span class="tlaGNC">           1 :     return BitVector(unsigned, width)</span></span>
+<span id="L184"><span class="lineNum">     184</span>              :   }</span>
+<span id="L185"><span class="lineNum">     185</span>              : </span>
+<span id="L186"><span class="lineNum">     186</span>              :   companion object {</span>
+<span id="L187"><span class="lineNum">     187</span>              :     /** Constructs from raw unsigned bits (performs sign extension). */</span>
+<span id="L188"><span class="lineNum">     188</span>              :     fun fromUnsignedBits(bits: BigInteger, width: Int): SignedBitVector {</span>
+<span id="L189"><span class="lineNum">     189</span> <span class="tlaGNC">           1 :       val signBit = BigInteger.ONE.shiftLeft(width - 1)</span></span>
+<span id="L190"><span class="lineNum">     190</span> <span class="tlaGNC">           1 :       val value = if (bits &gt;= signBit) bits - signBit.shiftLeft(1) else bits</span></span>
+<span id="L191"><span class="lineNum">     191</span> <span class="tlaGNC">           1 :       return SignedBitVector(value, width)</span></span>
+<span id="L192"><span class="lineNum">     192</span>              :     }</span>
+<span id="L193"><span class="lineNum">     193</span>              :   }</span>
+<span id="L194"><span class="lineNum">     194</span>              : }</span>
         </pre>
               </td>
             </tr>

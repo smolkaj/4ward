@@ -31,13 +31,13 @@
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryMed">86.7&nbsp;%</td>
-            <td class="headerCovTableEntry">489</td>
-            <td class="headerCovTableEntry">424</td>
+            <td class="headerCovTableEntryMed">86.9&nbsp;%</td>
+            <td class="headerCovTableEntry">505</td>
+            <td class="headerCovTableEntry">439</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-05 01:32:31</td>
+            <td class="headerValue">2026-03-05 01:36:09</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">93.8&nbsp;%</td>
@@ -469,491 +469,519 @@
 <span id="L407"><span class="lineNum">     407</span> <span class="tlaGNC">           1 :       BinaryOperator.BIT_AND -&gt; liftBitwise(left, right) { a, b -&gt; a and b }</span></span>
 <span id="L408"><span class="lineNum">     408</span> <span class="tlaGNC">           1 :       BinaryOperator.BIT_OR -&gt; liftBitwise(left, right) { a, b -&gt; a or b }</span></span>
 <span id="L409"><span class="lineNum">     409</span> <span class="tlaGNC">           1 :       BinaryOperator.BIT_XOR -&gt; liftBitwise(left, right) { a, b -&gt; a xor b }</span></span>
-<span id="L410"><span class="lineNum">     410</span>              :       // bit&lt;N&gt;-only operations (no int&lt;N&gt; equivalent in P4 spec).</span>
+<span id="L410"><span class="lineNum">     410</span>              :       // bit&lt;N&gt;-only: division/modulo are unsigned-only in P4.</span>
 <span id="L411"><span class="lineNum">     411</span> <span class="tlaGNC">           1 :       BinaryOperator.DIV -&gt; BitVal((left as BitVal).bits / (right as BitVal).bits)</span></span>
 <span id="L412"><span class="lineNum">     412</span> <span class="tlaGNC">           1 :       BinaryOperator.MOD -&gt; BitVal((left as BitVal).bits % (right as BitVal).bits)</span></span>
-<span id="L413"><span class="lineNum">     413</span> <span class="tlaGNC">           1 :       BinaryOperator.ADD_SAT -&gt; BitVal((left as BitVal).bits.addSat((right as BitVal).bits))</span></span>
-<span id="L414"><span class="lineNum">     414</span> <span class="tlaGNC">           1 :       BinaryOperator.SUB_SAT -&gt; BitVal((left as BitVal).bits.subSat((right as BitVal).bits))</span></span>
-<span id="L415"><span class="lineNum">     415</span> <span class="tlaGNC">           1 :       BinaryOperator.SHL -&gt; BitVal((left as BitVal).bits.shl(intValue(right)))</span></span>
-<span id="L416"><span class="lineNum">     416</span> <span class="tlaGNC">           1 :       BinaryOperator.SHR -&gt; BitVal((left as BitVal).bits.shr(intValue(right)))</span></span>
-<span id="L417"><span class="lineNum">     417</span>              :       // Equality uses data-class structural equality (works for both bit&lt;N&gt; and int&lt;N&gt;).</span>
-<span id="L418"><span class="lineNum">     418</span> <span class="tlaGNC">           1 :       BinaryOperator.EQ -&gt; BoolVal(left == right)</span></span>
-<span id="L419"><span class="lineNum">     419</span> <span class="tlaGNC">           1 :       BinaryOperator.NEQ -&gt; BoolVal(left != right)</span></span>
-<span id="L420"><span class="lineNum">     420</span>              :       // P4 spec §8.5: relational operators use signed comparison for int&lt;N&gt;.</span>
-<span id="L421"><span class="lineNum">     421</span> <span class="tlaGNC">           1 :       BinaryOperator.LT -&gt; liftCompare(left, right) { it &lt; 0 }</span></span>
-<span id="L422"><span class="lineNum">     422</span> <span class="tlaGNC">           1 :       BinaryOperator.GT -&gt; liftCompare(left, right) { it &gt; 0 }</span></span>
-<span id="L423"><span class="lineNum">     423</span> <span class="tlaGNC">           1 :       BinaryOperator.LE -&gt; liftCompare(left, right) { it &lt;= 0 }</span></span>
-<span id="L424"><span class="lineNum">     424</span> <span class="tlaGNC">           1 :       BinaryOperator.GE -&gt; liftCompare(left, right) { it &gt;= 0 }</span></span>
-<span id="L425"><span class="lineNum">     425</span> <span class="tlaGNC">           1 :       BinaryOperator.AND -&gt; BoolVal((left as BoolVal).value &amp;&amp; (right as BoolVal).value)</span></span>
-<span id="L426"><span class="lineNum">     426</span> <span class="tlaGNC">           1 :       BinaryOperator.OR -&gt; BoolVal((left as BoolVal).value || (right as BoolVal).value)</span></span>
-<span id="L427"><span class="lineNum">     427</span> <span class="tlaUNC tlaBgUNC">           0 :       else -&gt; error(&quot;unhandled binary operator: ${op.op}&quot;)</span></span>
-<span id="L428"><span class="lineNum">     428</span>              :     }</span>
-<span id="L429"><span class="lineNum">     429</span>              :   }</span>
-<span id="L430"><span class="lineNum">     430</span>              : </span>
-<span id="L431"><span class="lineNum">     431</span>              :   /** Apply a [BitVector] operation to two fixed-width values, preserving signedness. */</span>
-<span id="L432"><span class="lineNum">     432</span>              :   private inline fun liftBitwise(</span>
-<span id="L433"><span class="lineNum">     433</span>              :     left: Value,</span>
-<span id="L434"><span class="lineNum">     434</span>              :     right: Value,</span>
-<span id="L435"><span class="lineNum">     435</span>              :     f: (BitVector, BitVector) -&gt; BitVector,</span>
-<span id="L436"><span class="lineNum">     436</span>              :   ): Value =</span>
-<span id="L437"><span class="lineNum">     437</span> <span class="tlaGNC tlaBgGNC">           1 :     when (left) {</span></span>
-<span id="L438"><span class="lineNum">     438</span> <span class="tlaGNC">           1 :       is BitVal -&gt; BitVal(f(left.bits, (right as BitVal).bits))</span></span>
-<span id="L439"><span class="lineNum">     439</span> <span class="tlaGNC">           1 :       is IntVal -&gt; IntVal(f(left.bits.toUnsigned(), (right as IntVal).bits.toUnsigned()).toSigned())</span></span>
-<span id="L440"><span class="lineNum">     440</span> <span class="tlaUNC tlaBgUNC">           0 :       else -&gt; error(&quot;expected fixed-width integer operands, got: $left, $right&quot;)</span></span>
-<span id="L441"><span class="lineNum">     441</span> <span class="tlaGNC tlaBgGNC">           1 :     }</span></span>
-<span id="L442"><span class="lineNum">     442</span>              : </span>
-<span id="L443"><span class="lineNum">     443</span>              :   /** Compare two fixed-width values, dispatching to signed or unsigned comparison. */</span>
-<span id="L444"><span class="lineNum">     444</span>              :   private inline fun liftCompare(left: Value, right: Value, pred: (Int) -&gt; Boolean): BoolVal =</span>
-<span id="L445"><span class="lineNum">     445</span> <span class="tlaGNC">           1 :     when (left) {</span></span>
-<span id="L446"><span class="lineNum">     446</span> <span class="tlaGNC">           1 :       is BitVal -&gt; BoolVal(pred(left.bits.compareTo((right as BitVal).bits)))</span></span>
-<span id="L447"><span class="lineNum">     447</span> <span class="tlaGNC">           1 :       is IntVal -&gt; BoolVal(pred(left.bits.value.compareTo((right as IntVal).bits.value)))</span></span>
-<span id="L448"><span class="lineNum">     448</span> <span class="tlaUNC tlaBgUNC">           0 :       else -&gt; error(&quot;expected fixed-width integer operands for comparison&quot;)</span></span>
-<span id="L449"><span class="lineNum">     449</span> <span class="tlaGNC tlaBgGNC">           1 :     }</span></span>
-<span id="L450"><span class="lineNum">     450</span>              : </span>
-<span id="L451"><span class="lineNum">     451</span>              :   /** Extract a small integer from a [BitVal], [IntVal], or [InfIntVal]. */</span>
-<span id="L452"><span class="lineNum">     452</span>              :   private fun intValue(v: Value): Int =</span>
-<span id="L453"><span class="lineNum">     453</span> <span class="tlaGNC">           1 :     when (v) {</span></span>
-<span id="L454"><span class="lineNum">     454</span> <span class="tlaGNC">           1 :       is BitVal -&gt; v.bits.value.toInt()</span></span>
-<span id="L455"><span class="lineNum">     455</span> <span class="tlaGNC">           1 :       is IntVal -&gt; v.bits.value.toInt()</span></span>
-<span id="L456"><span class="lineNum">     456</span> <span class="tlaGNC">           1 :       is InfIntVal -&gt; v.value.toInt()</span></span>
-<span id="L457"><span class="lineNum">     457</span> <span class="tlaUNC tlaBgUNC">           0 :       else -&gt; error(&quot;expected integer value: $v&quot;)</span></span>
-<span id="L458"><span class="lineNum">     458</span> <span class="tlaGNC tlaBgGNC">           1 :     }</span></span>
-<span id="L459"><span class="lineNum">     459</span>              : </span>
-<span id="L460"><span class="lineNum">     460</span>              :   /** P4 spec §8.1: InfInt adopts the width of the fixed-width operand. */</span>
-<span id="L461"><span class="lineNum">     461</span>              :   private fun coerceInfInts(left: Value, right: Value): Pair&lt;Value, Value&gt; =</span>
-<span id="L462"><span class="lineNum">     462</span> <span class="tlaGNC">           1 :     when {</span></span>
-<span id="L463"><span class="lineNum">     463</span> <span class="tlaGNC">           1 :       left is InfIntVal &amp;&amp; right is BitVal -&gt; left.toBitVal(right.bits.width) to right</span></span>
-<span id="L464"><span class="lineNum">     464</span> <span class="tlaGNC">           1 :       right is InfIntVal &amp;&amp; left is BitVal -&gt; left to right.toBitVal(left.bits.width)</span></span>
-<span id="L465"><span class="lineNum">     465</span> <span class="tlaGNC">           1 :       left is InfIntVal &amp;&amp; right is IntVal -&gt; left.toIntVal(right.bits.width) to right</span></span>
-<span id="L466"><span class="lineNum">     466</span> <span class="tlaGNC">           1 :       right is InfIntVal &amp;&amp; left is IntVal -&gt; left to right.toIntVal(left.bits.width)</span></span>
-<span id="L467"><span class="lineNum">     467</span> <span class="tlaGNC">           1 :       else -&gt; left to right</span></span>
-<span id="L468"><span class="lineNum">     468</span> <span class="tlaGNC">           1 :     }</span></span>
-<span id="L469"><span class="lineNum">     469</span>              : </span>
-<span id="L470"><span class="lineNum">     470</span>              :   private fun evalUnaryOp(op: fourward.ir.v1.UnaryOp, env: Environment): Value {</span>
-<span id="L471"><span class="lineNum">     471</span> <span class="tlaGNC">           1 :     val inner = evalExpr(op.expr, env)</span></span>
-<span id="L472"><span class="lineNum">     472</span> <span class="tlaGNC">           1 :     return when (op.op) {</span></span>
-<span id="L473"><span class="lineNum">     473</span>              :       // Two's-complement negation: (2^N - x) mod 2^N = (0 - x) using wrapping subtraction.</span>
-<span id="L474"><span class="lineNum">     474</span>              :       // BitVector.ofInt(-1, width) would violate the non-negative value invariant.</span>
-<span id="L475"><span class="lineNum">     475</span>              :       UnaryOperator.NEG -&gt;</span>
-<span id="L476"><span class="lineNum">     476</span> <span class="tlaGNC">           1 :         when (inner) {</span></span>
-<span id="L477"><span class="lineNum">     477</span> <span class="tlaGNC">           1 :           is InfIntVal -&gt; InfIntVal(inner.value.negate())</span></span>
-<span id="L478"><span class="lineNum">     478</span> <span class="tlaGNC">           1 :           is BitVal -&gt; BitVal(BitVector.ofInt(0, inner.bits.width) - inner.bits)</span></span>
-<span id="L479"><span class="lineNum">     479</span> <span class="tlaUNC tlaBgUNC">           0 :           else -&gt; error(&quot;NEG on non-numeric: $inner&quot;)</span></span>
-<span id="L480"><span class="lineNum">     480</span>              :         }</span>
-<span id="L481"><span class="lineNum">     481</span> <span class="tlaGNC tlaBgGNC">           1 :       UnaryOperator.BIT_NOT -&gt; BitVal((inner as BitVal).bits.inv())</span></span>
-<span id="L482"><span class="lineNum">     482</span> <span class="tlaGNC">           1 :       UnaryOperator.NOT -&gt; BoolVal(!(inner as BoolVal).value)</span></span>
-<span id="L483"><span class="lineNum">     483</span> <span class="tlaUNC tlaBgUNC">           0 :       else -&gt; error(&quot;unhandled unary operator: ${op.op}&quot;)</span></span>
-<span id="L484"><span class="lineNum">     484</span>              :     }</span>
-<span id="L485"><span class="lineNum">     485</span>              :   }</span>
-<span id="L486"><span class="lineNum">     486</span>              : </span>
-<span id="L487"><span class="lineNum">     487</span>              :   private fun evalMux(mux: fourward.ir.v1.MuxExpr, env: Environment): Value =</span>
-<span id="L488"><span class="lineNum">     488</span> <span class="tlaGNC tlaBgGNC">           1 :     if ((evalExpr(mux.condition, env) as BoolVal).value) evalExpr(mux.thenExpr, env)</span></span>
-<span id="L489"><span class="lineNum">     489</span> <span class="tlaGNC">           1 :     else evalExpr(mux.elseExpr, env)</span></span>
-<span id="L490"><span class="lineNum">     490</span>              : </span>
-<span id="L491"><span class="lineNum">     491</span>              :   private fun evalMethodCall(call: MethodCall, env: Environment): Value {</span>
-<span id="L492"><span class="lineNum">     492</span> <span class="tlaGNC">           1 :     return when (call.method) {</span></span>
-<span id="L493"><span class="lineNum">     493</span>              :       // Header validity methods: target is the header instance.</span>
-<span id="L494"><span class="lineNum">     494</span>              :       &quot;isValid&quot; -&gt; {</span>
-<span id="L495"><span class="lineNum">     495</span> <span class="tlaGNC">           1 :         when (val target = evalExpr(call.target, env)) {</span></span>
-<span id="L496"><span class="lineNum">     496</span> <span class="tlaGNC">           1 :           is HeaderVal -&gt; BoolVal(target.valid)</span></span>
-<span id="L497"><span class="lineNum">     497</span> <span class="tlaGNC">           1 :           is StructVal -&gt; BoolVal(target.isUnionValid())</span></span>
-<span id="L498"><span class="lineNum">     498</span> <span class="tlaGNC">           1 :           else -&gt; error(&quot;isValid on non-header: $target&quot;)</span></span>
-<span id="L499"><span class="lineNum">     499</span>              :         }</span>
-<span id="L500"><span class="lineNum">     500</span>              :       }</span>
-<span id="L501"><span class="lineNum">     501</span>              :       &quot;setValid&quot; -&gt; {</span>
-<span id="L502"><span class="lineNum">     502</span> <span class="tlaGNC">           1 :         val target = evalExpr(call.target, env) as HeaderVal</span></span>
-<span id="L503"><span class="lineNum">     503</span> <span class="tlaGNC">           1 :         invalidateUnionSiblings(call.target, target, env)</span></span>
-<span id="L504"><span class="lineNum">     504</span> <span class="tlaGNC">           1 :         target.valid = true</span></span>
-<span id="L505"><span class="lineNum">     505</span> <span class="tlaGNC">           1 :         UnitVal</span></span>
-<span id="L506"><span class="lineNum">     506</span>              :       }</span>
-<span id="L507"><span class="lineNum">     507</span>              :       &quot;setInvalid&quot; -&gt; {</span>
-<span id="L508"><span class="lineNum">     508</span> <span class="tlaGNC">           1 :         when (val target = evalExpr(call.target, env)) {</span></span>
-<span id="L509"><span class="lineNum">     509</span> <span class="tlaGNC">           1 :           is HeaderVal -&gt; target.setInvalid()</span></span>
-<span id="L510"><span class="lineNum">     510</span> <span class="tlaUNC tlaBgUNC">           0 :           is StructVal -&gt; target.invalidateUnion()</span></span>
-<span id="L511"><span class="lineNum">     511</span> <span class="tlaUNC">           0 :           else -&gt; error(&quot;setInvalid on non-header: $target&quot;)</span></span>
-<span id="L512"><span class="lineNum">     512</span>              :         }</span>
-<span id="L513"><span class="lineNum">     513</span> <span class="tlaGNC tlaBgGNC">           1 :         UnitVal</span></span>
-<span id="L514"><span class="lineNum">     514</span>              :       }</span>
-<span id="L515"><span class="lineNum">     515</span>              :       // packet_in.extract(hdr) / packet_out.emit(hdr): target is the extern object</span>
-<span id="L516"><span class="lineNum">     516</span>              :       // (not in env); the header is the first argument.</span>
-<span id="L517"><span class="lineNum">     517</span> <span class="tlaGNC">           1 :       &quot;extract&quot; -&gt; execExtract(call, env)</span></span>
-<span id="L518"><span class="lineNum">     518</span> <span class="tlaGNC">           1 :       &quot;emit&quot; -&gt; execEmit(call, env)</span></span>
-<span id="L519"><span class="lineNum">     519</span>              :       // &quot;__call__&quot; is used for free functions and direct action calls. Check actions first;</span>
-<span id="L520"><span class="lineNum">     520</span>              :       // fall back to extern handling (mark_to_drop, etc.) for unrecognised names.</span>
-<span id="L521"><span class="lineNum">     521</span>              :       &quot;__call__&quot; -&gt; {</span>
-<span id="L522"><span class="lineNum">     522</span> <span class="tlaGNC">           1 :         val funcName = call.target.nameRef.name</span></span>
-<span id="L523"><span class="lineNum">     523</span> <span class="tlaGNC">           1 :         if (funcName in actions) execInlineActionCall(funcName, call.argsList, env)</span></span>
-<span id="L524"><span class="lineNum">     524</span> <span class="tlaGNC">           1 :         else execExternCall(call, env)</span></span>
+<span id="L413"><span class="lineNum">     413</span>              :       // Saturating ops can't use liftBitwise: signed/unsigned have different clamp bounds.</span>
+<span id="L414"><span class="lineNum">     414</span>              :       BinaryOperator.ADD_SAT -&gt;</span>
+<span id="L415"><span class="lineNum">     415</span> <span class="tlaGNC">           1 :         when (left) {</span></span>
+<span id="L416"><span class="lineNum">     416</span> <span class="tlaGNC">           1 :           is BitVal -&gt; BitVal(left.bits.addSat((right as BitVal).bits))</span></span>
+<span id="L417"><span class="lineNum">     417</span> <span class="tlaGNC">           1 :           is IntVal -&gt; IntVal(left.bits.addSat((right as IntVal).bits))</span></span>
+<span id="L418"><span class="lineNum">     418</span> <span class="tlaUNC tlaBgUNC">           0 :           else -&gt; error(&quot;ADD_SAT on non-fixed-width: $left&quot;)</span></span>
+<span id="L419"><span class="lineNum">     419</span>              :         }</span>
+<span id="L420"><span class="lineNum">     420</span>              :       BinaryOperator.SUB_SAT -&gt;</span>
+<span id="L421"><span class="lineNum">     421</span> <span class="tlaGNC tlaBgGNC">           1 :         when (left) {</span></span>
+<span id="L422"><span class="lineNum">     422</span> <span class="tlaGNC">           1 :           is BitVal -&gt; BitVal(left.bits.subSat((right as BitVal).bits))</span></span>
+<span id="L423"><span class="lineNum">     423</span> <span class="tlaGNC">           1 :           is IntVal -&gt; IntVal(left.bits.subSat((right as IntVal).bits))</span></span>
+<span id="L424"><span class="lineNum">     424</span> <span class="tlaUNC tlaBgUNC">           0 :           else -&gt; error(&quot;SUB_SAT on non-fixed-width: $left&quot;)</span></span>
+<span id="L425"><span class="lineNum">     425</span>              :         }</span>
+<span id="L426"><span class="lineNum">     426</span> <span class="tlaGNC tlaBgGNC">           1 :       BinaryOperator.SHL -&gt; BitVal((left as BitVal).bits.shl(intValue(right)))</span></span>
+<span id="L427"><span class="lineNum">     427</span> <span class="tlaGNC">           1 :       BinaryOperator.SHR -&gt; BitVal((left as BitVal).bits.shr(intValue(right)))</span></span>
+<span id="L428"><span class="lineNum">     428</span>              :       // Equality uses data-class structural equality (works for both bit&lt;N&gt; and int&lt;N&gt;).</span>
+<span id="L429"><span class="lineNum">     429</span> <span class="tlaGNC">           1 :       BinaryOperator.EQ -&gt; BoolVal(left == right)</span></span>
+<span id="L430"><span class="lineNum">     430</span> <span class="tlaGNC">           1 :       BinaryOperator.NEQ -&gt; BoolVal(left != right)</span></span>
+<span id="L431"><span class="lineNum">     431</span>              :       // P4 spec §8.5: relational operators use signed comparison for int&lt;N&gt;.</span>
+<span id="L432"><span class="lineNum">     432</span> <span class="tlaGNC">           1 :       BinaryOperator.LT -&gt; liftCompare(left, right) { it &lt; 0 }</span></span>
+<span id="L433"><span class="lineNum">     433</span> <span class="tlaGNC">           1 :       BinaryOperator.GT -&gt; liftCompare(left, right) { it &gt; 0 }</span></span>
+<span id="L434"><span class="lineNum">     434</span> <span class="tlaGNC">           1 :       BinaryOperator.LE -&gt; liftCompare(left, right) { it &lt;= 0 }</span></span>
+<span id="L435"><span class="lineNum">     435</span> <span class="tlaGNC">           1 :       BinaryOperator.GE -&gt; liftCompare(left, right) { it &gt;= 0 }</span></span>
+<span id="L436"><span class="lineNum">     436</span> <span class="tlaGNC">           1 :       BinaryOperator.AND -&gt; BoolVal((left as BoolVal).value &amp;&amp; (right as BoolVal).value)</span></span>
+<span id="L437"><span class="lineNum">     437</span> <span class="tlaGNC">           1 :       BinaryOperator.OR -&gt; BoolVal((left as BoolVal).value || (right as BoolVal).value)</span></span>
+<span id="L438"><span class="lineNum">     438</span> <span class="tlaUNC tlaBgUNC">           0 :       else -&gt; error(&quot;unhandled binary operator: ${op.op}&quot;)</span></span>
+<span id="L439"><span class="lineNum">     439</span>              :     }</span>
+<span id="L440"><span class="lineNum">     440</span>              :   }</span>
+<span id="L441"><span class="lineNum">     441</span>              : </span>
+<span id="L442"><span class="lineNum">     442</span>              :   /** Apply a [BitVector] operation to two fixed-width values, preserving signedness. */</span>
+<span id="L443"><span class="lineNum">     443</span>              :   private inline fun liftBitwise(</span>
+<span id="L444"><span class="lineNum">     444</span>              :     left: Value,</span>
+<span id="L445"><span class="lineNum">     445</span>              :     right: Value,</span>
+<span id="L446"><span class="lineNum">     446</span>              :     f: (BitVector, BitVector) -&gt; BitVector,</span>
+<span id="L447"><span class="lineNum">     447</span>              :   ): Value =</span>
+<span id="L448"><span class="lineNum">     448</span> <span class="tlaGNC tlaBgGNC">           1 :     when (left) {</span></span>
+<span id="L449"><span class="lineNum">     449</span> <span class="tlaGNC">           1 :       is BitVal -&gt; BitVal(f(left.bits, (right as BitVal).bits))</span></span>
+<span id="L450"><span class="lineNum">     450</span> <span class="tlaGNC">           1 :       is IntVal -&gt; IntVal(f(left.bits.toUnsigned(), (right as IntVal).bits.toUnsigned()).toSigned())</span></span>
+<span id="L451"><span class="lineNum">     451</span> <span class="tlaUNC tlaBgUNC">           0 :       else -&gt; error(&quot;expected fixed-width integer operands, got: $left, $right&quot;)</span></span>
+<span id="L452"><span class="lineNum">     452</span> <span class="tlaGNC tlaBgGNC">           1 :     }</span></span>
+<span id="L453"><span class="lineNum">     453</span>              : </span>
+<span id="L454"><span class="lineNum">     454</span>              :   /** Compare two fixed-width values, dispatching to signed or unsigned comparison. */</span>
+<span id="L455"><span class="lineNum">     455</span>              :   private inline fun liftCompare(left: Value, right: Value, pred: (Int) -&gt; Boolean): BoolVal =</span>
+<span id="L456"><span class="lineNum">     456</span> <span class="tlaGNC">           1 :     when (left) {</span></span>
+<span id="L457"><span class="lineNum">     457</span> <span class="tlaGNC">           1 :       is BitVal -&gt; BoolVal(pred(left.bits.compareTo((right as BitVal).bits)))</span></span>
+<span id="L458"><span class="lineNum">     458</span> <span class="tlaGNC">           1 :       is IntVal -&gt; BoolVal(pred(left.bits.value.compareTo((right as IntVal).bits.value)))</span></span>
+<span id="L459"><span class="lineNum">     459</span> <span class="tlaUNC tlaBgUNC">           0 :       else -&gt; error(&quot;expected fixed-width integer operands for comparison&quot;)</span></span>
+<span id="L460"><span class="lineNum">     460</span> <span class="tlaGNC tlaBgGNC">           1 :     }</span></span>
+<span id="L461"><span class="lineNum">     461</span>              : </span>
+<span id="L462"><span class="lineNum">     462</span>              :   /** Extract a small integer from a [BitVal], [IntVal], or [InfIntVal]. */</span>
+<span id="L463"><span class="lineNum">     463</span>              :   private fun intValue(v: Value): Int =</span>
+<span id="L464"><span class="lineNum">     464</span> <span class="tlaGNC">           1 :     when (v) {</span></span>
+<span id="L465"><span class="lineNum">     465</span> <span class="tlaGNC">           1 :       is BitVal -&gt; v.bits.value.toInt()</span></span>
+<span id="L466"><span class="lineNum">     466</span> <span class="tlaGNC">           1 :       is IntVal -&gt; v.bits.value.toInt()</span></span>
+<span id="L467"><span class="lineNum">     467</span> <span class="tlaGNC">           1 :       is InfIntVal -&gt; v.value.toInt()</span></span>
+<span id="L468"><span class="lineNum">     468</span> <span class="tlaUNC tlaBgUNC">           0 :       else -&gt; error(&quot;expected integer value: $v&quot;)</span></span>
+<span id="L469"><span class="lineNum">     469</span> <span class="tlaGNC tlaBgGNC">           1 :     }</span></span>
+<span id="L470"><span class="lineNum">     470</span>              : </span>
+<span id="L471"><span class="lineNum">     471</span>              :   /** P4 spec §8.1: InfInt adopts the width of the fixed-width operand. */</span>
+<span id="L472"><span class="lineNum">     472</span>              :   private fun coerceInfInts(left: Value, right: Value): Pair&lt;Value, Value&gt; =</span>
+<span id="L473"><span class="lineNum">     473</span> <span class="tlaGNC">           1 :     when {</span></span>
+<span id="L474"><span class="lineNum">     474</span> <span class="tlaGNC">           1 :       left is InfIntVal &amp;&amp; right is BitVal -&gt; left.toBitVal(right.bits.width) to right</span></span>
+<span id="L475"><span class="lineNum">     475</span> <span class="tlaGNC">           1 :       right is InfIntVal &amp;&amp; left is BitVal -&gt; left to right.toBitVal(left.bits.width)</span></span>
+<span id="L476"><span class="lineNum">     476</span> <span class="tlaGNC">           1 :       left is InfIntVal &amp;&amp; right is IntVal -&gt; left.toIntVal(right.bits.width) to right</span></span>
+<span id="L477"><span class="lineNum">     477</span> <span class="tlaGNC">           1 :       right is InfIntVal &amp;&amp; left is IntVal -&gt; left to right.toIntVal(left.bits.width)</span></span>
+<span id="L478"><span class="lineNum">     478</span> <span class="tlaGNC">           1 :       else -&gt; left to right</span></span>
+<span id="L479"><span class="lineNum">     479</span> <span class="tlaGNC">           1 :     }</span></span>
+<span id="L480"><span class="lineNum">     480</span>              : </span>
+<span id="L481"><span class="lineNum">     481</span>              :   private fun evalUnaryOp(op: fourward.ir.v1.UnaryOp, env: Environment): Value {</span>
+<span id="L482"><span class="lineNum">     482</span> <span class="tlaGNC">           1 :     val inner = evalExpr(op.expr, env)</span></span>
+<span id="L483"><span class="lineNum">     483</span> <span class="tlaGNC">           1 :     return when (op.op) {</span></span>
+<span id="L484"><span class="lineNum">     484</span>              :       // Two's-complement negation: (2^N - x) mod 2^N = (0 - x) using wrapping subtraction.</span>
+<span id="L485"><span class="lineNum">     485</span>              :       // BitVector.ofInt(-1, width) would violate the non-negative value invariant.</span>
+<span id="L486"><span class="lineNum">     486</span>              :       UnaryOperator.NEG -&gt;</span>
+<span id="L487"><span class="lineNum">     487</span> <span class="tlaGNC">           1 :         when (inner) {</span></span>
+<span id="L488"><span class="lineNum">     488</span> <span class="tlaGNC">           1 :           is InfIntVal -&gt; InfIntVal(inner.value.negate())</span></span>
+<span id="L489"><span class="lineNum">     489</span> <span class="tlaGNC">           1 :           is BitVal -&gt; BitVal(BitVector.ofInt(0, inner.bits.width) - inner.bits)</span></span>
+<span id="L490"><span class="lineNum">     490</span> <span class="tlaUNC tlaBgUNC">           0 :           else -&gt; error(&quot;NEG on non-numeric: $inner&quot;)</span></span>
+<span id="L491"><span class="lineNum">     491</span>              :         }</span>
+<span id="L492"><span class="lineNum">     492</span> <span class="tlaGNC tlaBgGNC">           1 :       UnaryOperator.BIT_NOT -&gt; BitVal((inner as BitVal).bits.inv())</span></span>
+<span id="L493"><span class="lineNum">     493</span> <span class="tlaGNC">           1 :       UnaryOperator.NOT -&gt; BoolVal(!(inner as BoolVal).value)</span></span>
+<span id="L494"><span class="lineNum">     494</span> <span class="tlaUNC tlaBgUNC">           0 :       else -&gt; error(&quot;unhandled unary operator: ${op.op}&quot;)</span></span>
+<span id="L495"><span class="lineNum">     495</span>              :     }</span>
+<span id="L496"><span class="lineNum">     496</span>              :   }</span>
+<span id="L497"><span class="lineNum">     497</span>              : </span>
+<span id="L498"><span class="lineNum">     498</span>              :   private fun evalMux(mux: fourward.ir.v1.MuxExpr, env: Environment): Value =</span>
+<span id="L499"><span class="lineNum">     499</span> <span class="tlaGNC tlaBgGNC">           1 :     if ((evalExpr(mux.condition, env) as BoolVal).value) evalExpr(mux.thenExpr, env)</span></span>
+<span id="L500"><span class="lineNum">     500</span> <span class="tlaGNC">           1 :     else evalExpr(mux.elseExpr, env)</span></span>
+<span id="L501"><span class="lineNum">     501</span>              : </span>
+<span id="L502"><span class="lineNum">     502</span>              :   private fun evalMethodCall(call: MethodCall, env: Environment): Value {</span>
+<span id="L503"><span class="lineNum">     503</span> <span class="tlaGNC">           1 :     return when (call.method) {</span></span>
+<span id="L504"><span class="lineNum">     504</span>              :       // Header validity methods: target is the header instance.</span>
+<span id="L505"><span class="lineNum">     505</span>              :       &quot;isValid&quot; -&gt; {</span>
+<span id="L506"><span class="lineNum">     506</span> <span class="tlaGNC">           1 :         when (val target = evalExpr(call.target, env)) {</span></span>
+<span id="L507"><span class="lineNum">     507</span> <span class="tlaGNC">           1 :           is HeaderVal -&gt; BoolVal(target.valid)</span></span>
+<span id="L508"><span class="lineNum">     508</span> <span class="tlaGNC">           1 :           is StructVal -&gt; BoolVal(target.isUnionValid())</span></span>
+<span id="L509"><span class="lineNum">     509</span> <span class="tlaGNC">           1 :           else -&gt; error(&quot;isValid on non-header: $target&quot;)</span></span>
+<span id="L510"><span class="lineNum">     510</span>              :         }</span>
+<span id="L511"><span class="lineNum">     511</span>              :       }</span>
+<span id="L512"><span class="lineNum">     512</span>              :       &quot;setValid&quot; -&gt; {</span>
+<span id="L513"><span class="lineNum">     513</span> <span class="tlaGNC">           1 :         val target = evalExpr(call.target, env) as HeaderVal</span></span>
+<span id="L514"><span class="lineNum">     514</span> <span class="tlaGNC">           1 :         invalidateUnionSiblings(call.target, target, env)</span></span>
+<span id="L515"><span class="lineNum">     515</span> <span class="tlaGNC">           1 :         target.valid = true</span></span>
+<span id="L516"><span class="lineNum">     516</span> <span class="tlaGNC">           1 :         UnitVal</span></span>
+<span id="L517"><span class="lineNum">     517</span>              :       }</span>
+<span id="L518"><span class="lineNum">     518</span>              :       &quot;setInvalid&quot; -&gt; {</span>
+<span id="L519"><span class="lineNum">     519</span> <span class="tlaGNC">           1 :         when (val target = evalExpr(call.target, env)) {</span></span>
+<span id="L520"><span class="lineNum">     520</span> <span class="tlaGNC">           1 :           is HeaderVal -&gt; target.setInvalid()</span></span>
+<span id="L521"><span class="lineNum">     521</span> <span class="tlaUNC tlaBgUNC">           0 :           is StructVal -&gt; target.invalidateUnion()</span></span>
+<span id="L522"><span class="lineNum">     522</span> <span class="tlaUNC">           0 :           else -&gt; error(&quot;setInvalid on non-header: $target&quot;)</span></span>
+<span id="L523"><span class="lineNum">     523</span>              :         }</span>
+<span id="L524"><span class="lineNum">     524</span> <span class="tlaGNC tlaBgGNC">           1 :         UnitVal</span></span>
 <span id="L525"><span class="lineNum">     525</span>              :       }</span>
-<span id="L526"><span class="lineNum">     526</span> <span class="tlaUNC tlaBgUNC">           0 :       else -&gt; error(&quot;unhandled method call: ${call.method} on ${call.target}&quot;)</span></span>
-<span id="L527"><span class="lineNum">     527</span>              :     }</span>
-<span id="L528"><span class="lineNum">     528</span>              :   }</span>
-<span id="L529"><span class="lineNum">     529</span>              : </span>
-<span id="L530"><span class="lineNum">     530</span>              :   // -------------------------------------------------------------------------</span>
-<span id="L531"><span class="lineNum">     531</span>              :   // Table application</span>
-<span id="L532"><span class="lineNum">     532</span>              :   // -------------------------------------------------------------------------</span>
-<span id="L533"><span class="lineNum">     533</span>              : </span>
-<span id="L534"><span class="lineNum">     534</span> <span class="tlaGNC tlaBgGNC">           1 :   private data class TableResult(val hit: Boolean, val actionName: String)</span></span>
-<span id="L535"><span class="lineNum">     535</span>              : </span>
-<span id="L536"><span class="lineNum">     536</span>              :   private fun applyTable(tableName: String, env: Environment): TableResult {</span>
-<span id="L537"><span class="lineNum">     537</span> <span class="tlaGNC">           1 :     val tableBehavior = tables[tableName] ?: error(&quot;unknown table: $tableName&quot;)</span></span>
-<span id="L538"><span class="lineNum">     538</span> <span class="tlaGNC">           1 :     val keyValues = tableBehavior.keysList.map { key -&gt; key.fieldName to evalExpr(key.expr, env) }</span></span>
-<span id="L539"><span class="lineNum">     539</span>              : </span>
-<span id="L540"><span class="lineNum">     540</span> <span class="tlaGNC">           1 :     val (hit, entry, actionName) = tableStore.lookup(tableName, keyValues)</span></span>
-<span id="L541"><span class="lineNum">     541</span>              : </span>
-<span id="L542"><span class="lineNum">     542</span> <span class="tlaGNC">           1 :     packetCtx?.addTraceEvent(</span></span>
-<span id="L543"><span class="lineNum">     543</span> <span class="tlaGNC">           1 :       TraceEvent.newBuilder()</span></span>
-<span id="L544"><span class="lineNum">     544</span> <span class="tlaGNC">           1 :         .setTableLookup(</span></span>
-<span id="L545"><span class="lineNum">     545</span> <span class="tlaGNC">           1 :           TableLookupEvent.newBuilder()</span></span>
-<span id="L546"><span class="lineNum">     546</span> <span class="tlaGNC">           1 :             .setTableName(tableName)</span></span>
-<span id="L547"><span class="lineNum">     547</span> <span class="tlaGNC">           1 :             .setHit(hit)</span></span>
-<span id="L548"><span class="lineNum">     548</span> <span class="tlaGNC">           1 :             .setActionName(actionName)</span></span>
-<span id="L549"><span class="lineNum">     549</span> <span class="tlaGNC">           1 :             .also { if (entry != null) it.setMatchedEntry(entry) }</span></span>
-<span id="L550"><span class="lineNum">     550</span>              :         )</span>
-<span id="L551"><span class="lineNum">     551</span> <span class="tlaGNC">           1 :         .build()</span></span>
-<span id="L552"><span class="lineNum">     552</span>              :     )</span>
-<span id="L553"><span class="lineNum">     553</span>              : </span>
-<span id="L554"><span class="lineNum">     554</span> <span class="tlaGNC">           1 :     execAction(actionName, entry?.action?.action?.paramsList ?: emptyList(), env)</span></span>
-<span id="L555"><span class="lineNum">     555</span> <span class="tlaGNC">           1 :     return TableResult(hit, actionName)</span></span>
-<span id="L556"><span class="lineNum">     556</span>              :   }</span>
-<span id="L557"><span class="lineNum">     557</span>              : </span>
-<span id="L558"><span class="lineNum">     558</span>              :   private fun execAction(</span>
-<span id="L559"><span class="lineNum">     559</span>              :     actionName: String,</span>
-<span id="L560"><span class="lineNum">     560</span>              :     paramProtos: List&lt;p4.v1.P4RuntimeOuterClass.Action.Param&gt;,</span>
-<span id="L561"><span class="lineNum">     561</span>              :     env: Environment,</span>
-<span id="L562"><span class="lineNum">     562</span>              :   ) {</span>
-<span id="L563"><span class="lineNum">     563</span>              :     // NoAction is a P4 built-in no-op (P4 spec §12.7) that is implicitly available in</span>
-<span id="L564"><span class="lineNum">     564</span>              :     // every table. It may appear in const entries without being listed in the actions block,</span>
-<span id="L565"><span class="lineNum">     565</span>              :     // so it might not have been compiled into the IR. Handle it directly rather than</span>
-<span id="L566"><span class="lineNum">     566</span>              :     // requiring the backend to emit an explicit empty ActionDecl for it.</span>
-<span id="L567"><span class="lineNum">     567</span> <span class="tlaGNC">           1 :     if (actionName == &quot;NoAction&quot;) {</span></span>
-<span id="L568"><span class="lineNum">     568</span> <span class="tlaGNC">           1 :       packetCtx?.addTraceEvent(</span></span>
-<span id="L569"><span class="lineNum">     569</span> <span class="tlaGNC">           1 :         TraceEvent.newBuilder()</span></span>
-<span id="L570"><span class="lineNum">     570</span> <span class="tlaGNC">           1 :           .setActionExecution(ActionExecutionEvent.newBuilder().setActionName(actionName))</span></span>
-<span id="L571"><span class="lineNum">     571</span> <span class="tlaGNC">           1 :           .build()</span></span>
-<span id="L572"><span class="lineNum">     572</span>              :       )</span>
-<span id="L573"><span class="lineNum">     573</span> <span class="tlaGNC">           1 :       return</span></span>
-<span id="L574"><span class="lineNum">     574</span>              :     }</span>
-<span id="L575"><span class="lineNum">     575</span>              : </span>
-<span id="L576"><span class="lineNum">     576</span> <span class="tlaGNC">           1 :     val actionDecl = actions[actionName] ?: error(&quot;unknown action: $actionName&quot;)</span></span>
-<span id="L577"><span class="lineNum">     577</span>              : </span>
-<span id="L578"><span class="lineNum">     578</span> <span class="tlaGNC">           1 :     val paramMap = mutableMapOf&lt;String, com.google.protobuf.ByteString&gt;()</span></span>
-<span id="L579"><span class="lineNum">     579</span>              : </span>
-<span id="L580"><span class="lineNum">     580</span> <span class="tlaGNC">           1 :     env.pushScope()</span></span>
-<span id="L581"><span class="lineNum">     581</span> <span class="tlaGNC">           1 :     try {</span></span>
-<span id="L582"><span class="lineNum">     582</span> <span class="tlaGNC">           1 :       actionDecl.paramsList.forEachIndexed { i, paramDecl -&gt;</span></span>
-<span id="L583"><span class="lineNum">     583</span> <span class="tlaGNC">           1 :         val paramProto = paramProtos.getOrNull(i)</span></span>
-<span id="L584"><span class="lineNum">     584</span> <span class="tlaGNC">           1 :         val value: Value =</span></span>
-<span id="L585"><span class="lineNum">     585</span> <span class="tlaGNC">           1 :           if (paramProto != null) {</span></span>
-<span id="L586"><span class="lineNum">     586</span> <span class="tlaGNC">           1 :             val width = paramDecl.type.bit.width</span></span>
-<span id="L587"><span class="lineNum">     587</span> <span class="tlaGNC">           1 :             paramMap[paramDecl.name] = paramProto.value</span></span>
-<span id="L588"><span class="lineNum">     588</span> <span class="tlaGNC">           1 :             BitVal(BitVector.ofBytes(paramProto.value.toByteArray(), width))</span></span>
-<span id="L589"><span class="lineNum">     589</span>              :           } else {</span>
-<span id="L590"><span class="lineNum">     590</span> <span class="tlaUNC tlaBgUNC">           0 :             UnitVal</span></span>
-<span id="L591"><span class="lineNum">     591</span>              :           }</span>
-<span id="L592"><span class="lineNum">     592</span> <span class="tlaGNC tlaBgGNC">           1 :         env.define(paramDecl.name, value)</span></span>
-<span id="L593"><span class="lineNum">     593</span> <span class="tlaGNC">           1 :       }</span></span>
-<span id="L594"><span class="lineNum">     594</span>              : </span>
-<span id="L595"><span class="lineNum">     595</span> <span class="tlaGNC">           1 :       packetCtx?.addTraceEvent(</span></span>
-<span id="L596"><span class="lineNum">     596</span> <span class="tlaGNC">           1 :         TraceEvent.newBuilder()</span></span>
-<span id="L597"><span class="lineNum">     597</span> <span class="tlaGNC">           1 :           .setActionExecution(</span></span>
-<span id="L598"><span class="lineNum">     598</span> <span class="tlaGNC">           1 :             ActionExecutionEvent.newBuilder()</span></span>
-<span id="L599"><span class="lineNum">     599</span> <span class="tlaGNC">           1 :               .setActionName(actionName)</span></span>
-<span id="L600"><span class="lineNum">     600</span> <span class="tlaGNC">           1 :               .putAllParams(paramMap.mapValues { it.value })</span></span>
-<span id="L601"><span class="lineNum">     601</span>              :           )</span>
-<span id="L602"><span class="lineNum">     602</span> <span class="tlaGNC">           1 :           .build()</span></span>
-<span id="L603"><span class="lineNum">     603</span>              :       )</span>
-<span id="L604"><span class="lineNum">     604</span>              : </span>
-<span id="L605"><span class="lineNum">     605</span> <span class="tlaGNC">           1 :       execBlock(actionDecl.bodyList, env)</span></span>
-<span id="L606"><span class="lineNum">     606</span>              :     } finally {</span>
-<span id="L607"><span class="lineNum">     607</span> <span class="tlaGNC">           1 :       env.popScope()</span></span>
-<span id="L608"><span class="lineNum">     608</span>              :     }</span>
-<span id="L609"><span class="lineNum">     609</span> <span class="tlaGNC">           1 :   }</span></span>
-<span id="L610"><span class="lineNum">     610</span>              : </span>
-<span id="L611"><span class="lineNum">     611</span>              :   /**</span>
-<span id="L612"><span class="lineNum">     612</span>              :    * Executes a direct (non-table-mediated) action call such as `do_thing(h.h.b)`.</span>
-<span id="L613"><span class="lineNum">     613</span>              :    *</span>
-<span id="L614"><span class="lineNum">     614</span>              :    * Binds argument values to the action's parameter names, runs the body, then writes back any</span>
-<span id="L615"><span class="lineNum">     615</span>              :    * `inout`/`out` parameters to the corresponding call-site lvalues (call-by-value-result</span>
-<span id="L616"><span class="lineNum">     616</span>              :    * semantics, as required by the P4 spec).</span>
-<span id="L617"><span class="lineNum">     617</span>              :    */</span>
-<span id="L618"><span class="lineNum">     618</span>              :   private fun execInlineActionCall(actionName: String, args: List&lt;Expr&gt;, env: Environment): Value {</span>
-<span id="L619"><span class="lineNum">     619</span> <span class="tlaGNC">           1 :     val actionDecl = actions[actionName]!!</span></span>
-<span id="L620"><span class="lineNum">     620</span> <span class="tlaGNC">           1 :     val argValues = args.map { evalExpr(it, env) }</span></span>
+<span id="L526"><span class="lineNum">     526</span>              :       // packet_in.extract(hdr) / packet_out.emit(hdr): target is the extern object</span>
+<span id="L527"><span class="lineNum">     527</span>              :       // (not in env); the header is the first argument.</span>
+<span id="L528"><span class="lineNum">     528</span> <span class="tlaGNC">           1 :       &quot;extract&quot; -&gt; execExtract(call, env)</span></span>
+<span id="L529"><span class="lineNum">     529</span> <span class="tlaGNC">           1 :       &quot;emit&quot; -&gt; execEmit(call, env)</span></span>
+<span id="L530"><span class="lineNum">     530</span>              :       // &quot;__call__&quot; is used for free functions and direct action calls. Check actions first;</span>
+<span id="L531"><span class="lineNum">     531</span>              :       // fall back to extern handling (mark_to_drop, etc.) for unrecognised names.</span>
+<span id="L532"><span class="lineNum">     532</span>              :       &quot;__call__&quot; -&gt; {</span>
+<span id="L533"><span class="lineNum">     533</span> <span class="tlaGNC">           1 :         val funcName = call.target.nameRef.name</span></span>
+<span id="L534"><span class="lineNum">     534</span> <span class="tlaGNC">           1 :         if (funcName in actions) execInlineActionCall(funcName, call.argsList, env)</span></span>
+<span id="L535"><span class="lineNum">     535</span> <span class="tlaGNC">           1 :         else execExternCall(call, env)</span></span>
+<span id="L536"><span class="lineNum">     536</span>              :       }</span>
+<span id="L537"><span class="lineNum">     537</span> <span class="tlaUNC tlaBgUNC">           0 :       else -&gt; error(&quot;unhandled method call: ${call.method} on ${call.target}&quot;)</span></span>
+<span id="L538"><span class="lineNum">     538</span>              :     }</span>
+<span id="L539"><span class="lineNum">     539</span>              :   }</span>
+<span id="L540"><span class="lineNum">     540</span>              : </span>
+<span id="L541"><span class="lineNum">     541</span>              :   // -------------------------------------------------------------------------</span>
+<span id="L542"><span class="lineNum">     542</span>              :   // Table application</span>
+<span id="L543"><span class="lineNum">     543</span>              :   // -------------------------------------------------------------------------</span>
+<span id="L544"><span class="lineNum">     544</span>              : </span>
+<span id="L545"><span class="lineNum">     545</span> <span class="tlaGNC tlaBgGNC">           1 :   private data class TableResult(val hit: Boolean, val actionName: String)</span></span>
+<span id="L546"><span class="lineNum">     546</span>              : </span>
+<span id="L547"><span class="lineNum">     547</span>              :   private fun applyTable(tableName: String, env: Environment): TableResult {</span>
+<span id="L548"><span class="lineNum">     548</span> <span class="tlaGNC">           1 :     val tableBehavior = tables[tableName] ?: error(&quot;unknown table: $tableName&quot;)</span></span>
+<span id="L549"><span class="lineNum">     549</span> <span class="tlaGNC">           1 :     val keyValues = tableBehavior.keysList.map { key -&gt; key.fieldName to evalExpr(key.expr, env) }</span></span>
+<span id="L550"><span class="lineNum">     550</span>              : </span>
+<span id="L551"><span class="lineNum">     551</span> <span class="tlaGNC">           1 :     val (hit, entry, actionName) = tableStore.lookup(tableName, keyValues)</span></span>
+<span id="L552"><span class="lineNum">     552</span>              : </span>
+<span id="L553"><span class="lineNum">     553</span> <span class="tlaGNC">           1 :     packetCtx?.addTraceEvent(</span></span>
+<span id="L554"><span class="lineNum">     554</span> <span class="tlaGNC">           1 :       TraceEvent.newBuilder()</span></span>
+<span id="L555"><span class="lineNum">     555</span> <span class="tlaGNC">           1 :         .setTableLookup(</span></span>
+<span id="L556"><span class="lineNum">     556</span> <span class="tlaGNC">           1 :           TableLookupEvent.newBuilder()</span></span>
+<span id="L557"><span class="lineNum">     557</span> <span class="tlaGNC">           1 :             .setTableName(tableName)</span></span>
+<span id="L558"><span class="lineNum">     558</span> <span class="tlaGNC">           1 :             .setHit(hit)</span></span>
+<span id="L559"><span class="lineNum">     559</span> <span class="tlaGNC">           1 :             .setActionName(actionName)</span></span>
+<span id="L560"><span class="lineNum">     560</span> <span class="tlaGNC">           1 :             .also { if (entry != null) it.setMatchedEntry(entry) }</span></span>
+<span id="L561"><span class="lineNum">     561</span>              :         )</span>
+<span id="L562"><span class="lineNum">     562</span> <span class="tlaGNC">           1 :         .build()</span></span>
+<span id="L563"><span class="lineNum">     563</span>              :     )</span>
+<span id="L564"><span class="lineNum">     564</span>              : </span>
+<span id="L565"><span class="lineNum">     565</span> <span class="tlaGNC">           1 :     execAction(actionName, entry?.action?.action?.paramsList ?: emptyList(), env)</span></span>
+<span id="L566"><span class="lineNum">     566</span> <span class="tlaGNC">           1 :     return TableResult(hit, actionName)</span></span>
+<span id="L567"><span class="lineNum">     567</span>              :   }</span>
+<span id="L568"><span class="lineNum">     568</span>              : </span>
+<span id="L569"><span class="lineNum">     569</span>              :   private fun execAction(</span>
+<span id="L570"><span class="lineNum">     570</span>              :     actionName: String,</span>
+<span id="L571"><span class="lineNum">     571</span>              :     paramProtos: List&lt;p4.v1.P4RuntimeOuterClass.Action.Param&gt;,</span>
+<span id="L572"><span class="lineNum">     572</span>              :     env: Environment,</span>
+<span id="L573"><span class="lineNum">     573</span>              :   ) {</span>
+<span id="L574"><span class="lineNum">     574</span>              :     // NoAction is a P4 built-in no-op (P4 spec §12.7) that is implicitly available in</span>
+<span id="L575"><span class="lineNum">     575</span>              :     // every table. It may appear in const entries without being listed in the actions block,</span>
+<span id="L576"><span class="lineNum">     576</span>              :     // so it might not have been compiled into the IR. Handle it directly rather than</span>
+<span id="L577"><span class="lineNum">     577</span>              :     // requiring the backend to emit an explicit empty ActionDecl for it.</span>
+<span id="L578"><span class="lineNum">     578</span> <span class="tlaGNC">           1 :     if (actionName == &quot;NoAction&quot;) {</span></span>
+<span id="L579"><span class="lineNum">     579</span> <span class="tlaGNC">           1 :       packetCtx?.addTraceEvent(</span></span>
+<span id="L580"><span class="lineNum">     580</span> <span class="tlaGNC">           1 :         TraceEvent.newBuilder()</span></span>
+<span id="L581"><span class="lineNum">     581</span> <span class="tlaGNC">           1 :           .setActionExecution(ActionExecutionEvent.newBuilder().setActionName(actionName))</span></span>
+<span id="L582"><span class="lineNum">     582</span> <span class="tlaGNC">           1 :           .build()</span></span>
+<span id="L583"><span class="lineNum">     583</span>              :       )</span>
+<span id="L584"><span class="lineNum">     584</span> <span class="tlaGNC">           1 :       return</span></span>
+<span id="L585"><span class="lineNum">     585</span>              :     }</span>
+<span id="L586"><span class="lineNum">     586</span>              : </span>
+<span id="L587"><span class="lineNum">     587</span> <span class="tlaGNC">           1 :     val actionDecl = actions[actionName] ?: error(&quot;unknown action: $actionName&quot;)</span></span>
+<span id="L588"><span class="lineNum">     588</span>              : </span>
+<span id="L589"><span class="lineNum">     589</span> <span class="tlaGNC">           1 :     val paramMap = mutableMapOf&lt;String, com.google.protobuf.ByteString&gt;()</span></span>
+<span id="L590"><span class="lineNum">     590</span>              : </span>
+<span id="L591"><span class="lineNum">     591</span> <span class="tlaGNC">           1 :     env.pushScope()</span></span>
+<span id="L592"><span class="lineNum">     592</span> <span class="tlaGNC">           1 :     try {</span></span>
+<span id="L593"><span class="lineNum">     593</span> <span class="tlaGNC">           1 :       actionDecl.paramsList.forEachIndexed { i, paramDecl -&gt;</span></span>
+<span id="L594"><span class="lineNum">     594</span> <span class="tlaGNC">           1 :         val paramProto = paramProtos.getOrNull(i)</span></span>
+<span id="L595"><span class="lineNum">     595</span> <span class="tlaGNC">           1 :         val value: Value =</span></span>
+<span id="L596"><span class="lineNum">     596</span> <span class="tlaGNC">           1 :           if (paramProto != null) {</span></span>
+<span id="L597"><span class="lineNum">     597</span> <span class="tlaGNC">           1 :             val width = paramDecl.type.bit.width</span></span>
+<span id="L598"><span class="lineNum">     598</span> <span class="tlaGNC">           1 :             paramMap[paramDecl.name] = paramProto.value</span></span>
+<span id="L599"><span class="lineNum">     599</span> <span class="tlaGNC">           1 :             BitVal(BitVector.ofBytes(paramProto.value.toByteArray(), width))</span></span>
+<span id="L600"><span class="lineNum">     600</span>              :           } else {</span>
+<span id="L601"><span class="lineNum">     601</span> <span class="tlaGNC">           1 :             UnitVal</span></span>
+<span id="L602"><span class="lineNum">     602</span>              :           }</span>
+<span id="L603"><span class="lineNum">     603</span> <span class="tlaGNC">           1 :         env.define(paramDecl.name, value)</span></span>
+<span id="L604"><span class="lineNum">     604</span> <span class="tlaGNC">           1 :       }</span></span>
+<span id="L605"><span class="lineNum">     605</span>              : </span>
+<span id="L606"><span class="lineNum">     606</span> <span class="tlaGNC">           1 :       packetCtx?.addTraceEvent(</span></span>
+<span id="L607"><span class="lineNum">     607</span> <span class="tlaGNC">           1 :         TraceEvent.newBuilder()</span></span>
+<span id="L608"><span class="lineNum">     608</span> <span class="tlaGNC">           1 :           .setActionExecution(</span></span>
+<span id="L609"><span class="lineNum">     609</span> <span class="tlaGNC">           1 :             ActionExecutionEvent.newBuilder()</span></span>
+<span id="L610"><span class="lineNum">     610</span> <span class="tlaGNC">           1 :               .setActionName(actionName)</span></span>
+<span id="L611"><span class="lineNum">     611</span> <span class="tlaGNC">           1 :               .putAllParams(paramMap.mapValues { it.value })</span></span>
+<span id="L612"><span class="lineNum">     612</span>              :           )</span>
+<span id="L613"><span class="lineNum">     613</span> <span class="tlaGNC">           1 :           .build()</span></span>
+<span id="L614"><span class="lineNum">     614</span>              :       )</span>
+<span id="L615"><span class="lineNum">     615</span>              : </span>
+<span id="L616"><span class="lineNum">     616</span> <span class="tlaGNC">           1 :       execBlock(actionDecl.bodyList, env)</span></span>
+<span id="L617"><span class="lineNum">     617</span>              :     } finally {</span>
+<span id="L618"><span class="lineNum">     618</span> <span class="tlaGNC">           1 :       env.popScope()</span></span>
+<span id="L619"><span class="lineNum">     619</span>              :     }</span>
+<span id="L620"><span class="lineNum">     620</span> <span class="tlaGNC">           1 :   }</span></span>
 <span id="L621"><span class="lineNum">     621</span>              : </span>
-<span id="L622"><span class="lineNum">     622</span> <span class="tlaGNC">           1 :     env.pushScope()</span></span>
-<span id="L623"><span class="lineNum">     623</span> <span class="tlaGNC">           1 :     try {</span></span>
-<span id="L624"><span class="lineNum">     624</span> <span class="tlaGNC">           1 :       actionDecl.paramsList.forEachIndexed { i, param -&gt;</span></span>
-<span id="L625"><span class="lineNum">     625</span> <span class="tlaGNC">           1 :         env.define(param.name, argValues.getOrElse(i) { UnitVal })</span></span>
-<span id="L626"><span class="lineNum">     626</span> <span class="tlaGNC">           1 :       }</span></span>
-<span id="L627"><span class="lineNum">     627</span> <span class="tlaGNC">           1 :       try {</span></span>
-<span id="L628"><span class="lineNum">     628</span> <span class="tlaGNC">           1 :         execBlock(actionDecl.bodyList, env)</span></span>
-<span id="L629"><span class="lineNum">     629</span> <span class="tlaUNC tlaBgUNC">           0 :       } catch (_: ReturnException) {</span></span>
-<span id="L630"><span class="lineNum">     630</span>              :         // P4 action return exits the body without a value; fall through to writeback.</span>
-<span id="L631"><span class="lineNum">     631</span>              :       }</span>
-<span id="L632"><span class="lineNum">     632</span>              :       // Write back inout/out parameters before the scope is popped.</span>
-<span id="L633"><span class="lineNum">     633</span> <span class="tlaGNC tlaBgGNC">           1 :       actionDecl.paramsList.forEachIndexed { i, param -&gt;</span></span>
-<span id="L634"><span class="lineNum">     634</span>              :         if (</span>
-<span id="L635"><span class="lineNum">     635</span> <span class="tlaGNC">           1 :           (param.direction == Direction.INOUT || param.direction == Direction.OUT) &amp;&amp; i &lt; args.size</span></span>
-<span id="L636"><span class="lineNum">     636</span>              :         ) {</span>
-<span id="L637"><span class="lineNum">     637</span> <span class="tlaGNC">           1 :           setLValue(args[i], env.lookup(param.name)!!, env)</span></span>
-<span id="L638"><span class="lineNum">     638</span>              :         }</span>
-<span id="L639"><span class="lineNum">     639</span> <span class="tlaGNC">           1 :       }</span></span>
-<span id="L640"><span class="lineNum">     640</span>              :     } finally {</span>
-<span id="L641"><span class="lineNum">     641</span> <span class="tlaGNC">           1 :       env.popScope()</span></span>
-<span id="L642"><span class="lineNum">     642</span>              :     }</span>
-<span id="L643"><span class="lineNum">     643</span> <span class="tlaGNC">           1 :     return UnitVal</span></span>
-<span id="L644"><span class="lineNum">     644</span>              :   }</span>
-<span id="L645"><span class="lineNum">     645</span>              : </span>
-<span id="L646"><span class="lineNum">     646</span>              :   // -------------------------------------------------------------------------</span>
-<span id="L647"><span class="lineNum">     647</span>              :   // Extern function calls  (method == &quot;__call__&quot;, target is a NameRef)</span>
-<span id="L648"><span class="lineNum">     648</span>              :   // -------------------------------------------------------------------------</span>
-<span id="L649"><span class="lineNum">     649</span>              : </span>
-<span id="L650"><span class="lineNum">     650</span>              :   private fun execExternCall(call: MethodCall, env: Environment): Value {</span>
-<span id="L651"><span class="lineNum">     651</span> <span class="tlaGNC">           1 :     val funcName = call.target.nameRef.name</span></span>
-<span id="L652"><span class="lineNum">     652</span> <span class="tlaGNC">           1 :     return when (funcName) {</span></span>
-<span id="L653"><span class="lineNum">     653</span>              :       // mark_to_drop(standard_metadata): sets egress_spec to the v1model drop port (511).</span>
-<span id="L654"><span class="lineNum">     654</span> <span class="tlaGNC">           1 :       &quot;mark_to_drop&quot; -&gt; {</span></span>
-<span id="L655"><span class="lineNum">     655</span> <span class="tlaGNC">           1 :         val smeta = evalExpr(call.argsList[0], env) as StructVal</span></span>
-<span id="L656"><span class="lineNum">     656</span> <span class="tlaGNC">           1 :         smeta.fields[&quot;egress_spec&quot;] =</span></span>
-<span id="L657"><span class="lineNum">     657</span> <span class="tlaGNC">           1 :           BitVal(V1ModelArchitecture.DROP_PORT.toLong(), V1ModelArchitecture.PORT_BITS)</span></span>
-<span id="L658"><span class="lineNum">     658</span> <span class="tlaGNC">           1 :         UnitVal</span></span>
-<span id="L659"><span class="lineNum">     659</span>              :       }</span>
-<span id="L660"><span class="lineNum">     660</span> <span class="tlaUNC tlaBgUNC">           0 :       else -&gt; error(&quot;unhandled extern call: $funcName&quot;)</span></span>
-<span id="L661"><span class="lineNum">     661</span>              :     }</span>
-<span id="L662"><span class="lineNum">     662</span>              :   }</span>
-<span id="L663"><span class="lineNum">     663</span>              : </span>
-<span id="L664"><span class="lineNum">     664</span>              :   /** If [expr] is a field access into a header union, enforce one-valid-at-a-time (P4 §8.20). */</span>
-<span id="L665"><span class="lineNum">     665</span>              :   private fun invalidateUnionSiblings(expr: Expr, target: HeaderVal, env: Environment) {</span>
-<span id="L666"><span class="lineNum">     666</span> <span class="tlaGNC tlaBgGNC">           1 :     if (!expr.hasFieldAccess()) return</span></span>
-<span id="L667"><span class="lineNum">     667</span> <span class="tlaGNC">           1 :     val parentType = expr.fieldAccess.expr.type</span></span>
-<span id="L668"><span class="lineNum">     668</span> <span class="tlaGNC">           1 :     if (!parentType.hasNamed() || types[parentType.named]?.hasHeaderUnion() != true) return</span></span>
-<span id="L669"><span class="lineNum">     669</span> <span class="tlaGNC">           1 :     (evalExpr(expr.fieldAccess.expr, env) as StructVal).invalidateUnionExcept(target)</span></span>
-<span id="L670"><span class="lineNum">     670</span> <span class="tlaGNC">           1 :   }</span></span>
-<span id="L671"><span class="lineNum">     671</span>              : </span>
-<span id="L672"><span class="lineNum">     672</span>              :   // -------------------------------------------------------------------------</span>
-<span id="L673"><span class="lineNum">     673</span>              :   // Packet extract / emit</span>
-<span id="L674"><span class="lineNum">     674</span>              :   // -------------------------------------------------------------------------</span>
-<span id="L675"><span class="lineNum">     675</span>              : </span>
-<span id="L676"><span class="lineNum">     676</span>              :   private fun execExtract(call: MethodCall, env: Environment): Value {</span>
-<span id="L677"><span class="lineNum">     677</span>              :     // packet_in.extract(hdr.field): the header to extract into is args[0], not the target.</span>
-<span id="L678"><span class="lineNum">     678</span>              :     // P4's don't-care extract `p.extract&lt;T&gt;(_)` compiles to extract(arg) where</span>
-<span id="L679"><span class="lineNum">     679</span>              :     // `arg` is an undeclared temporary. Create a throw-away header to consume bytes.</span>
-<span id="L680"><span class="lineNum">     680</span> <span class="tlaGNC">           1 :     val arg = call.argsList[0]</span></span>
-<span id="L681"><span class="lineNum">     681</span> <span class="tlaGNC">           1 :     val header =</span></span>
-<span id="L682"><span class="lineNum">     682</span> <span class="tlaGNC">           1 :       if (arg.hasNameRef() &amp;&amp; env.lookup(arg.nameRef.name) == null &amp;&amp; arg.type.hasNamed()) {</span></span>
-<span id="L683"><span class="lineNum">     683</span> <span class="tlaGNC">           1 :         defaultValue(arg.type.named, types) as? HeaderVal</span></span>
-<span id="L684"><span class="lineNum">     684</span> <span class="tlaUNC tlaBgUNC">           0 :           ?: error(&quot;type not found for don't-care extract: ${arg.type.named}&quot;)</span></span>
-<span id="L685"><span class="lineNum">     685</span>              :       } else {</span>
-<span id="L686"><span class="lineNum">     686</span> <span class="tlaGNC tlaBgGNC">           1 :         evalExpr(arg, env) as HeaderVal</span></span>
-<span id="L687"><span class="lineNum">     687</span>              :       }</span>
-<span id="L688"><span class="lineNum">     688</span> <span class="tlaGNC">           1 :     val headerDecl = (types[header.typeName] ?: error(&quot;type not found: ${header.typeName}&quot;)).header</span></span>
-<span id="L689"><span class="lineNum">     689</span>              : </span>
-<span id="L690"><span class="lineNum">     690</span>              :     // The 2-argument form b.extract(hdr, varbitBits) is used when the header contains a varbit</span>
-<span id="L691"><span class="lineNum">     691</span>              :     // field. The second argument gives the varbit field's runtime length in bits.</span>
-<span id="L692"><span class="lineNum">     692</span> <span class="tlaGNC">           1 :     val varbitBits: Int =</span></span>
-<span id="L693"><span class="lineNum">     693</span> <span class="tlaGNC">           1 :       if (call.argsCount &gt; 1) (evalExpr(call.argsList[1], env) as BitVal).bits.value.toInt() else 0</span></span>
-<span id="L694"><span class="lineNum">     694</span>              : </span>
-<span id="L695"><span class="lineNum">     695</span>              :     // Read the entire header at once and load it into a single BigInteger (MSB-first).</span>
-<span id="L696"><span class="lineNum">     696</span>              :     // This handles sub-byte fields (e.g. IPv4's bit&lt;4&gt; version and ihl) correctly:</span>
-<span id="L697"><span class="lineNum">     697</span>              :     // both fields live in the same byte and must be unpacked by shift+mask, not by</span>
-<span id="L698"><span class="lineNum">     698</span>              :     // reading separate bytes.</span>
-<span id="L699"><span class="lineNum">     699</span> <span class="tlaGNC">           1 :     val totalBits = headerDecl.fieldsList.sumOf { fieldWireWidth(it.type, varbitBits) }</span></span>
-<span id="L700"><span class="lineNum">     700</span> <span class="tlaGNC">           1 :     val allBits = BigInteger(1, packet.extractBytes((totalBits + 7) / 8))</span></span>
-<span id="L701"><span class="lineNum">     701</span>              : </span>
-<span id="L702"><span class="lineNum">     702</span> <span class="tlaGNC">           1 :     val newFields = mutableMapOf&lt;String, Value&gt;()</span></span>
-<span id="L703"><span class="lineNum">     703</span> <span class="tlaGNC">           1 :     var bitOffset = 0</span></span>
-<span id="L704"><span class="lineNum">     704</span> <span class="tlaGNC">           1 :     for (field in headerDecl.fieldsList) {</span></span>
-<span id="L705"><span class="lineNum">     705</span> <span class="tlaGNC">           1 :       val width = fieldWireWidth(field.type, varbitBits)</span></span>
-<span id="L706"><span class="lineNum">     706</span> <span class="tlaGNC">           1 :       if (width == 0) continue // skip zero-width fields (unrecognised types)</span></span>
-<span id="L707"><span class="lineNum">     707</span> <span class="tlaGNC">           1 :       val mask = BigInteger.ONE.shiftLeft(width) - BigInteger.ONE</span></span>
-<span id="L708"><span class="lineNum">     708</span> <span class="tlaGNC">           1 :       val raw = (allBits shr (totalBits - bitOffset - width)) and mask</span></span>
-<span id="L709"><span class="lineNum">     709</span> <span class="tlaGNC">           1 :       newFields[field.name] = bitsToValue(field.type, raw, width)</span></span>
-<span id="L710"><span class="lineNum">     710</span> <span class="tlaGNC">           1 :       bitOffset += width</span></span>
-<span id="L711"><span class="lineNum">     711</span>              :     }</span>
-<span id="L712"><span class="lineNum">     712</span> <span class="tlaGNC">           1 :     invalidateUnionSiblings(call.argsList[0], header, env)</span></span>
-<span id="L713"><span class="lineNum">     713</span> <span class="tlaGNC">           1 :     header.setValid(newFields)</span></span>
-<span id="L714"><span class="lineNum">     714</span> <span class="tlaGNC">           1 :     return UnitVal</span></span>
-<span id="L715"><span class="lineNum">     715</span>              :   }</span>
-<span id="L716"><span class="lineNum">     716</span>              : </span>
-<span id="L717"><span class="lineNum">     717</span>              :   /**</span>
-<span id="L718"><span class="lineNum">     718</span>              :    * Returns the on-wire bit-width of a header field type.</span>
-<span id="L719"><span class="lineNum">     719</span>              :    *</span>
-<span id="L720"><span class="lineNum">     720</span>              :    * P4 spec §8.9.2: bool in a header occupies exactly 1 bit on the wire. int&lt;N&gt; and bit&lt;N&gt; occupy N</span>
-<span id="L721"><span class="lineNum">     721</span>              :    * bits. varbit&lt;N&gt; occupies [varbitBits] bits (caller must supply the runtime value). Serializable</span>
-<span id="L722"><span class="lineNum">     722</span>              :    * enums are looked up by name and use their declared underlying width.</span>
-<span id="L723"><span class="lineNum">     723</span>              :    */</span>
-<span id="L724"><span class="lineNum">     724</span> <span class="tlaUNC tlaBgUNC">           0 :   private fun fieldWireWidth(type: Type, varbitBits: Int = 0): Int =</span></span>
-<span id="L725"><span class="lineNum">     725</span> <span class="tlaGNC tlaBgGNC">           1 :     when {</span></span>
-<span id="L726"><span class="lineNum">     726</span> <span class="tlaGNC">           1 :       type.hasBit() -&gt; type.bit.width</span></span>
-<span id="L727"><span class="lineNum">     727</span> <span class="tlaGNC">           1 :       type.hasSignedInt() -&gt; type.signedInt.width</span></span>
-<span id="L728"><span class="lineNum">     728</span> <span class="tlaGNC">           1 :       type.hasBoolean() -&gt; 1</span></span>
-<span id="L729"><span class="lineNum">     729</span> <span class="tlaGNC">           1 :       type.hasVarbit() -&gt; varbitBits</span></span>
-<span id="L730"><span class="lineNum">     730</span> <span class="tlaGNC">           1 :       type.hasNamed() -&gt; {</span></span>
-<span id="L731"><span class="lineNum">     731</span> <span class="tlaGNC">           1 :         val decl = types[type.named]</span></span>
-<span id="L732"><span class="lineNum">     732</span> <span class="tlaGNC">           1 :         when {</span></span>
-<span id="L733"><span class="lineNum">     733</span> <span class="tlaGNC">           1 :           decl != null &amp;&amp; decl.hasEnum() -&gt; decl.enum.width</span></span>
-<span id="L734"><span class="lineNum">     734</span> <span class="tlaUNC tlaBgUNC">           0 :           else -&gt; 0</span></span>
-<span id="L735"><span class="lineNum">     735</span>              :         }</span>
-<span id="L736"><span class="lineNum">     736</span>              :       }</span>
-<span id="L737"><span class="lineNum">     737</span> <span class="tlaUNC">           0 :       else -&gt; 0</span></span>
-<span id="L738"><span class="lineNum">     738</span> <span class="tlaGNC tlaBgGNC">           1 :     }</span></span>
-<span id="L739"><span class="lineNum">     739</span>              : </span>
-<span id="L740"><span class="lineNum">     740</span>              :   /**</span>
-<span id="L741"><span class="lineNum">     741</span>              :    * Converts raw extracted bits to the appropriate [Value] for a header field.</span>
-<span id="L742"><span class="lineNum">     742</span>              :    *</span>
-<span id="L743"><span class="lineNum">     743</span>              :    * bit&lt;N&gt; → [BitVal], bool → [BoolVal], int&lt;N&gt; → [IntVal], varbit / enum → [BitVal].</span>
-<span id="L744"><span class="lineNum">     744</span>              :    */</span>
-<span id="L745"><span class="lineNum">     745</span>              :   private fun bitsToValue(type: Type, raw: BigInteger, width: Int): Value =</span>
-<span id="L746"><span class="lineNum">     746</span> <span class="tlaGNC">           1 :     when {</span></span>
-<span id="L747"><span class="lineNum">     747</span> <span class="tlaGNC">           1 :       type.hasBoolean() -&gt; BoolVal(raw != BigInteger.ZERO)</span></span>
-<span id="L748"><span class="lineNum">     748</span> <span class="tlaGNC">           1 :       type.hasSignedInt() -&gt; IntVal(SignedBitVector.fromUnsignedBits(raw, width))</span></span>
-<span id="L749"><span class="lineNum">     749</span> <span class="tlaGNC">           1 :       else -&gt; BitVal(BitVector(raw, width))</span></span>
-<span id="L750"><span class="lineNum">     750</span> <span class="tlaGNC">           1 :     }</span></span>
-<span id="L751"><span class="lineNum">     751</span>              : </span>
-<span id="L752"><span class="lineNum">     752</span>              :   private fun execEmit(call: MethodCall, env: Environment): Value {</span>
-<span id="L753"><span class="lineNum">     753</span> <span class="tlaGNC">           1 :     emitValue(evalExpr(call.argsList[0], env))</span></span>
-<span id="L754"><span class="lineNum">     754</span> <span class="tlaGNC">           1 :     return UnitVal</span></span>
-<span id="L755"><span class="lineNum">     755</span>              :   }</span>
-<span id="L756"><span class="lineNum">     756</span>              : </span>
-<span id="L757"><span class="lineNum">     757</span>              :   /**</span>
-<span id="L758"><span class="lineNum">     758</span>              :    * Recursively emits a value to the packet output buffer.</span>
-<span id="L759"><span class="lineNum">     759</span>              :    * - [HeaderVal]: packs all fields into bytes (MSB-first) and appends if valid.</span>
-<span id="L760"><span class="lineNum">     760</span>              :    * - [StructVal]: iterates fields in declaration order (looking up the TypeDecl) and emits each.</span>
-<span id="L761"><span class="lineNum">     761</span>              :    * - Other types: no-op (non-emittable values such as BoolVal in metadata structs).</span>
-<span id="L762"><span class="lineNum">     762</span>              :    *</span>
-<span id="L763"><span class="lineNum">     763</span>              :    * This handles both `pkt.emit(hdr.ethernet)` (single header) and `pkt.emit(hdr)` where `hdr` is a</span>
-<span id="L764"><span class="lineNum">     764</span>              :    * struct containing multiple headers, as required by the P4 deparser model.</span>
-<span id="L765"><span class="lineNum">     765</span>              :    */</span>
-<span id="L766"><span class="lineNum">     766</span>              :   private fun emitValue(value: Value) {</span>
-<span id="L767"><span class="lineNum">     767</span> <span class="tlaGNC">           1 :     when (value) {</span></span>
-<span id="L768"><span class="lineNum">     768</span> <span class="tlaGNC">           1 :       is HeaderVal -&gt; {</span></span>
-<span id="L769"><span class="lineNum">     769</span> <span class="tlaGNC">           1 :         if (!value.valid) return</span></span>
-<span id="L770"><span class="lineNum">     770</span> <span class="tlaGNC">           1 :         val headerDecl =</span></span>
-<span id="L771"><span class="lineNum">     771</span> <span class="tlaGNC">           1 :           (types[value.typeName] ?: error(&quot;type not found: ${value.typeName}&quot;)).header</span></span>
-<span id="L772"><span class="lineNum">     772</span>              :         // Compute total wire bits from field declarations; varbit fields use their stored BitVal</span>
-<span id="L773"><span class="lineNum">     773</span>              :         // width since we don't have the runtime length separately at emit time.</span>
-<span id="L774"><span class="lineNum">     774</span> <span class="tlaGNC">           1 :         val totalBits =</span></span>
-<span id="L775"><span class="lineNum">     775</span> <span class="tlaGNC">           1 :           headerDecl.fieldsList.sumOf { field -&gt;</span></span>
-<span id="L776"><span class="lineNum">     776</span> <span class="tlaGNC">           1 :             when (val v = value.fields[field.name]) {</span></span>
-<span id="L777"><span class="lineNum">     777</span> <span class="tlaGNC">           1 :               is BitVal -&gt; v.bits.width</span></span>
-<span id="L778"><span class="lineNum">     778</span> <span class="tlaGNC">           1 :               is BoolVal -&gt; 1</span></span>
-<span id="L779"><span class="lineNum">     779</span> <span class="tlaGNC">           1 :               is IntVal -&gt; v.bits.width</span></span>
-<span id="L780"><span class="lineNum">     780</span> <span class="tlaUNC tlaBgUNC">           0 :               else -&gt; 0</span></span>
-<span id="L781"><span class="lineNum">     781</span> <span class="tlaGNC tlaBgGNC">           1 :             }</span></span>
-<span id="L782"><span class="lineNum">     782</span>              :           }</span>
-<span id="L783"><span class="lineNum">     783</span> <span class="tlaGNC">           1 :         var packedBits = BigInteger.ZERO</span></span>
-<span id="L784"><span class="lineNum">     784</span> <span class="tlaGNC">           1 :         var bitOffset = 0</span></span>
-<span id="L785"><span class="lineNum">     785</span> <span class="tlaGNC">           1 :         for (field in headerDecl.fieldsList) {</span></span>
-<span id="L786"><span class="lineNum">     786</span> <span class="tlaGNC">           1 :           val fieldBits: BigInteger</span></span>
-<span id="L787"><span class="lineNum">     787</span> <span class="tlaGNC">           1 :           val width: Int</span></span>
-<span id="L788"><span class="lineNum">     788</span> <span class="tlaGNC">           1 :           when (val fieldVal = value.fields[field.name]) {</span></span>
-<span id="L789"><span class="lineNum">     789</span> <span class="tlaGNC">           1 :             is BitVal -&gt; {</span></span>
-<span id="L790"><span class="lineNum">     790</span> <span class="tlaGNC">           1 :               fieldBits = fieldVal.bits.value</span></span>
-<span id="L791"><span class="lineNum">     791</span> <span class="tlaGNC">           1 :               width = fieldVal.bits.width</span></span>
-<span id="L792"><span class="lineNum">     792</span>              :             }</span>
-<span id="L793"><span class="lineNum">     793</span> <span class="tlaGNC">           1 :             is BoolVal -&gt; {</span></span>
-<span id="L794"><span class="lineNum">     794</span>              :               // P4 spec §8.9.2: bool occupies 1 bit on the wire.</span>
-<span id="L795"><span class="lineNum">     795</span> <span class="tlaGNC">           1 :               fieldBits = if (fieldVal.value) BigInteger.ONE else BigInteger.ZERO</span></span>
-<span id="L796"><span class="lineNum">     796</span> <span class="tlaGNC">           1 :               width = 1</span></span>
-<span id="L797"><span class="lineNum">     797</span>              :             }</span>
-<span id="L798"><span class="lineNum">     798</span> <span class="tlaGNC">           1 :             is IntVal -&gt; {</span></span>
-<span id="L799"><span class="lineNum">     799</span> <span class="tlaGNC">           1 :               fieldBits = fieldVal.bits.toUnsigned().value</span></span>
-<span id="L800"><span class="lineNum">     800</span> <span class="tlaGNC">           1 :               width = fieldVal.bits.width</span></span>
-<span id="L801"><span class="lineNum">     801</span>              :             }</span>
-<span id="L802"><span class="lineNum">     802</span> <span class="tlaUNC tlaBgUNC">           0 :             else -&gt; continue // UnitVal (e.g. varbit placeholder) — skip</span></span>
-<span id="L803"><span class="lineNum">     803</span>              :           }</span>
-<span id="L804"><span class="lineNum">     804</span> <span class="tlaGNC tlaBgGNC">           1 :           if (totalBits &gt; 0 &amp;&amp; width &gt; 0) {</span></span>
-<span id="L805"><span class="lineNum">     805</span> <span class="tlaGNC">           1 :             val shift = totalBits - bitOffset - width</span></span>
-<span id="L806"><span class="lineNum">     806</span> <span class="tlaGNC">           1 :             packedBits = packedBits or fieldBits.shiftLeft(shift)</span></span>
-<span id="L807"><span class="lineNum">     807</span>              :           }</span>
-<span id="L808"><span class="lineNum">     808</span> <span class="tlaGNC">           1 :           bitOffset += width</span></span>
-<span id="L809"><span class="lineNum">     809</span>              :         }</span>
-<span id="L810"><span class="lineNum">     810</span> <span class="tlaGNC">           1 :         if (totalBits &gt; 0) packet.emitBytes(BitVector(packedBits, totalBits).toByteArray())</span></span>
-<span id="L811"><span class="lineNum">     811</span>              :       }</span>
-<span id="L812"><span class="lineNum">     812</span> <span class="tlaGNC">           1 :       is StructVal -&gt; {</span></span>
-<span id="L813"><span class="lineNum">     813</span>              :         // Emit in the declaration order from the TypeDecl; fall back to map order if unknown.</span>
-<span id="L814"><span class="lineNum">     814</span> <span class="tlaGNC">           1 :         val typeDecl = types[value.typeName]</span></span>
-<span id="L815"><span class="lineNum">     815</span> <span class="tlaGNC">           1 :         val fieldDecls =</span></span>
-<span id="L816"><span class="lineNum">     816</span> <span class="tlaGNC">           1 :           when {</span></span>
-<span id="L817"><span class="lineNum">     817</span> <span class="tlaGNC">           1 :             typeDecl != null &amp;&amp; typeDecl.hasStruct() -&gt; typeDecl.struct.fieldsList</span></span>
-<span id="L818"><span class="lineNum">     818</span> <span class="tlaGNC">           1 :             typeDecl != null &amp;&amp; typeDecl.hasHeaderUnion() -&gt; typeDecl.headerUnion.fieldsList</span></span>
-<span id="L819"><span class="lineNum">     819</span> <span class="tlaUNC tlaBgUNC">           0 :             else -&gt; null</span></span>
-<span id="L820"><span class="lineNum">     820</span>              :           }</span>
-<span id="L821"><span class="lineNum">     821</span> <span class="tlaGNC tlaBgGNC">           1 :         if (fieldDecls != null) {</span></span>
-<span id="L822"><span class="lineNum">     822</span> <span class="tlaGNC">           1 :           for (field in fieldDecls) {</span></span>
-<span id="L823"><span class="lineNum">     823</span> <span class="tlaGNC">           1 :             emitValue(value.fields[field.name] ?: continue)</span></span>
-<span id="L824"><span class="lineNum">     824</span>              :           }</span>
-<span id="L825"><span class="lineNum">     825</span>              :         } else {</span>
-<span id="L826"><span class="lineNum">     826</span> <span class="tlaUNC tlaBgUNC">           0 :           for (fieldVal in value.fields.values) emitValue(fieldVal)</span></span>
-<span id="L827"><span class="lineNum">     827</span>              :         }</span>
-<span id="L828"><span class="lineNum">     828</span>              :       }</span>
-<span id="L829"><span class="lineNum">     829</span> <span class="tlaGNC tlaBgGNC">           1 :       is HeaderStackVal -&gt; {</span></span>
-<span id="L830"><span class="lineNum">     830</span> <span class="tlaGNC">           1 :         for (header in value.headers) emitValue(header)</span></span>
-<span id="L831"><span class="lineNum">     831</span>              :       }</span>
-<span id="L832"><span class="lineNum">     832</span>              :       else -&gt; {} // BoolVal, BitVal outside a header, UnitVal — not emittable</span>
-<span id="L833"><span class="lineNum">     833</span>              :     }</span>
-<span id="L834"><span class="lineNum">     834</span> <span class="tlaGNC">           1 :   }</span></span>
-<span id="L835"><span class="lineNum">     835</span>              : </span>
-<span id="L836"><span class="lineNum">     836</span>              :   // -------------------------------------------------------------------------</span>
-<span id="L837"><span class="lineNum">     837</span>              :   // LValue assignment</span>
-<span id="L838"><span class="lineNum">     838</span>              :   // -------------------------------------------------------------------------</span>
-<span id="L839"><span class="lineNum">     839</span>              : </span>
-<span id="L840"><span class="lineNum">     840</span>              :   private fun setLValue(lhs: Expr, value: Value, env: Environment) {</span>
-<span id="L841"><span class="lineNum">     841</span> <span class="tlaGNC">           1 :     when {</span></span>
-<span id="L842"><span class="lineNum">     842</span> <span class="tlaGNC">           1 :       lhs.hasNameRef() -&gt; {</span></span>
-<span id="L843"><span class="lineNum">     843</span>              :         // P4 assignment is copy-by-value. Headers and structs carry a mutable fields map,</span>
-<span id="L844"><span class="lineNum">     844</span>              :         // so we copy them here to prevent aliasing (e.g. `x = h.h; x.a = 2` must not</span>
-<span id="L845"><span class="lineNum">     845</span>              :         // modify `h.h.a`).</span>
-<span id="L846"><span class="lineNum">     846</span> <span class="tlaGNC">           1 :         val copy =</span></span>
-<span id="L847"><span class="lineNum">     847</span> <span class="tlaGNC">           1 :           when (value) {</span></span>
-<span id="L848"><span class="lineNum">     848</span> <span class="tlaGNC">           1 :             is HeaderVal -&gt; value.copy()</span></span>
-<span id="L849"><span class="lineNum">     849</span> <span class="tlaGNC">           1 :             is StructVal -&gt; value.copy()</span></span>
-<span id="L850"><span class="lineNum">     850</span> <span class="tlaGNC">           1 :             else -&gt; value</span></span>
-<span id="L851"><span class="lineNum">     851</span>              :           }</span>
-<span id="L852"><span class="lineNum">     852</span> <span class="tlaGNC">           1 :         env.update(lhs.nameRef.name, copy)</span></span>
-<span id="L853"><span class="lineNum">     853</span>              :       }</span>
-<span id="L854"><span class="lineNum">     854</span> <span class="tlaGNC">           1 :       lhs.hasFieldAccess() -&gt; {</span></span>
-<span id="L855"><span class="lineNum">     855</span> <span class="tlaGNC">           1 :         val target = evalExpr(lhs.fieldAccess.expr, env)</span></span>
-<span id="L856"><span class="lineNum">     856</span> <span class="tlaGNC">           1 :         when (target) {</span></span>
-<span id="L857"><span class="lineNum">     857</span> <span class="tlaGNC">           1 :           is HeaderVal -&gt; target.fields[lhs.fieldAccess.fieldName] = value</span></span>
-<span id="L858"><span class="lineNum">     858</span> <span class="tlaGNC">           1 :           is StructVal -&gt; target.fields[lhs.fieldAccess.fieldName] = value</span></span>
-<span id="L859"><span class="lineNum">     859</span> <span class="tlaUNC tlaBgUNC">           0 :           else -&gt; error(&quot;field assignment on non-aggregate: $target&quot;)</span></span>
-<span id="L860"><span class="lineNum">     860</span>              :         }</span>
-<span id="L861"><span class="lineNum">     861</span>              :       }</span>
-<span id="L862"><span class="lineNum">     862</span> <span class="tlaGNC tlaBgGNC">           1 :       lhs.hasArrayIndex() -&gt; {</span></span>
-<span id="L863"><span class="lineNum">     863</span> <span class="tlaUNC tlaBgUNC">           0 :         val stack = evalExpr(lhs.arrayIndex.expr, env) as HeaderStackVal</span></span>
-<span id="L864"><span class="lineNum">     864</span> <span class="tlaUNC">           0 :         val index = intValue(evalExpr(lhs.arrayIndex.index, env))</span></span>
-<span id="L865"><span class="lineNum">     865</span> <span class="tlaUNC">           0 :         val copy = if (value is HeaderVal) value.copy() else value</span></span>
-<span id="L866"><span class="lineNum">     866</span> <span class="tlaUNC">           0 :         stack.headers[index] = copy as HeaderVal</span></span>
-<span id="L867"><span class="lineNum">     867</span>              :       }</span>
-<span id="L868"><span class="lineNum">     868</span> <span class="tlaGNC tlaBgGNC">           1 :       lhs.hasSlice() -&gt; {</span></span>
-<span id="L869"><span class="lineNum">     869</span>              :         // Slice assignment: update [hi:lo] bits of the target.</span>
-<span id="L870"><span class="lineNum">     870</span> <span class="tlaGNC">           1 :         val target = evalExpr(lhs.slice.expr, env) as BitVal</span></span>
-<span id="L871"><span class="lineNum">     871</span> <span class="tlaGNC">           1 :         val src = value as BitVal</span></span>
-<span id="L872"><span class="lineNum">     872</span> <span class="tlaGNC">           1 :         val hi = lhs.slice.hi</span></span>
-<span id="L873"><span class="lineNum">     873</span> <span class="tlaGNC">           1 :         val lo = lhs.slice.lo</span></span>
-<span id="L874"><span class="lineNum">     874</span> <span class="tlaGNC">           1 :         val mask =</span></span>
-<span id="L875"><span class="lineNum">     875</span> <span class="tlaGNC">           1 :           BitVector(</span></span>
-<span id="L876"><span class="lineNum">     876</span> <span class="tlaGNC">           1 :             BigInteger.TWO.pow(hi - lo + 1).minus(BigInteger.ONE).shiftLeft(lo),</span></span>
-<span id="L877"><span class="lineNum">     877</span> <span class="tlaGNC">           1 :             target.bits.width,</span></span>
-<span id="L878"><span class="lineNum">     878</span>              :           )</span>
-<span id="L879"><span class="lineNum">     879</span> <span class="tlaGNC">           1 :         val shifted = BitVector(src.bits.value.shiftLeft(lo), target.bits.width)</span></span>
-<span id="L880"><span class="lineNum">     880</span> <span class="tlaGNC">           1 :         val result = (target.bits and mask.inv()) or (shifted and mask)</span></span>
-<span id="L881"><span class="lineNum">     881</span> <span class="tlaGNC">           1 :         setLValue(lhs.slice.expr, BitVal(result), env)</span></span>
-<span id="L882"><span class="lineNum">     882</span>              :       }</span>
-<span id="L883"><span class="lineNum">     883</span> <span class="tlaUNC tlaBgUNC">           0 :       else -&gt; error(&quot;unhandled lvalue kind: $lhs&quot;)</span></span>
-<span id="L884"><span class="lineNum">     884</span>              :     }</span>
-<span id="L885"><span class="lineNum">     885</span> <span class="tlaGNC tlaBgGNC">           1 :   }</span></span>
-<span id="L886"><span class="lineNum">     886</span>              : }</span>
-<span id="L887"><span class="lineNum">     887</span>              : </span>
-<span id="L888"><span class="lineNum">     888</span>              : /**</span>
-<span id="L889"><span class="lineNum">     889</span>              :  * Thrown by an `exit` statement; unwinds the call stack to the top of the current pipeline stage.</span>
-<span id="L890"><span class="lineNum">     890</span>              :  */</span>
-<span id="L891"><span class="lineNum">     891</span> <span class="tlaGNC">           1 : class ExitException : Exception()</span></span>
-<span id="L892"><span class="lineNum">     892</span>              : </span>
-<span id="L893"><span class="lineNum">     893</span>              : /** Thrown by a `return` statement inside an action or function. */</span>
-<span id="L894"><span class="lineNum">     894</span> <span class="tlaUNC tlaBgUNC">           0 : class ReturnException(val value: Value) : Exception()</span></span>
+<span id="L622"><span class="lineNum">     622</span>              :   /**</span>
+<span id="L623"><span class="lineNum">     623</span>              :    * Executes a direct (non-table-mediated) action call such as `do_thing(h.h.b)`.</span>
+<span id="L624"><span class="lineNum">     624</span>              :    *</span>
+<span id="L625"><span class="lineNum">     625</span>              :    * Binds argument values to the action's parameter names, runs the body, then writes back any</span>
+<span id="L626"><span class="lineNum">     626</span>              :    * `inout`/`out` parameters to the corresponding call-site lvalues (call-by-value-result</span>
+<span id="L627"><span class="lineNum">     627</span>              :    * semantics, as required by the P4 spec).</span>
+<span id="L628"><span class="lineNum">     628</span>              :    */</span>
+<span id="L629"><span class="lineNum">     629</span>              :   private fun execInlineActionCall(actionName: String, args: List&lt;Expr&gt;, env: Environment): Value {</span>
+<span id="L630"><span class="lineNum">     630</span> <span class="tlaGNC">           1 :     val actionDecl = actions[actionName]!!</span></span>
+<span id="L631"><span class="lineNum">     631</span> <span class="tlaGNC">           1 :     val argValues = args.map { evalExpr(it, env) }</span></span>
+<span id="L632"><span class="lineNum">     632</span>              : </span>
+<span id="L633"><span class="lineNum">     633</span> <span class="tlaGNC">           1 :     env.pushScope()</span></span>
+<span id="L634"><span class="lineNum">     634</span> <span class="tlaGNC">           1 :     try {</span></span>
+<span id="L635"><span class="lineNum">     635</span> <span class="tlaGNC">           1 :       actionDecl.paramsList.forEachIndexed { i, param -&gt;</span></span>
+<span id="L636"><span class="lineNum">     636</span> <span class="tlaGNC">           1 :         env.define(param.name, argValues.getOrElse(i) { UnitVal })</span></span>
+<span id="L637"><span class="lineNum">     637</span> <span class="tlaGNC">           1 :       }</span></span>
+<span id="L638"><span class="lineNum">     638</span> <span class="tlaGNC">           1 :       try {</span></span>
+<span id="L639"><span class="lineNum">     639</span> <span class="tlaGNC">           1 :         execBlock(actionDecl.bodyList, env)</span></span>
+<span id="L640"><span class="lineNum">     640</span> <span class="tlaUNC tlaBgUNC">           0 :       } catch (_: ReturnException) {</span></span>
+<span id="L641"><span class="lineNum">     641</span>              :         // P4 action return exits the body without a value; fall through to writeback.</span>
+<span id="L642"><span class="lineNum">     642</span>              :       }</span>
+<span id="L643"><span class="lineNum">     643</span>              :       // Write back inout/out parameters before the scope is popped.</span>
+<span id="L644"><span class="lineNum">     644</span> <span class="tlaGNC tlaBgGNC">           1 :       actionDecl.paramsList.forEachIndexed { i, param -&gt;</span></span>
+<span id="L645"><span class="lineNum">     645</span>              :         if (</span>
+<span id="L646"><span class="lineNum">     646</span> <span class="tlaGNC">           1 :           (param.direction == Direction.INOUT || param.direction == Direction.OUT) &amp;&amp; i &lt; args.size</span></span>
+<span id="L647"><span class="lineNum">     647</span>              :         ) {</span>
+<span id="L648"><span class="lineNum">     648</span> <span class="tlaGNC">           1 :           setLValue(args[i], env.lookup(param.name)!!, env)</span></span>
+<span id="L649"><span class="lineNum">     649</span>              :         }</span>
+<span id="L650"><span class="lineNum">     650</span> <span class="tlaGNC">           1 :       }</span></span>
+<span id="L651"><span class="lineNum">     651</span>              :     } finally {</span>
+<span id="L652"><span class="lineNum">     652</span> <span class="tlaGNC">           1 :       env.popScope()</span></span>
+<span id="L653"><span class="lineNum">     653</span>              :     }</span>
+<span id="L654"><span class="lineNum">     654</span> <span class="tlaGNC">           1 :     return UnitVal</span></span>
+<span id="L655"><span class="lineNum">     655</span>              :   }</span>
+<span id="L656"><span class="lineNum">     656</span>              : </span>
+<span id="L657"><span class="lineNum">     657</span>              :   // -------------------------------------------------------------------------</span>
+<span id="L658"><span class="lineNum">     658</span>              :   // Extern function calls  (method == &quot;__call__&quot;, target is a NameRef)</span>
+<span id="L659"><span class="lineNum">     659</span>              :   // -------------------------------------------------------------------------</span>
+<span id="L660"><span class="lineNum">     660</span>              : </span>
+<span id="L661"><span class="lineNum">     661</span>              :   private fun execExternCall(call: MethodCall, env: Environment): Value {</span>
+<span id="L662"><span class="lineNum">     662</span> <span class="tlaGNC">           1 :     val funcName = call.target.nameRef.name</span></span>
+<span id="L663"><span class="lineNum">     663</span> <span class="tlaGNC">           1 :     return when (funcName) {</span></span>
+<span id="L664"><span class="lineNum">     664</span>              :       // mark_to_drop(standard_metadata): sets egress_spec to the v1model drop port (511).</span>
+<span id="L665"><span class="lineNum">     665</span> <span class="tlaGNC">           1 :       &quot;mark_to_drop&quot; -&gt; {</span></span>
+<span id="L666"><span class="lineNum">     666</span> <span class="tlaGNC">           1 :         val smeta = evalExpr(call.argsList[0], env) as StructVal</span></span>
+<span id="L667"><span class="lineNum">     667</span> <span class="tlaGNC">           1 :         smeta.fields[&quot;egress_spec&quot;] =</span></span>
+<span id="L668"><span class="lineNum">     668</span> <span class="tlaGNC">           1 :           BitVal(V1ModelArchitecture.DROP_PORT.toLong(), V1ModelArchitecture.PORT_BITS)</span></span>
+<span id="L669"><span class="lineNum">     669</span> <span class="tlaGNC">           1 :         UnitVal</span></span>
+<span id="L670"><span class="lineNum">     670</span>              :       }</span>
+<span id="L671"><span class="lineNum">     671</span> <span class="tlaUNC tlaBgUNC">           0 :       else -&gt; error(&quot;unhandled extern call: $funcName&quot;)</span></span>
+<span id="L672"><span class="lineNum">     672</span>              :     }</span>
+<span id="L673"><span class="lineNum">     673</span>              :   }</span>
+<span id="L674"><span class="lineNum">     674</span>              : </span>
+<span id="L675"><span class="lineNum">     675</span>              :   /** If [expr] is a field access into a header union, enforce one-valid-at-a-time (P4 §8.20). */</span>
+<span id="L676"><span class="lineNum">     676</span>              :   private fun invalidateUnionSiblings(expr: Expr, target: HeaderVal, env: Environment) {</span>
+<span id="L677"><span class="lineNum">     677</span> <span class="tlaGNC tlaBgGNC">           1 :     if (!expr.hasFieldAccess()) return</span></span>
+<span id="L678"><span class="lineNum">     678</span> <span class="tlaGNC">           1 :     val parentType = expr.fieldAccess.expr.type</span></span>
+<span id="L679"><span class="lineNum">     679</span> <span class="tlaGNC">           1 :     if (!parentType.hasNamed() || types[parentType.named]?.hasHeaderUnion() != true) return</span></span>
+<span id="L680"><span class="lineNum">     680</span> <span class="tlaGNC">           1 :     (evalExpr(expr.fieldAccess.expr, env) as StructVal).invalidateUnionExcept(target)</span></span>
+<span id="L681"><span class="lineNum">     681</span> <span class="tlaGNC">           1 :   }</span></span>
+<span id="L682"><span class="lineNum">     682</span>              : </span>
+<span id="L683"><span class="lineNum">     683</span>              :   // -------------------------------------------------------------------------</span>
+<span id="L684"><span class="lineNum">     684</span>              :   // Packet extract / emit</span>
+<span id="L685"><span class="lineNum">     685</span>              :   // -------------------------------------------------------------------------</span>
+<span id="L686"><span class="lineNum">     686</span>              : </span>
+<span id="L687"><span class="lineNum">     687</span>              :   private fun execExtract(call: MethodCall, env: Environment): Value {</span>
+<span id="L688"><span class="lineNum">     688</span>              :     // packet_in.extract(hdr.field): the header to extract into is args[0], not the target.</span>
+<span id="L689"><span class="lineNum">     689</span>              :     // P4's don't-care extract `p.extract&lt;T&gt;(_)` compiles to extract(arg) where</span>
+<span id="L690"><span class="lineNum">     690</span>              :     // `arg` is an undeclared temporary. Create a throw-away header to consume bytes.</span>
+<span id="L691"><span class="lineNum">     691</span> <span class="tlaGNC">           1 :     val arg = call.argsList[0]</span></span>
+<span id="L692"><span class="lineNum">     692</span> <span class="tlaGNC">           1 :     val header =</span></span>
+<span id="L693"><span class="lineNum">     693</span> <span class="tlaGNC">           1 :       if (arg.hasNameRef() &amp;&amp; env.lookup(arg.nameRef.name) == null &amp;&amp; arg.type.hasNamed()) {</span></span>
+<span id="L694"><span class="lineNum">     694</span> <span class="tlaGNC">           1 :         defaultValue(arg.type.named, types) as? HeaderVal</span></span>
+<span id="L695"><span class="lineNum">     695</span> <span class="tlaUNC tlaBgUNC">           0 :           ?: error(&quot;type not found for don't-care extract: ${arg.type.named}&quot;)</span></span>
+<span id="L696"><span class="lineNum">     696</span>              :       } else {</span>
+<span id="L697"><span class="lineNum">     697</span> <span class="tlaGNC tlaBgGNC">           1 :         evalExpr(arg, env) as HeaderVal</span></span>
+<span id="L698"><span class="lineNum">     698</span>              :       }</span>
+<span id="L699"><span class="lineNum">     699</span> <span class="tlaGNC">           1 :     val headerDecl = (types[header.typeName] ?: error(&quot;type not found: ${header.typeName}&quot;)).header</span></span>
+<span id="L700"><span class="lineNum">     700</span>              : </span>
+<span id="L701"><span class="lineNum">     701</span>              :     // The 2-argument form b.extract(hdr, varbitBits) is used when the header contains a varbit</span>
+<span id="L702"><span class="lineNum">     702</span>              :     // field. The second argument gives the varbit field's runtime length in bits.</span>
+<span id="L703"><span class="lineNum">     703</span> <span class="tlaGNC">           1 :     val varbitBits: Int =</span></span>
+<span id="L704"><span class="lineNum">     704</span> <span class="tlaGNC">           1 :       if (call.argsCount &gt; 1) (evalExpr(call.argsList[1], env) as BitVal).bits.value.toInt() else 0</span></span>
+<span id="L705"><span class="lineNum">     705</span>              : </span>
+<span id="L706"><span class="lineNum">     706</span>              :     // P4 spec §12.8.1: validate varbit extract constraints.</span>
+<span id="L707"><span class="lineNum">     707</span> <span class="tlaGNC">           1 :     if (varbitBits &gt; 0) {</span></span>
+<span id="L708"><span class="lineNum">     708</span> <span class="tlaGNC">           1 :       if (varbitBits % 8 != 0) {</span></span>
+<span id="L709"><span class="lineNum">     709</span> <span class="tlaGNC">           1 :         throw ParserErrorException(</span></span>
+<span id="L710"><span class="lineNum">     710</span> <span class="tlaGNC">           1 :           &quot;ParserInvalidArgument&quot;,</span></span>
+<span id="L711"><span class="lineNum">     711</span> <span class="tlaGNC">           1 :           &quot;varbit extract length $varbitBits is not a multiple of 8&quot;,</span></span>
+<span id="L712"><span class="lineNum">     712</span>              :         )</span>
+<span id="L713"><span class="lineNum">     713</span>              :       }</span>
+<span id="L714"><span class="lineNum">     714</span> <span class="tlaGNC">           1 :       val varbitField = headerDecl.fieldsList.find { it.type.hasVarbit() }</span></span>
+<span id="L715"><span class="lineNum">     715</span> <span class="tlaGNC">           1 :       if (varbitField != null &amp;&amp; varbitBits &gt; varbitField.type.varbit.maxWidth) {</span></span>
+<span id="L716"><span class="lineNum">     716</span> <span class="tlaGNC">           1 :         throw ParserErrorException(</span></span>
+<span id="L717"><span class="lineNum">     717</span> <span class="tlaGNC">           1 :           &quot;HeaderTooShort&quot;,</span></span>
+<span id="L718"><span class="lineNum">     718</span> <span class="tlaGNC">           1 :           &quot;varbit extract length $varbitBits exceeds max width ${varbitField.type.varbit.maxWidth}&quot;,</span></span>
+<span id="L719"><span class="lineNum">     719</span>              :         )</span>
+<span id="L720"><span class="lineNum">     720</span>              :       }</span>
+<span id="L721"><span class="lineNum">     721</span>              :     }</span>
+<span id="L722"><span class="lineNum">     722</span>              : </span>
+<span id="L723"><span class="lineNum">     723</span>              :     // Read the entire header at once and load it into a single BigInteger (MSB-first).</span>
+<span id="L724"><span class="lineNum">     724</span>              :     // This handles sub-byte fields (e.g. IPv4's bit&lt;4&gt; version and ihl) correctly:</span>
+<span id="L725"><span class="lineNum">     725</span>              :     // both fields live in the same byte and must be unpacked by shift+mask, not by</span>
+<span id="L726"><span class="lineNum">     726</span>              :     // reading separate bytes.</span>
+<span id="L727"><span class="lineNum">     727</span> <span class="tlaGNC">           1 :     val totalBits = headerDecl.fieldsList.sumOf { fieldWireWidth(it.type, varbitBits) }</span></span>
+<span id="L728"><span class="lineNum">     728</span> <span class="tlaGNC">           1 :     val allBits = BigInteger(1, packet.extractBytes((totalBits + 7) / 8))</span></span>
+<span id="L729"><span class="lineNum">     729</span>              : </span>
+<span id="L730"><span class="lineNum">     730</span> <span class="tlaGNC">           1 :     val newFields = mutableMapOf&lt;String, Value&gt;()</span></span>
+<span id="L731"><span class="lineNum">     731</span> <span class="tlaGNC">           1 :     var bitOffset = 0</span></span>
+<span id="L732"><span class="lineNum">     732</span> <span class="tlaGNC">           1 :     for (field in headerDecl.fieldsList) {</span></span>
+<span id="L733"><span class="lineNum">     733</span> <span class="tlaGNC">           1 :       val width = fieldWireWidth(field.type, varbitBits)</span></span>
+<span id="L734"><span class="lineNum">     734</span> <span class="tlaGNC">           1 :       if (width == 0) continue // skip zero-width fields (unrecognised types)</span></span>
+<span id="L735"><span class="lineNum">     735</span> <span class="tlaGNC">           1 :       val mask = BigInteger.ONE.shiftLeft(width) - BigInteger.ONE</span></span>
+<span id="L736"><span class="lineNum">     736</span> <span class="tlaGNC">           1 :       val raw = (allBits shr (totalBits - bitOffset - width)) and mask</span></span>
+<span id="L737"><span class="lineNum">     737</span> <span class="tlaGNC">           1 :       newFields[field.name] = bitsToValue(field.type, raw, width)</span></span>
+<span id="L738"><span class="lineNum">     738</span> <span class="tlaGNC">           1 :       bitOffset += width</span></span>
+<span id="L739"><span class="lineNum">     739</span>              :     }</span>
+<span id="L740"><span class="lineNum">     740</span> <span class="tlaGNC">           1 :     invalidateUnionSiblings(call.argsList[0], header, env)</span></span>
+<span id="L741"><span class="lineNum">     741</span> <span class="tlaGNC">           1 :     header.setValid(newFields)</span></span>
+<span id="L742"><span class="lineNum">     742</span> <span class="tlaGNC">           1 :     return UnitVal</span></span>
+<span id="L743"><span class="lineNum">     743</span>              :   }</span>
+<span id="L744"><span class="lineNum">     744</span>              : </span>
+<span id="L745"><span class="lineNum">     745</span>              :   /**</span>
+<span id="L746"><span class="lineNum">     746</span>              :    * Returns the on-wire bit-width of a header field type.</span>
+<span id="L747"><span class="lineNum">     747</span>              :    *</span>
+<span id="L748"><span class="lineNum">     748</span>              :    * P4 spec §8.9.2: bool in a header occupies exactly 1 bit on the wire. int&lt;N&gt; and bit&lt;N&gt; occupy N</span>
+<span id="L749"><span class="lineNum">     749</span>              :    * bits. varbit&lt;N&gt; occupies [varbitBits] bits (caller must supply the runtime value). Serializable</span>
+<span id="L750"><span class="lineNum">     750</span>              :    * enums are looked up by name and use their declared underlying width.</span>
+<span id="L751"><span class="lineNum">     751</span>              :    */</span>
+<span id="L752"><span class="lineNum">     752</span> <span class="tlaUNC tlaBgUNC">           0 :   private fun fieldWireWidth(type: Type, varbitBits: Int = 0): Int =</span></span>
+<span id="L753"><span class="lineNum">     753</span> <span class="tlaGNC tlaBgGNC">           1 :     when {</span></span>
+<span id="L754"><span class="lineNum">     754</span> <span class="tlaGNC">           1 :       type.hasBit() -&gt; type.bit.width</span></span>
+<span id="L755"><span class="lineNum">     755</span> <span class="tlaGNC">           1 :       type.hasSignedInt() -&gt; type.signedInt.width</span></span>
+<span id="L756"><span class="lineNum">     756</span> <span class="tlaGNC">           1 :       type.hasBoolean() -&gt; 1</span></span>
+<span id="L757"><span class="lineNum">     757</span> <span class="tlaGNC">           1 :       type.hasVarbit() -&gt; varbitBits</span></span>
+<span id="L758"><span class="lineNum">     758</span> <span class="tlaGNC">           1 :       type.hasNamed() -&gt; {</span></span>
+<span id="L759"><span class="lineNum">     759</span> <span class="tlaGNC">           1 :         val decl = types[type.named]</span></span>
+<span id="L760"><span class="lineNum">     760</span> <span class="tlaGNC">           1 :         when {</span></span>
+<span id="L761"><span class="lineNum">     761</span> <span class="tlaGNC">           1 :           decl != null &amp;&amp; decl.hasEnum() -&gt; decl.enum.width</span></span>
+<span id="L762"><span class="lineNum">     762</span> <span class="tlaUNC tlaBgUNC">           0 :           else -&gt; 0</span></span>
+<span id="L763"><span class="lineNum">     763</span>              :         }</span>
+<span id="L764"><span class="lineNum">     764</span>              :       }</span>
+<span id="L765"><span class="lineNum">     765</span> <span class="tlaUNC">           0 :       else -&gt; 0</span></span>
+<span id="L766"><span class="lineNum">     766</span> <span class="tlaGNC tlaBgGNC">           1 :     }</span></span>
+<span id="L767"><span class="lineNum">     767</span>              : </span>
+<span id="L768"><span class="lineNum">     768</span>              :   /**</span>
+<span id="L769"><span class="lineNum">     769</span>              :    * Converts raw extracted bits to the appropriate [Value] for a header field.</span>
+<span id="L770"><span class="lineNum">     770</span>              :    *</span>
+<span id="L771"><span class="lineNum">     771</span>              :    * bit&lt;N&gt; → [BitVal], bool → [BoolVal], int&lt;N&gt; → [IntVal], varbit / enum → [BitVal].</span>
+<span id="L772"><span class="lineNum">     772</span>              :    */</span>
+<span id="L773"><span class="lineNum">     773</span>              :   private fun bitsToValue(type: Type, raw: BigInteger, width: Int): Value =</span>
+<span id="L774"><span class="lineNum">     774</span> <span class="tlaGNC">           1 :     when {</span></span>
+<span id="L775"><span class="lineNum">     775</span> <span class="tlaGNC">           1 :       type.hasBoolean() -&gt; BoolVal(raw != BigInteger.ZERO)</span></span>
+<span id="L776"><span class="lineNum">     776</span> <span class="tlaGNC">           1 :       type.hasSignedInt() -&gt; IntVal(SignedBitVector.fromUnsignedBits(raw, width))</span></span>
+<span id="L777"><span class="lineNum">     777</span> <span class="tlaGNC">           1 :       else -&gt; BitVal(BitVector(raw, width))</span></span>
+<span id="L778"><span class="lineNum">     778</span> <span class="tlaGNC">           1 :     }</span></span>
+<span id="L779"><span class="lineNum">     779</span>              : </span>
+<span id="L780"><span class="lineNum">     780</span>              :   private fun execEmit(call: MethodCall, env: Environment): Value {</span>
+<span id="L781"><span class="lineNum">     781</span> <span class="tlaGNC">           1 :     emitValue(evalExpr(call.argsList[0], env))</span></span>
+<span id="L782"><span class="lineNum">     782</span> <span class="tlaGNC">           1 :     return UnitVal</span></span>
+<span id="L783"><span class="lineNum">     783</span>              :   }</span>
+<span id="L784"><span class="lineNum">     784</span>              : </span>
+<span id="L785"><span class="lineNum">     785</span>              :   /**</span>
+<span id="L786"><span class="lineNum">     786</span>              :    * Recursively emits a value to the packet output buffer.</span>
+<span id="L787"><span class="lineNum">     787</span>              :    * - [HeaderVal]: packs all fields into bytes (MSB-first) and appends if valid.</span>
+<span id="L788"><span class="lineNum">     788</span>              :    * - [StructVal]: iterates fields in declaration order (looking up the TypeDecl) and emits each.</span>
+<span id="L789"><span class="lineNum">     789</span>              :    * - Other types: no-op (non-emittable values such as BoolVal in metadata structs).</span>
+<span id="L790"><span class="lineNum">     790</span>              :    *</span>
+<span id="L791"><span class="lineNum">     791</span>              :    * This handles both `pkt.emit(hdr.ethernet)` (single header) and `pkt.emit(hdr)` where `hdr` is a</span>
+<span id="L792"><span class="lineNum">     792</span>              :    * struct containing multiple headers, as required by the P4 deparser model.</span>
+<span id="L793"><span class="lineNum">     793</span>              :    */</span>
+<span id="L794"><span class="lineNum">     794</span>              :   private fun emitValue(value: Value) {</span>
+<span id="L795"><span class="lineNum">     795</span> <span class="tlaGNC">           1 :     when (value) {</span></span>
+<span id="L796"><span class="lineNum">     796</span> <span class="tlaGNC">           1 :       is HeaderVal -&gt; {</span></span>
+<span id="L797"><span class="lineNum">     797</span> <span class="tlaGNC">           1 :         if (!value.valid) return</span></span>
+<span id="L798"><span class="lineNum">     798</span> <span class="tlaGNC">           1 :         val headerDecl =</span></span>
+<span id="L799"><span class="lineNum">     799</span> <span class="tlaGNC">           1 :           (types[value.typeName] ?: error(&quot;type not found: ${value.typeName}&quot;)).header</span></span>
+<span id="L800"><span class="lineNum">     800</span>              :         // Compute total wire bits from field declarations; varbit fields use their stored BitVal</span>
+<span id="L801"><span class="lineNum">     801</span>              :         // width since we don't have the runtime length separately at emit time.</span>
+<span id="L802"><span class="lineNum">     802</span> <span class="tlaGNC">           1 :         val totalBits =</span></span>
+<span id="L803"><span class="lineNum">     803</span> <span class="tlaGNC">           1 :           headerDecl.fieldsList.sumOf { field -&gt;</span></span>
+<span id="L804"><span class="lineNum">     804</span> <span class="tlaGNC">           1 :             when (val v = value.fields[field.name]) {</span></span>
+<span id="L805"><span class="lineNum">     805</span> <span class="tlaGNC">           1 :               is BitVal -&gt; v.bits.width</span></span>
+<span id="L806"><span class="lineNum">     806</span> <span class="tlaGNC">           1 :               is BoolVal -&gt; 1</span></span>
+<span id="L807"><span class="lineNum">     807</span> <span class="tlaGNC">           1 :               is IntVal -&gt; v.bits.width</span></span>
+<span id="L808"><span class="lineNum">     808</span> <span class="tlaUNC tlaBgUNC">           0 :               else -&gt; 0</span></span>
+<span id="L809"><span class="lineNum">     809</span> <span class="tlaGNC tlaBgGNC">           1 :             }</span></span>
+<span id="L810"><span class="lineNum">     810</span>              :           }</span>
+<span id="L811"><span class="lineNum">     811</span> <span class="tlaGNC">           1 :         var packedBits = BigInteger.ZERO</span></span>
+<span id="L812"><span class="lineNum">     812</span> <span class="tlaGNC">           1 :         var bitOffset = 0</span></span>
+<span id="L813"><span class="lineNum">     813</span> <span class="tlaGNC">           1 :         for (field in headerDecl.fieldsList) {</span></span>
+<span id="L814"><span class="lineNum">     814</span> <span class="tlaGNC">           1 :           val fieldBits: BigInteger</span></span>
+<span id="L815"><span class="lineNum">     815</span> <span class="tlaGNC">           1 :           val width: Int</span></span>
+<span id="L816"><span class="lineNum">     816</span> <span class="tlaGNC">           1 :           when (val fieldVal = value.fields[field.name]) {</span></span>
+<span id="L817"><span class="lineNum">     817</span> <span class="tlaGNC">           1 :             is BitVal -&gt; {</span></span>
+<span id="L818"><span class="lineNum">     818</span> <span class="tlaGNC">           1 :               fieldBits = fieldVal.bits.value</span></span>
+<span id="L819"><span class="lineNum">     819</span> <span class="tlaGNC">           1 :               width = fieldVal.bits.width</span></span>
+<span id="L820"><span class="lineNum">     820</span>              :             }</span>
+<span id="L821"><span class="lineNum">     821</span> <span class="tlaGNC">           1 :             is BoolVal -&gt; {</span></span>
+<span id="L822"><span class="lineNum">     822</span>              :               // P4 spec §8.9.2: bool occupies 1 bit on the wire.</span>
+<span id="L823"><span class="lineNum">     823</span> <span class="tlaGNC">           1 :               fieldBits = if (fieldVal.value) BigInteger.ONE else BigInteger.ZERO</span></span>
+<span id="L824"><span class="lineNum">     824</span> <span class="tlaGNC">           1 :               width = 1</span></span>
+<span id="L825"><span class="lineNum">     825</span>              :             }</span>
+<span id="L826"><span class="lineNum">     826</span> <span class="tlaGNC">           1 :             is IntVal -&gt; {</span></span>
+<span id="L827"><span class="lineNum">     827</span> <span class="tlaGNC">           1 :               fieldBits = fieldVal.bits.toUnsigned().value</span></span>
+<span id="L828"><span class="lineNum">     828</span> <span class="tlaGNC">           1 :               width = fieldVal.bits.width</span></span>
+<span id="L829"><span class="lineNum">     829</span>              :             }</span>
+<span id="L830"><span class="lineNum">     830</span> <span class="tlaUNC tlaBgUNC">           0 :             else -&gt; continue // UnitVal (e.g. varbit placeholder) — skip</span></span>
+<span id="L831"><span class="lineNum">     831</span>              :           }</span>
+<span id="L832"><span class="lineNum">     832</span> <span class="tlaGNC tlaBgGNC">           1 :           if (totalBits &gt; 0 &amp;&amp; width &gt; 0) {</span></span>
+<span id="L833"><span class="lineNum">     833</span> <span class="tlaGNC">           1 :             val shift = totalBits - bitOffset - width</span></span>
+<span id="L834"><span class="lineNum">     834</span> <span class="tlaGNC">           1 :             packedBits = packedBits or fieldBits.shiftLeft(shift)</span></span>
+<span id="L835"><span class="lineNum">     835</span>              :           }</span>
+<span id="L836"><span class="lineNum">     836</span> <span class="tlaGNC">           1 :           bitOffset += width</span></span>
+<span id="L837"><span class="lineNum">     837</span>              :         }</span>
+<span id="L838"><span class="lineNum">     838</span> <span class="tlaGNC">           1 :         if (totalBits &gt; 0) packet.emitBytes(BitVector(packedBits, totalBits).toByteArray())</span></span>
+<span id="L839"><span class="lineNum">     839</span>              :       }</span>
+<span id="L840"><span class="lineNum">     840</span> <span class="tlaGNC">           1 :       is StructVal -&gt; {</span></span>
+<span id="L841"><span class="lineNum">     841</span>              :         // Emit in the declaration order from the TypeDecl; fall back to map order if unknown.</span>
+<span id="L842"><span class="lineNum">     842</span> <span class="tlaGNC">           1 :         val typeDecl = types[value.typeName]</span></span>
+<span id="L843"><span class="lineNum">     843</span> <span class="tlaGNC">           1 :         val fieldDecls =</span></span>
+<span id="L844"><span class="lineNum">     844</span> <span class="tlaGNC">           1 :           when {</span></span>
+<span id="L845"><span class="lineNum">     845</span> <span class="tlaGNC">           1 :             typeDecl != null &amp;&amp; typeDecl.hasStruct() -&gt; typeDecl.struct.fieldsList</span></span>
+<span id="L846"><span class="lineNum">     846</span> <span class="tlaGNC">           1 :             typeDecl != null &amp;&amp; typeDecl.hasHeaderUnion() -&gt; typeDecl.headerUnion.fieldsList</span></span>
+<span id="L847"><span class="lineNum">     847</span> <span class="tlaUNC tlaBgUNC">           0 :             else -&gt; null</span></span>
+<span id="L848"><span class="lineNum">     848</span>              :           }</span>
+<span id="L849"><span class="lineNum">     849</span> <span class="tlaGNC tlaBgGNC">           1 :         if (fieldDecls != null) {</span></span>
+<span id="L850"><span class="lineNum">     850</span> <span class="tlaGNC">           1 :           for (field in fieldDecls) {</span></span>
+<span id="L851"><span class="lineNum">     851</span> <span class="tlaGNC">           1 :             emitValue(value.fields[field.name] ?: continue)</span></span>
+<span id="L852"><span class="lineNum">     852</span>              :           }</span>
+<span id="L853"><span class="lineNum">     853</span>              :         } else {</span>
+<span id="L854"><span class="lineNum">     854</span> <span class="tlaUNC tlaBgUNC">           0 :           for (fieldVal in value.fields.values) emitValue(fieldVal)</span></span>
+<span id="L855"><span class="lineNum">     855</span>              :         }</span>
+<span id="L856"><span class="lineNum">     856</span>              :       }</span>
+<span id="L857"><span class="lineNum">     857</span> <span class="tlaGNC tlaBgGNC">           1 :       is HeaderStackVal -&gt; {</span></span>
+<span id="L858"><span class="lineNum">     858</span> <span class="tlaGNC">           1 :         for (header in value.headers) emitValue(header)</span></span>
+<span id="L859"><span class="lineNum">     859</span>              :       }</span>
+<span id="L860"><span class="lineNum">     860</span>              :       else -&gt; {} // BoolVal, BitVal outside a header, UnitVal — not emittable</span>
+<span id="L861"><span class="lineNum">     861</span>              :     }</span>
+<span id="L862"><span class="lineNum">     862</span> <span class="tlaGNC">           1 :   }</span></span>
+<span id="L863"><span class="lineNum">     863</span>              : </span>
+<span id="L864"><span class="lineNum">     864</span>              :   // -------------------------------------------------------------------------</span>
+<span id="L865"><span class="lineNum">     865</span>              :   // LValue assignment</span>
+<span id="L866"><span class="lineNum">     866</span>              :   // -------------------------------------------------------------------------</span>
+<span id="L867"><span class="lineNum">     867</span>              : </span>
+<span id="L868"><span class="lineNum">     868</span>              :   private fun setLValue(lhs: Expr, value: Value, env: Environment) {</span>
+<span id="L869"><span class="lineNum">     869</span> <span class="tlaGNC">           1 :     when {</span></span>
+<span id="L870"><span class="lineNum">     870</span> <span class="tlaGNC">           1 :       lhs.hasNameRef() -&gt; {</span></span>
+<span id="L871"><span class="lineNum">     871</span>              :         // P4 assignment is copy-by-value. Headers and structs carry a mutable fields map,</span>
+<span id="L872"><span class="lineNum">     872</span>              :         // so we copy them here to prevent aliasing (e.g. `x = h.h; x.a = 2` must not</span>
+<span id="L873"><span class="lineNum">     873</span>              :         // modify `h.h.a`).</span>
+<span id="L874"><span class="lineNum">     874</span> <span class="tlaGNC">           1 :         val copy =</span></span>
+<span id="L875"><span class="lineNum">     875</span> <span class="tlaGNC">           1 :           when (value) {</span></span>
+<span id="L876"><span class="lineNum">     876</span> <span class="tlaGNC">           1 :             is HeaderVal -&gt; value.copy()</span></span>
+<span id="L877"><span class="lineNum">     877</span> <span class="tlaGNC">           1 :             is StructVal -&gt; value.copy()</span></span>
+<span id="L878"><span class="lineNum">     878</span> <span class="tlaGNC">           1 :             else -&gt; value</span></span>
+<span id="L879"><span class="lineNum">     879</span>              :           }</span>
+<span id="L880"><span class="lineNum">     880</span> <span class="tlaGNC">           1 :         env.update(lhs.nameRef.name, copy)</span></span>
+<span id="L881"><span class="lineNum">     881</span>              :       }</span>
+<span id="L882"><span class="lineNum">     882</span> <span class="tlaGNC">           1 :       lhs.hasFieldAccess() -&gt; {</span></span>
+<span id="L883"><span class="lineNum">     883</span> <span class="tlaGNC">           1 :         val target = evalExpr(lhs.fieldAccess.expr, env)</span></span>
+<span id="L884"><span class="lineNum">     884</span> <span class="tlaGNC">           1 :         when (target) {</span></span>
+<span id="L885"><span class="lineNum">     885</span> <span class="tlaGNC">           1 :           is HeaderVal -&gt; target.fields[lhs.fieldAccess.fieldName] = value</span></span>
+<span id="L886"><span class="lineNum">     886</span> <span class="tlaGNC">           1 :           is StructVal -&gt; target.fields[lhs.fieldAccess.fieldName] = value</span></span>
+<span id="L887"><span class="lineNum">     887</span> <span class="tlaUNC tlaBgUNC">           0 :           else -&gt; error(&quot;field assignment on non-aggregate: $target&quot;)</span></span>
+<span id="L888"><span class="lineNum">     888</span>              :         }</span>
+<span id="L889"><span class="lineNum">     889</span>              :       }</span>
+<span id="L890"><span class="lineNum">     890</span> <span class="tlaGNC tlaBgGNC">           1 :       lhs.hasArrayIndex() -&gt; {</span></span>
+<span id="L891"><span class="lineNum">     891</span> <span class="tlaUNC tlaBgUNC">           0 :         val stack = evalExpr(lhs.arrayIndex.expr, env) as HeaderStackVal</span></span>
+<span id="L892"><span class="lineNum">     892</span> <span class="tlaUNC">           0 :         val index = intValue(evalExpr(lhs.arrayIndex.index, env))</span></span>
+<span id="L893"><span class="lineNum">     893</span> <span class="tlaUNC">           0 :         val copy = if (value is HeaderVal) value.copy() else value</span></span>
+<span id="L894"><span class="lineNum">     894</span> <span class="tlaUNC">           0 :         stack.headers[index] = copy as HeaderVal</span></span>
+<span id="L895"><span class="lineNum">     895</span>              :       }</span>
+<span id="L896"><span class="lineNum">     896</span> <span class="tlaGNC tlaBgGNC">           1 :       lhs.hasSlice() -&gt; {</span></span>
+<span id="L897"><span class="lineNum">     897</span>              :         // Slice assignment: update [hi:lo] bits of the target.</span>
+<span id="L898"><span class="lineNum">     898</span> <span class="tlaGNC">           1 :         val target = evalExpr(lhs.slice.expr, env) as BitVal</span></span>
+<span id="L899"><span class="lineNum">     899</span> <span class="tlaGNC">           1 :         val src = value as BitVal</span></span>
+<span id="L900"><span class="lineNum">     900</span> <span class="tlaGNC">           1 :         val hi = lhs.slice.hi</span></span>
+<span id="L901"><span class="lineNum">     901</span> <span class="tlaGNC">           1 :         val lo = lhs.slice.lo</span></span>
+<span id="L902"><span class="lineNum">     902</span> <span class="tlaGNC">           1 :         val mask =</span></span>
+<span id="L903"><span class="lineNum">     903</span> <span class="tlaGNC">           1 :           BitVector(</span></span>
+<span id="L904"><span class="lineNum">     904</span> <span class="tlaGNC">           1 :             BigInteger.TWO.pow(hi - lo + 1).minus(BigInteger.ONE).shiftLeft(lo),</span></span>
+<span id="L905"><span class="lineNum">     905</span> <span class="tlaGNC">           1 :             target.bits.width,</span></span>
+<span id="L906"><span class="lineNum">     906</span>              :           )</span>
+<span id="L907"><span class="lineNum">     907</span> <span class="tlaGNC">           1 :         val shifted = BitVector(src.bits.value.shiftLeft(lo), target.bits.width)</span></span>
+<span id="L908"><span class="lineNum">     908</span> <span class="tlaGNC">           1 :         val result = (target.bits and mask.inv()) or (shifted and mask)</span></span>
+<span id="L909"><span class="lineNum">     909</span> <span class="tlaGNC">           1 :         setLValue(lhs.slice.expr, BitVal(result), env)</span></span>
+<span id="L910"><span class="lineNum">     910</span>              :       }</span>
+<span id="L911"><span class="lineNum">     911</span> <span class="tlaUNC tlaBgUNC">           0 :       else -&gt; error(&quot;unhandled lvalue kind: $lhs&quot;)</span></span>
+<span id="L912"><span class="lineNum">     912</span>              :     }</span>
+<span id="L913"><span class="lineNum">     913</span> <span class="tlaGNC tlaBgGNC">           1 :   }</span></span>
+<span id="L914"><span class="lineNum">     914</span>              : }</span>
+<span id="L915"><span class="lineNum">     915</span>              : </span>
+<span id="L916"><span class="lineNum">     916</span>              : /**</span>
+<span id="L917"><span class="lineNum">     917</span>              :  * Thrown by an `exit` statement; unwinds the call stack to the top of the current pipeline stage.</span>
+<span id="L918"><span class="lineNum">     918</span>              :  */</span>
+<span id="L919"><span class="lineNum">     919</span> <span class="tlaGNC">           1 : class ExitException : Exception()</span></span>
+<span id="L920"><span class="lineNum">     920</span>              : </span>
+<span id="L921"><span class="lineNum">     921</span>              : /** Thrown by a `return` statement inside an action or function. */</span>
+<span id="L922"><span class="lineNum">     922</span> <span class="tlaUNC tlaBgUNC">           0 : class ReturnException(val value: Value) : Exception()</span></span>
         </pre>
               </td>
             </tr>
