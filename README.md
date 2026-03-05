@@ -81,10 +81,11 @@ clones a packet and forwards the original and clone out of two different ports:
 
 ```sh
 bazel test //e2e_tests/trace_tree:golden_trace_tree_test \
-  --test_filter=clone_with_egress --test_output=all
+  --test_filter=clone_with_egress --test_output=all \
+  --test_env=PRINT_TRACE=1
 ```
 
-One packet goes in, two come out — here's the trace
+One packet goes in, two come out — here's what you'll see
 ([full version](e2e_tests/trace_tree/clone_with_egress.golden.txtpb)):
 
 ```protobuf

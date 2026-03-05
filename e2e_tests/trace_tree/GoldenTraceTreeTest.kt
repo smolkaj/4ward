@@ -53,6 +53,11 @@ class GoldenTraceTreeTest(private val testName: String) {
 
     val expected = loadGoldenTraceTree(goldenPath)
     val actual = captureTraceTree(r, configPath, stfPath)
+    if (System.getenv("PRINT_TRACE") != null) {
+      println("--- Trace tree for $testName ---")
+      print(TextFormat.printer().printToString(actual))
+      println("--- End trace tree ---")
+    }
     if (expected != actual) {
       fail(
         "Trace tree mismatch for $testName.\n" +
