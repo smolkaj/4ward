@@ -14,8 +14,11 @@
 
 package fourward.simulator
 
+import fourward.sim.v1.MarkToDropEvent
+import fourward.sim.v1.TraceEvent
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Test
@@ -130,5 +133,54 @@ class EnvironmentTest {
     pktCtx.emitBytes(byteArrayOf(0x01, 0x02))
     pktCtx.emitBytes(byteArrayOf(0x03, 0x04))
     assertArrayEquals(byteArrayOf(0x01, 0x02, 0x03, 0x04), pktCtx.outputPayload())
+  }
+
+  // ---------------------------------------------------------------------------
+  // Trace events
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `getEvents returns empty list initially`() {
+    val pktCtx = PacketContext(byteArrayOf())
+    assertEquals(emptyList<TraceEvent>(), pktCtx.getEvents())
+  }
+
+  @Test
+  fun `addTraceEvent records events in order`() {
+    val pktCtx = PacketContext(byteArrayOf())
+    val event1 = TraceEvent.newBuilder().setMarkToDrop(MarkToDropEvent.getDefaultInstance()).build()
+    val event2 = TraceEvent.newBuilder().setMarkToDrop(MarkToDropEvent.getDefaultInstance()).build()
+    pktCtx.addTraceEvent(event1)
+    pktCtx.addTraceEvent(event2)
+    assertEquals(listOf(event1, event2), pktCtx.getEvents())
+  }
+
+  @Test
+  fun `getEvents returns a defensive copy`() {
+    val pktCtx = PacketContext(byteArrayOf())
+    val event = TraceEvent.newBuilder().setMarkToDrop(MarkToDropEvent.getDefaultInstance()).build()
+    pktCtx.addTraceEvent(event)
+    val first = pktCtx.getEvents()
+    val second = pktCtx.getEvents()
+    assertEquals(first, second)
+    assertNotSame(first, second)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Clone session (last-writer-wins)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `pendingCloneSessionId is null initially`() {
+    val pktCtx = PacketContext(byteArrayOf())
+    assertNull(pktCtx.pendingCloneSessionId)
+  }
+
+  @Test
+  fun `pendingCloneSessionId uses last-writer-wins`() {
+    val pktCtx = PacketContext(byteArrayOf())
+    pktCtx.pendingCloneSessionId = 1
+    pktCtx.pendingCloneSessionId = 2
+    assertEquals(2, pktCtx.pendingCloneSessionId)
   }
 }

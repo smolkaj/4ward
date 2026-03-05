@@ -1,6 +1,3 @@
-# Expected trace tree for clone_plus_selector: clone fork + selector fork.
-# First fork at clone; within the "original" branch, a second fork at the
-# selector table.
 events {
   parser_transition {
     parser_name: "MyParser"
@@ -13,56 +10,59 @@ events {
     session_id: 100
   }
 }
-fork {
-  reason: CLONE
-  branches {
-    label: "original"
-    subtree {
-      events {
-        table_lookup {
-          table_name: "ecmp"
-          hit: true
-          matched_entry {
-            table_id: 43283160
-            match {
-              field_id: 1
-              exact {
-                value: "\377\377\377\377\377\377"
-              }
-            }
-            action {
-              action_profile_group_id: 1
-            }
-          }
-          action_name: "set_port"
+events {
+  table_lookup {
+    table_name: "ecmp"
+    hit: true
+    matched_entry {
+      table_id: 43283160
+      match {
+        field_id: 1
+        exact {
+          value: "\377\377\377\377\377\377"
         }
       }
-      fork {
-        reason: ACTION_SELECTOR
+      action {
+        action_profile_group_id: 1
+      }
+    }
+    action_name: "set_port"
+  }
+}
+fork_outcome {
+  reason: ACTION_SELECTOR
+  branches {
+    label: "member_0"
+    subtree {
+      events {
+        action_execution {
+          action_name: "set_port"
+          params {
+            key: "port"
+            value: "\000\001"
+          }
+        }
+      }
+      fork_outcome {
+        reason: CLONE
         branches {
-          label: "member_0"
+          label: "original"
           subtree {
-            events {
-              action_execution {
-                action_name: "set_port"
-                params {
-                  key: "port"
-                  value: "\000\001"
-                }
+            packet_outcome {
+              output {
+                egress_port: 1
+                payload: "\377\377\377\377\377\377\000\000\000\000\000\001\b\000"
               }
             }
           }
         }
         branches {
-          label: "member_1"
+          label: "clone"
           subtree {
-            events {
-              action_execution {
-                action_name: "set_port"
-                params {
-                  key: "port"
-                  value: "\000\002"
-                }
+            packet_outcome {
+              output {
+                egress_port: 1
+                payload: "\377\377\377\377\377\377\000\000\000\000\000\001\b\000"
               }
             }
           }
@@ -71,8 +71,42 @@ fork {
     }
   }
   branches {
-    label: "clone"
+    label: "member_1"
     subtree {
+      events {
+        action_execution {
+          action_name: "set_port"
+          params {
+            key: "port"
+            value: "\000\002"
+          }
+        }
+      }
+      fork_outcome {
+        reason: CLONE
+        branches {
+          label: "original"
+          subtree {
+            packet_outcome {
+              output {
+                egress_port: 2
+                payload: "\377\377\377\377\377\377\000\000\000\000\000\001\b\000"
+              }
+            }
+          }
+        }
+        branches {
+          label: "clone"
+          subtree {
+            packet_outcome {
+              output {
+                egress_port: 1
+                payload: "\377\377\377\377\377\377\000\000\000\000\000\001\b\000"
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

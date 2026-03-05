@@ -1,9 +1,3 @@
-# Expected trace tree for clone_ingress_egress: fork at clone point.
-# Parser events are shared; after clone, the tree forks into "original"
-# and "clone" branches.
-#
-# TODO(PR 4): populate subtrees with actual egress pipeline events.
-# Currently empty — a weak assertion that only checks the fork structure.
 events {
   parser_transition {
     parser_name: "MyParser"
@@ -16,18 +10,28 @@ events {
     session_id: 100
   }
 }
-fork {
+fork_outcome {
   reason: CLONE
   branches {
     label: "original"
     subtree {
-      # Original packet continues to egress on port 1.
+      packet_outcome {
+        output {
+          egress_port: 1
+          payload: "\377\377\377\377\377\377\000\000\000\000\000\001\b\000"
+        }
+      }
     }
   }
   branches {
     label: "clone"
     subtree {
-      # Cloned packet enters the egress pipeline.
+      packet_outcome {
+        output {
+          egress_port: 1
+          payload: "\377\377\377\377\377\377\000\000\000\000\000\001\b\000"
+        }
+      }
     }
   }
 }

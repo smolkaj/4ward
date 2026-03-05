@@ -32,10 +32,9 @@ guilt — just write it down so someone can find it later.
 - **`ReadEntries` is a stub.** The `ReadEntriesRequest` handler returns an
   empty response (`Simulator.kt:143`).
 - **Clone: I2E only, no metadata preservation.** `clone()` and `clone3()`
-  support ingress-to-egress cloning. E2E clone, `clone3` metadata field
-  lists, resubmit, and recirculate are not implemented. Multiple clone
-  calls in one pipeline are not handled correctly — BMv2 uses
-  last-writer-wins semantics, but 4ward forks on the first call.
+  support ingress-to-egress cloning with last-writer-wins for multiple calls
+  (matching BMv2). E2E clone, `clone3` metadata field lists, resubmit, and
+  recirculate are not implemented.
 - **Multicast: basic replication only.** Multicast group replication works
   for the trace tree (forking per replica). PRE entries are installed via
   P4Runtime `PacketReplicationEngineEntry`.

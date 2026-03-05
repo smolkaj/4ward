@@ -1,5 +1,3 @@
-# Expected trace tree for action_selector_nested: depth-2 fork tree.
-# stage1 forks into 2 branches; within each, stage2 forks into 2 branches.
 events {
   parser_transition {
     parser_name: "MyParser"
@@ -26,7 +24,7 @@ events {
     action_name: "set_tag"
   }
 }
-fork {
+fork_outcome {
   reason: ACTION_SELECTOR
   branches {
     label: "member_0"
@@ -59,7 +57,7 @@ fork {
           action_name: "set_port"
         }
       }
-      fork {
+      fork_outcome {
         reason: ACTION_SELECTOR
         branches {
           label: "member_0"
@@ -71,6 +69,12 @@ fork {
                   key: "port"
                   value: "\000\001"
                 }
+              }
+            }
+            packet_outcome {
+              output {
+                egress_port: 1
+                payload: "\377\377\377\377\377\377\000\000\000\000\000\001\b\000"
               }
             }
           }
@@ -85,6 +89,12 @@ fork {
                   key: "port"
                   value: "\000\002"
                 }
+              }
+            }
+            packet_outcome {
+              output {
+                egress_port: 2
+                payload: "\377\377\377\377\377\377\000\000\000\000\000\001\b\000"
               }
             }
           }
@@ -123,7 +133,7 @@ fork {
           action_name: "set_port"
         }
       }
-      fork {
+      fork_outcome {
         reason: ACTION_SELECTOR
         branches {
           label: "member_0"
@@ -135,6 +145,12 @@ fork {
                   key: "port"
                   value: "\000\001"
                 }
+              }
+            }
+            packet_outcome {
+              output {
+                egress_port: 1
+                payload: "\377\377\377\377\377\377\000\000\000\000\000\001\b\000"
               }
             }
           }
@@ -149,6 +165,12 @@ fork {
                   key: "port"
                   value: "\000\002"
                 }
+              }
+            }
+            packet_outcome {
+              output {
+                egress_port: 2
+                payload: "\377\377\377\377\377\377\000\000\000\000\000\001\b\000"
               }
             }
           }

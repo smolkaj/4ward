@@ -10,21 +10,33 @@ events {
     session_id: 100
   }
 }
-fork {
+fork_outcome {
   reason: CLONE
   branches {
     label: "original"
     subtree {
-      fork {
+      fork_outcome {
         reason: MULTICAST
         branches {
           label: "replica_0_port_1"
           subtree {
+            packet_outcome {
+              output {
+                egress_port: 1
+                payload: "\377\377\377\377\377\377\000\000\000\000\000\001\b\000"
+              }
+            }
           }
         }
         branches {
           label: "replica_0_port_2"
           subtree {
+            packet_outcome {
+              output {
+                egress_port: 2
+                payload: "\377\377\377\377\377\377\000\000\000\000\000\001\b\000"
+              }
+            }
           }
         }
       }
@@ -33,6 +45,12 @@ fork {
   branches {
     label: "clone"
     subtree {
+      packet_outcome {
+        output {
+          egress_port: 3
+          payload: "\377\377\377\377\377\377\000\000\000\000\000\001\b\000"
+        }
+      }
     }
   }
 }

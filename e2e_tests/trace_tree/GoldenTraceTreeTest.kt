@@ -4,7 +4,7 @@ import com.google.protobuf.TextFormat
 import fourward.e2e.SimulatorClient
 import fourward.e2e.StfFile
 import fourward.e2e.installStfEntries
-import fourward.ir.v1.PipelineConfig
+import fourward.e2e.loadPipelineConfig
 import fourward.sim.v1.TraceTree
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -73,7 +73,7 @@ class GoldenTraceTreeTest(private val testName: String) {
    * first packet, and returns the TraceTree from the response.
    */
   private fun captureTraceTree(runfiles: String, configPath: Path, stfPath: Path): TraceTree {
-    val config = loadConfig(configPath)
+    val config = loadPipelineConfig(configPath)
     val stf = StfFile.parse(stfPath)
     val simPath = Paths.get(runfiles, "_main/simulator/simulator")
 
@@ -88,11 +88,5 @@ class GoldenTraceTreeTest(private val testName: String) {
       if (resp.hasError()) fail("ProcessPacket failed: ${resp.error.message}")
       return resp.processPacket.trace
     }
-  }
-
-  private fun loadConfig(path: Path): PipelineConfig {
-    val builder = PipelineConfig.newBuilder()
-    TextFormat.merge(path.toFile().readText(), builder)
-    return builder.build()
   }
 }

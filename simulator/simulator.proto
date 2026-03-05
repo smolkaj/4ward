@@ -25,7 +25,7 @@ option java_package = "fourward.sim.v1";
 // =============================================================================
 
 message SimRequest {
-  oneof kind {
+  oneof request {
     LoadPipelineRequest load_pipeline = 1;
     ProcessPacketRequest process_packet = 2;
     WriteEntryRequest write_entry = 3;
@@ -34,7 +34,7 @@ message SimRequest {
 }
 
 message SimResponse {
-  oneof kind {
+  oneof response {
     LoadPipelineResponse load_pipeline = 1;
     ProcessPacketResponse process_packet = 2;
     WriteEntryResponse write_entry = 3;
@@ -89,20 +89,25 @@ message OutputPacket {
 // non-deterministic choice points the tree forks: each branch represents one
 // possible outcome and contains its own subtree of events.
 //
-// A zero-fork tree (fork absent) is structurally equivalent to a flat trace.
+// Every node terminates: either forking (fork_outcome) or reaching a final
+// packet fate (packet_outcome).  A zero-fork tree has a single
+// packet_outcome at the root.
 // =============================================================================
 
-// Recursive trace structure: a sequence of events followed by an optional fork.
+// Recursive trace structure: a sequence of events followed by an outcome.
 // Shared prefix events (e.g. the parser trace before a selector fork) live in
 // the parent node; per-branch events live in the fork's subtrees.
 message TraceTree {
   repeated TraceEvent events = 1;
-  ForkNode fork = 2;  // absent when there is no non-determinism
+  oneof outcome {
+    Fork fork_outcome = 2;
+    PacketOutcome packet_outcome = 3;
+  }
 }
 
 // A non-deterministic choice point where execution forks into multiple
 // possible paths.
-message ForkNode {
+message Fork {
   ForkReason reason = 1;
   repeated ForkBranch branches = 2;
 }
@@ -121,14 +126,28 @@ enum ForkReason {
   MULTICAST = 3;
 }
 
+// The terminal fate of a packet: either output on a port or dropped.
+message PacketOutcome {
+  oneof outcome {
+    OutputPacket output = 1;
+    Drop drop = 2;
+  }
+}
+
+// A packet that was dropped (as opposed to MarkToDropEvent, which records the
+// mark_to_drop() call site in the trace).
+message Drop {
+  DropReason reason = 1;
+}
+
 message TraceEvent {
-  oneof kind {
+  oneof event {
     ParserTransitionEvent parser_transition = 1;
     TableLookupEvent table_lookup = 2;
     ActionExecutionEvent action_execution = 3;
     BranchEvent branch = 4;
     ExternCallEvent extern_call = 5;
-    DropEvent drop = 6;
+    MarkToDropEvent mark_to_drop = 6;
     CloneEvent clone = 7;
   }
 }
@@ -168,20 +187,21 @@ message ExternCallEvent {
   string method = 2;
 }
 
-// Fired when a packet is dropped.
-message DropEvent {
+// Fired when mark_to_drop() is called. Records the call site, not the packet
+// fate — the actual drop is represented by Drop in PacketOutcome.
+message MarkToDropEvent {
   DropReason reason = 1;
+}
+
+// Fired when the P4 program requests a packet clone.
+message CloneEvent {
+  uint32 session_id = 1;
 }
 
 enum DropReason {
   DROP_REASON_UNSPECIFIED = 0;
   MARK_TO_DROP = 1;   // explicit mark_to_drop()
   PARSER_REJECT = 2;  // parser transitioned to reject state
-}
-
-// Fired when the P4 program requests a packet clone.
-message CloneEvent {
-  uint32 session_id = 1;
 }
 
 // =============================================================================

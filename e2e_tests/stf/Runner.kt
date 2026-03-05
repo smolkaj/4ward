@@ -39,9 +39,7 @@ class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPat
   @Suppress("NestedBlockDepth")
   fun run(stfPath: Path): TestResult {
     val stf = StfFile.parse(stfPath)
-    val builder = PipelineConfig.newBuilder()
-    com.google.protobuf.TextFormat.merge(pipelineConfigPath.toFile().readText(), builder)
-    val config = builder.build()
+    val config = loadPipelineConfig(pipelineConfigPath)
 
     SimulatorClient(simulatorBinary).use { sim ->
       val loadResp = sim.loadPipeline(config)
@@ -119,6 +117,13 @@ fun installStfEntries(sim: SimulatorClient, stf: StfFile, p4Info: P4InfoOuterCla
     val resp = sim.writeEntry(resolveStfTableEntry(directive, p4Info))
     if (resp.hasError()) error("WriteEntry (table) failed: ${resp.error.message}")
   }
+}
+
+/** Parses a text-format [PipelineConfig] proto from a file. */
+fun loadPipelineConfig(path: Path): PipelineConfig {
+  val builder = PipelineConfig.newBuilder()
+  com.google.protobuf.TextFormat.merge(path.toFile().readText(), builder)
+  return builder.build()
 }
 
 sealed class TestResult {

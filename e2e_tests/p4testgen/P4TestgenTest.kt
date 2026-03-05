@@ -25,7 +25,7 @@ class P4TestgenTest(private val testName: String) {
       val target = System.getenv("TEST_TARGET") ?: error("TEST_TARGET not set")
       target.substringAfterLast(":").removeSuffix("_test")
     }
-    private val pkg = "_main/e2e_tests/p4testgen"
+    private const val pkg = "_main/e2e_tests/p4testgen"
 
     @JvmStatic
     @Parameterized.Parameters(name = "{0}")

@@ -15,6 +15,7 @@ _P4_PROGRAMS = [
     "action_selector_nested",
     "clone_and_multicast",
     "clone_ingress_egress",
+    "clone_last_wins",
     "clone_plus_selector",
     "clone_with_egress",
     "multicast",
@@ -57,6 +58,17 @@ kt_jvm_test(
         "//simulator",
     ],
     test_class = "fourward.e2e.tracetree.GoldenTraceTreeTest",
+    deps = _TEST_DEPS,
+)
+
+kt_jvm_test(
+    name = "trace_tree_consistency_test",
+    srcs = ["TraceTreeConsistencyTest.kt"],
+    data = ["%s.stf" % n for n in _PASSING] +
+           [":%s_pb" % n for n in _PASSING] + [
+        "//simulator",
+    ],
+    test_class = "fourward.e2e.tracetree.TraceTreeConsistencyTest",
     deps = _TEST_DEPS,
 )
 
