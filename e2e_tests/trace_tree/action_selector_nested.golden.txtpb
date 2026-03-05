@@ -1,5 +1,8 @@
 # Expected trace tree for action_selector_nested: depth-2 fork tree.
 # stage1 forks into 2 branches; within each, stage2 forks into 2 branches.
+#
+# TODO(PR 3): update with actual member labels/params once action selector
+# forking is implemented. Current structure and values are placeholders.
 events {
   parser_transition {
     parser_name: "MyParser"

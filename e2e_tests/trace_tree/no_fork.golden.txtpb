@@ -1,5 +1,10 @@
 # Expected trace tree for no_fork: zero-fork tree (no ForkNode).
 # Parser transition + table hit + action execution — nothing else.
+#
+# TODO(PR 2): update to match actual simulator output. Known diffs:
+# - table/action names use p4info aliases ("routing", "forward"), not
+#   qualified names ("MyIngress.routing", "MyIngress.forward")
+# - table_lookup.matched_entry is populated on hit (omitted here)
 events {
   parser_transition {
     parser_name: "MyParser"

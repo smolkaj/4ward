@@ -1,6 +1,9 @@
 # Expected trace tree for clone_plus_selector: clone fork + selector fork.
-# First fork at clone3; within the "original" branch, a second fork at the
+# First fork at clone; within the "original" branch, a second fork at the
 # selector table.
+#
+# TODO(PR 4): populate clone subtree with actual egress pipeline events.
+# TODO(PR 3): update selector member labels/params once implemented.
 events {
   parser_transition {
     parser_name: "MyParser"

@@ -1,17 +1,11 @@
 package fourward.e2e.tracetree
 
 import com.google.protobuf.TextFormat
-import fourward.e2e.TestResult
+import fourward.e2e.SimulatorClient
+import fourward.e2e.StfFile
 import fourward.e2e.resolveStfTableEntry
-import fourward.e2e.runStf
 import fourward.ir.v1.PipelineConfig
-import fourward.sim.v1.LoadPipelineRequest
-import fourward.sim.v1.ProcessPacketRequest
-import fourward.sim.v1.SimRequest
-import fourward.sim.v1.SimResponse
 import fourward.sim.v1.TraceTree
-import java.io.DataInputStream
-import java.io.DataOutputStream
 import java.nio.file.Path
 import java.nio.file.Paths
 import org.junit.Assert.assertEquals
@@ -26,13 +20,12 @@ import org.junit.runners.Parameterized.Parameters
  *
  * Each test case consists of:
  * - A compiled PipelineConfig (.txtpb)
- * - An STF file (.stf) with optional table entries and at least one packet directive
+ * - An STF file (.stf) with optional table entries and at least one packet
  * - An expected TraceTree (.golden.txtpb)
  *
- * The test sends the first packet through the simulator and compares the
- * resulting TraceTree against the golden file.  This is the TDD harness for
- * Track 3 (trace trees): all tests are written up front and expected to fail
- * until the corresponding feature is implemented.
+ * The test sends the first packet through the simulator and compares the resulting TraceTree
+ * against the golden file. This is the TDD harness for Track 3 (trace trees): all tests are written
+ * up front and expected to fail until the corresponding feature is implemented.
  */
 @RunWith(Parameterized::class)
 class GoldenTraceTreeTest(private val testName: String) {
@@ -48,8 +41,7 @@ class GoldenTraceTreeTest(private val testName: String) {
       return dir
         .listFiles { f -> f.name.endsWith(".golden.txtpb") }
         ?.map { arrayOf(it.name.removeSuffix(".golden.txtpb")) }
-        ?.sortedBy { it[0] }
-        ?: emptyList()
+        ?.sortedBy { it[0] } ?: emptyList()
     }
   }
 
@@ -83,49 +75,22 @@ class GoldenTraceTreeTest(private val testName: String) {
    */
   private fun captureTraceTree(runfiles: String, configPath: Path, stfPath: Path): TraceTree {
     val config = loadConfig(configPath)
-    val stf = fourward.e2e.StfFile.parse(stfPath)
-
+    val stf = StfFile.parse(stfPath)
     val simPath = Paths.get(runfiles, "_main/simulator/simulator")
-    val process = ProcessBuilder(simPath.toString()).redirectErrorStream(false).start()
-    val input = DataInputStream(process.inputStream.buffered())
-    val output = DataOutputStream(process.outputStream.buffered())
 
-    try {
-      // Load pipeline.
-      sendRequest(
-        output,
-        SimRequest.newBuilder()
-          .setLoadPipeline(LoadPipelineRequest.newBuilder().setConfig(config))
-          .build(),
-      )
-      val loadResp = readResponse(input)
+    SimulatorClient(simPath).use { sim ->
+      val loadResp = sim.loadPipeline(config)
       if (loadResp.hasError()) fail("LoadPipeline failed: ${loadResp.error.message}")
 
-      // Install table entries.
       for (directive in stf.tableEntries) {
-        val writeReq = resolveStfTableEntry(directive, config.p4Info)
-        sendRequest(output, SimRequest.newBuilder().setWriteEntry(writeReq).build())
-        val writeResp = readResponse(input)
+        val writeResp = sim.writeEntry(resolveStfTableEntry(directive, config.p4Info))
         if (writeResp.hasError()) fail("WriteEntry failed: ${writeResp.error.message}")
       }
 
-      // Send the first packet.
       val packet = stf.packets.first()
-      sendRequest(
-        output,
-        SimRequest.newBuilder()
-          .setProcessPacket(
-            ProcessPacketRequest.newBuilder()
-              .setIngressPort(packet.ingressPort)
-              .setPayload(com.google.protobuf.ByteString.copyFrom(packet.payload))
-          )
-          .build(),
-      )
-      val resp = readResponse(input)
+      val resp = sim.processPacket(packet.ingressPort, packet.payload)
       if (resp.hasError()) fail("ProcessPacket failed: ${resp.error.message}")
       return resp.processPacket.trace
-    } finally {
-      process.destroy()
     }
   }
 
@@ -133,19 +98,5 @@ class GoldenTraceTreeTest(private val testName: String) {
     val builder = PipelineConfig.newBuilder()
     TextFormat.merge(path.toFile().readText(), builder)
     return builder.build()
-  }
-
-  private fun sendRequest(output: DataOutputStream, request: SimRequest) {
-    val bytes = request.toByteArray()
-    output.writeInt(bytes.size)
-    output.write(bytes)
-    output.flush()
-  }
-
-  private fun readResponse(input: DataInputStream): SimResponse {
-    val length = input.readInt()
-    val bytes = ByteArray(length)
-    input.readFully(bytes)
-    return SimResponse.parseFrom(bytes)
   }
 }

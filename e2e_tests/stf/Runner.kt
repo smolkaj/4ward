@@ -2,13 +2,7 @@ package fourward.e2e
 
 import com.google.protobuf.ByteString
 import fourward.ir.v1.PipelineConfig
-import fourward.sim.v1.LoadPipelineRequest
-import fourward.sim.v1.ProcessPacketRequest
-import fourward.sim.v1.SimRequest
-import fourward.sim.v1.SimResponse
 import fourward.sim.v1.WriteEntryRequest
-import java.io.DataInputStream
-import java.io.DataOutputStream
 import java.math.BigInteger
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -33,9 +27,13 @@ private val ARRAY_INDEX_REGEX = Regex("\\$(\\d+)")
  * 5. Reports pass/fail.
  */
 class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPath: Path) {
-  // The run function is a single sequential protocol: load pipeline → install entries →
-  // send packets → compare. Splitting it would require passing mutable state between
-  // helper functions, making the protocol harder to follow.
+
+  /**
+   * Runs an STF test: loads the pipeline, installs entries, sends packets, and compares output.
+   *
+   * Cross-port ordering is ignored; within the same port, outputs are matched FIFO (first output on
+   * that port satisfies the first expect for that port). This matches BMv2's STF semantics.
+   */
   @Suppress("NestedBlockDepth")
   fun run(stfPath: Path): TestResult {
     val stf = StfFile.parse(stfPath)
@@ -43,54 +41,25 @@ class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPat
     com.google.protobuf.TextFormat.merge(pipelineConfigPath.toFile().readText(), builder)
     val config = builder.build()
 
-    val process = ProcessBuilder(simulatorBinary.toString()).redirectErrorStream(false).start()
-
-    val input = DataInputStream(process.inputStream.buffered())
-    val output = DataOutputStream(process.outputStream.buffered())
-
-    try {
-      // Load the pipeline.
-      sendRequest(
-        output,
-        SimRequest.newBuilder()
-          .setLoadPipeline(LoadPipelineRequest.newBuilder().setConfig(config))
-          .build(),
-      )
-      val loadResp = readResponse(input)
+    SimulatorClient(simulatorBinary).use { sim ->
+      val loadResp = sim.loadPipeline(config)
       if (loadResp.hasError()) {
         return TestResult.Failure("LoadPipeline failed: ${loadResp.error.message}")
       }
 
-      // Install table entries.
       for (directive in stf.tableEntries) {
-        val writeReq = resolveStfTableEntry(directive, config.p4Info)
-        sendRequest(output, SimRequest.newBuilder().setWriteEntry(writeReq).build())
-        val writeResp = readResponse(input)
+        val writeResp = sim.writeEntry(resolveStfTableEntry(directive, config.p4Info))
         if (writeResp.hasError()) {
           return TestResult.Failure("WriteEntry failed: ${writeResp.error.message}")
         }
       }
 
-      // Send all packets and collect outputs, then match expects by port.
-      // Cross-port ordering is ignored; within the same port, outputs are
-      // matched FIFO (first output on that port satisfies the first expect
-      // for that port). This matches BMv2's STF semantics.
       val failures = mutableListOf<String>()
       data class Output(val port: Int, val payload: ByteArray)
       val outputQueue = mutableListOf<Output>()
 
       for (packet in stf.packets) {
-        sendRequest(
-          output,
-          SimRequest.newBuilder()
-            .setProcessPacket(
-              ProcessPacketRequest.newBuilder()
-                .setIngressPort(packet.ingressPort)
-                .setPayload(com.google.protobuf.ByteString.copyFrom(packet.payload))
-            )
-            .build(),
-        )
-        val resp = readResponse(input)
+        val resp = sim.processPacket(packet.ingressPort, packet.payload)
         if (resp.hasError()) {
           failures += "ProcessPacket failed: ${resp.error.message}"
           continue
@@ -100,7 +69,6 @@ class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPat
         }
       }
 
-      // Match expects against the output queue in order.
       for (expected in stf.expects) {
         val idx = outputQueue.indexOfFirst { it.port == expected.port }
         if (idx < 0) {
@@ -118,23 +86,7 @@ class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPat
 
       return if (failures.isEmpty()) TestResult.Pass
       else TestResult.Failure(failures.joinToString("\n"))
-    } finally {
-      process.destroy()
     }
-  }
-
-  private fun sendRequest(output: DataOutputStream, request: SimRequest) {
-    val bytes = request.toByteArray()
-    output.writeInt(bytes.size)
-    output.write(bytes)
-    output.flush()
-  }
-
-  private fun readResponse(input: DataInputStream): SimResponse {
-    val length = input.readInt()
-    val bytes = ByteArray(length)
-    input.readFully(bytes)
-    return SimResponse.parseFrom(bytes)
   }
 }
 

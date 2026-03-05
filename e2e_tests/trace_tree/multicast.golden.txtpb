@@ -1,6 +1,9 @@
 # Expected trace tree for multicast: fork per replica.
 # Parser + ingress events are shared; the tree forks when the architecture
 # dispatches the packet to each replica in the multicast group.
+#
+# TODO(PR 4): populate subtrees with actual per-replica egress events.
+# Currently empty — labels and replica structure are placeholders.
 events {
   parser_transition {
     parser_name: "MyParser"

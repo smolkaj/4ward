@@ -36,8 +36,9 @@ kt_jvm_test(
     srcs = ["GoldenTraceTreeTest.kt"],
     data = ["%s.stf" % n for n in _P4_PROGRAMS] +
            ["%s.golden.txtpb" % n for n in _P4_PROGRAMS] +
-           [":%s_pb" % n for n in _P4_PROGRAMS] +
-           ["//simulator"],
+           [":%s_pb" % n for n in _P4_PROGRAMS] + [
+        "//simulator",
+    ],
     tags = ["manual"],
     test_class = "fourward.e2e.tracetree.GoldenTraceTreeTest",
     deps = [

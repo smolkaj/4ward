@@ -2,7 +2,10 @@ load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_library", "kt_jvm_test")
 
 kt_jvm_library(
     name = "stf_runner",
-    srcs = ["Runner.kt"],
+    srcs = [
+        "Runner.kt",
+        "SimulatorClient.kt",
+    ],
     visibility = ["//visibility:public"],
     deps = [
         "//simulator:ir_java_proto",

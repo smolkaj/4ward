@@ -1,5 +1,8 @@
 # Expected trace tree for action_selector_3: fork with 3 branches.
 # Parser events are shared (prefix); the fork occurs at the selector table.
+#
+# TODO(PR 3): update with actual member labels/params once action selector
+# forking is implemented. Current labels and param values are placeholders.
 events {
   parser_transition {
     parser_name: "MyParser"
