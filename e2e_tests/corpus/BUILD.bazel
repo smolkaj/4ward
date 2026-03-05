@@ -26,6 +26,8 @@ corpus_test_suite(
         "arith5-bmv2",
         "array-copy-bmv2",
         "bvec-hdr-bmv2",
+        "default-action-arg-bmv2",
+        "default_action-bmv2",
         "equality-varbit-bmv2",
         "flag_lost-bmv2",
         "gauntlet_action_mux-bmv2",
@@ -132,6 +134,7 @@ corpus_test_suite(
         "issue2488-bmv2",
         "issue2498-bmv2",
         "issue2614-bmv2",
+        "issue3488-1-bmv2",
         "issue3488-bmv2",
         "issue447-1-bmv2",
         "issue447-2-bmv2",
@@ -185,11 +188,9 @@ corpus_test_suite(
     tags = ["manual"],
     tests = [
         "constant-in-calculation-bmv2",  # unhandled extern call: hash
-        "default-action-arg-bmv2",  # UnitVal as action param default
-        "default_action-bmv2",  # UnitVal as action param default
-        "enum-bmv2",  # unhandled expression kind (enum)
+        "enum-bmv2",  # missing ConvertEnums midend pass
         "extern-funcs-bmv2",  # unhandled extern call: extern_func
-        "ipv6-switch-ml-bmv2",  # expected packet on port 6 but got none
+        "ipv6-switch-ml-bmv2",  # multicast replication not implemented
     ],
 )
 
@@ -270,7 +271,6 @@ corpus_test_suite(
         "issue1566-bmv2",  # unhandled method call: count (counter extern)
         "issue1814-1-bmv2",  # unhandled method call: read (register extern)
         "issue1879-bmv2",  # undefined variable: inf_0 (inlined function locals)
-        "issue3488-1-bmv2",  # expected packet on port 2 but got none
         "issue561-4-bmv2",  # header stack of unions (StructVal as stack element)
         "issue561-5-bmv2",  # header stack of unions (StructVal as stack element)
         "issue561-6-bmv2",  # header stack of unions (StructVal as stack element)

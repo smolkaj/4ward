@@ -548,22 +548,23 @@ class Interpreter(
     val tableBehavior = tables[tableName] ?: error("unknown table: $tableName")
     val keyValues = tableBehavior.keysList.map { key -> key.fieldName to evalExpr(key.expr, env) }
 
-    val (hit, entry, actionName) = tableStore.lookup(tableName, keyValues)
+    val result = tableStore.lookup(tableName, keyValues)
 
     packetCtx?.addTraceEvent(
       TraceEvent.newBuilder()
         .setTableLookup(
           TableLookupEvent.newBuilder()
             .setTableName(tableName)
-            .setHit(hit)
-            .setActionName(actionName)
-            .also { if (entry != null) it.setMatchedEntry(entry) }
+            .setHit(result.hit)
+            .setActionName(result.actionName)
+            .also { if (result.entry != null) it.setMatchedEntry(result.entry) }
         )
         .build()
     )
 
-    execAction(actionName, entry?.action?.action?.paramsList ?: emptyList(), env)
-    return TableResult(hit, actionName)
+    val params = result.entry?.action?.action?.paramsList ?: result.actionParams
+    execAction(result.actionName, params, env)
+    return TableResult(result.hit, result.actionName)
   }
 
   private fun execAction(

@@ -79,7 +79,17 @@ class Simulator {
       if (defaultActionId != 0) {
         val tableName = tableNameById[table.preamble.id] ?: continue
         val actionName = actionNameById[defaultActionId] ?: "NoAction"
-        tableStore.setDefaultAction(tableName, actionName)
+        // Convert p4info TableActionCall.Argument to P4Runtime Action.Param.
+        val params =
+          if (table.hasInitialDefaultAction())
+            table.initialDefaultAction.argumentsList.map { arg ->
+              p4.v1.P4RuntimeOuterClass.Action.Param.newBuilder()
+                .setParamId(arg.paramId)
+                .setValue(arg.value)
+                .build()
+            }
+          else emptyList()
+        tableStore.setDefaultAction(tableName, actionName, params)
       }
     }
 
