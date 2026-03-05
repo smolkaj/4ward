@@ -111,6 +111,7 @@ No printf debugging. No Wireshark. No guessing.
 │   ├── ir.proto            Behavioral IR (the contract between backend & sim)
 │   └── simulator.proto     Simulator service protocol (stdin/stdout framing)
 ├── p4c_backend/            p4c backend plugin (C++, emits the proto IR)
+├── p4runtime/              P4Runtime gRPC server (Kotlin)
 ├── e2e_tests/
 │   ├── stf/                STF runner (shared subprocess + packet I/O)
 │   ├── corpus/             p4c STF corpus (bulk regression)
