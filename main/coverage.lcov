@@ -1851,11 +1851,11 @@ FN:118,fourward/simulator/Simulator::handleProcessPacket (Lfourward/sim/v1/Proce
 FNDA:1,fourward/simulator/Simulator::handleProcessPacket (Lfourward/sim/v1/ProcessPacketRequest;)Lfourward/sim/v1/SimResponse;
 FN:147,fourward/simulator/Simulator::handleWriteEntry (Lfourward/sim/v1/WriteEntryRequest;)Lfourward/sim/v1/SimResponse;
 FNDA:1,fourward/simulator/Simulator::handleWriteEntry (Lfourward/sim/v1/WriteEntryRequest;)Lfourward/sim/v1/SimResponse;
-FN:155,fourward/simulator/Simulator::handleReadEntries (Lfourward/sim/v1/ReadEntriesRequest;)Lfourward/sim/v1/SimResponse;
+FN:154,fourward/simulator/Simulator::handleReadEntries (Lfourward/sim/v1/ReadEntriesRequest;)Lfourward/sim/v1/SimResponse;
 FNDA:0,fourward/simulator/Simulator::handleReadEntries (Lfourward/sim/v1/ReadEntriesRequest;)Lfourward/sim/v1/SimResponse;
-FN:163,fourward/simulator/Simulator::simError (Ljava/lang/String;Lfourward/sim/v1/ErrorCode;)Lfourward/sim/v1/SimResponse;
+FN:165,fourward/simulator/Simulator::simError (Ljava/lang/String;Lfourward/sim/v1/ErrorCode;)Lfourward/sim/v1/SimResponse;
 FNDA:1,fourward/simulator/Simulator::simError (Ljava/lang/String;Lfourward/sim/v1/ErrorCode;)Lfourward/sim/v1/SimResponse;
-FN:162,fourward/simulator/Simulator::simError$default (Lfourward/simulator/Simulator;Ljava/lang/String;Lfourward/sim/v1/ErrorCode;ILjava/lang/Object;)Lfourward/sim/v1/SimResponse;
+FN:164,fourward/simulator/Simulator::simError$default (Lfourward/simulator/Simulator;Ljava/lang/String;Lfourward/sim/v1/ErrorCode;ILjava/lang/Object;)Lfourward/sim/v1/SimResponse;
 FNDA:1,fourward/simulator/Simulator::simError$default (Lfourward/simulator/Simulator;Ljava/lang/String;Lfourward/sim/v1/ErrorCode;ILjava/lang/Object;)Lfourward/sim/v1/SimResponse;
 FN:58,fourward/simulator/Simulator::handleLoadPipeline$resolveName (Ljava/lang/String;Ljava/util/List;)Ljava/lang/String;
 FNDA:1,fourward/simulator/Simulator::handleLoadPipeline$resolveName (Ljava/lang/String;Ljava/util/List;)Ljava/lang/String;
@@ -1987,13 +1987,16 @@ DA:139,1
 DA:147,1
 DA:148,1
 DA:149,1
+DA:154,0
 DA:155,0
-DA:162,1
-DA:163,1
+DA:156,0
+DA:157,0
 DA:164,1
 DA:165,1
+DA:166,1
+DA:167,1
 LH:69
-LF:73
+LF:76
 end_of_record
 SF:simulator/TableStore.kt
 FN:21,fourward/simulator/TableStore::<init> ()V
@@ -2026,13 +2029,15 @@ FN:165,fourward/simulator/TableStore::getCloneSession (I)Lp4/v1/P4RuntimeOuterCl
 FNDA:1,fourward/simulator/TableStore::getCloneSession (I)Lp4/v1/P4RuntimeOuterClass$CloneSessionEntry;
 FN:168,fourward/simulator/TableStore::getMulticastGroup (I)Lp4/v1/P4RuntimeOuterClass$MulticastGroupEntry;
 FNDA:1,fourward/simulator/TableStore::getMulticastGroup (I)Lp4/v1/P4RuntimeOuterClass$MulticastGroupEntry;
-FN:196,fourward/simulator/TableStore::lookup (Ljava/lang/String;Ljava/util/List;)Lfourward/simulator/TableStore$LookupResult;
+FN:176,fourward/simulator/TableStore::readAllEntities ()Ljava/util/List;
+FNDA:0,fourward/simulator/TableStore::readAllEntities ()Ljava/util/List;
+FN:211,fourward/simulator/TableStore::lookup (Ljava/lang/String;Ljava/util/List;)Lfourward/simulator/TableStore$LookupResult;
 FNDA:1,fourward/simulator/TableStore::lookup (Ljava/lang/String;Ljava/util/List;)Lfourward/simulator/TableStore$LookupResult;
-FN:254,fourward/simulator/TableStore::resolveActionName (I)Ljava/lang/String;
+FN:269,fourward/simulator/TableStore::resolveActionName (I)Ljava/lang/String;
 FNDA:1,fourward/simulator/TableStore::resolveActionName (I)Ljava/lang/String;
-FN:262,fourward/simulator/TableStore::scoreEntry (Lp4/v1/P4RuntimeOuterClass$TableEntry;Ljava/util/List;)Ljava/lang/Long;
+FN:277,fourward/simulator/TableStore::scoreEntry (Lp4/v1/P4RuntimeOuterClass$TableEntry;Ljava/util/List;)Ljava/lang/Long;
 FNDA:1,fourward/simulator/TableStore::scoreEntry (Lp4/v1/P4RuntimeOuterClass$TableEntry;Ljava/util/List;)Ljava/lang/Long;
-FN:319,fourward/simulator/TableStore::<clinit> ()V
+FN:334,fourward/simulator/TableStore::<clinit> ()V
 FNDA:1,fourward/simulator/TableStore::<clinit> ()V
 FN:27,fourward/simulator/TableStore$DefaultAction::<init> (Ljava/lang/String;Ljava/util/List;)V
 FNDA:1,fourward/simulator/TableStore$DefaultAction::<init> (Ljava/lang/String;Ljava/util/List;)V
@@ -2042,33 +2047,33 @@ FN:28,fourward/simulator/TableStore$DefaultAction::getName ()Ljava/lang/String;
 FNDA:1,fourward/simulator/TableStore$DefaultAction::getName ()Ljava/lang/String;
 FN:29,fourward/simulator/TableStore$DefaultAction::getParams ()Ljava/util/List;
 FNDA:1,fourward/simulator/TableStore$DefaultAction::getParams ()Ljava/util/List;
-FN:180,fourward/simulator/TableStore$LookupResult::<init> (ZLp4/v1/P4RuntimeOuterClass$TableEntry;Ljava/lang/String;Ljava/util/List;Ljava/util/List;)V
+FN:195,fourward/simulator/TableStore$LookupResult::<init> (ZLp4/v1/P4RuntimeOuterClass$TableEntry;Ljava/lang/String;Ljava/util/List;Ljava/util/List;)V
 FNDA:1,fourward/simulator/TableStore$LookupResult::<init> (ZLp4/v1/P4RuntimeOuterClass$TableEntry;Ljava/lang/String;Ljava/util/List;Ljava/util/List;)V
-FN:180,fourward/simulator/TableStore$LookupResult::<init> (ZLp4/v1/P4RuntimeOuterClass$TableEntry;Ljava/lang/String;Ljava/util/List;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+FN:195,fourward/simulator/TableStore$LookupResult::<init> (ZLp4/v1/P4RuntimeOuterClass$TableEntry;Ljava/lang/String;Ljava/util/List;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 FNDA:1,fourward/simulator/TableStore$LookupResult::<init> (ZLp4/v1/P4RuntimeOuterClass$TableEntry;Ljava/lang/String;Ljava/util/List;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-FN:181,fourward/simulator/TableStore$LookupResult::getHit ()Z
+FN:196,fourward/simulator/TableStore$LookupResult::getHit ()Z
 FNDA:1,fourward/simulator/TableStore$LookupResult::getHit ()Z
-FN:182,fourward/simulator/TableStore$LookupResult::getEntry ()Lp4/v1/P4RuntimeOuterClass$TableEntry;
+FN:197,fourward/simulator/TableStore$LookupResult::getEntry ()Lp4/v1/P4RuntimeOuterClass$TableEntry;
 FNDA:1,fourward/simulator/TableStore$LookupResult::getEntry ()Lp4/v1/P4RuntimeOuterClass$TableEntry;
-FN:183,fourward/simulator/TableStore$LookupResult::getActionName ()Ljava/lang/String;
+FN:198,fourward/simulator/TableStore$LookupResult::getActionName ()Ljava/lang/String;
 FNDA:1,fourward/simulator/TableStore$LookupResult::getActionName ()Ljava/lang/String;
-FN:184,fourward/simulator/TableStore$LookupResult::getActionParams ()Ljava/util/List;
+FN:199,fourward/simulator/TableStore$LookupResult::getActionParams ()Ljava/util/List;
 FNDA:1,fourward/simulator/TableStore$LookupResult::getActionParams ()Ljava/util/List;
-FN:185,fourward/simulator/TableStore$LookupResult::getMembers ()Ljava/util/List;
+FN:200,fourward/simulator/TableStore$LookupResult::getMembers ()Ljava/util/List;
 FNDA:1,fourward/simulator/TableStore$LookupResult::getMembers ()Ljava/util/List;
-FN:174,fourward/simulator/TableStore$MemberAction::<init> (ILjava/lang/String;Ljava/util/List;)V
+FN:189,fourward/simulator/TableStore$MemberAction::<init> (ILjava/lang/String;Ljava/util/List;)V
 FNDA:1,fourward/simulator/TableStore$MemberAction::<init> (ILjava/lang/String;Ljava/util/List;)V
-FN:175,fourward/simulator/TableStore$MemberAction::getMemberId ()I
+FN:190,fourward/simulator/TableStore$MemberAction::getMemberId ()I
 FNDA:1,fourward/simulator/TableStore$MemberAction::getMemberId ()I
-FN:176,fourward/simulator/TableStore$MemberAction::getActionName ()Ljava/lang/String;
+FN:191,fourward/simulator/TableStore$MemberAction::getActionName ()Ljava/lang/String;
 FNDA:1,fourward/simulator/TableStore$MemberAction::getActionName ()Ljava/lang/String;
-FN:177,fourward/simulator/TableStore$MemberAction::getParams ()Ljava/util/List;
+FN:192,fourward/simulator/TableStore$MemberAction::getParams ()Ljava/util/List;
 FNDA:1,fourward/simulator/TableStore$MemberAction::getParams ()Ljava/util/List;
-FN:203,fourward/simulator/TableStore$lookup$Candidate::<init> (Lp4/v1/P4RuntimeOuterClass$TableEntry;J)V
+FN:218,fourward/simulator/TableStore$lookup$Candidate::<init> (Lp4/v1/P4RuntimeOuterClass$TableEntry;J)V
 FNDA:1,fourward/simulator/TableStore$lookup$Candidate::<init> (Lp4/v1/P4RuntimeOuterClass$TableEntry;J)V
-FN:203,fourward/simulator/TableStore$lookup$Candidate::getEntry ()Lp4/v1/P4RuntimeOuterClass$TableEntry;
+FN:218,fourward/simulator/TableStore$lookup$Candidate::getEntry ()Lp4/v1/P4RuntimeOuterClass$TableEntry;
 FNDA:1,fourward/simulator/TableStore$lookup$Candidate::getEntry ()Lp4/v1/P4RuntimeOuterClass$TableEntry;
-FN:203,fourward/simulator/TableStore$lookup$Candidate::getScore ()J
+FN:218,fourward/simulator/TableStore$lookup$Candidate::getScore ()J
 FNDA:1,fourward/simulator/TableStore$lookup$Candidate::getScore ()J
 FN:137,fourward/simulator/TableStore$writeTableEntry$1::test (Lp4/v1/P4RuntimeOuterClass$TableEntry;)Z
 FNDA:1,fourward/simulator/TableStore$writeTableEntry$1::test (Lp4/v1/P4RuntimeOuterClass$TableEntry;)Z
@@ -2099,84 +2104,88 @@ BRDA:157,0,0,1
 BRDA:157,0,1,1
 BRDA:159,0,0,1
 BRDA:159,0,1,0
-BRDA:196,0,0,1
-BRDA:196,0,1,1
-BRDA:200,0,0,1
-BRDA:200,0,1,1
-BRDA:201,0,0,1
-BRDA:201,0,1,1
-BRDA:207,0,0,1
-BRDA:207,0,1,1
-BRDA:212,0,0,1
-BRDA:212,0,1,1
-BRDA:218,0,0,1
-BRDA:218,0,1,1
-BRDA:218,0,2,1
-BRDA:218,0,3,0
-BRDA:220,0,0,1
-BRDA:220,0,1,0
+BRDA:177,0,0,-
+BRDA:177,0,1,-
+BRDA:178,0,0,-
+BRDA:178,0,1,-
+BRDA:211,0,0,1
+BRDA:211,0,1,1
+BRDA:215,0,0,1
+BRDA:215,0,1,1
+BRDA:216,0,0,1
+BRDA:216,0,1,1
 BRDA:222,0,0,1
-BRDA:222,0,1,0
-BRDA:222,0,2,0
-BRDA:222,0,3,1
+BRDA:222,0,1,1
 BRDA:227,0,0,1
-BRDA:227,0,1,0
-BRDA:227,0,2,0
-BRDA:227,0,3,1
-BRDA:236,0,0,1
-BRDA:236,0,1,0
-BRDA:236,0,2,0
-BRDA:236,0,3,1
-BRDA:241,0,0,1
-BRDA:241,0,1,1
-BRDA:241,0,2,1
-BRDA:241,0,3,0
-BRDA:243,0,0,1
-BRDA:243,0,1,0
-BRDA:245,0,0,1
-BRDA:245,0,1,0
-BRDA:245,0,2,0
-BRDA:245,0,3,1
-BRDA:254,0,0,0
-BRDA:254,0,1,1
-BRDA:263,0,0,1
-BRDA:263,0,1,1
-BRDA:265,0,0,1
-BRDA:265,0,1,0
-BRDA:265,0,2,1
-BRDA:265,0,3,1
-BRDA:265,0,4,0
-BRDA:265,0,5,1
-BRDA:270,0,0,1
-BRDA:270,0,1,1
-BRDA:271,0,0,1
-BRDA:271,0,1,0
-BRDA:271,0,2,1
-BRDA:271,0,3,1
-BRDA:276,0,0,1
-BRDA:276,0,1,1
-BRDA:277,0,0,1
-BRDA:277,0,1,1
-BRDA:282,0,0,1
-BRDA:282,0,1,1
-BRDA:286,0,0,0
-BRDA:286,0,1,1
+BRDA:227,0,1,1
+BRDA:233,0,0,1
+BRDA:233,0,1,1
+BRDA:233,0,2,1
+BRDA:233,0,3,0
+BRDA:235,0,0,1
+BRDA:235,0,1,0
+BRDA:237,0,0,1
+BRDA:237,0,1,0
+BRDA:237,0,2,0
+BRDA:237,0,3,1
+BRDA:242,0,0,1
+BRDA:242,0,1,0
+BRDA:242,0,2,0
+BRDA:242,0,3,1
+BRDA:251,0,0,1
+BRDA:251,0,1,0
+BRDA:251,0,2,0
+BRDA:251,0,3,1
+BRDA:256,0,0,1
+BRDA:256,0,1,1
+BRDA:256,0,2,1
+BRDA:256,0,3,0
+BRDA:258,0,0,1
+BRDA:258,0,1,0
+BRDA:260,0,0,1
+BRDA:260,0,1,0
+BRDA:260,0,2,0
+BRDA:260,0,3,1
+BRDA:269,0,0,0
+BRDA:269,0,1,1
+BRDA:278,0,0,1
+BRDA:278,0,1,1
+BRDA:280,0,0,1
+BRDA:280,0,1,0
+BRDA:280,0,2,1
+BRDA:280,0,3,1
+BRDA:280,0,4,0
+BRDA:280,0,5,1
+BRDA:285,0,0,1
+BRDA:285,0,1,1
+BRDA:286,0,0,1
+BRDA:286,0,1,0
+BRDA:286,0,2,1
+BRDA:286,0,3,1
+BRDA:291,0,0,1
+BRDA:291,0,1,1
 BRDA:292,0,0,1
 BRDA:292,0,1,1
-BRDA:295,0,0,1
-BRDA:295,0,1,1
-BRDA:298,0,0,1
-BRDA:298,0,1,1
-BRDA:301,0,0,1
+BRDA:297,0,0,1
+BRDA:297,0,1,1
+BRDA:301,0,0,0
 BRDA:301,0,1,1
-BRDA:304,0,0,1
-BRDA:304,0,1,1
-BRDA:304,0,2,1
-BRDA:304,0,3,1
-BRDA:309,0,0,1
-BRDA:309,0,1,0
+BRDA:307,0,0,1
+BRDA:307,0,1,1
 BRDA:310,0,0,1
 BRDA:310,0,1,1
+BRDA:313,0,0,1
+BRDA:313,0,1,1
+BRDA:316,0,0,1
+BRDA:316,0,1,1
+BRDA:319,0,0,1
+BRDA:319,0,1,1
+BRDA:319,0,2,1
+BRDA:319,0,3,1
+BRDA:324,0,0,1
+BRDA:324,0,1,0
+BRDA:325,0,0,1
+BRDA:325,0,1,1
 BRDA:137,0,0,1
 BRDA:137,0,1,0
 BRDA:137,0,2,1
@@ -2255,99 +2264,104 @@ DA:160,1
 DA:162,1
 DA:165,1
 DA:168,1
-DA:174,1
-DA:175,1
-DA:176,1
-DA:177,1
-DA:180,1
-DA:181,1
-DA:182,1
-DA:183,1
-DA:184,1
-DA:185,1
-DA:186,1
+DA:176,0
+DA:177,0
+DA:178,0
+DA:179,0
+DA:182,0
+DA:189,1
+DA:190,1
+DA:191,1
+DA:192,1
+DA:195,1
 DA:196,1
 DA:197,1
+DA:198,1
+DA:199,1
 DA:200,1
 DA:201,1
-DA:203,1
-DA:205,1
-DA:206,1
-DA:207,1
-DA:208,1
 DA:211,1
 DA:212,1
-DA:213,1
 DA:215,1
+DA:216,1
 DA:218,1
-DA:219,1
 DA:220,1
 DA:221,1
 DA:222,1
-DA:223,0
-DA:224,1
-DA:225,1
+DA:223,1
 DA:226,1
 DA:227,1
-DA:228,0
-DA:229,1
+DA:228,1
 DA:230,1
-DA:231,1
-DA:232,1
 DA:233,1
+DA:234,1
+DA:235,1
 DA:236,1
 DA:237,1
+DA:238,0
+DA:239,1
+DA:240,1
 DA:241,1
 DA:242,1
-DA:243,1
+DA:243,0
 DA:244,1
 DA:245,1
-DA:246,0
+DA:246,1
 DA:247,1
-DA:250,1
-DA:254,1
+DA:248,1
+DA:251,1
+DA:252,1
+DA:256,1
+DA:257,1
+DA:258,1
+DA:259,1
+DA:260,1
+DA:261,0
 DA:262,1
-DA:263,1
-DA:264,1
 DA:265,1
-DA:266,0
-DA:268,1
 DA:269,1
-DA:270,1
-DA:271,1
-DA:272,0
-DA:275,1
-DA:276,1
 DA:277,1
-DA:282,1
+DA:278,1
+DA:279,1
+DA:280,1
+DA:281,0
 DA:283,1
 DA:284,1
 DA:285,1
 DA:286,1
-DA:288,1
-DA:289,1
+DA:287,0
 DA:290,1
 DA:291,1
 DA:292,1
-DA:293,1
-DA:295,1
-DA:296,1
 DA:297,1
 DA:298,1
 DA:299,1
+DA:300,1
 DA:301,1
-DA:302,1
 DA:303,1
 DA:304,1
 DA:305,1
-DA:309,1
+DA:306,1
+DA:307,1
+DA:308,1
 DA:310,1
-DA:312,0
-DA:315,1
+DA:311,1
+DA:312,1
+DA:313,1
+DA:314,1
+DA:316,1
+DA:317,1
+DA:318,1
 DA:319,1
 DA:320,1
+DA:324,1
+DA:325,1
+DA:327,0
+DA:330,1
+DA:334,1
+DA:335,1
 LH:155
-LF:161
+LF:166
 end_of_record
 SF:simulator/V1ModelArchitecture.kt
 FN:34,fourward/simulator/V1ModelArchitecture::<init> ()V
