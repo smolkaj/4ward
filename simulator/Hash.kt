@@ -67,19 +67,8 @@ private fun crc32(data: ByteArray): Long {
 }
 
 /** Converts a [StructVal]'s fields to a big-endian byte array for hashing. */
-private fun structToBytes(data: StructVal): ByteArray {
-  val combined = concatFields(data) ?: return ByteArray(0)
-  val totalBits = combined.width
-  val totalBytes = (totalBits + 7) / 8
-  val padded = combined.value.shiftLeft(totalBytes * 8 - totalBits)
-  val raw = padded.toByteArray()
-  // BigInteger.toByteArray() may include a leading sign byte or be shorter than totalBytes.
-  return when {
-    raw.size == totalBytes -> raw
-    raw.size > totalBytes -> raw.copyOfRange(raw.size - totalBytes, raw.size)
-    else -> ByteArray(totalBytes - raw.size) + raw
-  }
-}
+private fun structToBytes(data: StructVal): ByteArray =
+  concatFields(data)?.toByteArray() ?: ByteArray(0)
 
 /**
  * Computes a hash over [data] using the specified [algorithm].

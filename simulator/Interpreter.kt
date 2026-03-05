@@ -763,7 +763,8 @@ class Interpreter(
         if (condition) {
           val data = evalExpr(call.argsList[1], env) as StructVal
           val expected = evalExpr(call.argsList[2], env) as BitVal
-          val computed = onesComplementChecksum(data)
+          val algo = (evalExpr(call.argsList[3], env) as EnumVal).member
+          val computed = computeHash(algo, data)
           if (computed != expected.bits.value) {
             onChecksumError?.invoke()
           }
@@ -776,7 +777,8 @@ class Interpreter(
         val condition = (evalExpr(call.argsList[0], env) as BoolVal).value
         if (condition) {
           val data = evalExpr(call.argsList[1], env) as StructVal
-          val computed = onesComplementChecksum(data)
+          val algo = (evalExpr(call.argsList[3], env) as EnumVal).member
+          val computed = computeHash(algo, data)
           val checksumWidth = call.argsList[2].type.bit.width
           setLValue(call.argsList[2], BitVal(BitVector(computed, checksumWidth)), env)
         }
