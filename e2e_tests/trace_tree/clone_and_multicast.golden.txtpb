@@ -1,0 +1,38 @@
+events {
+  parser_transition {
+    parser_name: "MyParser"
+    from_state: "start"
+    to_state: "accept"
+  }
+}
+events {
+  clone {
+    session_id: 100
+  }
+}
+fork {
+  reason: CLONE
+  branches {
+    label: "original"
+    subtree {
+      fork {
+        reason: MULTICAST
+        branches {
+          label: "replica_0_port_1"
+          subtree {
+          }
+        }
+        branches {
+          label: "replica_0_port_2"
+          subtree {
+          }
+        }
+      }
+    }
+  }
+  branches {
+    label: "clone"
+    subtree {
+    }
+  }
+}
