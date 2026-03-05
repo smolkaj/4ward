@@ -32,12 +32,12 @@
             <td></td>
             <td class="headerItem">Lines:</td>
             <td class="headerCovTableEntryLo">0.0&nbsp;%</td>
-            <td class="headerCovTableEntry">149</td>
+            <td class="headerCovTableEntry">151</td>
             <td class="headerCovTableEntry">0</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-05 05:23:39</td>
+            <td class="headerValue">2026-03-05 05:43:40</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryLo">0.0&nbsp;%</td>
@@ -305,80 +305,82 @@
 <span id="L243"><span class="lineNum">     243</span>              :     // All paths write egress_port into standardMetadata so the egress read is uniform.</span>
 <span id="L244"><span class="lineNum">     244</span> <span class="tlaUNC">           0 :     if (jumpToEgress) {</span></span>
 <span id="L245"><span class="lineNum">     245</span>              :       // Clone branch: set instance_type and egress_port from clone session config.</span>
-<span id="L246"><span class="lineNum">     246</span> <span class="tlaUNC">           0 :       val session = ctx.tableStore.getCloneSession(decisions.cloneSessionId)</span></span>
-<span id="L247"><span class="lineNum">     247</span> <span class="tlaUNC">           0 :       val clonePort = session?.replicasList?.firstOrNull()?.egressPort ?: 0</span></span>
-<span id="L248"><span class="lineNum">     248</span> <span class="tlaUNC">           0 :       s.standardMetadata.fields[&quot;instance_type&quot;] = BitVal(CLONE_I2E_INSTANCE_TYPE, INT32_BITS)</span></span>
-<span id="L249"><span class="lineNum">     249</span> <span class="tlaUNC">           0 :       s.standardMetadata.fields[&quot;egress_port&quot;] = BitVal(clonePort.toLong(), PORT_BITS)</span></span>
-<span id="L250"><span class="lineNum">     250</span>              :     } else {</span>
-<span id="L251"><span class="lineNum">     251</span> <span class="tlaUNC">           0 :       val mcastGrp = (s.standardMetadata.fields[&quot;mcast_grp&quot;] as? BitVal)?.bits?.value?.toInt() ?: 0</span></span>
-<span id="L252"><span class="lineNum">     252</span> <span class="tlaUNC">           0 :       if (mcastGrp != 0 &amp;&amp; decisions.multicastReplica == null) {</span></span>
-<span id="L253"><span class="lineNum">     253</span> <span class="tlaUNC">           0 :         val group =</span></span>
-<span id="L254"><span class="lineNum">     254</span> <span class="tlaUNC">           0 :           ctx.tableStore.getMulticastGroup(mcastGrp) ?: error(&quot;unknown multicast group: $mcastGrp&quot;)</span></span>
-<span id="L255"><span class="lineNum">     255</span> <span class="tlaUNC">           0 :         val replicas = group.replicasList.map { r -&gt; MulticastReplica(r.instance, r.egressPort) }</span></span>
-<span id="L256"><span class="lineNum">     256</span> <span class="tlaUNC">           0 :         throw MulticastFork(replicas, s.packetCtx.getEvents())</span></span>
-<span id="L257"><span class="lineNum">     257</span>              :       }</span>
-<span id="L258"><span class="lineNum">     258</span> <span class="tlaUNC">           0 :       if (decisions.multicastReplica != null) {</span></span>
-<span id="L259"><span class="lineNum">     259</span> <span class="tlaUNC">           0 :         s.standardMetadata.fields[&quot;egress_port&quot;] =</span></span>
-<span id="L260"><span class="lineNum">     260</span> <span class="tlaUNC">           0 :           BitVal(decisions.multicastReplica.port.toLong(), PORT_BITS)</span></span>
-<span id="L261"><span class="lineNum">     261</span> <span class="tlaUNC">           0 :         s.standardMetadata.fields[&quot;egress_rid&quot;] =</span></span>
-<span id="L262"><span class="lineNum">     262</span> <span class="tlaUNC">           0 :           BitVal(decisions.multicastReplica.rid.toLong(), REPLICA_ID_BITS)</span></span>
-<span id="L263"><span class="lineNum">     263</span>              :       } else {</span>
-<span id="L264"><span class="lineNum">     264</span>              :         // Normal unicast: copy egress_spec → egress_port for uniform read below.</span>
-<span id="L265"><span class="lineNum">     265</span> <span class="tlaUNC">           0 :         s.standardMetadata.fields[&quot;egress_port&quot;] =</span></span>
-<span id="L266"><span class="lineNum">     266</span> <span class="tlaUNC">           0 :           s.standardMetadata.fields[&quot;egress_spec&quot;] ?: BitVal(0, PORT_BITS)</span></span>
-<span id="L267"><span class="lineNum">     267</span>              :       }</span>
-<span id="L268"><span class="lineNum">     268</span>              :     }</span>
-<span id="L269"><span class="lineNum">     269</span>              : </span>
-<span id="L270"><span class="lineNum">     270</span>              :     // --- Egress controls (egress, compute checksum) ---</span>
-<span id="L271"><span class="lineNum">     271</span> <span class="tlaUNC">           0 :     for (stage in s.egressControls) {</span></span>
-<span id="L272"><span class="lineNum">     272</span> <span class="tlaUNC">           0 :       try {</span></span>
-<span id="L273"><span class="lineNum">     273</span> <span class="tlaUNC">           0 :         s.interpreter.runControl(stage.blockName, s.env)</span></span>
-<span id="L274"><span class="lineNum">     274</span> <span class="tlaUNC">           0 :       } catch (_: ExitException) {</span></span>
-<span id="L275"><span class="lineNum">     275</span> <span class="tlaUNC">           0 :         break // skip remaining control stages; still run deparser below</span></span>
-<span id="L276"><span class="lineNum">     276</span>              :       }</span>
-<span id="L277"><span class="lineNum">     277</span>              :     }</span>
-<span id="L278"><span class="lineNum">     278</span>              : </span>
-<span id="L279"><span class="lineNum">     279</span> <span class="tlaUNC">           0 :     val egressPort =</span></span>
-<span id="L280"><span class="lineNum">     280</span> <span class="tlaUNC">           0 :       (s.standardMetadata.fields[&quot;egress_port&quot;] as? BitVal)?.bits?.value?.toInt() ?: 0</span></span>
-<span id="L281"><span class="lineNum">     281</span>              : </span>
-<span id="L282"><span class="lineNum">     282</span>              :     // Port 511 is the v1model drop port (mark_to_drop sets egress_spec = 511).</span>
-<span id="L283"><span class="lineNum">     283</span> <span class="tlaUNC">           0 :     if (egressPort == DROP_PORT) {</span></span>
-<span id="L284"><span class="lineNum">     284</span> <span class="tlaUNC">           0 :       return PipelineResult(emptyList(), s.packetCtx.buildTrace())</span></span>
-<span id="L285"><span class="lineNum">     285</span>              :     }</span>
-<span id="L286"><span class="lineNum">     286</span>              : </span>
-<span id="L287"><span class="lineNum">     287</span>              :     // --- Deparser ---</span>
-<span id="L288"><span class="lineNum">     288</span> <span class="tlaUNC">           0 :     if (s.deparserStage != null) {</span></span>
-<span id="L289"><span class="lineNum">     289</span> <span class="tlaUNC">           0 :       s.interpreter.runControl(s.deparserStage.blockName, s.env)</span></span>
-<span id="L290"><span class="lineNum">     290</span>              :     }</span>
-<span id="L291"><span class="lineNum">     291</span>              : </span>
-<span id="L292"><span class="lineNum">     292</span>              :     // Append any bytes the parser did not extract (the un-parsed packet body).</span>
-<span id="L293"><span class="lineNum">     293</span>              :     // In P4, the deparser emits re-serialised headers; the remaining payload</span>
-<span id="L294"><span class="lineNum">     294</span>              :     // is transparently forwarded after them.</span>
-<span id="L295"><span class="lineNum">     295</span> <span class="tlaUNC">           0 :     val outputBytes = s.packetCtx.outputPayload() + s.packetCtx.drainRemainingInput()</span></span>
-<span id="L296"><span class="lineNum">     296</span> <span class="tlaUNC">           0 :     val output = OutputPacket(egressPort.toUInt(), outputBytes)</span></span>
-<span id="L297"><span class="lineNum">     297</span> <span class="tlaUNC">           0 :     return PipelineResult(listOf(output), s.packetCtx.buildTrace())</span></span>
-<span id="L298"><span class="lineNum">     298</span>              :   }</span>
-<span id="L299"><span class="lineNum">     299</span>              : </span>
-<span id="L300"><span class="lineNum">     300</span>              :   companion object {</span>
-<span id="L301"><span class="lineNum">     301</span>              :     /** Port value used by mark_to_drop() to signal packet drop in v1model. */</span>
-<span id="L302"><span class="lineNum">     302</span>              :     const val DROP_PORT = 511</span>
-<span id="L303"><span class="lineNum">     303</span>              : </span>
-<span id="L304"><span class="lineNum">     304</span>              :     // Number of user-visible params in the v1model parser after removing packet_in/packet_out:</span>
-<span id="L305"><span class="lineNum">     305</span>              :     // (hdr, meta, standard_metadata).</span>
-<span id="L306"><span class="lineNum">     306</span>              :     private const val V1MODEL_USER_PARAM_COUNT = 3</span>
-<span id="L307"><span class="lineNum">     307</span>              : </span>
-<span id="L308"><span class="lineNum">     308</span>              :     // v1model: first 2 control stages are ingress-side (verify checksum, ingress).</span>
-<span id="L309"><span class="lineNum">     309</span>              :     private const val INGRESS_CONTROL_COUNT = 2</span>
-<span id="L310"><span class="lineNum">     310</span>              : </span>
-<span id="L311"><span class="lineNum">     311</span>              :     // Bit widths for standard_metadata_t fields, as defined in v1model.p4.</span>
-<span id="L312"><span class="lineNum">     312</span>              :     const val PORT_BITS = 9</span>
-<span id="L313"><span class="lineNum">     313</span>              :     private const val INT32_BITS = 32</span>
-<span id="L314"><span class="lineNum">     314</span>              :     private const val REPLICA_ID_BITS = 16</span>
-<span id="L315"><span class="lineNum">     315</span>              : </span>
-<span id="L316"><span class="lineNum">     316</span>              :     // v1model instance_type values (BMv2 convention).</span>
-<span id="L317"><span class="lineNum">     317</span>              :     private const val CLONE_I2E_INSTANCE_TYPE = 1L</span>
-<span id="L318"><span class="lineNum">     318</span>              :   }</span>
-<span id="L319"><span class="lineNum">     319</span>              : }</span>
+<span id="L246"><span class="lineNum">     246</span> <span class="tlaUNC">           0 :       val session =</span></span>
+<span id="L247"><span class="lineNum">     247</span> <span class="tlaUNC">           0 :         ctx.tableStore.getCloneSession(decisions.cloneSessionId)</span></span>
+<span id="L248"><span class="lineNum">     248</span> <span class="tlaUNC">           0 :           ?: error(&quot;unknown clone session: ${decisions.cloneSessionId}&quot;)</span></span>
+<span id="L249"><span class="lineNum">     249</span> <span class="tlaUNC">           0 :       val clonePort = session.replicasList.firstOrNull()?.egressPort ?: 0</span></span>
+<span id="L250"><span class="lineNum">     250</span> <span class="tlaUNC">           0 :       s.standardMetadata.fields[&quot;instance_type&quot;] = BitVal(CLONE_I2E_INSTANCE_TYPE, INT32_BITS)</span></span>
+<span id="L251"><span class="lineNum">     251</span> <span class="tlaUNC">           0 :       s.standardMetadata.fields[&quot;egress_port&quot;] = BitVal(clonePort.toLong(), PORT_BITS)</span></span>
+<span id="L252"><span class="lineNum">     252</span>              :     } else {</span>
+<span id="L253"><span class="lineNum">     253</span> <span class="tlaUNC">           0 :       val mcastGrp = (s.standardMetadata.fields[&quot;mcast_grp&quot;] as? BitVal)?.bits?.value?.toInt() ?: 0</span></span>
+<span id="L254"><span class="lineNum">     254</span> <span class="tlaUNC">           0 :       if (mcastGrp != 0 &amp;&amp; decisions.multicastReplica == null) {</span></span>
+<span id="L255"><span class="lineNum">     255</span> <span class="tlaUNC">           0 :         val group =</span></span>
+<span id="L256"><span class="lineNum">     256</span> <span class="tlaUNC">           0 :           ctx.tableStore.getMulticastGroup(mcastGrp) ?: error(&quot;unknown multicast group: $mcastGrp&quot;)</span></span>
+<span id="L257"><span class="lineNum">     257</span> <span class="tlaUNC">           0 :         val replicas = group.replicasList.map { r -&gt; MulticastReplica(r.instance, r.egressPort) }</span></span>
+<span id="L258"><span class="lineNum">     258</span> <span class="tlaUNC">           0 :         throw MulticastFork(replicas, s.packetCtx.getEvents())</span></span>
+<span id="L259"><span class="lineNum">     259</span>              :       }</span>
+<span id="L260"><span class="lineNum">     260</span> <span class="tlaUNC">           0 :       if (decisions.multicastReplica != null) {</span></span>
+<span id="L261"><span class="lineNum">     261</span> <span class="tlaUNC">           0 :         s.standardMetadata.fields[&quot;egress_port&quot;] =</span></span>
+<span id="L262"><span class="lineNum">     262</span> <span class="tlaUNC">           0 :           BitVal(decisions.multicastReplica.port.toLong(), PORT_BITS)</span></span>
+<span id="L263"><span class="lineNum">     263</span> <span class="tlaUNC">           0 :         s.standardMetadata.fields[&quot;egress_rid&quot;] =</span></span>
+<span id="L264"><span class="lineNum">     264</span> <span class="tlaUNC">           0 :           BitVal(decisions.multicastReplica.rid.toLong(), REPLICA_ID_BITS)</span></span>
+<span id="L265"><span class="lineNum">     265</span>              :       } else {</span>
+<span id="L266"><span class="lineNum">     266</span>              :         // Normal unicast: copy egress_spec → egress_port for uniform read below.</span>
+<span id="L267"><span class="lineNum">     267</span> <span class="tlaUNC">           0 :         s.standardMetadata.fields[&quot;egress_port&quot;] =</span></span>
+<span id="L268"><span class="lineNum">     268</span> <span class="tlaUNC">           0 :           s.standardMetadata.fields[&quot;egress_spec&quot;] ?: BitVal(0, PORT_BITS)</span></span>
+<span id="L269"><span class="lineNum">     269</span>              :       }</span>
+<span id="L270"><span class="lineNum">     270</span>              :     }</span>
+<span id="L271"><span class="lineNum">     271</span>              : </span>
+<span id="L272"><span class="lineNum">     272</span>              :     // --- Egress controls (egress, compute checksum) ---</span>
+<span id="L273"><span class="lineNum">     273</span> <span class="tlaUNC">           0 :     for (stage in s.egressControls) {</span></span>
+<span id="L274"><span class="lineNum">     274</span> <span class="tlaUNC">           0 :       try {</span></span>
+<span id="L275"><span class="lineNum">     275</span> <span class="tlaUNC">           0 :         s.interpreter.runControl(stage.blockName, s.env)</span></span>
+<span id="L276"><span class="lineNum">     276</span> <span class="tlaUNC">           0 :       } catch (_: ExitException) {</span></span>
+<span id="L277"><span class="lineNum">     277</span> <span class="tlaUNC">           0 :         break // skip remaining control stages; still run deparser below</span></span>
+<span id="L278"><span class="lineNum">     278</span>              :       }</span>
+<span id="L279"><span class="lineNum">     279</span>              :     }</span>
+<span id="L280"><span class="lineNum">     280</span>              : </span>
+<span id="L281"><span class="lineNum">     281</span> <span class="tlaUNC">           0 :     val egressPort =</span></span>
+<span id="L282"><span class="lineNum">     282</span> <span class="tlaUNC">           0 :       (s.standardMetadata.fields[&quot;egress_port&quot;] as? BitVal)?.bits?.value?.toInt() ?: 0</span></span>
+<span id="L283"><span class="lineNum">     283</span>              : </span>
+<span id="L284"><span class="lineNum">     284</span>              :     // Port 511 is the v1model drop port (mark_to_drop sets egress_spec = 511).</span>
+<span id="L285"><span class="lineNum">     285</span> <span class="tlaUNC">           0 :     if (egressPort == DROP_PORT) {</span></span>
+<span id="L286"><span class="lineNum">     286</span> <span class="tlaUNC">           0 :       return PipelineResult(emptyList(), s.packetCtx.buildTrace())</span></span>
+<span id="L287"><span class="lineNum">     287</span>              :     }</span>
+<span id="L288"><span class="lineNum">     288</span>              : </span>
+<span id="L289"><span class="lineNum">     289</span>              :     // --- Deparser ---</span>
+<span id="L290"><span class="lineNum">     290</span> <span class="tlaUNC">           0 :     if (s.deparserStage != null) {</span></span>
+<span id="L291"><span class="lineNum">     291</span> <span class="tlaUNC">           0 :       s.interpreter.runControl(s.deparserStage.blockName, s.env)</span></span>
+<span id="L292"><span class="lineNum">     292</span>              :     }</span>
+<span id="L293"><span class="lineNum">     293</span>              : </span>
+<span id="L294"><span class="lineNum">     294</span>              :     // Append any bytes the parser did not extract (the un-parsed packet body).</span>
+<span id="L295"><span class="lineNum">     295</span>              :     // In P4, the deparser emits re-serialised headers; the remaining payload</span>
+<span id="L296"><span class="lineNum">     296</span>              :     // is transparently forwarded after them.</span>
+<span id="L297"><span class="lineNum">     297</span> <span class="tlaUNC">           0 :     val outputBytes = s.packetCtx.outputPayload() + s.packetCtx.drainRemainingInput()</span></span>
+<span id="L298"><span class="lineNum">     298</span> <span class="tlaUNC">           0 :     val output = OutputPacket(egressPort.toUInt(), outputBytes)</span></span>
+<span id="L299"><span class="lineNum">     299</span> <span class="tlaUNC">           0 :     return PipelineResult(listOf(output), s.packetCtx.buildTrace())</span></span>
+<span id="L300"><span class="lineNum">     300</span>              :   }</span>
+<span id="L301"><span class="lineNum">     301</span>              : </span>
+<span id="L302"><span class="lineNum">     302</span>              :   companion object {</span>
+<span id="L303"><span class="lineNum">     303</span>              :     /** Port value used by mark_to_drop() to signal packet drop in v1model. */</span>
+<span id="L304"><span class="lineNum">     304</span>              :     const val DROP_PORT = 511</span>
+<span id="L305"><span class="lineNum">     305</span>              : </span>
+<span id="L306"><span class="lineNum">     306</span>              :     // Number of user-visible params in the v1model parser after removing packet_in/packet_out:</span>
+<span id="L307"><span class="lineNum">     307</span>              :     // (hdr, meta, standard_metadata).</span>
+<span id="L308"><span class="lineNum">     308</span>              :     private const val V1MODEL_USER_PARAM_COUNT = 3</span>
+<span id="L309"><span class="lineNum">     309</span>              : </span>
+<span id="L310"><span class="lineNum">     310</span>              :     // v1model: first 2 control stages are ingress-side (verify checksum, ingress).</span>
+<span id="L311"><span class="lineNum">     311</span>              :     private const val INGRESS_CONTROL_COUNT = 2</span>
+<span id="L312"><span class="lineNum">     312</span>              : </span>
+<span id="L313"><span class="lineNum">     313</span>              :     // Bit widths for standard_metadata_t fields, as defined in v1model.p4.</span>
+<span id="L314"><span class="lineNum">     314</span>              :     const val PORT_BITS = 9</span>
+<span id="L315"><span class="lineNum">     315</span>              :     private const val INT32_BITS = 32</span>
+<span id="L316"><span class="lineNum">     316</span>              :     private const val REPLICA_ID_BITS = 16</span>
+<span id="L317"><span class="lineNum">     317</span>              : </span>
+<span id="L318"><span class="lineNum">     318</span>              :     // v1model instance_type values (BMv2 convention).</span>
+<span id="L319"><span class="lineNum">     319</span>              :     private const val CLONE_I2E_INSTANCE_TYPE = 1L</span>
+<span id="L320"><span class="lineNum">     320</span>              :   }</span>
+<span id="L321"><span class="lineNum">     321</span>              : }</span>
         </pre>
               </td>
             </tr>
