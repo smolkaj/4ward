@@ -18,14 +18,8 @@ guilt — just write it down so someone can find it later.
 
 ## Externs
 
-- **Limited extern functions.** `mark_to_drop`, `verify`, `clone`, and
-  `clone3` are implemented. All other v1model externs — `hash`,
-  `verify_checksum`, `update_checksum`, `random`, `digest`, `log_msg` —
-  are unimplemented and will crash with `"unhandled extern call"`.
-  Blocks ~6 corpus tests (verify/checksum).
-- **No register, counter, or meter support.** Extern object methods
-  (`register.read`/`.write`, `counter.count`, etc.) are not implemented.
-  Blocks ~3 corpus tests.
+- **No meter support.** `meter.execute_meter()` is not implemented.
+- **`digest`, `log_msg` not implemented.** No corpus tests depend on these.
 
 ## P4Runtime server
 
@@ -43,35 +37,21 @@ guilt — just write it down so someone can find it later.
 - **No digests, idle timeouts, or atomic write batches.**
 
 ## Simulator
+
 - **Clone: I2E only, no metadata preservation.** `clone()` and `clone3()`
   support ingress-to-egress cloning with last-writer-wins for multiple calls
   (matching BMv2). E2E clone, `clone3` metadata field lists, resubmit, and
-  recirculate are not implemented.
+  recirculate are not implemented. Blocks 1 corpus test
+  (`v1model-special-ops-bmv2`).
 - **Multicast: basic replication only.** Multicast group replication works
   for the trace tree (forking per replica). PRE entries are installed via
   P4Runtime `PacketReplicationEngineEntry`.
-
-## Header types
-
-- **Header union gaps.** Basic union support landed, but one-valid-at-a-time
-  semantics (P4 spec §8.20) are not fully enforced. Header stacks of unions
-  are not supported. Blocks ~10 corpus tests.
-- **Header stack `push_front`/`pop_front` not implemented.** Array indexing
-  and field access work, but the stack manipulation primitives do not.
-  Blocks ~1 corpus test.
+- **Per-table action specialization lost.** When a table has a single action
+  ID in p4info but different compile-time specializations, only one is kept.
+  Blocks 1 corpus test (`ternary2-bmv2`).
 
 ## p4c backend
 
 - **No `lookahead` or `advance`.** The backend does not emit IR for parser
   `lookahead<T>()` or `packet.advance()`. This is a backend limitation, not
   a simulator one. Blocks 6 corpus tests.
-- **Integer literals without explicit bit type** are not always handled
-  correctly. Blocks ~2 corpus tests.
-
-## Testing
-
-- **STF parser edge cases.** Some STF syntax variants (large hex literals,
-  unusual formatting) cause `NumberFormatException`. Blocks ~2 corpus tests.
-- **Payload mismatches.** ~5 corpus tests produce correct control flow but
-  emit packets with wrong payload bytes. Root causes vary and are not yet
-  triaged individually.

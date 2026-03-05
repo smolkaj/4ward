@@ -8,11 +8,14 @@ simulator/ir.proto           The behavioral IR. The core contract of the project
 simulator/simulator.proto    The simulator service protocol (stdin/stdout IPC).
 simulator/*.kt               Kotlin simulator (the heart of 4ward).
 p4c_backend/*.{h,cpp}        C++ p4c backend plugin (emits proto IR from P4 source).
+p4runtime/*.kt               P4Runtime gRPC server (Kotlin).
 e2e_tests/stf/               STF test runner (drives the simulator subprocess).
 e2e_tests/corpus/            Corpus-based STF test harness (bulk p4c test suite).
+e2e_tests/trace_tree/        Golden trace-tree tests (proto-based, not STF).
 e2e_tests/p4testgen/         p4testgen-generated STF tests (one target per P4 program).
-e2e_tests/passthrough/       Walking-skeleton end-to-end test.
-e2e_tests/*/                 Per-feature STF tests (basic_table, lpm_routing, etc.).
+e2e_tests/*/                 Per-feature STF tests (passthrough, basic_table, lpm, …).
+docs/                        Project documentation.
+tools/                       Developer scripts (format, lint, coverage, …).
 ```
 
 Unit tests live alongside the source they test (`FooTest.kt` next to `Foo.kt`).
@@ -62,9 +65,9 @@ results rather than waiting for a full local rebuild. Check CI logs with
    at runtime. Do not remove this field or make it optional.
 
 3. **The simulator is the source of truth for all data-plane state.** Table
-   entries, counters, registers — all live in the Kotlin simulator. The planned
-   Go P4Runtime server will be a thin adapter that forwards requests; it will
-   hold no P4 state of its own.
+   entries, counters, registers — all live in the Kotlin simulator. The
+   P4Runtime server (`p4runtime/`) is a thin adapter that forwards requests;
+   it holds no P4 state of its own.
 
 4. **Correctness over performance.** If you are tempted to optimize something at
    the cost of readability or correctness, don't. This is a development and
