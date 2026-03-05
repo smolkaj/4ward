@@ -335,12 +335,7 @@ fun resolveStfTableEntry(
         .setActionProfileGroupId((directive as StfAddEntry).groupId!!)
     )
   } else {
-    val action =
-      p4info.actionsList.find {
-        it.preamble.alias == directive.actionName || it.preamble.name == directive.actionName
-      }
-        ?: p4info.actionsList.find { it.preamble.name.endsWith(".${directive.actionName}") }
-        ?: error("unknown action: ${directive.actionName}")
+    val action = findAction(directive.actionName, p4info)
 
     val paramsList =
       action.paramsList.mapIndexed { i, paramInfo ->
@@ -394,12 +389,7 @@ fun resolveStfMember(
   p4info: P4InfoOuterClass.P4Info,
 ): WriteEntryRequest {
   val profile = findActionProfile(directive.profileName, p4info)
-  val action =
-    p4info.actionsList.find {
-      it.preamble.alias == directive.actionName || it.preamble.name == directive.actionName
-    }
-      ?: p4info.actionsList.find { it.preamble.name.endsWith(".${directive.actionName}") }
-      ?: error("unknown action: ${directive.actionName}")
+  val action = findAction(directive.actionName, p4info)
 
   val paramsList =
     action.paramsList.map { paramInfo ->
@@ -466,6 +456,11 @@ private fun findTable(name: String, p4info: P4InfoOuterClass.P4Info): P4InfoOute
   p4info.tablesList.find { it.preamble.alias == name || it.preamble.name == name }
     ?: p4info.tablesList.find { it.preamble.name.endsWith(".$name") }
     ?: error("unknown table: $name")
+
+private fun findAction(name: String, p4info: P4InfoOuterClass.P4Info): P4InfoOuterClass.Action =
+  p4info.actionsList.find { it.preamble.alias == name || it.preamble.name == name }
+    ?: p4info.actionsList.find { it.preamble.name.endsWith(".$name") }
+    ?: error("unknown action: $name")
 
 private fun findActionProfile(
   name: String,
