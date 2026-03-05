@@ -4,6 +4,7 @@ import fourward.ir.v1.BinaryOperator
 import fourward.ir.v1.ControlDecl
 import fourward.ir.v1.Direction
 import fourward.ir.v1.Expr
+import fourward.ir.v1.FieldDecl
 import fourward.ir.v1.Literal
 import fourward.ir.v1.MethodCall
 import fourward.ir.v1.P4BehavioralConfig
@@ -260,7 +261,7 @@ class Interpreter(
       expr.hasCast() -> evalCast(expr.cast, env)
       expr.hasBinaryOp() -> evalBinaryOp(expr.binaryOp, env)
       expr.hasUnaryOp() -> evalUnaryOp(expr.unaryOp, env)
-      expr.hasMethodCall() -> evalMethodCall(expr.methodCall, env)
+      expr.hasMethodCall() -> evalMethodCall(expr.methodCall, expr.type, env)
       expr.hasMux() -> evalMux(expr.mux, env)
       expr.hasStructExpr() -> evalStructExpr(expr.structExpr, expr.type, env)
       expr.hasTableApply() -> {
@@ -540,7 +541,7 @@ class Interpreter(
     return StructVal(typeName, fields)
   }
 
-  private fun evalMethodCall(call: MethodCall, env: Environment): Value {
+  private fun evalMethodCall(call: MethodCall, returnType: Type, env: Environment): Value {
     return when (call.method) {
       // Header validity methods: target is the header instance.
       "isValid" -> {
@@ -594,6 +595,12 @@ class Interpreter(
       // packet_in.extract(hdr) / packet_out.emit(hdr): target is the extern object
       // (not in env); the header is the first argument.
       "extract" -> execExtract(call, env)
+      "lookahead" -> execLookahead(returnType)
+      "advance" -> {
+        val bits = (evalExpr(call.argsList[0], env) as BitVal).bits.value.toInt()
+        packet.advanceBits(bits)
+        UnitVal
+      }
       "emit" -> execEmit(call, env)
       // register.read(dst, index): reads the value at index into the out param dst.
       "read" -> {
@@ -917,26 +924,58 @@ class Interpreter(
       }
     }
 
-    // Read the entire header at once and load it into a single BigInteger (MSB-first).
-    // This handles sub-byte fields (e.g. IPv4's bit<4> version and ihl) correctly:
-    // both fields live in the same byte and must be unpacked by shift+mask, not by
-    // reading separate bytes.
-    val totalBits = headerDecl.fieldsList.sumOf { fieldWireWidth(it.type, varbitBits) }
+    val widths = headerDecl.fieldsList.map { fieldWireWidth(it.type, varbitBits) }
+    val totalBits = widths.sum()
     val allBits = BigInteger(1, packet.extractBytes((totalBits + 7) / 8))
-
-    val newFields = mutableMapOf<String, Value>()
-    var bitOffset = 0
-    for (field in headerDecl.fieldsList) {
-      val width = fieldWireWidth(field.type, varbitBits)
-      if (width == 0) continue // skip zero-width fields (unrecognised types)
-      val mask = BigInteger.ONE.shiftLeft(width) - BigInteger.ONE
-      val raw = (allBits shr (totalBits - bitOffset - width)) and mask
-      newFields[field.name] = bitsToValue(field.type, raw, width)
-      bitOffset += width
-    }
+    val newFields = unpackFields(headerDecl.fieldsList, widths, allBits, totalBits)
     if (!unionHandled) invalidateUnionSiblings(call.argsList[0], header, env)
     header.setValid(newFields)
     return UnitVal
+  }
+
+  /** P4 spec §12.8.2: peek at packet bits and construct a value of type T without consuming. */
+  private fun execLookahead(returnType: Type): Value {
+    val typeName = returnType.named
+    val typeDecl = types[typeName] ?: error("type not found for lookahead: $typeName")
+    val fields =
+      when {
+        typeDecl.hasHeader() -> typeDecl.header.fieldsList
+        typeDecl.hasStruct() -> typeDecl.struct.fieldsList
+        else -> error("lookahead type must be a header or struct: $typeName")
+      }
+    val widths = fields.map { fieldWireWidth(it.type) }
+    val totalBits = widths.sum()
+    val allBits = BigInteger(1, packet.peekBytes((totalBits + 7) / 8))
+    val newFields = unpackFields(fields, widths, allBits, totalBits)
+    return if (typeDecl.hasHeader()) {
+      HeaderVal(typeName, newFields, valid = true)
+    } else {
+      StructVal(typeName, newFields)
+    }
+  }
+
+  /**
+   * Unpacks a BigInteger of raw packet bits into named field values.
+   *
+   * Handles sub-byte fields (e.g. IPv4's bit<4> version and ihl) that share a byte by shift+mask
+   * from a single MSB-first BigInteger. Used by both extract and lookahead.
+   */
+  private fun unpackFields(
+    fields: List<FieldDecl>,
+    widths: List<Int>,
+    allBits: BigInteger,
+    totalBits: Int,
+  ): MutableMap<String, Value> {
+    val result = mutableMapOf<String, Value>()
+    var bitOffset = 0
+    for ((field, width) in fields.zip(widths)) {
+      if (width == 0) continue
+      val mask = BigInteger.ONE.shiftLeft(width) - BigInteger.ONE
+      val raw = (allBits shr (totalBits - bitOffset - width)) and mask
+      result[field.name] = bitsToValue(field.type, raw, width)
+      bitOffset += width
+    }
+    return result
   }
 
   /**

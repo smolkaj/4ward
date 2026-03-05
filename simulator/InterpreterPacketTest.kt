@@ -20,9 +20,11 @@ import fourward.ir.v1.FieldAccess
 import fourward.ir.v1.FieldDecl
 import fourward.ir.v1.HeaderDecl
 import fourward.ir.v1.HeaderUnionDecl
+import fourward.ir.v1.Literal
 import fourward.ir.v1.MethodCall
 import fourward.ir.v1.NameRef
 import fourward.ir.v1.P4BehavioralConfig
+import fourward.ir.v1.StructDecl
 import fourward.ir.v1.Type
 import fourward.ir.v1.TypeDecl
 import org.junit.Assert.assertArrayEquals
@@ -349,5 +351,146 @@ class InterpreterPacketTest {
     assertFalse(memberA.valid)
     assertTrue(memberB.valid)
     assertEquals(BitVal(2, 8), memberB.fields["f"])
+  }
+
+  // ---------------------------------------------------------------------------
+  // lookahead (P4 §12.8.2)
+  // ---------------------------------------------------------------------------
+
+  private fun structType(typeName: String, vararg fields: Pair<String, Int>): TypeDecl =
+    TypeDecl.newBuilder()
+      .setName(typeName)
+      .setStruct(
+        StructDecl.newBuilder().also { s ->
+          for ((name, width) in fields) {
+            s.addFields(FieldDecl.newBuilder().setName(name).setType(bitType(width)))
+          }
+        }
+      )
+      .build()
+
+  /** Builds a lookahead call: `pkt.lookahead<T>()` with return type T. */
+  private fun lookaheadCall(returnTypeName: String): Expr =
+    Expr.newBuilder()
+      .setMethodCall(MethodCall.newBuilder().setTarget(nameRef("pkt")).setMethod("lookahead"))
+      .setType(Type.newBuilder().setNamed(returnTypeName))
+      .build()
+
+  /** Builds an advance call: `pkt.advance(bits)`. */
+  private fun advanceCall(bits: Int): Expr =
+    Expr.newBuilder()
+      .setMethodCall(
+        MethodCall.newBuilder()
+          .setTarget(nameRef("pkt"))
+          .setMethod("advance")
+          .addArgs(
+            Expr.newBuilder()
+              .setLiteral(Literal.newBuilder().setInteger(bits.toLong()))
+              .setType(bitType(32))
+          )
+      )
+      .build()
+
+  @Test
+  fun `lookahead returns struct with correct field values`() {
+    val type = structType("B8", "bits" to 64)
+    val pktCtx = PacketContext(byteArrayOf(0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08))
+    val env = Environment()
+
+    val result = interp(pktCtx, type).evalExpr(lookaheadCall("B8"), env)
+
+    assertTrue(result is StructVal)
+    val sv = result as StructVal
+    assertEquals("B8", sv.typeName)
+    assertEquals(BitVal(0x0102030405060708, 64), sv.fields["bits"])
+  }
+
+  @Test
+  fun `lookahead does not consume packet bytes`() {
+    val type = structType("S", "f" to 16)
+    val pktCtx = PacketContext(byteArrayOf(0xAB.toByte(), 0xCD.toByte(), 0xEF.toByte()))
+    val env = Environment()
+    val interp = interp(pktCtx, type)
+
+    // Lookahead peeks without consuming.
+    val peek = interp.evalExpr(lookaheadCall("S"), env) as StructVal
+    assertEquals(BitVal(0xABCD, 16), peek.fields["f"])
+
+    // Extract should read the same bytes since lookahead didn't advance.
+    val header = HeaderVal(typeName = "S", valid = false)
+    env.define("hdr", header)
+    // Re-use the type as a header for extraction.
+    val hdrType = headerType("S", "f" to 16)
+    interp(pktCtx, hdrType).evalExpr(packetCall("extract", "hdr"), env)
+    assertEquals(BitVal(0xABCD, 16), header.fields["f"])
+  }
+
+  @Test
+  fun `lookahead with sub-byte fields unpacks correctly`() {
+    val type = structType("ipv4_peek", "version" to 4, "ihl" to 4)
+    val pktCtx = PacketContext(byteArrayOf(0x45))
+    val env = Environment()
+
+    val result = interp(pktCtx, type).evalExpr(lookaheadCall("ipv4_peek"), env) as StructVal
+
+    assertEquals(BitVal(4, 4), result.fields["version"])
+    assertEquals(BitVal(5, 4), result.fields["ihl"])
+  }
+
+  @Test
+  fun `lookahead on header type returns valid header`() {
+    val type = headerType("h_t", "f" to 8)
+    val pktCtx = PacketContext(byteArrayOf(0x42))
+    val env = Environment()
+
+    val result = interp(pktCtx, type).evalExpr(lookaheadCall("h_t"), env)
+
+    assertTrue(result is HeaderVal)
+    val hv = result as HeaderVal
+    assertTrue(hv.valid)
+    assertEquals(BitVal(0x42, 8), hv.fields["f"])
+  }
+
+  @Test
+  fun `lookahead throws PacketTooShort when not enough bytes`() {
+    val type = structType("big", "f" to 32)
+    val pktCtx = PacketContext(byteArrayOf(0x01, 0x02)) // only 2 bytes, need 4
+    val env = Environment()
+
+    assertThrows(PacketTooShortException::class.java) {
+      interp(pktCtx, type).evalExpr(lookaheadCall("big"), env)
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // advance (P4 §12.8.3)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `advance skips bytes then extract reads remaining`() {
+    val type = headerType("h_t", "f" to 8)
+    val pktCtx = PacketContext(byteArrayOf(0xAA.toByte(), 0xBB.toByte(), 0xCC.toByte()))
+    val env = Environment()
+    val header = HeaderVal(typeName = "h_t", valid = false)
+    env.define("hdr", header)
+
+    val interp = interp(pktCtx, type)
+    // Advance past first 2 bytes (16 bits).
+    interp.evalExpr(advanceCall(16), env)
+    // Extract should read the third byte.
+    interp.evalExpr(packetCall("extract", "hdr"), env)
+
+    assertEquals(BitVal(0xCC, 8), header.fields["f"])
+  }
+
+  @Test
+  fun `advance throws PacketTooShort when not enough bytes`() {
+    val type = headerType("h_t", "f" to 8)
+    val pktCtx = PacketContext(byteArrayOf(0x01))
+    val env = Environment()
+
+    assertThrows(PacketTooShortException::class.java) {
+      interp(pktCtx, type).evalExpr(advanceCall(16), env)
+    }
   }
 }

@@ -128,10 +128,14 @@ corpus_test_suite(
         "issue-2123-2-bmv2",
         "issue-2123-3-bmv2",
         "issue1000-bmv2",
+        "issue1025-bmv2",
         "issue1049-bmv2",
         "issue1062-1-bmv2",
         "issue1097-2-bmv2",
         "issue1566-bmv2",
+        "issue1755-1-bmv2",
+        "issue1755-bmv2",
+        "issue1768-bmv2",
         "issue1814-1-bmv2",
         "issue1824-bmv2",
         "issue1879-bmv2",
@@ -254,20 +258,14 @@ corpus_test_suite(
     ],
 )
 
-# Tests blocked on pkt.lookahead() / packet.advance() support. These fail at
-# p4c compile time with "functions or methods returning structures are not
-# supported on this target" or similar target errors.
-# Run manually: bazel test //e2e_tests/corpus:lookahead_stf_corpus_test
+# Tests blocked on checksum/varbit extern support (verify_checksum_with_payload,
+# varbit field access by name).
 corpus_test_suite(
-    name = "lookahead_stf_corpus_test",
+    name = "checksum_stf_corpus_test",
     tags = ["manual"],
     tests = [
         "checksum-l4-bmv2",
         "checksum1-bmv2",
-        "issue1025-bmv2",
-        "issue1755-1-bmv2",
-        "issue1755-bmv2",
-        "issue1768-bmv2",
     ],
 )
 
