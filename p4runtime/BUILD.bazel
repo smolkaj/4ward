@@ -1,0 +1,103 @@
+load("@grpc-java//:java_grpc_library.bzl", "java_grpc_library")
+load("@grpc_kotlin//:kt_jvm_grpc.bzl", "kt_jvm_grpc_library")
+load("@protobuf//bazel:java_proto_library.bzl", "java_proto_library")
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_binary", "kt_jvm_library", "kt_jvm_test")
+
+# =============================================================================
+# P4Runtime gRPC stubs (Kotlin)
+# =============================================================================
+
+# Java proto messages — needed as a dep for grpc stub generation.
+java_proto_library(
+    name = "p4runtime_java_proto",
+    deps = ["@p4runtime//proto/p4/v1:p4runtime_proto"],
+)
+
+java_proto_library(
+    name = "p4info_java_proto",
+    deps = ["@p4runtime//proto/p4/config/v1:p4info_proto"],
+)
+
+# Java gRPC stubs for P4Runtime service.
+java_grpc_library(
+    name = "p4runtime_java_grpc",
+    srcs = ["@p4runtime//proto/p4/v1:p4runtime_proto"],
+    deps = [":p4runtime_java_proto"],
+)
+
+# Kotlin gRPC stubs — coroutine-based service base class and client stub.
+kt_jvm_grpc_library(
+    name = "p4runtime_kt_grpc",
+    srcs = ["@p4runtime//proto/p4/v1:p4runtime_proto"],
+    deps = [":p4runtime_java_proto"],
+)
+
+# =============================================================================
+# P4Runtime server library
+# =============================================================================
+
+kt_jvm_library(
+    name = "p4runtime_lib",
+    srcs = glob(
+        ["*.kt"],
+        exclude = [
+            "*Test.kt",
+            "*TestHarness.kt",
+        ],
+    ),
+    visibility = ["//visibility:public"],
+    deps = [
+        ":p4info_java_proto",
+        ":p4runtime_java_grpc",
+        ":p4runtime_java_proto",
+        ":p4runtime_kt_grpc",
+        "//simulator:ir_java_proto",
+        "//simulator:p4runtime_java_proto",
+        "//simulator:simulator_java_proto",
+        "//simulator:simulator_lib",
+        "@grpc-java//api",
+        "@grpc-java//netty",
+        "@grpc-java//stub",
+        "@maven//:com_google_protobuf_protobuf_java",
+        "@maven//:io_grpc_grpc_kotlin_stub",
+        "@maven//:io_grpc_grpc_netty_shaded",
+        "@maven//:javax_annotation_javax_annotation_api",
+        "@maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
+        "@maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core_jvm",
+    ],
+)
+
+kt_jvm_binary(
+    name = "p4runtime_server",
+    main_class = "fourward.p4runtime.P4RuntimeServerKt",
+    visibility = ["//visibility:public"],
+    runtime_deps = [":p4runtime_lib"],
+)
+
+# =============================================================================
+# Tests
+# =============================================================================
+
+kt_jvm_test(
+    name = "P4RuntimeConformanceTest",
+    srcs = [
+        "P4RuntimeConformanceTest.kt",
+        "P4RuntimeTestHarness.kt",
+    ],
+    data = [
+        "//e2e_tests/basic_table:basic_table_pb",
+        "//e2e_tests/passthrough:passthrough_pb",
+    ],
+    tags = ["manual"],
+    test_class = "fourward.p4runtime.P4RuntimeConformanceTest",
+    deps = [
+        ":p4runtime_lib",
+        "//simulator:ir_java_proto",
+        "@grpc-java//api",
+        "@grpc-java//inprocess",
+        "@maven//:com_google_protobuf_protobuf_java",
+        "@maven//:io_grpc_grpc_kotlin_stub",
+        "@maven//:junit_junit",
+        "@maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
+    ],
+)

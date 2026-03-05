@@ -27,10 +27,22 @@ guilt — just write it down so someone can find it later.
   (`register.read`/`.write`, `counter.count`, etc.) are not implemented.
   Blocks ~3 corpus tests.
 
-## Simulator
+## P4Runtime server
 
-- **`ReadEntries` is a stub.** The `ReadEntriesRequest` handler returns an
-  empty response (`Simulator.kt:143`).
+- **Single controller only.** No multi-controller arbitration or election ID
+  tracking. The first connection is master unconditionally.
+- **Wildcard reads only.** `Read` returns all table entries regardless of the
+  request's entity filter. Per-table and per-entry reads are not implemented.
+- **No p4-constraints validation.** `Write` does not enforce `@entry_restriction`
+  or `@action_restriction` annotations from the P4 source.
+- **No `@p4runtime_translation`.** Controller-facing values are passed through
+  to the simulator without translation. SAI P4 programs (which translate all
+  IDs to strings) will not work correctly until this is implemented.
+- **Missing RPCs.** `GetForwardingPipelineConfig` and `Capabilities` return
+  UNIMPLEMENTED.
+- **No digests, idle timeouts, or atomic write batches.**
+
+## Simulator
 - **Clone: I2E only, no metadata preservation.** `clone()` and `clone3()`
   support ingress-to-egress cloning with last-writer-wins for multiple calls
   (matching BMv2). E2E clone, `clone3` metadata field lists, resubmit, and
