@@ -258,6 +258,7 @@ class V1ModelArchitecture : Architecture {
         throw MulticastFork(replicas, s.packetCtx.getEvents())
       }
       if (decisions.multicastReplica != null) {
+        s.standardMetadata.fields["instance_type"] = BitVal(REPLICATION_INSTANCE_TYPE, INT32_BITS)
         s.standardMetadata.fields["egress_port"] =
           BitVal(decisions.multicastReplica.port.toLong(), PORT_BITS)
         s.standardMetadata.fields["egress_rid"] =
@@ -315,7 +316,8 @@ class V1ModelArchitecture : Architecture {
     private const val INT32_BITS = 32
     private const val REPLICA_ID_BITS = 16
 
-    // v1model instance_type values (BMv2 convention).
+    // v1model instance_type values (BMv2 PktInstanceType convention).
     private const val CLONE_I2E_INSTANCE_TYPE = 1L
+    private const val REPLICATION_INSTANCE_TYPE = 5L
   }
 }

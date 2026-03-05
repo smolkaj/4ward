@@ -100,10 +100,11 @@ fun installStfEntries(sim: SimulatorClient, stf: StfFile, p4Info: P4InfoOuterCla
     val resp = sim.writeEntry(resolveStfMirroringAdd(mirror))
     if (resp.hasError()) error("WriteEntry (mirroring) failed: ${resp.error.message}")
   }
-  val mcNodes = stf.pre.mcNodeCreates.associateBy { it.rid }
   for (mcGroup in stf.pre.mcGroupCreates) {
     val resp =
-      sim.writeEntry(resolveStfMulticastGroup(mcGroup.groupId, mcNodes, stf.pre.mcNodeAssociates))
+      sim.writeEntry(
+        resolveStfMulticastGroup(mcGroup.groupId, stf.pre.mcNodeCreates, stf.pre.mcNodeAssociates)
+      )
     if (resp.hasError()) error("WriteEntry (multicast) failed: ${resp.error.message}")
   }
   for (member in stf.memberDirectives) {
@@ -546,17 +547,21 @@ fun resolveStfMirroringAdd(directive: StfMirroringAdd): WriteEntryRequest {
  *
  * BMv2 STF uses three directives to configure multicast: mc_mgrp_create, mc_node_create, and
  * mc_node_associate. We merge them into a single MulticastGroupEntry with all replicas.
+ *
+ * [nodes] is ordered by creation time; BMv2 assigns node handles as sequential indices starting at
+ * 0, so mc_node_associate references nodes by list index.
  */
 fun resolveStfMulticastGroup(
   groupId: Int,
-  nodes: Map<Int, StfMcNodeCreate>,
+  nodes: List<StfMcNodeCreate>,
   associations: List<StfMcNodeAssociate>,
 ): WriteEntryRequest {
   val replicas =
     associations
       .filter { it.groupId == groupId }
       .flatMap { assoc ->
-        val node = nodes[assoc.nodeHandle] ?: error("unknown mc node handle: ${assoc.nodeHandle}")
+        val node =
+          nodes.getOrNull(assoc.nodeHandle) ?: error("unknown mc node handle: ${assoc.nodeHandle}")
         node.ports.map { port ->
           P4RuntimeOuterClass.Replica.newBuilder().setEgressPort(port).setInstance(node.rid).build()
         }
