@@ -732,11 +732,16 @@ class Interpreter(
     }
   }
 
+  /** Whether [expr] is a field access into a header union. */
+  private fun isUnionFieldAccess(expr: Expr): Boolean =
+    expr.hasFieldAccess() &&
+      expr.fieldAccess.expr.type.let { t ->
+        t.hasNamed() && types[t.named]?.hasHeaderUnion() == true
+      }
+
   /** If [expr] is a field access into a header union, enforce one-valid-at-a-time (P4 §8.20). */
   private fun invalidateUnionSiblings(expr: Expr, target: HeaderVal, env: Environment) {
-    if (!expr.hasFieldAccess()) return
-    val parentType = expr.fieldAccess.expr.type
-    if (!parentType.hasNamed() || types[parentType.named]?.hasHeaderUnion() != true) return
+    if (!isUnionFieldAccess(expr)) return
     val parent = evalExpr(expr.fieldAccess.expr, env) as StructVal
     parent.invalidateUnionExcept(target)
   }
@@ -758,11 +763,7 @@ class Interpreter(
       if (arg.hasNameRef() && env.lookup(arg.nameRef.name) == null && arg.type.hasNamed()) {
         defaultValue(arg.type.named, types) as? HeaderVal
           ?: error("type not found for don't-care extract: ${arg.type.named}")
-      } else if (
-        arg.hasFieldAccess() &&
-          arg.fieldAccess.expr.type.hasNamed() &&
-          types[arg.fieldAccess.expr.type.named]?.hasHeaderUnion() == true
-      ) {
+      } else if (isUnionFieldAccess(arg)) {
         // Parent is a header union — resolve it once, invalidate siblings (P4 §8.20).
         val parent = evalExpr(arg.fieldAccess.expr, env) as StructVal
         val member = parent.fields[arg.fieldAccess.fieldName] as HeaderVal
