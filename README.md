@@ -67,9 +67,8 @@ free to pick the best language for the problem, not the most familiar one.
 **Why not C++?** Its top strengths — speed, ecosystem familiarity —
 don't matter here. Its top weaknesses — compile times, complexity — matter a lot.
 
-**Why Kotlin?** Fast builds, simple language, strong type system, memory-safe,
-and sealed classes with pattern matching — *perfect* for a tree-walking
-interpreter over a typed IR.
+**Why Kotlin?** Fast builds, simple language, strong type system. Sealed classes
+with pattern matching are tailor-made for tree-walking interpreters.
 
 **Why not…**
 - **Rust?** Borrow checker is overkill — we don't need manual memory control.
