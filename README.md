@@ -123,10 +123,12 @@ Curious about the design? [ARCHITECTURE.md](ARCHITECTURE.md) has the full story.
 
 ## Where things stand
 
-4ward is pre-1.0 and growing fast. The core pipeline works end-to-end. We
-will aggressively refactor to build the best system we can; nothing is sacred
-except correctness and the test suite. See [ROADMAP.md](ROADMAP.md) for
-what's next and [STATUS.md](STATUS.md) for daily progress.
+4ward is pre-1.0 and growing fast. The core pipeline works end-to-end. See
+[ROADMAP.md](ROADMAP.md) for what's next and [STATUS.md](STATUS.md) for
+daily progress.
+
+**CAUTION:** We will aggressively refactor to build the best system we can;
+nothing is sacred except correctness and the test suite — until we reach 1.0.
 
 ## Documentation
 
