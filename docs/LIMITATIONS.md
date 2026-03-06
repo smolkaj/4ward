@@ -29,8 +29,6 @@ guilt — just write it down so someone can find it later.
 
 - **Single controller only.** No multi-controller arbitration or election ID
   tracking. The first connection is master unconditionally.
-- **No per-entry reads.** `Read` supports wildcard (all tables) and per-table
-  filtering, but not per-entry reads with specific match keys.
 - **No p4-constraints validation.** `Write` does not enforce `@entry_restriction`
   or `@action_restriction` annotations from the P4 source.
 - **`@p4runtime_translation`: `sdn_bitwidth` only.** Bitwidth-based translation

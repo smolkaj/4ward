@@ -223,15 +223,26 @@ class TableStore {
   // -------------------------------------------------------------------------
 
   /**
-   * Returns table entries as P4Runtime Entity protos.
-   *
-   * If [tableId] is 0 (the default), returns entries from all tables (wildcard read). If non-zero,
-   * returns only entries from the specified table.
+   * Returns table entries as P4Runtime Entity protos, filtered by [filter].
+   * - `table_id=0`, no match fields → wildcard: returns all entries from all tables.
+   * - `table_id=N`, no match fields → returns all entries from table N.
+   * - `table_id=N` with match fields → returns only the entry whose match key matches the filter
+   *   (P4Runtime spec §11.1: match fields in the filter act as an exact key lookup).
    */
-  fun readEntities(tableId: Int = 0): List<P4RuntimeOuterClass.Entity> {
-    val sources = if (tableId == 0) tables.values else listOfNotNull(tables[tableNameById[tableId]])
+  fun readEntities(
+    filter: P4RuntimeOuterClass.TableEntry = P4RuntimeOuterClass.TableEntry.getDefaultInstance()
+  ): List<P4RuntimeOuterClass.Entity> {
+    val sources =
+      if (filter.tableId == 0) tables.values
+      else listOfNotNull(tables[tableNameById[filter.tableId]])
+    val hasMatchFilter = filter.matchCount > 0
     return sources.flatMap { entries ->
-      entries.map { P4RuntimeOuterClass.Entity.newBuilder().setTableEntry(it).build() }
+      entries
+        .filter { entry ->
+          !hasMatchFilter ||
+            (entry.matchList == filter.matchList && entry.priority == filter.priority)
+        }
+        .map { P4RuntimeOuterClass.Entity.newBuilder().setTableEntry(it).build() }
     }
   }
 

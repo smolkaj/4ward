@@ -686,6 +686,58 @@ class TableStoreTest {
   }
 
   // ---------------------------------------------------------------------------
+  // Per-entry reads
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `readEntities with match filter returns only matching entry`() {
+    val entry1 = exactEntry(fieldId = 1, value = byteArrayOf(100), actionId = 10)
+    val entry2 = exactEntry(fieldId = 1, value = byteArrayOf(200.toByte()), actionId = 20)
+    store.write(insertUpdate(entry1))
+    store.write(insertUpdate(entry2))
+
+    val filter = TableEntry.newBuilder().setTableId(TABLE_ID).addMatch(entry1.getMatch(0)).build()
+    val results = store.readEntities(filter)
+    assertEquals("should return exactly one entry", 1, results.size)
+    assertEquals(entry1.matchList, results[0].tableEntry.matchList)
+  }
+
+  @Test
+  fun `readEntities with non-matching filter returns empty`() {
+    val entry = exactEntry(fieldId = 1, value = byteArrayOf(100), actionId = 10)
+    store.write(insertUpdate(entry))
+
+    val noMatchFilter =
+      TableEntry.newBuilder()
+        .setTableId(TABLE_ID)
+        .addMatch(
+          FieldMatch.newBuilder()
+            .setFieldId(1)
+            .setExact(FieldMatch.Exact.newBuilder().setValue(ByteString.copyFrom(byteArrayOf(99))))
+        )
+        .build()
+    assertTrue(store.readEntities(noMatchFilter).isEmpty())
+  }
+
+  @Test
+  fun `readEntities with table-only filter returns all entries in table`() {
+    val entry1 = exactEntry(fieldId = 1, value = byteArrayOf(100), actionId = 10)
+    val entry2 = exactEntry(fieldId = 1, value = byteArrayOf(200.toByte()), actionId = 20)
+    store.write(insertUpdate(entry1))
+    store.write(insertUpdate(entry2))
+
+    // Filter with table_id only, no match fields → returns all entries in the table.
+    val tableOnlyFilter = TableEntry.newBuilder().setTableId(TABLE_ID).build()
+    assertEquals(2, store.readEntities(tableOnlyFilter).size)
+  }
+
+  private fun insertUpdate(entry: TableEntry): Update =
+    Update.newBuilder()
+      .setType(Update.Type.INSERT)
+      .setEntity(Entity.newBuilder().setTableEntry(entry))
+      .build()
+
+  // ---------------------------------------------------------------------------
   // Constants
   // ---------------------------------------------------------------------------
 

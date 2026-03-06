@@ -142,6 +142,10 @@ class P4RuntimeTestHarness : Closeable {
         .build()
     )
 
+  /** Per-entry read: uses the entity's match fields as a filter. */
+  fun readEntry(entity: Entity): List<Entity> =
+    readEntries(ReadRequest.newBuilder().setDeviceId(1).addEntities(entity).build())
+
   fun readEntries(request: ReadRequest): List<Entity> = runBlocking {
     val entities = mutableListOf<Entity>()
     stub.read(request).collect { response -> entities.addAll(response.entitiesList) }
