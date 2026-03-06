@@ -25,18 +25,10 @@
             <td width="5%" class="headerCovTableHead">Coverage</td>
             <td width="5%" class="headerCovTableHead" title="Covered + Uncovered code (not including EUB, ECB, DUB, DCB categories)">Total</td>
             <td width="5%" class="headerCovTableHead" title="Exercised code only (CBC + GBC + GNC + GIC)">Hit</td>
-            <td width="5%" class="headerCovTableHeadUIC" title="Uncovered Included Code (# => 0):
-Previously unused code is untested">Included (not covered)</td>
             <td width="5%" class="headerCovTableHeadUBC" title="Uncovered Baseline Code (0 => 0):
 Unchanged code was untested before, is untested now">Not covered</td>
-            <td width="5%" class="headerCovTableHeadGIC" title="Gained Included Coverage (# => 1):
-Previously unused code is tested now">Included (covered)</td>
             <td width="5%" class="headerCovTableHeadCBC" title="Covered Baseline Code (1 => 1):
 Unchanged code was tested before and is still tested">Covered</td>
-            <td width="5%" class="headerCovTableHeadEUB" title="Excluded Uncovered Baseline (0 => #):
-Previously untested code is unused now">Excluded (not covered)</td>
-            <td width="5%" class="headerCovTableHeadECB" title="Excluded Covered Baseline (1 => #):
-Previously tested code is unused now">Excluded (covered)</td>
           </tr>
           <tr>
             <td class="headerItem">Current:</td>
@@ -46,27 +38,19 @@ Previously tested code is unused now">Excluded (covered)</td>
             <td class="headerCovTableEntryMed">87.5&nbsp;%</td>
             <td class="headerCovTableEntry">80</td>
             <td class="headerCovTableEntry">70</td>
-            <td class="headerCovTableEntry">7</td>
-            <td class="headerCovTableEntry">3</td>
-            <td class="headerCovTableEntry">5</td>
-            <td class="headerCovTableEntry">65</td>
-            <td class="headerCovTableEntry">4</td>
-            <td class="headerCovTableEntry">4</td>
+            <td class="headerCovTableEntry">10</td>
+            <td class="headerCovTableEntry">70</td>
           </tr>
           <tr>
             <td class="headerItem">Current Date:</td>
-            <td class="headerValue">2026-03-06 07:25:35</td>
+            <td class="headerValue">2026-03-06 07:37:10</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryMed">88.9&nbsp;%</td>
             <td class="headerCovTableEntry">9</td>
             <td class="headerCovTableEntry">8</td>
             <td class="headerCovTableEntry">1</td>
-            <td class="headerCovTableEntry"></td>
-            <td class="headerCovTableEntry">2</td>
-            <td class="headerCovTableEntry">6</td>
-            <td class="headerCovTableEntry">1</td>
-            <td class="headerCovTableEntry">2</td>
+            <td class="headerCovTableEntry">8</td>
           </tr>
           <tr>
             <td class="headerItem">Baseline:</td>
@@ -75,7 +59,7 @@ Previously tested code is unused now">Excluded (covered)</td>
           </tr>
           <tr>
             <td class="headerItem">Baseline Date:</td>
-            <td class="headerValue">2026-03-06 07:20:19</td>
+            <td class="headerValue">2026-03-06 07:32:07</td>
             <td></td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
@@ -133,7 +117,7 @@ Previously tested code is unused now">Excluded (covered)</td>
             </tr>
             <tr>
               <td class="coverFn"><a href="Simulator.kt.gcov.html#L157">fourward/simulator/Simulator::handleReadEntries (Lfourward/sim/v1/ReadEntriesRequest;)Lfourward/sim/v1/SimResponse;</a></td>
-              <td class="tlaUIC">Included (not covered)</td>
+              <td class="tlaUBC">Not covered</td>
               <td class="coverFnLo">0</td>
               
               
@@ -146,15 +130,15 @@ Previously tested code is unused now">Excluded (covered)</td>
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="Simulator.kt.gcov.html#L163">fourward/simulator/Simulator::simError (Ljava/lang/String;Lfourward/sim/v1/ErrorCode;)Lfourward/sim/v1/SimResponse;</a></td>
-              <td class="tlaECB">Excluded (covered)</td>
+              <td class="coverFn"><a href="Simulator.kt.gcov.html#L168">fourward/simulator/Simulator::simError (Ljava/lang/String;Lfourward/sim/v1/ErrorCode;)Lfourward/sim/v1/SimResponse;</a></td>
+              <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
               <td class="coverFn"><a href="Simulator.kt.gcov.html#L167">fourward/simulator/Simulator::simError$default (Lfourward/simulator/Simulator;Ljava/lang/String;Lfourward/sim/v1/ErrorCode;ILjava/lang/Object;)Lfourward/sim/v1/SimResponse;</a></td>
-              <td class="tlaGIC">Included (covered)</td>
+              <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
