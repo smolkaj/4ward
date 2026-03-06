@@ -3,6 +3,15 @@
 See [AGENTS.md](AGENTS.md) for the general agent guide. This file adds
 Claude-specific notes.
 
+## User preferences
+
+- **Proactively add unit tests** for new simulator behavior (e.g. new interpreter branches, new extern handling). Don't wait to be asked — add them alongside the implementation.
+- **Fix all lint warnings, even pre-existing ones.** Never dismiss issues as "pre-existing" — leave the codebase better than you found it.
+- **The linter serves us, not the other way around.** When a rule doesn't fit the code's natural structure (e.g. function-count thresholds on interpreters), adjust the threshold rather than contorting the code. Never degrade readability to satisfy an arbitrary metric.
+- **Always consider updating LIMITATIONS.md before sending a PR.** Proactively document new shortcuts, known gaps, or missing features introduced by the change. Also remove entries that the PR resolves.
+- **PR descriptions: lead with the win.** Big picture first, explain how it fits into the project narrative. Don't drown achievements in low-level details. Be concise and punchy.
+- **NEVER edit docs/STATUS.md.** It is maintained exclusively by the project owner. No exceptions, ever.
+
 ## Commit messages
 
 Focus on *why* the change is being made and what problem it solves. Avoid
