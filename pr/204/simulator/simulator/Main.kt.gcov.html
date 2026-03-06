@@ -1,0 +1,177 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - coverage.lcov - simulator/simulator/Main.kt</title>
+  <link rel="stylesheet" type="text/css" href="../../gcov.css">
+</head>
+
+<body>
+
+          <table width="100%" border=0 cellspacing=0 cellpadding=0>
+            <tr><td class="title">LCOV - differential code coverage report</td></tr>
+            <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+
+            <tr>
+              <td width="100%">
+                <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="10%" class="headerValue"><a href="../../index.html">top level</a> - <a href="index.html">simulator/simulator</a> - Main.kt<span style="font-size: 80%;"> (source / <a href="Main.kt.func-c.html">functions</a>)</span></td>
+            <td width="5%"></td>
+            <td width="5%"></td>
+            <td width="5%" class="headerCovTableHead">Coverage</td>
+            <td width="5%" class="headerCovTableHead" title="Covered + Uncovered code (not including EUB, ECB, DUB, DCB categories)">Total</td>
+            <td width="5%" class="headerCovTableHead" title="Exercised code only (CBC + GBC + GNC + GIC)">Hit</td>
+            <td width="5%" class="headerCovTableHeadUBC" title="Uncovered Baseline Code (0 => 0):
+Unchanged code was untested before, is untested now">Not covered</td>
+            <td width="5%" class="headerCovTableHeadCBC" title="Covered Baseline Code (1 => 1):
+Unchanged code was tested before and is still tested">Covered</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Current:</td>
+            <td class="headerValue">coverage.lcov</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntryLo">73.5&nbsp;%</td>
+            <td class="headerCovTableEntry">34</td>
+            <td class="headerCovTableEntry">25</td>
+            <td class="headerCovTableEntry"><a href="#L37" title="goto first UBC">9</a></td>
+            <td class="headerCovTableEntry"><a href="#L22" title="goto first CBC">25</a></td>
+          </tr>
+          <tr>
+            <td class="headerItem">Current Date:</td>
+            <td class="headerValue">2026-03-06 17:20:27</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
+            <td class="headerCovTableEntry">3</td>
+            <td class="headerCovTableEntry">3</td>
+            <td class="headerCovTableEntry"></td>
+            <td class="headerCovTableEntry">3</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Baseline:</td>
+            <td class="headerValue">baseline.lcov</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td class="headerItem">Baseline Date:</td>
+            <td class="headerValue">2026-03-06 17:00:49</td>
+            <td></td>
+          </tr>
+                  <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+          </table>
+
+          <table cellpadding=0 cellspacing=0 border=0>
+            <tr>
+              <td><br></td>
+            </tr>
+            <tr>
+              <td>
+<pre class="sourceHeading">           TLA  Line data    Source code</pre>
+<pre class="source">
+<span id="L1"><span class="lineNum">       1</span>                 : package fourward.simulator</span>
+<span id="L2"><span class="lineNum">       2</span>                 : </span>
+<span id="L3"><span class="lineNum">       3</span>                 : import fourward.sim.v1.SimRequest</span>
+<span id="L4"><span class="lineNum">       4</span>                 : import fourward.sim.v1.SimResponse</span>
+<span id="L5"><span class="lineNum">       5</span>                 : import java.io.DataInputStream</span>
+<span id="L6"><span class="lineNum">       6</span>                 : import java.io.DataOutputStream</span>
+<span id="L7"><span class="lineNum">       7</span>                 : </span>
+<span id="L8"><span class="lineNum">       8</span>                 : /**</span>
+<span id="L9"><span class="lineNum">       9</span>                 :  * Entry point for the 4ward simulator subprocess.</span>
+<span id="L10"><span class="lineNum">      10</span>                 :  *</span>
+<span id="L11"><span class="lineNum">      11</span>                 :  * Reads [SimRequest] messages from stdin and writes [SimResponse] messages to stdout, using</span>
+<span id="L12"><span class="lineNum">      12</span>                 :  * length-delimited framing: each message is preceded by a 4-byte big-endian integer giving the</span>
+<span id="L13"><span class="lineNum">      13</span>                 :  * number of bytes in the serialised message body.</span>
+<span id="L14"><span class="lineNum">      14</span>                 :  *</span>
+<span id="L15"><span class="lineNum">      15</span>                 :  * This is the same framing used by Bazel's persistent worker protocol and the Language Server</span>
+<span id="L16"><span class="lineNum">      16</span>                 :  * Protocol. It is simple, reliable, and well-supported in both Kotlin and Go.</span>
+<span id="L17"><span class="lineNum">      17</span>                 :  *</span>
+<span id="L18"><span class="lineNum">      18</span>                 :  * Stderr is reserved for diagnostic output (startup messages, unexpected errors). Never write</span>
+<span id="L19"><span class="lineNum">      19</span>                 :  * SimResponse bytes to stderr or diagnostic text to stdout.</span>
+<span id="L20"><span class="lineNum">      20</span>                 :  */</span>
+<span id="L21"><span class="lineNum">      21</span>                 : fun main() {</span>
+<span id="L22"><span class="lineNum">      22</span> <a href="#L48" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :   System.err.println(&quot;4ward simulator starting&quot;)</span></span>
+<span id="L23"><span class="lineNum">      23</span>                 : </span>
+<span id="L24"><span class="lineNum">      24</span> <span class="tlaCBC">              1 :   val input = DataInputStream(System.`in`.buffered())</span></span>
+<span id="L25"><span class="lineNum">      25</span> <span class="tlaCBC">              1 :   val output = DataOutputStream(System.out.buffered())</span></span>
+<span id="L26"><span class="lineNum">      26</span> <span class="tlaCBC">              1 :   val simulator = Simulator()</span></span>
+<span id="L27"><span class="lineNum">      27</span>                 : </span>
+<span id="L28"><span class="lineNum">      28</span> <span class="tlaCBC">              1 :   while (true) {</span></span>
+<span id="L29"><span class="lineNum">      29</span> <span class="tlaCBC">              1 :     val request = readRequest(input) ?: break</span></span>
+<span id="L30"><span class="lineNum">      30</span>                 :     // Catch-all at the subprocess boundary: any uncaught exception becomes an</span>
+<span id="L31"><span class="lineNum">      31</span>                 :     // ErrorResponse so the controller can report it gracefully rather than</span>
+<span id="L32"><span class="lineNum">      32</span>                 :     // receiving a truncated or missing response.</span>
+<span id="L33"><span class="lineNum">      33</span>                 :     @Suppress(&quot;TooGenericExceptionCaught&quot;)</span>
+<span id="L34"><span class="lineNum">      34</span> <span class="tlaCBC">              1 :     val response =</span></span>
+<span id="L35"><span class="lineNum">      35</span> <span class="tlaCBC">              1 :       try {</span></span>
+<span id="L36"><span class="lineNum">      36</span> <span class="tlaCBC">              1 :         simulator.handle(request)</span></span>
+<span id="L37"><span class="lineNum">      37</span> <a href="#top" class="tlaBgUBC"  title="Next UBC group">Not covered</a><span class="tlaUBC tlaBgUBC">           0 :       } catch (e: Exception) {</span></span>
+<span id="L38"><span class="lineNum">      38</span> <span class="tlaUBC">              0 :         System.err.println(&quot;error handling request: ${e.message}&quot;)</span></span>
+<span id="L39"><span class="lineNum">      39</span> <span class="tlaUBC">              0 :         e.printStackTrace(System.err)</span></span>
+<span id="L40"><span class="lineNum">      40</span> <span class="tlaUBC">              0 :         SimResponse.newBuilder()</span></span>
+<span id="L41"><span class="lineNum">      41</span> <span class="tlaUBC">              0 :           .setError(</span></span>
+<span id="L42"><span class="lineNum">      42</span> <span class="tlaUBC">              0 :             fourward.sim.v1.ErrorResponse.newBuilder()</span></span>
+<span id="L43"><span class="lineNum">      43</span> <span class="tlaUBC">              0 :               .setCode(fourward.sim.v1.ErrorCode.INTERNAL_ERROR)</span></span>
+<span id="L44"><span class="lineNum">      44</span> <span class="tlaUBC">              0 :               .setMessage(e.message ?: &quot;unknown error&quot;)</span></span>
+<span id="L45"><span class="lineNum">      45</span>                 :           )</span>
+<span id="L46"><span class="lineNum">      46</span> <span class="tlaUBC">              0 :           .build()</span></span>
+<span id="L47"><span class="lineNum">      47</span>                 :       }</span>
+<span id="L48"><span class="lineNum">      48</span> <a href="#top" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :     writeResponse(output, response)</span></span>
+<span id="L49"><span class="lineNum">      49</span>                 :   }</span>
+<span id="L50"><span class="lineNum">      50</span>                 : </span>
+<span id="L51"><span class="lineNum">      51</span> <span class="tlaCBC">              1 :   System.err.println(&quot;4ward simulator exiting&quot;)</span></span>
+<span id="L52"><span class="lineNum">      52</span> <span class="tlaCBC">              1 : }</span></span>
+<span id="L53"><span class="lineNum">      53</span>                 : </span>
+<span id="L54"><span class="lineNum">      54</span>                 : /**</span>
+<span id="L55"><span class="lineNum">      55</span>                 :  * Reads one [SimRequest] from [input].</span>
+<span id="L56"><span class="lineNum">      56</span>                 :  *</span>
+<span id="L57"><span class="lineNum">      57</span>                 :  * Returns null on EOF (the controller closed the pipe — normal shutdown). Throws on IO errors or</span>
+<span id="L58"><span class="lineNum">      58</span>                 :  * malformed messages.</span>
+<span id="L59"><span class="lineNum">      59</span>                 :  */</span>
+<span id="L60"><span class="lineNum">      60</span>                 : private fun readRequest(input: DataInputStream): SimRequest? {</span>
+<span id="L61"><span class="lineNum">      61</span> <span class="tlaCBC">              1 :   val length =</span></span>
+<span id="L62"><span class="lineNum">      62</span> <span class="tlaCBC">              1 :     try {</span></span>
+<span id="L63"><span class="lineNum">      63</span> <span class="tlaCBC">              1 :       input.readInt() // 4-byte big-endian length prefix</span></span>
+<span id="L64"><span class="lineNum">      64</span> <span class="tlaCBC">              1 :     } catch (e: java.io.EOFException) {</span></span>
+<span id="L65"><span class="lineNum">      65</span> <span class="tlaCBC">              1 :       return null // clean EOF: controller exited</span></span>
+<span id="L66"><span class="lineNum">      66</span>                 :     }</span>
+<span id="L67"><span class="lineNum">      67</span> <span class="tlaCBC">              1 :   val bytes = ByteArray(length)</span></span>
+<span id="L68"><span class="lineNum">      68</span> <span class="tlaCBC">              1 :   input.readFully(bytes)</span></span>
+<span id="L69"><span class="lineNum">      69</span> <span class="tlaCBC">              1 :   return SimRequest.parseFrom(bytes)</span></span>
+<span id="L70"><span class="lineNum">      70</span>                 : }</span>
+<span id="L71"><span class="lineNum">      71</span>                 : </span>
+<span id="L72"><span class="lineNum">      72</span>                 : /**</span>
+<span id="L73"><span class="lineNum">      73</span>                 :  * Writes one [SimResponse] to [output] with a 4-byte big-endian length prefix.</span>
+<span id="L74"><span class="lineNum">      74</span>                 :  *</span>
+<span id="L75"><span class="lineNum">      75</span>                 :  * Flushes immediately so the controller receives the response without waiting for the output buffer</span>
+<span id="L76"><span class="lineNum">      76</span>                 :  * to fill.</span>
+<span id="L77"><span class="lineNum">      77</span>                 :  */</span>
+<span id="L78"><span class="lineNum">      78</span>                 : private fun writeResponse(output: DataOutputStream, response: SimResponse) {</span>
+<span id="L79"><span class="lineNum">      79</span> <span class="tlaCBC">              1 :   val bytes = response.toByteArray()</span></span>
+<span id="L80"><span class="lineNum">      80</span> <span class="tlaCBC">              1 :   output.writeInt(bytes.size)</span></span>
+<span id="L81"><span class="lineNum">      81</span> <span class="tlaCBC">              1 :   output.write(bytes)</span></span>
+<span id="L82"><span class="lineNum">      82</span> <span class="tlaCBC">              1 :   output.flush()</span></span>
+<span id="L83"><span class="lineNum">      83</span> <span class="tlaCBC">              1 : }</span></span>
+        </pre>
+              </td>
+            </tr>
+          </table>
+          <br>
+
+          <table width="100%" border=0 cellspacing=0 cellpadding=0>
+            <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+            <tr><td class="versionInfo">Generated by: <a href="https://github.com//linux-test-project/lcov" target="_parent">LCOV version 2.0-1</a></td></tr>
+          </table>
+          <br>
+
+</body>
+</html>
