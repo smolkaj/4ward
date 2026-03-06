@@ -574,20 +574,8 @@ class StfParserTest {
   }
 
   // ---------------------------------------------------------------------------
-  // matchesMasked — mirrors the private function in Runner.kt
+  // matchesMasked — uses the shared function from Runner.kt
   // ---------------------------------------------------------------------------
-
-  private fun ByteArray.matchesMasked(
-    expected: ByteArray,
-    mask: ByteArray,
-    exactLength: Boolean = true,
-  ): Boolean {
-    if (exactLength && size != expected.size) return false
-    if (size < expected.size) return false
-    return expected.indices.all { i ->
-      (this[i].toInt() and mask[i].toInt()) == (expected[i].toInt() and mask[i].toInt())
-    }
-  }
 
   @Test
   fun `matchesMasked exact match`() {

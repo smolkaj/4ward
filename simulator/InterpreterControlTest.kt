@@ -9,8 +9,6 @@ import fourward.ir.v1.ControlDecl
 import fourward.ir.v1.ExitStmt
 import fourward.ir.v1.Expr
 import fourward.ir.v1.FieldAccess
-import fourward.ir.v1.IfStmt
-import fourward.ir.v1.Literal
 import fourward.ir.v1.MethodCallStmt
 import fourward.ir.v1.NameRef
 import fourward.ir.v1.Stmt
@@ -38,32 +36,11 @@ class InterpreterControlTest {
     get() = Environment()
 
   // ---------------------------------------------------------------------------
-  // Expr / Stmt builder helpers
+  // Helpers
   // ---------------------------------------------------------------------------
-
-  private fun bit(value: Long, width: Int): Expr =
-    Expr.newBuilder()
-      .setLiteral(Literal.newBuilder().setInteger(value))
-      .setType(Type.newBuilder().setBit(BitType.newBuilder().setWidth(width)))
-      .build()
-
-  private fun boolLit(v: Boolean): Expr =
-    Expr.newBuilder()
-      .setLiteral(Literal.newBuilder().setBoolean(v))
-      .setType(Type.newBuilder().setBoolean(true))
-      .build()
-
-  /** Builds a config with a single control named "MyControl" whose apply body is [stmts]. */
-  private fun controlConfig(vararg stmts: Stmt): BehavioralConfig =
-    BehavioralConfig.newBuilder()
-      .addControls(ControlDecl.newBuilder().setName("MyControl").addAllApplyBody(stmts.toList()))
-      .build()
 
   private fun interp(config: BehavioralConfig, tableStore: TableStore = TableStore()) =
     Interpreter(config, tableStore)
-
-  private fun nameRef(name: String): Expr =
-    Expr.newBuilder().setNameRef(NameRef.newBuilder().setName(name)).build()
 
   /** Builds a `switch (tableName.apply().action_run)` statement. */
   private fun switchOn(
@@ -86,30 +63,6 @@ class InterpreterControlTest {
             }
           )
           .setDefaultBlock(BlockStmt.newBuilder().addAllStmts(defaultStmts))
-      )
-      .build()
-
-  /** Assignment: [varName] = [rhs]. */
-  private fun assign(varName: String, rhs: Expr): Stmt =
-    Stmt.newBuilder()
-      .setAssignment(
-        AssignmentStmt.newBuilder()
-          .setLhs(Expr.newBuilder().setNameRef(NameRef.newBuilder().setName(varName)))
-          .setRhs(rhs)
-      )
-      .build()
-
-  private fun ifStmt(
-    condition: Expr,
-    thenStmts: List<Stmt>,
-    elseStmts: List<Stmt> = emptyList(),
-  ): Stmt =
-    Stmt.newBuilder()
-      .setIfStmt(
-        IfStmt.newBuilder()
-          .setCondition(condition)
-          .setThenBlock(BlockStmt.newBuilder().addAllStmts(thenStmts))
-          .setElseBlock(BlockStmt.newBuilder().addAllStmts(elseStmts))
       )
       .build()
 
