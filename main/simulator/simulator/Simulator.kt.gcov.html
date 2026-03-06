@@ -31,13 +31,13 @@
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">90.8&nbsp;%</td>
-            <td class="headerCovTableEntry">76</td>
-            <td class="headerCovTableEntry">69</td>
+            <td class="headerCovTableEntryMed">87.5&nbsp;%</td>
+            <td class="headerCovTableEntry">80</td>
+            <td class="headerCovTableEntry">70</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-06 07:13:39</td>
+            <td class="headerValue">2026-03-06 07:21:05</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryMed">88.9&nbsp;%</td>
@@ -207,27 +207,32 @@
 <span id="L145"><span class="lineNum">     145</span>              : </span>
 <span id="L146"><span class="lineNum">     146</span>              :   private fun handleWriteEntry(req: fourward.sim.v1.WriteEntryRequest): SimResponse {</span>
 <span id="L147"><span class="lineNum">     147</span> <span class="tlaGNC">           1 :     pipeline ?: return simError(&quot;no pipeline loaded&quot;, ErrorCode.NO_PIPELINE_LOADED)</span></span>
-<span id="L148"><span class="lineNum">     148</span> <span class="tlaGNC">           1 :     tableStore.write(req.update)</span></span>
-<span id="L149"><span class="lineNum">     149</span> <span class="tlaGNC">           1 :     return SimResponse.newBuilder().setWriteEntry(WriteEntryResponse.getDefaultInstance()).build()</span></span>
-<span id="L150"><span class="lineNum">     150</span>              :   }</span>
-<span id="L151"><span class="lineNum">     151</span>              : </span>
-<span id="L152"><span class="lineNum">     152</span>              :   @Suppress(&quot;UnusedParameter&quot;) // will be used when read filters are implemented</span>
-<span id="L153"><span class="lineNum">     153</span>              :   private fun handleReadEntries(req: fourward.sim.v1.ReadEntriesRequest): SimResponse {</span>
-<span id="L154"><span class="lineNum">     154</span> <span class="tlaUNC tlaBgUNC">           0 :     val entities = tableStore.readAllEntities()</span></span>
-<span id="L155"><span class="lineNum">     155</span> <span class="tlaUNC">           0 :     return SimResponse.newBuilder()</span></span>
-<span id="L156"><span class="lineNum">     156</span> <span class="tlaUNC">           0 :       .setReadEntries(ReadEntriesResponse.newBuilder().addAllEntities(entities))</span></span>
-<span id="L157"><span class="lineNum">     157</span> <span class="tlaUNC">           0 :       .build()</span></span>
-<span id="L158"><span class="lineNum">     158</span>              :   }</span>
-<span id="L159"><span class="lineNum">     159</span>              : </span>
-<span id="L160"><span class="lineNum">     160</span>              :   // -------------------------------------------------------------------------</span>
-<span id="L161"><span class="lineNum">     161</span>              :   // Helpers</span>
-<span id="L162"><span class="lineNum">     162</span>              :   // -------------------------------------------------------------------------</span>
-<span id="L163"><span class="lineNum">     163</span>              : </span>
-<span id="L164"><span class="lineNum">     164</span> <span class="tlaGNC tlaBgGNC">           1 :   private fun simError(message: String, code: ErrorCode = ErrorCode.INTERNAL_ERROR): SimResponse =</span></span>
-<span id="L165"><span class="lineNum">     165</span> <span class="tlaGNC">           1 :     SimResponse.newBuilder()</span></span>
-<span id="L166"><span class="lineNum">     166</span> <span class="tlaGNC">           1 :       .setError(ErrorResponse.newBuilder().setMessage(message).setCode(code))</span></span>
-<span id="L167"><span class="lineNum">     167</span> <span class="tlaGNC">           1 :       .build()</span></span>
-<span id="L168"><span class="lineNum">     168</span>              : }</span>
+<span id="L148"><span class="lineNum">     148</span> <span class="tlaGNC">           1 :     return when (val result = tableStore.write(req.update)) {</span></span>
+<span id="L149"><span class="lineNum">     149</span> <span class="tlaGNC">           1 :       is WriteResult.Success -&gt;</span></span>
+<span id="L150"><span class="lineNum">     150</span> <span class="tlaGNC">           1 :         SimResponse.newBuilder().setWriteEntry(WriteEntryResponse.getDefaultInstance()).build()</span></span>
+<span id="L151"><span class="lineNum">     151</span> <span class="tlaUNC tlaBgUNC">           0 :       is WriteResult.AlreadyExists -&gt; simError(result.message, ErrorCode.ALREADY_EXISTS)</span></span>
+<span id="L152"><span class="lineNum">     152</span> <span class="tlaUNC">           0 :       is WriteResult.NotFound -&gt; simError(result.message, ErrorCode.ENTITY_NOT_FOUND)</span></span>
+<span id="L153"><span class="lineNum">     153</span> <span class="tlaUNC">           0 :       is WriteResult.InvalidArgument -&gt; simError(result.message, ErrorCode.INVALID_REQUEST)</span></span>
+<span id="L154"><span class="lineNum">     154</span>              :     }</span>
+<span id="L155"><span class="lineNum">     155</span>              :   }</span>
+<span id="L156"><span class="lineNum">     156</span>              : </span>
+<span id="L157"><span class="lineNum">     157</span>              :   @Suppress(&quot;UnusedParameter&quot;) // will be used when read filters are implemented</span>
+<span id="L158"><span class="lineNum">     158</span>              :   private fun handleReadEntries(req: fourward.sim.v1.ReadEntriesRequest): SimResponse {</span>
+<span id="L159"><span class="lineNum">     159</span> <span class="tlaUNC">           0 :     val entities = tableStore.readAllEntities()</span></span>
+<span id="L160"><span class="lineNum">     160</span> <span class="tlaUNC">           0 :     return SimResponse.newBuilder()</span></span>
+<span id="L161"><span class="lineNum">     161</span> <span class="tlaUNC">           0 :       .setReadEntries(ReadEntriesResponse.newBuilder().addAllEntities(entities))</span></span>
+<span id="L162"><span class="lineNum">     162</span> <span class="tlaUNC">           0 :       .build()</span></span>
+<span id="L163"><span class="lineNum">     163</span>              :   }</span>
+<span id="L164"><span class="lineNum">     164</span>              : </span>
+<span id="L165"><span class="lineNum">     165</span>              :   // -------------------------------------------------------------------------</span>
+<span id="L166"><span class="lineNum">     166</span>              :   // Helpers</span>
+<span id="L167"><span class="lineNum">     167</span>              :   // -------------------------------------------------------------------------</span>
+<span id="L168"><span class="lineNum">     168</span>              : </span>
+<span id="L169"><span class="lineNum">     169</span> <span class="tlaGNC tlaBgGNC">           1 :   private fun simError(message: String, code: ErrorCode = ErrorCode.INTERNAL_ERROR): SimResponse =</span></span>
+<span id="L170"><span class="lineNum">     170</span> <span class="tlaGNC">           1 :     SimResponse.newBuilder()</span></span>
+<span id="L171"><span class="lineNum">     171</span> <span class="tlaGNC">           1 :       .setError(ErrorResponse.newBuilder().setMessage(message).setCode(code))</span></span>
+<span id="L172"><span class="lineNum">     172</span> <span class="tlaGNC">           1 :       .build()</span></span>
+<span id="L173"><span class="lineNum">     173</span>              : }</span>
         </pre>
               </td>
             </tr>
