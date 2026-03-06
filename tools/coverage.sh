@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Collects Kotlin test coverage for the simulator library.
+# Collects Kotlin test coverage for the simulator and p4runtime libraries.
 #
 # Coverage comes from two sources:
 #   1. Unit tests (kt_jvm_test targets) — instrumented directly by JaCoCo.
@@ -73,7 +73,7 @@ TARGETS=$(bazel query 'kind(kt_jvm_test, //...) - attr(tags, "manual|heavy", //.
 echo "Building with coverage instrumentation..."
 # shellcheck disable=SC2086
 bazel build --collect_code_coverage \
-  --instrumentation_filter='//simulator[/:]' \
+  --instrumentation_filter='//simulator[/:],//p4runtime[/:]' \
   ${TARGETS}
 
 BIN_DIR="$(bazel info bazel-bin)"
@@ -214,8 +214,15 @@ echo "Compiling coverage converter..."
   "${CONVERTER_SRC}"
 
 # ── Run each test and collect per-test .exec ─────────────────────────────────
+#
+# Tests are independent (separate output dirs), so run them in parallel.
+# GNU parallel or xargs -P would work, but a simple background-job approach
+# avoids extra dependencies and keeps the output readable.
 
-EXEC_FILES=()
+MAX_JOBS=$(nproc 2>/dev/null || sysctl -n hw.logicalcpu 2>/dev/null || echo 4)
+PIDS=()
+TARGET_NAMES=()
+FAILED=0
 for target in ${TARGETS}; do
   bin_rel="$(target_to_bin_rel "${target}")"
   bin_path="${BIN_DIR}/${bin_rel}"
@@ -228,18 +235,41 @@ for target in ${TARGETS}; do
   test_coverage_dir="${COVERAGE_WORKDIR}/${bin_rel}"
   mkdir -p "${test_coverage_dir}"
 
-  echo -n "RUN   ${target} ... "
-  JAVA_RUNFILES="${bin_path}.runfiles" \
-  JAVA_COVERAGE_FILE="${test_coverage_dir}/jvcov.dat" \
-  COVERAGE_DIR="${test_coverage_dir}" \
-  COVERAGE=1 \
-    "${bin_path}" >/dev/null 2>&1 && echo "ok" || echo "FAIL (tests failed)"
-
-  # The JacocoCoverageRunner writes jvcov<random>.exec (raw probe data).
-  for ex in "${test_coverage_dir}"/jvcov*.exec; do
-    [[ -s "${ex}" ]] && EXEC_FILES+=("${ex}")
+  # Throttle: wait for a slot when MAX_JOBS are already running.
+  while [[ $(jobs -rp | wc -l) -ge ${MAX_JOBS} ]]; do
+    wait -n 2>/dev/null || true
   done
+
+  (
+    JAVA_RUNFILES="${bin_path}.runfiles" \
+    JAVA_COVERAGE_FILE="${test_coverage_dir}/jvcov.dat" \
+    COVERAGE_DIR="${test_coverage_dir}" \
+    COVERAGE=1 \
+      "${bin_path}" >/dev/null 2>&1
+  ) &
+  PIDS+=("$!")
+  TARGET_NAMES+=("${target}")
 done
+
+# Wait for all tests and report results.
+for i in "${!PIDS[@]}"; do
+  if wait "${PIDS[$i]}"; then
+    echo "ok    ${TARGET_NAMES[$i]}"
+  else
+    echo "FAIL  ${TARGET_NAMES[$i]}"
+    FAILED=1
+  fi
+done
+
+if [[ ${FAILED} -ne 0 ]]; then
+  echo "Warning: some tests failed; coverage data may be incomplete." >&2
+fi
+
+# Collect all .exec files produced by the parallel runs.
+EXEC_FILES=()
+while IFS= read -r -d '' ex; do
+  [[ -s "${ex}" ]] && EXEC_FILES+=("${ex}")
+done < <(find "${COVERAGE_WORKDIR}" -name 'jvcov*.exec' -print0)
 
 if [[ ${#EXEC_FILES[@]} -eq 0 ]]; then
   echo "Error: no coverage data produced." >&2
@@ -248,9 +278,8 @@ fi
 
 # ── Identify instrumented jars ───────────────────────────────────────────────
 
-# Only the simulator library jars contain .class.uninstrumented entries.
 INSTRUMENTED_JARS=()
-for jar in "${BIN_DIR}"/simulator/*.jar; do
+for jar in "${BIN_DIR}"/simulator/*.jar "${BIN_DIR}"/p4runtime/*.jar; do
   if "${JAR}" tf "${jar}" 2>/dev/null | grep -q '\.class\.uninstrumented$'; then
     INSTRUMENTED_JARS+=("${jar}")
   fi
@@ -287,9 +316,13 @@ FIXED="${COVERAGE_WORKDIR}/fixed.lcov"
 awk '
   /^SF:/ {
     sub(/^SF:fourward\//, "SF:")
+    # Skip generated gRPC/proto sources — not our code.
+    if ($0 ~ /^SF:p4\//) { skip = 1; next }
+    skip = 0
     lh = 0; lf = 0
     print; next
   }
+  skip { next }
   /^DA:/ {
     lf++
     split($0, a, ",")
