@@ -102,6 +102,13 @@ will resolve it. This applies to any code that is intentionally incomplete:
 shortcuts, known limitations, placeholder/approximate data, stub
 implementations.
 
+**Be loud about workarounds.** When code exists only to work around an
+external bug or platform limitation, mark it with a prominent `WORKAROUND`
+comment that explains: (1) what is broken and why this code exists, (2) the
+upstream issue or root cause, and (3) what the code should look like once the
+bug is fixed. The goal is that anyone reading the code can immediately tell
+this isn't the intended design — and knows exactly how to clean it up later.
+
 ## P4 language notes
 
 4ward is a spec-compliant reference implementation. The authoritative source

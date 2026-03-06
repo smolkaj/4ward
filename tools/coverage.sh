@@ -1,4 +1,29 @@
 #!/usr/bin/env bash
+# WORKAROUND: This entire script exists because `bazel coverage //...` is
+# broken for kt_jvm_test under Bazel 9 + Bzlmod.  Two upstream bugs conspire:
+#
+#   1. The JaCoCo metadata file uses `external/…` paths that don't resolve
+#      under the Bzlmod `_main/` runfiles root.
+#
+#   2. JacocoLCOVFormatter silently filters out every source file because
+#      `-paths-for-coverage.txt` contains workspace-relative paths
+#      (e.g. `simulator/BitVector.kt`) while the class metadata reports
+#      package-qualified paths (`fourward/simulator/BitVector.kt`).
+#      See https://github.com/bazelbuild/bazel/issues/12159.
+#
+# When these are fixed, this script should collapse to:
+#
+#   bazel coverage //... --combined_report=lcov \
+#     --instrumentation_filter='//simulator[/:],//p4runtime[/:]'
+#   cp bazel-out/_coverage/lcov.dat coverage.lcov
+#
+# Until then, we work around both by:
+#   • Building with --collect_code_coverage to get instrumented jars.
+#   • Running each test binary directly to produce .exec probe data.
+#   • Converting .exec → LCOV ourselves using JaCoCo's API (from the
+#     deploy jar already in the Bazel cache) with a small inline helper
+#     that bypasses the broken path filtering.
+#
 # Collects Kotlin test coverage for the simulator and p4runtime libraries.
 #
 # Coverage comes from two sources:
@@ -17,25 +42,6 @@
 #   --baseline <file>   Baseline LCOV for differential coverage (genhtml --baseline-file).
 #   --diff <file>       Unified diff for differential coverage (genhtml --diff-file).
 #   --min-coverage <N>  Fail if line coverage percentage is below N (default: none).
-#
-# Bazel 9's built-in `bazel coverage` pipeline doesn't produce LCOV data for
-# kt_jvm_test targets.  Two independent bugs conspire:
-#
-#   1. The JaCoCo metadata file uses `external/…` paths that don't resolve
-#      under the Bzlmod `_main/` runfiles root.
-#
-#   2. Even when jar resolution succeeds via classpath URL reflection,
-#      JacocoLCOVFormatter silently filters out every source file because
-#      `-paths-for-coverage.txt` contains workspace-relative paths
-#      (e.g. `simulator/BitVector.kt`) while the class metadata reports
-#      package-qualified paths (`fourward/simulator/BitVector.kt`).
-#
-# We work around both by:
-#   • Building with --collect_code_coverage to get instrumented jars.
-#   • Running each test binary directly to produce .exec probe data.
-#   • Converting .exec → LCOV ourselves using JaCoCo's API (from the
-#     deploy jar already in the Bazel cache) with a small inline helper
-#     that bypasses the broken path filtering.
 
 set -euo pipefail
 
