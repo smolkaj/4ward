@@ -1,6 +1,9 @@
 load("@grpc-java//:java_grpc_library.bzl", "java_grpc_library")
 load("@grpc_kotlin//:kt_jvm_grpc.bzl", "kt_jvm_grpc_library")
+load("@protobuf//bazel:cc_proto_library.bzl", "cc_proto_library")
 load("@protobuf//bazel:java_proto_library.bzl", "java_proto_library")
+load("@protobuf//bazel:proto_library.bzl", "proto_library")
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_binary", "kt_jvm_library", "kt_jvm_test")
 
 # =============================================================================
@@ -47,6 +50,7 @@ kt_jvm_library(
     ),
     visibility = ["//visibility:public"],
     deps = [
+        ":constraint_validator_java_proto",
         ":p4info_java_proto",
         ":p4runtime_java_grpc",
         ":p4runtime_java_proto",
@@ -136,6 +140,45 @@ kt_jvm_test(
         "@maven//:junit_junit",
     ],
 )
+
+# =============================================================================
+# Constraint validator (p4-constraints subprocess)
+# =============================================================================
+
+proto_library(
+    name = "constraint_validator_proto",
+    srcs = ["constraint_validator.proto"],
+    deps = [
+        "@p4runtime//proto/p4/config/v1:p4info_proto",
+        "@p4runtime//proto/p4/v1:p4runtime_proto",
+    ],
+)
+
+java_proto_library(
+    name = "constraint_validator_java_proto",
+    deps = [":constraint_validator_proto"],
+)
+
+cc_proto_library(
+    name = "constraint_validator_cc_proto",
+    deps = [":constraint_validator_proto"],
+)
+
+cc_binary(
+    name = "constraint_validator",
+    srcs = ["constraint_validator.cpp"],
+    copts = ["-std=c++20"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":constraint_validator_cc_proto",
+        "@p4_constraints//p4_constraints/backend:constraint_info",
+        "@p4_constraints//p4_constraints/backend:interpreter",
+    ],
+)
+
+# =============================================================================
+# Tests
+# =============================================================================
 
 kt_jvm_test(
     name = "P4RuntimeTranslationTest",

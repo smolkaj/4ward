@@ -1,0 +1,43 @@
+# System GMP wrapper — links against the system-installed libgmp.
+# On macOS: `brew install gmp`. On Linux: `apt install libgmp-dev`.
+#
+# Uses a genrule to symlink headers into the sandbox so that includes
+# propagate to all transitive dependents via cc_library.includes.
+
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+# Copy GMP headers into a sandboxable location.
+genrule(
+    name = "gmp_headers",
+    outs = ["include/gmp.h", "include/gmpxx.h"],
+    cmd = select({
+        "@platforms//os:macos": """
+            cp /opt/homebrew/include/gmp.h $(location include/gmp.h)
+            cp /opt/homebrew/include/gmpxx.h $(location include/gmpxx.h)
+        """,
+        "//conditions:default": """
+            cp /usr/include/gmp.h $(location include/gmp.h) 2>/dev/null || \
+            cp /usr/include/x86_64-linux-gnu/gmp.h $(location include/gmp.h)
+            cp /usr/include/gmpxx.h $(location include/gmpxx.h) 2>/dev/null || \
+            cp /usr/include/x86_64-linux-gnu/gmpxx.h $(location include/gmpxx.h)
+        """,
+    }),
+)
+
+cc_library(
+    name = "gmp",
+    hdrs = [":gmp_headers"],
+    includes = ["include"],
+    linkopts = select({
+        "@platforms//os:macos": [
+            "-L/opt/homebrew/lib",
+            "-lgmp",
+            "-lgmpxx",
+        ],
+        "//conditions:default": [
+            "-lgmp",
+            "-lgmpxx",
+        ],
+    }),
+    visibility = ["//visibility:public"],
+)

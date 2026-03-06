@@ -1,0 +1,56 @@
+// Constraint Validator Service
+//
+// Request/response protocol between the P4Runtime server and the
+// p4-constraints validator subprocess.
+//
+// Transport: length-delimited protocol buffers over stdin/stdout — a 4-byte
+// big-endian length prefix followed by the serialised request or response.
+// Same framing as simulator.proto.
+
+edition = "2024";
+
+package fourward.constraints.v1;
+
+import "p4/config/v1/p4info.proto";
+import "p4/v1/p4runtime.proto";
+
+option java_package = "fourward.constraints.v1";
+
+message ConstraintRequest {
+  oneof request {
+    LoadP4InfoRequest load_p4info = 1;
+    ValidateEntryRequest validate_entry = 2;
+  }
+}
+
+message ConstraintResponse {
+  oneof response {
+    LoadP4InfoResponse load_p4info = 1;
+    ValidateEntryResponse validate_entry = 2;
+    ErrorResponse error = 100;
+  }
+}
+
+// Sent once per pipeline load. Parses constraint annotations from P4Info.
+message LoadP4InfoRequest {
+  p4.config.v1.P4Info p4info = 1;
+}
+
+message LoadP4InfoResponse {
+  int32 constrained_tables = 1;
+  int32 constrained_actions = 2;
+}
+
+// Sent per table entry in a Write RPC.
+message ValidateEntryRequest {
+  p4.v1.TableEntry entry = 1;
+}
+
+// Empty violation = entry satisfies all constraints.
+message ValidateEntryResponse {
+  string violation = 1;
+}
+
+message ErrorResponse {
+  string message = 1;
+}
