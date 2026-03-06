@@ -1,5 +1,6 @@
 package fourward.p4runtime
 
+import com.google.protobuf.ByteString
 import io.grpc.Status
 import io.grpc.StatusException
 import p4.config.v1.P4InfoOuterClass
@@ -115,9 +116,12 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
           ?: throw invalidArg(
             "unknown match field ID ${fm.fieldId} in table '${tableInfo.tableName}'"
           )
+      // §9.1: each match field may appear at most once.
+      if (!presentFieldIds.add(fm.fieldId)) {
+        throw invalidArg("duplicate match field ID ${fm.fieldId} in table '${tableInfo.tableName}'")
+      }
       validateMatchKind(fm, fieldInfo)
       validateMatchWidth(fm, fieldInfo)
-      presentFieldIds.add(fm.fieldId)
     }
 
     // EXACT fields must be present; omission is not allowed.
@@ -164,8 +168,14 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
       fm.hasTernary() -> {
         checkWidth(w, fm.ternary.value.size(), "match field '$f' value")
         checkWidth(w, fm.ternary.mask.size(), "match field '$f' mask")
+        // §8.3: bits where mask is 0 must also be 0 in value.
+        checkTernaryMaskedBits(fm.ternary.value, fm.ternary.mask, f)
       }
-      fm.hasLpm() -> checkWidth(w, fm.lpm.value.size(), "match field '$f' value")
+      fm.hasLpm() -> {
+        checkWidth(w, fm.lpm.value.size(), "match field '$f' value")
+        // §8.3: bits beyond prefix_len must be zero.
+        checkLpmTrailingBits(fm.lpm.value, fm.lpm.prefixLen, f)
+      }
       fm.hasRange() -> {
         checkWidth(w, fm.range.low.size(), "match field '$f' low")
         checkWidth(w, fm.range.high.size(), "match field '$f' high")
@@ -207,6 +217,43 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
       val expected = (bitwidth + 7) / 8
       if (expected > 0 && actual != expected) {
         throw invalidArg("$label expects $expected bytes, got $actual")
+      }
+    }
+
+    /** §8.3: ternary value bits must be zero where the mask is zero. */
+    private fun checkTernaryMaskedBits(value: ByteString, mask: ByteString, fieldName: String) {
+      for (i in 0 until value.size()) {
+        val v = value.byteAt(i).toInt() and 0xFF
+        val m = mask.byteAt(i).toInt() and 0xFF
+        if (v and m != v) {
+          throw invalidArg(
+            "match field '$fieldName' has masked-off bits set in value (value & ~mask != 0)"
+          )
+        }
+      }
+    }
+
+    /** §8.3: LPM value bits beyond prefix_len must be zero. */
+    private fun checkLpmTrailingBits(value: ByteString, prefixLen: Int, fieldName: String) {
+      for (i in 0 until value.size()) {
+        val bitStart = i * 8
+        val b = value.byteAt(i).toInt() and 0xFF
+        if (bitStart >= prefixLen) {
+          if (b != 0) {
+            throw invalidArg(
+              "match field '$fieldName' has non-zero bits beyond prefix length $prefixLen"
+            )
+          }
+        } else if (bitStart + 8 > prefixLen) {
+          // Partial byte: only the high (prefixLen - bitStart) bits are valid.
+          val trailingBits = 8 - (prefixLen - bitStart)
+          val trailingMask = (1 shl trailingBits) - 1
+          if (b and trailingMask != 0) {
+            throw invalidArg(
+              "match field '$fieldName' has non-zero bits beyond prefix length $prefixLen"
+            )
+          }
+        }
       }
     }
 
