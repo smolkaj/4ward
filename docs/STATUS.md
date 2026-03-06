@@ -8,6 +8,15 @@
 
 ## 2026-03-06
 
+|                | Today   | Cumulative |
+|----------------|---------|------------|
+| PRs merged     | 19      | 184        |
+| Source (delta)  | +4.1k   | 108.7k     |
+| — Kotlin prod  |         | 37.6k      |
+| — Kotlin test  |         | 52.8k      |
+| — C++          |         | 12.0k      |
+| — Proto        |         | 6.3k       |
+
 Two tracks saw major progress: **P4Runtime is now a real server** (not a
 skeleton) and **all three testing oracles are operational**.
 
