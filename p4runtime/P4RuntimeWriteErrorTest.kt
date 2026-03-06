@@ -1,5 +1,6 @@
 package fourward.p4runtime
 
+import com.google.protobuf.ByteString
 import fourward.ir.v1.PipelineConfig
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.assertGrpcError
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildExactEntry
@@ -114,5 +115,98 @@ class P4RuntimeWriteErrorTest {
     harness.deleteEntry(entry)
 
     assertGrpcError(Status.Code.NOT_FOUND) { harness.deleteEntry(entry) }
+  }
+
+  // =========================================================================
+  // Write validation errors
+  // =========================================================================
+
+  /** Builds a valid exact entry and applies a mutation to produce an invalid one. */
+  private fun buildInvalidEntry(config: PipelineConfig, mutate: (Entity.Builder) -> Unit): Entity {
+    val valid = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    return valid.toBuilder().apply(mutate).build()
+  }
+
+  // P4Runtime spec §9.1.2: action_id must be in the table's action_refs.
+  @Test
+  fun `insert with unknown action ID returns INVALID_ARGUMENT`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    val entity =
+      buildInvalidEntry(config) { b ->
+        b.tableEntryBuilder.actionBuilder.actionBuilder.setActionId(99999).clearParams()
+      }
+    assertGrpcError(Status.Code.INVALID_ARGUMENT, "unknown action ID") {
+      harness.installEntry(entity)
+    }
+  }
+
+  // P4Runtime spec §9.1.2: action parameters must match the p4info schema.
+  @Test
+  fun `insert with wrong param count returns INVALID_ARGUMENT`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    // forward expects 1 param (port); send 0 params.
+    val entity =
+      buildInvalidEntry(config) { b ->
+        b.tableEntryBuilder.actionBuilder.actionBuilder.clearParams()
+      }
+    assertGrpcError(Status.Code.INVALID_ARGUMENT, "expects") { harness.installEntry(entity) }
+  }
+
+  // P4Runtime spec §9.1.1: exact-only tables must have priority == 0.
+  @Test
+  fun `insert with nonzero priority on exact table returns INVALID_ARGUMENT`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    val entity = buildInvalidEntry(config) { b -> b.tableEntryBuilder.setPriority(10) }
+    assertGrpcError(Status.Code.INVALID_ARGUMENT, "priority") { harness.installEntry(entity) }
+  }
+
+  // P4Runtime spec §8.3: match field value must have canonical byte width.
+  @Test
+  fun `insert with wrong match value width returns INVALID_ARGUMENT`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    // etherType is 16-bit (2 bytes); send 1 byte.
+    val entity =
+      buildInvalidEntry(config) { b ->
+        b.tableEntryBuilder
+          .getMatchBuilder(0)
+          .exactBuilder
+          .setValue(ByteString.copyFrom(byteArrayOf(0x08)))
+      }
+    assertGrpcError(Status.Code.INVALID_ARGUMENT, "bytes") { harness.installEntry(entity) }
+  }
+
+  // P4Runtime spec §9.1.1: match field kind must match p4info.
+  @Test
+  fun `insert with ternary encoding on exact field returns INVALID_ARGUMENT`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    val matchField = config.p4Info.tablesList.first().matchFieldsList.first()
+    val byteWidth = (matchField.bitwidth + 7) / 8
+    val entity =
+      buildInvalidEntry(config) { b ->
+        b.tableEntryBuilder.setPriority(1)
+        b.tableEntryBuilder
+          .getMatchBuilder(0)
+          .clearExact()
+          .setFieldId(matchField.id)
+          .ternaryBuilder
+          .setValue(ByteString.copyFrom(P4RuntimeTestHarness.longToBytes(0x0800, byteWidth)))
+          .setMask(ByteString.copyFrom(P4RuntimeTestHarness.longToBytes(0xFFFF, byteWidth)))
+      }
+    assertGrpcError(Status.Code.INVALID_ARGUMENT, "EXACT") { harness.installEntry(entity) }
+  }
+
+  // P4Runtime spec §9.1.1: exact match fields are required (cannot be omitted).
+  @Test
+  fun `insert with missing exact match field returns INVALID_ARGUMENT`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    // No match fields at all — the table requires an exact match.
+    val entity = buildInvalidEntry(config) { b -> b.tableEntryBuilder.clearMatch() }
+    assertGrpcError(Status.Code.INVALID_ARGUMENT, "missing") { harness.installEntry(entity) }
   }
 }
