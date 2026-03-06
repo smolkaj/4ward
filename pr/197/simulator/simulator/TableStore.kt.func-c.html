@@ -27,6 +27,8 @@
             <td width="5%" class="headerCovTableHead" title="Exercised code only (CBC + GBC + GNC + GIC)">Hit</td>
             <td width="5%" class="headerCovTableHeadUBC" title="Uncovered Baseline Code (0 => 0):
 Unchanged code was untested before, is untested now">Not covered</td>
+            <td width="5%" class="headerCovTableHeadGBC" title="Gained Baseline Coverage (0 => 1):
+Unchanged code is tested now">Newly covered</td>
             <td width="5%" class="headerCovTableHeadCBC" title="Covered Baseline Code (1 => 1):
 Unchanged code was tested before and is still tested">Covered</td>
           </tr>
@@ -35,22 +37,24 @@ Unchanged code was tested before and is still tested">Covered</td>
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">96.0&nbsp;%</td>
-            <td class="headerCovTableEntry">227</td>
-            <td class="headerCovTableEntry">218</td>
+            <td class="headerCovTableEntryHi">96.6&nbsp;%</td>
+            <td class="headerCovTableEntry">267</td>
+            <td class="headerCovTableEntry">258</td>
             <td class="headerCovTableEntry">9</td>
-            <td class="headerCovTableEntry">218</td>
+            <td class="headerCovTableEntry">1</td>
+            <td class="headerCovTableEntry">257</td>
           </tr>
           <tr>
             <td class="headerItem">Current Date:</td>
-            <td class="headerValue">2026-03-06 16:06:02</td>
+            <td class="headerValue">2026-03-06 16:29:22</td>
             <td></td>
             <td class="headerItem">Functions:</td>
-            <td class="headerCovTableEntryHi">96.4&nbsp;%</td>
-            <td class="headerCovTableEntry">56</td>
-            <td class="headerCovTableEntry">54</td>
-            <td class="headerCovTableEntry">2</td>
-            <td class="headerCovTableEntry">54</td>
+            <td class="headerCovTableEntryHi">98.4&nbsp;%</td>
+            <td class="headerCovTableEntry">63</td>
+            <td class="headerCovTableEntry">62</td>
+            <td class="headerCovTableEntry">1</td>
+            <td class="headerCovTableEntry"></td>
+            <td class="headerCovTableEntry">62</td>
           </tr>
           <tr>
             <td class="headerItem">Baseline:</td>
@@ -59,7 +63,7 @@ Unchanged code was tested before and is still tested">Covered</td>
           </tr>
           <tr>
             <td class="headerItem">Baseline Date:</td>
-            <td class="headerValue">2026-03-06 15:57:56</td>
+            <td class="headerValue">2026-03-06 16:09:42</td>
             <td></td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
@@ -81,119 +85,105 @@ Unchanged code was tested before and is still tested">Covered</td>
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L24">fourward/simulator/WriteResult$InvalidArgument::&lt;init&gt; (Ljava/lang/String;)V</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L164">fourward/simulator/TableStore::readRegisterEntries$default (Lfourward/simulator/TableStore;Lp4/v1/P4RuntimeOuterClass$RegisterEntry;ILjava/lang/Object;)Ljava/util/List;</a></td>
               <td class="tlaUBC">Not covered</td>
               <td class="coverFnLo">0</td>
               
               
             </tr>
             <tr>
-              <td class="coverFnAlias"><a href="TableStore.kt.gcov.html#L24">fourward/simulator/WriteResult$InvalidArgument::<init> (Ljava/lang/String;)V</a></td>
-              <td class="tlaUBC">Not covered</td>
-              <td class="coverFnAliasLo">0</td>
-              
-              
-            </tr>
-            <tr>
-              <td class="coverFnAlias"><a href="TableStore.kt.gcov.html#L24">fourward/simulator/WriteResult$InvalidArgument::getMessage ()Ljava/lang/String;</a></td>
-              <td class="tlaUBC">Not covered</td>
-              <td class="coverFnAliasLo">0</td>
-              
-              
-            </tr>
-            <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L42">fourward/simulator/TableStore$DefaultAction::getName ()Ljava/lang/String;</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L44">fourward/simulator/TableStore$DefaultAction::getName ()Ljava/lang/String;</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L43">fourward/simulator/TableStore$DefaultAction::getParams ()Ljava/util/List;</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L45">fourward/simulator/TableStore$DefaultAction::getParams ()Ljava/util/List;</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L334">fourward/simulator/TableStore$LookupResult::getActionName ()Ljava/lang/String;</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L399">fourward/simulator/TableStore$LookupResult::getActionName ()Ljava/lang/String;</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L335">fourward/simulator/TableStore$LookupResult::getActionParams ()Ljava/util/List;</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L400">fourward/simulator/TableStore$LookupResult::getActionParams ()Ljava/util/List;</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L333">fourward/simulator/TableStore$LookupResult::getEntry ()Lp4/v1/P4RuntimeOuterClass$TableEntry;</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L398">fourward/simulator/TableStore$LookupResult::getEntry ()Lp4/v1/P4RuntimeOuterClass$TableEntry;</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L332">fourward/simulator/TableStore$LookupResult::getHit ()Z</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L397">fourward/simulator/TableStore$LookupResult::getHit ()Z</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L336">fourward/simulator/TableStore$LookupResult::getMembers ()Ljava/util/List;</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L401">fourward/simulator/TableStore$LookupResult::getMembers ()Ljava/util/List;</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L325">fourward/simulator/TableStore$MemberAction::&lt;init&gt; (ILjava/lang/String;Ljava/util/List;)V</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L390">fourward/simulator/TableStore$MemberAction::&lt;init&gt; (ILjava/lang/String;Ljava/util/List;)V</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L327">fourward/simulator/TableStore$MemberAction::getActionName ()Ljava/lang/String;</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L392">fourward/simulator/TableStore$MemberAction::getActionName ()Ljava/lang/String;</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L326">fourward/simulator/TableStore$MemberAction::getMemberId ()I</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L391">fourward/simulator/TableStore$MemberAction::getMemberId ()I</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L328">fourward/simulator/TableStore$MemberAction::getParams ()Ljava/util/List;</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L393">fourward/simulator/TableStore$MemberAction::getParams ()Ljava/util/List;</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L318">fourward/simulator/TableStore$readProfileGroups$1::invoke (Lp4/v1/P4RuntimeOuterClass$ActionProfileGroup;)Lp4/v1/P4RuntimeOuterClass$Entity;</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L383">fourward/simulator/TableStore$readProfileGroups$1::invoke (Lp4/v1/P4RuntimeOuterClass$ActionProfileGroup;)Lp4/v1/P4RuntimeOuterClass$Entity;</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L310">fourward/simulator/TableStore$readProfileMembers$1::invoke (Lp4/v1/P4RuntimeOuterClass$ActionProfileMember;)Lp4/v1/P4RuntimeOuterClass$Entity;</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L375">fourward/simulator/TableStore$readProfileMembers$1::invoke (Lp4/v1/P4RuntimeOuterClass$ActionProfileMember;)Lp4/v1/P4RuntimeOuterClass$Entity;</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L470">fourward/simulator/TableStore::&lt;clinit&gt; ()V</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L535">fourward/simulator/TableStore::&lt;clinit&gt; ()V</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
@@ -207,175 +197,189 @@ Unchanged code was tested before and is still tested">Covered</td>
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L252">fourward/simulator/TableStore::getCloneSession (I)Lp4/v1/P4RuntimeOuterClass$CloneSessionEntry;</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L317">fourward/simulator/TableStore::getCloneSession (I)Lp4/v1/P4RuntimeOuterClass$CloneSessionEntry;</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L255">fourward/simulator/TableStore::getMulticastGroup (I)Lp4/v1/P4RuntimeOuterClass$MulticastGroupEntry;</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L320">fourward/simulator/TableStore::getMulticastGroup (I)Lp4/v1/P4RuntimeOuterClass$MulticastGroupEntry;</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L91">fourward/simulator/TableStore::loadMappings (Ljava/util/Map;Ljava/util/Map;Ljava/util/List;)V</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L95">fourward/simulator/TableStore::loadMappings (Ljava/util/Map;Ljava/util/Map;Ljava/util/List;Ljava/util/List;)V</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L86">fourward/simulator/TableStore::loadMappings$default (Lfourward/simulator/TableStore;Ljava/util/Map;Ljava/util/Map;Ljava/util/List;ILjava/lang/Object;)V</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L89">fourward/simulator/TableStore::loadMappings$default (Lfourward/simulator/TableStore;Ljava/util/Map;Ljava/util/Map;Ljava/util/List;Ljava/util/List;ILjava/lang/Object;)V</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L347">fourward/simulator/TableStore::lookup (Ljava/lang/String;Ljava/util/List;)Lfourward/simulator/TableStore$LookupResult;</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L412">fourward/simulator/TableStore::lookup (Ljava/lang/String;Ljava/util/List;)Lfourward/simulator/TableStore$LookupResult;</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L271">fourward/simulator/TableStore::readEntities (Lp4/v1/P4RuntimeOuterClass$TableEntry;)Ljava/util/List;</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L336">fourward/simulator/TableStore::readEntities (Lp4/v1/P4RuntimeOuterClass$TableEntry;)Ljava/util/List;</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L268">fourward/simulator/TableStore::readEntities$default (Lfourward/simulator/TableStore;Lp4/v1/P4RuntimeOuterClass$TableEntry;ILjava/lang/Object;)Ljava/util/List;</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L333">fourward/simulator/TableStore::readEntities$default (Lfourward/simulator/TableStore;Lp4/v1/P4RuntimeOuterClass$TableEntry;ILjava/lang/Object;)Ljava/util/List;</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L296">fourward/simulator/TableStore::readProfileEntities (Ljava/util/Map;IILkotlin/jvm/functions/Function1;)Ljava/util/List;</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L361">fourward/simulator/TableStore::readProfileEntities (Ljava/util/Map;IILkotlin/jvm/functions/Function1;)Ljava/util/List;</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L317">fourward/simulator/TableStore::readProfileGroups (Lp4/v1/P4RuntimeOuterClass$ActionProfileGroup;)Ljava/util/List;</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L382">fourward/simulator/TableStore::readProfileGroups (Lp4/v1/P4RuntimeOuterClass$ActionProfileGroup;)Ljava/util/List;</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L313">fourward/simulator/TableStore::readProfileGroups$default (Lfourward/simulator/TableStore;Lp4/v1/P4RuntimeOuterClass$ActionProfileGroup;ILjava/lang/Object;)Ljava/util/List;</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L378">fourward/simulator/TableStore::readProfileGroups$default (Lfourward/simulator/TableStore;Lp4/v1/P4RuntimeOuterClass$ActionProfileGroup;ILjava/lang/Object;)Ljava/util/List;</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L309">fourward/simulator/TableStore::readProfileMembers (Lp4/v1/P4RuntimeOuterClass$ActionProfileMember;)Ljava/util/List;</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L374">fourward/simulator/TableStore::readProfileMembers (Lp4/v1/P4RuntimeOuterClass$ActionProfileMember;)Ljava/util/List;</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L305">fourward/simulator/TableStore::readProfileMembers$default (Lfourward/simulator/TableStore;Lp4/v1/P4RuntimeOuterClass$ActionProfileMember;ILjava/lang/Object;)Ljava/util/List;</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L370">fourward/simulator/TableStore::readProfileMembers$default (Lfourward/simulator/TableStore;Lp4/v1/P4RuntimeOuterClass$ActionProfileMember;ILjava/lang/Object;)Ljava/util/List;</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L123">fourward/simulator/TableStore::registerRead (Ljava/lang/String;I)Lfourward/simulator/Value;</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L168">fourward/simulator/TableStore::readRegisterEntries (Lp4/v1/P4RuntimeOuterClass$RegisterEntry;)Ljava/util/List;</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L126">fourward/simulator/TableStore::registerWrite (Ljava/lang/String;ILfourward/simulator/Value;)V</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L132">fourward/simulator/TableStore::registerRead (Ljava/lang/String;I)Lfourward/simulator/Value;</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L405">fourward/simulator/TableStore::resolveActionName (I)Ljava/lang/String;</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L135">fourward/simulator/TableStore::registerWrite (Ljava/lang/String;ILfourward/simulator/Value;)V</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L413">fourward/simulator/TableStore::scoreEntry (Lp4/v1/P4RuntimeOuterClass$TableEntry;Ljava/util/List;)Ljava/lang/Long;</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L470">fourward/simulator/TableStore::resolveActionName (I)Ljava/lang/String;</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L116">fourward/simulator/TableStore::setDefaultAction (Ljava/lang/String;Ljava/lang/String;Ljava/util/List;)V</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L478">fourward/simulator/TableStore::scoreEntry (Lp4/v1/P4RuntimeOuterClass$TableEntry;Ljava/util/List;)Ljava/lang/Long;</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L111">fourward/simulator/TableStore::setDefaultAction$default (Lfourward/simulator/TableStore;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;ILjava/lang/Object;)V</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L125">fourward/simulator/TableStore::setDefaultAction (Ljava/lang/String;Ljava/lang/String;Ljava/util/List;)V</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L74">fourward/simulator/TableStore::setForcedHit (Ljava/lang/String;Ljava/lang/String;)V</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L120">fourward/simulator/TableStore::setDefaultAction$default (Lfourward/simulator/TableStore;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;ILjava/lang/Object;)V</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L134">fourward/simulator/TableStore::write (Lp4/v1/P4RuntimeOuterClass$Update;)Lfourward/simulator/WriteResult;</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L76">fourward/simulator/TableStore::setForcedHit (Ljava/lang/String;Ljava/lang/String;)V</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L243">fourward/simulator/TableStore::writePreEntry (Lp4/v1/P4RuntimeOuterClass$PacketReplicationEngineEntry;)V</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L198">fourward/simulator/TableStore::write (Lp4/v1/P4RuntimeOuterClass$Update;)Lfourward/simulator/WriteResult;</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L196">fourward/simulator/TableStore::writeProfileEntity (Lp4/v1/P4RuntimeOuterClass$Update$Type;Ljava/util/Map;ILjava/lang/Object;Ljava/lang/String;)Lfourward/simulator/WriteResult;</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L308">fourward/simulator/TableStore::writePreEntry (Lp4/v1/P4RuntimeOuterClass$PacketReplicationEngineEntry;)V</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L234">fourward/simulator/TableStore::writeProfileGroup (Lp4/v1/P4RuntimeOuterClass$Update$Type;Lp4/v1/P4RuntimeOuterClass$ActionProfileGroup;)Lfourward/simulator/WriteResult;</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L261">fourward/simulator/TableStore::writeProfileEntity (Lp4/v1/P4RuntimeOuterClass$Update$Type;Ljava/util/Map;ILjava/lang/Object;Ljava/lang/String;)Lfourward/simulator/WriteResult;</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L222">fourward/simulator/TableStore::writeProfileMember (Lp4/v1/P4RuntimeOuterClass$Update$Type;Lp4/v1/P4RuntimeOuterClass$ActionProfileMember;)Lfourward/simulator/WriteResult;</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L299">fourward/simulator/TableStore::writeProfileGroup (Lp4/v1/P4RuntimeOuterClass$Update$Type;Lp4/v1/P4RuntimeOuterClass$ActionProfileGroup;)Lfourward/simulator/WriteResult;</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L147">fourward/simulator/TableStore::writeTableEntry (Lp4/v1/P4RuntimeOuterClass$Update;)Lfourward/simulator/WriteResult;</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L287">fourward/simulator/TableStore::writeProfileMember (Lp4/v1/P4RuntimeOuterClass$Update$Type;Lp4/v1/P4RuntimeOuterClass$ActionProfileMember;)Lfourward/simulator/WriteResult;</a></td>
+              <td class="tlaCBC">Covered</td>
+              <td class="coverFnHi">1</td>
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L143">fourward/simulator/TableStore::writeRegisterEntry (Lp4/v1/P4RuntimeOuterClass$Update$Type;Lp4/v1/P4RuntimeOuterClass$RegisterEntry;)Lfourward/simulator/WriteResult;</a></td>
+              <td class="tlaCBC">Covered</td>
+              <td class="coverFnHi">1</td>
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L212">fourward/simulator/TableStore::writeTableEntry (Lp4/v1/P4RuntimeOuterClass$Update;)Lfourward/simulator/WriteResult;</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
@@ -403,42 +407,42 @@ Unchanged code was tested before and is still tested">Covered</td>
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L41">fourward/simulator/TableStore$DefaultAction::&lt;init&gt; (Ljava/lang/String;Ljava/util/List;)V</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L43">fourward/simulator/TableStore$DefaultAction::&lt;init&gt; (Ljava/lang/String;Ljava/util/List;)V</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">2</td>
               
               
             </tr>
             <tr>
-              <td class="coverFnAlias"><a href="TableStore.kt.gcov.html#L41">fourward/simulator/TableStore$DefaultAction::<init> (Ljava/lang/String;Ljava/util/List;)V</a></td>
+              <td class="coverFnAlias"><a href="TableStore.kt.gcov.html#L43">fourward/simulator/TableStore$DefaultAction::<init> (Ljava/lang/String;Ljava/util/List;)V</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnAliasHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFnAlias"><a href="TableStore.kt.gcov.html#L41">fourward/simulator/TableStore$DefaultAction::<init> (Ljava/lang/String;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V</a></td>
+              <td class="coverFnAlias"><a href="TableStore.kt.gcov.html#L43">fourward/simulator/TableStore$DefaultAction::<init> (Ljava/lang/String;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnAliasHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L331">fourward/simulator/TableStore$LookupResult::&lt;init&gt; (ZLp4/v1/P4RuntimeOuterClass$TableEntry;Ljava/lang/String;Ljava/util/List;Ljava/util/List;)V</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L396">fourward/simulator/TableStore$LookupResult::&lt;init&gt; (ZLp4/v1/P4RuntimeOuterClass$TableEntry;Ljava/lang/String;Ljava/util/List;Ljava/util/List;)V</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">2</td>
               
               
             </tr>
             <tr>
-              <td class="coverFnAlias"><a href="TableStore.kt.gcov.html#L331">fourward/simulator/TableStore$LookupResult::<init> (ZLp4/v1/P4RuntimeOuterClass$TableEntry;Ljava/lang/String;Ljava/util/List;Ljava/util/List;)V</a></td>
+              <td class="coverFnAlias"><a href="TableStore.kt.gcov.html#L396">fourward/simulator/TableStore$LookupResult::<init> (ZLp4/v1/P4RuntimeOuterClass$TableEntry;Ljava/lang/String;Ljava/util/List;Ljava/util/List;)V</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnAliasHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFnAlias"><a href="TableStore.kt.gcov.html#L331">fourward/simulator/TableStore$LookupResult::<init> (ZLp4/v1/P4RuntimeOuterClass$TableEntry;Ljava/lang/String;Ljava/util/List;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V</a></td>
+              <td class="coverFnAlias"><a href="TableStore.kt.gcov.html#L396">fourward/simulator/TableStore$LookupResult::<init> (ZLp4/v1/P4RuntimeOuterClass$TableEntry;Ljava/lang/String;Ljava/util/List;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnAliasHi">1</td>
               
@@ -466,6 +470,27 @@ Unchanged code was tested before and is still tested">Covered</td>
               
             </tr>
             <tr>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L24">fourward/simulator/WriteResult$InvalidArgument::&lt;init&gt; (Ljava/lang/String;)V</a></td>
+              <td class="tlaCBC">Covered</td>
+              <td class="coverFnHi">2</td>
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFnAlias"><a href="TableStore.kt.gcov.html#L24">fourward/simulator/WriteResult$InvalidArgument::<init> (Ljava/lang/String;)V</a></td>
+              <td class="tlaCBC">Covered</td>
+              <td class="coverFnAliasHi">1</td>
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFnAlias"><a href="TableStore.kt.gcov.html#L24">fourward/simulator/WriteResult$InvalidArgument::getMessage ()Ljava/lang/String;</a></td>
+              <td class="tlaCBC">Covered</td>
+              <td class="coverFnAliasHi">1</td>
+              
+              
+            </tr>
+            <tr>
               <td class="coverFn"><a href="TableStore.kt.gcov.html#L22">fourward/simulator/WriteResult$NotFound::&lt;init&gt; (Ljava/lang/String;)V</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">2</td>
@@ -487,28 +512,63 @@ Unchanged code was tested before and is still tested">Covered</td>
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TableStore.kt.gcov.html#L354">fourward/simulator/TableStore$lookup$Candidate::getScore ()J</a></td>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L419">fourward/simulator/TableStore$lookup$Candidate::getScore ()J</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">3</td>
               
               
             </tr>
             <tr>
-              <td class="coverFnAlias"><a href="TableStore.kt.gcov.html#L354">fourward/simulator/TableStore$lookup$Candidate::<init> (Lp4/v1/P4RuntimeOuterClass$TableEntry;J)V</a></td>
+              <td class="coverFnAlias"><a href="TableStore.kt.gcov.html#L419">fourward/simulator/TableStore$lookup$Candidate::<init> (Lp4/v1/P4RuntimeOuterClass$TableEntry;J)V</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnAliasHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFnAlias"><a href="TableStore.kt.gcov.html#L354">fourward/simulator/TableStore$lookup$Candidate::getEntry ()Lp4/v1/P4RuntimeOuterClass$TableEntry;</a></td>
+              <td class="coverFnAlias"><a href="TableStore.kt.gcov.html#L419">fourward/simulator/TableStore$lookup$Candidate::getEntry ()Lp4/v1/P4RuntimeOuterClass$TableEntry;</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnAliasHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFnAlias"><a href="TableStore.kt.gcov.html#L354">fourward/simulator/TableStore$lookup$Candidate::getScore ()J</a></td>
+              <td class="coverFnAlias"><a href="TableStore.kt.gcov.html#L419">fourward/simulator/TableStore$lookup$Candidate::getScore ()J</a></td>
+              <td class="tlaCBC">Covered</td>
+              <td class="coverFnAliasHi">1</td>
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFn"><a href="TableStore.kt.gcov.html#L37">fourward/simulator/TableStore$RegisterInfo::getSize ()I</a></td>
+              <td class="tlaCBC">Covered</td>
+              <td class="coverFnHi">4</td>
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFnAlias"><a href="TableStore.kt.gcov.html#L37">fourward/simulator/TableStore$RegisterInfo::<init> (Ljava/lang/String;II)V</a></td>
+              <td class="tlaCBC">Covered</td>
+              <td class="coverFnAliasHi">1</td>
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFnAlias"><a href="TableStore.kt.gcov.html#L37">fourward/simulator/TableStore$RegisterInfo::getBitwidth ()I</a></td>
+              <td class="tlaCBC">Covered</td>
+              <td class="coverFnAliasHi">1</td>
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFnAlias"><a href="TableStore.kt.gcov.html#L37">fourward/simulator/TableStore$RegisterInfo::getName ()Ljava/lang/String;</a></td>
+              <td class="tlaCBC">Covered</td>
+              <td class="coverFnAliasHi">1</td>
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFnAlias"><a href="TableStore.kt.gcov.html#L37">fourward/simulator/TableStore$RegisterInfo::getSize ()I</a></td>
               <td class="tlaCBC">Covered</td>
               <td class="coverFnAliasHi">1</td>
               
