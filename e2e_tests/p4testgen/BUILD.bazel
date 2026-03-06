@@ -302,10 +302,7 @@ p4_testgen_test(name = "issue1814-1-bmv2")
 
 p4_testgen_test(name = "issue1824-bmv2")
 
-p4_testgen_test(
-    name = "issue1879-bmv2",
-    tags = ["manual"],  # header stack overflow: nextIndex=10, size=10
-)
+p4_testgen_test(name = "issue1879-bmv2")
 
 p4_testgen_test(name = "issue2147-bmv2")
 
@@ -404,22 +401,13 @@ p4_testgen_test(
     max_tests = 20,
 )
 
-p4_testgen_test(
-    name = "runtime-index-bmv2",
-    tags = ["manual"],  # index out of bounds for header stack
-)
+p4_testgen_test(name = "runtime-index-bmv2")
 
 p4_testgen_test(name = "saturated-bmv2")
 
-p4_testgen_test(
-    name = "stack_complex-bmv2",
-    tags = ["manual"],  # header stack overflow: nextIndex=3, size=3
-)
+p4_testgen_test(name = "stack_complex-bmv2")
 
-p4_testgen_test(
-    name = "subparser-with-header-stack-bmv2",
-    tags = ["manual"],  # header stack overflow: nextIndex=5, size=5
-)
+p4_testgen_test(name = "subparser-with-header-stack-bmv2")
 
 p4_testgen_test(name = "table-entries-exact-bmv2")
 
