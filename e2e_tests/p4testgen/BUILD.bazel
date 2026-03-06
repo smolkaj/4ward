@@ -15,6 +15,50 @@ kt_jvm_library(
 # + Z3) on a P4 program from the p4c test corpus to generate test cases, then
 # runs them against the simulator.
 
+_ARITH_SKELETON = ["@p4c//testdata/p4_16_samples:arith-skeleton.p4"]
+
+_ARITH_INLINE_SKELETON = ["@p4c//testdata/p4_16_samples:arith-inline-skeleton.p4"]
+
+p4_testgen_test(
+    name = "arith-bmv2",
+    includes = _ARITH_SKELETON,
+)
+
+p4_testgen_test(
+    name = "arith-inline-bmv2",
+    includes = _ARITH_INLINE_SKELETON,
+)
+
+p4_testgen_test(
+    name = "arith1-bmv2",
+    includes = _ARITH_SKELETON,
+)
+
+p4_testgen_test(
+    name = "arith2-bmv2",
+    includes = _ARITH_SKELETON,
+)
+
+p4_testgen_test(
+    name = "arith2-inline-bmv2",
+    includes = _ARITH_INLINE_SKELETON,
+)
+
+p4_testgen_test(
+    name = "arith3-bmv2",
+    includes = _ARITH_SKELETON,
+)
+
+p4_testgen_test(
+    name = "arith4-bmv2",
+    includes = _ARITH_SKELETON,
+)
+
+p4_testgen_test(
+    name = "arith5-bmv2",
+    includes = _ARITH_SKELETON,
+)
+
 p4_testgen_test(name = "array-copy-bmv2")
 
 p4_testgen_test(name = "bvec-hdr-bmv2")
@@ -53,6 +97,32 @@ p4_testgen_test(name = "gauntlet_exit_combination_7-bmv2")
 p4_testgen_test(name = "gauntlet_exit_combination_8-bmv2")
 
 p4_testgen_test(name = "gauntlet_exit_combination_9-bmv2")
+
+p4_testgen_test(name = "gauntlet_exit_combination_10-bmv2")
+
+p4_testgen_test(name = "gauntlet_exit_combination_11-bmv2")
+
+p4_testgen_test(name = "gauntlet_exit_combination_13-bmv2")
+
+p4_testgen_test(name = "gauntlet_exit_combination_14-bmv2")
+
+p4_testgen_test(name = "gauntlet_exit_combination_15-bmv2")
+
+p4_testgen_test(name = "gauntlet_exit_combination_16-bmv2")
+
+p4_testgen_test(name = "gauntlet_exit_combination_17-bmv2")
+
+p4_testgen_test(name = "gauntlet_exit_combination_18-bmv2")
+
+p4_testgen_test(name = "gauntlet_exit_combination_19-bmv2")
+
+p4_testgen_test(name = "gauntlet_exit_combination_20-bmv2")
+
+p4_testgen_test(name = "gauntlet_exit_combination_21-bmv2")
+
+p4_testgen_test(name = "gauntlet_exit_combination_22-bmv2")
+
+p4_testgen_test(name = "gauntlet_exit_combination_23-bmv2")
 
 p4_testgen_test(name = "gauntlet_hdr_assign_1-bmv2")
 
