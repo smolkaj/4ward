@@ -229,6 +229,7 @@ for target in ${TARGETS}; do
   mkdir -p "${test_coverage_dir}"
 
   echo -n "RUN   ${target} ... "
+  JAVA_RUNFILES="${bin_path}.runfiles" \
   JAVA_COVERAGE_FILE="${test_coverage_dir}/jvcov.dat" \
   COVERAGE_DIR="${test_coverage_dir}" \
   COVERAGE=1 \
