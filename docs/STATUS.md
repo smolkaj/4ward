@@ -6,6 +6,56 @@
 > Reverse-chronological log. Add new entries at the top (below this header).
 > See [ROADMAP.md](ROADMAP.md) for the big picture.
 
+## 2026-03-06 (morning)
+
+|                | Today   | Cumulative |
+|----------------|---------|------------|
+| PRs merged     | 19      | 196        |
+| Source (delta)  | +9.4k   | 118.1k     |
+| — Kotlin prod  |         | 5.7k       |
+| — Kotlin test  |         | 9.9k       |
+| — C++          |         | 2.5k       |
+| — Proto        |         | 0.9k       |
+
+**The north star is reached.** SAI P4 works end-to-end through 4ward's
+P4Runtime stack — pipeline load, `Write` with `sdn_string` type translation
+and p4-constraints validation, `Read` round-trips, `Delete`. Track 4 went
+from "4B–4E remain" this morning to all subtracks complete by evening.
+
+### Track 4: P4Runtime — done
+
+All five subtracks landed in a single day:
+
+- **4B: p4-constraints** (#196) — `@entry_restriction` validation at Write
+  time via C++ subprocess wrapping p4lang/p4-constraints. 12 tests.
+- **4C: string translation** (#192, #187) — `sdn_string` support for match
+  fields, action params, and PacketIO metadata. SAI P4's
+  `@p4runtime_translation("", string)` pattern works.
+- **4D: write validation** (#197) — `WriteValidator` enforces P4Runtime §9.1:
+  table/action IDs, param counts and widths, match field kinds, priority
+  rules. 18 unit tests + 6 E2E tests.
+- **4E: SAI P4 E2E** (#199) — the capstone. Real SAI P4 middleblock from
+  sonic-pins compiled, loaded, and exercised via P4Runtime with full string
+  translation. 8 E2E tests.
+- **Also**: register read/write (#195), action profile members and groups
+  (#185), spec compliance matrix (#202).
+
+### Testing infrastructure
+
+- **p4testgen JVM batching** (#198) — 155 tests in one JVM instead of 155
+  separate processes. Tagged `heavy`, skipped on PR CI.
+- **BMv2 diff testing expanded** (#188) — 5 → 183 programs.
+- **CI heavy test handling** (#201, #203, #204) — heavy tests run as a
+  conditional step on main pushes only; PRs stay snappy.
+
+### What's next
+
+- **Track 4E gaps**: packet forwarding through SAI P4 (needs full L3 path
+  setup), `@p4runtime_translation_mappings` (VRF's `"" → 0` explicit mapping)
+- **Track 1B**: expand p4testgen beyond 155 programs
+- **Track 1C**: verify BMv2 diff test results at scale
+- **Track 5**: PSA architecture (26 blocked corpus tests)
+
 ## 2026-03-06
 
 |                | Today   | Cumulative |
