@@ -138,7 +138,8 @@ class Interpreter(
         return case.nextState
       }
     }
-    return select.defaultState
+    // P4 spec §12.6: if no case matches and there is no default, reject.
+    return select.defaultState.ifEmpty { "reject" }
   }
 
   private fun matchesKeyset(
@@ -327,9 +328,14 @@ class Interpreter(
   /** P4 spec §8.18: header stack built-in properties. */
   private fun evalHeaderStackProperty(stack: HeaderStackVal, name: String): Value =
     when (name) {
+      // P4 spec §8.18: accessing .next when the stack is full is an error that
+      // transitions the parser to the reject state with error.StackOutOfBounds.
       "next" -> {
-        require(stack.nextIndex < stack.headers.size) {
-          "header stack overflow: nextIndex=${stack.nextIndex}, size=${stack.headers.size}"
+        if (stack.nextIndex >= stack.headers.size) {
+          throw ParserErrorException(
+            "StackOutOfBounds",
+            "header stack overflow: nextIndex=${stack.nextIndex}, size=${stack.headers.size}",
+          )
         }
         stack.headers[stack.nextIndex].also { stack.nextIndex++ }
       }
@@ -339,9 +345,11 @@ class Interpreter(
       else -> error("unknown header stack property: $name")
     }
 
+  // P4 spec §8.18: out-of-bounds reads return an invalid header with default values.
   private fun evalArrayIndex(ai: fourward.ir.v1.ArrayIndex, env: Environment): Value {
     val stack = evalExpr(ai.expr, env) as? HeaderStackVal ?: error("array index on non-stack value")
     val index = intValue(evalExpr(ai.index, env))
+    if (index < 0 || index >= stack.size) return defaultValue(stack.elementTypeName, types)
     return stack.headers[index]
   }
 
@@ -1153,10 +1161,11 @@ class Interpreter(
           else -> error("field assignment on non-aggregate: $target")
         }
       }
+      // P4 spec §8.18: out-of-bounds writes are no-ops.
       lhs.hasArrayIndex() -> {
         val stack = evalExpr(lhs.arrayIndex.expr, env) as HeaderStackVal
         val index = intValue(evalExpr(lhs.arrayIndex.index, env))
-        stack.headers[index] = copy
+        if (index in 0 until stack.size) stack.headers[index] = copy
       }
       lhs.hasSlice() -> {
         // Slice assignment: update [hi:lo] bits of the target.

@@ -17,11 +17,14 @@ package fourward.simulator
 import fourward.ir.v1.AssignmentStmt
 import fourward.ir.v1.BitType
 import fourward.ir.v1.Expr
+import fourward.ir.v1.KeysetExpr
 import fourward.ir.v1.Literal
 import fourward.ir.v1.NameRef
 import fourward.ir.v1.P4BehavioralConfig
 import fourward.ir.v1.ParserDecl
 import fourward.ir.v1.ParserState
+import fourward.ir.v1.SelectCase
+import fourward.ir.v1.SelectTransition
 import fourward.ir.v1.Stmt
 import fourward.ir.v1.Transition
 import fourward.ir.v1.Type
@@ -113,5 +116,37 @@ class InterpreterParserTest {
     // reject is a terminal state, not an exception — the pipeline drops the packet separately.
     val env = Environment()
     interp(state("start", "reject")).runParser("MyParser", env)
+  }
+
+  @Test
+  fun `select with no matching case and no default rejects`() {
+    // P4 spec §12.6: if no case matches and there is no default, transition to reject.
+    val env = Environment()
+    env.define("x", BitVal(0, 8))
+
+    val selectState =
+      ParserState.newBuilder()
+        .setName("start")
+        .addStmts(assign("x", bit(1, 8)))
+        .setTransition(
+          Transition.newBuilder()
+            .setSelect(
+              SelectTransition.newBuilder()
+                .addKeys(bit(99, 8))
+                .addCases(
+                  SelectCase.newBuilder()
+                    .addKeysets(KeysetExpr.newBuilder().setExact(bit(0, 8)))
+                    .setNextState("accept")
+                )
+              // no default_state set — should reject
+            )
+        )
+        .build()
+
+    interp(selectState).runParser("MyParser", env)
+
+    // The start state's stmts should have executed before the select.
+    assertEquals(BitVal(1, 8), env.lookup("x"))
+    // Parser stopped at reject (no exception thrown = success).
   }
 }

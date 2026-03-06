@@ -475,6 +475,21 @@ class InterpreterExprTest {
     assertEquals(hdr1, interp().evalExpr(expr, env))
   }
 
+  @Test
+  fun `array index out of bounds returns default value`() {
+    val env = emptyEnv
+    val hdr0 = HeaderVal("vlan_t", mutableMapOf("vid" to BitVal(10, 12)), valid = true)
+    env.define("stk", HeaderStackVal("vlan_t", mutableListOf(hdr0)))
+    val expr =
+      Expr.newBuilder()
+        .setArrayIndex(ArrayIndex.newBuilder().setExpr(nameRef("stk")).setIndex(bit(5, 8)))
+        .setType(Type.newBuilder().setNamed("vlan_t"))
+        .build()
+    // Out-of-bounds returns the type's default value (P4 spec §8.18).
+    // vlan_t isn't registered in the empty config, so defaultValue returns UnitVal.
+    assertEquals(UnitVal, interp().evalExpr(expr, env))
+  }
+
   // ---------------------------------------------------------------------------
   // Header stack properties (P4 spec §8.18)
   // ---------------------------------------------------------------------------
@@ -506,10 +521,10 @@ class InterpreterExprTest {
   }
 
   @Test
-  fun `stack next throws on overflow`() {
+  fun `stack next throws ParserErrorException on overflow`() {
     val (env, stack) = headerStack()
     stack.nextIndex = 2 // already past end
-    assertThrows(IllegalArgumentException::class.java) {
+    assertThrows(ParserErrorException::class.java) {
       interp().evalExpr(stackFieldAccess("next"), env)
     }
   }
