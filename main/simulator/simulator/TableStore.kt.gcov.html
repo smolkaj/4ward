@@ -31,13 +31,13 @@
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">96.3&nbsp;%</td>
+            <td class="headerCovTableEntryHi">96.6&nbsp;%</td>
             <td class="headerCovTableEntry">267</td>
-            <td class="headerCovTableEntry">257</td>
+            <td class="headerCovTableEntry">258</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-06 16:08:18</td>
+            <td class="headerValue">2026-03-06 16:28:49</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">98.4&nbsp;%</td>
@@ -549,10 +549,10 @@
 <span id="L487"><span class="lineNum">     487</span> <span class="tlaGNC">           1 :         when (value) {</span></span>
 <span id="L488"><span class="lineNum">     488</span> <span class="tlaGNC">           1 :           is BitVal -&gt; value.bits</span></span>
 <span id="L489"><span class="lineNum">     489</span> <span class="tlaGNC">           1 :           is BoolVal -&gt; if (value.value) BOOL_TRUE_BITS else BOOL_FALSE_BITS</span></span>
-<span id="L490"><span class="lineNum">     490</span> <span class="tlaUNC tlaBgUNC">           0 :           else -&gt; return null</span></span>
+<span id="L490"><span class="lineNum">     490</span> <span class="tlaGNC">           1 :           else -&gt; return null</span></span>
 <span id="L491"><span class="lineNum">     491</span>              :         }</span>
 <span id="L492"><span class="lineNum">     492</span>              : </span>
-<span id="L493"><span class="lineNum">     493</span> <span class="tlaGNC tlaBgGNC">           1 :       when {</span></span>
+<span id="L493"><span class="lineNum">     493</span> <span class="tlaGNC">           1 :       when {</span></span>
 <span id="L494"><span class="lineNum">     494</span> <span class="tlaGNC">           1 :         match.hasExact() -&gt; {</span></span>
 <span id="L495"><span class="lineNum">     495</span> <span class="tlaGNC">           1 :           if (bits.value != match.exact.value.toUnsignedBigInteger()) return null</span></span>
 <span id="L496"><span class="lineNum">     496</span>              :           // Exact match doesn't contribute to relative scoring — all exact</span>
