@@ -98,6 +98,9 @@ Three subtracks, each a different testing methodology:
 unpinned across the full corpus (1B), and BMv2 diff testing surfaces no
 mismatches (1C).
 
+**Current status:** 1A complete (186/186). 1B: 155 programs, all unpinned.
+1C: 183 programs diff-tested. See [STATUS.md](STATUS.md).
+
 ### Track 2: infrastructure
 
 **Priority: high (p4testgen batching) / nice to have (rest) | Parallelizable: yes**
@@ -113,6 +116,8 @@ p4testgen tests are tagged `heavy` and skipped locally.
 
 The rest is picked up opportunistically — see [REFACTORING.md](REFACTORING.md)
 for the full list.
+
+**Current status:** p4testgen batching done (155 tests in one JVM).
 
 ### Track 3: trace trees
 
@@ -134,6 +139,9 @@ Work breakdown:
 
 **Done when:** all golden trace tree tests pass and all existing corpus tests
 still pass.
+
+**Current status:** complete. All fork types (action selector, clone,
+multicast) implemented and tested.
 
 ### Track 4: P4Runtime reference implementation
 
@@ -158,19 +166,12 @@ the simulator. Goals:
 
 Five subtracks:
 
-- **4A: test strategy.** Define the P4Runtime testing philosophy — the
-  simulator has three independent methodologies (STF corpus, p4testgen,
-  BMv2 diff testing) and a clear confidence story; the server has 21 ad hoc
-  tests. Questions to answer:
-  - What's the P4Runtime equivalent of the STF corpus? (Maybe the P4Runtime
-    spec's own conformance expectations, systematically covered?)
-  - What's the equivalent of p4testgen? (Systematic negative testing —
-    malformed protos, out-of-range values, constraint violations, wrong
-    field IDs?)
-  - What's the equivalent of BMv2 diff testing? (Run the same P4Runtime
-    session against BMv2's gRPC server and 4ward, compare responses?)
-  - Are the existing 21 tests covering the right things, or just the things
-    that were convenient when they were written?
+- **4A: test strategy.** Three layers mirroring the simulator's approach:
+  conformance tests (spec compliance), round-trip testing (simulator
+  agreement), and fuzz testing (robustness). See
+  [TESTING_STRATEGY.md](TESTING_STRATEGY.md) for the philosophy and
+  [P4RUNTIME_COMPLIANCE.md](P4RUNTIME_COMPLIANCE.md) for the spec
+  requirement matrix.
 - **4B: p4-constraints.** JNI binding to
   [p4-constraints](https://github.com/p4lang/p4-constraints), validate
   `@entry_restriction` / `@action_restriction` at write time, actionable
@@ -187,6 +188,12 @@ Five subtracks:
 **Done when:** SAI P4 works end-to-end through standard P4Runtime:
 `SetForwardingPipelineConfig`, `Write` (with p4-constraints and
 `@p4runtime_translation` validation), `Read`, and `StreamChannel` packet I/O.
+
+**Current status:** 4A: three-layer strategy defined, compliance matrix
+tracks 61 tested / 12 not tested / 7 not implemented. 4B: done. 4C: done.
+4D: in progress. 4E: blocked on 4D. See
+[P4RUNTIME_COMPLIANCE.md](P4RUNTIME_COMPLIANCE.md) and
+[LIMITATIONS.md](LIMITATIONS.md).
 
 ### Track 5: architecture expansion (PSA, then PNA/TNA)
 
