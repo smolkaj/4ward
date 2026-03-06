@@ -349,7 +349,7 @@ class Interpreter(
   private fun evalArrayIndex(ai: fourward.ir.v1.ArrayIndex, env: Environment): Value {
     val stack = evalExpr(ai.expr, env) as? HeaderStackVal ?: error("array index on non-stack value")
     val index = intValue(evalExpr(ai.index, env))
-    if (index < 0 || index >= stack.size) return defaultValue(stack.elementTypeName, types)
+    if (index !in 0 until stack.size) return defaultValue(stack.elementTypeName, types)
     return stack.headers[index]
   }
 
