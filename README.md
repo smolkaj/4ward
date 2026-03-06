@@ -23,10 +23,10 @@ branch — delivered as a structured trace tree you can actually read.
              (proto IR + p4info)
                      │
                      ▼
-            ┌────────────────┐
- packet ──▶ │  4ward sim     │──▶ output packets
-            │  (Kotlin/JVM)  │──▶ trace tree  (the good stuff)
-            └────────────────┘
+            ┌───────────────┐
+ packet ──▶ │     4ward     │──▶ output packets
+            │   Simulator   │──▶ trace tree  (the good stuff)
+            └───────────────┘
                      ▲
              P4Runtime writes
              (table entries,
@@ -44,14 +44,14 @@ plane.
 
 | | Real hardware | BMv2 | **4ward** |
 |---|---|---|---|
-| Runs P4 programs | sure | sure | **yep** |
-| Spec-compliant | varies | needs workarounds | **by design** |
-| Trace format | nope | text | **proto/JSON** |
-| All possible traces | nope | not natively | **trace trees!** |
-| Architecture-generic | nope | nope | **by design** |
-| P4Runtime | sure | has gaps | **100% spec-compliant (planned)** |
-| Easy to extend | ehh | ehh | **if AI can extend it, anyone can** |
-| Simple, readable codebase | ehh | ehh | **yes!** |
+| Spec-compliance | varies | has gaps | [**by design**](docs/ROADMAP.md#track-1-v1model-spec-compliance) |
+| P4Runtime support | sure | has gaps | [**100% spec-compliant (planned)**](docs/ROADMAP.md#track-5-architecture-customization) |
+| Trace format | nope | text | [**proto/JSON**](https://github.com/smolkaj/4ward/blob/main/e2e_tests/trace_tree/clone_with_egress.golden.txtpb) |
+| All possible traces | nope | not natively | [**trace trees!**]((docs/ROADMAP.md#track-3-trace-trees)) |
+| Architecture-generic | nope | nope | [**by design**](docs/ROADMAP.md#track-5-architecture-customization) |
+| Architecture customization | nope | nope | [**by design**](docs/ROADMAP.md#track-5-architecture-customization) |
+| Easy to extend | ehh | ehh | [**if AI can extend it, anyone can**](docs/ROADMAP.md#why-4ward-is-easier-to-extend) |
+| Simple, readable codebase | ehh | ehh | [**yes!**](docs/ROADMAP.md#keeping-it-easy-the-strategy) |
 | Fast, rigorous CI | nope | slow | **[~2 min](https://4ward.buildbuddy.io/trends/)** |
 | Development pace | slow | slow | **[AI-fast](docs/AI_WORKFLOW.md)** |
 
