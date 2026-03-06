@@ -731,6 +731,64 @@ class TableStoreTest {
     assertEquals(2, store.readEntities(tableOnlyFilter).size)
   }
 
+  @Test
+  fun `readEntities distinguishes ternary entries by priority`() {
+    // Two ternary entries with the same match key but different priorities are distinct.
+    val entry1 =
+      ternaryEntry(
+        fieldId = 1,
+        value = byteArrayOf(0x0A),
+        mask = byteArrayOf(0xFF.toByte()),
+        priority = 10,
+        actionId = 10,
+      )
+    val entry2 =
+      ternaryEntry(
+        fieldId = 1,
+        value = byteArrayOf(0x0A),
+        mask = byteArrayOf(0xFF.toByte()),
+        priority = 20,
+        actionId = 20,
+      )
+    store.write(insertUpdate(entry1))
+    store.write(insertUpdate(entry2))
+
+    // Filter for priority=10 should return only entry1.
+    val filter =
+      TableEntry.newBuilder()
+        .setTableId(TABLE_ID)
+        .addMatch(entry1.getMatch(0))
+        .setPriority(10)
+        .build()
+    val results = store.readEntities(filter)
+    assertEquals("should return exactly one entry", 1, results.size)
+    assertEquals(10, results[0].tableEntry.priority)
+  }
+
+  @Test
+  fun `readEntities wildcard returns all entries across tables`() {
+    store.loadMappings(
+      tableNameById = mapOf(TABLE_ID to TABLE_NAME, 3 to "otherTable"),
+      actionNameById = ACTION_ID_TO_NAME,
+    )
+    val entry1 = exactEntry(fieldId = 1, value = byteArrayOf(1), actionId = 10)
+    val entry2 =
+      TableEntry.newBuilder()
+        .setTableId(3)
+        .addMatch(
+          FieldMatch.newBuilder()
+            .setFieldId(1)
+            .setExact(FieldMatch.Exact.newBuilder().setValue(ByteString.copyFrom(byteArrayOf(2))))
+        )
+        .setAction(TableAction.newBuilder().setAction(Action.newBuilder().setActionId(10)))
+        .build()
+    store.write(insertUpdate(entry1))
+    store.write(insertUpdate(entry2))
+
+    // Default filter (table_id=0, no match fields) → wildcard.
+    assertEquals(2, store.readEntities().size)
+  }
+
   private fun insertUpdate(entry: TableEntry): Update =
     Update.newBuilder()
       .setType(Update.Type.INSERT)
