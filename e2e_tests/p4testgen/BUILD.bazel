@@ -446,5 +446,4 @@ p4_testgen_test(name = "v1model-const-entries-bmv2")
 p4_testgen_test(
     name = "v1model-special-ops-bmv2",
     max_tests = 20,
-    tags = ["manual"],  # StackOverflowError from deep clone/recirculate fork trees
 )
