@@ -86,17 +86,16 @@ without it, trace trees aren't useful, P4Runtime is limited, and the
 
 Three subtracks, each a different testing methodology:
 
-- **1A: STF corpus** — make every v1model-capable p4c STF test pass.
-  See [STATUS.md](STATUS.md) for current counts and remaining gaps.
-- **1B: p4testgen** — unpin `max_tests = 1` limits, expand from 10 programs
-  to the full passing corpus, fix new failures. Deeper path coverage than
-  hand-written STFs.
-- **1C: BMv2 diff testing** — run the same inputs through BMv2 and 4ward,
-  compare outputs. Catches gaps that STF tests miss.
+- **1A: STF corpus** — **complete.** All 186 v1model-capable p4c STF tests
+  pass. The remaining 29 manual tests are blocked on PSA architecture (26),
+  user-defined externs (1), non-v1model architecture (1), and p4c compile
+  performance (1).
+- **1B: p4testgen** — all tests unpinned, 46 programs passing full path
+  exploration. Expanding to the full passing corpus.
+- **1C: BMv2 diff testing** — not started.
 
-**Done when:** all v1model-capable corpus tests pass (1A), p4testgen runs
-unpinned across the full corpus (1B), and BMv2 diff testing surfaces no
-mismatches (1C).
+**Done when:** p4testgen runs unpinned across the full corpus (1B) and BMv2
+diff testing surfaces no mismatches (1C).
 
 ### Track 2: infrastructure
 
