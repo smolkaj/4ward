@@ -73,122 +73,170 @@ class V1ModelArchitecture : Architecture {
   }
 
   /**
-   * Recursively builds a trace tree by re-executing the pipeline for each fork branch.
+   * Iteratively builds a trace tree by re-executing the pipeline for each fork branch.
    *
-   * When a [ForkException] is thrown (action selector, clone, or multicast), this method
-   * re-executes the full pipeline once per branch with appropriate [ForkDecisions], and assembles
-   * the results into a [TraceTree] with a [Fork]. Shared prefix events are stripped from branches.
+   * Uses an explicit work stack instead of recursion so that deeply nested fork chains (clone →
+   * recirculate → clone → ...) don't overflow the JVM call stack. Each iteration runs one pipeline
+   * execution; forks push new work items instead of recursing.
    */
   private fun buildTraceTree(
     ctx: PipelineContext,
     decisions: ForkDecisions,
     prefixLength: Int,
   ): PipelineResult {
-    try {
-      val trace = runPipeline(ctx, decisions)
-      val stripped = TraceTree.newBuilder().addAllEvents(trace.eventsList.drop(prefixLength))
-      if (trace.hasPacketOutcome()) stripped.setPacketOutcome(trace.packetOutcome)
-      return PipelineResult(stripped.build())
-    } catch (fork: ForkException) {
-      val levelEvents = fork.eventsBeforeFork.drop(prefixLength)
-      val (reason, branches) = buildForkBranches(ctx, decisions, fork)
-      val tree =
-        TraceTree.newBuilder()
-          .addAllEvents(levelEvents)
-          .setForkOutcome(Fork.newBuilder().setReason(reason).addAllBranches(branches))
-          .build()
-      return PipelineResult(tree)
+    val workStack = ArrayDeque<Frame>()
+    val resultStack = ArrayDeque<TraceTree>()
+    var executions = 0
+    workStack.addFirst(Frame.Run(ctx, decisions, prefixLength))
+
+    while (workStack.isNotEmpty()) {
+      when (val frame = workStack.removeFirst()) {
+        is Frame.Run -> {
+          if (++executions > MAX_PIPELINE_EXECUTIONS) {
+            resultStack.addFirst(
+              buildDropTrace(emptyList(), DropReason.PIPELINE_EXECUTION_LIMIT_REACHED)
+            )
+            continue
+          }
+          try {
+            val trace = runPipeline(frame.ctx, frame.decisions)
+            val stripped =
+              TraceTree.newBuilder().addAllEvents(trace.eventsList.drop(frame.prefixLength))
+            if (trace.hasPacketOutcome()) stripped.setPacketOutcome(trace.packetOutcome)
+            resultStack.addFirst(stripped.build())
+          } catch (fork: ForkException) {
+            val levelEvents = fork.eventsBeforeFork.drop(frame.prefixLength)
+            val (reason, specs) = forkSpecs(frame.ctx, frame.decisions, fork)
+            // Push assemble frame first so it runs after all children complete.
+            workStack.addFirst(Frame.Assemble(reason, specs.map { it.label }, levelEvents))
+            // Push children in forward order: last child at top → processed first →
+            // result pushed first → popped last during assembly → correct order.
+            for (spec in specs) {
+              workStack.addFirst(Frame.Run(spec.ctx, spec.decisions, spec.prefixLength))
+            }
+          }
+        }
+        is Frame.Assemble -> {
+          val branches =
+            frame.labels.map { label ->
+              ForkBranch.newBuilder().setLabel(label).setSubtree(resultStack.removeFirst()).build()
+            }
+          val tree =
+            TraceTree.newBuilder()
+              .addAllEvents(frame.events)
+              .setForkOutcome(Fork.newBuilder().setReason(frame.reason).addAllBranches(branches))
+              .build()
+          resultStack.addFirst(tree)
+        }
+      }
     }
+
+    return PipelineResult(resultStack.removeFirst())
   }
 
-  /** Dispatches fork handling to the appropriate branch builder. */
-  private fun buildForkBranches(
+  /** Work stack frames for iterative [buildTraceTree]. */
+  private sealed class Frame {
+    data class Run(val ctx: PipelineContext, val decisions: ForkDecisions, val prefixLength: Int) :
+      Frame()
+
+    data class Assemble(
+      val reason: ForkReason,
+      val labels: List<String>,
+      val events: List<TraceEvent>,
+    ) : Frame()
+  }
+
+  /** A branch specification: everything needed to re-execute one fork branch. */
+  private data class BranchSpec(
+    val label: String,
+    val ctx: PipelineContext,
+    val decisions: ForkDecisions,
+    val prefixLength: Int,
+  )
+
+  /** Maps a [ForkException] to the fork reason and per-branch execution specs. */
+  private fun forkSpecs(
     ctx: PipelineContext,
     decisions: ForkDecisions,
     fork: ForkException,
-  ): Pair<ForkReason, List<ForkBranch>> =
+  ): Pair<ForkReason, List<BranchSpec>> =
     when (fork) {
       is ActionSelectorFork -> {
-        val branches =
+        val specs =
           fork.members.map { member ->
-            val newDecisions =
+            val d =
               decisions.copy(
                 selectorMembers = decisions.selectorMembers + (fork.tableName to member.memberId)
               )
-            forkBranch("member_${member.memberId}", ctx, newDecisions, fork.eventsBeforeFork.size)
+            BranchSpec("member_${member.memberId}", ctx, d, fork.eventsBeforeFork.size)
           }
-        ForkReason.ACTION_SELECTOR to branches
+        ForkReason.ACTION_SELECTOR to specs
       }
       is CloneFork -> {
-        val originalDecisions =
-          decisions.copy(branchMode = BranchMode.Normal(suppressI2EClone = true))
-        val cloneDecisions = decisions.copy(branchMode = BranchMode.I2EClone(fork.sessionId))
         // The clone branch skips ingress, so its prefix is only parser events.
-        val branches =
+        ForkReason.CLONE to
           listOf(
-            forkBranch("original", ctx, originalDecisions, fork.eventsBeforeFork.size),
-            forkBranch("clone", ctx, cloneDecisions, fork.parserEventCount),
+            BranchSpec(
+              "original",
+              ctx,
+              decisions.copy(branchMode = BranchMode.Normal(suppressI2EClone = true)),
+              fork.eventsBeforeFork.size,
+            ),
+            BranchSpec(
+              "clone",
+              ctx,
+              decisions.copy(branchMode = BranchMode.I2EClone(fork.sessionId)),
+              fork.parserEventCount,
+            ),
           )
-        ForkReason.CLONE to branches
       }
       is EgressCloneFork -> {
-        val originalDecisions =
-          decisions.copy(branchMode = BranchMode.Normal(suppressE2EClone = true))
-        val cloneDecisions = decisions.copy(branchMode = BranchMode.E2EClone(fork.sessionId))
-        val branches =
+        ForkReason.CLONE to
           listOf(
-            forkBranch("original", ctx, originalDecisions, fork.eventsBeforeFork.size),
-            forkBranch("clone", ctx, cloneDecisions, fork.eventsBeforeFork.size),
+            BranchSpec(
+              "original",
+              ctx,
+              decisions.copy(branchMode = BranchMode.Normal(suppressE2EClone = true)),
+              fork.eventsBeforeFork.size,
+            ),
+            BranchSpec(
+              "clone",
+              ctx,
+              decisions.copy(branchMode = BranchMode.E2EClone(fork.sessionId)),
+              fork.eventsBeforeFork.size,
+            ),
           )
-        ForkReason.CLONE to branches
       }
       is MulticastFork -> {
-        val branches =
+        val specs =
           fork.replicas.map { replica ->
-            val replicaDecisions = decisions.copy(branchMode = replica)
-            forkBranch(
+            BranchSpec(
               "replica_${replica.rid}_port_${replica.port}",
               ctx,
-              replicaDecisions,
+              decisions.copy(branchMode = replica),
               fork.eventsBeforeFork.size,
             )
           }
-        ForkReason.MULTICAST to branches
+        ForkReason.MULTICAST to specs
       }
       is ResubmitFork -> {
-        val newDecisions =
+        val d =
           ForkDecisions(
             pipelineDepth = decisions.pipelineDepth + 1,
             instanceTypeOverride = RESUBMIT_INSTANCE_TYPE,
           )
-        val branch = forkBranch("resubmit", ctx, newDecisions, fork.eventsBeforeFork.size)
-        ForkReason.RESUBMIT to listOf(branch)
+        ForkReason.RESUBMIT to listOf(BranchSpec("resubmit", ctx, d, fork.eventsBeforeFork.size))
       }
       is RecirculateFork -> {
-        // Fresh pipeline execution with deparsed bytes as new input — no shared prefix.
-        val newCtx = ctx.copy(payload = fork.deparsedBytes)
-        val newDecisions =
+        val d =
           ForkDecisions(
             pipelineDepth = decisions.pipelineDepth + 1,
             instanceTypeOverride = RECIRC_INSTANCE_TYPE,
           )
-        val result = buildTraceTree(newCtx, newDecisions, prefixLength = 0)
-        val branch =
-          ForkBranch.newBuilder().setLabel("recirculate").setSubtree(result.trace).build()
-        ForkReason.RECIRCULATE to listOf(branch)
+        ForkReason.RECIRCULATE to
+          listOf(BranchSpec("recirculate", ctx.copy(payload = fork.deparsedBytes), d, 0))
       }
     }
-
-  /** Re-executes the pipeline for one branch and wraps the result in a [ForkBranch]. */
-  private fun forkBranch(
-    label: String,
-    ctx: PipelineContext,
-    decisions: ForkDecisions,
-    prefixLength: Int,
-  ): ForkBranch {
-    val result = buildTraceTree(ctx, decisions, prefixLength)
-    return ForkBranch.newBuilder().setLabel(label).setSubtree(result.trace).build()
-  }
 
   /**
    * Creates a fresh [PipelineState] for one pipeline execution.
@@ -445,6 +493,10 @@ class V1ModelArchitecture : Architecture {
     private const val REPLICA_ID_BITS = 16
 
     private const val MAX_PIPELINE_DEPTH = 10
+
+    // Cap on total pipeline executions per packet to prevent exponential blowup
+    // from nested clone/recirculate chains (e.g. clone → recirculate → clone → ...).
+    private const val MAX_PIPELINE_EXECUTIONS = 1000
 
     // v1model instance_type values (BMv2 PktInstanceType convention).
     private const val CLONE_I2E_INSTANCE_TYPE = 1L
