@@ -42,23 +42,12 @@ private constructor(
       ConstraintRequest.newBuilder()
         .setValidateEntry(ValidateEntryRequest.newBuilder().setEntry(entry))
         .build()
-    val response = call(request)
+    val response = call(input, output, request)
     if (response.hasError()) {
       throw ConstraintValidatorException(response.error.message)
     }
     val violation = response.validateEntry.violation
     return violation.ifEmpty { null }
-  }
-
-  private fun call(request: ConstraintRequest): ConstraintResponse {
-    val bytes = request.toByteArray()
-    output.writeInt(bytes.size)
-    output.write(bytes)
-    output.flush()
-    val length = input.readInt()
-    val respBytes = ByteArray(length)
-    input.readFully(respBytes)
-    return ConstraintResponse.parseFrom(respBytes)
   }
 
   override fun close() {
@@ -72,6 +61,22 @@ private constructor(
 
   companion object {
     private const val SHUTDOWN_TIMEOUT_SECONDS = 5L
+
+    /** Sends a request and reads the response using length-delimited protobuf framing. */
+    private fun call(
+      input: DataInputStream,
+      output: DataOutputStream,
+      request: ConstraintRequest,
+    ): ConstraintResponse {
+      val bytes = request.toByteArray()
+      output.writeInt(bytes.size)
+      output.write(bytes)
+      output.flush()
+      val length = input.readInt()
+      val respBytes = ByteArray(length)
+      input.readFully(respBytes)
+      return ConstraintResponse.parseFrom(respBytes)
+    }
 
     /**
      * Creates a ConstraintValidator by spawning the validator subprocess and loading the given
@@ -89,20 +94,11 @@ private constructor(
       val input = DataInputStream(process.inputStream.buffered())
       val output = DataOutputStream(process.outputStream.buffered())
 
-      // Send LoadP4Info request.
       val request =
         ConstraintRequest.newBuilder()
           .setLoadP4Info(LoadP4InfoRequest.newBuilder().setP4Info(p4info))
           .build()
-      val bytes = request.toByteArray()
-      output.writeInt(bytes.size)
-      output.write(bytes)
-      output.flush()
-
-      val length = input.readInt()
-      val respBytes = ByteArray(length)
-      input.readFully(respBytes)
-      val response = ConstraintResponse.parseFrom(respBytes)
+      val response = call(input, output, request)
 
       if (response.hasError()) {
         process.destroyForcibly().waitFor()
@@ -113,7 +109,6 @@ private constructor(
 
       val loadResponse = response.loadP4Info
       if (loadResponse.constrainedTables == 0 && loadResponse.constrainedActions == 0) {
-        // No constraints — shut down the subprocess and return null.
         output.close()
         process.destroy()
         process.waitFor(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS)

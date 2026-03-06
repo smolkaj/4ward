@@ -29,8 +29,7 @@ class P4RuntimeConstraintTest {
   @Before
   fun setUp() {
     val runfiles = System.getenv("JAVA_RUNFILES") ?: "."
-    val validatorPath =
-      Paths.get(runfiles, "_main/p4runtime/constraint_validator")
+    val validatorPath = Paths.get(runfiles, "_main/p4runtime/constraint_validator")
     harness = P4RuntimeTestHarness(constraintValidatorBinary = validatorPath)
     config = loadConfig("e2e_tests/constrained_table/constrained_table.txtpb")
     harness.loadPipeline(config)
@@ -41,7 +40,8 @@ class P4RuntimeConstraintTest {
     harness.close()
   }
 
-  private fun aclTableId(): Int = config.p4Info.tablesList.first { it.preamble.name.contains("acl") }.preamble.id
+  private fun aclTableId(): Int =
+    config.p4Info.tablesList.first { it.preamble.name.contains("acl") }.preamble.id
 
   private fun forwardActionId(): Int =
     config.p4Info.actionsList.first { it.preamble.name.contains("forward") }.preamble.id
@@ -164,10 +164,11 @@ class P4RuntimeConstraintTest {
     // Load basic_table which has no @entry_restriction — no validator subprocess.
     val basicConfig = loadConfig("e2e_tests/basic_table/basic_table.txtpb")
     harness.close()
-    val basicHarness = P4RuntimeTestHarness(
-      constraintValidatorBinary =
-        Paths.get(System.getenv("JAVA_RUNFILES") ?: ".", "_main/p4runtime/constraint_validator")
-    )
+    val basicHarness =
+      P4RuntimeTestHarness(
+        constraintValidatorBinary =
+          Paths.get(System.getenv("JAVA_RUNFILES") ?: ".", "_main/p4runtime/constraint_validator")
+      )
     basicHarness.loadPipeline(basicConfig)
 
     val entry = P4RuntimeTestHarness.buildExactEntry(basicConfig, matchValue = 0x0800, port = 1)
