@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-06 07:55:19</td>
+            <td class="headerValue">2026-03-06 08:39:08</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -62,7 +62,7 @@
 <pre class="source">
 <span id="L1"><span class="lineNum">       1</span>              : package fourward.simulator</span>
 <span id="L2"><span class="lineNum">       2</span>              : </span>
-<span id="L3"><span class="lineNum">       3</span>              : import fourward.ir.v1.P4BehavioralConfig</span>
+<span id="L3"><span class="lineNum">       3</span>              : import fourward.ir.v1.BehavioralConfig</span>
 <span id="L4"><span class="lineNum">       4</span>              : import fourward.ir.v1.PipelineStage</span>
 <span id="L5"><span class="lineNum">       5</span>              : import fourward.ir.v1.StageKind</span>
 <span id="L6"><span class="lineNum">       6</span>              : import fourward.sim.v1.Drop</span>
@@ -101,7 +101,7 @@
 <span id="L39"><span class="lineNum">      39</span> <span class="tlaGNC">           1 :   private data class PipelineContext(</span></span>
 <span id="L40"><span class="lineNum">      40</span> <span class="tlaGNC">           1 :     val ingressPort: UInt,</span></span>
 <span id="L41"><span class="lineNum">      41</span> <span class="tlaGNC">           1 :     val payload: ByteArray,</span></span>
-<span id="L42"><span class="lineNum">      42</span> <span class="tlaGNC">           1 :     val config: P4BehavioralConfig,</span></span>
+<span id="L42"><span class="lineNum">      42</span> <span class="tlaGNC">           1 :     val config: BehavioralConfig,</span></span>
 <span id="L43"><span class="lineNum">      43</span> <span class="tlaGNC">           1 :     val tableStore: TableStore,</span></span>
 <span id="L44"><span class="lineNum">      44</span>              :   )</span>
 <span id="L45"><span class="lineNum">      45</span>              : </span>
@@ -111,7 +111,7 @@
 <span id="L49"><span class="lineNum">      49</span> <span class="tlaGNC">           1 :     val interpreter: Interpreter,</span></span>
 <span id="L50"><span class="lineNum">      50</span> <span class="tlaGNC">           1 :     val env: Environment,</span></span>
 <span id="L51"><span class="lineNum">      51</span> <span class="tlaGNC">           1 :     val standardMetadata: StructVal,</span></span>
-<span id="L52"><span class="lineNum">      52</span>              :     config: P4BehavioralConfig,</span>
+<span id="L52"><span class="lineNum">      52</span>              :     config: BehavioralConfig,</span>
 <span id="L53"><span class="lineNum">      53</span>              :   ) {</span>
 <span id="L54"><span class="lineNum">      54</span> <span class="tlaGNC">           1 :     private val stages = config.architecture.stagesList</span></span>
 <span id="L55"><span class="lineNum">      55</span> <span class="tlaGNC">           1 :     val parserStage: PipelineStage? = stages.find { it.kind == StageKind.PARSER }</span></span>
@@ -127,7 +127,7 @@
 <span id="L65"><span class="lineNum">      65</span>              :   override fun processPacket(</span>
 <span id="L66"><span class="lineNum">      66</span>              :     ingressPort: UInt,</span>
 <span id="L67"><span class="lineNum">      67</span>              :     payload: ByteArray,</span>
-<span id="L68"><span class="lineNum">      68</span>              :     config: P4BehavioralConfig,</span>
+<span id="L68"><span class="lineNum">      68</span>              :     config: BehavioralConfig,</span>
 <span id="L69"><span class="lineNum">      69</span>              :     tableStore: TableStore,</span>
 <span id="L70"><span class="lineNum">      70</span>              :   ): PipelineResult {</span>
 <span id="L71"><span class="lineNum">      71</span> <span class="tlaGNC">           1 :     val ctx = PipelineContext(ingressPort, payload, config, tableStore)</span></span>
