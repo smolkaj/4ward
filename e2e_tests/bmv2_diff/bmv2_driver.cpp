@@ -29,6 +29,7 @@
 #include <iomanip>
 #include <iostream>
 #include <mutex>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -279,7 +280,7 @@ int main(int argc, char* argv[]) {
 
       // Action params: tokens after => (excluding priority)
       std::vector<std::string> params;
-      int priority = -1;
+      std::optional<int> priority;
       if (arrow_idx > 0) {
         for (size_t i = arrow_idx + 1; i < tokens.size(); i++) {
           if (tokens[i] == "priority" && i + 1 < tokens.size()) {
@@ -296,7 +297,9 @@ int main(int argc, char* argv[]) {
       // (lookup_structures.cpp picks the matching entry with the minimum
       // priority field). The STF/P4Runtime convention is higher-value =
       // higher-priority. Negate to bridge the gap.
-      int bmv2_priority = priority > 0 ? -priority : priority;
+      // Note: simple negation (vs BMv2's own PriorityInverter which uses
+      // INT_MAX - p) is fine here since we only write entries, never read back.
+      int bmv2_priority = priority.has_value() ? -*priority : -1;
       auto rc = sw->mt_add_entry(0, table, match_keys, action, std::move(ad),
                                  &handle, bmv2_priority);
       if (rc != MatchErrorCode::SUCCESS) {
