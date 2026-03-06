@@ -128,7 +128,7 @@ fork_outcome {
 
 No printf debugging. No Wireshark. No guessing.
 
-### Try it with your own program!
+### Try for yourself!
 
 ```sh
 # Copy the template test directory.
