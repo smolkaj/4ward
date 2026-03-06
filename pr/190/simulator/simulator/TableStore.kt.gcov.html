@@ -1,0 +1,593 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - coverage.lcov - simulator/simulator/TableStore.kt</title>
+  <link rel="stylesheet" type="text/css" href="../../gcov.css">
+</head>
+
+<body>
+
+          <table width="100%" border=0 cellspacing=0 cellpadding=0>
+            <tr><td class="title">LCOV - differential code coverage report</td></tr>
+            <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+
+            <tr>
+              <td width="100%">
+                <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="10%" class="headerValue"><a href="../../index.html">top level</a> - <a href="index.html">simulator/simulator</a> - TableStore.kt<span style="font-size: 80%;"> (source / <a href="TableStore.kt.func-c.html">functions</a>)</span></td>
+            <td width="5%"></td>
+            <td width="5%"></td>
+            <td width="5%" class="headerCovTableHead">Coverage</td>
+            <td width="5%" class="headerCovTableHead" title="Covered + Uncovered code (not including EUB, ECB, DUB, DCB categories)">Total</td>
+            <td width="5%" class="headerCovTableHead" title="Exercised code only (CBC + GBC + GNC + GIC)">Hit</td>
+            <td width="5%" class="headerCovTableHeadLBC" title="Lost Baseline Coverage (1 => 0):
+Unchanged code is no longer tested">Coverage lost</td>
+            <td width="5%" class="headerCovTableHeadUIC" title="Uncovered Included Code (# => 0):
+Previously unused code is untested">Included (not covered)</td>
+            <td width="5%" class="headerCovTableHeadUBC" title="Uncovered Baseline Code (0 => 0):
+Unchanged code was untested before, is untested now">Not covered</td>
+            <td width="5%" class="headerCovTableHeadGBC" title="Gained Baseline Coverage (0 => 1):
+Unchanged code is tested now">Newly covered</td>
+            <td width="5%" class="headerCovTableHeadGIC" title="Gained Included Coverage (# => 1):
+Previously unused code is tested now">Included (covered)</td>
+            <td width="5%" class="headerCovTableHeadCBC" title="Covered Baseline Code (1 => 1):
+Unchanged code was tested before and is still tested">Covered</td>
+            <td width="5%" class="headerCovTableHeadEUB" title="Excluded Uncovered Baseline (0 => #):
+Previously untested code is unused now">Excluded (not covered)</td>
+            <td width="5%" class="headerCovTableHeadECB" title="Excluded Covered Baseline (1 => #):
+Previously tested code is unused now">Excluded (covered)</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Current:</td>
+            <td class="headerValue">coverage.lcov</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntryHi">96.0&nbsp;%</td>
+            <td class="headerCovTableEntry">227</td>
+            <td class="headerCovTableEntry">218</td>
+            <td class="headerCovTableEntry"><a href="#L186" title="goto first LBC">3</a></td>
+            <td class="headerCovTableEntry"><a href="#L376" title="goto first UIC">5</a></td>
+            <td class="headerCovTableEntry"><a href="#L26" title="goto first UBC">1</a></td>
+            <td class="headerCovTableEntry"><a href="#L299" title="goto first GBC">2</a></td>
+            <td class="headerCovTableEntry"><a href="#L141" title="goto first GIC">102</a></td>
+            <td class="headerCovTableEntry"><a href="#L11" title="goto first CBC">114</a></td>
+            <td class="headerCovTableEntry"><a href="#L192" title="goto first EUB">5</a></td>
+            <td class="headerCovTableEntry"><a href="#L143" title="goto first ECB">69</a></td>
+          </tr>
+          <tr>
+            <td class="headerItem">Current Date:</td>
+            <td class="headerValue">2026-03-06 09:10:57</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntryHi">96.4&nbsp;%</td>
+            <td class="headerCovTableEntry">56</td>
+            <td class="headerCovTableEntry">54</td>
+            <td class="headerCovTableEntry"></td>
+            <td class="headerCovTableEntry"></td>
+            <td class="headerCovTableEntry">2</td>
+            <td class="headerCovTableEntry"></td>
+            <td class="headerCovTableEntry">34</td>
+            <td class="headerCovTableEntry">20</td>
+            <td class="headerCovTableEntry"></td>
+            <td class="headerCovTableEntry">26</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Baseline:</td>
+            <td class="headerValue">baseline.lcov</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td class="headerItem">Baseline Date:</td>
+            <td class="headerValue">2026-03-06 09:05:04</td>
+            <td></td>
+          </tr>
+                  <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+          </table>
+
+          <table cellpadding=0 cellspacing=0 border=0>
+            <tr>
+              <td><br></td>
+            </tr>
+            <tr>
+              <td>
+<pre class="sourceHeading">           TLA  Line data    Source code</pre>
+<pre class="source">
+<span id="L1"><span class="lineNum">       1</span>                 : package fourward.simulator</span>
+<span id="L2"><span class="lineNum">       2</span>                 : </span>
+<span id="L3"><span class="lineNum">       3</span>                 : import com.google.protobuf.ByteString</span>
+<span id="L4"><span class="lineNum">       4</span>                 : import java.math.BigInteger</span>
+<span id="L5"><span class="lineNum">       5</span>                 : import p4.config.v1.P4InfoOuterClass</span>
+<span id="L6"><span class="lineNum">       6</span>                 : import p4.v1.P4RuntimeOuterClass</span>
+<span id="L7"><span class="lineNum">       7</span>                 : import p4.v1.P4RuntimeOuterClass.TableEntry</span>
+<span id="L8"><span class="lineNum">       8</span>                 : import p4.v1.P4RuntimeOuterClass.Update</span>
+<span id="L9"><span class="lineNum">       9</span>                 : </span>
+<span id="L10"><span class="lineNum">      10</span>                 : /** Interprets a protobuf [ByteString] as an unsigned big-endian integer. */</span>
+<span id="L11"><span class="lineNum">      11</span> <a href="#L37" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 : private fun ByteString.toUnsignedBigInteger(): BigInteger = BigInteger(1, toByteArray())</span></span>
+<span id="L12"><span class="lineNum">      12</span>                 : </span>
+<span id="L13"><span class="lineNum">      13</span>                 : // P4Runtime spec §9.1: two entries are the same iff they have the same match key</span>
+<span id="L14"><span class="lineNum">      14</span>                 : // AND the same priority (priority is part of the key for ternary/range tables).</span>
+<span id="L15"><span class="lineNum">      15</span>                 : private fun TableEntry.sameKey(other: TableEntry): Boolean =</span>
+<span id="L16"><span class="lineNum">      16</span> <span class="tlaCBC">              1 :   tableId == other.tableId &amp;&amp; priority == other.priority &amp;&amp; matchList == other.matchList</span></span>
+<span id="L17"><span class="lineNum">      17</span>                 : </span>
+<span id="L18"><span class="lineNum">      18</span>                 : /** Result of a [TableStore.write] operation. */</span>
+<span id="L19"><span class="lineNum">      19</span>                 : sealed class WriteResult {</span>
+<span id="L20"><span class="lineNum">      20</span> <span class="tlaCBC">              1 :   data object Success : WriteResult()</span></span>
+<span id="L21"><span class="lineNum">      21</span>                 : </span>
+<span id="L22"><span class="lineNum">      22</span> <span class="tlaCBC">              1 :   data class AlreadyExists(val message: String) : WriteResult()</span></span>
+<span id="L23"><span class="lineNum">      23</span>                 : </span>
+<span id="L24"><span class="lineNum">      24</span> <span class="tlaCBC">              1 :   data class NotFound(val message: String) : WriteResult()</span></span>
+<span id="L25"><span class="lineNum">      25</span>                 : </span>
+<span id="L26"><span class="lineNum">      26</span> <a href="#top" class="tlaBgUBC"  title="Next UBC group">Not covered</a><span class="tlaUBC tlaBgUBC">           0 :   data class InvalidArgument(val message: String) : WriteResult()</span></span>
+<span id="L27"><span class="lineNum">      27</span>                 : }</span>
+<span id="L28"><span class="lineNum">      28</span>                 : </span>
+<span id="L29"><span class="lineNum">      29</span>                 : /**</span>
+<span id="L30"><span class="lineNum">      30</span>                 :  * Stores and looks up P4 table entries for all tables in a loaded pipeline.</span>
+<span id="L31"><span class="lineNum">      31</span>                 :  *</span>
+<span id="L32"><span class="lineNum">      32</span>                 :  * Supports exact, LPM, ternary, range, and optional match kinds. Entries are stored per-table;</span>
+<span id="L33"><span class="lineNum">      33</span>                 :  * lookup returns the highest-priority match.</span>
+<span id="L34"><span class="lineNum">      34</span>                 :  *</span>
+<span id="L35"><span class="lineNum">      35</span>                 :  * Call [loadMappings] once per pipeline load before any [write] or [lookup] calls.</span>
+<span id="L36"><span class="lineNum">      36</span>                 :  */</span>
+<span id="L37"><span class="lineNum">      37</span> <a href="#L142" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 : class TableStore {</span></span>
+<span id="L38"><span class="lineNum">      38</span>                 : </span>
+<span id="L39"><span class="lineNum">      39</span>                 :   // tableName -&gt; list of entries, ordered by insertion (priority is explicit in the entry)</span>
+<span id="L40"><span class="lineNum">      40</span> <span class="tlaCBC">              1 :   private val tables: MutableMap&lt;String, MutableList&lt;TableEntry&gt;&gt; = mutableMapOf()</span></span>
+<span id="L41"><span class="lineNum">      41</span>                 : </span>
+<span id="L42"><span class="lineNum">      42</span>                 :   // tableName -&gt; default action name + arguments (from p4info)</span>
+<span id="L43"><span class="lineNum">      43</span> <span class="tlaCBC">              1 :   private data class DefaultAction(</span></span>
+<span id="L44"><span class="lineNum">      44</span> <span class="tlaCBC">              1 :     val name: String,</span></span>
+<span id="L45"><span class="lineNum">      45</span> <span class="tlaCBC">              1 :     val params: List&lt;p4.v1.P4RuntimeOuterClass.Action.Param&gt; = emptyList(),</span></span>
+<span id="L46"><span class="lineNum">      46</span> <span class="tlaCBC">              1 :   )</span></span>
+<span id="L47"><span class="lineNum">      47</span>                 : </span>
+<span id="L48"><span class="lineNum">      48</span> <span class="tlaCBC">              1 :   private val defaultActions: MutableMap&lt;String, DefaultAction&gt; = mutableMapOf()</span></span>
+<span id="L49"><span class="lineNum">      49</span>                 : </span>
+<span id="L50"><span class="lineNum">      50</span>                 :   // registerName -&gt; index -&gt; stored value (persists across packets)</span>
+<span id="L51"><span class="lineNum">      51</span> <span class="tlaCBC">              1 :   private val registers: MutableMap&lt;String, MutableMap&lt;Int, Value&gt;&gt; = mutableMapOf()</span></span>
+<span id="L52"><span class="lineNum">      52</span>                 : </span>
+<span id="L53"><span class="lineNum">      53</span>                 :   // For unit tests that cannot easily construct TableEntry protos: makes lookup() return</span>
+<span id="L54"><span class="lineNum">      54</span>                 :   // hit=true with this action rather than searching the entry list.</span>
+<span id="L55"><span class="lineNum">      55</span> <span class="tlaCBC">              1 :   private val forcedHits: MutableMap&lt;String, String&gt; = mutableMapOf()</span></span>
+<span id="L56"><span class="lineNum">      56</span>                 : </span>
+<span id="L57"><span class="lineNum">      57</span>                 :   // Action profile storage: action_profile_id → member_id → ActionProfileMember</span>
+<span id="L58"><span class="lineNum">      58</span>                 :   private val profileMembers:</span>
+<span id="L59"><span class="lineNum">      59</span>                 :     MutableMap&lt;Int, MutableMap&lt;Int, P4RuntimeOuterClass.ActionProfileMember&gt;&gt; =</span>
+<span id="L60"><span class="lineNum">      60</span> <span class="tlaCBC">              1 :     mutableMapOf()</span></span>
+<span id="L61"><span class="lineNum">      61</span>                 : </span>
+<span id="L62"><span class="lineNum">      62</span>                 :   // Action profile storage: action_profile_id → group_id → ActionProfileGroup</span>
+<span id="L63"><span class="lineNum">      63</span>                 :   private val profileGroups:</span>
+<span id="L64"><span class="lineNum">      64</span>                 :     MutableMap&lt;Int, MutableMap&lt;Int, P4RuntimeOuterClass.ActionProfileGroup&gt;&gt; =</span>
+<span id="L65"><span class="lineNum">      65</span> <span class="tlaCBC">              1 :     mutableMapOf()</span></span>
+<span id="L66"><span class="lineNum">      66</span>                 : </span>
+<span id="L67"><span class="lineNum">      67</span>                 :   // tableName → action_profile_id (populated from p4info at load time)</span>
+<span id="L68"><span class="lineNum">      68</span> <span class="tlaCBC">              1 :   private val tableActionProfile: MutableMap&lt;String, Int&gt; = mutableMapOf()</span></span>
+<span id="L69"><span class="lineNum">      69</span>                 : </span>
+<span id="L70"><span class="lineNum">      70</span>                 :   // PRE (Packet Replication Engine) storage</span>
+<span id="L71"><span class="lineNum">      71</span> <span class="tlaCBC">              1 :   private val cloneSessions: MutableMap&lt;Int, P4RuntimeOuterClass.CloneSessionEntry&gt; = mutableMapOf()</span></span>
+<span id="L72"><span class="lineNum">      72</span>                 :   private val multicastGroups: MutableMap&lt;Int, P4RuntimeOuterClass.MulticastGroupEntry&gt; =</span>
+<span id="L73"><span class="lineNum">      73</span> <span class="tlaCBC">              1 :     mutableMapOf()</span></span>
+<span id="L74"><span class="lineNum">      74</span>                 : </span>
+<span id="L75"><span class="lineNum">      75</span>                 :   fun setForcedHit(tableName: String, actionName: String) {</span>
+<span id="L76"><span class="lineNum">      76</span> <span class="tlaCBC">              1 :     forcedHits[tableName] = actionName</span></span>
+<span id="L77"><span class="lineNum">      77</span> <span class="tlaCBC">              1 :   }</span></span>
+<span id="L78"><span class="lineNum">      78</span>                 : </span>
+<span id="L79"><span class="lineNum">      79</span>                 :   // Populated by loadMappings; used to resolve IDs to names in write() and lookup().</span>
+<span id="L80"><span class="lineNum">      80</span> <span class="tlaCBC">              1 :   private var tableNameById: Map&lt;Int, String&gt; = emptyMap()</span></span>
+<span id="L81"><span class="lineNum">      81</span> <span class="tlaCBC">              1 :   private var actionNameById: Map&lt;Int, String&gt; = emptyMap()</span></span>
+<span id="L82"><span class="lineNum">      82</span>                 : </span>
+<span id="L83"><span class="lineNum">      83</span>                 :   /**</span>
+<span id="L84"><span class="lineNum">      84</span>                 :    * Initialises the ID→name maps for the loaded pipeline and clears all table entries.</span>
+<span id="L85"><span class="lineNum">      85</span>                 :    *</span>
+<span id="L86"><span class="lineNum">      86</span>                 :    * Must be called before [write] or [lookup]. Calling it again (pipeline reload) resets all state.</span>
+<span id="L87"><span class="lineNum">      87</span>                 :    */</span>
+<span id="L88"><span class="lineNum">      88</span> <span class="tlaCBC">              1 :   fun loadMappings(</span></span>
+<span id="L89"><span class="lineNum">      89</span>                 :     tableNameById: Map&lt;Int, String&gt;,</span>
+<span id="L90"><span class="lineNum">      90</span>                 :     actionNameById: Map&lt;Int, String&gt;,</span>
+<span id="L91"><span class="lineNum">      91</span> <span class="tlaCBC">              1 :     p4infoTables: List&lt;P4InfoOuterClass.Table&gt; = emptyList(),</span></span>
+<span id="L92"><span class="lineNum">      92</span>                 :   ) {</span>
+<span id="L93"><span class="lineNum">      93</span> <span class="tlaCBC">              1 :     this.tableNameById = tableNameById</span></span>
+<span id="L94"><span class="lineNum">      94</span> <span class="tlaCBC">              1 :     this.actionNameById = actionNameById</span></span>
+<span id="L95"><span class="lineNum">      95</span> <span class="tlaCBC">              1 :     tables.clear()</span></span>
+<span id="L96"><span class="lineNum">      96</span> <span class="tlaCBC">              1 :     forcedHits.clear()</span></span>
+<span id="L97"><span class="lineNum">      97</span> <span class="tlaCBC">              1 :     registers.clear()</span></span>
+<span id="L98"><span class="lineNum">      98</span> <span class="tlaCBC">              1 :     profileMembers.clear()</span></span>
+<span id="L99"><span class="lineNum">      99</span> <span class="tlaCBC">              1 :     profileGroups.clear()</span></span>
+<span id="L100"><span class="lineNum">     100</span> <span class="tlaCBC">              1 :     tableActionProfile.clear()</span></span>
+<span id="L101"><span class="lineNum">     101</span> <span class="tlaCBC">              1 :     cloneSessions.clear()</span></span>
+<span id="L102"><span class="lineNum">     102</span> <span class="tlaCBC">              1 :     multicastGroups.clear()</span></span>
+<span id="L103"><span class="lineNum">     103</span>                 : </span>
+<span id="L104"><span class="lineNum">     104</span>                 :     // Register which tables use action profiles (implementation_id != 0).</span>
+<span id="L105"><span class="lineNum">     105</span> <span class="tlaCBC">              1 :     for (table in p4infoTables) {</span></span>
+<span id="L106"><span class="lineNum">     106</span> <span class="tlaCBC">              1 :       if (table.implementationId != 0) {</span></span>
+<span id="L107"><span class="lineNum">     107</span> <span class="tlaCBC">              1 :         val tableName = tableNameById[table.preamble.id] ?: continue</span></span>
+<span id="L108"><span class="lineNum">     108</span> <span class="tlaCBC">              1 :         tableActionProfile[tableName] = table.implementationId</span></span>
+<span id="L109"><span class="lineNum">     109</span>                 :       }</span>
+<span id="L110"><span class="lineNum">     110</span>                 :     }</span>
+<span id="L111"><span class="lineNum">     111</span> <span class="tlaCBC">              1 :   }</span></span>
+<span id="L112"><span class="lineNum">     112</span>                 : </span>
+<span id="L113"><span class="lineNum">     113</span> <span class="tlaCBC">              1 :   fun setDefaultAction(</span></span>
+<span id="L114"><span class="lineNum">     114</span>                 :     tableName: String,</span>
+<span id="L115"><span class="lineNum">     115</span>                 :     actionName: String,</span>
+<span id="L116"><span class="lineNum">     116</span> <span class="tlaCBC">              1 :     params: List&lt;p4.v1.P4RuntimeOuterClass.Action.Param&gt; = emptyList(),</span></span>
+<span id="L117"><span class="lineNum">     117</span>                 :   ) {</span>
+<span id="L118"><span class="lineNum">     118</span> <span class="tlaCBC">              1 :     defaultActions[tableName] = DefaultAction(actionName, params)</span></span>
+<span id="L119"><span class="lineNum">     119</span> <span class="tlaCBC">              1 :   }</span></span>
+<span id="L120"><span class="lineNum">     120</span>                 : </span>
+<span id="L121"><span class="lineNum">     121</span>                 :   // -------------------------------------------------------------------------</span>
+<span id="L122"><span class="lineNum">     122</span>                 :   // Registers</span>
+<span id="L123"><span class="lineNum">     123</span>                 :   // -------------------------------------------------------------------------</span>
+<span id="L124"><span class="lineNum">     124</span>                 : </span>
+<span id="L125"><span class="lineNum">     125</span> <span class="tlaCBC">              1 :   fun registerRead(name: String, index: Int): Value? = registers[name]?.get(index)</span></span>
+<span id="L126"><span class="lineNum">     126</span>                 : </span>
+<span id="L127"><span class="lineNum">     127</span>                 :   fun registerWrite(name: String, index: Int, value: Value) {</span>
+<span id="L128"><span class="lineNum">     128</span> <span class="tlaCBC">              1 :     registers.getOrPut(name) { mutableMapOf() }[index] = value</span></span>
+<span id="L129"><span class="lineNum">     129</span> <span class="tlaCBC">              1 :   }</span></span>
+<span id="L130"><span class="lineNum">     130</span>                 : </span>
+<span id="L131"><span class="lineNum">     131</span>                 :   // -------------------------------------------------------------------------</span>
+<span id="L132"><span class="lineNum">     132</span>                 :   // Write</span>
+<span id="L133"><span class="lineNum">     133</span>                 :   // -------------------------------------------------------------------------</span>
+<span id="L134"><span class="lineNum">     134</span>                 : </span>
+<span id="L135"><span class="lineNum">     135</span>                 :   fun write(update: Update): WriteResult {</span>
+<span id="L136"><span class="lineNum">     136</span> <span class="tlaCBC">              1 :     val entity = update.entity</span></span>
+<span id="L137"><span class="lineNum">     137</span> <span class="tlaCBC">              1 :     return when {</span></span>
+<span id="L138"><span class="lineNum">     138</span> <span class="tlaCBC">              1 :       entity.hasActionProfileMember() -&gt; writeProfileMember(update.type, entity.actionProfileMember)</span></span>
+<span id="L139"><span class="lineNum">     139</span> <span class="tlaCBC">              1 :       entity.hasActionProfileGroup() -&gt; writeProfileGroup(update.type, entity.actionProfileGroup)</span></span>
+<span id="L140"><span class="lineNum">     140</span> <span class="tlaCBC">              1 :       entity.hasPacketReplicationEngineEntry() -&gt; {</span></span>
+<span id="L141"><span class="lineNum">     141</span> <a href="#L149" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :         writePreEntry(entity.packetReplicationEngineEntry)</span></span>
+<span id="L142"><span class="lineNum">     142</span> <a href="#L144" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :         WriteResult.Success</span></span>
+<span id="L143"><span class="lineNum">     143</span> <a href="#L146" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :       }</span></span>
+<span id="L144"><span class="lineNum">     144</span> <a href="#L150" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :       else -&gt; writeTableEntry(update)</span></span>
+<span id="L145"><span class="lineNum">     145</span>                 :     }</span>
+<span id="L146"><span class="lineNum">     146</span> <a href="#L156" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :   }</span></span>
+<span id="L147"><span class="lineNum">     147</span> <span class="tlaECB">                : </span></span>
+<span id="L148"><span class="lineNum">     148</span> <span class="tlaECB">                :   private fun writeTableEntry(update: Update): WriteResult {</span></span>
+<span id="L149"><span class="lineNum">     149</span> <a href="#L151" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :     val entry = update.entity.tableEntry</span></span>
+<span id="L150"><span class="lineNum">     150</span> <a href="#L155" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :     val tableName =</span></span>
+<span id="L151"><span class="lineNum">     151</span> <a href="#L159" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :       tableNameById[entry.tableId]</span></span>
+<span id="L152"><span class="lineNum">     152</span> <span class="tlaGIC">              1 :         ?: return WriteResult.NotFound(&quot;unknown table ID: ${entry.tableId}&quot;)</span></span>
+<span id="L153"><span class="lineNum">     153</span>                 : </span>
+<span id="L154"><span class="lineNum">     154</span> <span class="tlaGIC">              1 :     val entries = tables.getOrPut(tableName) { mutableListOf() }</span></span>
+<span id="L155"><span class="lineNum">     155</span> <a href="#L161" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :     val existingIndex = entries.indexOfFirst { it.sameKey(entry) }</span></span>
+<span id="L156"><span class="lineNum">     156</span> <a href="#L160" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             : </span></span>
+<span id="L157"><span class="lineNum">     157</span> <span class="tlaECB">                :     // P4Runtime spec §9.1: INSERT requires the entry not to exist, MODIFY and DELETE</span></span>
+<span id="L158"><span class="lineNum">     158</span> <span class="tlaECB">                :     // require it to exist.</span></span>
+<span id="L159"><span class="lineNum">     159</span> <a href="#L162" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :     return when (update.type) {</span></span>
+<span id="L160"><span class="lineNum">     160</span> <a href="#L165" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :       Update.Type.INSERT -&gt; {</span></span>
+<span id="L161"><span class="lineNum">     161</span> <a href="#L167" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :         if (existingIndex &gt;= 0) {</span></span>
+<span id="L162"><span class="lineNum">     162</span> <a href="#L166" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :           WriteResult.AlreadyExists(</span></span>
+<span id="L163"><span class="lineNum">     163</span> <span class="tlaGIC">              1 :             &quot;table '$tableName' already contains an entry with the same match key&quot;</span></span>
+<span id="L164"><span class="lineNum">     164</span>                 :           )</span>
+<span id="L165"><span class="lineNum">     165</span> <a href="#L168" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :         } else {</span></span>
+<span id="L166"><span class="lineNum">     166</span> <a href="#L171" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :           entries.add(entry)</span></span>
+<span id="L167"><span class="lineNum">     167</span> <a href="#L172" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :           WriteResult.Success</span></span>
+<span id="L168"><span class="lineNum">     168</span> <a href="#L173" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :         }</span></span>
+<span id="L169"><span class="lineNum">     169</span> <span class="tlaECB">                :       }</span></span>
+<span id="L170"><span class="lineNum">     170</span>                 :       Update.Type.MODIFY -&gt; {</span>
+<span id="L171"><span class="lineNum">     171</span> <a href="#L174" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :         if (existingIndex &lt; 0) {</span></span>
+<span id="L172"><span class="lineNum">     172</span> <a href="#L180" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :           WriteResult.NotFound(&quot;table '$tableName' has no entry with the given match key&quot;)</span></span>
+<span id="L173"><span class="lineNum">     173</span> <a href="#L177" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :         } else {</span></span>
+<span id="L174"><span class="lineNum">     174</span> <a href="#L179" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :           entries[existingIndex] = entry</span></span>
+<span id="L175"><span class="lineNum">     175</span> <span class="tlaGIC">              1 :           WriteResult.Success</span></span>
+<span id="L176"><span class="lineNum">     176</span>                 :         }</span>
+<span id="L177"><span class="lineNum">     177</span> <a href="#L181" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :       }</span></span>
+<span id="L178"><span class="lineNum">     178</span> <span class="tlaECB">                :       Update.Type.DELETE -&gt; {</span></span>
+<span id="L179"><span class="lineNum">     179</span> <a href="#L182" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :         if (existingIndex &lt; 0) {</span></span>
+<span id="L180"><span class="lineNum">     180</span> <a href="#L198" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :           WriteResult.NotFound(&quot;table '$tableName' has no entry with the given match key&quot;)</span></span>
+<span id="L181"><span class="lineNum">     181</span> <a href="#L185" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :         } else {</span></span>
+<span id="L182"><span class="lineNum">     182</span> <a href="#L200" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :           entries.removeAt(existingIndex)</span></span>
+<span id="L183"><span class="lineNum">     183</span> <span class="tlaGIC">              1 :           WriteResult.Success</span></span>
+<span id="L184"><span class="lineNum">     184</span>                 :         }</span>
+<span id="L185"><span class="lineNum">     185</span> <a href="#L188" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :       }</span></span>
+<span id="L186"><span class="lineNum">     186</span> <a href="#L217" class="tlaBgLBC"  title="Next LBC group">Coverage lost</a><span class="tlaLBC tlaBgLBC">           0 :       else -&gt; WriteResult.InvalidArgument(&quot;unsupported update type: ${update.type}&quot;)</span></span>
+<span id="L187"><span class="lineNum">     187</span>                 :     }</span>
+<span id="L188"><span class="lineNum">     188</span> <a href="#L197" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :   }</span></span>
+<span id="L189"><span class="lineNum">     189</span> <span class="tlaECB">                : </span></span>
+<span id="L190"><span class="lineNum">     190</span>                 :   /** Generic INSERT/MODIFY/DELETE for a keyed map entry. */</span>
+<span id="L191"><span class="lineNum">     191</span>                 :   private fun &lt;V&gt; writeProfileEntity(</span>
+<span id="L192"><span class="lineNum">     192</span> <a href="#L322" class="tlaBgEUB"  title="Next EUB group">Excluded (not covered)</a><span class="tlaEUB tlaBgEUB">             :     type: Update.Type,</span></span>
+<span id="L193"><span class="lineNum">     193</span>                 :     map: MutableMap&lt;Int, V&gt;,</span>
+<span id="L194"><span class="lineNum">     194</span>                 :     key: Int,</span>
+<span id="L195"><span class="lineNum">     195</span>                 :     value: V,</span>
+<span id="L196"><span class="lineNum">     196</span>                 :     desc: String,</span>
+<span id="L197"><span class="lineNum">     197</span> <a href="#L201" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :   ): WriteResult =</span></span>
+<span id="L198"><span class="lineNum">     198</span> <a href="#L202" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :     when (type) {</span></span>
+<span id="L199"><span class="lineNum">     199</span>                 :       Update.Type.INSERT -&gt;</span>
+<span id="L200"><span class="lineNum">     200</span> <a href="#L203" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :         if (key in map) WriteResult.AlreadyExists(&quot;$desc already exists&quot;)</span></span>
+<span id="L201"><span class="lineNum">     201</span> <a href="#L205" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :         else {</span></span>
+<span id="L202"><span class="lineNum">     202</span> <a href="#L206" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :           map[key] = value</span></span>
+<span id="L203"><span class="lineNum">     203</span> <a href="#L212" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :           WriteResult.Success</span></span>
+<span id="L204"><span class="lineNum">     204</span>                 :         }</span>
+<span id="L205"><span class="lineNum">     205</span> <a href="#L207" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :       Update.Type.MODIFY -&gt;</span></span>
+<span id="L206"><span class="lineNum">     206</span> <a href="#L208" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :         if (key !in map) WriteResult.NotFound(&quot;$desc not found&quot;)</span></span>
+<span id="L207"><span class="lineNum">     207</span> <a href="#L211" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :         else {</span></span>
+<span id="L208"><span class="lineNum">     208</span> <a href="#L214" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :           map[key] = value</span></span>
+<span id="L209"><span class="lineNum">     209</span> <span class="tlaCBC">              1 :           WriteResult.Success</span></span>
+<span id="L210"><span class="lineNum">     210</span>                 :         }</span>
+<span id="L211"><span class="lineNum">     211</span> <a href="#L231" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :       Update.Type.DELETE -&gt;</span></span>
+<span id="L212"><span class="lineNum">     212</span> <a href="#L215" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :         if (key !in map) WriteResult.NotFound(&quot;$desc not found&quot;)</span></span>
+<span id="L213"><span class="lineNum">     213</span>                 :         else {</span>
+<span id="L214"><span class="lineNum">     214</span> <a href="#L230" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :           map.remove(key)</span></span>
+<span id="L215"><span class="lineNum">     215</span> <a href="#L218" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :           WriteResult.Success</span></span>
+<span id="L216"><span class="lineNum">     216</span>                 :         }</span>
+<span id="L217"><span class="lineNum">     217</span> <a href="#L381" class="tlaBgLBC"  title="Next LBC group">Coverage lost</a><span class="tlaLBC tlaBgLBC">           0 :       else -&gt; WriteResult.InvalidArgument(&quot;unsupported update type: $type&quot;)</span></span>
+<span id="L218"><span class="lineNum">     218</span> <a href="#L239" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :     }</span></span>
+<span id="L219"><span class="lineNum">     219</span>                 : </span>
+<span id="L220"><span class="lineNum">     220</span>                 :   private fun writeProfileMember(</span>
+<span id="L221"><span class="lineNum">     221</span>                 :     type: Update.Type,</span>
+<span id="L222"><span class="lineNum">     222</span>                 :     member: P4RuntimeOuterClass.ActionProfileMember,</span>
+<span id="L223"><span class="lineNum">     223</span>                 :   ): WriteResult =</span>
+<span id="L224"><span class="lineNum">     224</span> <span class="tlaGIC">              1 :     writeProfileEntity(</span></span>
+<span id="L225"><span class="lineNum">     225</span> <span class="tlaGIC">              1 :       type,</span></span>
+<span id="L226"><span class="lineNum">     226</span> <span class="tlaGIC">              1 :       profileMembers.getOrPut(member.actionProfileId) { mutableMapOf() },</span></span>
+<span id="L227"><span class="lineNum">     227</span> <span class="tlaGIC">              1 :       member.memberId,</span></span>
+<span id="L228"><span class="lineNum">     228</span> <span class="tlaGIC">              1 :       member,</span></span>
+<span id="L229"><span class="lineNum">     229</span> <span class="tlaGIC">              1 :       &quot;member ${member.memberId} in action profile ${member.actionProfileId}&quot;,</span></span>
+<span id="L230"><span class="lineNum">     230</span> <a href="#L236" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :     )</span></span>
+<span id="L231"><span class="lineNum">     231</span> <a href="#L243" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             : </span></span>
+<span id="L232"><span class="lineNum">     232</span>                 :   private fun writeProfileGroup(</span>
+<span id="L233"><span class="lineNum">     233</span> <span class="tlaECB">                :     type: Update.Type,</span></span>
+<span id="L234"><span class="lineNum">     234</span> <span class="tlaECB">                :     group: P4RuntimeOuterClass.ActionProfileGroup,</span></span>
+<span id="L235"><span class="lineNum">     235</span> <span class="tlaECB">                :   ): WriteResult =</span></span>
+<span id="L236"><span class="lineNum">     236</span> <a href="#L241" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :     writeProfileEntity(</span></span>
+<span id="L237"><span class="lineNum">     237</span> <span class="tlaCBC">              1 :       type,</span></span>
+<span id="L238"><span class="lineNum">     238</span> <span class="tlaCBC">              1 :       profileGroups.getOrPut(group.actionProfileId) { mutableMapOf() },</span></span>
+<span id="L239"><span class="lineNum">     239</span> <a href="#L242" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :       group.groupId,</span></span>
+<span id="L240"><span class="lineNum">     240</span> <span class="tlaGIC">              1 :       group,</span></span>
+<span id="L241"><span class="lineNum">     241</span> <a href="#L251" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :       &quot;group ${group.groupId} in action profile ${group.actionProfileId}&quot;,</span></span>
+<span id="L242"><span class="lineNum">     242</span> <a href="#L245" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :     )</span></span>
+<span id="L243"><span class="lineNum">     243</span> <a href="#L250" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             : </span></span>
+<span id="L244"><span class="lineNum">     244</span>                 :   private fun writePreEntry(pre: P4RuntimeOuterClass.PacketReplicationEngineEntry) {</span>
+<span id="L245"><span class="lineNum">     245</span> <a href="#L254" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :     when {</span></span>
+<span id="L246"><span class="lineNum">     246</span> <span class="tlaGIC">              1 :       pre.hasCloneSessionEntry() -&gt;</span></span>
+<span id="L247"><span class="lineNum">     247</span> <span class="tlaGIC">              1 :         cloneSessions[pre.cloneSessionEntry.sessionId] = pre.cloneSessionEntry</span></span>
+<span id="L248"><span class="lineNum">     248</span> <span class="tlaGIC">              1 :       pre.hasMulticastGroupEntry() -&gt;</span></span>
+<span id="L249"><span class="lineNum">     249</span> <span class="tlaGIC">              1 :         multicastGroups[pre.multicastGroupEntry.multicastGroupId] = pre.multicastGroupEntry</span></span>
+<span id="L250"><span class="lineNum">     250</span> <a href="#L252" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :     }</span></span>
+<span id="L251"><span class="lineNum">     251</span> <a href="#L257" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :   }</span></span>
+<span id="L252"><span class="lineNum">     252</span> <a href="#L256" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             : </span></span>
+<span id="L253"><span class="lineNum">     253</span> <span class="tlaECB">                :   fun getCloneSession(sessionId: Int): P4RuntimeOuterClass.CloneSessionEntry? =</span></span>
+<span id="L254"><span class="lineNum">     254</span> <a href="#L270" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :     cloneSessions[sessionId]</span></span>
+<span id="L255"><span class="lineNum">     255</span>                 : </span>
+<span id="L256"><span class="lineNum">     256</span> <a href="#L258" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :   fun getMulticastGroup(groupId: Int): P4RuntimeOuterClass.MulticastGroupEntry? =</span></span>
+<span id="L257"><span class="lineNum">     257</span> <a href="#L273" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :     multicastGroups[groupId]</span></span>
+<span id="L258"><span class="lineNum">     258</span> <a href="#L272" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             : </span></span>
+<span id="L259"><span class="lineNum">     259</span> <span class="tlaECB">                :   // -------------------------------------------------------------------------</span></span>
+<span id="L260"><span class="lineNum">     260</span> <span class="tlaECB">                :   // Read</span></span>
+<span id="L261"><span class="lineNum">     261</span> <span class="tlaECB">                :   // -------------------------------------------------------------------------</span></span>
+<span id="L262"><span class="lineNum">     262</span> <span class="tlaECB">                : </span></span>
+<span id="L263"><span class="lineNum">     263</span>                 :   /**</span>
+<span id="L264"><span class="lineNum">     264</span>                 :    * Returns table entries as P4Runtime Entity protos, filtered by [filter].</span>
+<span id="L265"><span class="lineNum">     265</span>                 :    * - `table_id=0`, no match fields → wildcard: returns all entries from all tables.</span>
+<span id="L266"><span class="lineNum">     266</span>                 :    * - `table_id=N`, no match fields → returns all entries from table N.</span>
+<span id="L267"><span class="lineNum">     267</span>                 :    * - `table_id=N` with match fields → returns only the entry whose match key matches the filter</span>
+<span id="L268"><span class="lineNum">     268</span>                 :    *   (P4Runtime spec §11.1: match fields in the filter act as an exact key lookup).</span>
+<span id="L269"><span class="lineNum">     269</span>                 :    */</span>
+<span id="L270"><span class="lineNum">     270</span> <a href="#L274" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :   fun readEntities(</span></span>
+<span id="L271"><span class="lineNum">     271</span> <span class="tlaGIC">              1 :     filter: P4RuntimeOuterClass.TableEntry = P4RuntimeOuterClass.TableEntry.getDefaultInstance()</span></span>
+<span id="L272"><span class="lineNum">     272</span> <a href="#L279" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :   ): List&lt;P4RuntimeOuterClass.Entity&gt; {</span></span>
+<span id="L273"><span class="lineNum">     273</span> <a href="#L276" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :     val sources =</span></span>
+<span id="L274"><span class="lineNum">     274</span> <a href="#L278" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :       if (filter.tableId == 0) tables.values</span></span>
+<span id="L275"><span class="lineNum">     275</span> <span class="tlaGIC">              1 :       else listOfNotNull(tables[tableNameById[filter.tableId]])</span></span>
+<span id="L276"><span class="lineNum">     276</span> <a href="#L281" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :     val hasMatchFilter = filter.matchCount &gt; 0</span></span>
+<span id="L277"><span class="lineNum">     277</span> <span class="tlaCBC">              1 :     return sources</span></span>
+<span id="L278"><span class="lineNum">     278</span> <a href="#L311" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :       .flatMap { entries -&gt;</span></span>
+<span id="L279"><span class="lineNum">     279</span> <a href="#L282" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :         // P4Runtime spec §9.1: match key + priority uniquely identify an entry,</span></span>
+<span id="L280"><span class="lineNum">     280</span>                 :         // so at most one entry can match a filter with match fields.</span>
+<span id="L281"><span class="lineNum">     281</span> <a href="#L283" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :         if (hasMatchFilter) listOfNotNull(entries.find { it.sameKey(filter) }) else entries</span></span>
+<span id="L282"><span class="lineNum">     282</span> <a href="#L284" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :       }</span></span>
+<span id="L283"><span class="lineNum">     283</span> <a href="#L298" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :       .map { P4RuntimeOuterClass.Entity.newBuilder().setTableEntry(it).build() }</span></span>
+<span id="L284"><span class="lineNum">     284</span> <a href="#L300" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :   }</span></span>
+<span id="L285"><span class="lineNum">     285</span>                 : </span>
+<span id="L286"><span class="lineNum">     286</span>                 :   /**</span>
+<span id="L287"><span class="lineNum">     287</span> <span class="tlaECB">                :    * Generic read for a two-level profile map (profile_id → entry_id → value).</span></span>
+<span id="L288"><span class="lineNum">     288</span> <span class="tlaECB">                :    * - `profileId=0` → wildcard: all values from all profiles.</span></span>
+<span id="L289"><span class="lineNum">     289</span> <span class="tlaECB">                :    * - `profileId=N, entryId=0` → all values from profile N.</span></span>
+<span id="L290"><span class="lineNum">     290</span>                 :    * - `profileId=N, entryId=M` → single value (N, M).</span>
+<span id="L291"><span class="lineNum">     291</span> <span class="tlaECB">                :    */</span></span>
+<span id="L292"><span class="lineNum">     292</span>                 :   private fun &lt;V&gt; readProfileEntities(</span>
+<span id="L293"><span class="lineNum">     293</span>                 :     storage: Map&lt;Int, Map&lt;Int, V&gt;&gt;,</span>
+<span id="L294"><span class="lineNum">     294</span> <span class="tlaECB">                :     profileId: Int,</span></span>
+<span id="L295"><span class="lineNum">     295</span> <span class="tlaECB">                :     entryId: Int,</span></span>
+<span id="L296"><span class="lineNum">     296</span> <span class="tlaECB">                :     toEntity: (V) -&gt; P4RuntimeOuterClass.Entity,</span></span>
+<span id="L297"><span class="lineNum">     297</span> <span class="tlaECB">                :   ): List&lt;P4RuntimeOuterClass.Entity&gt; {</span></span>
+<span id="L298"><span class="lineNum">     298</span> <a href="#L301" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :     val sources =</span></span>
+<span id="L299"><span class="lineNum">     299</span> <a href="#L304" class="tlaBgGBC"  title="Next GBC group">Newly covered</a><span class="tlaGBC tlaBgGBC">           1 :       if (profileId == 0) storage.values.flatMap { it.values }</span></span>
+<span id="L300"><span class="lineNum">     300</span> <a href="#L303" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :       else {</span></span>
+<span id="L301"><span class="lineNum">     301</span> <a href="#L307" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :         val entries = storage[profileId] ?: return emptyList()</span></span>
+<span id="L302"><span class="lineNum">     302</span> <span class="tlaCBC">              1 :         if (entryId != 0) listOfNotNull(entries[entryId]) else entries.values.toList()</span></span>
+<span id="L303"><span class="lineNum">     303</span> <a href="#L305" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :       }</span></span>
+<span id="L304"><span class="lineNum">     304</span> <a href="#top" class="tlaBgGBC"  title="Next GBC group">Newly covered</a><span class="tlaGBC tlaBgGBC">           1 :     return sources.map(toEntity)</span></span>
+<span id="L305"><span class="lineNum">     305</span> <a href="#L308" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :   }</span></span>
+<span id="L306"><span class="lineNum">     306</span> <span class="tlaECB">                : </span></span>
+<span id="L307"><span class="lineNum">     307</span> <a href="#L309" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :   fun readProfileMembers(</span></span>
+<span id="L308"><span class="lineNum">     308</span> <a href="#L318" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :     filter: P4RuntimeOuterClass.ActionProfileMember =</span></span>
+<span id="L309"><span class="lineNum">     309</span> <a href="#L312" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :       P4RuntimeOuterClass.ActionProfileMember.getDefaultInstance()</span></span>
+<span id="L310"><span class="lineNum">     310</span>                 :   ): List&lt;P4RuntimeOuterClass.Entity&gt; =</span>
+<span id="L311"><span class="lineNum">     311</span> <a href="#L315" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :     readProfileEntities(profileMembers, filter.actionProfileId, filter.memberId) {</span></span>
+<span id="L312"><span class="lineNum">     312</span> <a href="#L317" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :       P4RuntimeOuterClass.Entity.newBuilder().setActionProfileMember(it).build()</span></span>
+<span id="L313"><span class="lineNum">     313</span> <span class="tlaCBC">              1 :     }</span></span>
+<span id="L314"><span class="lineNum">     314</span>                 : </span>
+<span id="L315"><span class="lineNum">     315</span> <a href="#L327" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :   fun readProfileGroups(</span></span>
+<span id="L316"><span class="lineNum">     316</span>                 :     filter: P4RuntimeOuterClass.ActionProfileGroup =</span>
+<span id="L317"><span class="lineNum">     317</span> <a href="#L319" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :       P4RuntimeOuterClass.ActionProfileGroup.getDefaultInstance()</span></span>
+<span id="L318"><span class="lineNum">     318</span> <a href="#L323" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :   ): List&lt;P4RuntimeOuterClass.Entity&gt; =</span></span>
+<span id="L319"><span class="lineNum">     319</span> <a href="#L330" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :     readProfileEntities(profileGroups, filter.actionProfileId, filter.groupId) {</span></span>
+<span id="L320"><span class="lineNum">     320</span> <span class="tlaCBC">              1 :       P4RuntimeOuterClass.Entity.newBuilder().setActionProfileGroup(it).build()</span></span>
+<span id="L321"><span class="lineNum">     321</span> <span class="tlaCBC">              1 :     }</span></span>
+<span id="L322"><span class="lineNum">     322</span> <a href="#L342" class="tlaBgEUB"  title="Next EUB group">Excluded (not covered)</a><span class="tlaEUB tlaBgEUB">             : </span></span>
+<span id="L323"><span class="lineNum">     323</span> <a href="#L340" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :   // -------------------------------------------------------------------------</span></span>
+<span id="L324"><span class="lineNum">     324</span>                 :   // Lookup</span>
+<span id="L325"><span class="lineNum">     325</span>                 :   // -------------------------------------------------------------------------</span>
+<span id="L326"><span class="lineNum">     326</span> <span class="tlaECB">                : </span></span>
+<span id="L327"><span class="lineNum">     327</span> <a href="#L333" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :   data class MemberAction(</span></span>
+<span id="L328"><span class="lineNum">     328</span> <span class="tlaGIC">              1 :     val memberId: Int,</span></span>
+<span id="L329"><span class="lineNum">     329</span> <span class="tlaGIC">              1 :     val actionName: String,</span></span>
+<span id="L330"><span class="lineNum">     330</span> <a href="#L338" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :     val params: List&lt;P4RuntimeOuterClass.Action.Param&gt;,</span></span>
+<span id="L331"><span class="lineNum">     331</span>                 :   )</span>
+<span id="L332"><span class="lineNum">     332</span>                 : </span>
+<span id="L333"><span class="lineNum">     333</span> <a href="#L349" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :   data class LookupResult(</span></span>
+<span id="L334"><span class="lineNum">     334</span> <span class="tlaGIC">              1 :     val hit: Boolean,</span></span>
+<span id="L335"><span class="lineNum">     335</span> <span class="tlaGIC">              1 :     val entry: TableEntry?,</span></span>
+<span id="L336"><span class="lineNum">     336</span> <span class="tlaGIC">              1 :     val actionName: String,</span></span>
+<span id="L337"><span class="lineNum">     337</span> <span class="tlaGIC">              1 :     val actionParams: List&lt;p4.v1.P4RuntimeOuterClass.Action.Param&gt; = emptyList(),</span></span>
+<span id="L338"><span class="lineNum">     338</span> <a href="#L353" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :     val members: List&lt;MemberAction&gt;? = null,</span></span>
+<span id="L339"><span class="lineNum">     339</span> <span class="tlaCBC">              1 :   )</span></span>
+<span id="L340"><span class="lineNum">     340</span> <a href="#L344" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             : </span></span>
+<span id="L341"><span class="lineNum">     341</span> <span class="tlaECB">                :   /**</span></span>
+<span id="L342"><span class="lineNum">     342</span> <a href="#L348" class="tlaBgEUB"  title="Next EUB group">Excluded (not covered)</a><span class="tlaEUB tlaBgEUB">             :    * Looks up [keyValues] in [tableName]. Returns the best-matching entry or, on a miss, the default</span></span>
+<span id="L343"><span class="lineNum">     343</span>                 :    * action.</span>
+<span id="L344"><span class="lineNum">     344</span> <a href="#L351" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :    *</span></span>
+<span id="L345"><span class="lineNum">     345</span> <span class="tlaECB">                :    * For LPM tables, &quot;best match&quot; means the entry with the longest prefix. For ternary tables, &quot;best</span></span>
+<span id="L346"><span class="lineNum">     346</span> <span class="tlaECB">                :    * match&quot; means the entry with the highest priority.</span></span>
+<span id="L347"><span class="lineNum">     347</span> <span class="tlaECB">                :    */</span></span>
+<span id="L348"><span class="lineNum">     348</span> <a href="#L388" class="tlaBgEUB"  title="Next EUB group">Excluded (not covered)</a><span class="tlaEUB tlaBgEUB">             :   fun lookup(tableName: String, keyValues: List&lt;Pair&lt;String, Value&gt;&gt;): LookupResult {</span></span>
+<span id="L349"><span class="lineNum">     349</span> <a href="#L354" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :     forcedHits[tableName]?.let {</span></span>
+<span id="L350"><span class="lineNum">     350</span> <span class="tlaGIC">              1 :       return LookupResult(true, null, it)</span></span>
+<span id="L351"><span class="lineNum">     351</span> <a href="#L362" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :     }</span></span>
+<span id="L352"><span class="lineNum">     352</span> <span class="tlaECB">                : </span></span>
+<span id="L353"><span class="lineNum">     353</span> <a href="#L358" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :     val entries = tables[tableName] ?: emptyList&lt;TableEntry&gt;()</span></span>
+<span id="L354"><span class="lineNum">     354</span> <a href="#L382" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :     val default = defaultActions[tableName] ?: DefaultAction(&quot;NoAction&quot;)</span></span>
+<span id="L355"><span class="lineNum">     355</span>                 : </span>
+<span id="L356"><span class="lineNum">     356</span> <span class="tlaGIC">              1 :     data class Candidate(val entry: TableEntry, val score: Long)</span></span>
+<span id="L357"><span class="lineNum">     357</span>                 : </span>
+<span id="L358"><span class="lineNum">     358</span> <a href="#L364" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :     val candidates =</span></span>
+<span id="L359"><span class="lineNum">     359</span> <span class="tlaCBC">              1 :       entries.mapNotNull { entry -&gt;</span></span>
+<span id="L360"><span class="lineNum">     360</span> <span class="tlaCBC">              1 :         val score = scoreEntry(entry, keyValues) ?: return@mapNotNull null</span></span>
+<span id="L361"><span class="lineNum">     361</span> <span class="tlaCBC">              1 :         Candidate(entry, score)</span></span>
+<span id="L362"><span class="lineNum">     362</span> <a href="#L367" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :       }</span></span>
+<span id="L363"><span class="lineNum">     363</span>                 : </span>
+<span id="L364"><span class="lineNum">     364</span> <a href="#L368" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :     val best =</span></span>
+<span id="L365"><span class="lineNum">     365</span> <span class="tlaCBC">              1 :       candidates.maxByOrNull { it.score }</span></span>
+<span id="L366"><span class="lineNum">     366</span> <span class="tlaCBC">              1 :         ?: return LookupResult(false, null, default.name, default.params)</span></span>
+<span id="L367"><span class="lineNum">     367</span> <a href="#L369" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             : </span></span>
+<span id="L368"><span class="lineNum">     368</span> <a href="#L371" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :     val tableAction = best.entry.action</span></span>
+<span id="L369"><span class="lineNum">     369</span> <a href="#L391" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             : </span></span>
+<span id="L370"><span class="lineNum">     370</span>                 :     // Action profile group: resolve group → members → individual actions.</span>
+<span id="L371"><span class="lineNum">     371</span> <a href="#L377" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :     if (tableAction.hasActionProfileGroupId() &amp;&amp; tableAction.actionProfileGroupId != 0) {</span></span>
+<span id="L372"><span class="lineNum">     372</span> <span class="tlaCBC">              1 :       val profileId =</span></span>
+<span id="L373"><span class="lineNum">     373</span> <span class="tlaCBC">              1 :         tableActionProfile[tableName] ?: error(&quot;table $tableName has no action profile&quot;)</span></span>
+<span id="L374"><span class="lineNum">     374</span> <span class="tlaCBC">              1 :       val group =</span></span>
+<span id="L375"><span class="lineNum">     375</span> <span class="tlaCBC">              1 :         profileGroups[profileId]?.get(tableAction.actionProfileGroupId)</span></span>
+<span id="L376"><span class="lineNum">     376</span> <a href="#L399" class="tlaBgUIC"  title="Next UIC group">Included (not covered)</a><span class="tlaUIC tlaBgUIC">           0 :           ?: error(&quot;unknown group ${tableAction.actionProfileGroupId} in profile $profileId&quot;)</span></span>
+<span id="L377"><span class="lineNum">     377</span> <a href="#L385" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :       val members =</span></span>
+<span id="L378"><span class="lineNum">     378</span> <span class="tlaCBC">              1 :         group.membersList.map { groupMember -&gt;</span></span>
+<span id="L379"><span class="lineNum">     379</span> <span class="tlaCBC">              1 :           val member =</span></span>
+<span id="L380"><span class="lineNum">     380</span> <span class="tlaCBC">              1 :             profileMembers[profileId]?.get(groupMember.memberId)</span></span>
+<span id="L381"><span class="lineNum">     381</span> <a href="#top" class="tlaBgLBC"  title="Next LBC group">Coverage lost</a><span class="tlaLBC tlaBgLBC">           0 :               ?: error(&quot;unknown member ${groupMember.memberId} in profile $profileId&quot;)</span></span>
+<span id="L382"><span class="lineNum">     382</span> <a href="#L389" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :           MemberAction(</span></span>
+<span id="L383"><span class="lineNum">     383</span> <span class="tlaGIC">              1 :             groupMember.memberId,</span></span>
+<span id="L384"><span class="lineNum">     384</span> <span class="tlaGIC">              1 :             resolveActionName(member.action.actionId),</span></span>
+<span id="L385"><span class="lineNum">     385</span> <a href="#L395" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :             member.action.paramsList,</span></span>
+<span id="L386"><span class="lineNum">     386</span> <span class="tlaCBC">              1 :           )</span></span>
+<span id="L387"><span class="lineNum">     387</span>                 :         }</span>
+<span id="L388"><span class="lineNum">     388</span> <a href="#top" class="tlaBgEUB"  title="Next EUB group">Excluded (not covered)</a><span class="tlaEUB tlaBgEUB">             :       // Use the first member's action name for the table_lookup event.</span></span>
+<span id="L389"><span class="lineNum">     389</span> <a href="#L394" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :       val actionName = members.firstOrNull()?.actionName ?: &quot;NoAction&quot;</span></span>
+<span id="L390"><span class="lineNum">     390</span> <span class="tlaGIC">              1 :       return LookupResult(true, best.entry, actionName, members = members)</span></span>
+<span id="L391"><span class="lineNum">     391</span> <a href="#top" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :     }</span></span>
+<span id="L392"><span class="lineNum">     392</span>                 : </span>
+<span id="L393"><span class="lineNum">     393</span>                 :     // Action profile member (direct, no group): resolve to a single action.</span>
+<span id="L394"><span class="lineNum">     394</span> <a href="#L397" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :     if (tableAction.hasActionProfileMemberId() &amp;&amp; tableAction.actionProfileMemberId != 0) {</span></span>
+<span id="L395"><span class="lineNum">     395</span> <a href="#top" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :       val profileId =</span></span>
+<span id="L396"><span class="lineNum">     396</span> <span class="tlaCBC">              1 :         tableActionProfile[tableName] ?: error(&quot;table $tableName has no action profile&quot;)</span></span>
+<span id="L397"><span class="lineNum">     397</span> <a href="#L400" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :       val member =</span></span>
+<span id="L398"><span class="lineNum">     398</span> <span class="tlaGIC">              1 :         profileMembers[profileId]?.get(tableAction.actionProfileMemberId)</span></span>
+<span id="L399"><span class="lineNum">     399</span> <a href="#L419" class="tlaBgUIC"  title="Next UIC group">Included (not covered)</a><span class="tlaUIC tlaBgUIC">           0 :           ?: error(&quot;unknown member ${tableAction.actionProfileMemberId} in profile $profileId&quot;)</span></span>
+<span id="L400"><span class="lineNum">     400</span> <a href="#L421" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :       return LookupResult(true, best.entry, resolveActionName(member.action.actionId))</span></span>
+<span id="L401"><span class="lineNum">     401</span>                 :     }</span>
+<span id="L402"><span class="lineNum">     402</span>                 : </span>
+<span id="L403"><span class="lineNum">     403</span> <span class="tlaGIC">              1 :     return LookupResult(true, best.entry, resolveActionName(best.entry.action.action.actionId))</span></span>
+<span id="L404"><span class="lineNum">     404</span>                 :   }</span>
+<span id="L405"><span class="lineNum">     405</span>                 : </span>
+<span id="L406"><span class="lineNum">     406</span>                 :   private fun resolveActionName(actionId: Int): String =</span>
+<span id="L407"><span class="lineNum">     407</span> <span class="tlaGIC">              1 :     actionNameById[actionId] ?: error(&quot;unknown action ID: $actionId&quot;)</span></span>
+<span id="L408"><span class="lineNum">     408</span>                 : </span>
+<span id="L409"><span class="lineNum">     409</span>                 :   /**</span>
+<span id="L410"><span class="lineNum">     410</span>                 :    * Scores an entry against [keyValues]. Returns null if the entry does not match. Returns a</span>
+<span id="L411"><span class="lineNum">     411</span>                 :    * non-negative score where a higher value means a better match (used to implement LPM</span>
+<span id="L412"><span class="lineNum">     412</span>                 :    * longest-prefix and ternary priority semantics).</span>
+<span id="L413"><span class="lineNum">     413</span>                 :    */</span>
+<span id="L414"><span class="lineNum">     414</span>                 :   private fun scoreEntry(entry: TableEntry, keyValues: List&lt;Pair&lt;String, Value&gt;&gt;): Long? {</span>
+<span id="L415"><span class="lineNum">     415</span> <span class="tlaGIC">              1 :     var score = 0L</span></span>
+<span id="L416"><span class="lineNum">     416</span> <span class="tlaGIC">              1 :     for (match in entry.matchList) {</span></span>
+<span id="L417"><span class="lineNum">     417</span> <span class="tlaGIC">              1 :       val (_, value) =</span></span>
+<span id="L418"><span class="lineNum">     418</span> <span class="tlaGIC">              1 :         keyValues.find { it.first == match.fieldId.toString() }</span></span>
+<span id="L419"><span class="lineNum">     419</span> <a href="#L425" class="tlaBgUIC"  title="Next UIC group">Included (not covered)</a><span class="tlaUIC tlaBgUIC">           0 :           ?: return null // no key value for this match field</span></span>
+<span id="L420"><span class="lineNum">     420</span>                 : </span>
+<span id="L421"><span class="lineNum">     421</span> <a href="#L428" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :       val bits =</span></span>
+<span id="L422"><span class="lineNum">     422</span> <span class="tlaGIC">              1 :         when (value) {</span></span>
+<span id="L423"><span class="lineNum">     423</span> <span class="tlaGIC">              1 :           is BitVal -&gt; value.bits</span></span>
+<span id="L424"><span class="lineNum">     424</span> <span class="tlaGIC">              1 :           is BoolVal -&gt; if (value.value) BOOL_TRUE_BITS else BOOL_FALSE_BITS</span></span>
+<span id="L425"><span class="lineNum">     425</span> <a href="#L465" class="tlaBgUIC"  title="Next UIC group">Included (not covered)</a><span class="tlaUIC tlaBgUIC">           0 :           else -&gt; return null</span></span>
+<span id="L426"><span class="lineNum">     426</span>                 :         }</span>
+<span id="L427"><span class="lineNum">     427</span>                 : </span>
+<span id="L428"><span class="lineNum">     428</span> <a href="#L468" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :       when {</span></span>
+<span id="L429"><span class="lineNum">     429</span> <span class="tlaGIC">              1 :         match.hasExact() -&gt; {</span></span>
+<span id="L430"><span class="lineNum">     430</span> <span class="tlaGIC">              1 :           if (bits.value != match.exact.value.toUnsignedBigInteger()) return null</span></span>
+<span id="L431"><span class="lineNum">     431</span>                 :           // Exact match doesn't contribute to relative scoring — all exact</span>
+<span id="L432"><span class="lineNum">     432</span>                 :           // fields either match or don't.  We add nothing here; the entry's</span>
+<span id="L433"><span class="lineNum">     433</span>                 :           // priority (if any) is added once below the when block.</span>
+<span id="L434"><span class="lineNum">     434</span>                 :         }</span>
+<span id="L435"><span class="lineNum">     435</span> <span class="tlaGIC">              1 :         match.hasLpm() -&gt; {</span></span>
+<span id="L436"><span class="lineNum">     436</span> <span class="tlaGIC">              1 :           val prefixLen = match.lpm.prefixLen</span></span>
+<span id="L437"><span class="lineNum">     437</span> <span class="tlaGIC">              1 :           val prefix = match.lpm.value.toUnsignedBigInteger()</span></span>
+<span id="L438"><span class="lineNum">     438</span> <span class="tlaGIC">              1 :           val mask =</span></span>
+<span id="L439"><span class="lineNum">     439</span> <span class="tlaGIC">              1 :             if (prefixLen == 0) BigInteger.ZERO</span></span>
+<span id="L440"><span class="lineNum">     440</span>                 :             else</span>
+<span id="L441"><span class="lineNum">     441</span> <span class="tlaGIC">              1 :               BigInteger.ONE.shiftLeft(bits.width - prefixLen)</span></span>
+<span id="L442"><span class="lineNum">     442</span> <span class="tlaGIC">              1 :                 .minus(BigInteger.ONE)</span></span>
+<span id="L443"><span class="lineNum">     443</span> <span class="tlaGIC">              1 :                 .not()</span></span>
+<span id="L444"><span class="lineNum">     444</span> <span class="tlaGIC">              1 :                 .and(BigInteger.TWO.pow(bits.width).minus(BigInteger.ONE))</span></span>
+<span id="L445"><span class="lineNum">     445</span> <span class="tlaGIC">              1 :           if (bits.value.and(mask) != prefix.and(mask)) return null</span></span>
+<span id="L446"><span class="lineNum">     446</span> <span class="tlaGIC">              1 :           score += prefixLen.toLong()</span></span>
+<span id="L447"><span class="lineNum">     447</span>                 :         }</span>
+<span id="L448"><span class="lineNum">     448</span> <span class="tlaGIC">              1 :         match.hasTernary() -&gt; {</span></span>
+<span id="L449"><span class="lineNum">     449</span> <span class="tlaGIC">              1 :           val want = match.ternary.value.toUnsignedBigInteger()</span></span>
+<span id="L450"><span class="lineNum">     450</span> <span class="tlaGIC">              1 :           val mask = match.ternary.mask.toUnsignedBigInteger()</span></span>
+<span id="L451"><span class="lineNum">     451</span> <span class="tlaGIC">              1 :           if (bits.value.and(mask) != want.and(mask)) return null</span></span>
+<span id="L452"><span class="lineNum">     452</span> <span class="tlaGIC">              1 :           score += entry.priority.toLong()</span></span>
+<span id="L453"><span class="lineNum">     453</span>                 :         }</span>
+<span id="L454"><span class="lineNum">     454</span> <span class="tlaGIC">              1 :         match.hasRange() -&gt; {</span></span>
+<span id="L455"><span class="lineNum">     455</span> <span class="tlaGIC">              1 :           val lo = match.range.low.toUnsignedBigInteger()</span></span>
+<span id="L456"><span class="lineNum">     456</span> <span class="tlaGIC">              1 :           val hi = match.range.high.toUnsignedBigInteger()</span></span>
+<span id="L457"><span class="lineNum">     457</span> <span class="tlaGIC">              1 :           if (bits.value &lt; lo || bits.value &gt; hi) return null</span></span>
+<span id="L458"><span class="lineNum">     458</span> <span class="tlaGIC">              1 :           score += entry.priority.toLong()</span></span>
+<span id="L459"><span class="lineNum">     459</span>                 :         }</span>
+<span id="L460"><span class="lineNum">     460</span>                 :         // P4 spec §14.2.1.3: optional match behaves like exact when present;</span>
+<span id="L461"><span class="lineNum">     461</span>                 :         // omitted optional fields are wildcards (the FieldMatch is absent).</span>
+<span id="L462"><span class="lineNum">     462</span> <span class="tlaGIC">              1 :         match.hasOptional() -&gt; {</span></span>
+<span id="L463"><span class="lineNum">     463</span> <span class="tlaGIC">              1 :           if (bits.value != match.optional.value.toUnsignedBigInteger()) return null</span></span>
+<span id="L464"><span class="lineNum">     464</span>                 :         }</span>
+<span id="L465"><span class="lineNum">     465</span> <a href="#top" class="tlaBgUIC"  title="Next UIC group">Included (not covered)</a><span class="tlaUIC tlaBgUIC">           0 :         else -&gt; return null // unsupported match kind</span></span>
+<span id="L466"><span class="lineNum">     466</span>                 :       }</span>
+<span id="L467"><span class="lineNum">     467</span>                 :     }</span>
+<span id="L468"><span class="lineNum">     468</span> <a href="#top" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :     return score</span></span>
+<span id="L469"><span class="lineNum">     469</span>                 :   }</span>
+<span id="L470"><span class="lineNum">     470</span>                 : </span>
+<span id="L471"><span class="lineNum">     471</span>                 :   companion object {</span>
+<span id="L472"><span class="lineNum">     472</span> <span class="tlaGIC">              1 :     private val BOOL_TRUE_BITS = BitVector.ofInt(1, 1)</span></span>
+<span id="L473"><span class="lineNum">     473</span> <span class="tlaGIC">              1 :     private val BOOL_FALSE_BITS = BitVector.ofInt(0, 1)</span></span>
+<span id="L474"><span class="lineNum">     474</span>                 :   }</span>
+<span id="L475"><span class="lineNum">     475</span>                 : }</span>
+        </pre>
+              </td>
+            </tr>
+          </table>
+          <br>
+
+          <table width="100%" border=0 cellspacing=0 cellpadding=0>
+            <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+            <tr><td class="versionInfo">Generated by: <a href="https://github.com//linux-test-project/lcov" target="_parent">LCOV version 2.0-1</a></td></tr>
+          </table>
+          <br>
+
+</body>
+</html>
