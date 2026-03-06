@@ -57,9 +57,9 @@ plane.
 
 ## Where we're headed
 
-We have an **[ambitious roadmap](docs/ROADMAP.md)**: to build the **definitive P4 reference implementation**. In addition, we are targeting unique capabilities like *trace trees* and *architecture customization*, ensuring the simulator is production-ready for industry-grade P4 programs — complexities, edge cases, and all.
+We have an **[ambitious roadmap](docs/ROADMAP.md)**: to build the **definitive P4 reference implementation**. In addition, we are targeting unique capabilities like *trace trees* and *architecture customization*, while ensuring the simulator is production-ready for industry-grade P4 programs — complexities, edge cases, and all.
 
-To ensure we build something robust, we are driving development with two demanding real-world applications as forcing functions:
+We are driving development by building towards two demanding real-world applications as forcing functions:
 
 1. **[SAI P4](https://github.com/sonic-net/sonic-pins/tree/main/sai_p4)**
    — A 27-table program that exercises `@p4runtime_translation` with string port names, `@entry_restriction`, and everything the ecosystem currently papers over with hardcoded workarounds.
@@ -151,8 +151,6 @@ Hybrid mode example — pin special ports, auto-allocate the rest:
   auto:      "Ethernet2"  →   2
 ```
 
-No out-of-band config files. No custom RPCs. Just works.
-
 ## Should you trust AI-written code?
 
 4ward is **[100% AI-written](docs/AI_WORKFLOW.md)** — every line, every test,
@@ -172,12 +170,11 @@ truth:
   reference implementation and 4ward, compare every output.
 
 When three independent oracles agree, the code is correct — regardless of who
-wrote it. This is how production compilers like GCC and LLVM are tested. See
-[Testing Strategy](docs/TESTING_STRATEGY.md) for the full story.
+wrote it. See [Testing Strategy](docs/TESTING_STRATEGY.md) for the full story.
 
 ## Why Kotlin?
 
-The P4 ecosystem is C++. So why isn't 4ward?
+The P4 ecosystem is written in C++. So why isn't 4ward?
 
 Since no one needs to hold language minutiae in their head — the
 [AI writes the code](docs/AI_WORKFLOW.md) — we're free to pick the best
@@ -194,10 +191,11 @@ ergonomics (sealed classes, pattern matching).
 - **Go?** Weaker type system — no algebraic data types, no pattern matching.
 - **Python?** Weak type system, slow test execution.
 - **Java?** Kotlin, but worse.
-- **OCaml?** Excellent fit, but not supported within Google's ecosystem :(
+- **OCaml?** Excellent fit, but not well-supported within Google's ecosystem :(
 
-**You don't need to know Kotlin to contribute to 4ward!**
-[The AI writes the code](docs/AI_WORKFLOW.md) — you just need to know your
+> [!IMPORTANT]  
+> **You don't need to know Kotlin to contribute to 4ward!**
+> [The AI writes the code](docs/AI_WORKFLOW.md) — you just need to know your
 requirements.
 
 ## Project structure
