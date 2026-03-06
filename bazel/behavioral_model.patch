@@ -1,7 +1,7 @@
 diff --color -ruN a/BUILD.bazel b/BUILD.bazel
 --- a/BUILD.bazel	2026-03-06 06:27:42
 +++ b/BUILD.bazel	2026-03-06 06:47:28
-@@ -0,0 +1,211 @@
+@@ -0,0 +1,212 @@
 +# Native Bazel build for behavioral-model (BMv2).
 +# Minimal build: no Thrift, no nanomsg, no debugger, no PI.
 +
@@ -17,7 +17,8 @@ diff --color -ruN a/BUILD.bazel b/BUILD.bazel
 +_GMP_SEARCH_PATHS = [
 +    "/opt/homebrew/include",  # macOS (Apple Silicon Homebrew)
 +    "/usr/local/include",  # macOS (Intel Homebrew)
-+    "/usr/include",  # Linux
++    "/usr/include/x86_64-linux-gnu",  # Ubuntu/Debian multiarch
++    "/usr/include",  # Linux (non-multiarch)
 +]
 +
 +genrule(
@@ -26,8 +27,8 @@ diff --color -ruN a/BUILD.bazel b/BUILD.bazel
 +    cmd = " || ".join([
 +        '([ -f {p}/gmp.h ] && cp {p}/gmp.h $@)'.format(p = p)
 +        for p in _GMP_SEARCH_PATHS
-+    ]) + ' || (echo "#error gmp.h not found -- install libgmp-dev" > $@)',
-+    # System header presence depends on host state, not build inputs.
++    ]) + ' || { echo "ERROR: gmp.h not found -- install libgmp-dev" >&2; exit 1; }',
++    # No build inputs capture host state; must re-run every time.
 +    tags = ["no-cache", "no-remote-cache"],
 +)
 +
@@ -37,7 +38,7 @@ diff --color -ruN a/BUILD.bazel b/BUILD.bazel
 +    cmd = " || ".join([
 +        '([ -f {p}/gmpxx.h ] && cp {p}/gmpxx.h $@)'.format(p = p)
 +        for p in _GMP_SEARCH_PATHS
-+    ]) + ' || (echo "#error gmpxx.h not found -- install libgmp-dev" > $@)',
++    ]) + ' || { echo "ERROR: gmpxx.h not found -- install libgmp-dev" >&2; exit 1; }',
 +    tags = ["no-cache", "no-remote-cache"],
 +)
 +
