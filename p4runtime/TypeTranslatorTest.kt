@@ -654,16 +654,17 @@ class TypeTranslatorTest {
     private const val STRING_TYPE_URI = "sai.port"
   }
 
-  private fun portNameStringTypeInfo(): P4Types.P4TypeInfo =
+  /** Builds a single-entry P4TypeInfo for a translated type. */
+  private fun typeInfo(
+    typeName: String,
+    uri: String,
+    sdnType: P4Types.P4NewTypeTranslation.Builder.() -> Unit,
+  ): P4Types.P4TypeInfo =
     P4Types.P4TypeInfo.newBuilder()
       .putNewTypes(
-        STRING_TYPE_NAME,
+        typeName,
         P4Types.P4NewTypeSpec.newBuilder()
-          .setTranslatedType(
-            P4Types.P4NewTypeTranslation.newBuilder()
-              .setUri(STRING_TYPE_URI)
-              .setSdnString(P4Types.P4NewTypeTranslation.SdnString.getDefaultInstance())
-          )
+          .setTranslatedType(P4Types.P4NewTypeTranslation.newBuilder().setUri(uri).apply(sdnType))
           .build(),
       )
       .build()
@@ -693,7 +694,7 @@ class TypeTranslatorTest {
                 .setTypeName(P4Types.P4NamedType.newBuilder().setName(STRING_TYPE_NAME))
             )
         )
-        .setTypeInfo(portNameStringTypeInfo())
+        .setTypeInfo(stringTypeInfo())
         .build()
     return TypeTranslator.create(p4info)
   }
@@ -713,7 +714,7 @@ class TypeTranslatorTest {
                 .setTypeName(P4Types.P4NamedType.newBuilder().setName(STRING_TYPE_NAME))
             )
         )
-        .setTypeInfo(portNameStringTypeInfo())
+        .setTypeInfo(stringTypeInfo())
         .build()
     return TypeTranslator.create(p4info)
   }
@@ -721,26 +722,7 @@ class TypeTranslatorTest {
   /** Builds a TypeTranslator with both sdn_string and sdn_bitwidth match fields. */
   private fun buildP4InfoTranslatorWithMixedTypes(): TypeTranslator {
     val typeInfo =
-      P4Types.P4TypeInfo.newBuilder()
-        .putNewTypes(
-          STRING_TYPE_NAME,
-          P4Types.P4NewTypeSpec.newBuilder()
-            .setTranslatedType(
-              P4Types.P4NewTypeTranslation.newBuilder()
-                .setUri(STRING_TYPE_URI)
-                .setSdnString(P4Types.P4NewTypeTranslation.SdnString.getDefaultInstance())
-            )
-            .build(),
-        )
-        .putNewTypes(
-          TYPE_NAME,
-          P4Types.P4NewTypeSpec.newBuilder()
-            .setTranslatedType(
-              P4Types.P4NewTypeTranslation.newBuilder().setUri(TYPE_URI).setSdnBitwidth(32)
-            )
-            .build(),
-        )
-        .build()
+      bitstringTypeInfo().toBuilder().putAllNewTypes(stringTypeInfo().newTypesMap).build()
     val p4info =
       P4InfoOuterClass.P4Info.newBuilder()
         .addTables(
@@ -776,17 +758,12 @@ class TypeTranslatorTest {
     return TypeTranslator.create(p4info)
   }
 
-  private fun portIdTypeInfo(): P4Types.P4TypeInfo =
-    P4Types.P4TypeInfo.newBuilder()
-      .putNewTypes(
-        TYPE_NAME,
-        P4Types.P4NewTypeSpec.newBuilder()
-          .setTranslatedType(
-            P4Types.P4NewTypeTranslation.newBuilder().setUri(TYPE_URI).setSdnBitwidth(32)
-          )
-          .build(),
-      )
-      .build()
+  private fun bitstringTypeInfo() = typeInfo(TYPE_NAME, TYPE_URI) { setSdnBitwidth(32) }
+
+  private fun stringTypeInfo() =
+    typeInfo(STRING_TYPE_NAME, STRING_TYPE_URI) {
+      setSdnString(P4Types.P4NewTypeTranslation.SdnString.getDefaultInstance())
+    }
 
   /** Builds a TypeTranslator from synthetic p4info with a translated match field. */
   private fun buildP4InfoTranslator(): TypeTranslator {
@@ -819,7 +796,7 @@ class TypeTranslatorTest {
                 .setTypeName(P4Types.P4NamedType.newBuilder().setName(TYPE_NAME))
             )
         )
-        .setTypeInfo(portIdTypeInfo())
+        .setTypeInfo(bitstringTypeInfo())
         .build()
     return TypeTranslator.create(p4info)
   }
@@ -845,7 +822,7 @@ class TypeTranslatorTest {
                 .setBitwidth(7)
             )
         )
-        .setTypeInfo(portIdTypeInfo())
+        .setTypeInfo(bitstringTypeInfo())
         .build()
     return TypeTranslator.create(p4info)
   }

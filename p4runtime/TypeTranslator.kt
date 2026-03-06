@@ -53,7 +53,6 @@ private constructor(
   private val paramUris: Map<Long, String>,
   private val matchFieldUris: Map<Long, String>,
   private val packetMetadataUris: Map<Int, String>,
-  private val stringUris: Set<String>,
 ) {
 
   /** True if this translator has any translated types to handle. */
@@ -176,7 +175,7 @@ private constructor(
         val uri = paramUris[packKey(actionId, param.paramId)]
         if (uri != null) {
           changed = true
-          val translated = translateValue(getOrCreateTable(uri), param.value, toDataplane, uri)
+          val translated = translateValue(getOrCreateTable(uri), param.value, toDataplane)
           param.toBuilder().setValue(translated).build()
         } else {
           param
@@ -199,7 +198,7 @@ private constructor(
           val table = getOrCreateTable(uri)
           when {
             match.hasExact() -> {
-              val translated = translateValue(table, match.exact.value, toDataplane, uri)
+              val translated = translateValue(table, match.exact.value, toDataplane)
               match
                 .toBuilder()
                 .setExact(
@@ -208,7 +207,7 @@ private constructor(
                 .build()
             }
             match.hasOptional() -> {
-              val translated = translateValue(table, match.optional.value, toDataplane, uri)
+              val translated = translateValue(table, match.optional.value, toDataplane)
               match
                 .toBuilder()
                 .setOptional(
@@ -236,7 +235,7 @@ private constructor(
         val uri = packetMetadataUris[meta.metadataId]
         if (uri != null) {
           changed = true
-          val translated = translateValue(getOrCreateTable(uri), meta.value, toDataplane, uri)
+          val translated = translateValue(getOrCreateTable(uri), meta.value, toDataplane)
           meta.toBuilder().setValue(translated).build()
         } else {
           meta
@@ -248,17 +247,16 @@ private constructor(
   /**
    * Translates a single ByteString value forward (SDN→DP) or reverse (DP→SDN).
    *
-   * For `sdn_string` URIs, the SDN value is a UTF-8 string encoded in the proto `bytes` field (per
-   * P4Runtime spec §8.3 — there is no separate string field).
+   * For `sdn_string` tables, the SDN value is a UTF-8 string encoded in the proto `bytes` field
+   * (per P4Runtime spec §8.3 — there is no separate string field).
    */
   private fun translateValue(
     table: TranslationTable,
     value: ByteString,
     toDataplane: Boolean,
-    uri: String,
   ): ByteString =
     if (toDataplane) {
-      if (uri in stringUris) {
+      if (table.isStringType) {
         table.lookupOrAllocateString(value.toStringUtf8())
       } else {
         table.lookupOrAllocateBitstring(value)
@@ -284,7 +282,6 @@ private constructor(
         paramUris = emptyMap(),
         matchFieldUris = emptyMap(),
         packetMetadataUris = emptyMap(),
-        stringUris = emptySet(),
       )
 
     /**
@@ -327,24 +324,26 @@ private constructor(
       val stringUris =
         translatedTypes.values
           .filter { it.translatedType.hasSdnString() }
-          .map { it.translatedType.uri }
-          .toSet()
+          .mapTo(mutableSetOf()) { it.translatedType.uri }
 
-      return TypeTranslator(
-        buildTables(translations),
-        paramUris,
-        matchFieldUris,
-        packetMetadataUris,
-        stringUris,
-      )
+      val tables = buildTables(translations, stringUris)
+      // Pre-create tables for string URIs that have no translation config,
+      // so getOrCreateTable finds them with the correct isStringType.
+      for (uri in stringUris) {
+        tables.computeIfAbsent(uri) { TranslationTable(autoAllocate = true, isStringType = true) }
+      }
+
+      return TypeTranslator(tables, paramUris, matchFieldUris, packetMetadataUris)
     }
 
     private fun buildTables(
-      translations: List<TypeTranslation>
+      translations: List<TypeTranslation>,
+      stringUris: Set<String> = emptySet(),
     ): ConcurrentHashMap<String, TranslationTable> {
       val tables = ConcurrentHashMap<String, TranslationTable>()
       for (translation in translations) {
-        tables[translation.uri] = TranslationTable.fromProto(translation)
+        tables[translation.uri] =
+          TranslationTable.fromProto(translation, isStringType = translation.uri in stringUris)
       }
       return tables
     }
@@ -360,7 +359,11 @@ private constructor(
  *
  * Thread-safe: all mutating operations are synchronized.
  */
-internal class TranslationTable(private val autoAllocate: Boolean) {
+internal class TranslationTable(
+  private val autoAllocate: Boolean,
+  /** True if this table's SDN values are strings (UTF-8 encoded in proto bytes fields). */
+  val isStringType: Boolean = false,
+) {
 
   // Forward maps: SDN → data-plane.
   private val bitstringForward = mutableMapOf<ByteString, ByteString>()
@@ -427,8 +430,8 @@ internal class TranslationTable(private val autoAllocate: Boolean) {
 
   companion object {
     /** Builds a TranslationTable from a proto config, pre-populating explicit entries. */
-    fun fromProto(proto: TypeTranslation): TranslationTable {
-      val table = TranslationTable(autoAllocate = proto.autoAllocate)
+    fun fromProto(proto: TypeTranslation, isStringType: Boolean = false): TranslationTable {
+      val table = TranslationTable(autoAllocate = proto.autoAllocate, isStringType = isStringType)
       for (entry in proto.entriesList) {
         val dp = entry.dataplaneValue
         table.reservedValues.add(dp)
