@@ -23,15 +23,20 @@ Unit tests live alongside the source they test (`FooTest.kt` next to `Foo.kt`).
 ## Build and test
 
 ```sh
-bazel build //...          # build everything
-bazel test //...           # run all tests
-ibazel build //...         # rebuild automatically on file changes (preferred for interactive work)
-./tools/format.sh          # auto-format all files (clang-format + buildifier + ktfmt)
-./tools/lint.sh            # lint all files (clang-tidy for C++, detekt for Kotlin)
-./tools/coverage.sh        # collect code coverage (see --html, --baseline, --diff)
-./tools/diff-coverage.sh   # incremental coverage from a diff + LCOV file
-./tools/dev.sh help        # show all developer commands
+bazel build //...                              # build everything
+bazel test //... --test_tag_filters=-heavy     # run tests (skip heavy ones)
+bazel test //...                               # run ALL tests (CI does this)
+ibazel build //...                             # rebuild on file changes (preferred)
+./tools/format.sh                              # auto-format all files
+./tools/lint.sh                                # lint (clang-tidy + detekt)
+./tools/coverage.sh                            # code coverage (--html, --baseline, --diff)
+./tools/dev.sh help                            # show all developer commands
 ```
+
+**Use `--test_tag_filters=-heavy` locally.** The `heavy` tag marks tests
+that spawn many JVM processes (p4testgen: 186 separate JVMs). Skipping them
+keeps local test runs fast and avoids memory pressure. CI runs all tests
+including heavy ones.
 
 **Prefer `ibazel` over `bazel` for any work that spans multiple edit/build
 cycles.** It keeps the Bazel server warm and rebuilds only affected targets,
