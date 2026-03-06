@@ -14,10 +14,14 @@ guilt — just write it down so someone can find it later.
 
 - **v1model only.** PSA, PNA, and TNA are not implemented. The architecture
   interface (`Architecture.kt`) is designed for pluggability, but only
-  `V1ModelArchitecture.kt` exists today. 25 corpus tests are blocked on PSA.
+  `V1ModelArchitecture.kt` exists today. 26 corpus tests are blocked on PSA.
 
 ## Externs
 
+- **No user-defined extern functions.** Extern functions declared in P4
+  without a body (e.g. `extern void f(out bit<32> d, bit<32> s)`) cannot be
+  executed — their semantics exist only in architecture-specific libraries.
+  Blocks 1 corpus test (`extern-funcs-bmv2`).
 - **No meter support.** `meter.execute_meter()` is not implemented.
 - **`digest`, `log_msg` not implemented.** No corpus tests depend on these.
 
@@ -49,12 +53,3 @@ guilt — just write it down so someone can find it later.
 - **Multicast: basic replication only.** Multicast group replication works
   for the trace tree (forking per replica). PRE entries are installed via
   P4Runtime `PacketReplicationEngineEntry`.
-- **Per-table action specialization lost.** When a table has a single action
-  ID in p4info but different compile-time specializations, only one is kept.
-  Blocks 1 corpus test (`ternary2-bmv2`).
-
-## p4c backend
-
-- **No `lookahead` or `advance`.** The backend does not emit IR for parser
-  `lookahead<T>()` or `packet.advance()`. This is a backend limitation, not
-  a simulator one. Blocks 6 corpus tests.
