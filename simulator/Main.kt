@@ -1,5 +1,7 @@
 package fourward.simulator
 
+import fourward.sim.v1.ErrorCode
+import fourward.sim.v1.ErrorResponse
 import fourward.sim.v1.SimRequest
 import fourward.sim.v1.SimResponse
 import java.io.DataInputStream
@@ -27,29 +29,32 @@ fun main() {
 
   while (true) {
     val request = readRequest(input) ?: break
-    // Catch-all at the subprocess boundary: any uncaught exception becomes an
-    // ErrorResponse so the controller can report it gracefully rather than
-    // receiving a truncated or missing response.
-    @Suppress("TooGenericExceptionCaught")
-    val response =
-      try {
-        simulator.handle(request)
-      } catch (e: Exception) {
-        System.err.println("error handling request: ${e.message}")
-        e.printStackTrace(System.err)
-        SimResponse.newBuilder()
-          .setError(
-            fourward.sim.v1.ErrorResponse.newBuilder()
-              .setCode(fourward.sim.v1.ErrorCode.INTERNAL_ERROR)
-              .setMessage(e.message ?: "unknown error")
-          )
-          .build()
-      }
+    val response = handleSafely(simulator, request)
     writeResponse(output, response)
   }
 
   System.err.println("4ward simulator exiting")
 }
+
+/**
+ * Catch-all at the subprocess boundary: any uncaught exception becomes an ErrorResponse so the
+ * controller can report it gracefully rather than receiving a truncated or missing response.
+ */
+@Suppress("TooGenericExceptionCaught")
+fun handleSafely(simulator: Simulator, request: SimRequest): SimResponse =
+  try {
+    simulator.handle(request)
+  } catch (e: Exception) {
+    System.err.println("error handling request: ${e.message}")
+    e.printStackTrace(System.err)
+    SimResponse.newBuilder()
+      .setError(
+        ErrorResponse.newBuilder()
+          .setCode(ErrorCode.INTERNAL_ERROR)
+          .setMessage(e.message ?: "unknown error")
+      )
+      .build()
+  }
 
 /**
  * Reads one [SimRequest] from [input].
