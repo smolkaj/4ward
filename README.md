@@ -48,8 +48,8 @@ plane.
 | P4Runtime support | sure | has gaps | [**100% spec-compliant (planned)**](docs/ROADMAP.md#track-4-p4runtime-reference-implementation) |
 | Trace format | nope | text | [**proto/JSON**](https://github.com/smolkaj/4ward/blob/main/e2e_tests/trace_tree/clone_with_egress.golden.txtpb) |
 | All possible traces | nope | not natively | [**trace trees!**](docs/ROADMAP.md#track-3-trace-trees) |
-| Architecture-generic | nope | nope | [**by design**](docs/ROADMAP.md#track-5-architecture-customization) |
-| Architecture customization | nope | nope | [**by design**](docs/ROADMAP.md#track-6-architecture-expansion-psa-then-pnatna) |
+| Architecture-generic | nope | nope | [**by design**](docs/ROADMAP.md#track-6-architecture-expansion-psa-then-pnatna) |
+| Architecture customization | nope | nope | [**by design**](docs/ROADMAP.md#track-5-architecture-customization) |
 | Easy to extend | ehh | ehh | [**if AI can extend it, anyone can**](docs/ROADMAP.md#why-4ward-is-easier-to-extend) |
 | Simple, readable codebase | ehh | ehh | [**yes!**](docs/ROADMAP.md#keeping-it-easy-the-strategy) |
 | Fast, rigorous CI | nope | slow | **[~2 min](https://4ward.buildbuddy.io/trends/)** |
