@@ -62,8 +62,8 @@ int main() {
 
   while (auto request = ReadRequest()) {
     if (request->has_load_p4info()) {
-      auto result = p4_constraints::P4ToConstraintInfo(
-          request->load_p4info().p4info());
+      auto result =
+          p4_constraints::P4ToConstraintInfo(request->load_p4info().p4info());
       if (!result.ok()) {
         WriteError(std::string(result.status().message()));
         continue;

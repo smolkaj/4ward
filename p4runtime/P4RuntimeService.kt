@@ -113,7 +113,8 @@ class P4RuntimeService(
 
       // Validate constraints before forwarding to the simulator.
       // Skip DELETE — you can always remove an entry regardless of constraints.
-      if (validator != null &&
+      if (
+        validator != null &&
           update.entity.hasTableEntry() &&
           update.type != p4.v1.P4RuntimeOuterClass.Update.Type.DELETE
       ) {

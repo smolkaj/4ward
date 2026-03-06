@@ -9,7 +9,10 @@ load("@rules_cc//cc:cc_library.bzl", "cc_library")
 # Copy GMP headers into a sandboxable location.
 genrule(
     name = "gmp_headers",
-    outs = ["include/gmp.h", "include/gmpxx.h"],
+    outs = [
+        "include/gmp.h",
+        "include/gmpxx.h",
+    ],
     cmd = select({
         "@platforms//os:macos": """
             cp /opt/homebrew/include/gmp.h $(location include/gmp.h)
