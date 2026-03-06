@@ -1989,6 +1989,66 @@ DA:1276,1
 LH:614
 LF:674
 end_of_record
+SF:simulator/InterpreterTestDsl.kt
+FN:25,fourward/simulator/InterpreterTestDslKt::bit (JI)Lfourward/ir/v1/Expr;
+FNDA:1,fourward/simulator/InterpreterTestDslKt::bit (JI)Lfourward/ir/v1/Expr;
+FN:31,fourward/simulator/InterpreterTestDslKt::boolLit (Z)Lfourward/ir/v1/Expr;
+FNDA:1,fourward/simulator/InterpreterTestDslKt::boolLit (Z)Lfourward/ir/v1/Expr;
+FN:37,fourward/simulator/InterpreterTestDslKt::nameRef (Ljava/lang/String;)Lfourward/ir/v1/Expr;
+FNDA:1,fourward/simulator/InterpreterTestDslKt::nameRef (Ljava/lang/String;)Lfourward/ir/v1/Expr;
+FN:40,fourward/simulator/InterpreterTestDslKt::bitType (I)Lfourward/ir/v1/Type;
+FNDA:1,fourward/simulator/InterpreterTestDslKt::bitType (I)Lfourward/ir/v1/Type;
+FN:42,fourward/simulator/InterpreterTestDslKt::namedType (Ljava/lang/String;)Lfourward/ir/v1/Type;
+FNDA:1,fourward/simulator/InterpreterTestDslKt::namedType (Ljava/lang/String;)Lfourward/ir/v1/Type;
+FN:50,fourward/simulator/InterpreterTestDslKt::ifStmt (Lfourward/ir/v1/Expr;Ljava/util/List;Ljava/util/List;Lfourward/ir/v1/SourceInfo;)Lfourward/ir/v1/Stmt;
+FNDA:1,fourward/simulator/InterpreterTestDslKt::ifStmt (Lfourward/ir/v1/Expr;Ljava/util/List;Ljava/util/List;Lfourward/ir/v1/SourceInfo;)Lfourward/ir/v1/Stmt;
+FN:44,fourward/simulator/InterpreterTestDslKt::ifStmt$default (Lfourward/ir/v1/Expr;Ljava/util/List;Ljava/util/List;Lfourward/ir/v1/SourceInfo;ILjava/lang/Object;)Lfourward/ir/v1/Stmt;
+FNDA:1,fourward/simulator/InterpreterTestDslKt::ifStmt$default (Lfourward/ir/v1/Expr;Ljava/util/List;Ljava/util/List;Lfourward/ir/v1/SourceInfo;ILjava/lang/Object;)Lfourward/ir/v1/Stmt;
+FN:64,fourward/simulator/InterpreterTestDslKt::assign (Ljava/lang/String;Lfourward/ir/v1/Expr;)Lfourward/ir/v1/Stmt;
+FNDA:1,fourward/simulator/InterpreterTestDslKt::assign (Ljava/lang/String;Lfourward/ir/v1/Expr;)Lfourward/ir/v1/Stmt;
+FN:73,fourward/simulator/InterpreterTestDslKt::controlConfig ([Lfourward/ir/v1/Stmt;)Lfourward/ir/v1/BehavioralConfig;
+FNDA:1,fourward/simulator/InterpreterTestDslKt::controlConfig ([Lfourward/ir/v1/Stmt;)Lfourward/ir/v1/BehavioralConfig;
+FN:77,fourward/simulator/InterpreterTestDslKt::controlConfig (Ljava/lang/String;[Lfourward/ir/v1/Stmt;)Lfourward/ir/v1/BehavioralConfig;
+FNDA:1,fourward/simulator/InterpreterTestDslKt::controlConfig (Ljava/lang/String;[Lfourward/ir/v1/Stmt;)Lfourward/ir/v1/BehavioralConfig;
+BRDA:58,0,0,1
+BRDA:58,0,1,1
+DA:25,1
+DA:26,1
+DA:27,1
+DA:28,1
+DA:31,1
+DA:32,1
+DA:33,1
+DA:34,1
+DA:37,1
+DA:40,1
+DA:42,1
+DA:44,1
+DA:46,1
+DA:47,1
+DA:48,1
+DA:50,1
+DA:51,1
+DA:52,1
+DA:53,1
+DA:54,1
+DA:55,1
+DA:56,1
+DA:58,1
+DA:59,1
+DA:64,1
+DA:65,1
+DA:66,1
+DA:67,1
+DA:68,1
+DA:70,1
+DA:73,1
+DA:77,1
+DA:78,1
+DA:79,1
+LH:34
+LF:34
+end_of_record
 SF:simulator/Main.kt
 FN:22,fourward/simulator/MainKt::main ()V
 FNDA:1,fourward/simulator/MainKt::main ()V
