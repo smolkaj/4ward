@@ -4,6 +4,8 @@ import fourward.ir.v1.PipelineConfig
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.assertGrpcError
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildEthernetFrame
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildExactEntry
+import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildGroupEntity
+import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildMemberEntity
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.loadConfig
 import io.grpc.Status
 import org.junit.After
@@ -338,6 +340,73 @@ class P4RuntimeConformanceTest {
       entry.tableEntry.action.action.paramsList,
       results[0].tableEntry.action.action.paramsList,
     )
+  }
+
+  // =========================================================================
+  // Action profile members (scenarios 26-28)
+  // =========================================================================
+
+  @Test
+  fun `26 - write and read back action profile member`() {
+    harness.loadPipeline(loadBasicTableConfig())
+    val member = buildMemberEntity(actionProfileId = 1, memberId = 1, actionId = 1)
+    harness.installEntry(member)
+    val results = harness.readProfileMembers(actionProfileId = 1)
+    assertEquals(1, results.size)
+    assertTrue(results[0].hasActionProfileMember())
+    assertEquals(1, results[0].actionProfileMember.memberId)
+  }
+
+  @Test
+  fun `27 - insert duplicate member returns ALREADY_EXISTS`() {
+    harness.loadPipeline(loadBasicTableConfig())
+    val member = buildMemberEntity(actionProfileId = 1, memberId = 1, actionId = 1)
+    harness.installEntry(member)
+    assertGrpcError(Status.Code.ALREADY_EXISTS) { harness.installEntry(member) }
+  }
+
+  @Test
+  fun `28 - delete member then read returns empty`() {
+    harness.loadPipeline(loadBasicTableConfig())
+    val member = buildMemberEntity(actionProfileId = 1, memberId = 1, actionId = 1)
+    harness.installEntry(member)
+    harness.deleteEntry(member)
+    assertTrue(harness.readProfileMembers(actionProfileId = 1).isEmpty())
+  }
+
+  // =========================================================================
+  // Action profile groups (scenarios 29-31)
+  // =========================================================================
+
+  @Test
+  fun `29 - write and read back action profile group`() {
+    harness.loadPipeline(loadBasicTableConfig())
+    val group = buildGroupEntity(actionProfileId = 1, groupId = 1, memberIds = listOf(1, 2))
+    harness.installEntry(group)
+    val results = harness.readProfileGroups(actionProfileId = 1)
+    assertEquals(1, results.size)
+    assertTrue(results[0].hasActionProfileGroup())
+    assertEquals(1, results[0].actionProfileGroup.groupId)
+    assertEquals(2, results[0].actionProfileGroup.membersCount)
+  }
+
+  @Test
+  fun `30 - modify group with different members succeeds`() {
+    harness.loadPipeline(loadBasicTableConfig())
+    val group = buildGroupEntity(actionProfileId = 1, groupId = 1, memberIds = listOf(1))
+    harness.installEntry(group)
+    val modified = buildGroupEntity(actionProfileId = 1, groupId = 1, memberIds = listOf(1, 2, 3))
+    harness.modifyEntry(modified)
+    val results = harness.readProfileGroups(actionProfileId = 1)
+    assertEquals(1, results.size)
+    assertEquals(3, results[0].actionProfileGroup.membersCount)
+  }
+
+  @Test
+  fun `31 - delete non-existent group returns NOT_FOUND`() {
+    harness.loadPipeline(loadBasicTableConfig())
+    val group = buildGroupEntity(actionProfileId = 1, groupId = 99, memberIds = listOf(1))
+    assertGrpcError(Status.Code.NOT_FOUND) { harness.deleteEntry(group) }
   }
 
   // ---------------------------------------------------------------------------

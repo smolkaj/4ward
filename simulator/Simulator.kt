@@ -157,9 +157,15 @@ class Simulator {
   private fun handleReadEntries(req: fourward.sim.v1.ReadEntriesRequest): SimResponse {
     // P4Runtime spec §11.1: each entity in the ReadRequest is a filter; the response is the union.
     val entities =
-      req.request.entitiesList
-        .filter { it.hasTableEntry() }
-        .flatMap { tableStore.readEntities(it.tableEntry) }
+      req.request.entitiesList.flatMap { entity ->
+        when {
+          entity.hasTableEntry() -> tableStore.readEntities(entity.tableEntry)
+          entity.hasActionProfileMember() ->
+            tableStore.readProfileMembers(entity.actionProfileMember)
+          entity.hasActionProfileGroup() -> tableStore.readProfileGroups(entity.actionProfileGroup)
+          else -> emptyList()
+        }
+      }
     return SimResponse.newBuilder()
       .setReadEntries(ReadEntriesResponse.newBuilder().addAllEntities(entities))
       .build()

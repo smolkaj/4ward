@@ -39,8 +39,6 @@ guilt — just write it down so someone can find it later.
   UNIMPLEMENTED.
 - **No counters, meters, or registers via P4Runtime.** These work via the
   simulator protocol but cannot be managed through the gRPC server.
-- **No action profiles or groups via P4Runtime.** Action selector tables and
-  group management are not implemented.
 - **No digests, idle timeouts, or atomic write batches.**
 
 ## Simulator
