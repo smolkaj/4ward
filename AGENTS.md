@@ -86,7 +86,8 @@ remove or renumber existing fields; add new ones instead.
 
 Do not add features that are not exercised by an STF test in `e2e_tests/`.
 Find the relevant failing test, implement the missing feature in `simulator/`,
-and confirm no other tests regress: `bazel test //...`.
+and confirm no other tests regress: `bazel test //...`. A test that was green
+before your change must still be green after it.
 
 If you take a shortcut or skip a corner case to make progress, note it in
 [LIMITATIONS.md](docs/LIMITATIONS.md) so it doesn't get forgotten, and leave a
@@ -103,7 +104,10 @@ for language semantics is the
 [P4₁₆ Language Specification](https://p4.org/wp-content/uploads/sites/53/p4-spec/docs/p4-16-working-draft.html).
 **When in doubt, consult the spec.** If the spec is ambiguous, follow p4c's
 behaviour and document the ambiguity with a comment citing the relevant spec
-section.
+section. For v1model architecture semantics (clone/resubmit/recirculate
+ordering, last-writer-wins, metadata preservation, ingress→egress boundary),
+the de facto spec is the
+[BMv2 simple_switch documentation](https://github.com/p4lang/behavioral-model/blob/main/docs/simple_switch.md).
 
 Key points:
 
@@ -127,11 +131,25 @@ expression inside `Simulator.handleLoadPipeline()`.
 Proto changes affect both the p4c backend (C++) and the simulator (Kotlin).
 Update both sides and make sure the relevant STF tests still pass.
 
-## Pull request descriptions
+## Commit messages
 
-Lead with the win — what changed for the project, how it fits into the big
-picture. Be concise and punchy. Don't drown achievements in low-level details;
-the diff already has those.
+Focus on *why* the change is being made and what problem it solves. Avoid
+restating what the diff already shows. Reference the STF test being fixed where
+applicable.
+
+## Code comments
+
+Write self-explanatory code. Add a comment when the code deviates from the
+obvious approach, works around a non-obvious constraint, or implements a
+subtle P4 spec requirement. Include spec references (section numbers, GitHub
+issues) where helpful. Do not add comments that merely restate the code.
+
+## Pull requests
+
+Open PRs in draft mode (`gh pr create --draft`). Rebase onto `origin/main`
+before submitting. Lead with the win — what changed for the project, how it
+fits into the big picture. Be concise and punchy. Don't drown achievements
+in low-level details; the diff already has those.
 
 ## Before submitting a PR
 
@@ -141,6 +159,20 @@ Consider whether your change affects any documentation:
   gap, or resolve an existing limitation?
 - **[REFACTORING.md](docs/REFACTORING.md)** — did you notice tech debt worth
   tracking, or complete an item already listed?
+
+## Expectations
+
+- **Proactively add unit tests** for new simulator behavior (e.g. new
+  interpreter branches, new extern handling). Don't wait to be asked — add
+  them alongside the implementation.
+- **Fix all lint warnings, even pre-existing ones.** Never dismiss issues as
+  "pre-existing" — leave the codebase better than you found it.
+- **The linter serves us, not the other way around.** When a rule doesn't fit
+  the code's natural structure (e.g. function-count thresholds on
+  interpreters), adjust the threshold rather than contorting the code. Never
+  degrade readability to satisfy an arbitrary metric.
+- **NEVER edit docs/STATUS.md.** It is maintained exclusively by the project
+  owner. No exceptions.
 
 ## Worktrees
 
