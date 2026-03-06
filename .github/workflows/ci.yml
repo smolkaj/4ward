@@ -116,6 +116,12 @@ jobs:
       - name: Build and test
         run: bazel test //... --test_tag_filters=-heavy
 
+      # Heavy tests (p4testgen) are slow — only run on main pushes where
+      # the build cache from the step above is already warm.
+      - name: Run heavy tests
+        if: github.event_name == 'push' && matrix.os == 'ubuntu-24.04'
+        run: bazel test //... --test_tag_filters=heavy
+
       - name: Calculate build duration
         if: always()
         run: echo "DURATION=$(( $(date +%s) - START_TIME ))" >> "$GITHUB_ENV"
@@ -134,38 +140,6 @@ jobs:
         with:
           path: ${{ env.BAZEL_CACHE }}
           key: bazel-${{ matrix.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', 'bazel/*.patch') }}-${{ github.run_id }}
-
-
-  heavy-tests:
-    name: Heavy tests
-    if: github.event_name == 'push'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Configure remote cache
-        env:
-          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
-        run: |
-          if [[ -n "${BUILDBUDDY_API_KEY}" ]]; then
-            echo "build --config=ci" >> ~/.bazelrc
-            echo "common --remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY}" >> ~/.bazelrc
-          fi
-
-      - name: Restore Bazel cache
-        uses: actions/cache/restore@v5
-        with:
-          path: ~/.cache/bazel
-          key: bazel-ubuntu-24.04-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', 'bazel/*.patch') }}
-          restore-keys: bazel-ubuntu-24.04-
-
-      # p4testgen links against system libgmp via p4c.
-      - name: Install system dependencies
-        run: sudo apt-get install -y libgmp-dev
-
-      - name: Run heavy tests
-        run: bazel test //... --test_tag_filters=heavy
 
 
   coverage:
