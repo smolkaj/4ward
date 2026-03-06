@@ -8,6 +8,8 @@ import fourward.ir.v1.ControlDecl
 import fourward.ir.v1.Expr
 import fourward.ir.v1.IfStmt
 import fourward.ir.v1.Literal
+import fourward.ir.v1.MethodCall
+import fourward.ir.v1.MethodCallStmt
 import fourward.ir.v1.NameRef
 import fourward.ir.v1.SourceInfo
 import fourward.ir.v1.Stmt
@@ -66,6 +68,23 @@ fun assign(varName: String, rhs: Expr): Stmt =
       AssignmentStmt.newBuilder()
         .setLhs(Expr.newBuilder().setNameRef(NameRef.newBuilder().setName(varName)))
         .setRhs(rhs)
+    )
+    .build()
+
+/** Statement that calls `target.method(args...)` — for extern method calls. */
+fun methodCallStmt(target: String, method: String, vararg args: Expr): Stmt =
+  Stmt.newBuilder()
+    .setMethodCall(
+      MethodCallStmt.newBuilder()
+        .setCall(
+          Expr.newBuilder()
+            .setMethodCall(
+              MethodCall.newBuilder()
+                .setTarget(nameRef(target))
+                .setMethod(method)
+                .addAllArgs(args.toList())
+            )
+        )
     )
     .build()
 
