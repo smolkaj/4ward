@@ -59,9 +59,9 @@ guilt — just write it down so someone can find it later.
   `libgmp` and `libpcap` rather than building them from source. The build uses
   genrules to copy headers into the build tree, but runtime linking requires the
   libraries to be installed (e.g. via Homebrew on macOS).
-- **Small starter test set.** Only 5 corpus tests are diff-tested. Expanding to
-  the full corpus requires verifying each test compiles under p4c-bm2-ss and
-  produces matching output.
+- **183 of 186 corpus tests pass.** 3 tests are excluded: `ipv6-switch-ml-bmv2`
+  and `v1model-special-ops-bmv2` (multicast PRE limits in BMv2 driver), and
+  `ternary2-bmv2` (semantic mismatch under investigation).
 
 ## p4c backend
 

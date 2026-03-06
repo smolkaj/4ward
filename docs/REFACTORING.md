@@ -59,31 +59,6 @@ The module extension has read access to the p4c source tree (via
 
 ---
 
-## ~~Extract shared `p4_compile` genrule macro~~ — DONE
-
-Extracted `p4c_compile()` into `e2e_tests/p4c.bzl`. All 11 call sites
-(`corpus.bzl`, `p4testgen.bzl`, `bmv2_diff.bzl`, and 8 `BUILD.bazel` files)
-now use the shared helper.
-
----
-
-## Reuse simulator process across p4testgen sub-tests
-
-**Files**: `e2e_tests/stf/Runner.kt`, `e2e_tests/p4testgen/P4TestgenTest.kt`
-
-**Problem**: Each sub-test in a p4testgen target spawns a fresh simulator
-subprocess and re-loads the same pipeline config. With `max_tests = 100`,
-subprocess overhead (~330ms each) dominates — 100 sub-tests take ~33s
-when the actual packet processing is negligible.
-
-**Fix**: All sub-tests within a target share the same `.txtpb`. Launch the
-simulator once, load the pipeline once, then for each STF: install table
-entries, send packets, check outputs. `StfRunner` currently assumes
-one-shot execution (launch → run → destroy); refactor it to support a
-persistent session that resets table state between STFs.
-
----
-
 ## Make `matchesMasked` internal for test reuse
 
 **Files**: `e2e_tests/stf/Runner.kt`, `e2e_tests/stf/StfParserTest.kt`
