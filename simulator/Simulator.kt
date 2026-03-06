@@ -154,9 +154,17 @@ class Simulator {
     }
   }
 
-  @Suppress("UnusedParameter") // will be used when read filters are implemented
   private fun handleReadEntries(req: fourward.sim.v1.ReadEntriesRequest): SimResponse {
-    val entities = tableStore.readAllEntities()
+    // P4Runtime spec §11.1: each entity in the ReadRequest is a filter; the response is the union.
+    // A TableEntry with table_id=0 is a wildcard (all tables). An empty entity list returns
+    // nothing.
+    val entities =
+      req.request.entitiesList.flatMap { filter ->
+        when {
+          filter.hasTableEntry() -> tableStore.readEntities(filter.tableEntry.tableId)
+          else -> emptyList()
+        }
+      }
     return SimResponse.newBuilder()
       .setReadEntries(ReadEntriesResponse.newBuilder().addAllEntities(entities))
       .build()

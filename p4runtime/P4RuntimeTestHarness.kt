@@ -20,8 +20,12 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import p4.v1.P4RuntimeGrpcKt.P4RuntimeCoroutineStub
+import p4.v1.P4RuntimeOuterClass.CapabilitiesRequest
+import p4.v1.P4RuntimeOuterClass.CapabilitiesResponse
 import p4.v1.P4RuntimeOuterClass.Entity
 import p4.v1.P4RuntimeOuterClass.ForwardingPipelineConfig
+import p4.v1.P4RuntimeOuterClass.GetForwardingPipelineConfigRequest
+import p4.v1.P4RuntimeOuterClass.GetForwardingPipelineConfigResponse
 import p4.v1.P4RuntimeOuterClass.MasterArbitrationUpdate
 import p4.v1.P4RuntimeOuterClass.PacketOut
 import p4.v1.P4RuntimeOuterClass.ReadRequest
@@ -29,6 +33,7 @@ import p4.v1.P4RuntimeOuterClass.SetForwardingPipelineConfigRequest
 import p4.v1.P4RuntimeOuterClass.SetForwardingPipelineConfigResponse
 import p4.v1.P4RuntimeOuterClass.StreamMessageRequest
 import p4.v1.P4RuntimeOuterClass.StreamMessageResponse
+import p4.v1.P4RuntimeOuterClass.TableEntry
 import p4.v1.P4RuntimeOuterClass.Uint128
 import p4.v1.P4RuntimeOuterClass.Update
 import p4.v1.P4RuntimeOuterClass.WriteRequest
@@ -78,6 +83,22 @@ class P4RuntimeTestHarness : Closeable {
     return loadPipeline(builder.build())
   }
 
+  fun getConfig(
+    responseType: GetForwardingPipelineConfigRequest.ResponseType =
+      GetForwardingPipelineConfigRequest.ResponseType.ALL
+  ): GetForwardingPipelineConfigResponse = runBlocking {
+    stub.getForwardingPipelineConfig(
+      GetForwardingPipelineConfigRequest.newBuilder()
+        .setDeviceId(1)
+        .setResponseType(responseType)
+        .build()
+    )
+  }
+
+  fun capabilities(): CapabilitiesResponse = runBlocking {
+    stub.capabilities(CapabilitiesRequest.getDefaultInstance())
+  }
+
   // ---------------------------------------------------------------------------
   // Table entry management
   // ---------------------------------------------------------------------------
@@ -109,12 +130,29 @@ class P4RuntimeTestHarness : Closeable {
     )
   }
 
-  fun readEntries(request: ReadRequest = ReadRequest.getDefaultInstance()): List<Entity> =
-    runBlocking {
-      val entities = mutableListOf<Entity>()
-      stub.read(request).collect { response -> entities.addAll(response.entitiesList) }
-      entities
-    }
+  /** Wildcard read: returns all table entries. */
+  fun readEntries(): List<Entity> =
+    readEntries(
+      ReadRequest.newBuilder()
+        .setDeviceId(1)
+        .addEntities(Entity.newBuilder().setTableEntry(TableEntry.getDefaultInstance()))
+        .build()
+    )
+
+  /** Per-table read: returns entries from a single table (or all tables if tableId is 0). */
+  fun readTableEntries(tableId: Int): List<Entity> =
+    readEntries(
+      ReadRequest.newBuilder()
+        .setDeviceId(1)
+        .addEntities(Entity.newBuilder().setTableEntry(TableEntry.newBuilder().setTableId(tableId)))
+        .build()
+    )
+
+  fun readEntries(request: ReadRequest): List<Entity> = runBlocking {
+    val entities = mutableListOf<Entity>()
+    stub.read(request).collect { response -> entities.addAll(response.entitiesList) }
+    entities
+  }
 
   // ---------------------------------------------------------------------------
   // StreamChannel helpers

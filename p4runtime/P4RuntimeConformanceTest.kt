@@ -8,11 +8,14 @@ import fourward.p4runtime.P4RuntimeTestHarness.Companion.loadConfig
 import io.grpc.Status
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import p4.v1.P4RuntimeOuterClass.Entity
+import p4.v1.P4RuntimeOuterClass.GetForwardingPipelineConfigRequest
+import p4.v1.P4RuntimeOuterClass.ReadRequest
 
 /**
  * P4Runtime conformance tests.
@@ -205,5 +208,79 @@ class P4RuntimeConformanceTest {
       assertEquals(com.google.protobuf.ByteString.copyFrom(payload1), pkt1.packet.payload)
       assertEquals(com.google.protobuf.ByteString.copyFrom(payload2), pkt2.packet.payload)
     }
+  }
+
+  // =========================================================================
+  // GetForwardingPipelineConfig (scenarios 16-18)
+  // =========================================================================
+
+  @Test
+  fun `16 - getForwardingPipelineConfig returns loaded p4info`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    val resp = harness.getConfig()
+    assertEquals(config.p4Info, resp.config.p4Info)
+  }
+
+  @Test
+  fun `17 - getForwardingPipelineConfig without pipeline returns error`() {
+    assertGrpcError(Status.Code.FAILED_PRECONDITION) { harness.getConfig() }
+  }
+
+  @Test
+  fun `18 - getForwardingPipelineConfig P4INFO_AND_COOKIE omits device config`() {
+    harness.loadPipeline(loadBasicTableConfig())
+    val resp = harness.getConfig(GetForwardingPipelineConfigRequest.ResponseType.P4INFO_AND_COOKIE)
+    assertTrue("p4info should be present", resp.config.hasP4Info())
+    assertTrue("device config should be empty", resp.config.p4DeviceConfig.isEmpty)
+  }
+
+  // =========================================================================
+  // Capabilities (scenario 19)
+  // =========================================================================
+
+  @Test
+  fun `19 - capabilities returns API version`() {
+    val resp = harness.capabilities()
+    assertEquals("1.5.0", resp.p4RuntimeApiVersion)
+  }
+
+  // =========================================================================
+  // Read filtering (scenarios 20-21)
+  // =========================================================================
+
+  @Test
+  fun `20 - read with table filter returns only matching entries`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    harness.installEntry(buildExactEntry(config, matchValue = 0x0800, port = 1))
+
+    val tableId = config.p4Info.tablesList.first().preamble.id
+    assertEquals("matching table ID", 1, harness.readTableEntries(tableId).size)
+    assertTrue("non-matching table ID", harness.readTableEntries(99999).isEmpty())
+  }
+
+  @Test
+  fun `21 - read with empty entity filter returns nothing`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    harness.installEntry(buildExactEntry(config, matchValue = 0x0800, port = 1))
+
+    // P4Runtime spec §11.1: empty entity list = no filters = no results.
+    val request = ReadRequest.newBuilder().setDeviceId(1).build()
+    assertTrue("empty filter should return nothing", harness.readEntries(request).isEmpty())
+  }
+
+  // =========================================================================
+  // GetForwardingPipelineConfig response types (scenario 22)
+  // =========================================================================
+
+  @Test
+  fun `22 - getForwardingPipelineConfig DEVICE_CONFIG_AND_COOKIE omits p4info`() {
+    harness.loadPipeline(loadBasicTableConfig())
+    val resp =
+      harness.getConfig(GetForwardingPipelineConfigRequest.ResponseType.DEVICE_CONFIG_AND_COOKIE)
+    assertFalse("p4info should be absent", resp.config.hasP4Info())
+    assertFalse("device config should be present", resp.config.p4DeviceConfig.isEmpty)
   }
 }
