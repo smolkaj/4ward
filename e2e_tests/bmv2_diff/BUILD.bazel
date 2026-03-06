@@ -18,10 +18,6 @@ cc_binary(
 # ipv6-switch-ml-bmv2, v1model-special-ops-bmv2:
 #   MC_NODE_CREATE fails — the STF multicast setup exceeds BMv2's PRE limits
 #   or the driver's multicast handling needs extension.
-#
-# ternary2-bmv2:
-#   Semantic mismatch between 4ward and BMv2. Needs investigation to determine
-#   which simulator is correct.
 bmv2_diff_test_suite(
     name = "bmv2_diff_test",
     includes = [
@@ -205,6 +201,7 @@ bmv2_diff_test_suite(
         "table-entries-range-bmv2",
         "table-entries-ser-enum-bmv2",
         "table-entries-ternary-bmv2",
+        "ternary2-bmv2",
         "test-parserinvalidargument-error-bmv2",
         "union-bmv2",
         "union-valid-bmv2",

@@ -46,10 +46,6 @@ guilt — just write it down so someone can find it later.
 - **Multicast: basic replication only.** Multicast group replication works
   for the trace tree (forking per replica). PRE entries are installed via
   P4Runtime `PacketReplicationEngineEntry`.
-- **Per-table action specialization lost.** When a table has a single action
-  ID in p4info but different compile-time specializations, only one is kept.
-  Blocks 1 corpus test (`ternary2-bmv2`).
-
 ## BMv2 differential testing
 
 - **No action profile support in BMv2 driver.** The bmv2_driver binary does not
@@ -59,9 +55,8 @@ guilt — just write it down so someone can find it later.
   `libgmp` and `libpcap` rather than building them from source. The build uses
   genrules to copy headers into the build tree, but runtime linking requires the
   libraries to be installed (e.g. via Homebrew on macOS).
-- **183 of 186 corpus tests pass.** 3 tests are excluded: `ipv6-switch-ml-bmv2`
-  and `v1model-special-ops-bmv2` (multicast PRE limits in BMv2 driver), and
-  `ternary2-bmv2` (semantic mismatch under investigation).
+- **184 of 186 corpus tests pass.** 2 tests are excluded: `ipv6-switch-ml-bmv2`
+  and `v1model-special-ops-bmv2` (multicast PRE limits in BMv2 driver).
 
 ## p4c backend
 
