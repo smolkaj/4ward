@@ -1,7 +1,7 @@
 diff --color -ruN a/BUILD.bazel b/BUILD.bazel
 --- a/BUILD.bazel	2026-03-06 06:27:42
 +++ b/BUILD.bazel	2026-03-06 06:47:28
-@@ -0,0 +1,212 @@
+@@ -0,0 +1,217 @@
 +# Native Bazel build for behavioral-model (BMv2).
 +# Minimal build: no Thrift, no nanomsg, no debugger, no PI.
 +
@@ -174,6 +174,11 @@ diff --color -ruN a/BUILD.bazel b/BUILD.bazel
 +        "include",
 +        "src/bm_sim",
 +    ],
++    # 128-bit atomics in packet.cpp need libatomic on Linux.
++    linkopts = select({
++        "@platforms//os:linux": ["-latomic"],
++        "//conditions:default": [],
++    }),
 +    # Private headers in src/bm_sim/ (crc_map.h, etc.)
 +    textual_hdrs = glob(["src/bm_sim/**/*.h"]),
 +    visibility = ["//visibility:public"],
@@ -217,12 +222,13 @@ diff --color -ruN a/BUILD.bazel b/BUILD.bazel
 diff --color -ruN a/MODULE.bazel b/MODULE.bazel
 --- a/MODULE.bazel	2026-03-06 06:27:42
 +++ b/MODULE.bazel	2026-03-06 06:46:30
-@@ -0,0 +1,13 @@
+@@ -0,0 +1,14 @@
 +module(
 +    name = "behavioral_model",
 +    version = "head",
 +)
 +
++bazel_dep(name = "platforms", version = "0.0.10")
 +bazel_dep(name = "rules_cc", version = "0.2.17")
 +bazel_dep(name = "boost.container", version = "1.90.0.bcr.1")
 +bazel_dep(name = "boost.filesystem", version = "1.90.0.bcr.1")
@@ -237,7 +243,7 @@ diff --color -ruN a/include/bm/bm_sim/dynamic_bitset.h b/include/bm/bm_sim/dynam
 @@ -48,6 +48,16 @@
        find_lowest_bit<uint32_t>(sw);
  }
- 
+
 +// On arm64 macOS, unsigned long is 64-bit but distinct from uint64_t
 +// (unsigned long long). DynamicBitset::Block is unsigned long, so we need
 +// this specialization to avoid linker errors.
