@@ -151,16 +151,19 @@ Legend: **Y** = tested, **N** = not tested, **—** = not implemented
 |---|-------------|--------|------|
 | 15.1 | sdn_bitwidth narrowing on write | Y | TranslationTest |
 | 15.2 | sdn_bitwidth widening on read | Y | TranslationTest |
-| 15.3 | sdn_string encoding/decoding | Y | TranslationTest |
+| 15.3 | sdn_string encoding/decoding | Y | TranslationTest, SaiP4E2ETest |
 | 15.4 | Non-translated fields pass through | Y | TranslationTest |
 | 15.5 | End-to-end forwarding with translated ports | Y | TranslationTest |
+| 15.6 | sdn_string write/read round-trip with SAI P4 | Y | SaiP4E2ETest |
 
 ## p4-constraints
 
 | # | Requirement | Status | Test |
 |---|-------------|--------|------|
-| 16.1 | @entry_restriction validated on Write | Y | P4ConstraintsTest |
-| 16.2 | Violation → INVALID_ARGUMENT with constraint text | Y | P4ConstraintsTest |
+| 16.1 | @entry_restriction validated on Write | Y | ConstraintTest |
+| 16.2 | Violation → INVALID_ARGUMENT with constraint text | Y | ConstraintTest |
+| 16.3 | DELETE bypasses constraint validation | Y | ConstraintTest |
+| 16.4 | Pipeline without constraints works normally | Y | ConstraintTest |
 
 ## Summary
 
@@ -178,6 +181,6 @@ Legend: **Y** = tested, **N** = not tested, **—** = not implemented
 | GetForwardingPipelineConfig | 4 | 0 | 0 |
 | Capabilities | 1 | 0 | 0 |
 | PacketIO | 3 | 0 | 2 |
-| Translation | 5 | 0 | 0 |
-| p4-constraints | 2 | 0 | 0 |
-| **Total** | **61** | **12** | **7** |
+| Translation | 6 | 0 | 0 |
+| p4-constraints | 4 | 0 | 0 |
+| **Total** | **64** | **12** | **7** |
