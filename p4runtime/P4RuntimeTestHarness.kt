@@ -71,7 +71,7 @@ class P4RuntimeTestHarness : Closeable {
         .setConfig(
           ForwardingPipelineConfig.newBuilder()
             .setP4Info(config.p4Info)
-            .setP4DeviceConfig(config.behavioral.toByteString())
+            .setP4DeviceConfig(config.device.toByteString())
         )
         .build()
     )

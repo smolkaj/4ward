@@ -112,6 +112,31 @@ fork_outcome {
 
 No printf debugging. No Wireshark. No guessing.
 
+## `@p4runtime_translation` done right
+
+P4 programs use `@p4runtime_translation` to decouple controller-facing values
+from data-plane values — but the spec leaves the actual mapping mechanism
+unspecified. Every deployment rolls its own. 4ward ships a built-in translation
+engine with three modes:
+
+- **Explicit** — you provide the full mapping table upfront.
+- **Auto-allocate** — 4ward assigns data-plane values on first use. Zero config.
+- **Hybrid** — pin the values that matter, auto-allocate the rest.
+
+Both `sdn_bitwidth` (numeric) and `sdn_string` (SAI P4-style) are supported.
+
+```
+Hybrid mode example — pin special ports, auto-allocate the rest:
+
+  explicit:  "CpuPort"    → 510
+  explicit:  "DropPort"   → 511
+  auto:      "Ethernet0"  →   0  (assigned on first use)
+  auto:      "Ethernet1"  →   1
+  auto:      "Ethernet2"  →   2
+```
+
+No out-of-band config files. No custom RPCs. Just works.
+
 ## Should you trust AI-written code?
 
 4ward is **[100% AI-written](docs/AI_WORKFLOW.md)** — every line, every test,

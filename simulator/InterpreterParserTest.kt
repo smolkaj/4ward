@@ -15,11 +15,11 @@
 package fourward.simulator
 
 import fourward.ir.v1.AssignmentStmt
+import fourward.ir.v1.BehavioralConfig
 import fourward.ir.v1.BitType
 import fourward.ir.v1.Expr
 import fourward.ir.v1.Literal
 import fourward.ir.v1.NameRef
-import fourward.ir.v1.P4BehavioralConfig
 import fourward.ir.v1.ParserDecl
 import fourward.ir.v1.ParserState
 import fourward.ir.v1.Stmt
@@ -64,7 +64,7 @@ class InterpreterParserTest {
 
   private fun interp(vararg states: ParserState): Interpreter {
     val parser = ParserDecl.newBuilder().setName("MyParser").addAllStates(states.toList()).build()
-    return Interpreter(P4BehavioralConfig.newBuilder().addParsers(parser).build(), TableStore())
+    return Interpreter(BehavioralConfig.newBuilder().addParsers(parser).build(), TableStore())
   }
 
   @Test

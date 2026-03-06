@@ -33,10 +33,12 @@ guilt — just write it down so someone can find it later.
   filtering, but not per-entry reads with specific match keys.
 - **No p4-constraints validation.** `Write` does not enforce `@entry_restriction`
   or `@action_restriction` annotations from the P4 source.
-- **`@p4runtime_translation`: `sdn_bitwidth` only.** Bitwidth-based translation
-  (e.g. 9-bit port → 32-bit SDN) is implemented. String-based translation
-  (`sdn_string`) is not — SAI P4 programs that translate IDs to strings will
-  not work correctly.
+- **`@p4runtime_translation`: mapping table, not yet integrated end-to-end.**
+  The `TypeTranslator` supports `sdn_bitwidth` and `sdn_string` with explicit,
+  auto-allocate, and hybrid mapping modes. Integration with match fields and
+  PacketIO metadata translation is not yet implemented.
+- **Missing RPCs.** `GetForwardingPipelineConfig` and `Capabilities` return
+  UNIMPLEMENTED.
 - **No counters, meters, or registers via P4Runtime.** These work via the
   simulator protocol but cannot be managed through the gRPC server.
 - **No action profiles or groups via P4Runtime.** Action selector tables and
