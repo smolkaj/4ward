@@ -6,7 +6,6 @@ import fourward.ir.v1.AssignmentStmt
 import fourward.ir.v1.BehavioralConfig
 import fourward.ir.v1.BinaryOp
 import fourward.ir.v1.BinaryOperator
-import fourward.ir.v1.BitType
 import fourward.ir.v1.BlockStmt
 import fourward.ir.v1.ControlDecl
 import fourward.ir.v1.Expr
@@ -46,11 +45,6 @@ class V1ModelArchitectureTest {
   // ---------------------------------------------------------------------------
   // Helpers: minimal v1model config construction
   // ---------------------------------------------------------------------------
-
-  private fun bitType(width: Int): Type =
-    Type.newBuilder().setBit(BitType.newBuilder().setWidth(width)).build()
-
-  private fun namedType(name: String): Type = Type.newBuilder().setNamed(name).build()
 
   private fun field(name: String, width: Int): FieldDecl =
     FieldDecl.newBuilder().setName(name).setType(bitType(width)).build()

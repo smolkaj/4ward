@@ -240,8 +240,6 @@ class InterpreterPacketTest {
   // extract into header union members (P4 §8.20)
   // ---------------------------------------------------------------------------
 
-  private fun namedType(name: String): Type = Type.newBuilder().setNamed(name).build()
-
   private fun headerUnionType(typeName: String, vararg members: Pair<String, String>): TypeDecl =
     TypeDecl.newBuilder()
       .setName(typeName)

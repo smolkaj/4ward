@@ -39,6 +39,8 @@ fun nameRef(name: String): Expr =
 fun bitType(width: Int): Type =
   Type.newBuilder().setBit(BitType.newBuilder().setWidth(width)).build()
 
+fun namedType(name: String): Type = Type.newBuilder().setNamed(name).build()
+
 fun ifStmt(
   condition: Expr,
   thenStmts: List<Stmt> = emptyList(),

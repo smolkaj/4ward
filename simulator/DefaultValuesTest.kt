@@ -14,7 +14,6 @@
 
 package fourward.simulator
 
-import fourward.ir.v1.BitType
 import fourward.ir.v1.EnumDecl
 import fourward.ir.v1.FieldDecl
 import fourward.ir.v1.HeaderDecl
@@ -32,13 +31,8 @@ import org.junit.Test
 /** Unit tests for [defaultValue] — type-to-default-value mapping. */
 class DefaultValuesTest {
 
-  private fun bitType(width: Int): Type =
-    Type.newBuilder().setBit(BitType.newBuilder().setWidth(width)).build()
-
   private fun intType(width: Int): Type =
     Type.newBuilder().setSignedInt(IntType.newBuilder().setWidth(width)).build()
-
-  private fun namedType(name: String): Type = Type.newBuilder().setNamed(name).build()
 
   private fun headerStackType(elementType: String, size: Int): Type =
     Type.newBuilder()

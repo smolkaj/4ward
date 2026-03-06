@@ -195,6 +195,7 @@ kt_jvm_test(
     srcs = ["V1ModelArchitectureTest.kt"],
     test_class = "fourward.simulator.V1ModelArchitectureTest",
     deps = [
+        ":interpreter_test_dsl",
         ":ir_java_proto",
         ":p4runtime_java_proto",
         ":simulator_java_proto",
@@ -222,6 +223,7 @@ kt_jvm_test(
     associates = [":simulator_lib"],
     test_class = "fourward.simulator.DefaultValuesTest",
     deps = [
+        ":interpreter_test_dsl",
         ":ir_java_proto",
         "@maven//:junit_junit",
     ],

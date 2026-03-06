@@ -4,7 +4,6 @@ import fourward.ir.v1.BehavioralConfig
 import fourward.ir.v1.Expr
 import fourward.ir.v1.MethodCall
 import fourward.ir.v1.MethodCallStmt
-import fourward.ir.v1.NameRef
 import fourward.ir.v1.ParserDecl
 import fourward.ir.v1.ParserState
 import fourward.ir.v1.SourceInfo
@@ -33,9 +32,9 @@ class InterpreterTraceEventTest {
       Expr.newBuilder()
         .setMethodCall(
           MethodCall.newBuilder()
-            .setTarget(Expr.newBuilder().setNameRef(NameRef.newBuilder().setName("mark_to_drop")))
+            .setTarget(nameRef("mark_to_drop"))
             .setMethod("__call__")
-            .addArgs(Expr.newBuilder().setNameRef(NameRef.newBuilder().setName("sm")))
+            .addArgs(nameRef("sm"))
         )
         .build()
     val builder = Stmt.newBuilder().setMethodCall(MethodCallStmt.newBuilder().setCall(call))
