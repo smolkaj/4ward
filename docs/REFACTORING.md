@@ -149,6 +149,26 @@ the others.
 
 ---
 
+## Pass `P4Info` directly to `TableStore.loadMappings`
+
+**Files**: `simulator/TableStore.kt`, `simulator/Simulator.kt`,
+`simulator/TableStoreTest.kt`
+
+**Problem**: `loadMappings` takes a growing list of parameters — one per
+entity type (`tableNameById`, `actionNameById`, `p4infoTables`,
+`p4infoRegisters`). Each new P4Runtime entity (counters, meters, digests)
+will add another parameter.
+
+**Fix**: Accept the `P4Info` proto directly (or a slim wrapper) and let
+`TableStore` extract what it needs internally. The two `Map<Int, String>`
+parameters are already derived from `P4Info` in `Simulator.kt` and could
+move inside `loadMappings`. This keeps the signature stable as entity
+coverage grows.
+
+**Trigger**: when counters or meters are wired through P4Runtime.
+
+---
+
 ## Upstream p4c backend
 
 Land the 4ward backend in the p4c repository. Blocked on upstream review.
