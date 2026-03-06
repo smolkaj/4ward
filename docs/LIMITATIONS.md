@@ -29,16 +29,14 @@ guilt — just write it down so someone can find it later.
 
 - **Single controller only.** No multi-controller arbitration or election ID
   tracking. The first connection is master unconditionally.
-- **Wildcard reads only.** `Read` returns all table entries regardless of the
-  request's entity filter. Per-table and per-entry reads are not implemented.
+- **No per-entry reads.** `Read` supports wildcard (all tables) and per-table
+  filtering, but not per-entry reads with specific match keys.
 - **No p4-constraints validation.** `Write` does not enforce `@entry_restriction`
   or `@action_restriction` annotations from the P4 source.
 - **`@p4runtime_translation`: `sdn_bitwidth` only.** Bitwidth-based translation
   (e.g. 9-bit port → 32-bit SDN) is implemented. String-based translation
   (`sdn_string`) is not — SAI P4 programs that translate IDs to strings will
   not work correctly.
-- **Missing RPCs.** `GetForwardingPipelineConfig` and `Capabilities` return
-  UNIMPLEMENTED.
 - **No counters, meters, or registers via P4Runtime.** These work via the
   simulator protocol but cannot be managed through the gRPC server.
 - **No action profiles or groups via P4Runtime.** Action selector tables and
