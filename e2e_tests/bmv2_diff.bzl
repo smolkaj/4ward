@@ -18,6 +18,7 @@ For each test this creates:
 """
 
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
+load("//e2e_tests:p4c.bzl", "p4c_compile")
 
 def bmv2_diff_test_suite(name, tests, tags = [], includes = []):
     """Compiles corpus P4 files for both backends and runs differential tests.
@@ -33,10 +34,10 @@ def bmv2_diff_test_suite(name, tests, tags = [], includes = []):
         "//simulator",
     ]
 
-    if includes:
-        include_flag = " -I $$(dirname $(execpath " + includes[0] + "))"
-    else:
-        include_flag = ""
+    include_flags = "".join([
+        " -I $$(dirname $(execpath " + inc + "))"
+        for inc in includes
+    ])
 
     for test in tests:
         p4_src = "@p4c//testdata/p4_16_samples:" + test + ".p4"
@@ -46,7 +47,7 @@ def bmv2_diff_test_suite(name, tests, tags = [], includes = []):
             name = test + "_json",
             srcs = [p4_src] + includes,
             outs = [test + ".json"],
-            cmd = "$(execpath @p4c//:p4c_bmv2) -I $$(dirname $(execpath @p4c//:core_p4))" + include_flag + " -o $@ $(execpath " + p4_src + ")",
+            cmd = "$(execpath @p4c//:p4c_bmv2) -I $$(dirname $(execpath @p4c//:core_p4))" + include_flags + " -o $@ $(execpath " + p4_src + ")",
             tags = tags,
             tools = [
                 "@p4c//:p4c_bmv2",
@@ -56,18 +57,7 @@ def bmv2_diff_test_suite(name, tests, tags = [], includes = []):
         )
 
         # Compile to 4ward PipelineConfig (needed for P4Info).
-        native.genrule(
-            name = test + "_pb",
-            srcs = [p4_src] + includes,
-            outs = [test + ".txtpb"],
-            cmd = "$(execpath //p4c_backend:p4c-4ward) -I $$(dirname $(execpath @p4c//:core_p4))" + include_flag + " -o $@ $(execpath " + p4_src + ")",
-            tags = tags,
-            tools = [
-                "//p4c_backend:p4c-4ward",
-                "@p4c//:core_p4",
-                "@p4c//:p4include",
-            ],
-        )
+        p4c_compile(test, p4_src, includes, tags)
 
         native.genrule(
             name = test + "_stf",

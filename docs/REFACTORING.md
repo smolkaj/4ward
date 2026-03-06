@@ -59,34 +59,11 @@ The module extension has read access to the p4c source tree (via
 
 ---
 
-## Extract shared `p4_compile` genrule macro
+## ~~Extract shared `p4_compile` genrule macro~~ — DONE
 
-**Files**: new `e2e_tests/p4_compile.bzl`, all callers
-
-**Problem**: The p4c-4ward compilation genrule is copy-pasted across 8
-locations (`corpus.bzl`, `p4testgen.bzl`, and 6 hand-written `BUILD.bazel`
-files). Each copy has the same `cmd`, `tools`, and `outs` pattern.
-
-**Fix**: Extract a shared Starlark function in `e2e_tests/p4_compile.bzl`:
-
-```python
-def p4_compile(name, p4_src, tags = []):
-    native.genrule(
-        name = name + "_pb",
-        srcs = [p4_src],
-        outs = [name + ".txtpb"],
-        cmd = "$(execpath //p4c_backend:p4c-4ward) -I $$(dirname $(execpath @p4c//:core_p4)) -o $@ $(SRCS)",
-        tools = [
-            "//p4c_backend:p4c-4ward",
-            "@p4c//:core_p4",
-            "@p4c//:p4include",
-        ],
-        tags = tags,
-    )
-```
-
-Then `corpus.bzl`, `p4testgen.bzl`, and the standalone `BUILD.bazel` files
-all call `p4_compile(name, p4_src)` instead of inlining the genrule.
+Extracted `p4c_compile()` into `e2e_tests/p4c.bzl`. All 11 call sites
+(`corpus.bzl`, `p4testgen.bzl`, `bmv2_diff.bzl`, and 8 `BUILD.bazel` files)
+now use the shared helper.
 
 ---
 

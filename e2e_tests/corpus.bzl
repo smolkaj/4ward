@@ -16,6 +16,7 @@ This creates:
 """
 
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
+load("//e2e_tests:p4c.bzl", "p4c_compile")
 
 def corpus_test_suite(name, tests, tags = [], includes = [], stf_overrides = {}):
     """Compiles p4c corpus P4 files and runs all STF tests in a single JVM.
@@ -33,28 +34,10 @@ def corpus_test_suite(name, tests, tags = [], includes = [], stf_overrides = {})
     """
     data = ["//simulator"]
 
-    # Build -I flags for any extra includes.
-    if includes:
-        # All includes are assumed to be in the same directory; one -I suffices.
-        include_flag = " -I $$(dirname $(execpath " + includes[0] + "))"
-    else:
-        include_flag = ""
-
     for test in tests:
         p4_src = "@p4c//testdata/p4_16_samples:" + test + ".p4"
 
-        native.genrule(
-            name = test + "_pb",
-            srcs = [p4_src] + includes,
-            outs = [test + ".txtpb"],
-            cmd = "$(execpath //p4c_backend:p4c-4ward) -I $$(dirname $(execpath @p4c//:core_p4))" + include_flag + " -o $@ $(execpath " + p4_src + ")",
-            tags = tags,
-            tools = [
-                "//p4c_backend:p4c-4ward",
-                "@p4c//:core_p4",
-                "@p4c//:p4include",
-            ],
-        )
+        p4c_compile(test, p4_src, includes, tags)
 
         if test in stf_overrides:
             # Local override: use the file directly, no genrule needed.
