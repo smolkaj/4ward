@@ -2,8 +2,8 @@ package fourward.p4runtime
 
 import fourward.ir.v1.PipelineConfig
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildEthernetFrame
+import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildExactEntry
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.loadConfig
-import fourward.p4runtime.P4RuntimeTestHarness.Companion.longToBytes
 import io.grpc.StatusException
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -228,57 +228,5 @@ class P4RuntimeConformanceTest {
       assertEquals(com.google.protobuf.ByteString.copyFrom(payload1), pkt1.packet.payload)
       assertEquals(com.google.protobuf.ByteString.copyFrom(payload2), pkt2.packet.payload)
     }
-  }
-
-  // =========================================================================
-  // Helpers
-  // =========================================================================
-
-  /** Builds a table entry: exact match on the table's first field → forward(port). */
-  @Suppress("MagicNumber")
-  private fun buildExactEntry(config: PipelineConfig, matchValue: Long, port: Int): Entity {
-    val p4info = config.p4Info
-    val table = p4info.tablesList.first()
-    val forwardAction = p4info.actionsList.find { it.preamble.name.contains("forward") }!!
-    val matchField = table.matchFieldsList.first()
-
-    val fieldMatch =
-      p4.v1.P4RuntimeOuterClass.FieldMatch.newBuilder()
-        .setFieldId(matchField.id)
-        .setExact(
-          p4.v1.P4RuntimeOuterClass.FieldMatch.Exact.newBuilder()
-            .setValue(
-              com.google.protobuf.ByteString.copyFrom(
-                longToBytes(matchValue, (matchField.bitwidth + 7) / 8)
-              )
-            )
-        )
-        .build()
-
-    val actionParam =
-      p4.v1.P4RuntimeOuterClass.Action.Param.newBuilder()
-        .setParamId(forwardAction.paramsList.first().id)
-        .setValue(
-          com.google.protobuf.ByteString.copyFrom(
-            longToBytes(port.toLong(), (forwardAction.paramsList.first().bitwidth + 7) / 8)
-          )
-        )
-        .build()
-
-    val tableEntry =
-      p4.v1.P4RuntimeOuterClass.TableEntry.newBuilder()
-        .setTableId(table.preamble.id)
-        .addMatch(fieldMatch)
-        .setAction(
-          p4.v1.P4RuntimeOuterClass.TableAction.newBuilder()
-            .setAction(
-              p4.v1.P4RuntimeOuterClass.Action.newBuilder()
-                .setActionId(forwardAction.preamble.id)
-                .addParams(actionParam)
-            )
-        )
-        .build()
-
-    return Entity.newBuilder().setTableEntry(tableEntry).build()
   }
 }

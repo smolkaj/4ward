@@ -4,6 +4,8 @@ import com.google.protobuf.ByteString
 import fourward.ir.v1.PipelineConfig
 import fourward.simulator.Simulator
 import io.grpc.ManagedChannel
+import io.grpc.Status
+import io.grpc.StatusException
 import io.grpc.inprocess.InProcessChannelBuilder
 import io.grpc.inprocess.InProcessServerBuilder
 import java.io.Closeable
@@ -200,6 +202,81 @@ class P4RuntimeTestHarness : Closeable {
 
   companion object {
     private const val STREAM_TIMEOUT_MS = 5000L
+
+    /**
+     * Asserts that [block] throws a [StatusException] with the expected gRPC [code]. Optionally
+     * checks that the error description contains [messageContains].
+     */
+    inline fun assertGrpcError(
+      code: Status.Code,
+      messageContains: String? = null,
+      block: () -> Unit,
+    ) {
+      try {
+        block()
+        throw AssertionError("expected gRPC error $code but call succeeded")
+      } catch (e: StatusException) {
+        if (code != e.status.code) {
+          throw AssertionError("expected gRPC status $code but got ${e.status.code}", e)
+        }
+        if (
+          messageContains != null &&
+            e.status.description?.contains(messageContains, ignoreCase = true) != true
+        ) {
+          throw AssertionError(
+            "expected message containing '$messageContains' but got '${e.status.description}'",
+            e,
+          )
+        }
+      }
+    }
+
+    /**
+     * Builds a table entry for the basic_table fixture: exact match on the table's first match
+     * field → forward(port).
+     */
+    @Suppress("MagicNumber")
+    fun buildExactEntry(config: PipelineConfig, matchValue: Long, port: Int): Entity {
+      val p4info = config.p4Info
+      val table = p4info.tablesList.first()
+      val forwardAction = p4info.actionsList.find { it.preamble.name.contains("forward") }!!
+      val matchField = table.matchFieldsList.first()
+
+      val fieldMatch =
+        p4.v1.P4RuntimeOuterClass.FieldMatch.newBuilder()
+          .setFieldId(matchField.id)
+          .setExact(
+            p4.v1.P4RuntimeOuterClass.FieldMatch.Exact.newBuilder()
+              .setValue(ByteString.copyFrom(longToBytes(matchValue, (matchField.bitwidth + 7) / 8)))
+          )
+          .build()
+
+      val actionParam =
+        p4.v1.P4RuntimeOuterClass.Action.Param.newBuilder()
+          .setParamId(forwardAction.paramsList.first().id)
+          .setValue(
+            ByteString.copyFrom(
+              longToBytes(port.toLong(), (forwardAction.paramsList.first().bitwidth + 7) / 8)
+            )
+          )
+          .build()
+
+      val tableEntry =
+        p4.v1.P4RuntimeOuterClass.TableEntry.newBuilder()
+          .setTableId(table.preamble.id)
+          .addMatch(fieldMatch)
+          .setAction(
+            p4.v1.P4RuntimeOuterClass.TableAction.newBuilder()
+              .setAction(
+                p4.v1.P4RuntimeOuterClass.Action.newBuilder()
+                  .setActionId(forwardAction.preamble.id)
+                  .addParams(actionParam)
+              )
+          )
+          .build()
+
+      return Entity.newBuilder().setTableEntry(tableEntry).build()
+    }
 
     /** Minimum-width unsigned big-endian encoding of a port number. */
     private fun portToBytes(port: Int): ByteString {
