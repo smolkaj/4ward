@@ -168,6 +168,7 @@ def p4_testgen_suite(name, tests, includes = {}, max_tests = {}, tags = []):
     kt_jvm_test(
         name = name,
         test_class = "fourward.e2e.p4testgen.P4TestgenSuiteTest",
+        size = "large",  # 155 tests with Z3 constraint solving; needs 900s
         tags = tags + ["heavy"],
         data = data,
         deps = [
