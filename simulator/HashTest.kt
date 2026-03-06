@@ -9,6 +9,10 @@ class HashTest {
   private fun structOf(vararg fields: Pair<String, BitVal>): StructVal =
     StructVal("test", fields.toMap(mutableMapOf()))
 
+  /** Like [structOf] but accepts any [Value] subtype (for mixing BitVal with UnitVal). */
+  private fun mixedStructOf(vararg fields: Pair<String, Value>): StructVal =
+    StructVal("test", fields.toMap(mutableMapOf()))
+
   // ---------------------------------------------------------------------------
   // onesComplementChecksum (csum16)
   // ---------------------------------------------------------------------------
@@ -137,5 +141,25 @@ class HashTest {
   @Test
   fun `computeHash identity of empty struct is zero`() {
     assertEquals(BigInteger.ZERO, computeHash("identity", structOf()))
+  }
+
+  // ---------------------------------------------------------------------------
+  // UnitVal (varbit) handling
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `csum16 skips UnitVal fields from unextracted varbits`() {
+    // A struct with a varbit field (UnitVal) should hash the same as without it.
+    val withVarbit =
+      mixedStructOf("a" to BitVal(0x0001, 16), "options" to UnitVal, "b" to BitVal(0x0002, 16))
+    val withoutVarbit = structOf("a" to BitVal(0x0001, 16), "b" to BitVal(0x0002, 16))
+    assertEquals(onesComplementChecksum(withoutVarbit), onesComplementChecksum(withVarbit))
+  }
+
+  @Test
+  fun `computeHash crc16 skips UnitVal fields`() {
+    val data = mixedStructOf("a" to BitVal(0xAB, 8), "vb" to UnitVal)
+    val expected = computeHash("crc16", structOf("a" to BitVal(0xAB, 8)))
+    assertEquals(expected, computeHash("crc16", data))
   }
 }

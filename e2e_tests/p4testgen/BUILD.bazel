@@ -65,15 +65,9 @@ p4_testgen_test(name = "array-copy-bmv2")
 
 p4_testgen_test(name = "bvec-hdr-bmv2")
 
-p4_testgen_test(
-    name = "checksum-l4-bmv2",
-    tags = ["manual"],  # UnitVal→BitVal cast error in checksum extern
-)
+p4_testgen_test(name = "checksum-l4-bmv2")
 
-p4_testgen_test(
-    name = "checksum1-bmv2",
-    tags = ["manual"],  # UnitVal→BitVal cast error in checksum extern
-)
+p4_testgen_test(name = "checksum1-bmv2")
 
 p4_testgen_test(name = "checksum2-bmv2")
 
@@ -335,7 +329,10 @@ p4_testgen_test(name = "issue2343-bmv2")
 
 p4_testgen_test(name = "issue2375-1-bmv2")
 
-p4_testgen_test(name = "issue2375-bmv2")
+p4_testgen_test(
+    name = "issue2375-bmv2",
+    tags = ["manual"],  # p4testgen generates platform-dependent STFs that fail on CI
+)
 
 p4_testgen_test(name = "issue2383-bmv2")
 
@@ -404,7 +401,7 @@ p4_testgen_test(name = "parser_error-bmv2")
 
 p4_testgen_test(
     name = "runtime-index-2-bmv2",
-    tags = ["manual"],  # timeout: path exploration takes >5 min
+    max_tests = 20,
 )
 
 p4_testgen_test(
@@ -442,7 +439,7 @@ p4_testgen_test(name = "table-entries-ternary-bmv2")
 
 p4_testgen_test(
     name = "ternary2-bmv2",
-    tags = ["manual"],  # timeout: path exploration takes >4 min
+    max_tests = 20,
 )
 
 p4_testgen_test(name = "test-parserinvalidargument-error-bmv2")
@@ -461,5 +458,6 @@ p4_testgen_test(name = "v1model-const-entries-bmv2")
 
 p4_testgen_test(
     name = "v1model-special-ops-bmv2",
-    tags = ["manual"],  # timeout: path exploration takes >5 min
+    max_tests = 20,
+    tags = ["manual"],  # unknown clone session: 5
 )
