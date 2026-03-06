@@ -292,8 +292,13 @@ int main(int argc, char* argv[]) {
 
       auto ad = parse_action_data(params);
       bm::entry_handle_t handle;
+      // BMv2 uses lower-value = higher-priority internally
+      // (lookup_structures.cpp picks the matching entry with the minimum
+      // priority field). The STF/P4Runtime convention is higher-value =
+      // higher-priority. Negate to bridge the gap.
+      int bmv2_priority = priority > 0 ? -priority : priority;
       auto rc = sw->mt_add_entry(0, table, match_keys, action, std::move(ad),
-                                 &handle, priority);
+                                 &handle, bmv2_priority);
       if (rc != MatchErrorCode::SUCCESS) {
         std::cout << "ERROR TABLE_ADD failed: " << static_cast<int>(rc)
                   << std::endl;
