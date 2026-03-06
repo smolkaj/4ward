@@ -5,6 +5,8 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    # `closed` triggers cancel-closed-pr-runs; the rest are GitHub's defaults.
+    types: [opened, synchronize, reopened, closed]
 
 # Cancel any preceding run on the pull request.
 concurrency:
@@ -13,7 +15,38 @@ concurrency:
 
 jobs:
 
+  # When a PR is closed (merged or abandoned), its CI run may still be in
+  # progress. GitHub doesn't cancel it automatically — the run keeps going
+  # even though its results are now irrelevant. This job fires on the
+  # `pull_request: closed` event (added to the `types` list above) and
+  # cancels any in-progress runs on the PR's branch, freeing up CI resources
+  # and API quota.
+  cancel-closed-pr-runs:
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Cancel in-progress runs on closed PR branch
+        # List all in-progress workflow runs on the PR's head branch, extract
+        # their run IDs (excluding this run), and cancel each one. The
+        # `|| true` ensures we don't fail if there's nothing to cancel.
+        run: |
+          : "${HEAD_BRANCH:?HEAD_BRANCH not set}"
+          gh run list \
+            --repo "${{ github.repository }}" \
+            --branch "$HEAD_BRANCH" \
+            --status in_progress \
+            --json databaseId \
+            --jq '.[].databaseId' \
+          | grep -v "^${GITHUB_RUN_ID}$" \
+          | xargs -I{} gh run cancel --repo "${{ github.repository }}" {} \
+          || true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+
+
   lint:
+    if: github.event.action != 'closed'  # skip on PR close; only cancel job runs
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
@@ -75,6 +108,7 @@ jobs:
 
 
   build-and-test:
+    if: github.event.action != 'closed'  # skip on PR close; only cancel job runs
     name: Build and test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
@@ -143,6 +177,7 @@ jobs:
 
 
   coverage:
+    if: github.event.action != 'closed'  # skip on PR close; only cancel job runs
     name: Coverage
     runs-on: ubuntu-24.04
     permissions:
