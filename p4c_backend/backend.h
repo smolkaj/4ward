@@ -60,7 +60,7 @@ class FourWardBackend : public Inspector {
   const TypeMap& typeMap_;
 
   fourward::ir::v1::PipelineConfig pipelineConfig_;
-  fourward::ir::v1::P4BehavioralConfig* behavioral_;
+  fourward::ir::v1::BehavioralConfig* behavioral_;
 
   // Set by emitControl so nested emitters can use the enclosing control name.
   std::string controlName_;

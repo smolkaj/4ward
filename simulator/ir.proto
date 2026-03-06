@@ -38,18 +38,34 @@ option java_package = "fourward.ir.v1";
 // =============================================================================
 
 // PipelineConfig is the top-level message for a compiled P4 program. It maps
-// directly onto the P4Runtime SetForwardingPipelineConfig RPC.
+// directly onto the P4Runtime SetForwardingPipelineConfig RPC: p4info comes
+// from the standard field, and device comes from the opaque p4_device_config.
 message PipelineConfig {
   p4.config.v1.P4Info p4info = 1;
-  P4BehavioralConfig behavioral = 2;
+  DeviceConfig device = 2;
+}
+
+// DeviceConfig is the 4ward-specific device configuration, serialized as the
+// opaque p4_device_config blob in P4Runtime's ForwardingPipelineConfig.
+//
+// The p4c backend produces the behavioral IR and static_entries at compile
+// time. The controller adds translation mappings at runtime before sending
+// the config via SetForwardingPipelineConfig.
+message DeviceConfig {
+  BehavioralConfig behavioral = 1;
 
   // Static table entries declared with `const entries` in the P4 source.
   // Populated by p4c's P4Runtime serializer; the simulator installs these
   // into the table store at pipeline load time.
-  p4.v1.WriteRequest static_entries = 3;
+  p4.v1.WriteRequest static_entries = 2;
+
+  // Type translation mappings for @p4runtime_translation-annotated types.
+  // Keyed by URI. When absent for a translated type, auto-allocation is used.
+  repeated TypeTranslation translations = 3;
 }
 
-message P4BehavioralConfig {
+// Behavioral IR: the execution semantics of a compiled P4 program.
+message BehavioralConfig {
   Architecture architecture = 1;
   repeated TypeDecl types = 2;
   repeated ParserDecl parsers = 3;
@@ -59,6 +75,41 @@ message P4BehavioralConfig {
   // Supplements p4info's table descriptions with key expressions to evaluate.
   // One entry per table; name matches p4info table preamble name.
   repeated TableBehavior tables = 6;
+}
+
+// =============================================================================
+// Type translation
+// =============================================================================
+
+// Configuration for type translation between SDN and data-plane value spaces.
+// One entry per @p4runtime_translation URI used in the P4 program.
+//
+// When no TypeTranslation is provided for a translated URI, the server defaults
+// to auto-allocation (SDN values are assigned the next available data-plane
+// value on first use).
+message TypeTranslation {
+  // The URI from @p4runtime_translation that identifies this type.
+  string uri = 1;
+
+  // Explicit SDN ↔ data-plane mappings, pre-populated by the controller.
+  repeated TranslationEntry entries = 2;
+
+  // When true, unknown SDN values are automatically assigned the next
+  // available data-plane value. Combined with entries, this enables hybrid
+  // mode (explicit pins + auto-allocate the rest).
+  // When false with entries, only explicitly mapped values are accepted.
+  bool auto_allocate = 3;
+}
+
+// A single SDN ↔ data-plane value mapping.
+message TranslationEntry {
+  // The SDN (controller-facing) value.
+  oneof sdn_value {
+    bytes sdn_bitstring = 1;  // for sdn_bitwidth types
+    string sdn_str = 2;       // for sdn_string types
+  }
+  // The data-plane value (always a bitstring).
+  bytes dataplane_value = 3;
 }
 
 // =============================================================================

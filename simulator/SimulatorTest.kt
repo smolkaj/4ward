@@ -16,7 +16,8 @@ package fourward.simulator
 
 import fourward.ir.v1.ActionDecl
 import fourward.ir.v1.Architecture
-import fourward.ir.v1.P4BehavioralConfig
+import fourward.ir.v1.BehavioralConfig
+import fourward.ir.v1.DeviceConfig
 import fourward.ir.v1.PipelineConfig
 import fourward.ir.v1.PipelineStage
 import fourward.ir.v1.StageKind
@@ -63,7 +64,7 @@ class SimulatorTest {
         .addStages(PipelineStage.newBuilder().setKind(StageKind.DEPARSER).setBlockName("dep"))
         .build()
     val behavioral =
-      P4BehavioralConfig.newBuilder()
+      BehavioralConfig.newBuilder()
         .setArchitecture(arch)
         .addAllTables(behavioralTableNames.map { TableBehavior.newBuilder().setName(it).build() })
         .addAllActions(behavioralActionNames.map { ActionDecl.newBuilder().setName(it).build() })
@@ -73,7 +74,10 @@ class SimulatorTest {
         .addAllTables(p4infoTables)
         .addAllActions(p4infoActions)
         .build()
-    return PipelineConfig.newBuilder().setBehavioral(behavioral).setP4Info(p4info).build()
+    return PipelineConfig.newBuilder()
+      .setDevice(DeviceConfig.newBuilder().setBehavioral(behavioral))
+      .setP4Info(p4info)
+      .build()
   }
 
   private fun loadRequest(config: PipelineConfig): SimRequest =
@@ -128,10 +132,13 @@ class SimulatorTest {
   @Test
   fun `load pipeline with unknown architecture returns error`() {
     val behavioral =
-      P4BehavioralConfig.newBuilder()
+      BehavioralConfig.newBuilder()
         .setArchitecture(Architecture.newBuilder().setName("unknown_arch"))
         .build()
-    val config = PipelineConfig.newBuilder().setBehavioral(behavioral).build()
+    val config =
+      PipelineConfig.newBuilder()
+        .setDevice(DeviceConfig.newBuilder().setBehavioral(behavioral))
+        .build()
     val sim = Simulator()
     val resp = sim.handle(loadRequest(config))
     assertTrue("unknown arch should return error", resp.hasError())

@@ -14,6 +14,7 @@
 
 package fourward.simulator
 
+import fourward.ir.v1.BehavioralConfig
 import fourward.ir.v1.BitType
 import fourward.ir.v1.Expr
 import fourward.ir.v1.FieldAccess
@@ -23,7 +24,6 @@ import fourward.ir.v1.HeaderUnionDecl
 import fourward.ir.v1.Literal
 import fourward.ir.v1.MethodCall
 import fourward.ir.v1.NameRef
-import fourward.ir.v1.P4BehavioralConfig
 import fourward.ir.v1.StructDecl
 import fourward.ir.v1.Type
 import fourward.ir.v1.TypeDecl
@@ -80,7 +80,7 @@ class InterpreterPacketTest {
 
   private fun interp(packetCtx: PacketContext, vararg types: TypeDecl): Interpreter {
     val config =
-      P4BehavioralConfig.newBuilder().also { cfg -> types.forEach { cfg.addTypes(it) } }.build()
+      BehavioralConfig.newBuilder().also { cfg -> types.forEach { cfg.addTypes(it) } }.build()
     return Interpreter(config, TableStore(), packetCtx)
   }
 
@@ -91,7 +91,7 @@ class InterpreterPacketTest {
   @Test
   fun `extract without PacketContext gives a descriptive error`() {
     val type = headerType("h_t", "f" to 8)
-    val config = P4BehavioralConfig.newBuilder().also { cfg -> cfg.addTypes(type) }.build()
+    val config = BehavioralConfig.newBuilder().also { cfg -> cfg.addTypes(type) }.build()
     val interp = Interpreter(config, TableStore()) // no PacketContext
     val env = Environment()
     env.define("hdr", HeaderVal(typeName = "h_t", valid = false))

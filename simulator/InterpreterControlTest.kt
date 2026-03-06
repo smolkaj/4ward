@@ -2,6 +2,7 @@ package fourward.simulator
 
 import fourward.ir.v1.ActionDecl
 import fourward.ir.v1.AssignmentStmt
+import fourward.ir.v1.BehavioralConfig
 import fourward.ir.v1.BitType
 import fourward.ir.v1.BlockStmt
 import fourward.ir.v1.ControlDecl
@@ -12,7 +13,6 @@ import fourward.ir.v1.IfStmt
 import fourward.ir.v1.Literal
 import fourward.ir.v1.MethodCallStmt
 import fourward.ir.v1.NameRef
-import fourward.ir.v1.P4BehavioralConfig
 import fourward.ir.v1.Stmt
 import fourward.ir.v1.SwitchCase
 import fourward.ir.v1.SwitchStmt
@@ -54,12 +54,12 @@ class InterpreterControlTest {
       .build()
 
   /** Builds a config with a single control named "MyControl" whose apply body is [stmts]. */
-  private fun controlConfig(vararg stmts: Stmt): P4BehavioralConfig =
-    P4BehavioralConfig.newBuilder()
+  private fun controlConfig(vararg stmts: Stmt): BehavioralConfig =
+    BehavioralConfig.newBuilder()
       .addControls(ControlDecl.newBuilder().setName("MyControl").addAllApplyBody(stmts.toList()))
       .build()
 
-  private fun interp(config: P4BehavioralConfig, tableStore: TableStore = TableStore()) =
+  private fun interp(config: BehavioralConfig, tableStore: TableStore = TableStore()) =
     Interpreter(config, tableStore)
 
   private fun nameRef(name: String): Expr =
@@ -186,7 +186,7 @@ class InterpreterControlTest {
     // Table default action is "drop"; the switch case for "drop" sets x=1.
     val ts = TableStore().also { it.setDefaultAction("t", "drop") }
     val config =
-      P4BehavioralConfig.newBuilder()
+      BehavioralConfig.newBuilder()
         .addTables(TableBehavior.newBuilder().setName("t"))
         .addActions(ActionDecl.newBuilder().setName("drop"))
         .addControls(
@@ -212,7 +212,7 @@ class InterpreterControlTest {
     // Table default action is "NoAction"; the only declared case is for "drop" (won't match).
     val ts = TableStore().also { it.setDefaultAction("t", "NoAction") }
     val config =
-      P4BehavioralConfig.newBuilder()
+      BehavioralConfig.newBuilder()
         .addTables(TableBehavior.newBuilder().setName("t"))
         .addActions(ActionDecl.newBuilder().setName("NoAction"))
         .addActions(ActionDecl.newBuilder().setName("drop"))
@@ -242,7 +242,7 @@ class InterpreterControlTest {
   fun `control local vars are not visible in outer scope after control returns`() {
     // "local" is declared as a local var in the control; the outer env must not see it.
     val config =
-      P4BehavioralConfig.newBuilder()
+      BehavioralConfig.newBuilder()
         .addControls(
           ControlDecl.newBuilder()
             .setName("MyControl")
@@ -262,7 +262,7 @@ class InterpreterControlTest {
   fun `uninitialized local var defaults to zero`() {
     // Verifies that defaultValue() is called for vars with no explicit initializer.
     val config =
-      P4BehavioralConfig.newBuilder()
+      BehavioralConfig.newBuilder()
         .addControls(
           ControlDecl.newBuilder()
             .setName("MyControl")
@@ -285,7 +285,7 @@ class InterpreterControlTest {
   fun `local var initializer runs and is accessible in the apply body`() {
     // Declare local var "count" initialised to 42; the apply body copies it to "x".
     val config =
-      P4BehavioralConfig.newBuilder()
+      BehavioralConfig.newBuilder()
         .addControls(
           ControlDecl.newBuilder()
             .setName("MyControl")
@@ -326,8 +326,8 @@ class InterpreterControlTest {
   }
 
   /** Minimal config with table "t" and actions "fwd" and "NoAction". */
-  private fun tableHitConfig(bodyStmt: Stmt): P4BehavioralConfig =
-    P4BehavioralConfig.newBuilder()
+  private fun tableHitConfig(bodyStmt: Stmt): BehavioralConfig =
+    BehavioralConfig.newBuilder()
       .addTables(TableBehavior.newBuilder().setName("t"))
       .addActions(ActionDecl.newBuilder().setName("fwd"))
       .addActions(ActionDecl.newBuilder().setName("NoAction"))
@@ -423,8 +423,8 @@ class InterpreterControlTest {
    * Config with table "t" having action_overrides "setbyte" → "setbyte_1". The first copy
    * ("setbyte") sets x=1; the second copy ("setbyte_1") sets x=2.
    */
-  private fun actionOverrideConfig(controlBody: Stmt): P4BehavioralConfig =
-    P4BehavioralConfig.newBuilder()
+  private fun actionOverrideConfig(controlBody: Stmt): BehavioralConfig =
+    BehavioralConfig.newBuilder()
       .addTables(TableBehavior.newBuilder().setName("t").putActionOverrides("setbyte", "setbyte_1"))
       .addActions(ActionDecl.newBuilder().setName("setbyte").addBody(assign("x", bit(1, 8))))
       .addActions(

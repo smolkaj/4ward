@@ -16,13 +16,13 @@ package fourward.simulator
 
 import fourward.ir.v1.ActionDecl
 import fourward.ir.v1.AssignmentStmt
+import fourward.ir.v1.BehavioralConfig
 import fourward.ir.v1.BitType
 import fourward.ir.v1.Direction
 import fourward.ir.v1.Expr
 import fourward.ir.v1.Literal
 import fourward.ir.v1.MethodCall
 import fourward.ir.v1.NameRef
-import fourward.ir.v1.P4BehavioralConfig
 import fourward.ir.v1.ParamDecl
 import fourward.ir.v1.Stmt
 import fourward.ir.v1.Type
@@ -74,7 +74,7 @@ class InterpreterInlineActionTest {
 
   private fun interp(vararg actions: ActionDecl): Interpreter {
     val config =
-      P4BehavioralConfig.newBuilder().also { cfg -> actions.forEach { cfg.addActions(it) } }.build()
+      BehavioralConfig.newBuilder().also { cfg -> actions.forEach { cfg.addActions(it) } }.build()
     return Interpreter(config, TableStore())
   }
 
