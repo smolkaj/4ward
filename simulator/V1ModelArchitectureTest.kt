@@ -690,6 +690,24 @@ class V1ModelArchitectureTest {
   }
 
   @Test
+  fun `wider port mark_to_drop sets correct all-ones value`() {
+    // Exercises the Interpreter's mark_to_drop path (which derives drop value from the struct's
+    // egress_spec width independently) and the Architecture's drop detection (which uses
+    // PipelineState.dropPort derived from ingress_port width). Both must agree.
+    val portBits = 16
+    val markToDrop =
+      externCall(
+        "mark_to_drop",
+        Expr.newBuilder().setNameRef(NameRef.newBuilder().setName("sm")).build(),
+      )
+    val config = widePortConfig(portBits, markToDrop)
+    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+
+    assertTrue(result.trace.hasPacketOutcome())
+    assertTrue(result.trace.packetOutcome.hasDrop())
+  }
+
+  @Test
   fun `32-bit port width works without overflow`() {
     val portBits = 32
     val largePort = 100_000L
