@@ -140,8 +140,9 @@ cp /path/to/my_program.p4 e2e_tests/my_program/passthrough.p4
 # Edit the STF file: list packets to send and expected outputs.
 $EDITOR e2e_tests/my_program/passthrough.stf
 
-# Run it!
-bazel test //e2e_tests/my_program:passthrough_test --test_output=all
+# Run it! PRINT_TRACE shows what happened to your packet.
+bazel test //e2e_tests/my_program:passthrough_test \
+  --test_output=all --test_env=PRINT_TRACE=1
 ```
 
 > [!NOTE]
