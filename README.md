@@ -212,6 +212,8 @@ requirements.
 │   ├── corpus/             p4c STF corpus (bulk regression)
 │   ├── trace_tree/         Golden trace-tree tests
 │   ├── p4testgen/          p4testgen integration (auto-generated paths)
+│   ├── bmv2_diff/          BMv2 differential testing
+│   ├── sai_p4/             SAI P4 test fixtures
 │   └── <feature>/          Hand-written feature tests (passthrough, lpm, …)
 ├── docs/                   Project documentation
 └── tools/                  Developer scripts (format, lint, coverage, …)
@@ -235,13 +237,12 @@ report in about 5. No flakes, no "works on my machine." See for yourself on the
 | [ROADMAP.md](docs/ROADMAP.md) | Development tracks, priorities, and sequencing |
 | [STATUS.md](docs/STATUS.md) | Append-only log of daily progress |
 | [CONTRIBUTING.md](docs/CONTRIBUTING.md) | How to get involved |
-| [AGENTS.md](AGENTS.md) | Guide for AI coding agents |
-| [CLAUDE.md](CLAUDE.md) | Claude Code-specific instructions |
-| [LIMITATIONS.md](docs/LIMITATIONS.md) | Known shortcuts and gaps |
+| [AI_WORKFLOW.md](docs/AI_WORKFLOW.md) | How to develop with AI agents |
 | [TESTING_STRATEGY.md](docs/TESTING_STRATEGY.md) | Why three test oracles, and what that enables |
 | [P4RUNTIME_COMPLIANCE.md](docs/P4RUNTIME_COMPLIANCE.md) | P4Runtime spec compliance matrix |
+| [LIMITATIONS.md](docs/LIMITATIONS.md) | Known shortcuts and gaps |
 | [REFACTORING.md](docs/REFACTORING.md) | Tech debt and cleanup backlog |
-| [AI_WORKFLOW.md](docs/AI_WORKFLOW.md) | How to develop with AI agents |
+| [AGENTS.md](AGENTS.md) | Guide for AI coding agents |
 
 ## Want to help?
 
