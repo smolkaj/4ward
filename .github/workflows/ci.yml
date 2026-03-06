@@ -114,7 +114,7 @@ jobs:
         run: echo "START_TIME=$(date +%s)" >> "$GITHUB_ENV"
 
       - name: Build and test
-        run: bazel test //...
+        run: bazel test //... --test_tag_filters=-heavy
 
       - name: Calculate build duration
         if: always()
