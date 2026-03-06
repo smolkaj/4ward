@@ -34,19 +34,19 @@ Previously unused code is tested now">Included (covered)</td>
             <td></td>
             <td class="headerItem">Lines:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
-            <td class="headerCovTableEntry">33</td>
-            <td class="headerCovTableEntry">33</td>
-            <td class="headerCovTableEntry"><a href="#L25" title="goto first GIC">33</a></td>
+            <td class="headerCovTableEntry">34</td>
+            <td class="headerCovTableEntry">34</td>
+            <td class="headerCovTableEntry"><a href="#L25" title="goto first GIC">34</a></td>
           </tr>
           <tr>
             <td class="headerItem">Current Date:</td>
-            <td class="headerValue">2026-03-06 18:20:02</td>
+            <td class="headerValue">2026-03-06 18:34:54</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
-            <td class="headerCovTableEntry">9</td>
-            <td class="headerCovTableEntry">9</td>
-            <td class="headerCovTableEntry">9</td>
+            <td class="headerCovTableEntry">10</td>
+            <td class="headerCovTableEntry">10</td>
+            <td class="headerCovTableEntry">10</td>
           </tr>
           <tr>
             <td class="headerItem">Baseline:</td>
@@ -55,7 +55,7 @@ Previously unused code is tested now">Included (covered)</td>
           </tr>
           <tr>
             <td class="headerItem">Baseline Date:</td>
-            <td class="headerValue">2026-03-06 18:12:02</td>
+            <td class="headerValue">2026-03-06 18:27:20</td>
             <td></td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
@@ -115,42 +115,44 @@ Previously unused code is tested now">Included (covered)</td>
 <span id="L39"><span class="lineNum">      39</span>                 : fun bitType(width: Int): Type =</span>
 <span id="L40"><span class="lineNum">      40</span> <span class="tlaGIC">              1 :   Type.newBuilder().setBit(BitType.newBuilder().setWidth(width)).build()</span></span>
 <span id="L41"><span class="lineNum">      41</span>                 : </span>
-<span id="L42"><span class="lineNum">      42</span> <span class="tlaGIC">              1 : fun ifStmt(</span></span>
-<span id="L43"><span class="lineNum">      43</span>                 :   condition: Expr,</span>
-<span id="L44"><span class="lineNum">      44</span> <span class="tlaGIC">              1 :   thenStmts: List&lt;Stmt&gt; = emptyList(),</span></span>
-<span id="L45"><span class="lineNum">      45</span> <span class="tlaGIC">              1 :   elseStmts: List&lt;Stmt&gt; = emptyList(),</span></span>
-<span id="L46"><span class="lineNum">      46</span> <span class="tlaGIC">              1 :   sourceInfo: SourceInfo? = null,</span></span>
-<span id="L47"><span class="lineNum">      47</span>                 : ): Stmt {</span>
-<span id="L48"><span class="lineNum">      48</span> <span class="tlaGIC">              1 :   val builder =</span></span>
-<span id="L49"><span class="lineNum">      49</span> <span class="tlaGIC">              1 :     Stmt.newBuilder()</span></span>
-<span id="L50"><span class="lineNum">      50</span> <span class="tlaGIC">              1 :       .setIfStmt(</span></span>
-<span id="L51"><span class="lineNum">      51</span> <span class="tlaGIC">              1 :         IfStmt.newBuilder()</span></span>
-<span id="L52"><span class="lineNum">      52</span> <span class="tlaGIC">              1 :           .setCondition(condition)</span></span>
-<span id="L53"><span class="lineNum">      53</span> <span class="tlaGIC">              1 :           .setThenBlock(BlockStmt.newBuilder().addAllStmts(thenStmts))</span></span>
-<span id="L54"><span class="lineNum">      54</span> <span class="tlaGIC">              1 :           .setElseBlock(BlockStmt.newBuilder().addAllStmts(elseStmts))</span></span>
-<span id="L55"><span class="lineNum">      55</span>                 :       )</span>
-<span id="L56"><span class="lineNum">      56</span> <span class="tlaGIC">              1 :   if (sourceInfo != null) builder.sourceInfo = sourceInfo</span></span>
-<span id="L57"><span class="lineNum">      57</span> <span class="tlaGIC">              1 :   return builder.build()</span></span>
-<span id="L58"><span class="lineNum">      58</span>                 : }</span>
-<span id="L59"><span class="lineNum">      59</span>                 : </span>
-<span id="L60"><span class="lineNum">      60</span>                 : /** Assignment statement: `varName = rhs`. */</span>
-<span id="L61"><span class="lineNum">      61</span>                 : fun assign(varName: String, rhs: Expr): Stmt =</span>
-<span id="L62"><span class="lineNum">      62</span> <span class="tlaGIC">              1 :   Stmt.newBuilder()</span></span>
-<span id="L63"><span class="lineNum">      63</span> <span class="tlaGIC">              1 :     .setAssignment(</span></span>
-<span id="L64"><span class="lineNum">      64</span> <span class="tlaGIC">              1 :       AssignmentStmt.newBuilder()</span></span>
-<span id="L65"><span class="lineNum">      65</span> <span class="tlaGIC">              1 :         .setLhs(Expr.newBuilder().setNameRef(NameRef.newBuilder().setName(varName)))</span></span>
-<span id="L66"><span class="lineNum">      66</span> <span class="tlaGIC">              1 :         .setRhs(rhs)</span></span>
-<span id="L67"><span class="lineNum">      67</span>                 :     )</span>
-<span id="L68"><span class="lineNum">      68</span> <span class="tlaGIC">              1 :     .build()</span></span>
-<span id="L69"><span class="lineNum">      69</span>                 : </span>
-<span id="L70"><span class="lineNum">      70</span>                 : /** Builds a config with a single control named &quot;MyControl&quot; whose apply body is [stmts]. */</span>
-<span id="L71"><span class="lineNum">      71</span> <span class="tlaGIC">              1 : fun controlConfig(vararg stmts: Stmt): BehavioralConfig = controlConfig(&quot;MyControl&quot;, *stmts)</span></span>
-<span id="L72"><span class="lineNum">      72</span>                 : </span>
-<span id="L73"><span class="lineNum">      73</span>                 : /** Builds a config with a single control named [controlName] whose apply body is [stmts]. */</span>
-<span id="L74"><span class="lineNum">      74</span>                 : fun controlConfig(controlName: String, vararg stmts: Stmt): BehavioralConfig =</span>
-<span id="L75"><span class="lineNum">      75</span> <span class="tlaGIC">              1 :   BehavioralConfig.newBuilder()</span></span>
-<span id="L76"><span class="lineNum">      76</span> <span class="tlaGIC">              1 :     .addControls(ControlDecl.newBuilder().setName(controlName).addAllApplyBody(stmts.toList()))</span></span>
-<span id="L77"><span class="lineNum">      77</span> <span class="tlaGIC">              1 :     .build()</span></span>
+<span id="L42"><span class="lineNum">      42</span> <span class="tlaGIC">              1 : fun namedType(name: String): Type = Type.newBuilder().setNamed(name).build()</span></span>
+<span id="L43"><span class="lineNum">      43</span>                 : </span>
+<span id="L44"><span class="lineNum">      44</span> <span class="tlaGIC">              1 : fun ifStmt(</span></span>
+<span id="L45"><span class="lineNum">      45</span>                 :   condition: Expr,</span>
+<span id="L46"><span class="lineNum">      46</span> <span class="tlaGIC">              1 :   thenStmts: List&lt;Stmt&gt; = emptyList(),</span></span>
+<span id="L47"><span class="lineNum">      47</span> <span class="tlaGIC">              1 :   elseStmts: List&lt;Stmt&gt; = emptyList(),</span></span>
+<span id="L48"><span class="lineNum">      48</span> <span class="tlaGIC">              1 :   sourceInfo: SourceInfo? = null,</span></span>
+<span id="L49"><span class="lineNum">      49</span>                 : ): Stmt {</span>
+<span id="L50"><span class="lineNum">      50</span> <span class="tlaGIC">              1 :   val builder =</span></span>
+<span id="L51"><span class="lineNum">      51</span> <span class="tlaGIC">              1 :     Stmt.newBuilder()</span></span>
+<span id="L52"><span class="lineNum">      52</span> <span class="tlaGIC">              1 :       .setIfStmt(</span></span>
+<span id="L53"><span class="lineNum">      53</span> <span class="tlaGIC">              1 :         IfStmt.newBuilder()</span></span>
+<span id="L54"><span class="lineNum">      54</span> <span class="tlaGIC">              1 :           .setCondition(condition)</span></span>
+<span id="L55"><span class="lineNum">      55</span> <span class="tlaGIC">              1 :           .setThenBlock(BlockStmt.newBuilder().addAllStmts(thenStmts))</span></span>
+<span id="L56"><span class="lineNum">      56</span> <span class="tlaGIC">              1 :           .setElseBlock(BlockStmt.newBuilder().addAllStmts(elseStmts))</span></span>
+<span id="L57"><span class="lineNum">      57</span>                 :       )</span>
+<span id="L58"><span class="lineNum">      58</span> <span class="tlaGIC">              1 :   if (sourceInfo != null) builder.sourceInfo = sourceInfo</span></span>
+<span id="L59"><span class="lineNum">      59</span> <span class="tlaGIC">              1 :   return builder.build()</span></span>
+<span id="L60"><span class="lineNum">      60</span>                 : }</span>
+<span id="L61"><span class="lineNum">      61</span>                 : </span>
+<span id="L62"><span class="lineNum">      62</span>                 : /** Assignment statement: `varName = rhs`. */</span>
+<span id="L63"><span class="lineNum">      63</span>                 : fun assign(varName: String, rhs: Expr): Stmt =</span>
+<span id="L64"><span class="lineNum">      64</span> <span class="tlaGIC">              1 :   Stmt.newBuilder()</span></span>
+<span id="L65"><span class="lineNum">      65</span> <span class="tlaGIC">              1 :     .setAssignment(</span></span>
+<span id="L66"><span class="lineNum">      66</span> <span class="tlaGIC">              1 :       AssignmentStmt.newBuilder()</span></span>
+<span id="L67"><span class="lineNum">      67</span> <span class="tlaGIC">              1 :         .setLhs(Expr.newBuilder().setNameRef(NameRef.newBuilder().setName(varName)))</span></span>
+<span id="L68"><span class="lineNum">      68</span> <span class="tlaGIC">              1 :         .setRhs(rhs)</span></span>
+<span id="L69"><span class="lineNum">      69</span>                 :     )</span>
+<span id="L70"><span class="lineNum">      70</span> <span class="tlaGIC">              1 :     .build()</span></span>
+<span id="L71"><span class="lineNum">      71</span>                 : </span>
+<span id="L72"><span class="lineNum">      72</span>                 : /** Builds a config with a single control named &quot;MyControl&quot; whose apply body is [stmts]. */</span>
+<span id="L73"><span class="lineNum">      73</span> <span class="tlaGIC">              1 : fun controlConfig(vararg stmts: Stmt): BehavioralConfig = controlConfig(&quot;MyControl&quot;, *stmts)</span></span>
+<span id="L74"><span class="lineNum">      74</span>                 : </span>
+<span id="L75"><span class="lineNum">      75</span>                 : /** Builds a config with a single control named [controlName] whose apply body is [stmts]. */</span>
+<span id="L76"><span class="lineNum">      76</span>                 : fun controlConfig(controlName: String, vararg stmts: Stmt): BehavioralConfig =</span>
+<span id="L77"><span class="lineNum">      77</span> <span class="tlaGIC">              1 :   BehavioralConfig.newBuilder()</span></span>
+<span id="L78"><span class="lineNum">      78</span> <span class="tlaGIC">              1 :     .addControls(ControlDecl.newBuilder().setName(controlName).addAllApplyBody(stmts.toList()))</span></span>
+<span id="L79"><span class="lineNum">      79</span> <span class="tlaGIC">              1 :     .build()</span></span>
         </pre>
               </td>
             </tr>
