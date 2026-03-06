@@ -43,6 +43,31 @@ git_override(
     remote = "https://github.com/smolkaj/p4c.git",
 )
 
+# p4-constraints validates @entry_restriction / @action_restriction annotations.
+bazel_dep(name = "p4_constraints", version = "head")
+git_override(
+    module_name = "p4_constraints",
+    commit = "cbcc7b1eceb1aa414f41ac6968682bc34ae63eea",
+    remote = "https://github.com/p4lang/p4-constraints.git",
+)
+
+# gutil — Google utility library (transitive dep of p4-constraints).
+# Overridden to pick up Bazel 9 compatibility (google/gutil#42).
+bazel_dep(name = "gutil", version = "head")
+git_override(
+    module_name = "gutil",
+    commit = "20c8d2e277d6c60c407db1dcb621967458cbcf01",
+    remote = "https://github.com/google/gutil.git",
+)
+
+# GMP — the BCR module only supports Linux (builds from source).
+# Override with a system-library wrapper that works on both macOS and Linux.
+bazel_dep(name = "gmp", version = "6.3.0")
+local_path_override(
+    module_name = "gmp",
+    path = "bazel/gmp",
+)
+
 # BMv2 (behavioral-model) — v1model reference simulator for differential testing.
 # Patched to add native Bazel build rules (no Thrift, no nanomsg).
 bazel_dep(name = "behavioral_model", version = "head")

@@ -94,6 +94,7 @@ def _p4_testgen_rules(name, src_p4, includes, max_tests, seed, tags):
     Returns:
         A list of data labels [stfs_target, pb_target] for the kt_jvm_test.
     """
+    tags = tags + ["heavy"]
     stfs_name = name + "_stfs"
     pb_name = name + "_pb"
 

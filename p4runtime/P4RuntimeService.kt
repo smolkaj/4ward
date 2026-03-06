@@ -10,6 +10,8 @@ import fourward.sim.v1.SimRequest
 import fourward.sim.v1.WriteEntryRequest
 import fourward.simulator.Simulator
 import io.grpc.Status
+import java.io.Closeable
+import java.nio.file.Path
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import p4.v1.P4RuntimeGrpcKt
@@ -35,11 +37,14 @@ import p4.v1.P4RuntimeOuterClass.WriteResponse
  * Simplifications: single controller (first connection is master), synchronous packet processing,
  * no digest support.
  */
-class P4RuntimeService(private val simulator: Simulator) :
-  P4RuntimeGrpcKt.P4RuntimeCoroutineImplBase() {
+class P4RuntimeService(
+  private val simulator: Simulator,
+  private val constraintValidatorBinary: Path? = null,
+) : P4RuntimeGrpcKt.P4RuntimeCoroutineImplBase(), Closeable {
 
   @Volatile private var currentConfig: PipelineConfig? = null
   @Volatile private var typeTranslator: TypeTranslator? = null
+  @Volatile private var constraintValidator: ConstraintValidator? = null
 
   private fun requirePipeline(): PipelineConfig =
     currentConfig
@@ -91,6 +96,9 @@ class P4RuntimeService(private val simulator: Simulator) :
 
     currentConfig = pipelineConfig
     typeTranslator = TypeTranslator.create(fwdConfig.p4Info, deviceConfig.translationsList)
+    constraintValidator?.close()
+    constraintValidator =
+      constraintValidatorBinary?.let { ConstraintValidator.create(fwdConfig.p4Info, it) }
     return SetForwardingPipelineConfigResponse.getDefaultInstance()
   }
 
@@ -101,8 +109,23 @@ class P4RuntimeService(private val simulator: Simulator) :
   override suspend fun write(request: WriteRequest): WriteResponse {
     requirePipeline()
     val translator = typeTranslator?.takeIf { it.hasTranslations }
+    val validator = constraintValidator
     for (rawUpdate in request.updatesList) {
       val update = translator?.translateForWrite(rawUpdate) ?: rawUpdate
+
+      // Validate constraints before forwarding to the simulator.
+      // Skip DELETE — you can always remove an entry regardless of constraints.
+      if (
+        validator != null &&
+          update.entity.hasTableEntry() &&
+          update.type != p4.v1.P4RuntimeOuterClass.Update.Type.DELETE
+      ) {
+        val violation = validator.validateEntry(update.entity.tableEntry)
+        if (violation != null) {
+          throw Status.INVALID_ARGUMENT.withDescription(violation).asException()
+        }
+      }
+
       val simRequest =
         SimRequest.newBuilder()
           .setWriteEntry(WriteEntryRequest.newBuilder().setUpdate(update))
@@ -258,6 +281,10 @@ class P4RuntimeService(private val simulator: Simulator) :
 
   override suspend fun capabilities(request: CapabilitiesRequest): CapabilitiesResponse =
     CapabilitiesResponse.newBuilder().setP4RuntimeApiVersion(P4RUNTIME_API_VERSION).build()
+
+  override fun close() {
+    constraintValidator?.close()
+  }
 
   companion object {
     // Well-known metadata IDs for v1model packet_in/packet_out headers.
