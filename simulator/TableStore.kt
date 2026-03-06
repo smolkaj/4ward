@@ -10,17 +10,6 @@ import p4.v1.P4RuntimeOuterClass.Update
 /** Interprets a protobuf [ByteString] as an unsigned big-endian integer. */
 private fun ByteString.toUnsignedBigInteger(): BigInteger = BigInteger(1, toByteArray())
 
-/** Encodes a [BigInteger] as unsigned big-endian bytes with the given byte length. */
-private fun BigInteger.toByteString(byteLen: Int): ByteString {
-  val raw = toByteArray() // signed two's-complement, big-endian
-  val out = ByteArray(byteLen)
-  // Copy right-aligned, trimming any leading sign byte.
-  val srcStart = maxOf(0, raw.size - byteLen)
-  val dstStart = maxOf(0, byteLen - raw.size)
-  raw.copyInto(out, dstStart, srcStart)
-  return ByteString.copyFrom(out)
-}
-
 // P4Runtime spec §9.1: two entries are the same iff they have the same match key
 // AND the same priority (priority is part of the key for ternary/range tables).
 private fun TableEntry.sameKey(other: TableEntry): Boolean =
@@ -47,8 +36,7 @@ sealed class WriteResult {
  */
 class TableStore {
 
-  /** P4Runtime register metadata: maps p4info ID to internal name, element bitwidth, and size. */
-  data class RegisterInfo(val name: String, val bitwidth: Int, val size: Int)
+  private data class RegisterInfo(val name: String, val bitwidth: Int, val size: Int)
 
   // tableName -> list of entries, ordered by insertion (priority is explicit in the entry)
   private val tables: MutableMap<String, MutableList<TableEntry>> = mutableMapOf()
@@ -104,11 +92,15 @@ class TableStore {
     tableNameById: Map<Int, String>,
     actionNameById: Map<Int, String>,
     p4infoTables: List<P4InfoOuterClass.Table> = emptyList(),
-    registerInfoById: Map<Int, RegisterInfo> = emptyMap(),
+    p4infoRegisters: List<P4InfoOuterClass.Register> = emptyList(),
   ) {
     this.tableNameById = tableNameById
     this.actionNameById = actionNameById
-    this.registerInfoById = registerInfoById
+    this.registerInfoById =
+      p4infoRegisters.associate { reg ->
+        val bitwidth = reg.typeSpec.bitstring.bit.bitwidth
+        reg.preamble.id to RegisterInfo(reg.preamble.name, bitwidth, reg.size)
+      }
     tables.clear()
     forcedHits.clear()
     registers.clear()
@@ -183,11 +175,11 @@ class TableStore {
       }
     val hasIndex = filter.hasIndex()
     return infos.flatMap { (regId, info) ->
-      val byteLen = (info.bitwidth + 7) / 8
+      val zeroBits = BitVector(BigInteger.ZERO, info.bitwidth)
       val indices = if (hasIndex) listOf(filter.index.index.toInt()) else (0 until info.size)
       indices.map { idx ->
-        val value = registerRead(info.name, idx) as? BitVal
-        val data = (value?.bits?.value ?: BigInteger.ZERO).toByteString(byteLen)
+        val bits = (registerRead(info.name, idx) as? BitVal)?.bits ?: zeroBits
+        val data = ByteString.copyFrom(bits.toByteArray())
         P4RuntimeOuterClass.Entity.newBuilder()
           .setRegisterEntry(
             P4RuntimeOuterClass.RegisterEntry.newBuilder()

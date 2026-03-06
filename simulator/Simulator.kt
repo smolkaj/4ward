@@ -67,16 +67,11 @@ class Simulator {
         val alias = action.preamble.alias.ifEmpty { action.preamble.name }
         action.preamble.id to resolveName(alias, behavioralActions)
       }
-    val registerInfoById =
-      config.p4Info.registersList.associate { reg ->
-        val bitwidth = reg.typeSpec.bitstring.bit.bitwidth
-        reg.preamble.id to TableStore.RegisterInfo(reg.preamble.name, bitwidth, reg.size)
-      }
     tableStore.loadMappings(
       tableNameById,
       actionNameById,
       config.p4Info.tablesList,
-      registerInfoById,
+      config.p4Info.registersList,
     )
 
     for (table in config.p4Info.tablesList) {

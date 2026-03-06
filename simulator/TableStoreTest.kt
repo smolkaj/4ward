@@ -892,13 +892,29 @@ class TableStoreTest {
     store.loadMappings(
       tableNameById = mapOf(TABLE_ID to TABLE_NAME),
       actionNameById = ACTION_ID_TO_NAME,
-      registerInfoById =
-        mapOf(
-          REGISTER_ID to TableStore.RegisterInfo(REGISTER_NAME, REGISTER_BITWIDTH, REGISTER_SIZE)
-        ),
+      p4infoRegisters =
+        listOf(buildRegisterProto(REGISTER_ID, REGISTER_NAME, REGISTER_BITWIDTH, REGISTER_SIZE)),
     )
     return store
   }
+
+  private fun buildRegisterProto(
+    id: Int,
+    name: String,
+    bitwidth: Int,
+    size: Int,
+  ): P4InfoOuterClass.Register =
+    P4InfoOuterClass.Register.newBuilder()
+      .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(id).setName(name))
+      .setTypeSpec(
+        p4.config.v1.P4Types.P4DataTypeSpec.newBuilder()
+          .setBitstring(
+            p4.config.v1.P4Types.P4BitstringLikeTypeSpec.newBuilder()
+              .setBit(p4.config.v1.P4Types.P4BitTypeSpec.newBuilder().setBitwidth(bitwidth))
+          )
+      )
+      .setSize(size)
+      .build()
 
   private fun registerUpdate(
     type: Update.Type,
@@ -1014,10 +1030,10 @@ class TableStoreTest {
     s.loadMappings(
       tableNameById = emptyMap(),
       actionNameById = emptyMap(),
-      registerInfoById =
-        mapOf(
-          REGISTER_ID to TableStore.RegisterInfo(REGISTER_NAME, REGISTER_BITWIDTH, 2),
-          REGISTER_ID + 1 to TableStore.RegisterInfo("otherRegister", 8, 1),
+      p4infoRegisters =
+        listOf(
+          buildRegisterProto(REGISTER_ID, REGISTER_NAME, REGISTER_BITWIDTH, 2),
+          buildRegisterProto(REGISTER_ID + 1, "otherRegister", 8, 1),
         ),
     )
     s.write(registerUpdate(Update.Type.MODIFY, registerId = REGISTER_ID, index = 0, value = 1))
