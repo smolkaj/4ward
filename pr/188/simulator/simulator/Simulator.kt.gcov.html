@@ -35,15 +35,15 @@ Unchanged code was tested before and is still tested">Covered</td>
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">96.4&nbsp;%</td>
-            <td class="headerCovTableEntry">83</td>
-            <td class="headerCovTableEntry">80</td>
+            <td class="headerCovTableEntryHi">96.6&nbsp;%</td>
+            <td class="headerCovTableEntry">88</td>
+            <td class="headerCovTableEntry">85</td>
             <td class="headerCovTableEntry"><a href="#L35" title="goto first UBC">3</a></td>
-            <td class="headerCovTableEntry"><a href="#L23" title="goto first CBC">80</a></td>
+            <td class="headerCovTableEntry"><a href="#L23" title="goto first CBC">85</a></td>
           </tr>
           <tr>
             <td class="headerItem">Current Date:</td>
-            <td class="headerValue">2026-03-06 09:03:18</td>
+            <td class="headerValue">2026-03-06 09:17:59</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -59,7 +59,7 @@ Unchanged code was tested before and is still tested">Covered</td>
           </tr>
           <tr>
             <td class="headerItem">Baseline Date:</td>
-            <td class="headerValue">2026-03-06 08:55:34</td>
+            <td class="headerValue">2026-03-06 09:10:33</td>
             <td></td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
@@ -237,23 +237,29 @@ Unchanged code was tested before and is still tested">Covered</td>
 <span id="L157"><span class="lineNum">     157</span>                 :   private fun handleReadEntries(req: fourward.sim.v1.ReadEntriesRequest): SimResponse {</span>
 <span id="L158"><span class="lineNum">     158</span>                 :     // P4Runtime spec §11.1: each entity in the ReadRequest is a filter; the response is the union.</span>
 <span id="L159"><span class="lineNum">     159</span> <a href="#top" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :     val entities =</span></span>
-<span id="L160"><span class="lineNum">     160</span> <span class="tlaCBC">              1 :       req.request.entitiesList</span></span>
-<span id="L161"><span class="lineNum">     161</span> <span class="tlaCBC">              1 :         .filter { it.hasTableEntry() }</span></span>
-<span id="L162"><span class="lineNum">     162</span> <span class="tlaCBC">              1 :         .flatMap { tableStore.readEntities(it.tableEntry) }</span></span>
-<span id="L163"><span class="lineNum">     163</span> <span class="tlaCBC">              1 :     return SimResponse.newBuilder()</span></span>
-<span id="L164"><span class="lineNum">     164</span> <span class="tlaCBC">              1 :       .setReadEntries(ReadEntriesResponse.newBuilder().addAllEntities(entities))</span></span>
-<span id="L165"><span class="lineNum">     165</span> <span class="tlaCBC">              1 :       .build()</span></span>
-<span id="L166"><span class="lineNum">     166</span>                 :   }</span>
-<span id="L167"><span class="lineNum">     167</span>                 : </span>
-<span id="L168"><span class="lineNum">     168</span>                 :   // -------------------------------------------------------------------------</span>
-<span id="L169"><span class="lineNum">     169</span>                 :   // Helpers</span>
-<span id="L170"><span class="lineNum">     170</span>                 :   // -------------------------------------------------------------------------</span>
-<span id="L171"><span class="lineNum">     171</span>                 : </span>
-<span id="L172"><span class="lineNum">     172</span> <span class="tlaCBC">              1 :   private fun simError(message: String, code: ErrorCode = ErrorCode.INTERNAL_ERROR): SimResponse =</span></span>
-<span id="L173"><span class="lineNum">     173</span> <span class="tlaCBC">              1 :     SimResponse.newBuilder()</span></span>
-<span id="L174"><span class="lineNum">     174</span> <span class="tlaCBC">              1 :       .setError(ErrorResponse.newBuilder().setMessage(message).setCode(code))</span></span>
-<span id="L175"><span class="lineNum">     175</span> <span class="tlaCBC">              1 :       .build()</span></span>
-<span id="L176"><span class="lineNum">     176</span>                 : }</span>
+<span id="L160"><span class="lineNum">     160</span> <span class="tlaCBC">              1 :       req.request.entitiesList.flatMap { entity -&gt;</span></span>
+<span id="L161"><span class="lineNum">     161</span> <span class="tlaCBC">              1 :         when {</span></span>
+<span id="L162"><span class="lineNum">     162</span> <span class="tlaCBC">              1 :           entity.hasTableEntry() -&gt; tableStore.readEntities(entity.tableEntry)</span></span>
+<span id="L163"><span class="lineNum">     163</span> <span class="tlaCBC">              1 :           entity.hasActionProfileMember() -&gt;</span></span>
+<span id="L164"><span class="lineNum">     164</span> <span class="tlaCBC">              1 :             tableStore.readProfileMembers(entity.actionProfileMember)</span></span>
+<span id="L165"><span class="lineNum">     165</span> <span class="tlaCBC">              1 :           entity.hasActionProfileGroup() -&gt; tableStore.readProfileGroups(entity.actionProfileGroup)</span></span>
+<span id="L166"><span class="lineNum">     166</span> <span class="tlaCBC">              1 :           else -&gt; emptyList()</span></span>
+<span id="L167"><span class="lineNum">     167</span> <span class="tlaCBC">              1 :         }</span></span>
+<span id="L168"><span class="lineNum">     168</span>                 :       }</span>
+<span id="L169"><span class="lineNum">     169</span> <span class="tlaCBC">              1 :     return SimResponse.newBuilder()</span></span>
+<span id="L170"><span class="lineNum">     170</span> <span class="tlaCBC">              1 :       .setReadEntries(ReadEntriesResponse.newBuilder().addAllEntities(entities))</span></span>
+<span id="L171"><span class="lineNum">     171</span> <span class="tlaCBC">              1 :       .build()</span></span>
+<span id="L172"><span class="lineNum">     172</span>                 :   }</span>
+<span id="L173"><span class="lineNum">     173</span>                 : </span>
+<span id="L174"><span class="lineNum">     174</span>                 :   // -------------------------------------------------------------------------</span>
+<span id="L175"><span class="lineNum">     175</span>                 :   // Helpers</span>
+<span id="L176"><span class="lineNum">     176</span>                 :   // -------------------------------------------------------------------------</span>
+<span id="L177"><span class="lineNum">     177</span>                 : </span>
+<span id="L178"><span class="lineNum">     178</span> <span class="tlaCBC">              1 :   private fun simError(message: String, code: ErrorCode = ErrorCode.INTERNAL_ERROR): SimResponse =</span></span>
+<span id="L179"><span class="lineNum">     179</span> <span class="tlaCBC">              1 :     SimResponse.newBuilder()</span></span>
+<span id="L180"><span class="lineNum">     180</span> <span class="tlaCBC">              1 :       .setError(ErrorResponse.newBuilder().setMessage(message).setCode(code))</span></span>
+<span id="L181"><span class="lineNum">     181</span> <span class="tlaCBC">              1 :       .build()</span></span>
+<span id="L182"><span class="lineNum">     182</span>                 : }</span>
         </pre>
               </td>
             </tr>
