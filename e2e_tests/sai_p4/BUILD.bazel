@@ -1,0 +1,33 @@
+# SAI P4 (middleblock instantiation) — vendored from sonic-net/sonic-pins.
+# Used for E2E testing of the P4Runtime server with @p4runtime_translation.
+
+filegroup(
+    name = "sai_p4_srcs",
+    srcs = glob([
+        "fixed/*.p4",
+        "fixed/*.h",
+        "instantiations/google/*.p4",
+        "instantiations/google/*.h",
+    ]),
+)
+
+genrule(
+    name = "sai_middleblock_pb",
+    srcs = [
+        "instantiations/google/middleblock.p4",
+        ":sai_p4_srcs",
+    ],
+    outs = ["sai_middleblock.txtpb"],
+    cmd = " ".join([
+        "$(execpath //p4c_backend:p4c-4ward)",
+        "-I $$(dirname $(execpath @p4c//:core_p4))",
+        "-o $@",
+        "$(execpath instantiations/google/middleblock.p4)",
+    ]),
+    tools = [
+        "//p4c_backend:p4c-4ward",
+        "@p4c//:core_p4",
+        "@p4c//:p4include",
+    ],
+    visibility = ["//p4runtime:__pkg__"],
+)

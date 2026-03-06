@@ -58,16 +58,16 @@ complexity:
     thresholdInEnums: 11
     excludes: ['**/test/**', '**/*Test.kt']
 
+  # The default (4) is too low for work-stack interpreters like buildTraceTree,
+  # where an explicit stack loop naturally nests: while → when → branch → try/catch.
+  NestedBlockDepth:
+    threshold: 6
+
   # Protocol dispatch functions (Interpreter.evalExpr, evalBinaryOp) are large
   # `when` expressions whose cyclomatic complexity grows linearly with the number
   # of P4 language constructs — not a readability problem.
   CyclomaticComplexMethod:
     threshold: 29
-
-  # The iterative trace-tree builder (buildTraceTree) uses while → when → try/catch,
-  # naturally reaching depth 5. Flattening it would hurt readability.
-  NestedBlockDepth:
-    threshold: 5
 
   # 60 lines is too tight for sequential protocol handlers (e.g. StfRunner.run, which
   # encodes a strict request/response sequence that reads clearly as one function).
