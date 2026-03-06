@@ -11,7 +11,7 @@ import p4.config.v1.P4InfoOuterClass
 import p4.v1.P4RuntimeOuterClass
 
 /** Recursively collects output packets from trace tree leaves (for forking programs). */
-private fun collectOutputsFromTrace(tree: TraceTree): List<fourward.sim.v1.OutputPacket> =
+fun collectOutputsFromTrace(tree: TraceTree): List<fourward.sim.v1.OutputPacket> =
   when {
     tree.hasForkOutcome() ->
       tree.forkOutcome.branchesList.flatMap { collectOutputsFromTrace(it.subtree) }
@@ -624,12 +624,12 @@ private fun allOnesMask(bitwidth: Int): String {
   return "0x" + value.toString(16).padStart(byteLen * 2, '0')
 }
 
-private fun findTable(name: String, p4info: P4InfoOuterClass.P4Info): P4InfoOuterClass.Table =
+fun findTable(name: String, p4info: P4InfoOuterClass.P4Info): P4InfoOuterClass.Table =
   p4info.tablesList.find { it.preamble.alias == name || it.preamble.name == name }
     ?: p4info.tablesList.find { it.preamble.name.endsWith(".$name") }
     ?: error("unknown table: $name")
 
-private fun findAction(name: String, p4info: P4InfoOuterClass.P4Info): P4InfoOuterClass.Action =
+fun findAction(name: String, p4info: P4InfoOuterClass.P4Info): P4InfoOuterClass.Action =
   p4info.actionsList.find { it.preamble.alias == name || it.preamble.name == name }
     ?: p4info.actionsList.find { it.preamble.name.endsWith(".$name") }
     ?: error("unknown action: $name")
@@ -815,9 +815,9 @@ private fun String.splitNamedParam(): Pair<String?, String> {
   return null to this
 }
 
-private fun String.extractParamName(): String? = splitNamedParam().first
+fun String.extractParamName(): String? = splitNamedParam().first
 
-private fun String.stripNamedParamPrefix(): String = splitNamedParam().second
+fun String.stripNamedParamPrefix(): String = splitNamedParam().second
 
 /**
  * Parses a hex wildcard string like `0x****0101` into hex value and mask strings.
@@ -872,7 +872,7 @@ private fun parseBinaryWildcard(binStr: String): Pair<String, String> {
   return "0x${v.toString(16)}" to "0x${m.toString(16)}"
 }
 
-private fun String.decodeHex(): ByteArray {
+fun String.decodeHex(): ByteArray {
   val clean = replace(" ", "").lowercase()
   return ByteArray(clean.length / 2) { i -> clean.substring(i * 2, i * 2 + 2).toInt(16).toByte() }
 }
@@ -922,7 +922,7 @@ private fun ByteArray.matchesMasked(
   }
 }
 
-private fun ByteArray.hex(): String = joinToString("") { "%02x".format(it) }
+fun ByteArray.hex(): String = joinToString("") { "%02x".format(it) }
 
 /** Like [hex] but shows `**` for wildcard bytes (mask byte == 0). */
 private fun ByteArray.hex(mask: ByteArray): String =

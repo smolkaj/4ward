@@ -105,6 +105,11 @@ jobs:
             bazel-${{ matrix.os }}-
             ${{ matrix.os == 'ubuntu-24.04' && 'bazel-coverage-' || '' }}
 
+      # BMv2 links against system libgmp and libpcap.
+      - name: Install system dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get install -y libgmp-dev libpcap-dev
+
       - name: Save start time
         run: echo "START_TIME=$(date +%s)" >> "$GITHUB_ENV"
 
@@ -163,8 +168,8 @@ jobs:
       - name: Save start time
         run: echo "START_TIME=$(date +%s)" >> "$GITHUB_ENV"
 
-      - name: Install lcov
-        run: sudo apt install -y lcov
+      - name: Install system dependencies
+        run: sudo apt-get install -y lcov libgmp-dev libpcap-dev
 
       - name: Fetch gh-pages
         run: git fetch --depth=1 origin gh-pages || true
