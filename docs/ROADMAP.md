@@ -100,11 +100,19 @@ mismatches (1C).
 
 ### Track 2: infrastructure
 
-**Priority: nice to have | Parallelizable: yes**
+**Priority: high (p4testgen batching) / nice to have (rest) | Parallelizable: yes**
 
-Build plumbing, CI improvements, cleanup. Picked up opportunistically — none
-of this blocks the other tracks. See [REFACTORING.md](REFACTORING.md) for
-the full list.
+Build plumbing, CI improvements, cleanup.
+
+**Highest priority item: p4testgen JVM batching.** p4testgen currently spawns
+186 separate JVM processes (one per P4 program), which makes it impossible
+to run locally without exhausting memory. Batch all p4testgen tests into a
+single JVM (like the corpus test suite does for 186 STF tests). This would
+make `bazel test //...` viable on developer machines again. Until then,
+p4testgen tests are tagged `heavy` and skipped locally.
+
+The rest is picked up opportunistically — see [REFACTORING.md](REFACTORING.md)
+for the full list.
 
 ### Track 3: trace trees
 
