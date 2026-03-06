@@ -138,11 +138,17 @@ control plane protocol compliance.
 *Not implemented yet — requires integrating sonic-pins p4_fuzzer as a Bazel
 dependency. Methodology documented here so it can be built in Track 4B+.*
 
+### Compliance matrix
+
+[P4RUNTIME_COMPLIANCE.md](P4RUNTIME_COMPLIANCE.md) maps every testable
+P4Runtime spec requirement to its test status. This answers the first open
+question below — and makes the remaining gaps visible at a glance.
+
 ### Open questions
 
-- What's the P4Runtime equivalent of the STF corpus? The conformance tests
-  (Layer 1) cover the spec manually. Could we derive a more systematic
-  checklist from the spec's normative requirements?
+- ~~What's the P4Runtime equivalent of the STF corpus?~~ →
+  [P4RUNTIME_COMPLIANCE.md](P4RUNTIME_COMPLIANCE.md). Systematic checklist
+  derived from the spec's normative requirements (§7–§12).
 - What's the equivalent of p4testgen? The p4_fuzzer (Layer 3) explores the
   Write surface. Is there an analog for Read, StreamChannel, or pipeline
   config lifecycle?
