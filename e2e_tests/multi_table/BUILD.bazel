@@ -1,15 +1,9 @@
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
+load("//e2e_tests:p4c.bzl", "p4c_compile")
 
-genrule(
-    name = "multi_table_pb",
-    srcs = ["multi_table.p4"],
-    outs = ["multi_table.txtpb"],
-    cmd = "$(execpath //p4c_backend:p4c-4ward) -I $$(dirname $(execpath @p4c//:core_p4)) -o $@ $(SRCS)",
-    tools = [
-        "//p4c_backend:p4c-4ward",
-        "@p4c//:core_p4",
-        "@p4c//:p4include",
-    ],
+p4c_compile(
+    name = "multi_table",
+    src_p4 = "multi_table.p4",
 )
 
 kt_jvm_test(

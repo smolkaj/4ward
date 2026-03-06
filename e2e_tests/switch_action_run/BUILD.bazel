@@ -1,15 +1,9 @@
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
+load("//e2e_tests:p4c.bzl", "p4c_compile")
 
-genrule(
-    name = "switch_action_run_pb",
-    srcs = ["switch_action_run.p4"],
-    outs = ["switch_action_run.txtpb"],
-    cmd = "$(execpath //p4c_backend:p4c-4ward) -I $$(dirname $(execpath @p4c//:core_p4)) -o $@ $(SRCS)",
-    tools = [
-        "//p4c_backend:p4c-4ward",
-        "@p4c//:core_p4",
-        "@p4c//:p4include",
-    ],
+p4c_compile(
+    name = "switch_action_run",
+    src_p4 = "switch_action_run.p4",
 )
 
 kt_jvm_test(

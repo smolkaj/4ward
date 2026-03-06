@@ -22,6 +22,7 @@ This creates:
 
 load("@rules_cc//cc:find_cc_toolchain.bzl", "CC_TOOLCHAIN_TYPE", "find_cc_toolchain", "use_cc_toolchain")
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
+load("//e2e_tests:p4c.bzl", "p4c_compile")
 
 def _p4testgen_stfs_impl(ctx):
     cc_toolchain = find_cc_toolchain(ctx)
@@ -96,7 +97,6 @@ def _p4_testgen_rules(name, src_p4, includes, max_tests, seed, tags):
     """
     tags = tags + ["heavy"]
     stfs_name = name + "_stfs"
-    pb_name = name + "_pb"
 
     _p4testgen_stfs(
         name = stfs_name,
@@ -107,23 +107,9 @@ def _p4_testgen_rules(name, src_p4, includes, max_tests, seed, tags):
         tags = tags,
     )
 
-    include_flags = "".join([" -I $$(dirname $(execpath " + inc + "))" for inc in includes])
+    p4c_compile(name, src_p4, includes, tags)
 
-    # Compile P4 → PipelineConfig txtpb (same as corpus.bzl).
-    native.genrule(
-        name = pb_name,
-        srcs = [src_p4] + includes,
-        outs = [name + ".txtpb"],
-        cmd = "$(execpath //p4c_backend:p4c-4ward) -I $$(dirname $(execpath @p4c//:core_p4))" + include_flags + " -o $@ $(execpath " + src_p4 + ")",
-        tools = [
-            "//p4c_backend:p4c-4ward",
-            "@p4c//:core_p4",
-            "@p4c//:p4include",
-        ],
-        tags = tags,
-    )
-
-    return [":" + stfs_name, ":" + pb_name]
+    return [":" + stfs_name, ":" + name + "_pb"]
 
 def p4_testgen_test(name, src_p4 = None, includes = [], max_tests = 0, seed = 0, tags = []):
     """Generates p4testgen STF tests and runs them against the 4ward simulator.

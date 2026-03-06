@@ -1,4 +1,5 @@
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
+load("//e2e_tests:p4c.bzl", "p4c_compile")
 
 # =============================================================================
 # Trace tree golden tests (Track 3)
@@ -28,16 +29,9 @@ _PASSING = _P4_PROGRAMS
 
 _MANUAL = []
 
-[genrule(
-    name = "%s_pb" % name,
-    srcs = ["%s.p4" % name],
-    outs = ["%s.txtpb" % name],
-    cmd = "$(execpath //p4c_backend:p4c-4ward) -I $$(dirname $(execpath @p4c//:core_p4)) -o $@ $(SRCS)",
-    tools = [
-        "//p4c_backend:p4c-4ward",
-        "@p4c//:core_p4",
-        "@p4c//:p4include",
-    ],
+[p4c_compile(
+    name,
+    "%s.p4" % name,
 ) for name in _P4_PROGRAMS]
 
 _TEST_DEPS = [
