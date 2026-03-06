@@ -24,10 +24,6 @@ private constructor(
   private val process: Process,
   private val input: DataInputStream,
   private val output: DataOutputStream,
-  /** Number of tables with `@entry_restriction` constraints. */
-  val constrainedTables: Int,
-  /** Number of actions with `@action_restriction` constraints. */
-  val constrainedActions: Int,
 ) : Closeable {
 
   /**
@@ -115,13 +111,7 @@ private constructor(
         return null
       }
 
-      return ConstraintValidator(
-        process,
-        input,
-        output,
-        loadResponse.constrainedTables,
-        loadResponse.constrainedActions,
-      )
+      return ConstraintValidator(process, input, output)
     }
   }
 }

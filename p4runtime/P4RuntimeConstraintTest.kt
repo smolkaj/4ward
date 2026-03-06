@@ -6,6 +6,7 @@ import fourward.p4runtime.P4RuntimeTestHarness.Companion.assertGrpcError
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.loadConfig
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.longToBytes
 import io.grpc.Status
+import java.nio.file.Path
 import java.nio.file.Paths
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -28,9 +29,7 @@ class P4RuntimeConstraintTest {
 
   @Before
   fun setUp() {
-    val runfiles = System.getenv("JAVA_RUNFILES") ?: "."
-    val validatorPath = Paths.get(runfiles, "_main/p4runtime/constraint_validator")
-    harness = P4RuntimeTestHarness(constraintValidatorBinary = validatorPath)
+    harness = P4RuntimeTestHarness(constraintValidatorBinary = VALIDATOR_BINARY)
     config = loadConfig("e2e_tests/constrained_table/constrained_table.txtpb")
     harness.loadPipeline(config)
   }
@@ -164,17 +163,16 @@ class P4RuntimeConstraintTest {
     // Load basic_table which has no @entry_restriction — no validator subprocess.
     val basicConfig = loadConfig("e2e_tests/basic_table/basic_table.txtpb")
     harness.close()
-    val basicHarness =
-      P4RuntimeTestHarness(
-        constraintValidatorBinary =
-          Paths.get(System.getenv("JAVA_RUNFILES") ?: ".", "_main/p4runtime/constraint_validator")
-      )
-    basicHarness.loadPipeline(basicConfig)
+    P4RuntimeTestHarness(constraintValidatorBinary = VALIDATOR_BINARY).use { basicHarness ->
+      basicHarness.loadPipeline(basicConfig)
+      val entry = P4RuntimeTestHarness.buildExactEntry(basicConfig, matchValue = 0x0800, port = 1)
+      basicHarness.installEntry(entry)
+      assertEquals(1, basicHarness.readEntries().size)
+    }
+  }
 
-    val entry = P4RuntimeTestHarness.buildExactEntry(basicConfig, matchValue = 0x0800, port = 1)
-    basicHarness.installEntry(entry)
-
-    assertEquals(1, basicHarness.readEntries().size)
-    basicHarness.close()
+  companion object {
+    private val VALIDATOR_BINARY: Path =
+      Paths.get(System.getenv("JAVA_RUNFILES") ?: ".", "_main/p4runtime/constraint_validator")
   }
 }

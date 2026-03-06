@@ -10,6 +10,8 @@ import fourward.sim.v1.SimRequest
 import fourward.sim.v1.WriteEntryRequest
 import fourward.simulator.Simulator
 import io.grpc.Status
+import java.io.Closeable
+import java.nio.file.Path
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import p4.v1.P4RuntimeGrpcKt
@@ -37,8 +39,8 @@ import p4.v1.P4RuntimeOuterClass.WriteResponse
  */
 class P4RuntimeService(
   private val simulator: Simulator,
-  private val constraintValidatorBinary: java.nio.file.Path? = null,
-) : P4RuntimeGrpcKt.P4RuntimeCoroutineImplBase() {
+  private val constraintValidatorBinary: Path? = null,
+) : P4RuntimeGrpcKt.P4RuntimeCoroutineImplBase(), Closeable {
 
   @Volatile private var currentConfig: PipelineConfig? = null
   @Volatile private var typeTranslator: TypeTranslator? = null
@@ -279,6 +281,10 @@ class P4RuntimeService(
 
   override suspend fun capabilities(request: CapabilitiesRequest): CapabilitiesResponse =
     CapabilitiesResponse.newBuilder().setP4RuntimeApiVersion(P4RUNTIME_API_VERSION).build()
+
+  override fun close() {
+    constraintValidator?.close()
+  }
 
   companion object {
     // Well-known metadata IDs for v1model packet_in/packet_out headers.

@@ -278,6 +278,7 @@ class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable 
   override fun close() {
     channel.shutdownNow()
     server.shutdownNow()
+    service.close()
   }
 
   companion object {
