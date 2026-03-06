@@ -364,6 +364,62 @@ class TableStoreTest {
     assertEquals("action99", result.actionName)
   }
 
+  // P4Runtime spec §9.1: INSERT of a duplicate entry must return ALREADY_EXISTS.
+  @Test
+  fun `insert duplicate entry returns AlreadyExists`() {
+    val entry = exactEntry(fieldId = 1, value = byteArrayOf(0x0A), actionId = 42)
+    write(entry)
+    val result =
+      store.write(
+        Update.newBuilder()
+          .setType(Update.Type.INSERT)
+          .setEntity(Entity.newBuilder().setTableEntry(entry))
+          .build()
+      )
+    assertTrue("expected AlreadyExists", result is WriteResult.AlreadyExists)
+  }
+
+  // P4Runtime spec §9.1: MODIFY of a non-existent entry must return NotFound.
+  @Test
+  fun `modify non-existent entry returns NotFound`() {
+    val entry = exactEntry(fieldId = 1, value = byteArrayOf(0x0A), actionId = 42)
+    val result =
+      store.write(
+        Update.newBuilder()
+          .setType(Update.Type.MODIFY)
+          .setEntity(Entity.newBuilder().setTableEntry(entry))
+          .build()
+      )
+    assertTrue("expected NotFound", result is WriteResult.NotFound)
+  }
+
+  // P4Runtime spec §9.1: DELETE of a non-existent entry must return NotFound.
+  @Test
+  fun `delete non-existent entry returns NotFound`() {
+    val entry = exactEntry(fieldId = 1, value = byteArrayOf(0x0A), actionId = 42)
+    val result =
+      store.write(
+        Update.newBuilder()
+          .setType(Update.Type.DELETE)
+          .setEntity(Entity.newBuilder().setTableEntry(entry))
+          .build()
+      )
+    assertTrue("expected NotFound", result is WriteResult.NotFound)
+  }
+
+  @Test
+  fun `write with unknown table ID returns NotFound`() {
+    val entry = TableEntry.newBuilder().setTableId(99999).build()
+    val result =
+      store.write(
+        Update.newBuilder()
+          .setType(Update.Type.INSERT)
+          .setEntity(Entity.newBuilder().setTableEntry(entry))
+          .build()
+      )
+    assertTrue("expected NotFound", result is WriteResult.NotFound)
+  }
+
   // ---------------------------------------------------------------------------
   // Action profiles
   // ---------------------------------------------------------------------------

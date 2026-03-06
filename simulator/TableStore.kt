@@ -10,6 +10,17 @@ import p4.v1.P4RuntimeOuterClass.Update
 /** Interprets a protobuf [ByteString] as an unsigned big-endian integer. */
 private fun ByteString.toUnsignedBigInteger(): BigInteger = BigInteger(1, toByteArray())
 
+/** Result of a [TableStore.write] operation. */
+sealed class WriteResult {
+  data object Success : WriteResult()
+
+  data class AlreadyExists(val message: String) : WriteResult()
+
+  data class NotFound(val message: String) : WriteResult()
+
+  data class InvalidArgument(val message: String) : WriteResult()
+}
+
 /**
  * Stores and looks up P4 table entries for all tables in a loaded pipeline.
  *
@@ -116,31 +127,71 @@ class TableStore {
   // Write
   // -------------------------------------------------------------------------
 
-  fun write(update: Update) {
+  fun write(update: Update): WriteResult {
     val entity = update.entity
-    when {
-      entity.hasActionProfileMember() -> writeProfileMember(entity.actionProfileMember)
-      entity.hasActionProfileGroup() -> writeProfileGroup(entity.actionProfileGroup)
-      entity.hasPacketReplicationEngineEntry() -> writePreEntry(entity.packetReplicationEngineEntry)
+    return when {
+      entity.hasActionProfileMember() -> {
+        writeProfileMember(entity.actionProfileMember)
+        WriteResult.Success
+      }
+      entity.hasActionProfileGroup() -> {
+        writeProfileGroup(entity.actionProfileGroup)
+        WriteResult.Success
+      }
+      entity.hasPacketReplicationEngineEntry() -> {
+        writePreEntry(entity.packetReplicationEngineEntry)
+        WriteResult.Success
+      }
       else -> writeTableEntry(update)
     }
   }
 
-  private fun writeTableEntry(update: Update) {
+  private fun writeTableEntry(update: Update): WriteResult {
     val entry = update.entity.tableEntry
-    val tableName = tableNameById[entry.tableId] ?: error("unknown table ID: ${entry.tableId}")
+    val tableName =
+      tableNameById[entry.tableId]
+        ?: return WriteResult.NotFound("unknown table ID: ${entry.tableId}")
 
     val entries = tables.getOrPut(tableName) { mutableListOf() }
-    when (update.type) {
-      Update.Type.INSERT,
+    // P4Runtime spec §9.1: two entries are the same iff they have the same match key
+    // AND the same priority (priority is part of the key for ternary/range tables).
+    val existingIndex =
+      entries.indexOfFirst {
+        it.tableId == entry.tableId &&
+          it.matchList == entry.matchList &&
+          it.priority == entry.priority
+      }
+
+    // P4Runtime spec §9.1: INSERT requires the entry not to exist, MODIFY and DELETE
+    // require it to exist.
+    return when (update.type) {
+      Update.Type.INSERT -> {
+        if (existingIndex >= 0) {
+          WriteResult.AlreadyExists(
+            "table '$tableName' already contains an entry with the same match key"
+          )
+        } else {
+          entries.add(entry)
+          WriteResult.Success
+        }
+      }
       Update.Type.MODIFY -> {
-        entries.removeIf { it.tableId == entry.tableId && it.matchList == entry.matchList }
-        entries.add(entry)
+        if (existingIndex < 0) {
+          WriteResult.NotFound("table '$tableName' has no entry with the given match key")
+        } else {
+          entries[existingIndex] = entry
+          WriteResult.Success
+        }
       }
       Update.Type.DELETE -> {
-        entries.removeIf { it.tableId == entry.tableId && it.matchList == entry.matchList }
+        if (existingIndex < 0) {
+          WriteResult.NotFound("table '$tableName' has no entry with the given match key")
+        } else {
+          entries.removeAt(existingIndex)
+          WriteResult.Success
+        }
       }
-      else -> error("unsupported update type: ${update.type}")
+      else -> WriteResult.InvalidArgument("unsupported update type: ${update.type}")
     }
   }
 
