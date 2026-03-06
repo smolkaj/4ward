@@ -52,9 +52,9 @@ Legend: **Y** = tested, **N** = not tested, **—** = not implemented
 | 9.21 | Priority must be 0 for exact-only tables | Y | WriteValidatorTest, WriteErrorTest |
 | 9.22 | DELETE skips content validation | Y | WriteValidatorTest |
 | 9.23 | Zero-bitwidth params skipped (sdn_string) | Y | WriteValidatorTest |
-| 9.24 | Constant table rejects INSERT/MODIFY/DELETE | N | |
-| 9.25 | Default entry: match fields must be absent | N | |
-| 9.26 | Default entry: MODIFY semantics | N | |
+| 9.24 | Constant table rejects INSERT/MODIFY/DELETE | Y | WriteValidatorTest |
+| 9.25 | Default entry: match fields must be absent | Y | WriteValidatorTest |
+| 9.26 | Default entry: MODIFY semantics | Y | WriteValidatorTest |
 | 9.27 | RESOURCE_EXHAUSTED when table is full | N | |
 | 9.28 | Write batch: updates applied in order | N | |
 
@@ -116,7 +116,7 @@ Legend: **Y** = tested, **N** = not tested, **—** = not implemented
 | 11.4 | Read with table_id filter | Y | ConformanceTest #20 |
 | 11.5 | Empty entity list → no results (§11.1) | Y | ConformanceTest #21 |
 | 11.6 | Per-entry read with match key | Y | ConformanceTest #23-25 |
-| 11.7 | Wildcard read for action profiles | N | |
+| 11.7 | Wildcard read for action profiles | Y | ConformanceTest #35 |
 | 11.8 | Wildcard read for registers | Y | TableStoreTest |
 | 11.9 | Read unwritten register returns zero | Y | ConformanceTest #33 |
 
@@ -171,16 +171,16 @@ Legend: **Y** = tested, **N** = not tested, **—** = not implemented
 |----------|--------|------------|-----------------|
 | SetForwardingPipelineConfig | 3 | 0 | 0 |
 | Match encoding | 6 | 0 | 0 |
-| Write — tables | 23 | 5 | 0 |
+| Write — tables | 26 | 2 | 0 |
 | Write — profiles | 6 | 1 | 1 |
 | Write — registers | 5 | 0 | 0 |
 | Write — counters/meters | 0 | 0 | 4 |
 | Write — PRE | 2 | 0 | 0 |
 | Arbitration | 1 | 3 | 0 |
-| Read | 8 | 1 | 0 |
+| Read | 9 | 0 | 0 |
 | GetForwardingPipelineConfig | 4 | 0 | 0 |
 | Capabilities | 1 | 0 | 0 |
 | PacketIO | 3 | 0 | 2 |
 | Translation | 6 | 0 | 0 |
 | p4-constraints | 4 | 0 | 0 |
-| **Total** | **72** | **10** | **7** |
+| **Total** | **76** | **6** | **7** |

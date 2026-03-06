@@ -33,7 +33,12 @@ class WriteValidatorTest {
     // DELETE with a bogus action ID — should pass because DELETE only needs the match key.
     val v = validator()
     v.validate(
-      deleteUpdate(EXACT_TABLE_ID, exactMatch(MATCH_FIELD_ID, bytes(2)), action(actionId = 99999))
+      tableUpdate(
+        P4RuntimeOuterClass.Update.Type.DELETE,
+        EXACT_TABLE_ID,
+        listOf(exactMatch(MATCH_FIELD_ID, bytes(2))),
+        action(actionId = 99999),
+      )
     )
   }
 
@@ -392,6 +397,128 @@ class WriteValidatorTest {
   }
 
   // =========================================================================
+  // Const table validation (§9.1)
+  // =========================================================================
+
+  @Test
+  fun `insert into const table returns INVALID_ARGUMENT`() {
+    val v = validator()
+    val e =
+      assertThrows(StatusException::class.java) {
+        v.validate(insertUpdate(CONST_TABLE_ID, exactMatch(CONST_FIELD_ID, bytes(2)), action()))
+      }
+    assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code)
+    assert(e.status.description!!.contains("const"))
+  }
+
+  @Test
+  fun `modify const table returns INVALID_ARGUMENT`() {
+    val v = validator()
+    val e =
+      assertThrows(StatusException::class.java) {
+        v.validate(
+          tableUpdate(
+            P4RuntimeOuterClass.Update.Type.MODIFY,
+            CONST_TABLE_ID,
+            listOf(exactMatch(CONST_FIELD_ID, bytes(2))),
+            action(),
+          )
+        )
+      }
+    assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code)
+    assert(e.status.description!!.contains("const"))
+  }
+
+  @Test
+  fun `delete from const table returns INVALID_ARGUMENT`() {
+    val v = validator()
+    val e =
+      assertThrows(StatusException::class.java) {
+        v.validate(
+          tableUpdate(
+            P4RuntimeOuterClass.Update.Type.DELETE,
+            CONST_TABLE_ID,
+            listOf(exactMatch(CONST_FIELD_ID, bytes(2))),
+            action(),
+          )
+        )
+      }
+    assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code)
+    assert(e.status.description!!.contains("const"))
+  }
+
+  // =========================================================================
+  // Default entry validation (§9.1)
+  // =========================================================================
+
+  @Test
+  fun `default entry MODIFY without match fields passes`() {
+    val v = validator()
+    v.validate(
+      tableUpdate(
+        P4RuntimeOuterClass.Update.Type.MODIFY,
+        EXACT_TABLE_ID,
+        action = action(),
+        isDefaultAction = true,
+      )
+    )
+  }
+
+  @Test
+  fun `default entry INSERT returns INVALID_ARGUMENT`() {
+    val v = validator()
+    val e =
+      assertThrows(StatusException::class.java) {
+        v.validate(
+          tableUpdate(
+            P4RuntimeOuterClass.Update.Type.INSERT,
+            EXACT_TABLE_ID,
+            action = action(),
+            isDefaultAction = true,
+          )
+        )
+      }
+    assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code)
+    assert(e.status.description!!.contains("MODIFY"))
+  }
+
+  @Test
+  fun `default entry DELETE returns INVALID_ARGUMENT`() {
+    val v = validator()
+    val e =
+      assertThrows(StatusException::class.java) {
+        v.validate(
+          tableUpdate(
+            P4RuntimeOuterClass.Update.Type.DELETE,
+            EXACT_TABLE_ID,
+            isDefaultAction = true,
+          )
+        )
+      }
+    assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code)
+    assert(e.status.description!!.contains("MODIFY"))
+  }
+
+  @Test
+  fun `default entry with match fields returns INVALID_ARGUMENT`() {
+    val v = validator()
+    val e =
+      assertThrows(StatusException::class.java) {
+        v.validate(
+          tableUpdate(
+            P4RuntimeOuterClass.Update.Type.MODIFY,
+            EXACT_TABLE_ID,
+            listOf(exactMatch(MATCH_FIELD_ID, bytes(2))),
+            action(),
+            isDefaultAction = true,
+          )
+        )
+      }
+    assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code)
+    assert(e.status.description!!.contains("match fields"))
+  }
+
+  // =========================================================================
   // Priority validation (§9.1.1)
   // =========================================================================
 
@@ -416,9 +543,11 @@ class WriteValidatorTest {
     private const val EXACT_TABLE_ID = 1
     private const val TERNARY_TABLE_ID = 2
     private const val LPM_TABLE_ID = 3
+    private const val CONST_TABLE_ID = 4
     private const val MATCH_FIELD_ID = 1
     private const val TERNARY_FIELD_ID = 2
     private const val LPM_FIELD_ID = 3
+    private const val CONST_FIELD_ID = 4
     private const val ACTION_ID = 10
     private const val OTHER_ACTION_ID = 11
     private const val TERNARY_ACTION_ID = 12
@@ -475,6 +604,21 @@ class WriteValidatorTest {
               .setMatchType(P4InfoOuterClass.MatchField.MatchType.LPM)
           )
           .addActionRefs(P4InfoOuterClass.ActionRef.newBuilder().setId(TERNARY_ACTION_ID))
+      )
+      .addTables(
+        P4InfoOuterClass.Table.newBuilder()
+          .setPreamble(
+            P4InfoOuterClass.Preamble.newBuilder().setId(CONST_TABLE_ID).setName("const_table")
+          )
+          .addMatchFields(
+            P4InfoOuterClass.MatchField.newBuilder()
+              .setId(CONST_FIELD_ID)
+              .setName("f4")
+              .setBitwidth(MATCH_BITWIDTH)
+              .setMatchType(P4InfoOuterClass.MatchField.MatchType.EXACT)
+          )
+          .addActionRefs(P4InfoOuterClass.ActionRef.newBuilder().setId(ACTION_ID))
+          .setIsConstTable(true)
       )
       .addActions(
         P4InfoOuterClass.Action.newBuilder()
@@ -591,12 +735,37 @@ class WriteValidatorTest {
   private fun ternaryAction(): P4RuntimeOuterClass.Action =
     P4RuntimeOuterClass.Action.newBuilder().setActionId(TERNARY_ACTION_ID).build()
 
+  private fun tableUpdate(
+    type: P4RuntimeOuterClass.Update.Type,
+    tableId: Int,
+    matches: List<P4RuntimeOuterClass.FieldMatch> = emptyList(),
+    action: P4RuntimeOuterClass.Action? = null,
+    priority: Int = 0,
+    isDefaultAction: Boolean = false,
+  ): P4RuntimeOuterClass.Update {
+    val entry =
+      P4RuntimeOuterClass.TableEntry.newBuilder()
+        .setTableId(tableId)
+        .addAllMatch(matches)
+        .setPriority(priority)
+        .setIsDefaultAction(isDefaultAction)
+    if (action != null) {
+      entry.setAction(P4RuntimeOuterClass.TableAction.newBuilder().setAction(action))
+    }
+    return P4RuntimeOuterClass.Update.newBuilder()
+      .setType(type)
+      .setEntity(P4RuntimeOuterClass.Entity.newBuilder().setTableEntry(entry))
+      .build()
+  }
+
+  /** Convenience wrapper — most tests use INSERT. */
   private fun insertUpdate(
     tableId: Int,
     match: P4RuntimeOuterClass.FieldMatch,
     action: P4RuntimeOuterClass.Action,
     priority: Int = 0,
-  ): P4RuntimeOuterClass.Update = insertUpdate(tableId, listOf(match), action, priority)
+  ): P4RuntimeOuterClass.Update =
+    tableUpdate(P4RuntimeOuterClass.Update.Type.INSERT, tableId, listOf(match), action, priority)
 
   private fun insertUpdate(
     tableId: Int,
@@ -604,35 +773,5 @@ class WriteValidatorTest {
     action: P4RuntimeOuterClass.Action,
     priority: Int = 0,
   ): P4RuntimeOuterClass.Update =
-    P4RuntimeOuterClass.Update.newBuilder()
-      .setType(P4RuntimeOuterClass.Update.Type.INSERT)
-      .setEntity(
-        P4RuntimeOuterClass.Entity.newBuilder()
-          .setTableEntry(
-            P4RuntimeOuterClass.TableEntry.newBuilder()
-              .setTableId(tableId)
-              .addAllMatch(matches)
-              .setPriority(priority)
-              .setAction(P4RuntimeOuterClass.TableAction.newBuilder().setAction(action))
-          )
-      )
-      .build()
-
-  private fun deleteUpdate(
-    tableId: Int,
-    match: P4RuntimeOuterClass.FieldMatch,
-    action: P4RuntimeOuterClass.Action,
-  ): P4RuntimeOuterClass.Update =
-    P4RuntimeOuterClass.Update.newBuilder()
-      .setType(P4RuntimeOuterClass.Update.Type.DELETE)
-      .setEntity(
-        P4RuntimeOuterClass.Entity.newBuilder()
-          .setTableEntry(
-            P4RuntimeOuterClass.TableEntry.newBuilder()
-              .setTableId(tableId)
-              .addMatch(match)
-              .setAction(P4RuntimeOuterClass.TableAction.newBuilder().setAction(action))
-          )
-      )
-      .build()
+    tableUpdate(P4RuntimeOuterClass.Update.Type.INSERT, tableId, matches, action, priority)
 }
