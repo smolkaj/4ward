@@ -128,6 +128,8 @@ kt_jvm_test(
     srcs = ["TypeTranslatorTest.kt"],
     test_class = "fourward.p4runtime.TypeTranslatorTest",
     deps = [
+        ":p4info_java_proto",
+        ":p4runtime_java_proto",
         ":p4runtime_lib",
         "//simulator:ir_java_proto",
         "@maven//:com_google_protobuf_protobuf_java",

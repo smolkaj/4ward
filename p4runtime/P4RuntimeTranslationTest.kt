@@ -140,9 +140,7 @@ class P4RuntimeTranslationTest {
   @Test
   fun `forwarding to translated port 2 works`() {
     // SDN port 2 is auto-allocated to the first available data-plane value (0),
-    // since no explicit translation mappings are configured. The simulator forwards
-    // on data-plane port 0, which is what PacketIn metadata reports (PacketIn
-    // metadata translation is not yet implemented).
+    // since no explicit translation mappings are configured.
     val entry = buildEntry(matchValue = 0x0800, portValue = byteArrayOf(0, 0, 0, 2))
     harness.installEntry(entry)
 
@@ -157,14 +155,51 @@ class P4RuntimeTranslationTest {
   }
 
   // =========================================================================
+  // Match field translation: port_forward table with translated match key
+  // =========================================================================
+
+  @Test
+  fun `translated match field round-trips through write and read`() {
+    // port_forward table matches on meta.ingress_port (port_id_t, SDN bitwidth=32).
+    // Write with SDN port value 42 and read back — should get 42 back.
+    val portForwardEntry =
+      buildPortForwardEntry(sdnPort = 42, forwardPort = byteArrayOf(0, 0, 0, 1))
+    harness.installEntry(portForwardEntry)
+
+    val portForwardTable =
+      config.p4Info.tablesList.find { it.preamble.name.contains("port_forward") }!!
+    val entities = harness.readTableEntries(portForwardTable.preamble.id)
+    assertEquals("expected one entity in port_forward", 1, entities.size)
+
+    val matchField = entities[0].tableEntry.matchList.first()
+    val matchValue =
+      matchField.exact.value.toByteArray().fold(0L) { acc, b ->
+        (acc shl 8) or (b.toLong() and 0xFF)
+      }
+    assertEquals("match field should round-trip as SDN value", 42L, matchValue)
+  }
+
+  // =========================================================================
   // Helpers
   // =========================================================================
 
-  /** Builds a table entry for the translated_type fixture's forwarding table. */
+  private fun buildPortForwardEntry(sdnPort: Int, forwardPort: ByteArray): Entity =
+    buildEntry(tableName = "port_forward", matchValue = sdnPort.toLong(), portValue = forwardPort)
+
+  /** Builds a table entry: exact match on the first field → forward(port). */
   @Suppress("MagicNumber")
-  private fun buildEntry(matchValue: Long = 0x0800, portValue: ByteArray): Entity {
+  private fun buildEntry(
+    matchValue: Long = 0x0800,
+    portValue: ByteArray,
+    tableName: String? = null,
+  ): Entity {
     val p4info = config.p4Info
-    val table = p4info.tablesList.first()
+    val table =
+      if (tableName != null) {
+        p4info.tablesList.find { it.preamble.name.contains(tableName) }!!
+      } else {
+        p4info.tablesList.first()
+      }
     val forwardAction = p4info.actionsList.find { it.preamble.name.contains("forward") }!!
     val matchField = table.matchFieldsList.first()
 

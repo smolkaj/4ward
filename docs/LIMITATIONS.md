@@ -31,10 +31,11 @@ guilt — just write it down so someone can find it later.
   tracking. The first connection is master unconditionally.
 - **No p4-constraints validation.** `Write` does not enforce `@entry_restriction`
   or `@action_restriction` annotations from the P4 source.
-- **`@p4runtime_translation`: mapping table, not yet integrated end-to-end.**
-  The `TypeTranslator` supports `sdn_bitwidth` and `sdn_string` with explicit,
-  auto-allocate, and hybrid mapping modes. Integration with match fields and
-  PacketIO metadata translation is not yet implemented.
+- **`@p4runtime_translation`: fully integrated for action params, match fields,
+  and PacketIO metadata.** The `TypeTranslator` supports `sdn_bitwidth` and
+  `sdn_string` with explicit, auto-allocate, and hybrid mapping modes.
+  Note: v1model `p4c` does not emit `controller_packet_metadata` with
+  `type_name`, so PacketIO translation is exercised via unit tests only.
 - **Missing RPCs.** `GetForwardingPipelineConfig` and `Capabilities` return
   UNIMPLEMENTED.
 - **No counters, meters, or registers via P4Runtime.** These work via the

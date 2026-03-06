@@ -175,8 +175,8 @@ class P4RuntimeService(private val simulator: Simulator) :
             )
           }
           msg.hasPacket() -> {
-            val packetOut = msg.packet
-            // Extract ingress port from packet_out metadata (field "ingress_port", ID 0 or 1).
+            val translator = typeTranslator?.takeIf { it.hasTranslations }
+            val packetOut = translator?.translatePacketOut(msg.packet) ?: msg.packet
             val ingressPort = extractIngressPort(packetOut.metadataList)
 
             val simRequest =
@@ -195,17 +195,18 @@ class P4RuntimeService(private val simulator: Simulator) :
 
             // Convert output packets to PacketIn messages.
             for (outputPacket in simResponse.processPacket.outputPacketsList) {
+              val rawPacketIn =
+                PacketIn.newBuilder()
+                  .setPayload(outputPacket.payload)
+                  .addMetadata(
+                    p4.v1.P4RuntimeOuterClass.PacketMetadata.newBuilder()
+                      .setMetadataId(EGRESS_PORT_METADATA_ID)
+                      .setValue(encodeMinWidth(outputPacket.egressPort))
+                  )
+                  .build()
               emit(
                 StreamMessageResponse.newBuilder()
-                  .setPacket(
-                    PacketIn.newBuilder()
-                      .setPayload(outputPacket.payload)
-                      .addMetadata(
-                        p4.v1.P4RuntimeOuterClass.PacketMetadata.newBuilder()
-                          .setMetadataId(EGRESS_PORT_METADATA_ID)
-                          .setValue(encodeMinWidth(outputPacket.egressPort))
-                      )
-                  )
+                  .setPacket(translator?.translatePacketIn(rawPacketIn) ?: rawPacketIn)
                   .build()
               )
             }

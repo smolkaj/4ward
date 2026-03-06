@@ -2,7 +2,7 @@
  *
  * Uses a translated port type (sdn_bitwidth=32 for a 9-bit field) to verify
  * that the P4Runtime server correctly converts between controller and
- * dataplane representations.
+ * dataplane representations in action params and match fields.
  */
 
 #include <core.p4>
@@ -23,6 +23,7 @@ struct metadata_t { port_id_t ingress_port; }
 parser MyParser(packet_in pkt, out headers_t hdr,
                 inout metadata_t meta, inout standard_metadata_t smeta) {
     state start {
+        meta.ingress_port = (port_id_t)smeta.ingress_port;
         pkt.extract(hdr.ethernet);
         transition accept;
     }
@@ -43,7 +44,18 @@ control MyIngress(inout headers_t hdr, inout metadata_t meta,
         default_action = drop();
     }
 
-    apply { forwarding.apply(); }
+    // Second table: match field uses the translated port_id_t type.
+    // p4info will emit type_name on this match field, exercising match translation.
+    table port_forward {
+        key = { meta.ingress_port : exact; }
+        actions = { forward; drop; NoAction; }
+        default_action = NoAction;
+    }
+
+    apply {
+        forwarding.apply();
+        port_forward.apply();
+    }
 }
 
 control MyEgress(inout headers_t hdr, inout metadata_t meta,
