@@ -355,6 +355,67 @@ class TypeTranslatorTest {
   }
 
   // ===========================================================================
+  // Match field and action param translation: sdn_string via P4Info
+  // ===========================================================================
+
+  @Test
+  fun `sdn_string match field write decodes UTF-8 and allocates`() {
+    val translator = buildP4InfoTranslatorWithStringType()
+
+    val sdnBytes = "Ethernet0".toByteArray(Charsets.UTF_8)
+    val update = writeUpdate(TABLE_ID, MATCH_FIELD_ID, sdnBytes, ACTION_ID, PARAM_ID, sdnBytes)
+    val translated = translator.translateForWrite(update)
+    val match = translated.entity.tableEntry.matchList.first()
+    assertEquals(ByteString.copyFrom(dpBytes(0)), match.exact.value)
+  }
+
+  @Test
+  fun `sdn_string match field round-trips through read`() {
+    val translator = buildP4InfoTranslatorWithStringType()
+
+    // Write to install the mapping.
+    val sdnBytes = "Ethernet0".toByteArray(Charsets.UTF_8)
+    translator.translateForWrite(
+      writeUpdate(TABLE_ID, MATCH_FIELD_ID, sdnBytes, ACTION_ID, PARAM_ID, sdnBytes)
+    )
+
+    // Read back.
+    val dpEntity = readEntity(TABLE_ID, MATCH_FIELD_ID, dpBytes(0), ACTION_ID, PARAM_ID, dpBytes(0))
+    val sdnEntity = translator.translateForRead(dpEntity)
+    val match = sdnEntity.tableEntry.matchList.first()
+    assertEquals(ByteString.copyFromUtf8("Ethernet0"), match.exact.value)
+  }
+
+  @Test
+  fun `sdn_string action param write decodes UTF-8`() {
+    val translator = buildP4InfoTranslatorWithStringType()
+
+    val matchBytes = "Ethernet0".toByteArray(Charsets.UTF_8)
+    val paramBytes = "Ethernet1".toByteArray(Charsets.UTF_8)
+    val update = writeUpdate(TABLE_ID, MATCH_FIELD_ID, matchBytes, ACTION_ID, PARAM_ID, paramBytes)
+    val translated = translator.translateForWrite(update)
+    val param = translated.entity.tableEntry.action.action.paramsList.first()
+    // Match allocated "Ethernet0" → dp=0; param allocates "Ethernet1" → dp=1.
+    assertEquals(ByteString.copyFrom(dpBytes(1)), param.value)
+  }
+
+  @Test
+  fun `sdn_string action param round-trips through read`() {
+    val translator = buildP4InfoTranslatorWithStringType()
+
+    val matchBytes = "Ethernet0".toByteArray(Charsets.UTF_8)
+    val paramBytes = "Ethernet1".toByteArray(Charsets.UTF_8)
+    translator.translateForWrite(
+      writeUpdate(TABLE_ID, MATCH_FIELD_ID, matchBytes, ACTION_ID, PARAM_ID, paramBytes)
+    )
+
+    val dpEntity = readEntity(TABLE_ID, MATCH_FIELD_ID, dpBytes(0), ACTION_ID, PARAM_ID, dpBytes(1))
+    val sdnEntity = translator.translateForRead(dpEntity)
+    val param = sdnEntity.tableEntry.action.action.paramsList.first()
+    assertEquals(ByteString.copyFromUtf8("Ethernet1"), param.value)
+  }
+
+  // ===========================================================================
   // PacketIO metadata translation via P4Info
   // ===========================================================================
 
@@ -410,6 +471,38 @@ class TypeTranslatorTest {
   }
 
   @Test
+  fun `sdn_string packet metadata round-trips through packet out and in`() {
+    val translator = buildP4InfoTranslatorWithStringPacketIO()
+
+    val packetOut =
+      P4RuntimeOuterClass.PacketOut.newBuilder()
+        .setPayload(ByteString.copyFrom(byteArrayOf(0x00)))
+        .addMetadata(
+          P4RuntimeOuterClass.PacketMetadata.newBuilder()
+            .setMetadataId(PACKET_METADATA_ID)
+            .setValue(ByteString.copyFromUtf8("Ethernet0"))
+        )
+        .build()
+
+    val translatedOut = translator.translatePacketOut(packetOut)
+    assertEquals(ByteString.copyFrom(dpBytes(0)), translatedOut.metadataList.first().value)
+
+    // Reverse: data-plane → SDN.
+    val packetIn =
+      P4RuntimeOuterClass.PacketIn.newBuilder()
+        .setPayload(ByteString.copyFrom(byteArrayOf(0x00)))
+        .addMetadata(
+          P4RuntimeOuterClass.PacketMetadata.newBuilder()
+            .setMetadataId(PACKET_METADATA_ID)
+            .setValue(ByteString.copyFrom(dpBytes(0)))
+        )
+        .build()
+
+    val translatedIn = translator.translatePacketIn(packetIn)
+    assertEquals(ByteString.copyFromUtf8("Ethernet0"), translatedIn.metadataList.first().value)
+  }
+
+  @Test
   fun `non-translated packet metadata passes through unchanged`() {
     val translator = buildP4InfoTranslatorWithPacketIO()
 
@@ -443,6 +536,72 @@ class TypeTranslatorTest {
     private const val NON_TRANSLATED_METADATA_ID = 2
     private const val TYPE_NAME = "port_id_t"
     private const val TYPE_URI = "test.port_id"
+    private const val STRING_TYPE_NAME = "port_name_t"
+    private const val STRING_TYPE_URI = "sai.port"
+  }
+
+  private fun portNameStringTypeInfo(): P4Types.P4TypeInfo =
+    P4Types.P4TypeInfo.newBuilder()
+      .putNewTypes(
+        STRING_TYPE_NAME,
+        P4Types.P4NewTypeSpec.newBuilder()
+          .setTranslatedType(
+            P4Types.P4NewTypeTranslation.newBuilder()
+              .setUri(STRING_TYPE_URI)
+              .setSdnString(P4Types.P4NewTypeTranslation.SdnString.getDefaultInstance())
+          )
+          .build(),
+      )
+      .build()
+
+  /** Builds a TypeTranslator with sdn_string translated match field and action param. */
+  private fun buildP4InfoTranslatorWithStringType(): TypeTranslator {
+    val p4info =
+      P4InfoOuterClass.P4Info.newBuilder()
+        .addTables(
+          P4InfoOuterClass.Table.newBuilder()
+            .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(TABLE_ID))
+            .addMatchFields(
+              P4InfoOuterClass.MatchField.newBuilder()
+                .setId(MATCH_FIELD_ID)
+                .setBitwidth(32)
+                .setMatchType(P4InfoOuterClass.MatchField.MatchType.EXACT)
+                .setTypeName(P4Types.P4NamedType.newBuilder().setName(STRING_TYPE_NAME))
+            )
+        )
+        .addActions(
+          P4InfoOuterClass.Action.newBuilder()
+            .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(ACTION_ID))
+            .addParams(
+              P4InfoOuterClass.Action.Param.newBuilder()
+                .setId(PARAM_ID)
+                .setBitwidth(32)
+                .setTypeName(P4Types.P4NamedType.newBuilder().setName(STRING_TYPE_NAME))
+            )
+        )
+        .setTypeInfo(portNameStringTypeInfo())
+        .build()
+    return TypeTranslator.create(p4info)
+  }
+
+  /** Builds a TypeTranslator with sdn_string translated PacketIO metadata. */
+  private fun buildP4InfoTranslatorWithStringPacketIO(): TypeTranslator {
+    val p4info =
+      P4InfoOuterClass.P4Info.newBuilder()
+        .addControllerPacketMetadata(
+          P4InfoOuterClass.ControllerPacketMetadata.newBuilder()
+            .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(1).setName("packet_out"))
+            .addMetadata(
+              P4InfoOuterClass.ControllerPacketMetadata.Metadata.newBuilder()
+                .setId(PACKET_METADATA_ID)
+                .setName("ingress_port")
+                .setBitwidth(32)
+                .setTypeName(P4Types.P4NamedType.newBuilder().setName(STRING_TYPE_NAME))
+            )
+        )
+        .setTypeInfo(portNameStringTypeInfo())
+        .build()
+    return TypeTranslator.create(p4info)
   }
 
   private fun portIdTypeInfo(): P4Types.P4TypeInfo =

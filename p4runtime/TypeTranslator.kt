@@ -53,6 +53,7 @@ private constructor(
   private val paramUris: Map<Long, String>,
   private val matchFieldUris: Map<Long, String>,
   private val packetMetadataUris: Map<Int, String>,
+  private val stringUris: Set<String>,
 ) {
 
   /** True if this translator has any translated types to handle. */
@@ -175,7 +176,7 @@ private constructor(
         val uri = paramUris[packKey(actionId, param.paramId)]
         if (uri != null) {
           changed = true
-          val translated = translateValue(getOrCreateTable(uri), param.value, toDataplane)
+          val translated = translateValue(getOrCreateTable(uri), param.value, toDataplane, uri)
           param.toBuilder().setValue(translated).build()
         } else {
           param
@@ -198,7 +199,7 @@ private constructor(
           val table = getOrCreateTable(uri)
           when {
             match.hasExact() -> {
-              val translated = translateValue(table, match.exact.value, toDataplane)
+              val translated = translateValue(table, match.exact.value, toDataplane, uri)
               match
                 .toBuilder()
                 .setExact(
@@ -207,7 +208,7 @@ private constructor(
                 .build()
             }
             match.hasOptional() -> {
-              val translated = translateValue(table, match.optional.value, toDataplane)
+              val translated = translateValue(table, match.optional.value, toDataplane, uri)
               match
                 .toBuilder()
                 .setOptional(
@@ -235,7 +236,7 @@ private constructor(
         val uri = packetMetadataUris[meta.metadataId]
         if (uri != null) {
           changed = true
-          val translated = translateValue(getOrCreateTable(uri), meta.value, toDataplane)
+          val translated = translateValue(getOrCreateTable(uri), meta.value, toDataplane, uri)
           meta.toBuilder().setValue(translated).build()
         } else {
           meta
@@ -244,21 +245,28 @@ private constructor(
     return if (changed) result else null
   }
 
-  /** Translates a single ByteString value forward (SDN→DP) or reverse (DP→SDN). */
+  /**
+   * Translates a single ByteString value forward (SDN→DP) or reverse (DP→SDN).
+   *
+   * For `sdn_string` URIs, the SDN value is a UTF-8 string encoded in the proto `bytes` field (per
+   * P4Runtime spec §8.3 — there is no separate string field).
+   */
   private fun translateValue(
     table: TranslationTable,
     value: ByteString,
     toDataplane: Boolean,
+    uri: String,
   ): ByteString =
     if (toDataplane) {
-      table.lookupOrAllocateBitstring(value)
+      if (uri in stringUris) {
+        table.lookupOrAllocateString(value.toStringUtf8())
+      } else {
+        table.lookupOrAllocateBitstring(value)
+      }
     } else {
       when (val sdnValue = table.reverseLookup(value)) {
         is SdnValue.Bitstring -> sdnValue.value
-        // sdn_string values can't be encoded as bytes — the P4Runtime spec has no
-        // mechanism to return string values inside match fields or action parameters.
-        is SdnValue.Str ->
-          throw TranslationException("Cannot encode sdn_string value '${sdnValue.value}' as bytes")
+        is SdnValue.Str -> ByteString.copyFromUtf8(sdnValue.value)
       }
     }
 
@@ -276,6 +284,7 @@ private constructor(
         paramUris = emptyMap(),
         matchFieldUris = emptyMap(),
         packetMetadataUris = emptyMap(),
+        stringUris = emptySet(),
       )
 
     /**
@@ -315,11 +324,18 @@ private constructor(
         }
       }
 
+      val stringUris =
+        translatedTypes.values
+          .filter { it.translatedType.hasSdnString() }
+          .map { it.translatedType.uri }
+          .toSet()
+
       return TypeTranslator(
         buildTables(translations),
         paramUris,
         matchFieldUris,
         packetMetadataUris,
+        stringUris,
       )
     }
 
