@@ -31,13 +31,13 @@
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">96.3&nbsp;%</td>
-            <td class="headerCovTableEntry">218</td>
-            <td class="headerCovTableEntry">210</td>
+            <td class="headerCovTableEntryHi">97.7&nbsp;%</td>
+            <td class="headerCovTableEntry">213</td>
+            <td class="headerCovTableEntry">208</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-06 09:12:30</td>
+            <td class="headerValue">2026-03-06 09:25:48</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -407,38 +407,38 @@
 <span id="L345"><span class="lineNum">     345</span> <span class="tlaGNC">           1 :     when (val mode = decisions.branchMode) {</span></span>
 <span id="L346"><span class="lineNum">     346</span> <span class="tlaGNC">           1 :       is BranchMode.I2EClone -&gt; {</span></span>
 <span id="L347"><span class="lineNum">     347</span>              :         // I2E clone branch: set up clone metadata and continue to egress.</span>
-<span id="L348"><span class="lineNum">     348</span> <span class="tlaGNC">           1 :         val session =</span></span>
-<span id="L349"><span class="lineNum">     349</span> <span class="tlaGNC">           1 :           ctx.tableStore.getCloneSession(mode.sessionId)</span></span>
-<span id="L350"><span class="lineNum">     350</span> <span class="tlaUNC tlaBgUNC">           0 :             ?: error(&quot;unknown clone session: ${mode.sessionId}&quot;)</span></span>
-<span id="L351"><span class="lineNum">     351</span> <span class="tlaGNC tlaBgGNC">           1 :         val clonePort = session.replicasList.firstOrNull()?.egressPort ?: 0</span></span>
-<span id="L352"><span class="lineNum">     352</span> <span class="tlaGNC">           1 :         s.standardMetadata.fields[&quot;instance_type&quot;] = BitVal(CLONE_I2E_INSTANCE_TYPE, INT32_BITS)</span></span>
-<span id="L353"><span class="lineNum">     353</span> <span class="tlaGNC">           1 :         s.standardMetadata.fields[&quot;egress_port&quot;] = BitVal(clonePort.toLong(), PORT_BITS)</span></span>
-<span id="L354"><span class="lineNum">     354</span>              :       }</span>
-<span id="L355"><span class="lineNum">     355</span> <span class="tlaGNC">           1 :       is BranchMode.Replica -&gt; {</span></span>
-<span id="L356"><span class="lineNum">     356</span> <span class="tlaGNC">           1 :         s.standardMetadata.fields[&quot;instance_type&quot;] = BitVal(REPLICATION_INSTANCE_TYPE, INT32_BITS)</span></span>
-<span id="L357"><span class="lineNum">     357</span> <span class="tlaGNC">           1 :         s.standardMetadata.fields[&quot;egress_port&quot;] = BitVal(mode.port.toLong(), PORT_BITS)</span></span>
-<span id="L358"><span class="lineNum">     358</span> <span class="tlaGNC">           1 :         s.standardMetadata.fields[&quot;egress_rid&quot;] = BitVal(mode.rid.toLong(), REPLICA_ID_BITS)</span></span>
-<span id="L359"><span class="lineNum">     359</span>              :       }</span>
-<span id="L360"><span class="lineNum">     360</span> <span class="tlaGNC">           1 :       is BranchMode.Normal,</span></span>
-<span id="L361"><span class="lineNum">     361</span> <span class="tlaGNC">           1 :       is BranchMode.E2EClone -&gt; {</span></span>
-<span id="L362"><span class="lineNum">     362</span>              :         // Normal path: check for pending I2E clone, resubmit, multicast, unicast.</span>
-<span id="L363"><span class="lineNum">     363</span> <span class="tlaGNC">           1 :         val suppressI2E = (mode as? BranchMode.Normal)?.suppressI2EClone == true</span></span>
-<span id="L364"><span class="lineNum">     364</span> <span class="tlaGNC">           1 :         val pendingClone = s.packetCtx.pendingCloneSessionId</span></span>
-<span id="L365"><span class="lineNum">     365</span> <span class="tlaGNC">           1 :         if (pendingClone != null &amp;&amp; !suppressI2E) {</span></span>
-<span id="L366"><span class="lineNum">     366</span> <span class="tlaGNC">           1 :           throw CloneFork(pendingClone, parserEventCount, s.packetCtx.getEvents())</span></span>
-<span id="L367"><span class="lineNum">     367</span>              :         }</span>
-<span id="L368"><span class="lineNum">     368</span> <span class="tlaGNC">           1 :         if (s.packetCtx.pendingResubmit) {</span></span>
-<span id="L369"><span class="lineNum">     369</span> <span class="tlaGNC">           1 :           throw ResubmitFork(s.packetCtx.getEvents())</span></span>
-<span id="L370"><span class="lineNum">     370</span>              :         }</span>
-<span id="L371"><span class="lineNum">     371</span> <span class="tlaGNC">           1 :         val mcastGrp =</span></span>
-<span id="L372"><span class="lineNum">     372</span> <span class="tlaGNC">           1 :           (s.standardMetadata.fields[&quot;mcast_grp&quot;] as? BitVal)?.bits?.value?.toInt() ?: 0</span></span>
-<span id="L373"><span class="lineNum">     373</span> <span class="tlaGNC">           1 :         if (mcastGrp != 0) {</span></span>
-<span id="L374"><span class="lineNum">     374</span> <span class="tlaGNC">           1 :           val group =</span></span>
-<span id="L375"><span class="lineNum">     375</span> <span class="tlaGNC">           1 :             ctx.tableStore.getMulticastGroup(mcastGrp)</span></span>
-<span id="L376"><span class="lineNum">     376</span> <span class="tlaUNC tlaBgUNC">           0 :               ?: error(&quot;unknown multicast group: $mcastGrp&quot;)</span></span>
-<span id="L377"><span class="lineNum">     377</span> <span class="tlaGNC tlaBgGNC">           1 :           val replicas =</span></span>
-<span id="L378"><span class="lineNum">     378</span> <span class="tlaGNC">           1 :             group.replicasList.map { r -&gt; BranchMode.Replica(r.instance, r.egressPort) }</span></span>
-<span id="L379"><span class="lineNum">     379</span> <span class="tlaGNC">           1 :           throw MulticastFork(replicas, s.packetCtx.getEvents())</span></span>
+<span id="L348"><span class="lineNum">     348</span>              :         // BMv2 drops the clone if the session doesn't exist.</span>
+<span id="L349"><span class="lineNum">     349</span> <span class="tlaGNC">           1 :         val session = ctx.tableStore.getCloneSession(mode.sessionId)</span></span>
+<span id="L350"><span class="lineNum">     350</span> <span class="tlaGNC">           1 :         val clonePort = session?.replicasList?.firstOrNull()?.egressPort ?: DROP_PORT</span></span>
+<span id="L351"><span class="lineNum">     351</span> <span class="tlaGNC">           1 :         s.standardMetadata.fields[&quot;instance_type&quot;] = BitVal(CLONE_I2E_INSTANCE_TYPE, INT32_BITS)</span></span>
+<span id="L352"><span class="lineNum">     352</span> <span class="tlaGNC">           1 :         s.standardMetadata.fields[&quot;egress_port&quot;] = BitVal(clonePort.toLong(), PORT_BITS)</span></span>
+<span id="L353"><span class="lineNum">     353</span>              :       }</span>
+<span id="L354"><span class="lineNum">     354</span> <span class="tlaGNC">           1 :       is BranchMode.Replica -&gt; {</span></span>
+<span id="L355"><span class="lineNum">     355</span> <span class="tlaGNC">           1 :         s.standardMetadata.fields[&quot;instance_type&quot;] = BitVal(REPLICATION_INSTANCE_TYPE, INT32_BITS)</span></span>
+<span id="L356"><span class="lineNum">     356</span> <span class="tlaGNC">           1 :         s.standardMetadata.fields[&quot;egress_port&quot;] = BitVal(mode.port.toLong(), PORT_BITS)</span></span>
+<span id="L357"><span class="lineNum">     357</span> <span class="tlaGNC">           1 :         s.standardMetadata.fields[&quot;egress_rid&quot;] = BitVal(mode.rid.toLong(), REPLICA_ID_BITS)</span></span>
+<span id="L358"><span class="lineNum">     358</span>              :       }</span>
+<span id="L359"><span class="lineNum">     359</span> <span class="tlaGNC">           1 :       is BranchMode.Normal,</span></span>
+<span id="L360"><span class="lineNum">     360</span> <span class="tlaGNC">           1 :       is BranchMode.E2EClone -&gt; {</span></span>
+<span id="L361"><span class="lineNum">     361</span>              :         // Normal path: check for pending I2E clone, resubmit, multicast, unicast.</span>
+<span id="L362"><span class="lineNum">     362</span> <span class="tlaGNC">           1 :         val suppressI2E = (mode as? BranchMode.Normal)?.suppressI2EClone == true</span></span>
+<span id="L363"><span class="lineNum">     363</span> <span class="tlaGNC">           1 :         val pendingClone = s.packetCtx.pendingCloneSessionId</span></span>
+<span id="L364"><span class="lineNum">     364</span> <span class="tlaGNC">           1 :         if (pendingClone != null &amp;&amp; !suppressI2E) {</span></span>
+<span id="L365"><span class="lineNum">     365</span> <span class="tlaGNC">           1 :           throw CloneFork(pendingClone, parserEventCount, s.packetCtx.getEvents())</span></span>
+<span id="L366"><span class="lineNum">     366</span>              :         }</span>
+<span id="L367"><span class="lineNum">     367</span> <span class="tlaGNC">           1 :         if (s.packetCtx.pendingResubmit) {</span></span>
+<span id="L368"><span class="lineNum">     368</span> <span class="tlaGNC">           1 :           throw ResubmitFork(s.packetCtx.getEvents())</span></span>
+<span id="L369"><span class="lineNum">     369</span>              :         }</span>
+<span id="L370"><span class="lineNum">     370</span> <span class="tlaGNC">           1 :         val mcastGrp =</span></span>
+<span id="L371"><span class="lineNum">     371</span> <span class="tlaGNC">           1 :           (s.standardMetadata.fields[&quot;mcast_grp&quot;] as? BitVal)?.bits?.value?.toInt() ?: 0</span></span>
+<span id="L372"><span class="lineNum">     372</span> <span class="tlaGNC">           1 :         if (mcastGrp != 0) {</span></span>
+<span id="L373"><span class="lineNum">     373</span>              :           // BMv2 silently ignores unknown multicast groups (no fork, no output).</span>
+<span id="L374"><span class="lineNum">     374</span> <span class="tlaGNC">           1 :           val group = ctx.tableStore.getMulticastGroup(mcastGrp)</span></span>
+<span id="L375"><span class="lineNum">     375</span> <span class="tlaGNC">           1 :           if (group != null) {</span></span>
+<span id="L376"><span class="lineNum">     376</span> <span class="tlaGNC">           1 :             val replicas =</span></span>
+<span id="L377"><span class="lineNum">     377</span> <span class="tlaGNC">           1 :               group.replicasList.map { r -&gt; BranchMode.Replica(r.instance, r.egressPort) }</span></span>
+<span id="L378"><span class="lineNum">     378</span> <span class="tlaGNC">           1 :             throw MulticastFork(replicas, s.packetCtx.getEvents())</span></span>
+<span id="L379"><span class="lineNum">     379</span>              :           }</span>
 <span id="L380"><span class="lineNum">     380</span>              :         }</span>
 <span id="L381"><span class="lineNum">     381</span>              :         // Normal unicast: copy egress_spec → egress_port for uniform read below.</span>
 <span id="L382"><span class="lineNum">     382</span> <span class="tlaGNC">           1 :         s.standardMetadata.fields[&quot;egress_port&quot;] =</span></span>
@@ -457,68 +457,65 @@
 <span id="L395"><span class="lineNum">     395</span> <span class="tlaGNC">           1 :       is BranchMode.E2EClone -&gt; {</span></span>
 <span id="L396"><span class="lineNum">     396</span>              :         // E2E clone branch: after the original egress ran (giving us modified headers),</span>
 <span id="L397"><span class="lineNum">     397</span>              :         // re-run egress with CLONE_E2E instance_type and the clone session's egress_port.</span>
-<span id="L398"><span class="lineNum">     398</span>              :         // This matches BMv2 semantics where the E2E clone re-enters egress with the</span>
-<span id="L399"><span class="lineNum">     399</span>              :         // post-egress packet state.</span>
-<span id="L400"><span class="lineNum">     400</span> <span class="tlaGNC">           1 :         val session =</span></span>
-<span id="L401"><span class="lineNum">     401</span> <span class="tlaGNC">           1 :           ctx.tableStore.getCloneSession(mode.sessionId)</span></span>
-<span id="L402"><span class="lineNum">     402</span> <span class="tlaUNC tlaBgUNC">           0 :             ?: error(&quot;unknown clone session: ${mode.sessionId}&quot;)</span></span>
-<span id="L403"><span class="lineNum">     403</span> <span class="tlaGNC tlaBgGNC">           1 :         val clonePort = session.replicasList.firstOrNull()?.egressPort ?: 0</span></span>
-<span id="L404"><span class="lineNum">     404</span> <span class="tlaGNC">           1 :         s.standardMetadata.fields[&quot;instance_type&quot;] = BitVal(CLONE_E2E_INSTANCE_TYPE, INT32_BITS)</span></span>
-<span id="L405"><span class="lineNum">     405</span> <span class="tlaGNC">           1 :         s.standardMetadata.fields[&quot;egress_port&quot;] = BitVal(clonePort.toLong(), PORT_BITS)</span></span>
-<span id="L406"><span class="lineNum">     406</span> <span class="tlaGNC">           1 :         s.packetCtx.pendingEgressCloneSessionId = null</span></span>
-<span id="L407"><span class="lineNum">     407</span> <span class="tlaGNC">           1 :         runControlStages(s, s.egressControls)</span></span>
-<span id="L408"><span class="lineNum">     408</span>              :       }</span>
-<span id="L409"><span class="lineNum">     409</span>              :       else -&gt; {</span>
-<span id="L410"><span class="lineNum">     410</span> <span class="tlaGNC">           1 :         val suppressE2E = (mode as? BranchMode.Normal)?.suppressE2EClone == true</span></span>
-<span id="L411"><span class="lineNum">     411</span> <span class="tlaGNC">           1 :         val pendingE2EClone = s.packetCtx.pendingEgressCloneSessionId</span></span>
-<span id="L412"><span class="lineNum">     412</span> <span class="tlaGNC">           1 :         if (pendingE2EClone != null &amp;&amp; !suppressE2E) {</span></span>
-<span id="L413"><span class="lineNum">     413</span> <span class="tlaGNC">           1 :           throw EgressCloneFork(pendingE2EClone, s.packetCtx.getEvents())</span></span>
-<span id="L414"><span class="lineNum">     414</span>              :         }</span>
-<span id="L415"><span class="lineNum">     415</span>              :       }</span>
-<span id="L416"><span class="lineNum">     416</span>              :     }</span>
-<span id="L417"><span class="lineNum">     417</span> <span class="tlaGNC">           1 :   }</span></span>
-<span id="L418"><span class="lineNum">     418</span>              : </span>
-<span id="L419"><span class="lineNum">     419</span>              :   private fun buildDropTrace(events: List&lt;TraceEvent&gt;, reason: DropReason): TraceTree {</span>
-<span id="L420"><span class="lineNum">     420</span> <span class="tlaGNC">           1 :     val outcome = PacketOutcome.newBuilder().setDrop(Drop.newBuilder().setReason(reason)).build()</span></span>
-<span id="L421"><span class="lineNum">     421</span> <span class="tlaGNC">           1 :     return TraceTree.newBuilder().addAllEvents(events).setPacketOutcome(outcome).build()</span></span>
-<span id="L422"><span class="lineNum">     422</span>              :   }</span>
-<span id="L423"><span class="lineNum">     423</span>              : </span>
-<span id="L424"><span class="lineNum">     424</span>              :   private fun buildOutputTrace(events: List&lt;TraceEvent&gt;, port: Int, payload: ByteArray): TraceTree {</span>
-<span id="L425"><span class="lineNum">     425</span> <span class="tlaGNC">           1 :     val output =</span></span>
-<span id="L426"><span class="lineNum">     426</span> <span class="tlaGNC">           1 :       fourward.sim.v1.OutputPacket.newBuilder()</span></span>
-<span id="L427"><span class="lineNum">     427</span> <span class="tlaGNC">           1 :         .setEgressPort(port)</span></span>
-<span id="L428"><span class="lineNum">     428</span> <span class="tlaGNC">           1 :         .setPayload(com.google.protobuf.ByteString.copyFrom(payload))</span></span>
-<span id="L429"><span class="lineNum">     429</span> <span class="tlaGNC">           1 :         .build()</span></span>
-<span id="L430"><span class="lineNum">     430</span> <span class="tlaGNC">           1 :     val outcome = PacketOutcome.newBuilder().setOutput(output).build()</span></span>
-<span id="L431"><span class="lineNum">     431</span> <span class="tlaGNC">           1 :     return TraceTree.newBuilder().addAllEvents(events).setPacketOutcome(outcome).build()</span></span>
-<span id="L432"><span class="lineNum">     432</span>              :   }</span>
-<span id="L433"><span class="lineNum">     433</span>              : </span>
-<span id="L434"><span class="lineNum">     434</span>              :   companion object {</span>
-<span id="L435"><span class="lineNum">     435</span>              :     /** Port value used by mark_to_drop() to signal packet drop in v1model. */</span>
-<span id="L436"><span class="lineNum">     436</span>              :     const val DROP_PORT = 511</span>
-<span id="L437"><span class="lineNum">     437</span>              : </span>
-<span id="L438"><span class="lineNum">     438</span>              :     // Number of user-visible params in the v1model parser after removing packet_in/packet_out:</span>
-<span id="L439"><span class="lineNum">     439</span>              :     // (hdr, meta, standard_metadata).</span>
-<span id="L440"><span class="lineNum">     440</span>              :     private const val V1MODEL_USER_PARAM_COUNT = 3</span>
+<span id="L398"><span class="lineNum">     398</span>              :         // BMv2 drops the clone if the session doesn't exist.</span>
+<span id="L399"><span class="lineNum">     399</span> <span class="tlaGNC">           1 :         val session = ctx.tableStore.getCloneSession(mode.sessionId)</span></span>
+<span id="L400"><span class="lineNum">     400</span> <span class="tlaGNC">           1 :         val clonePort = session?.replicasList?.firstOrNull()?.egressPort ?: DROP_PORT</span></span>
+<span id="L401"><span class="lineNum">     401</span> <span class="tlaGNC">           1 :         s.standardMetadata.fields[&quot;instance_type&quot;] = BitVal(CLONE_E2E_INSTANCE_TYPE, INT32_BITS)</span></span>
+<span id="L402"><span class="lineNum">     402</span> <span class="tlaGNC">           1 :         s.standardMetadata.fields[&quot;egress_port&quot;] = BitVal(clonePort.toLong(), PORT_BITS)</span></span>
+<span id="L403"><span class="lineNum">     403</span> <span class="tlaGNC">           1 :         s.packetCtx.pendingEgressCloneSessionId = null</span></span>
+<span id="L404"><span class="lineNum">     404</span> <span class="tlaGNC">           1 :         runControlStages(s, s.egressControls)</span></span>
+<span id="L405"><span class="lineNum">     405</span>              :       }</span>
+<span id="L406"><span class="lineNum">     406</span>              :       else -&gt; {</span>
+<span id="L407"><span class="lineNum">     407</span> <span class="tlaGNC">           1 :         val suppressE2E = (mode as? BranchMode.Normal)?.suppressE2EClone == true</span></span>
+<span id="L408"><span class="lineNum">     408</span> <span class="tlaGNC">           1 :         val pendingE2EClone = s.packetCtx.pendingEgressCloneSessionId</span></span>
+<span id="L409"><span class="lineNum">     409</span> <span class="tlaGNC">           1 :         if (pendingE2EClone != null &amp;&amp; !suppressE2E) {</span></span>
+<span id="L410"><span class="lineNum">     410</span> <span class="tlaGNC">           1 :           throw EgressCloneFork(pendingE2EClone, s.packetCtx.getEvents())</span></span>
+<span id="L411"><span class="lineNum">     411</span>              :         }</span>
+<span id="L412"><span class="lineNum">     412</span>              :       }</span>
+<span id="L413"><span class="lineNum">     413</span>              :     }</span>
+<span id="L414"><span class="lineNum">     414</span> <span class="tlaGNC">           1 :   }</span></span>
+<span id="L415"><span class="lineNum">     415</span>              : </span>
+<span id="L416"><span class="lineNum">     416</span>              :   private fun buildDropTrace(events: List&lt;TraceEvent&gt;, reason: DropReason): TraceTree {</span>
+<span id="L417"><span class="lineNum">     417</span> <span class="tlaGNC">           1 :     val outcome = PacketOutcome.newBuilder().setDrop(Drop.newBuilder().setReason(reason)).build()</span></span>
+<span id="L418"><span class="lineNum">     418</span> <span class="tlaGNC">           1 :     return TraceTree.newBuilder().addAllEvents(events).setPacketOutcome(outcome).build()</span></span>
+<span id="L419"><span class="lineNum">     419</span>              :   }</span>
+<span id="L420"><span class="lineNum">     420</span>              : </span>
+<span id="L421"><span class="lineNum">     421</span>              :   private fun buildOutputTrace(events: List&lt;TraceEvent&gt;, port: Int, payload: ByteArray): TraceTree {</span>
+<span id="L422"><span class="lineNum">     422</span> <span class="tlaGNC">           1 :     val output =</span></span>
+<span id="L423"><span class="lineNum">     423</span> <span class="tlaGNC">           1 :       fourward.sim.v1.OutputPacket.newBuilder()</span></span>
+<span id="L424"><span class="lineNum">     424</span> <span class="tlaGNC">           1 :         .setEgressPort(port)</span></span>
+<span id="L425"><span class="lineNum">     425</span> <span class="tlaGNC">           1 :         .setPayload(com.google.protobuf.ByteString.copyFrom(payload))</span></span>
+<span id="L426"><span class="lineNum">     426</span> <span class="tlaGNC">           1 :         .build()</span></span>
+<span id="L427"><span class="lineNum">     427</span> <span class="tlaGNC">           1 :     val outcome = PacketOutcome.newBuilder().setOutput(output).build()</span></span>
+<span id="L428"><span class="lineNum">     428</span> <span class="tlaGNC">           1 :     return TraceTree.newBuilder().addAllEvents(events).setPacketOutcome(outcome).build()</span></span>
+<span id="L429"><span class="lineNum">     429</span>              :   }</span>
+<span id="L430"><span class="lineNum">     430</span>              : </span>
+<span id="L431"><span class="lineNum">     431</span>              :   companion object {</span>
+<span id="L432"><span class="lineNum">     432</span>              :     /** Port value used by mark_to_drop() to signal packet drop in v1model. */</span>
+<span id="L433"><span class="lineNum">     433</span>              :     const val DROP_PORT = 511</span>
+<span id="L434"><span class="lineNum">     434</span>              : </span>
+<span id="L435"><span class="lineNum">     435</span>              :     // Number of user-visible params in the v1model parser after removing packet_in/packet_out:</span>
+<span id="L436"><span class="lineNum">     436</span>              :     // (hdr, meta, standard_metadata).</span>
+<span id="L437"><span class="lineNum">     437</span>              :     private const val V1MODEL_USER_PARAM_COUNT = 3</span>
+<span id="L438"><span class="lineNum">     438</span>              : </span>
+<span id="L439"><span class="lineNum">     439</span>              :     // v1model: first 2 control stages are ingress-side (verify checksum, ingress).</span>
+<span id="L440"><span class="lineNum">     440</span>              :     private const val INGRESS_CONTROL_COUNT = 2</span>
 <span id="L441"><span class="lineNum">     441</span>              : </span>
-<span id="L442"><span class="lineNum">     442</span>              :     // v1model: first 2 control stages are ingress-side (verify checksum, ingress).</span>
-<span id="L443"><span class="lineNum">     443</span>              :     private const val INGRESS_CONTROL_COUNT = 2</span>
-<span id="L444"><span class="lineNum">     444</span>              : </span>
-<span id="L445"><span class="lineNum">     445</span>              :     // Bit widths for standard_metadata_t fields, as defined in v1model.p4.</span>
-<span id="L446"><span class="lineNum">     446</span>              :     const val PORT_BITS = 9</span>
-<span id="L447"><span class="lineNum">     447</span>              :     private const val INT32_BITS = 32</span>
-<span id="L448"><span class="lineNum">     448</span>              :     private const val REPLICA_ID_BITS = 16</span>
-<span id="L449"><span class="lineNum">     449</span>              : </span>
-<span id="L450"><span class="lineNum">     450</span>              :     private const val MAX_PIPELINE_DEPTH = 10</span>
-<span id="L451"><span class="lineNum">     451</span>              : </span>
-<span id="L452"><span class="lineNum">     452</span>              :     // v1model instance_type values (BMv2 PktInstanceType convention).</span>
-<span id="L453"><span class="lineNum">     453</span>              :     private const val CLONE_I2E_INSTANCE_TYPE = 1L</span>
-<span id="L454"><span class="lineNum">     454</span>              :     private const val CLONE_E2E_INSTANCE_TYPE = 2L</span>
-<span id="L455"><span class="lineNum">     455</span>              :     private const val RECIRC_INSTANCE_TYPE = 4L</span>
-<span id="L456"><span class="lineNum">     456</span>              :     private const val REPLICATION_INSTANCE_TYPE = 5L</span>
-<span id="L457"><span class="lineNum">     457</span>              :     private const val RESUBMIT_INSTANCE_TYPE = 6L</span>
-<span id="L458"><span class="lineNum">     458</span>              :   }</span>
-<span id="L459"><span class="lineNum">     459</span>              : }</span>
+<span id="L442"><span class="lineNum">     442</span>              :     // Bit widths for standard_metadata_t fields, as defined in v1model.p4.</span>
+<span id="L443"><span class="lineNum">     443</span>              :     const val PORT_BITS = 9</span>
+<span id="L444"><span class="lineNum">     444</span>              :     private const val INT32_BITS = 32</span>
+<span id="L445"><span class="lineNum">     445</span>              :     private const val REPLICA_ID_BITS = 16</span>
+<span id="L446"><span class="lineNum">     446</span>              : </span>
+<span id="L447"><span class="lineNum">     447</span>              :     private const val MAX_PIPELINE_DEPTH = 10</span>
+<span id="L448"><span class="lineNum">     448</span>              : </span>
+<span id="L449"><span class="lineNum">     449</span>              :     // v1model instance_type values (BMv2 PktInstanceType convention).</span>
+<span id="L450"><span class="lineNum">     450</span>              :     private const val CLONE_I2E_INSTANCE_TYPE = 1L</span>
+<span id="L451"><span class="lineNum">     451</span>              :     private const val CLONE_E2E_INSTANCE_TYPE = 2L</span>
+<span id="L452"><span class="lineNum">     452</span>              :     private const val RECIRC_INSTANCE_TYPE = 4L</span>
+<span id="L453"><span class="lineNum">     453</span>              :     private const val REPLICATION_INSTANCE_TYPE = 5L</span>
+<span id="L454"><span class="lineNum">     454</span>              :     private const val RESUBMIT_INSTANCE_TYPE = 6L</span>
+<span id="L455"><span class="lineNum">     455</span>              :   }</span>
+<span id="L456"><span class="lineNum">     456</span>              : }</span>
         </pre>
               </td>
             </tr>
