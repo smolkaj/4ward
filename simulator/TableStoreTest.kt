@@ -883,6 +883,174 @@ class TableStoreTest {
   }
 
   // ---------------------------------------------------------------------------
+  // Register write semantics
+  // ---------------------------------------------------------------------------
+
+  /** Creates a TableStore with register metadata for register tests. */
+  private fun storeWithRegister(): TableStore {
+    val store = TableStore()
+    store.loadMappings(
+      tableNameById = mapOf(TABLE_ID to TABLE_NAME),
+      actionNameById = ACTION_ID_TO_NAME,
+      p4infoRegisters =
+        listOf(buildRegisterProto(REGISTER_ID, REGISTER_NAME, REGISTER_BITWIDTH, REGISTER_SIZE)),
+    )
+    return store
+  }
+
+  private fun buildRegisterProto(
+    id: Int,
+    name: String,
+    bitwidth: Int,
+    size: Int,
+  ): P4InfoOuterClass.Register =
+    P4InfoOuterClass.Register.newBuilder()
+      .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(id).setName(name))
+      .setTypeSpec(
+        p4.config.v1.P4Types.P4DataTypeSpec.newBuilder()
+          .setBitstring(
+            p4.config.v1.P4Types.P4BitstringLikeTypeSpec.newBuilder()
+              .setBit(p4.config.v1.P4Types.P4BitTypeSpec.newBuilder().setBitwidth(bitwidth))
+          )
+      )
+      .setSize(size)
+      .build()
+
+  private fun registerUpdate(
+    type: Update.Type,
+    registerId: Int = REGISTER_ID,
+    index: Long = 0,
+    value: Long = 0,
+  ): Update {
+    val entry =
+      P4RuntimeOuterClass.RegisterEntry.newBuilder()
+        .setRegisterId(registerId)
+        .setIndex(P4RuntimeOuterClass.Index.newBuilder().setIndex(index))
+        .setData(
+          p4.v1.P4DataOuterClass.P4Data.newBuilder()
+            .setBitstring(ByteString.copyFrom(longToBytes(value, (REGISTER_BITWIDTH + 7) / 8)))
+        )
+        .build()
+    return Update.newBuilder()
+      .setType(type)
+      .setEntity(Entity.newBuilder().setRegisterEntry(entry))
+      .build()
+  }
+
+  private fun longToBytes(value: Long, byteLen: Int): ByteArray {
+    val bytes = ByteArray(byteLen)
+    for (i in 0 until byteLen) {
+      bytes[byteLen - 1 - i] = (value shr (i * 8) and 0xFF).toByte()
+    }
+    return bytes
+  }
+
+  @Test
+  fun `modify register entry persists value`() {
+    val s = storeWithRegister()
+    assertEquals(WriteResult.Success, s.write(registerUpdate(Update.Type.MODIFY, value = 42)))
+    val readBack = s.registerRead(REGISTER_NAME, 0)
+    assertNotNull(readBack)
+    assertEquals(BitVal(42, REGISTER_BITWIDTH), readBack)
+  }
+
+  @Test
+  fun `modify register entry at out-of-bounds index returns error`() {
+    val s = storeWithRegister()
+    val result = s.write(registerUpdate(Update.Type.MODIFY, index = REGISTER_SIZE.toLong()))
+    assertTrue("expected InvalidArgument", result is WriteResult.InvalidArgument)
+  }
+
+  @Test
+  fun `insert register entry returns InvalidArgument`() {
+    val s = storeWithRegister()
+    val result = s.write(registerUpdate(Update.Type.INSERT))
+    assertTrue("expected InvalidArgument", result is WriteResult.InvalidArgument)
+  }
+
+  @Test
+  fun `delete register entry returns InvalidArgument`() {
+    val s = storeWithRegister()
+    val result = s.write(registerUpdate(Update.Type.DELETE))
+    assertTrue("expected InvalidArgument", result is WriteResult.InvalidArgument)
+  }
+
+  @Test
+  fun `modify register with unknown ID returns NotFound`() {
+    val s = storeWithRegister()
+    val result = s.write(registerUpdate(Update.Type.MODIFY, registerId = 999))
+    assertTrue("expected NotFound", result is WriteResult.NotFound)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Register reads
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `readRegisterEntries single index returns written value`() {
+    val s = storeWithRegister()
+    s.write(registerUpdate(Update.Type.MODIFY, index = 1, value = 0xABCD))
+    val filter =
+      P4RuntimeOuterClass.RegisterEntry.newBuilder()
+        .setRegisterId(REGISTER_ID)
+        .setIndex(P4RuntimeOuterClass.Index.newBuilder().setIndex(1))
+        .build()
+    val results = s.readRegisterEntries(filter)
+    assertEquals(1, results.size)
+    val entry = results[0].registerEntry
+    assertEquals(REGISTER_ID, entry.registerId)
+    assertEquals(1, entry.index.index)
+    assertEquals(
+      ByteString.copyFrom(longToBytes(0xABCD, (REGISTER_BITWIDTH + 7) / 8)),
+      entry.data.bitstring,
+    )
+  }
+
+  @Test
+  fun `readRegisterEntries all indices returns full array with defaults`() {
+    val s = storeWithRegister()
+    s.write(registerUpdate(Update.Type.MODIFY, index = 2, value = 99))
+    val filter = P4RuntimeOuterClass.RegisterEntry.newBuilder().setRegisterId(REGISTER_ID).build()
+    val results = s.readRegisterEntries(filter)
+    assertEquals(REGISTER_SIZE, results.size)
+    // Index 2 has value 99, others default to 0.
+    for (entity in results) {
+      val entry = entity.registerEntry
+      val expected = if (entry.index.index == 2L) 99L else 0L
+      assertEquals(
+        ByteString.copyFrom(longToBytes(expected, (REGISTER_BITWIDTH + 7) / 8)),
+        entry.data.bitstring,
+      )
+    }
+  }
+
+  @Test
+  fun `readRegisterEntries wildcard returns all registers`() {
+    val s = TableStore()
+    s.loadMappings(
+      tableNameById = emptyMap(),
+      actionNameById = emptyMap(),
+      p4infoRegisters =
+        listOf(
+          buildRegisterProto(REGISTER_ID, REGISTER_NAME, REGISTER_BITWIDTH, 2),
+          buildRegisterProto(REGISTER_ID + 1, "otherRegister", 8, 1),
+        ),
+    )
+    s.write(registerUpdate(Update.Type.MODIFY, registerId = REGISTER_ID, index = 0, value = 1))
+    val filter = P4RuntimeOuterClass.RegisterEntry.getDefaultInstance()
+    val results = s.readRegisterEntries(filter)
+    // 2 entries from first register + 1 from second = 3
+    assertEquals(3, results.size)
+  }
+
+  @Test
+  fun `readRegisterEntries unknown register returns empty`() {
+    val s = storeWithRegister()
+    val filter = P4RuntimeOuterClass.RegisterEntry.newBuilder().setRegisterId(999).build()
+    assertTrue(s.readRegisterEntries(filter).isEmpty())
+  }
+
+  // ---------------------------------------------------------------------------
   // Per-entry reads
   // ---------------------------------------------------------------------------
 
@@ -1002,6 +1170,10 @@ class TableStoreTest {
     private const val PROFILE_TABLE_ID = 2
     private const val PROFILE_TABLE_NAME = "selectorTable"
     private const val PROFILE_ID = 100
+    private const val REGISTER_ID = 500
+    private const val REGISTER_NAME = "myRegister"
+    private const val REGISTER_BITWIDTH = 32
+    private const val REGISTER_SIZE = 4
     private val ACTION_ID_TO_NAME =
       listOf(10, 20, 42, 50, 77, 99, 100, 200).associateWith { "action$it" }
   }

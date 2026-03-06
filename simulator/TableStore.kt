@@ -36,6 +36,8 @@ sealed class WriteResult {
  */
 class TableStore {
 
+  private data class RegisterInfo(val name: String, val bitwidth: Int, val size: Int)
+
   // tableName -> list of entries, ordered by insertion (priority is explicit in the entry)
   private val tables: MutableMap<String, MutableList<TableEntry>> = mutableMapOf()
 
@@ -79,6 +81,7 @@ class TableStore {
   // Populated by loadMappings; used to resolve IDs to names in write() and lookup().
   private var tableNameById: Map<Int, String> = emptyMap()
   private var actionNameById: Map<Int, String> = emptyMap()
+  private var registerInfoById: Map<Int, RegisterInfo> = emptyMap()
 
   /**
    * Initialises the ID→name maps for the loaded pipeline and clears all table entries.
@@ -89,9 +92,15 @@ class TableStore {
     tableNameById: Map<Int, String>,
     actionNameById: Map<Int, String>,
     p4infoTables: List<P4InfoOuterClass.Table> = emptyList(),
+    p4infoRegisters: List<P4InfoOuterClass.Register> = emptyList(),
   ) {
     this.tableNameById = tableNameById
     this.actionNameById = actionNameById
+    this.registerInfoById =
+      p4infoRegisters.associate { reg ->
+        val bitwidth = reg.typeSpec.bitstring.bit.bitwidth
+        reg.preamble.id to RegisterInfo(reg.preamble.name, bitwidth, reg.size)
+      }
     tables.clear()
     forcedHits.clear()
     registers.clear()
@@ -128,6 +137,61 @@ class TableStore {
     registers.getOrPut(name) { mutableMapOf() }[index] = value
   }
 
+  // P4Runtime spec: RegisterEntry MODIFY only (statically allocated arrays).
+  private fun writeRegisterEntry(
+    type: Update.Type,
+    entry: P4RuntimeOuterClass.RegisterEntry,
+  ): WriteResult {
+    if (type != Update.Type.MODIFY)
+      return WriteResult.InvalidArgument("registers only support MODIFY, not $type")
+    val info =
+      registerInfoById[entry.registerId]
+        ?: return WriteResult.NotFound("unknown register ID: ${entry.registerId}")
+    val index = entry.index.index.toInt()
+    if (index < 0 || index >= info.size)
+      return WriteResult.InvalidArgument("register index $index out of bounds [0, ${info.size})")
+    val value = BitVal(BitVector(entry.data.bitstring.toUnsignedBigInteger(), info.bitwidth))
+    registerWrite(info.name, index, value)
+    return WriteResult.Success
+  }
+
+  /**
+   * Reads register entries as P4Runtime Entity protos, filtered by [filter].
+   * - `register_id=0` → wildcard: all indices of all registers.
+   * - `register_id=N`, no index → all indices for register N (0..size-1).
+   * - `register_id=N`, with index → single entry.
+   *
+   * Unwritten indices return the default value (zero).
+   */
+  fun readRegisterEntries(
+    filter: P4RuntimeOuterClass.RegisterEntry =
+      P4RuntimeOuterClass.RegisterEntry.getDefaultInstance()
+  ): List<P4RuntimeOuterClass.Entity> {
+    val infos =
+      if (filter.registerId == 0) registerInfoById
+      else {
+        val info = registerInfoById[filter.registerId] ?: return emptyList()
+        mapOf(filter.registerId to info)
+      }
+    val hasIndex = filter.hasIndex()
+    return infos.flatMap { (regId, info) ->
+      val zeroBits = BitVector(BigInteger.ZERO, info.bitwidth)
+      val indices = if (hasIndex) listOf(filter.index.index.toInt()) else (0 until info.size)
+      indices.map { idx ->
+        val bits = (registerRead(info.name, idx) as? BitVal)?.bits ?: zeroBits
+        val data = ByteString.copyFrom(bits.toByteArray())
+        P4RuntimeOuterClass.Entity.newBuilder()
+          .setRegisterEntry(
+            P4RuntimeOuterClass.RegisterEntry.newBuilder()
+              .setRegisterId(regId)
+              .setIndex(P4RuntimeOuterClass.Index.newBuilder().setIndex(idx.toLong()))
+              .setData(p4.v1.P4DataOuterClass.P4Data.newBuilder().setBitstring(data))
+          )
+          .build()
+      }
+    }
+  }
+
   // -------------------------------------------------------------------------
   // Write
   // -------------------------------------------------------------------------
@@ -137,6 +201,7 @@ class TableStore {
     return when {
       entity.hasActionProfileMember() -> writeProfileMember(update.type, entity.actionProfileMember)
       entity.hasActionProfileGroup() -> writeProfileGroup(update.type, entity.actionProfileGroup)
+      entity.hasRegisterEntry() -> writeRegisterEntry(update.type, entity.registerEntry)
       entity.hasPacketReplicationEngineEntry() -> {
         writePreEntry(entity.packetReplicationEngineEntry)
         WriteResult.Success
