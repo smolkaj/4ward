@@ -35,7 +35,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: ~/.cache/bazel
-          key: bazel-ubuntu-24.04-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          key: bazel-ubuntu-24.04-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', 'bazel/*.patch') }}
           restore-keys: bazel-ubuntu-24.04-
 
       - name: Install clang tools
@@ -100,10 +100,15 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: ${{ env.BAZEL_CACHE }}
-          key: bazel-${{ matrix.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          key: bazel-${{ matrix.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', 'bazel/*.patch') }}
           restore-keys: |
             bazel-${{ matrix.os }}-
             ${{ matrix.os == 'ubuntu-24.04' && 'bazel-coverage-' || '' }}
+
+      # BMv2 links against system libgmp and libpcap.
+      - name: Install system dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get install -y libgmp-dev libpcap-dev
 
       - name: Save start time
         run: echo "START_TIME=$(date +%s)" >> "$GITHUB_ENV"
@@ -128,7 +133,7 @@ jobs:
         if: always() && (github.ref_name == 'main' || env.DURATION > 300)
         with:
           path: ${{ env.BAZEL_CACHE }}
-          key: bazel-${{ matrix.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}-${{ github.run_id }}
+          key: bazel-${{ matrix.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', 'bazel/*.patch') }}-${{ github.run_id }}
 
 
   coverage:
@@ -155,7 +160,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: ~/.cache/bazel
-          key: bazel-coverage-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}
+          key: bazel-coverage-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', 'bazel/*.patch') }}
           restore-keys: |
             bazel-coverage-
             bazel-ubuntu-24.04-
@@ -163,8 +168,8 @@ jobs:
       - name: Save start time
         run: echo "START_TIME=$(date +%s)" >> "$GITHUB_ENV"
 
-      - name: Install lcov
-        run: sudo apt install -y lcov
+      - name: Install system dependencies
+        run: sudo apt-get install -y lcov libgmp-dev libpcap-dev
 
       - name: Fetch gh-pages
         run: git fetch --depth=1 origin gh-pages || true
@@ -202,7 +207,7 @@ jobs:
         if: always() && (github.ref_name == 'main' || env.DURATION > 300)
         with:
           path: ~/.cache/bazel
-          key: bazel-coverage-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock') }}-${{ github.run_id }}
+          key: bazel-coverage-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', 'bazel/*.patch') }}-${{ github.run_id }}
 
       - name: Publish mainline report
         if: github.event_name == 'push'
