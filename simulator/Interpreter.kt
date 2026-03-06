@@ -610,13 +610,24 @@ class Interpreter(
         UnitVal
       }
       "emit" -> execEmit(call, env)
-      // register.read(dst, index): reads the value at index into the out param dst.
+      // register.read(dst, index) has 2 args; direct_meter.read(out color) has 1.
       "read" -> {
-        val regName = call.target.nameRef.name
-        val index = (evalExpr(call.argsList[1], env) as BitVal).bits.value.toInt()
-        val value =
-          tableStore.registerRead(regName, index) ?: defaultValue(call.argsList[0].type, types)
-        setLValue(call.argsList[0], value, env)
+        if (call.argsList.size == 1) {
+          // direct_meter.read(out color): always GREEN (no real rates in simulator).
+          setLValue(call.argsList[0], defaultValue(call.argsList[0].type, types), env)
+        } else {
+          // register.read(out dst, index)
+          val regName = call.target.nameRef.name
+          val index = (evalExpr(call.argsList[1], env) as BitVal).bits.value.toInt()
+          val value =
+            tableStore.registerRead(regName, index) ?: defaultValue(call.argsList[0].type, types)
+          setLValue(call.argsList[0], value, env)
+        }
+        UnitVal
+      }
+      // meter.execute_meter(in index, out color): always GREEN.
+      "execute_meter" -> {
+        setLValue(call.argsList[1], defaultValue(call.argsList[1].type, types), env)
         UnitVal
       }
       // register.write(index, value): stores value at index.

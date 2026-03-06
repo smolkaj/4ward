@@ -9,6 +9,7 @@ import fourward.ir.v1.ControlDecl
 import fourward.ir.v1.ExitStmt
 import fourward.ir.v1.Expr
 import fourward.ir.v1.FieldAccess
+import fourward.ir.v1.MethodCall
 import fourward.ir.v1.MethodCallStmt
 import fourward.ir.v1.NameRef
 import fourward.ir.v1.Stmt
@@ -428,5 +429,53 @@ class InterpreterControlTest {
     assertEquals(BitVal(2, 8), env.lookup("x"))
     // The switch matched on the original name "setbyte" (y=10, not default 20)
     assertEquals(BitVal(10, 8), env.lookup("y"))
+  }
+
+  // ---------------------------------------------------------------------------
+  // Meters
+  // ---------------------------------------------------------------------------
+
+  /** Builds a statement that calls `target.method(args...)`. */
+  private fun methodCallStmt(target: String, method: String, vararg args: Expr): Stmt =
+    Stmt.newBuilder()
+      .setMethodCall(
+        MethodCallStmt.newBuilder()
+          .setCall(
+            Expr.newBuilder()
+              .setMethodCall(
+                MethodCall.newBuilder()
+                  .setTarget(nameRef(target))
+                  .setMethod(method)
+                  .addAllArgs(args.toList())
+              )
+          )
+      )
+      .build()
+
+  @Test
+  fun `direct_meter read writes GREEN to out parameter`() {
+    val stmt =
+      methodCallStmt("my_meter", "read", nameRef("color").toBuilder().setType(bitType(2)).build())
+    val config = controlConfig(stmt)
+    val env = emptyEnv
+    env.define("color", BitVal(3, 2))
+    interp(config).runControl("MyControl", env)
+    assertEquals(BitVal(0, 2), env.lookup("color"))
+  }
+
+  @Test
+  fun `execute_meter writes GREEN to out parameter`() {
+    val stmt =
+      methodCallStmt(
+        "my_meter",
+        "execute_meter",
+        bit(0, 32),
+        nameRef("color").toBuilder().setType(bitType(8)).build(),
+      )
+    val config = controlConfig(stmt)
+    val env = emptyEnv
+    env.define("color", BitVal(0xFF, 8))
+    interp(config).runControl("MyControl", env)
+    assertEquals(BitVal(0, 8), env.lookup("color"))
   }
 }

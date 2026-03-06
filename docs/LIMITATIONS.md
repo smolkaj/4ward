@@ -22,7 +22,9 @@ guilt — just write it down so someone can find it later.
   without a body (e.g. `extern void f(out bit<32> d, bit<32> s)`) cannot be
   executed — their semantics exist only in architecture-specific libraries.
   Blocks 1 corpus test (`extern-funcs-bmv2`).
-- **No meter support.** `meter.execute_meter()` is not implemented.
+- **Meters always return GREEN.** `meter.execute_meter()` and
+  `direct_meter.read()` always return GREEN (0). Rate limiting is not
+  simulated — there are no real packet rates in STF tests.
 - **`digest`, `log_msg` not implemented.** No corpus tests depend on these.
 
 ## P4Runtime server
