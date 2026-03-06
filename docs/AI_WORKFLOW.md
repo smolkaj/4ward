@@ -19,6 +19,8 @@ claude --dangerously-skip-permissions
 
 **Takeaway**: Don't micromanage! Treat the AI like a trusted L5, not like an L3.
 
+---
+
 **Principle**: Don't provide context — let the AI build its own.
 
 **Justification**:
@@ -30,6 +32,22 @@ claude --dangerously-skip-permissions
 **Takeaway**:
 - Ask questions that make the AI gather and reconstruct context itself.
 - Your job is to steer its attention, not transfer your understanding.
+
+---
+
+**Principle**: Don't pick the next task — ask "What's next?"
+
+**Justification**:
+- The AI just finished a task and has deep context on the codebase, recent
+  changes, and project momentum. That context is valuable — don't discard it
+  by assigning a random task.
+- The AI may see follow-up work, regressions, or opportunities you haven't
+  noticed yet.
+- Letting the AI propose next steps keeps it in the driver's seat, which is
+  where it's most productive.
+
+**Takeaway**: After a task completes, ask "What's next?" instead of dictating
+the next move. Steer the answer if needed, but let the AI lead.
 
 ## After submitting a PR
 - "What's next?"
