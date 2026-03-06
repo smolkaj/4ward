@@ -51,3 +51,25 @@ guilt — just write it down so someone can find it later.
 - **Multicast: basic replication only.** Multicast group replication works
   for the trace tree (forking per replica). PRE entries are installed via
   P4Runtime `PacketReplicationEngineEntry`.
+- **Per-table action specialization lost.** When a table has a single action
+  ID in p4info but different compile-time specializations, only one is kept.
+  Blocks 1 corpus test (`ternary2-bmv2`).
+
+## BMv2 differential testing
+
+- **No action profile support in BMv2 driver.** The bmv2_driver binary does not
+  handle `member` or `group` STF directives. Tests that use action selectors or
+  action profiles cannot be diff-tested yet.
+- **System libgmp/libpcap dependency.** The BMv2 build links against system
+  `libgmp` and `libpcap` rather than building them from source. The build uses
+  genrules to copy headers into the build tree, but runtime linking requires the
+  libraries to be installed (e.g. via Homebrew on macOS).
+- **Small starter test set.** Only 5 corpus tests are diff-tested. Expanding to
+  the full corpus requires verifying each test compiles under p4c-bm2-ss and
+  produces matching output.
+
+## p4c backend
+
+- **No `lookahead` or `advance`.** The backend does not emit IR for parser
+  `lookahead<T>()` or `packet.advance()`. This is a backend limitation, not
+  a simulator one. Blocks 6 corpus tests.
