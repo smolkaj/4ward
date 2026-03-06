@@ -415,6 +415,119 @@ class TypeTranslatorTest {
     assertEquals(ByteString.copyFromUtf8("Ethernet1"), param.value)
   }
 
+  @Test
+  fun `sdn_string optional match field is translated on write`() {
+    val translator = buildP4InfoTranslatorWithStringType()
+
+    val sdnBytes = "Ethernet0".toByteArray(Charsets.UTF_8)
+    val update =
+      writeUpdateOptionalMatch(TABLE_ID, MATCH_FIELD_ID, sdnBytes, ACTION_ID, PARAM_ID, sdnBytes)
+    val translated = translator.translateForWrite(update)
+    val match = translated.entity.tableEntry.matchList.first()
+    assertEquals(ByteString.copyFrom(dpBytes(0)), match.optional.value)
+  }
+
+  // ===========================================================================
+  // Mixed sdn_bitwidth and sdn_string in the same p4info
+  // ===========================================================================
+
+  @Test
+  fun `mixed sdn_bitwidth and sdn_string types are partitioned correctly`() {
+    val translator = buildP4InfoTranslatorWithMixedTypes()
+
+    // Field 1 is sdn_string (port_name_t), field 3 is sdn_bitwidth (port_id_t).
+    val stringBytes = "Ethernet0".toByteArray(Charsets.UTF_8)
+    val bitstringBytes = sdnBytes(5000)
+
+    // Write with both match fields.
+    val entry =
+      P4RuntimeOuterClass.TableEntry.newBuilder()
+        .setTableId(TABLE_ID)
+        .addMatch(
+          P4RuntimeOuterClass.FieldMatch.newBuilder()
+            .setFieldId(MATCH_FIELD_ID)
+            .setExact(
+              P4RuntimeOuterClass.FieldMatch.Exact.newBuilder()
+                .setValue(ByteString.copyFrom(stringBytes))
+            )
+        )
+        .addMatch(
+          P4RuntimeOuterClass.FieldMatch.newBuilder()
+            .setFieldId(BITWIDTH_FIELD_ID)
+            .setExact(
+              P4RuntimeOuterClass.FieldMatch.Exact.newBuilder()
+                .setValue(ByteString.copyFrom(bitstringBytes))
+            )
+        )
+        .setAction(
+          P4RuntimeOuterClass.TableAction.newBuilder()
+            .setAction(
+              P4RuntimeOuterClass.Action.newBuilder()
+                .setActionId(ACTION_ID)
+                .addParams(
+                  P4RuntimeOuterClass.Action.Param.newBuilder()
+                    .setParamId(PARAM_ID)
+                    .setValue(ByteString.copyFrom(stringBytes))
+                )
+            )
+        )
+        .build()
+    val update =
+      P4RuntimeOuterClass.Update.newBuilder()
+        .setType(P4RuntimeOuterClass.Update.Type.INSERT)
+        .setEntity(P4RuntimeOuterClass.Entity.newBuilder().setTableEntry(entry))
+        .build()
+
+    val translated = translator.translateForWrite(update)
+    val matches = translated.entity.tableEntry.matchList
+
+    // String field → auto-allocated dp=0.
+    assertEquals(ByteString.copyFrom(dpBytes(0)), matches[0].exact.value)
+    // Bitwidth field → also auto-allocated dp=0 (independent table).
+    assertEquals(ByteString.copyFrom(dpBytes(0)), matches[1].exact.value)
+
+    // Read back: string field returns UTF-8, bitwidth field returns raw bytes.
+    val dpEntity =
+      P4RuntimeOuterClass.Entity.newBuilder()
+        .setTableEntry(
+          P4RuntimeOuterClass.TableEntry.newBuilder()
+            .setTableId(TABLE_ID)
+            .addMatch(
+              P4RuntimeOuterClass.FieldMatch.newBuilder()
+                .setFieldId(MATCH_FIELD_ID)
+                .setExact(
+                  P4RuntimeOuterClass.FieldMatch.Exact.newBuilder()
+                    .setValue(ByteString.copyFrom(dpBytes(0)))
+                )
+            )
+            .addMatch(
+              P4RuntimeOuterClass.FieldMatch.newBuilder()
+                .setFieldId(BITWIDTH_FIELD_ID)
+                .setExact(
+                  P4RuntimeOuterClass.FieldMatch.Exact.newBuilder()
+                    .setValue(ByteString.copyFrom(dpBytes(0)))
+                )
+            )
+            .setAction(
+              P4RuntimeOuterClass.TableAction.newBuilder()
+                .setAction(
+                  P4RuntimeOuterClass.Action.newBuilder()
+                    .setActionId(ACTION_ID)
+                    .addParams(
+                      P4RuntimeOuterClass.Action.Param.newBuilder()
+                        .setParamId(PARAM_ID)
+                        .setValue(ByteString.copyFrom(dpBytes(0)))
+                    )
+                )
+            )
+        )
+        .build()
+    val sdnEntity = translator.translateForRead(dpEntity)
+    val sdnMatches = sdnEntity.tableEntry.matchList
+    assertEquals(ByteString.copyFromUtf8("Ethernet0"), sdnMatches[0].exact.value)
+    assertEquals(ByteString.copyFrom(bitstringBytes), sdnMatches[1].exact.value)
+  }
+
   // ===========================================================================
   // PacketIO metadata translation via P4Info
   // ===========================================================================
@@ -536,6 +649,7 @@ class TypeTranslatorTest {
     private const val NON_TRANSLATED_METADATA_ID = 2
     private const val TYPE_NAME = "port_id_t"
     private const val TYPE_URI = "test.port_id"
+    private const val BITWIDTH_FIELD_ID = 3
     private const val STRING_TYPE_NAME = "port_name_t"
     private const val STRING_TYPE_URI = "sai.port"
   }
@@ -600,6 +714,64 @@ class TypeTranslatorTest {
             )
         )
         .setTypeInfo(portNameStringTypeInfo())
+        .build()
+    return TypeTranslator.create(p4info)
+  }
+
+  /** Builds a TypeTranslator with both sdn_string and sdn_bitwidth match fields. */
+  private fun buildP4InfoTranslatorWithMixedTypes(): TypeTranslator {
+    val typeInfo =
+      P4Types.P4TypeInfo.newBuilder()
+        .putNewTypes(
+          STRING_TYPE_NAME,
+          P4Types.P4NewTypeSpec.newBuilder()
+            .setTranslatedType(
+              P4Types.P4NewTypeTranslation.newBuilder()
+                .setUri(STRING_TYPE_URI)
+                .setSdnString(P4Types.P4NewTypeTranslation.SdnString.getDefaultInstance())
+            )
+            .build(),
+        )
+        .putNewTypes(
+          TYPE_NAME,
+          P4Types.P4NewTypeSpec.newBuilder()
+            .setTranslatedType(
+              P4Types.P4NewTypeTranslation.newBuilder().setUri(TYPE_URI).setSdnBitwidth(32)
+            )
+            .build(),
+        )
+        .build()
+    val p4info =
+      P4InfoOuterClass.P4Info.newBuilder()
+        .addTables(
+          P4InfoOuterClass.Table.newBuilder()
+            .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(TABLE_ID))
+            .addMatchFields(
+              P4InfoOuterClass.MatchField.newBuilder()
+                .setId(MATCH_FIELD_ID)
+                .setBitwidth(32)
+                .setMatchType(P4InfoOuterClass.MatchField.MatchType.EXACT)
+                .setTypeName(P4Types.P4NamedType.newBuilder().setName(STRING_TYPE_NAME))
+            )
+            .addMatchFields(
+              P4InfoOuterClass.MatchField.newBuilder()
+                .setId(BITWIDTH_FIELD_ID)
+                .setBitwidth(32)
+                .setMatchType(P4InfoOuterClass.MatchField.MatchType.EXACT)
+                .setTypeName(P4Types.P4NamedType.newBuilder().setName(TYPE_NAME))
+            )
+        )
+        .addActions(
+          P4InfoOuterClass.Action.newBuilder()
+            .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(ACTION_ID))
+            .addParams(
+              P4InfoOuterClass.Action.Param.newBuilder()
+                .setId(PARAM_ID)
+                .setBitwidth(32)
+                .setTypeName(P4Types.P4NamedType.newBuilder().setName(STRING_TYPE_NAME))
+            )
+        )
+        .setTypeInfo(typeInfo)
         .build()
     return TypeTranslator.create(p4info)
   }
