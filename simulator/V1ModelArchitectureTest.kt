@@ -507,4 +507,57 @@ class V1ModelArchitectureTest {
     assertEquals(1, branches.size)
     assertEquals("recirculate", branches[0].label)
   }
+
+  @Test
+  fun `I2E clone with missing session drops clone branch`() {
+    // Clone session 99 is never installed — BMv2 drops the clone silently.
+    val config =
+      v1modelConfig(
+        externCall("clone", enumArg("I2E"), intArg(99, 32)),
+        assignField("sm", "egress_spec", 2, V1ModelArchitecture.PORT_BITS),
+      )
+
+    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+
+    assertTrue(result.trace.hasForkOutcome())
+    assertEquals(ForkReason.CLONE, result.trace.forkOutcome.reason)
+    val outputs = collectOutputs(result.trace)
+    // Only the original branch produces output; the clone branch is dropped.
+    assertEquals(1, outputs.size)
+    assertEquals(2, outputs[0].egressPort)
+  }
+
+  @Test
+  fun `E2E clone with missing session drops clone branch`() {
+    val config =
+      v1modelConfig(
+        ingressStmts = listOf(assignField("sm", "egress_spec", 3, V1ModelArchitecture.PORT_BITS)),
+        egressStmts = listOf(externCall("clone", enumArg("E2E"), intArg(99, 32))),
+      )
+
+    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+
+    assertTrue(result.trace.hasForkOutcome())
+    val outputs = collectOutputs(result.trace)
+    // Only the original branch produces output.
+    assertEquals(1, outputs.size)
+    assertEquals(3, outputs[0].egressPort)
+  }
+
+  @Test
+  fun `unknown multicast group falls through to unicast`() {
+    // mcast_grp is set but the group isn't installed — BMv2 treats this as unicast/drop.
+    val config =
+      v1modelConfig(
+        assignField("sm", "mcast_grp", 42, 16),
+        assignField("sm", "egress_spec", 5, V1ModelArchitecture.PORT_BITS),
+      )
+
+    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+
+    // No fork — falls through to unicast path.
+    val outputs = collectOutputs(result.trace)
+    assertEquals(1, outputs.size)
+    assertEquals(5, outputs[0].egressPort)
+  }
 }

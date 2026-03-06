@@ -273,7 +273,6 @@ p4_testgen_test(name = "invalid-hdr-warnings3-bmv2")
 p4_testgen_test(
     name = "ipv6-switch-ml-bmv2",
     includes = _ML_HEADERS,
-    tags = ["manual"],  # unknown multicast group
 )
 
 p4_testgen_test(name = "issue-2123-2-bmv2")
@@ -447,5 +446,5 @@ p4_testgen_test(name = "v1model-const-entries-bmv2")
 p4_testgen_test(
     name = "v1model-special-ops-bmv2",
     max_tests = 20,
-    tags = ["manual"],  # unknown clone session: 5
+    tags = ["manual"],  # StackOverflowError from deep clone/recirculate fork trees
 )
