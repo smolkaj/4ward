@@ -128,6 +128,28 @@ fork_outcome {
 
 No printf debugging. No Wireshark. No guessing.
 
+### Try for yourself!
+
+```sh
+# Copy the template test directory.
+cp -r e2e_tests/passthrough e2e_tests/my_program
+
+# Drop in your P4 program (keep the filename — the build rules expect it).
+cp /path/to/my_program.p4 e2e_tests/my_program/passthrough.p4
+
+# Edit the STF file: list packets to send and expected outputs.
+$EDITOR e2e_tests/my_program/passthrough.stf
+
+# Run it! PRINT_TRACE shows what happened to your packet.
+bazel test //e2e_tests/my_program:passthrough_test \
+  --test_output=all --test_env=PRINT_TRACE=1
+```
+
+> [!NOTE]
+> A standalone `4ward run program.p4 test.stf` CLI is
+> [on the roadmap](docs/ROADMAP.md#track-7-standalone-cli). For now, tests run
+> through Bazel.
+
 ## `@p4runtime_translation` done right
 
 P4 programs use `@p4runtime_translation` to decouple controller-facing values

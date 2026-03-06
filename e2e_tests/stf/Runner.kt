@@ -1,6 +1,7 @@
 package fourward.e2e
 
 import com.google.protobuf.ByteString
+import com.google.protobuf.TextFormat
 import fourward.ir.v1.PipelineConfig
 import fourward.sim.v1.TraceTree
 import fourward.sim.v1.WriteEntryRequest
@@ -71,6 +72,11 @@ class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPat
         if (resp.hasError()) {
           failures += "ProcessPacket failed: ${resp.error.message}"
           continue
+        }
+        if (System.getenv("PRINT_TRACE") != null) {
+          println("--- Trace tree (port ${packet.ingressPort}) ---")
+          print(TextFormat.printer().printToString(resp.processPacket.trace))
+          println("--- End trace tree ---")
         }
         // For non-forking programs, output_packets is populated. For forking
         // programs (multicast, clone, action selector), outputs live only in
