@@ -46,7 +46,6 @@ class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPat
    * Cross-port ordering is ignored; within the same port, outputs are matched FIFO (first output on
    * that port satisfies the first expect for that port). This matches BMv2's STF semantics.
    */
-  @Suppress("NestedBlockDepth")
   fun run(stfPath: Path): TestResult {
     val stf = StfFile.parse(stfPath)
     val config = loadPipelineConfig(pipelineConfigPath)

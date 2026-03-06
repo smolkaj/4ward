@@ -64,6 +64,11 @@ complexity:
   CyclomaticComplexMethod:
     threshold: 29
 
+  # The iterative trace-tree builder (buildTraceTree) uses while → when → try/catch,
+  # naturally reaching depth 5. Flattening it would hurt readability.
+  NestedBlockDepth:
+    threshold: 5
+
   # 60 lines is too tight for sequential protocol handlers (e.g. StfRunner.run, which
   # encodes a strict request/response sequence that reads clearly as one function).
   # CyclomaticComplexMethod already catches functions that are genuinely hard to follow.

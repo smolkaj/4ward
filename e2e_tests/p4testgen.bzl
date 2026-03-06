@@ -1,21 +1,23 @@
-"""Starlark macro for p4testgen-based STF tests.
+"""Starlark macros for p4testgen-based STF tests.
 
 Usage in e2e_tests/p4testgen/BUILD.bazel:
 
-    load("//e2e_tests:p4testgen.bzl", "p4_testgen_test")
+    load("//e2e_tests:p4testgen.bzl", "p4_testgen_suite", "p4_testgen_test")
 
-    p4_testgen_test(name = "opassign1-bmv2")
-
-    # For programs that #include skeleton headers:
-    p4_testgen_test(
-        name = "arith1-bmv2",
-        includes = ["@p4c//testdata/p4_16_samples:arith-skeleton.p4"],
+    # Batch all passing tests into a single JVM:
+    p4_testgen_suite(
+        name = "p4testgen_suite_test",
+        tests = ["opassign1-bmv2", "arith1-bmv2", ...],
+        includes = {"arith1-bmv2": ["@p4c//testdata/p4_16_samples:arith-skeleton.p4"]},
     )
 
+    # Individual tests for manual/special cases:
+    p4_testgen_test(name = "header-stack-ops-bmv2", tags = ["manual"])
+
 This creates:
-  - a _p4testgen_stfs rule that runs p4testgen into a tree artifact directory
-  - a genrule that compiles the P4 source → <name>.txtpb using p4c-4ward
-  - a kt_jvm_test that discovers and runs all generated STFs against the simulator
+  - per-test _p4testgen_stfs rules (p4testgen → tree artifact of .stf files)
+  - per-test genrules compiling P4 → <name>.txtpb via p4c-4ward
+  - either one batched kt_jvm_test (suite) or one kt_jvm_test per test
 """
 
 load("@rules_cc//cc:find_cc_toolchain.bzl", "CC_TOOLCHAIN_TYPE", "find_cc_toolchain", "use_cc_toolchain")
@@ -86,23 +88,12 @@ _p4testgen_stfs = rule(
     fragments = ["cpp"],
 )
 
-def p4_testgen_test(name, src_p4 = None, includes = [], max_tests = 0, seed = 0, tags = []):
-    """Generates p4testgen STF tests and runs them against the 4ward simulator.
+def _p4_testgen_rules(name, src_p4, includes, max_tests, seed, tags):
+    """Creates the stfs + txtpb build rules for a single P4 program.
 
-    Args:
-        name: base name; also used to derive the src_p4 filename.
-        src_p4: P4 source file (default: @p4c//testdata/p4_16_samples:<name>.p4).
-        includes: extra P4 file labels needed as #include dependencies (e.g.
-                  skeleton headers). Their directory is added to the include path.
-        max_tests: upper bound on STF tests to generate (default: 0 = unlimited).
-                   p4testgen explores paths until exhausted or the limit is hit.
-        seed: random seed for p4testgen's path exploration (default: 0).
-              Different seeds explore different execution paths.
-        tags: Bazel tags forwarded to the test.
+    Returns:
+        A list of data labels [stfs_target, pb_target] for the kt_jvm_test.
     """
-    if src_p4 == None:
-        src_p4 = "@p4c//testdata/p4_16_samples:" + name + ".p4"
-
     stfs_name = name + "_stfs"
     pb_name = name + "_pb"
 
@@ -131,15 +122,67 @@ def p4_testgen_test(name, src_p4 = None, includes = [], max_tests = 0, seed = 0,
         tags = tags,
     )
 
+    return [":" + stfs_name, ":" + pb_name]
+
+def p4_testgen_test(name, src_p4 = None, includes = [], max_tests = 0, seed = 0, tags = []):
+    """Generates p4testgen STF tests and runs them against the 4ward simulator.
+
+    Creates a dedicated kt_jvm_test for a single P4 program. Use this for
+    manual/special-case tests. For bulk passing tests, prefer p4_testgen_suite().
+
+    Args:
+        name: base name; also used to derive the src_p4 filename.
+        src_p4: P4 source file (default: @p4c//testdata/p4_16_samples:<name>.p4).
+        includes: extra P4 file labels needed as #include dependencies (e.g.
+                  skeleton headers). Their directory is added to the include path.
+        max_tests: upper bound on STF tests to generate (default: 0 = unlimited).
+                   p4testgen explores paths until exhausted or the limit is hit.
+        seed: random seed for p4testgen's path exploration (default: 0).
+              Different seeds explore different execution paths.
+        tags: Bazel tags forwarded to the test.
+    """
+    if src_p4 == None:
+        src_p4 = "@p4c//testdata/p4_16_samples:" + name + ".p4"
+
+    data = _p4_testgen_rules(name, src_p4, includes, max_tests, seed, tags)
+
     kt_jvm_test(
         name = name + "_test",
-        test_class = "fourward.e2e.p4testgen.P4TestgenTest",
+        test_class = "fourward.e2e.p4testgen.P4TestgenSuiteTest",
         tags = tags,
-        data = [
-            ":" + stfs_name,
-            ":" + pb_name,
-            "//simulator",
+        data = data + ["//simulator"],
+        deps = [
+            "//e2e_tests/p4testgen:p4testgen_test_class",
+            "@maven//:junit_junit",
         ],
+    )
+
+def p4_testgen_suite(name, tests, includes = {}, max_tests = {}, tags = []):
+    """Batches p4testgen STF tests for many P4 programs into a single JVM.
+
+    Build-phase parallelism (p4testgen symbolic execution, p4c compilation) is
+    unchanged — only test execution is batched into one kt_jvm_test.
+
+    Args:
+        name:      name of the batched kt_jvm_test target.
+        tests:     list of P4 program base names (e.g. "opassign1-bmv2").
+        includes:  dict mapping program names to lists of extra P4 include labels.
+        max_tests: dict mapping program names to max-test limits.
+        tags:      Bazel tags forwarded to the kt_jvm_test.
+    """
+    data = ["//simulator"]
+
+    for test in tests:
+        src_p4 = "@p4c//testdata/p4_16_samples:" + test + ".p4"
+        test_includes = includes.get(test, [])
+        test_max_tests = max_tests.get(test, 0)
+        data.extend(_p4_testgen_rules(test, src_p4, test_includes, test_max_tests, seed = 0, tags = tags))
+
+    kt_jvm_test(
+        name = name,
+        test_class = "fourward.e2e.p4testgen.P4TestgenSuiteTest",
+        tags = tags,
+        data = data,
         deps = [
             "//e2e_tests/p4testgen:p4testgen_test_class",
             "@maven//:junit_junit",

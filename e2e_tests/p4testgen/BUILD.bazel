@@ -1,9 +1,9 @@
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_library")
-load("//e2e_tests:p4testgen.bzl", "p4_testgen_test")
+load("//e2e_tests:p4testgen.bzl", "p4_testgen_suite", "p4_testgen_test")
 
 kt_jvm_library(
     name = "p4testgen_test_class",
-    srcs = ["P4TestgenTest.kt"],
+    srcs = ["P4TestgenSuiteTest.kt"],
     visibility = ["//e2e_tests:__subpackages__"],
     deps = [
         "//e2e_tests/stf:stf_runner",
@@ -14,6 +14,9 @@ kt_jvm_library(
 # p4testgen-generated STF tests. Each entry runs p4testgen (symbolic execution
 # + Z3) on a P4 program from the p4c test corpus to generate test cases, then
 # runs them against the simulator.
+#
+# All passing tests are batched into a single JVM via p4_testgen_suite() to
+# avoid spawning 155+ JVMs in parallel. Manual tests keep individual targets.
 
 _ARITH_SKELETON = ["@p4c//testdata/p4_16_samples:arith-skeleton.p4"]
 
@@ -21,427 +24,225 @@ _ARITH_INLINE_SKELETON = ["@p4c//testdata/p4_16_samples:arith-inline-skeleton.p4
 
 _ML_HEADERS = ["@p4c//testdata/p4_16_samples:ml-headers.p4"]
 
-p4_testgen_test(
-    name = "arith-bmv2",
-    includes = _ARITH_SKELETON,
+p4_testgen_suite(
+    name = "p4testgen_suite_test",
+    includes = {
+        "arith-bmv2": _ARITH_SKELETON,
+        "arith-inline-bmv2": _ARITH_INLINE_SKELETON,
+        "arith1-bmv2": _ARITH_SKELETON,
+        "arith2-bmv2": _ARITH_SKELETON,
+        "arith2-inline-bmv2": _ARITH_INLINE_SKELETON,
+        "arith3-bmv2": _ARITH_SKELETON,
+        "arith4-bmv2": _ARITH_SKELETON,
+        "arith5-bmv2": _ARITH_SKELETON,
+        "constant-in-calculation-bmv2": _ARITH_INLINE_SKELETON,
+        "default_action-bmv2": _ARITH_INLINE_SKELETON,
+        "default-action-arg-bmv2": _ARITH_INLINE_SKELETON,
+        "enum-bmv2": _ARITH_INLINE_SKELETON,
+        "ipv6-switch-ml-bmv2": _ML_HEADERS,
+        "key-bmv2": _ARITH_INLINE_SKELETON,
+    },
+    max_tests = {
+        "runtime-index-2-bmv2": 20,
+        "ternary2-bmv2": 20,
+    },
+    tests = [
+        "arith-bmv2",
+        "arith-inline-bmv2",
+        "arith1-bmv2",
+        "arith2-bmv2",
+        "arith2-inline-bmv2",
+        "arith3-bmv2",
+        "arith4-bmv2",
+        "arith5-bmv2",
+        "array-copy-bmv2",
+        "bvec-hdr-bmv2",
+        "checksum-l4-bmv2",
+        "checksum1-bmv2",
+        "checksum2-bmv2",
+        "checksum3-bmv2",
+        "constant-in-calculation-bmv2",
+        "default-action-arg-bmv2",
+        "default_action-bmv2",
+        "enum-bmv2",
+        "equality-bmv2",
+        "equality-varbit-bmv2",
+        "flag_lost-bmv2",
+        "gauntlet_action_mux-bmv2",
+        "gauntlet_action_return-bmv2",
+        "gauntlet_arithref_cast-bmv2",
+        "gauntlet_complex_initialization-bmv2",
+        "gauntlet_copy_out-bmv2",
+        "gauntlet_enum_assign-bmv2",
+        "gauntlet_exit_after_valid-bmv2",
+        "gauntlet_exit_combination_1-bmv2",
+        "gauntlet_exit_combination_10-bmv2",
+        "gauntlet_exit_combination_11-bmv2",
+        "gauntlet_exit_combination_13-bmv2",
+        "gauntlet_exit_combination_14-bmv2",
+        "gauntlet_exit_combination_15-bmv2",
+        "gauntlet_exit_combination_16-bmv2",
+        "gauntlet_exit_combination_17-bmv2",
+        "gauntlet_exit_combination_18-bmv2",
+        "gauntlet_exit_combination_19-bmv2",
+        "gauntlet_exit_combination_2-bmv2",
+        "gauntlet_exit_combination_20-bmv2",
+        "gauntlet_exit_combination_21-bmv2",
+        "gauntlet_exit_combination_22-bmv2",
+        "gauntlet_exit_combination_23-bmv2",
+        "gauntlet_exit_combination_3-bmv2",
+        "gauntlet_exit_combination_4-bmv2",
+        "gauntlet_exit_combination_5-bmv2",
+        "gauntlet_exit_combination_6-bmv2",
+        "gauntlet_exit_combination_7-bmv2",
+        "gauntlet_exit_combination_8-bmv2",
+        "gauntlet_exit_combination_9-bmv2",
+        "gauntlet_function_if_hdr_return-bmv2",
+        "gauntlet_function_return-bmv2",
+        "gauntlet_function_return_cast-bmv2",
+        "gauntlet_hdr_assign_1-bmv2",
+        "gauntlet_hdr_assign_2-bmv2",
+        "gauntlet_hdr_function_cast-bmv2",
+        "gauntlet_hdr_in_value-bmv2",
+        "gauntlet_hdr_init-bmv2",
+        "gauntlet_hdr_int_initializer-bmv2",
+        "gauntlet_hdr_out_in_action-bmv2",
+        "gauntlet_hdr_set_valid-bmv2",
+        "gauntlet_index_1-bmv2",
+        "gauntlet_index_2-bmv2",
+        "gauntlet_index_4-bmv2",
+        "gauntlet_index_5-bmv2",
+        "gauntlet_index_6-bmv2",
+        "gauntlet_index_7-bmv2",
+        "gauntlet_index_8-bmv2",
+        "gauntlet_index_9-bmv2",
+        "gauntlet_indirect_hdr_assign_1-bmv2",
+        "gauntlet_indirect_hdr_assign_2-bmv2",
+        "gauntlet_instance_overwrite-bmv2",
+        "gauntlet_int_casting-bmv2",
+        "gauntlet_int_slice-bmv2",
+        "gauntlet_invalid_hdr_assign-bmv2",
+        "gauntlet_invalid_hdr_short_circuit-bmv2",
+        "gauntlet_list_as_in_argument-bmv2",
+        "gauntlet_mux_eval-bmv2",
+        "gauntlet_mux_hdr-bmv2",
+        "gauntlet_mux_typecasting-bmv2",
+        "gauntlet_mux_validity-bmv2",
+        "gauntlet_nested_ifs_in_function-bmv2",
+        "gauntlet_nested_slice-bmv2",
+        "gauntlet_nested_switch-bmv2",
+        "gauntlet_nested_table_calls-bmv2",
+        "gauntlet_return_truncate-bmv2",
+        "gauntlet_set_invalid-bmv2",
+        "gauntlet_set_valid_in_function-bmv2",
+        "gauntlet_short_circuit-bmv2",
+        "gauntlet_side_effect_order_1-bmv2",
+        "gauntlet_side_effect_order_2-bmv2",
+        "gauntlet_side_effect_order_3-bmv2",
+        "gauntlet_side_effect_order_4-bmv2",
+        "gauntlet_side_effect_order_5-bmv2",
+        "gauntlet_side_effects_in_mux-bmv2",
+        "gauntlet_switch_exclusivity-bmv2",
+        "gauntlet_switch_nested_table_apply-bmv2",
+        "gauntlet_switch_shadowing-bmv2",
+        "gauntlet_table_call_in_expression-bmv2",
+        "gauntlet_typedef_cast-bmv2",
+        "gauntlet_uninitialized_bool_struct-bmv2",
+        "gauntlet_variable_shadowing-bmv2",
+        "header-bool-bmv2",
+        "invalid-hdr-warnings3-bmv2",
+        "ipv6-switch-ml-bmv2",
+        "issue-2123-2-bmv2",
+        "issue-2123-3-bmv2",
+        "issue1000-bmv2",
+        "issue1025-bmv2",
+        "issue1049-bmv2",
+        "issue1062-1-bmv2",
+        "issue1097-2-bmv2",
+        "issue1566-bmv2",
+        "issue1755-1-bmv2",
+        "issue1755-bmv2",
+        "issue1768-bmv2",
+        "issue1814-1-bmv2",
+        "issue1824-bmv2",
+        "issue1879-bmv2",
+        "issue2147-bmv2",
+        "issue2153-bmv2",
+        "issue2170-bmv2",
+        "issue2176-bmv2",
+        "issue2205-1-bmv2",
+        "issue2205-bmv2",
+        "issue2221-bmv2",
+        "issue2225-bmv2",
+        "issue2287-bmv2",
+        "issue2343-bmv2",
+        "issue2375-1-bmv2",
+        "issue2383-bmv2",
+        "issue2392-bmv2",
+        "issue2488-bmv2",
+        "issue2498-bmv2",
+        "issue2614-bmv2",
+        "issue3488-1-bmv2",
+        "issue3488-bmv2",
+        "issue447-1-bmv2",
+        "issue447-2-bmv2",
+        "issue447-3-bmv2",
+        "issue447-4-bmv2",
+        "issue447-5-bmv2",
+        "issue447-bmv2",
+        "issue510-bmv2",
+        "issue561-1-bmv2",
+        "issue561-2-bmv2",
+        "issue561-3-bmv2",
+        "issue561-4-bmv2",
+        "issue561-5-bmv2",
+        "issue561-6-bmv2",
+        "issue561-7-bmv2",
+        "issue635-bmv2",
+        "issue655-bmv2",
+        "issue774-4-bmv2",
+        "issue983-bmv2",
+        "issue995-bmv2",
+        "key-bmv2",
+        "match-on-exprs-bmv2",
+        "opassign1-bmv2",
+        "opassign2-bmv2",
+        "parser_error-bmv2",
+        "runtime-index-2-bmv2",
+        "runtime-index-bmv2",
+        "saturated-bmv2",
+        "stack_complex-bmv2",
+        "subparser-with-header-stack-bmv2",
+        "table-entries-exact-bmv2",
+        "table-entries-exact-ternary-bmv2",
+        "table-entries-lpm-bmv2",
+        "table-entries-optional-bmv2",
+        "table-entries-priority-bmv2",
+        "table-entries-range-bmv2",
+        "table-entries-ser-enum-bmv2",
+        "table-entries-ternary-bmv2",
+        "ternary2-bmv2",
+        "test-parserinvalidargument-error-bmv2",
+        "union-bmv2",
+        "union-valid-bmv2",
+        "union1-bmv2",
+        "union2-bmv2",
+        "union3-bmv2",
+        "v1model-const-entries-bmv2",
+    ],
 )
 
-p4_testgen_test(
-    name = "arith-inline-bmv2",
-    includes = _ARITH_INLINE_SKELETON,
-)
-
-p4_testgen_test(
-    name = "arith1-bmv2",
-    includes = _ARITH_SKELETON,
-)
-
-p4_testgen_test(
-    name = "arith2-bmv2",
-    includes = _ARITH_SKELETON,
-)
-
-p4_testgen_test(
-    name = "arith2-inline-bmv2",
-    includes = _ARITH_INLINE_SKELETON,
-)
-
-p4_testgen_test(
-    name = "arith3-bmv2",
-    includes = _ARITH_SKELETON,
-)
-
-p4_testgen_test(
-    name = "arith4-bmv2",
-    includes = _ARITH_SKELETON,
-)
-
-p4_testgen_test(
-    name = "arith5-bmv2",
-    includes = _ARITH_SKELETON,
-)
-
-p4_testgen_test(name = "array-copy-bmv2")
-
-p4_testgen_test(name = "bvec-hdr-bmv2")
-
-p4_testgen_test(name = "checksum-l4-bmv2")
-
-p4_testgen_test(name = "checksum1-bmv2")
-
-p4_testgen_test(name = "checksum2-bmv2")
-
-p4_testgen_test(name = "checksum3-bmv2")
-
-p4_testgen_test(
-    name = "constant-in-calculation-bmv2",
-    includes = _ARITH_INLINE_SKELETON,
-)
-
-p4_testgen_test(
-    name = "default_action-bmv2",
-    includes = _ARITH_INLINE_SKELETON,
-)
-
-p4_testgen_test(
-    name = "default-action-arg-bmv2",
-    includes = _ARITH_INLINE_SKELETON,
-)
-
-p4_testgen_test(
-    name = "enum-bmv2",
-    includes = _ARITH_INLINE_SKELETON,
-)
-
-p4_testgen_test(name = "equality-bmv2")
-
-p4_testgen_test(name = "equality-varbit-bmv2")
-
-p4_testgen_test(name = "flag_lost-bmv2")
-
-p4_testgen_test(name = "gauntlet_action_mux-bmv2")
-
-p4_testgen_test(name = "gauntlet_action_return-bmv2")
-
-p4_testgen_test(name = "gauntlet_arithref_cast-bmv2")
-
-p4_testgen_test(name = "gauntlet_complex_initialization-bmv2")
-
-p4_testgen_test(name = "gauntlet_copy_out-bmv2")
-
-p4_testgen_test(name = "gauntlet_enum_assign-bmv2")
-
-p4_testgen_test(name = "gauntlet_exit_after_valid-bmv2")
-
-p4_testgen_test(name = "gauntlet_exit_combination_1-bmv2")
-
-p4_testgen_test(name = "gauntlet_exit_combination_10-bmv2")
-
-p4_testgen_test(name = "gauntlet_exit_combination_11-bmv2")
-
-p4_testgen_test(name = "gauntlet_exit_combination_13-bmv2")
-
-p4_testgen_test(name = "gauntlet_exit_combination_14-bmv2")
-
-p4_testgen_test(name = "gauntlet_exit_combination_15-bmv2")
-
-p4_testgen_test(name = "gauntlet_exit_combination_16-bmv2")
-
-p4_testgen_test(name = "gauntlet_exit_combination_17-bmv2")
-
-p4_testgen_test(name = "gauntlet_exit_combination_18-bmv2")
-
-p4_testgen_test(name = "gauntlet_exit_combination_19-bmv2")
-
-p4_testgen_test(name = "gauntlet_exit_combination_2-bmv2")
-
-p4_testgen_test(name = "gauntlet_exit_combination_20-bmv2")
-
-p4_testgen_test(name = "gauntlet_exit_combination_21-bmv2")
-
-p4_testgen_test(name = "gauntlet_exit_combination_22-bmv2")
-
-p4_testgen_test(name = "gauntlet_exit_combination_23-bmv2")
-
-p4_testgen_test(name = "gauntlet_exit_combination_3-bmv2")
-
-p4_testgen_test(name = "gauntlet_exit_combination_4-bmv2")
-
-p4_testgen_test(name = "gauntlet_exit_combination_5-bmv2")
-
-p4_testgen_test(name = "gauntlet_exit_combination_6-bmv2")
-
-p4_testgen_test(name = "gauntlet_exit_combination_7-bmv2")
-
-p4_testgen_test(name = "gauntlet_exit_combination_8-bmv2")
-
-p4_testgen_test(name = "gauntlet_exit_combination_9-bmv2")
-
-p4_testgen_test(name = "gauntlet_function_if_hdr_return-bmv2")
-
-p4_testgen_test(name = "gauntlet_function_return_cast-bmv2")
-
-p4_testgen_test(name = "gauntlet_function_return-bmv2")
-
-p4_testgen_test(name = "gauntlet_hdr_assign_1-bmv2")
-
-p4_testgen_test(name = "gauntlet_hdr_assign_2-bmv2")
-
-p4_testgen_test(name = "gauntlet_hdr_function_cast-bmv2")
-
-p4_testgen_test(name = "gauntlet_hdr_in_value-bmv2")
-
-p4_testgen_test(name = "gauntlet_hdr_init-bmv2")
-
-p4_testgen_test(name = "gauntlet_hdr_int_initializer-bmv2")
-
-p4_testgen_test(name = "gauntlet_hdr_out_in_action-bmv2")
-
-p4_testgen_test(name = "gauntlet_hdr_set_valid-bmv2")
-
-p4_testgen_test(name = "gauntlet_index_1-bmv2")
-
-p4_testgen_test(name = "gauntlet_index_2-bmv2")
-
-p4_testgen_test(name = "gauntlet_index_4-bmv2")
-
-p4_testgen_test(name = "gauntlet_index_5-bmv2")
-
-p4_testgen_test(name = "gauntlet_index_6-bmv2")
-
-p4_testgen_test(name = "gauntlet_index_7-bmv2")
-
-p4_testgen_test(name = "gauntlet_index_8-bmv2")
-
-p4_testgen_test(name = "gauntlet_index_9-bmv2")
-
-p4_testgen_test(name = "gauntlet_indirect_hdr_assign_1-bmv2")
-
-p4_testgen_test(name = "gauntlet_indirect_hdr_assign_2-bmv2")
-
-p4_testgen_test(name = "gauntlet_instance_overwrite-bmv2")
-
-p4_testgen_test(name = "gauntlet_int_casting-bmv2")
-
-p4_testgen_test(name = "gauntlet_int_slice-bmv2")
-
-p4_testgen_test(name = "gauntlet_invalid_hdr_assign-bmv2")
-
-p4_testgen_test(name = "gauntlet_invalid_hdr_short_circuit-bmv2")
-
-p4_testgen_test(name = "gauntlet_list_as_in_argument-bmv2")
-
-p4_testgen_test(name = "gauntlet_mux_eval-bmv2")
-
-p4_testgen_test(name = "gauntlet_mux_hdr-bmv2")
-
-p4_testgen_test(name = "gauntlet_mux_typecasting-bmv2")
-
-p4_testgen_test(name = "gauntlet_mux_validity-bmv2")
-
-p4_testgen_test(name = "gauntlet_nested_ifs_in_function-bmv2")
-
-p4_testgen_test(name = "gauntlet_nested_slice-bmv2")
-
-p4_testgen_test(name = "gauntlet_nested_switch-bmv2")
-
-p4_testgen_test(name = "gauntlet_nested_table_calls-bmv2")
-
-p4_testgen_test(name = "gauntlet_return_truncate-bmv2")
-
-p4_testgen_test(name = "gauntlet_set_invalid-bmv2")
-
-p4_testgen_test(name = "gauntlet_set_valid_in_function-bmv2")
-
-p4_testgen_test(name = "gauntlet_short_circuit-bmv2")
-
-p4_testgen_test(name = "gauntlet_side_effect_order_1-bmv2")
-
-p4_testgen_test(name = "gauntlet_side_effect_order_2-bmv2")
-
-p4_testgen_test(name = "gauntlet_side_effect_order_3-bmv2")
-
-p4_testgen_test(name = "gauntlet_side_effect_order_4-bmv2")
-
-p4_testgen_test(name = "gauntlet_side_effect_order_5-bmv2")
-
-p4_testgen_test(name = "gauntlet_side_effects_in_mux-bmv2")
-
-p4_testgen_test(name = "gauntlet_switch_exclusivity-bmv2")
-
-p4_testgen_test(name = "gauntlet_switch_nested_table_apply-bmv2")
-
-p4_testgen_test(name = "gauntlet_switch_shadowing-bmv2")
-
-p4_testgen_test(name = "gauntlet_table_call_in_expression-bmv2")
-
-p4_testgen_test(name = "gauntlet_typedef_cast-bmv2")
-
-p4_testgen_test(name = "gauntlet_uninitialized_bool_struct-bmv2")
-
-p4_testgen_test(name = "gauntlet_variable_shadowing-bmv2")
-
-p4_testgen_test(name = "header-bool-bmv2")
+# Manual tests — kept as individual targets (minimal JVM count).
 
 p4_testgen_test(
     name = "header-stack-ops-bmv2",
     tags = ["manual"],  # p4testgen crash: TaintedExpression cast to BoolLiteral
 )
 
-p4_testgen_test(name = "invalid-hdr-warnings3-bmv2")
-
-p4_testgen_test(
-    name = "ipv6-switch-ml-bmv2",
-    includes = _ML_HEADERS,
-)
-
-p4_testgen_test(name = "issue-2123-2-bmv2")
-
-p4_testgen_test(name = "issue-2123-3-bmv2")
-
-p4_testgen_test(name = "issue1000-bmv2")
-
-p4_testgen_test(name = "issue1025-bmv2")
-
-p4_testgen_test(name = "issue1049-bmv2")
-
-p4_testgen_test(name = "issue1062-1-bmv2")
-
-p4_testgen_test(name = "issue1097-2-bmv2")
-
-p4_testgen_test(name = "issue1566-bmv2")
-
-p4_testgen_test(name = "issue1755-1-bmv2")
-
-p4_testgen_test(name = "issue1755-bmv2")
-
-p4_testgen_test(name = "issue1768-bmv2")
-
-p4_testgen_test(name = "issue1814-1-bmv2")
-
-p4_testgen_test(name = "issue1824-bmv2")
-
-p4_testgen_test(name = "issue1879-bmv2")
-
-p4_testgen_test(name = "issue2147-bmv2")
-
-p4_testgen_test(name = "issue2153-bmv2")
-
-p4_testgen_test(name = "issue2170-bmv2")
-
-p4_testgen_test(name = "issue2176-bmv2")
-
-p4_testgen_test(name = "issue2205-1-bmv2")
-
-p4_testgen_test(name = "issue2205-bmv2")
-
-p4_testgen_test(name = "issue2221-bmv2")
-
-p4_testgen_test(name = "issue2225-bmv2")
-
-p4_testgen_test(name = "issue2287-bmv2")
-
-p4_testgen_test(name = "issue2343-bmv2")
-
-p4_testgen_test(name = "issue2375-1-bmv2")
-
 p4_testgen_test(
     name = "issue2375-bmv2",
     tags = ["manual"],  # p4testgen generates platform-dependent STFs that fail on CI
 )
-
-p4_testgen_test(name = "issue2383-bmv2")
-
-p4_testgen_test(name = "issue2392-bmv2")
-
-p4_testgen_test(name = "issue2488-bmv2")
-
-p4_testgen_test(name = "issue2498-bmv2")
-
-p4_testgen_test(name = "issue2614-bmv2")
-
-p4_testgen_test(name = "issue3488-1-bmv2")
-
-p4_testgen_test(name = "issue3488-bmv2")
-
-p4_testgen_test(name = "issue447-1-bmv2")
-
-p4_testgen_test(name = "issue447-2-bmv2")
-
-p4_testgen_test(name = "issue447-3-bmv2")
-
-p4_testgen_test(name = "issue447-4-bmv2")
-
-p4_testgen_test(name = "issue447-5-bmv2")
-
-p4_testgen_test(name = "issue447-bmv2")
-
-p4_testgen_test(name = "issue510-bmv2")
-
-p4_testgen_test(name = "issue561-1-bmv2")
-
-p4_testgen_test(name = "issue561-2-bmv2")
-
-p4_testgen_test(name = "issue561-3-bmv2")
-
-p4_testgen_test(name = "issue561-4-bmv2")
-
-p4_testgen_test(name = "issue561-5-bmv2")
-
-p4_testgen_test(name = "issue561-6-bmv2")
-
-p4_testgen_test(name = "issue561-7-bmv2")
-
-p4_testgen_test(name = "issue635-bmv2")
-
-p4_testgen_test(name = "issue655-bmv2")
-
-p4_testgen_test(name = "issue774-4-bmv2")
-
-p4_testgen_test(name = "issue983-bmv2")
-
-p4_testgen_test(name = "issue995-bmv2")
-
-p4_testgen_test(
-    name = "key-bmv2",
-    includes = _ARITH_INLINE_SKELETON,
-)
-
-p4_testgen_test(name = "match-on-exprs-bmv2")
-
-p4_testgen_test(name = "opassign1-bmv2")
-
-p4_testgen_test(name = "opassign2-bmv2")
-
-p4_testgen_test(name = "parser_error-bmv2")
-
-p4_testgen_test(
-    name = "runtime-index-2-bmv2",
-    max_tests = 20,
-)
-
-p4_testgen_test(name = "runtime-index-bmv2")
-
-p4_testgen_test(name = "saturated-bmv2")
-
-p4_testgen_test(name = "stack_complex-bmv2")
-
-p4_testgen_test(name = "subparser-with-header-stack-bmv2")
-
-p4_testgen_test(name = "table-entries-exact-bmv2")
-
-p4_testgen_test(name = "table-entries-exact-ternary-bmv2")
-
-p4_testgen_test(name = "table-entries-lpm-bmv2")
-
-p4_testgen_test(name = "table-entries-optional-bmv2")
-
-p4_testgen_test(name = "table-entries-priority-bmv2")
-
-p4_testgen_test(name = "table-entries-range-bmv2")
-
-p4_testgen_test(name = "table-entries-ser-enum-bmv2")
-
-p4_testgen_test(name = "table-entries-ternary-bmv2")
-
-p4_testgen_test(
-    name = "ternary2-bmv2",
-    max_tests = 20,
-)
-
-p4_testgen_test(name = "test-parserinvalidargument-error-bmv2")
-
-p4_testgen_test(name = "union-bmv2")
-
-p4_testgen_test(name = "union-valid-bmv2")
-
-p4_testgen_test(name = "union1-bmv2")
-
-p4_testgen_test(name = "union2-bmv2")
-
-p4_testgen_test(name = "union3-bmv2")
-
-p4_testgen_test(name = "v1model-const-entries-bmv2")
 
 p4_testgen_test(
     name = "v1model-special-ops-bmv2",
