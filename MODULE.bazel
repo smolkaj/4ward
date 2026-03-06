@@ -19,6 +19,14 @@ bazel_dep(name = "protobuf", version = "33.5")
 bazel_dep(name = "grpc-java", version = "1.78.0")
 bazel_dep(name = "grpc_kotlin", version = "1.5.0")
 
+# --- Boost (needed by behavioral_model) ---
+# Match versions declared by p4c to avoid Bzlmod resolution conflicts.
+
+bazel_dep(name = "boost.container", version = "1.90.0.bcr.1")
+bazel_dep(name = "boost.filesystem", version = "1.90.0.bcr.1")
+bazel_dep(name = "boost.program_options", version = "1.90.0.bcr.1")
+bazel_dep(name = "boost.thread", version = "1.90.0.bcr.1")
+
 # --- P4 ecosystem ---
 
 # p4runtime provides p4info.proto, p4runtime.proto, and p4data.proto.
@@ -32,6 +40,17 @@ git_override(
     module_name = "p4c",
     commit = "f36edeb88709fc6f5e44c3b6c40a666a0af2313a",
     remote = "https://github.com/smolkaj/p4c.git",
+)
+
+# BMv2 (behavioral-model) — v1model reference simulator for differential testing.
+# Patched to add native Bazel build rules (no Thrift, no nanomsg).
+bazel_dep(name = "behavioral_model", version = "head")
+git_override(
+    module_name = "behavioral_model",
+    commit = "6c7c93e5484e069c539b5c990bf37c531599894a",
+    patch_strip = 1,
+    patches = ["//bazel:behavioral_model.patch"],
+    remote = "https://github.com/p4lang/behavioral-model.git",
 )
 
 # --- JVM dependencies ---

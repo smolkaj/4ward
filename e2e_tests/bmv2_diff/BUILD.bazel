@@ -1,0 +1,20 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary")
+load("//e2e_tests:bmv2_diff.bzl", "bmv2_diff_test_suite")
+
+cc_binary(
+    name = "bmv2_driver",
+    srcs = ["bmv2_driver.cpp"],
+    copts = ["-std=c++17"],
+    deps = ["@behavioral_model//:simple_switch_lib"],
+)
+
+bmv2_diff_test_suite(
+    name = "bmv2_diff_test",
+    tests = [
+        "equality-bmv2",
+        "flag_lost-bmv2",
+        "gauntlet_nested_table_calls-bmv2",
+        "issue1879-bmv2",
+        "opassign1-bmv2",
+    ],
+)
