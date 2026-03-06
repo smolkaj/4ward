@@ -40,6 +40,7 @@ class P4RuntimeService(private val simulator: Simulator) :
 
   @Volatile private var currentConfig: PipelineConfig? = null
   @Volatile private var typeTranslator: TypeTranslator? = null
+  @Volatile private var writeValidator: WriteValidator? = null
 
   private fun requirePipeline(): PipelineConfig =
     currentConfig
@@ -89,6 +90,7 @@ class P4RuntimeService(private val simulator: Simulator) :
         .asException()
     }
 
+    writeValidator = WriteValidator(pipelineConfig.p4Info)
     currentConfig = pipelineConfig
     typeTranslator = TypeTranslator.create(fwdConfig.p4Info, deviceConfig.translationsList)
     return SetForwardingPipelineConfigResponse.getDefaultInstance()
@@ -102,6 +104,11 @@ class P4RuntimeService(private val simulator: Simulator) :
     requirePipeline()
     val translator = typeTranslator?.takeIf { it.hasTranslations }
     for (rawUpdate in request.updatesList) {
+      // Validate against p4info before type translation so SDN-visible values
+      // are checked at canonical widths (P4Runtime spec §8.3, §9.1).
+      if (rawUpdate.entity.hasTableEntry()) {
+        writeValidator?.validate(rawUpdate)
+      }
       val update = translator?.translateForWrite(rawUpdate) ?: rawUpdate
       val simRequest =
         SimRequest.newBuilder()

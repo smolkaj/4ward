@@ -35,12 +35,8 @@ guilt — just write it down so someone can find it later.
   The `TypeTranslator` supports `sdn_bitwidth` and `sdn_string` with explicit,
   auto-allocate, and hybrid mapping modes. Integration with match fields and
   PacketIO metadata translation is not yet implemented.
-- **Missing RPCs.** `GetForwardingPipelineConfig` and `Capabilities` return
-  UNIMPLEMENTED.
 - **No counters, meters, or registers via P4Runtime.** These work via the
   simulator protocol but cannot be managed through the gRPC server.
-- **No action profiles or groups via P4Runtime.** Action selector tables and
-  group management are not implemented.
 - **No digests, idle timeouts, or atomic write batches.**
 
 ## Simulator

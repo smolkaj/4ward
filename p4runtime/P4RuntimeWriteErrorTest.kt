@@ -1,8 +1,10 @@
 package fourward.p4runtime
 
+import com.google.protobuf.ByteString
 import fourward.ir.v1.PipelineConfig
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.assertGrpcError
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildExactEntry
+import fourward.p4runtime.P4RuntimeTestHarness.Companion.longToBytes
 import io.grpc.Status
 import org.junit.After
 import org.junit.Before
@@ -114,5 +116,248 @@ class P4RuntimeWriteErrorTest {
     harness.deleteEntry(entry)
 
     assertGrpcError(Status.Code.NOT_FOUND) { harness.deleteEntry(entry) }
+  }
+
+  // =========================================================================
+  // Write validation errors
+  // =========================================================================
+
+  // P4Runtime spec §9.1.2: action_id must be in the table's action_refs.
+  @Test
+  fun `insert with unknown action ID returns INVALID_ARGUMENT`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    val table = config.p4Info.tablesList.first()
+    val matchField = table.matchFieldsList.first()
+    val entity =
+      Entity.newBuilder()
+        .setTableEntry(
+          TableEntry.newBuilder()
+            .setTableId(table.preamble.id)
+            .addMatch(
+              p4.v1.P4RuntimeOuterClass.FieldMatch.newBuilder()
+                .setFieldId(matchField.id)
+                .setExact(
+                  p4.v1.P4RuntimeOuterClass.FieldMatch.Exact.newBuilder()
+                    .setValue(
+                      ByteString.copyFrom(longToBytes(0x0800, (matchField.bitwidth + 7) / 8))
+                    )
+                )
+            )
+            .setAction(
+              p4.v1.P4RuntimeOuterClass.TableAction.newBuilder()
+                .setAction(p4.v1.P4RuntimeOuterClass.Action.newBuilder().setActionId(99999))
+            )
+        )
+        .build()
+    assertGrpcError(Status.Code.INVALID_ARGUMENT, "unknown action ID") {
+      harness.installEntry(entity)
+    }
+  }
+
+  // P4Runtime spec §9.1.2: action parameters must match the p4info schema.
+  @Test
+  fun `insert with wrong param count returns INVALID_ARGUMENT`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    val table = config.p4Info.tablesList.first()
+    val matchField = table.matchFieldsList.first()
+    val forwardAction = config.p4Info.actionsList.find { it.preamble.name.contains("forward") }!!
+    // forward expects 1 param (port); send 0 params.
+    val entity =
+      Entity.newBuilder()
+        .setTableEntry(
+          TableEntry.newBuilder()
+            .setTableId(table.preamble.id)
+            .addMatch(
+              p4.v1.P4RuntimeOuterClass.FieldMatch.newBuilder()
+                .setFieldId(matchField.id)
+                .setExact(
+                  p4.v1.P4RuntimeOuterClass.FieldMatch.Exact.newBuilder()
+                    .setValue(
+                      ByteString.copyFrom(longToBytes(0x0800, (matchField.bitwidth + 7) / 8))
+                    )
+                )
+            )
+            .setAction(
+              p4.v1.P4RuntimeOuterClass.TableAction.newBuilder()
+                .setAction(
+                  p4.v1.P4RuntimeOuterClass.Action.newBuilder()
+                    .setActionId(forwardAction.preamble.id)
+                )
+            )
+        )
+        .build()
+    assertGrpcError(Status.Code.INVALID_ARGUMENT, "expects") { harness.installEntry(entity) }
+  }
+
+  // P4Runtime spec §9.1.1: exact-only tables must have priority == 0.
+  @Test
+  fun `insert with nonzero priority on exact table returns INVALID_ARGUMENT`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    val table = config.p4Info.tablesList.first()
+    val matchField = table.matchFieldsList.first()
+    val forwardAction = config.p4Info.actionsList.find { it.preamble.name.contains("forward") }!!
+    val entity =
+      Entity.newBuilder()
+        .setTableEntry(
+          TableEntry.newBuilder()
+            .setTableId(table.preamble.id)
+            .setPriority(10) // Not allowed on exact-match table.
+            .addMatch(
+              p4.v1.P4RuntimeOuterClass.FieldMatch.newBuilder()
+                .setFieldId(matchField.id)
+                .setExact(
+                  p4.v1.P4RuntimeOuterClass.FieldMatch.Exact.newBuilder()
+                    .setValue(
+                      ByteString.copyFrom(longToBytes(0x0800, (matchField.bitwidth + 7) / 8))
+                    )
+                )
+            )
+            .setAction(
+              p4.v1.P4RuntimeOuterClass.TableAction.newBuilder()
+                .setAction(
+                  p4.v1.P4RuntimeOuterClass.Action.newBuilder()
+                    .setActionId(forwardAction.preamble.id)
+                    .addParams(
+                      p4.v1.P4RuntimeOuterClass.Action.Param.newBuilder()
+                        .setParamId(forwardAction.paramsList.first().id)
+                        .setValue(
+                          ByteString.copyFrom(
+                            longToBytes(1, (forwardAction.paramsList.first().bitwidth + 7) / 8)
+                          )
+                        )
+                    )
+                )
+            )
+        )
+        .build()
+    assertGrpcError(Status.Code.INVALID_ARGUMENT, "priority") { harness.installEntry(entity) }
+  }
+
+  // P4Runtime spec §8.3: match field value must have canonical byte width.
+  @Test
+  fun `insert with wrong match value width returns INVALID_ARGUMENT`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    val table = config.p4Info.tablesList.first()
+    val matchField = table.matchFieldsList.first()
+    val forwardAction = config.p4Info.actionsList.find { it.preamble.name.contains("forward") }!!
+    // etherType is 16-bit (2 bytes); send 1 byte.
+    val entity =
+      Entity.newBuilder()
+        .setTableEntry(
+          TableEntry.newBuilder()
+            .setTableId(table.preamble.id)
+            .addMatch(
+              p4.v1.P4RuntimeOuterClass.FieldMatch.newBuilder()
+                .setFieldId(matchField.id)
+                .setExact(
+                  p4.v1.P4RuntimeOuterClass.FieldMatch.Exact.newBuilder()
+                    .setValue(ByteString.copyFrom(byteArrayOf(0x08)))
+                )
+            )
+            .setAction(
+              p4.v1.P4RuntimeOuterClass.TableAction.newBuilder()
+                .setAction(
+                  p4.v1.P4RuntimeOuterClass.Action.newBuilder()
+                    .setActionId(forwardAction.preamble.id)
+                    .addParams(
+                      p4.v1.P4RuntimeOuterClass.Action.Param.newBuilder()
+                        .setParamId(forwardAction.paramsList.first().id)
+                        .setValue(
+                          ByteString.copyFrom(
+                            longToBytes(1, (forwardAction.paramsList.first().bitwidth + 7) / 8)
+                          )
+                        )
+                    )
+                )
+            )
+        )
+        .build()
+    assertGrpcError(Status.Code.INVALID_ARGUMENT, "bytes") { harness.installEntry(entity) }
+  }
+
+  // P4Runtime spec §9.1.1: match field kind must match p4info.
+  @Test
+  fun `insert with ternary encoding on exact field returns INVALID_ARGUMENT`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    val table = config.p4Info.tablesList.first()
+    val matchField = table.matchFieldsList.first()
+    val forwardAction = config.p4Info.actionsList.find { it.preamble.name.contains("forward") }!!
+    val entity =
+      Entity.newBuilder()
+        .setTableEntry(
+          TableEntry.newBuilder()
+            .setTableId(table.preamble.id)
+            .setPriority(1)
+            .addMatch(
+              p4.v1.P4RuntimeOuterClass.FieldMatch.newBuilder()
+                .setFieldId(matchField.id)
+                .setTernary(
+                  p4.v1.P4RuntimeOuterClass.FieldMatch.Ternary.newBuilder()
+                    .setValue(
+                      ByteString.copyFrom(longToBytes(0x0800, (matchField.bitwidth + 7) / 8))
+                    )
+                    .setMask(
+                      ByteString.copyFrom(longToBytes(0xFFFF, (matchField.bitwidth + 7) / 8))
+                    )
+                )
+            )
+            .setAction(
+              p4.v1.P4RuntimeOuterClass.TableAction.newBuilder()
+                .setAction(
+                  p4.v1.P4RuntimeOuterClass.Action.newBuilder()
+                    .setActionId(forwardAction.preamble.id)
+                    .addParams(
+                      p4.v1.P4RuntimeOuterClass.Action.Param.newBuilder()
+                        .setParamId(forwardAction.paramsList.first().id)
+                        .setValue(
+                          ByteString.copyFrom(
+                            longToBytes(1, (forwardAction.paramsList.first().bitwidth + 7) / 8)
+                          )
+                        )
+                    )
+                )
+            )
+        )
+        .build()
+    assertGrpcError(Status.Code.INVALID_ARGUMENT, "EXACT") { harness.installEntry(entity) }
+  }
+
+  // P4Runtime spec §9.1.1: exact match fields are required (cannot be omitted).
+  @Test
+  fun `insert with missing exact match field returns INVALID_ARGUMENT`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    val table = config.p4Info.tablesList.first()
+    val forwardAction = config.p4Info.actionsList.find { it.preamble.name.contains("forward") }!!
+    // No match fields at all — the table requires an exact match.
+    val entity =
+      Entity.newBuilder()
+        .setTableEntry(
+          TableEntry.newBuilder()
+            .setTableId(table.preamble.id)
+            .setAction(
+              p4.v1.P4RuntimeOuterClass.TableAction.newBuilder()
+                .setAction(
+                  p4.v1.P4RuntimeOuterClass.Action.newBuilder()
+                    .setActionId(forwardAction.preamble.id)
+                    .addParams(
+                      p4.v1.P4RuntimeOuterClass.Action.Param.newBuilder()
+                        .setParamId(forwardAction.paramsList.first().id)
+                        .setValue(
+                          ByteString.copyFrom(
+                            longToBytes(1, (forwardAction.paramsList.first().bitwidth + 7) / 8)
+                          )
+                        )
+                    )
+                )
+            )
+        )
+        .build()
+    assertGrpcError(Status.Code.INVALID_ARGUMENT, "missing") { harness.installEntry(entity) }
   }
 }
