@@ -136,7 +136,7 @@ def p4_testgen_test(name, src_p4 = None, includes = [], max_tests = 0, seed = 0,
     kt_jvm_test(
         name = name + "_test",
         test_class = "fourward.e2e.p4testgen.P4TestgenSuiteTest",
-        tags = tags,
+        tags = tags + ["heavy"],
         data = data + ["//simulator"],
         deps = [
             "//e2e_tests/p4testgen:p4testgen_test_class",
@@ -168,7 +168,7 @@ def p4_testgen_suite(name, tests, includes = {}, max_tests = {}, tags = []):
     kt_jvm_test(
         name = name,
         test_class = "fourward.e2e.p4testgen.P4TestgenSuiteTest",
-        tags = tags,
+        tags = tags + ["heavy"],
         data = data,
         deps = [
             "//e2e_tests/p4testgen:p4testgen_test_class",
