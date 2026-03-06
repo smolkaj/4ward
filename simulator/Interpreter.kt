@@ -1220,7 +1220,7 @@ class EgressCloneFork(val sessionId: Int, eventsBeforeFork: List<TraceEvent>) :
   ForkException(eventsBeforeFork)
 
 /** Fork at the ingress→egress boundary when mcast_grp is set — one branch per replica. */
-class MulticastFork(val replicas: List<MulticastReplica>, eventsBeforeFork: List<TraceEvent>) :
+class MulticastFork(val replicas: List<BranchMode.Replica>, eventsBeforeFork: List<TraceEvent>) :
   ForkException(eventsBeforeFork)
 
 /** Fork at the ingress→egress boundary when resubmit was requested — single branch re-ingress. */
@@ -1231,30 +1231,37 @@ class RecirculateFork(val deparsedBytes: ByteArray, eventsBeforeFork: List<Trace
   ForkException(eventsBeforeFork)
 
 /**
+ * Which mode this pipeline execution is in.
+ *
+ * BMv2 priority ordering guarantees at most one mode per boundary crossing: ingress (I2E clone >
+ * resubmit > multicast > unicast), egress (E2E clone > recirculate > output).
+ */
+sealed class BranchMode {
+  /** Normal pipeline — may fork at any choice point. */
+  data class Normal(val suppressI2EClone: Boolean = false, val suppressE2EClone: Boolean = false) :
+    BranchMode()
+
+  /** I2E clone branch: skip ingress, set CLONE_I2E at boundary. */
+  data class I2EClone(val sessionId: Int) : BranchMode()
+
+  /** E2E clone branch: re-run egress with CLONE_E2E after original egress completes. */
+  data class E2EClone(val sessionId: Int) : BranchMode()
+
+  /** Multicast replica: set REPLICATION metadata at boundary. */
+  data class Replica(val rid: Int, val port: Int) : BranchMode()
+}
+
+/**
  * Policies for re-execution of a pipeline branch in the trace tree.
  *
  * @property selectorMembers Forced member selections per table (action selector branches).
- * @property suppressClone If true, skip I2E clone forking at the boundary (original branch).
- * @property cloneBranchSessionId If non-null, this is an I2E clone branch — set up clone metadata.
- * @property multicastReplica If non-null, force this replica instead of forking at multicast.
- * @property suppressResubmit If true, skip resubmit forking (original branch after resubmit fork).
- * @property suppressEgressClone If true, skip E2E clone forking (original branch after E2E fork).
- * @property suppressRecirculate If true, skip recirculate forking (original after recirc fork).
- * @property egressCloneBranchSessionId If non-null, this is an E2E clone branch.
+ * @property branchMode The execution mode for this branch (normal, clone, or replica).
  * @property instanceTypeOverride If non-null, override instance_type at pipeline init.
  * @property pipelineDepth Tracks resubmit/recirculate nesting to prevent infinite loops.
  */
 data class ForkDecisions(
   val selectorMembers: Map<String, Int> = emptyMap(),
-  val suppressClone: Boolean = false,
-  val cloneBranchSessionId: Int? = null,
-  val multicastReplica: MulticastReplica? = null,
-  val suppressResubmit: Boolean = false,
-  val suppressEgressClone: Boolean = false,
-  val suppressRecirculate: Boolean = false,
-  val egressCloneBranchSessionId: Int? = null,
+  val branchMode: BranchMode = BranchMode.Normal(),
   val instanceTypeOverride: Long? = null,
   val pipelineDepth: Int = 0,
 )
-
-data class MulticastReplica(val rid: Int, val port: Int)
