@@ -21,7 +21,10 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
   private val tableInfoById = p4Info.tablesList.associateBy { it.preamble.id }
   private val actionInfoById = p4Info.actionsList.associateBy { it.preamble.id }
 
-  // Pre-computed per-table: valid action IDs, match field lookup, priority requirement.
+  // Pre-computed per-table: valid action IDs, match field lookup, priority/const.
+  private val constTableIds: Set<Int> =
+    p4Info.tablesList.filter { it.isConstTable }.map { it.preamble.id }.toSet()
+
   private val actionRefIdsByTable: Map<Int, Set<Int>> =
     p4Info.tablesList.associate { it.preamble.id to it.actionRefsList.map { r -> r.id }.toSet() }
 
@@ -43,6 +46,16 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
     val tableInfo =
       tableInfoById[entry.tableId] ?: throw notFound("unknown table ID: ${entry.tableId}")
 
+    // §9.1: const tables are immutable — no writes allowed.
+    if (entry.tableId in constTableIds) {
+      throw invalidArg("table '${tableInfo.tableName}' is const; writes are not allowed")
+    }
+
+    if (entry.isDefaultAction) {
+      validateDefaultEntry(update, entry, tableInfo)
+      return
+    }
+
     // P4Runtime spec §9.1: DELETE only needs the match key; skip content validation.
     if (update.type == P4RuntimeOuterClass.Update.Type.DELETE) return
 
@@ -51,6 +64,29 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
     }
     validateMatchFields(entry, tableInfo)
     validatePriority(entry, tableInfo)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Default entry validation (§9.1)
+  // ---------------------------------------------------------------------------
+
+  private fun validateDefaultEntry(
+    update: P4RuntimeOuterClass.Update,
+    entry: P4RuntimeOuterClass.TableEntry,
+    tableInfo: P4InfoOuterClass.Table,
+  ) {
+    val name = tableInfo.tableName
+    // §9.1: default entries only support MODIFY.
+    if (update.type != P4RuntimeOuterClass.Update.Type.MODIFY) {
+      throw invalidArg("default entry for table '$name' only supports MODIFY, got ${update.type}")
+    }
+    // §9.1: default entries must not have match fields.
+    if (entry.matchCount > 0) {
+      throw invalidArg("default entry for table '$name' must not have match fields")
+    }
+    if (entry.hasAction() && entry.action.hasAction()) {
+      validateAction(entry.action.action, tableInfo)
+    }
   }
 
   // ---------------------------------------------------------------------------

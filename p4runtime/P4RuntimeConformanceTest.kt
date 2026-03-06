@@ -409,6 +409,18 @@ class P4RuntimeConformanceTest {
     assertGrpcError(Status.Code.NOT_FOUND) { harness.deleteEntry(group) }
   }
 
+  @Test
+  fun `35 - wildcard read returns members across all action profiles`() {
+    harness.loadPipeline(loadBasicTableConfig())
+    val member1 = buildMemberEntity(actionProfileId = 1, memberId = 1, actionId = 1)
+    val member2 = buildMemberEntity(actionProfileId = 1, memberId = 2, actionId = 1)
+    harness.installEntry(member1)
+    harness.installEntry(member2)
+    // Wildcard read: actionProfileId = 0 returns all members.
+    val results = harness.readProfileMembers(actionProfileId = 0)
+    assertEquals(2, results.size)
+  }
+
   // =========================================================================
   // Register entries (scenarios 32-34)
   // =========================================================================
