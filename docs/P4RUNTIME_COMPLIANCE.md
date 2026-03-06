@@ -13,6 +13,8 @@ Legend: **Y** = tested, **N** = not tested, **—** = not implemented
 | 7.1 | Load valid pipeline succeeds | Y | ConformanceTest #1 |
 | 7.2 | Pipeline reload replaces previous | Y | ConformanceTest #2 |
 | 7.3 | Empty/invalid config → INVALID_ARGUMENT | Y | ConformanceTest #3 |
+| 7.4 | Invalid p4_device_config bytes → INVALID_ARGUMENT | Y | ConformanceTest #37 |
+| 7.5 | Missing p4_device_config → INVALID_ARGUMENT | Y | ConformanceTest #38 |
 
 ## Match field encoding (§8.3)
 
@@ -128,6 +130,7 @@ Legend: **Y** = tested, **N** = not tested, **—** = not implemented
 | 12.2 | Without pipeline → FAILED_PRECONDITION | Y | ConformanceTest #17 |
 | 12.3 | P4INFO_AND_COOKIE omits device config | Y | ConformanceTest #18 |
 | 12.4 | DEVICE_CONFIG_AND_COOKIE omits p4info | Y | ConformanceTest #22 |
+| 12.5 | COOKIE_ONLY returns empty config | Y | ConformanceTest #36 |
 
 ## Capabilities
 
@@ -169,7 +172,7 @@ Legend: **Y** = tested, **N** = not tested, **—** = not implemented
 
 | Category | Tested | Not tested | Not implemented |
 |----------|--------|------------|-----------------|
-| SetForwardingPipelineConfig | 3 | 0 | 0 |
+| SetForwardingPipelineConfig | 5 | 0 | 0 |
 | Match encoding | 6 | 0 | 0 |
 | Write — tables | 26 | 2 | 0 |
 | Write — profiles | 6 | 1 | 1 |
@@ -178,9 +181,9 @@ Legend: **Y** = tested, **N** = not tested, **—** = not implemented
 | Write — PRE | 2 | 0 | 0 |
 | Arbitration | 1 | 3 | 0 |
 | Read | 9 | 0 | 0 |
-| GetForwardingPipelineConfig | 4 | 0 | 0 |
+| GetForwardingPipelineConfig | 5 | 0 | 0 |
 | Capabilities | 1 | 0 | 0 |
 | PacketIO | 3 | 0 | 2 |
 | Translation | 6 | 0 | 0 |
 | p4-constraints | 4 | 0 | 0 |
-| **Total** | **76** | **6** | **7** |
+| **Total** | **79** | **6** | **7** |

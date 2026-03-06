@@ -158,6 +158,15 @@ class SimulatorTest {
   }
 
   @Test
+  fun `handleSafely catches exception and returns INTERNAL_ERROR`() {
+    val sim = Simulator()
+    // An empty SimRequest has no request kind set, causing Simulator.handle() to throw.
+    val resp = handleSafely(sim, SimRequest.getDefaultInstance())
+    assertTrue("should return error", resp.hasError())
+    assertEquals(ErrorCode.INTERNAL_ERROR, resp.error.code)
+  }
+
+  @Test
   fun `write entry with no pipeline loaded returns NO_PIPELINE_LOADED error`() {
     val sim = Simulator()
     val req =

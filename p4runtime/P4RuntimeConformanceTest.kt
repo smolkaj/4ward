@@ -8,6 +8,7 @@ import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildGroupEntity
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildMemberEntity
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.loadConfig
 import io.grpc.Status
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -16,8 +17,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import p4.v1.P4RuntimeOuterClass.Entity
+import p4.v1.P4RuntimeOuterClass.ForwardingPipelineConfig
 import p4.v1.P4RuntimeOuterClass.GetForwardingPipelineConfigRequest
 import p4.v1.P4RuntimeOuterClass.ReadRequest
+import p4.v1.P4RuntimeOuterClass.SetForwardingPipelineConfigRequest
 
 /**
  * P4Runtime conformance tests.
@@ -248,6 +251,31 @@ class P4RuntimeConformanceTest {
   }
 
   // =========================================================================
+  // SetForwardingPipelineConfig validation (scenarios 37-38)
+  // =========================================================================
+
+  @Test
+  fun `37 - setForwardingPipelineConfig with invalid device config returns INVALID_ARGUMENT`() {
+    assertGrpcError(Status.Code.INVALID_ARGUMENT, "not a valid DeviceConfig") {
+      loadRawPipeline(
+        ForwardingPipelineConfig.newBuilder()
+          .setP4Info(p4.config.v1.P4InfoOuterClass.P4Info.getDefaultInstance())
+          .setP4DeviceConfig(com.google.protobuf.ByteString.copyFromUtf8("not-a-proto"))
+      )
+    }
+  }
+
+  @Test
+  fun `38 - setForwardingPipelineConfig without device config returns INVALID_ARGUMENT`() {
+    assertGrpcError(Status.Code.INVALID_ARGUMENT, "must include p4info and p4_device_config") {
+      loadRawPipeline(
+        ForwardingPipelineConfig.newBuilder()
+          .setP4Info(p4.config.v1.P4InfoOuterClass.P4Info.getDefaultInstance())
+      )
+    }
+  }
+
+  // =========================================================================
   // Read filtering (scenarios 20-21)
   // =========================================================================
 
@@ -274,7 +302,7 @@ class P4RuntimeConformanceTest {
   }
 
   // =========================================================================
-  // GetForwardingPipelineConfig response types (scenario 22)
+  // GetForwardingPipelineConfig response types (scenarios 22, 36)
   // =========================================================================
 
   @Test
@@ -284,6 +312,14 @@ class P4RuntimeConformanceTest {
       harness.getConfig(GetForwardingPipelineConfigRequest.ResponseType.DEVICE_CONFIG_AND_COOKIE)
     assertFalse("p4info should be absent", resp.config.hasP4Info())
     assertFalse("device config should be present", resp.config.p4DeviceConfig.isEmpty)
+  }
+
+  @Test
+  fun `36 - getForwardingPipelineConfig COOKIE_ONLY returns empty config`() {
+    harness.loadPipeline(loadBasicTableConfig())
+    val resp = harness.getConfig(GetForwardingPipelineConfigRequest.ResponseType.COOKIE_ONLY)
+    assertFalse("p4info should be absent", resp.config.hasP4Info())
+    assertTrue("device config should be empty", resp.config.p4DeviceConfig.isEmpty)
   }
 
   // =========================================================================
@@ -486,6 +522,17 @@ class P4RuntimeConformanceTest {
 
   private fun buildReadFilter(config: PipelineConfig, matchValue: Long): Entity =
     P4RuntimeTestHarness.buildMatchFilter(config, matchValue)
+
+  /** Sends a raw SetForwardingPipelineConfig — bypasses the harness to test validation paths. */
+  private fun loadRawPipeline(config: ForwardingPipelineConfig.Builder) = runBlocking {
+    harness.stub.setForwardingPipelineConfig(
+      SetForwardingPipelineConfigRequest.newBuilder()
+        .setDeviceId(1)
+        .setAction(SetForwardingPipelineConfigRequest.Action.VERIFY_AND_COMMIT)
+        .setConfig(config)
+        .build()
+    )
+  }
 
   companion object {
     private const val REG_ID = 500
