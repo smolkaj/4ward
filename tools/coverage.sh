@@ -1,23 +1,4 @@
 #!/usr/bin/env bash
-# Collects Kotlin test coverage for the simulator and p4runtime libraries.
-#
-# Coverage comes from two sources:
-#   1. Unit tests (kt_jvm_test targets) — instrumented directly by JaCoCo.
-#   2. E2e tests — the simulator subprocess inherits COVERAGE=1 and JaCoCo
-#      flushes probe data on graceful shutdown (SIGTERM).
-#
-# Usage:
-#   ./coverage.sh                                # run tests, produce LCOV
-#   ./coverage.sh --html                         # also generate HTML report
-#   ./coverage.sh --html --baseline B --diff D   # HTML with differential coverage
-#   ./coverage.sh --min-coverage 80              # fail if coverage < 80%
-#
-# Options:
-#   --html              Generate an HTML report (requires genhtml / lcov).
-#   --baseline <file>   Baseline LCOV for differential coverage (genhtml --baseline-file).
-#   --diff <file>       Unified diff for differential coverage (genhtml --diff-file).
-#   --min-coverage <N>  Fail if line coverage percentage is below N (default: none).
-#
 # WORKAROUND: This entire script exists because `bazel coverage //...` is
 # broken for kt_jvm_test under Bazel 9 + Bzlmod.  Two upstream bugs conspire:
 #
@@ -42,6 +23,25 @@
 #   • Converting .exec → LCOV ourselves using JaCoCo's API (from the
 #     deploy jar already in the Bazel cache) with a small inline helper
 #     that bypasses the broken path filtering.
+#
+# Collects Kotlin test coverage for the simulator and p4runtime libraries.
+#
+# Coverage comes from two sources:
+#   1. Unit tests (kt_jvm_test targets) — instrumented directly by JaCoCo.
+#   2. E2e tests — the simulator subprocess inherits COVERAGE=1 and JaCoCo
+#      flushes probe data on graceful shutdown (SIGTERM).
+#
+# Usage:
+#   ./coverage.sh                                # run tests, produce LCOV
+#   ./coverage.sh --html                         # also generate HTML report
+#   ./coverage.sh --html --baseline B --diff D   # HTML with differential coverage
+#   ./coverage.sh --min-coverage 80              # fail if coverage < 80%
+#
+# Options:
+#   --html              Generate an HTML report (requires genhtml / lcov).
+#   --baseline <file>   Baseline LCOV for differential coverage (genhtml --baseline-file).
+#   --diff <file>       Unified diff for differential coverage (genhtml --diff-file).
+#   --min-coverage <N>  Fail if line coverage percentage is below N (default: none).
 
 set -euo pipefail
 
