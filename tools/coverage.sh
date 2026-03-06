@@ -66,7 +66,7 @@ target_to_bin_rel() {
 
 # ── Discover test targets ────────────────────────────────────────────────────
 
-TARGETS=$(bazel query 'kind(kt_jvm_test, //...) - attr(tags, manual, //...)' 2>/dev/null)
+TARGETS=$(bazel query 'kind(kt_jvm_test, //...) - attr(tags, "manual|heavy", //...)' 2>/dev/null)
 
 # ── Build with coverage instrumentation ──────────────────────────────────────
 
