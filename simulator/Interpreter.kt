@@ -1,5 +1,6 @@
 package fourward.simulator
 
+import fourward.ir.v1.BehavioralConfig
 import fourward.ir.v1.BinaryOperator
 import fourward.ir.v1.ControlDecl
 import fourward.ir.v1.Direction
@@ -7,7 +8,6 @@ import fourward.ir.v1.Expr
 import fourward.ir.v1.FieldDecl
 import fourward.ir.v1.Literal
 import fourward.ir.v1.MethodCall
-import fourward.ir.v1.P4BehavioralConfig
 import fourward.ir.v1.ParserDecl
 import fourward.ir.v1.SourceInfo
 import fourward.ir.v1.Stmt
@@ -36,7 +36,7 @@ import java.math.BigInteger
  * readability are the goals.
  */
 class Interpreter(
-  private val config: P4BehavioralConfig,
+  private val config: BehavioralConfig,
   private val tableStore: TableStore,
   private val packetCtx: PacketContext? = null,
   private val decisions: ForkDecisions = ForkDecisions(),

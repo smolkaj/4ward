@@ -3,6 +3,7 @@ package fourward.simulator
 import com.google.protobuf.ByteString
 import fourward.ir.v1.Architecture
 import fourward.ir.v1.AssignmentStmt
+import fourward.ir.v1.BehavioralConfig
 import fourward.ir.v1.BinaryOp
 import fourward.ir.v1.BinaryOperator
 import fourward.ir.v1.BitType
@@ -16,7 +17,6 @@ import fourward.ir.v1.Literal
 import fourward.ir.v1.MethodCall
 import fourward.ir.v1.MethodCallStmt
 import fourward.ir.v1.NameRef
-import fourward.ir.v1.P4BehavioralConfig
 import fourward.ir.v1.ParamDecl
 import fourward.ir.v1.ParserDecl
 import fourward.ir.v1.ParserState
@@ -39,7 +39,7 @@ import p4.v1.P4RuntimeOuterClass
  * Unit tests for [V1ModelArchitecture].
  *
  * These exercise the pipeline orchestration — multicast replication, unicast routing, and drop
- * semantics — using minimal synthetic P4BehavioralConfig protos, without a full p4c compile.
+ * semantics — using minimal synthetic BehavioralConfig protos, without a full p4c compile.
  */
 class V1ModelArchitectureTest {
 
@@ -183,12 +183,12 @@ class V1ModelArchitectureTest {
       .build()
 
   /**
-   * Builds a minimal v1model [P4BehavioralConfig] where the ingress control executes [stmts].
+   * Builds a minimal v1model [BehavioralConfig] where the ingress control executes [stmts].
    *
    * The pipeline has: parser (no-op) -> verify_checksum (no-op) -> ingress ([stmts]) -> egress
    * (no-op) -> compute_checksum (no-op) -> deparser (no-op).
    */
-  private fun v1modelConfig(vararg stmts: Stmt): P4BehavioralConfig {
+  private fun v1modelConfig(vararg stmts: Stmt): BehavioralConfig {
     val noopParser =
       ParserDecl.newBuilder()
         .setName("MyParser")
@@ -227,7 +227,7 @@ class V1ModelArchitectureTest {
         )
         .build()
 
-    return P4BehavioralConfig.newBuilder()
+    return BehavioralConfig.newBuilder()
       .setArchitecture(arch)
       .addTypes(standardMetaType)
       .addTypes(headersType)
@@ -242,7 +242,7 @@ class V1ModelArchitectureTest {
   }
 
   /** Overload that injects statements into both ingress and egress controls. */
-  private fun v1modelConfig(ingressStmts: List<Stmt>, egressStmts: List<Stmt>): P4BehavioralConfig {
+  private fun v1modelConfig(ingressStmts: List<Stmt>, egressStmts: List<Stmt>): BehavioralConfig {
     val noopParser =
       ParserDecl.newBuilder()
         .setName("MyParser")
@@ -280,7 +280,7 @@ class V1ModelArchitectureTest {
         )
         .build()
 
-    return P4BehavioralConfig.newBuilder()
+    return BehavioralConfig.newBuilder()
       .setArchitecture(arch)
       .addTypes(standardMetaType)
       .addTypes(headersType)

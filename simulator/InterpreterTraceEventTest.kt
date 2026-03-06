@@ -1,5 +1,6 @@
 package fourward.simulator
 
+import fourward.ir.v1.BehavioralConfig
 import fourward.ir.v1.BlockStmt
 import fourward.ir.v1.ControlDecl
 import fourward.ir.v1.Expr
@@ -8,7 +9,6 @@ import fourward.ir.v1.Literal
 import fourward.ir.v1.MethodCall
 import fourward.ir.v1.MethodCallStmt
 import fourward.ir.v1.NameRef
-import fourward.ir.v1.P4BehavioralConfig
 import fourward.ir.v1.ParserDecl
 import fourward.ir.v1.ParserState
 import fourward.ir.v1.SourceInfo
@@ -73,8 +73,8 @@ class InterpreterTraceEventTest {
     return builder.build()
   }
 
-  private fun controlConfig(controlName: String, vararg stmts: Stmt): P4BehavioralConfig =
-    P4BehavioralConfig.newBuilder()
+  private fun controlConfig(controlName: String, vararg stmts: Stmt): BehavioralConfig =
+    BehavioralConfig.newBuilder()
       .addControls(ControlDecl.newBuilder().setName(controlName).addAllApplyBody(stmts.toList()))
       .build()
 
@@ -189,7 +189,7 @@ class InterpreterTraceEventTest {
     val si = sourceInfo("test.p4", 10, "start")
     val parser =
       ParserDecl.newBuilder().setName("P").addStates(parserState("start", "accept", si)).build()
-    val config = P4BehavioralConfig.newBuilder().addParsers(parser).build()
+    val config = BehavioralConfig.newBuilder().addParsers(parser).build()
     val pktCtx = PacketContext(byteArrayOf())
     Interpreter(config, TableStore(), pktCtx).runParser("P", Environment())
 
@@ -215,7 +215,7 @@ class InterpreterTraceEventTest {
         .addStates(parserState("start", "parse_header", si1))
         .addStates(parserState("parse_header", "accept", si2))
         .build()
-    val config = P4BehavioralConfig.newBuilder().addParsers(parser).build()
+    val config = BehavioralConfig.newBuilder().addParsers(parser).build()
     val pktCtx = PacketContext(byteArrayOf())
     Interpreter(config, TableStore(), pktCtx).runParser("P", Environment())
 

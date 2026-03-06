@@ -161,7 +161,7 @@ Controller ──gRPC──▶ P4RuntimeService ──SimRequest──▶ Simula
 
 | RPC | Status |
 |-----|--------|
-| `SetForwardingPipelineConfig` | Working — parses `P4BehavioralConfig` from `p4_device_config` bytes |
+| `SetForwardingPipelineConfig` | Working — parses `DeviceConfig` from `p4_device_config` bytes |
 | `Write` | Working — forwards `Update` protos directly to the simulator |
 | `Read` | Working — returns all table entries (wildcard read; filtering is TODO) |
 | `StreamChannel` | Working — arbitration + PacketOut→PacketIn via the simulator |

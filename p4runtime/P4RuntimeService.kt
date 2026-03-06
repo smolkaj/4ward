@@ -1,7 +1,6 @@
 package fourward.p4runtime
 
-import com.google.protobuf.ByteString
-import fourward.ir.v1.P4BehavioralConfig
+import fourward.ir.v1.DeviceConfig
 import fourward.ir.v1.PipelineConfig
 import fourward.sim.v1.ErrorCode
 import fourward.sim.v1.LoadPipelineRequest
@@ -64,18 +63,18 @@ class P4RuntimeService(private val simulator: Simulator) :
         .asException()
     }
 
-    val behavioral =
+    val deviceConfig =
       try {
-        P4BehavioralConfig.parseFrom(fwdConfig.p4DeviceConfig)
+        DeviceConfig.parseFrom(fwdConfig.p4DeviceConfig)
       } catch (e: com.google.protobuf.InvalidProtocolBufferException) {
         throw Status.INVALID_ARGUMENT.withDescription(
-            "p4_device_config is not a valid P4BehavioralConfig: ${e.message}"
+            "p4_device_config is not a valid DeviceConfig: ${e.message}"
           )
           .asException()
       }
 
     val pipelineConfig =
-      PipelineConfig.newBuilder().setP4Info(fwdConfig.p4Info).setBehavioral(behavioral).build()
+      PipelineConfig.newBuilder().setP4Info(fwdConfig.p4Info).setDevice(deviceConfig).build()
 
     val simRequest =
       SimRequest.newBuilder()
@@ -91,7 +90,7 @@ class P4RuntimeService(private val simulator: Simulator) :
     }
 
     currentConfig = pipelineConfig
-    typeTranslator = TypeTranslator.create(fwdConfig.p4Info, behavioral)
+    typeTranslator = TypeTranslator.create(fwdConfig.p4Info, deviceConfig.translationsList)
     return SetForwardingPipelineConfigResponse.getDefaultInstance()
   }
 
@@ -204,7 +203,7 @@ class P4RuntimeService(private val simulator: Simulator) :
                       .addMetadata(
                         p4.v1.P4RuntimeOuterClass.PacketMetadata.newBuilder()
                           .setMetadataId(EGRESS_PORT_METADATA_ID)
-                          .setValue(intToBytes(outputPacket.egressPort))
+                          .setValue(encodeMinWidth(outputPacket.egressPort))
                       )
                   )
                   .build()
@@ -222,14 +221,6 @@ class P4RuntimeService(private val simulator: Simulator) :
       ?: 0
   }
 
-  private fun intToBytes(value: Int): ByteString {
-    // Minimum-width unsigned big-endian (P4Runtime canonical form).
-    val bytes = ByteArray(4) { i -> (value shr ((3 - i) * 8) and 0xFF).toByte() }
-    val firstNonZero = bytes.indexOfFirst { it != 0.toByte() }
-    val start = if (firstNonZero < 0) 3 else firstNonZero
-    return ByteString.copyFrom(bytes, start, bytes.size - start)
-  }
-
   // ---------------------------------------------------------------------------
   // GetForwardingPipelineConfig
   // ---------------------------------------------------------------------------
@@ -244,7 +235,7 @@ class P4RuntimeService(private val simulator: Simulator) :
       GetForwardingPipelineConfigRequest.ResponseType.ALL,
       GetForwardingPipelineConfigRequest.ResponseType.UNRECOGNIZED -> {
         fwdConfig.setP4Info(config.p4Info)
-        fwdConfig.setP4DeviceConfig(config.behavioral.toByteString())
+        fwdConfig.setP4DeviceConfig(config.device.toByteString())
       }
       GetForwardingPipelineConfigRequest.ResponseType.COOKIE_ONLY -> {
         // No cookie support — return empty config.
@@ -253,7 +244,7 @@ class P4RuntimeService(private val simulator: Simulator) :
         fwdConfig.setP4Info(config.p4Info)
       }
       GetForwardingPipelineConfigRequest.ResponseType.DEVICE_CONFIG_AND_COOKIE -> {
-        fwdConfig.setP4DeviceConfig(config.behavioral.toByteString())
+        fwdConfig.setP4DeviceConfig(config.device.toByteString())
       }
     }
 

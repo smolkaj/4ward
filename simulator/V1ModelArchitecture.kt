@@ -1,6 +1,6 @@
 package fourward.simulator
 
-import fourward.ir.v1.P4BehavioralConfig
+import fourward.ir.v1.BehavioralConfig
 import fourward.ir.v1.PipelineStage
 import fourward.ir.v1.StageKind
 import fourward.sim.v1.Drop
@@ -39,7 +39,7 @@ class V1ModelArchitecture : Architecture {
   private data class PipelineContext(
     val ingressPort: UInt,
     val payload: ByteArray,
-    val config: P4BehavioralConfig,
+    val config: BehavioralConfig,
     val tableStore: TableStore,
   )
 
@@ -49,7 +49,7 @@ class V1ModelArchitecture : Architecture {
     val interpreter: Interpreter,
     val env: Environment,
     val standardMetadata: StructVal,
-    config: P4BehavioralConfig,
+    config: BehavioralConfig,
   ) {
     private val stages = config.architecture.stagesList
     val parserStage: PipelineStage? = stages.find { it.kind == StageKind.PARSER }
@@ -65,7 +65,7 @@ class V1ModelArchitecture : Architecture {
   override fun processPacket(
     ingressPort: UInt,
     payload: ByteArray,
-    config: P4BehavioralConfig,
+    config: BehavioralConfig,
     tableStore: TableStore,
   ): PipelineResult {
     val ctx = PipelineContext(ingressPort, payload, config, tableStore)

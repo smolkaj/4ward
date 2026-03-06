@@ -462,7 +462,7 @@ FourWardBackend::FourWardBackend(const FourWardOptions& options,
                                  const ReferenceMap& refMap,
                                  const TypeMap& typeMap)
     : options_(options), refMap_(refMap), typeMap_(typeMap) {
-  behavioral_ = pipelineConfig_.mutable_behavioral();
+  behavioral_ = pipelineConfig_.mutable_device()->mutable_behavioral();
 }
 
 void FourWardBackend::process(const IR::ToplevelBlock* toplevel) {
@@ -485,7 +485,8 @@ void FourWardBackend::setP4Info(p4::config::v1::P4Info p4info) {
 }
 
 void FourWardBackend::setStaticEntries(p4::v1::WriteRequest entries) {
-  *pipelineConfig_.mutable_static_entries() = std::move(entries);
+  *pipelineConfig_.mutable_device()->mutable_static_entries() =
+      std::move(entries);
 }
 
 void FourWardBackend::emitTypeDecls(const IR::P4Program* program) {

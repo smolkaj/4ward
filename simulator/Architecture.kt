@@ -1,6 +1,6 @@
 package fourward.simulator
 
-import fourward.ir.v1.P4BehavioralConfig
+import fourward.ir.v1.BehavioralConfig
 
 /**
  * Interface for architecture-specific pipeline behaviour.
@@ -30,7 +30,7 @@ interface Architecture {
   fun processPacket(
     ingressPort: UInt,
     payload: ByteArray,
-    config: P4BehavioralConfig,
+    config: BehavioralConfig,
     tableStore: TableStore,
   ): PipelineResult
 }

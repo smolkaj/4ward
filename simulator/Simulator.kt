@@ -48,10 +48,10 @@ class Simulator {
     // (e.g. inlined controls: behavioral "c_t" vs p4info alias "t").
     // Resolve p4info IDs to behavioral names so the TableStore uses the same
     // keys as the interpreter.
-    val behavioralTables = config.behavioral.tablesList.map { it.name }
+    val behavioralTables = config.device.behavioral.tablesList.map { it.name }
     val behavioralActions =
-      (config.behavioral.actionsList +
-          config.behavioral.controlsList.flatMap { it.localActionsList })
+      (config.device.behavioral.actionsList +
+          config.device.behavioral.controlsList.flatMap { it.localActionsList })
         .flatMap { action -> listOfNotNull(action.name, action.currentName.ifEmpty { null }) }
 
     fun resolveName(alias: String, candidates: List<String>): String =
@@ -95,12 +95,12 @@ class Simulator {
     // Install static table entries declared with `const entries` in the P4
     // source. These are serialized by p4c's P4Runtime serializer and embedded
     // in the PipelineConfig at compile time.
-    for (update in config.staticEntries.updatesList) {
+    for (update in config.device.staticEntries.updatesList) {
       tableStore.write(update)
     }
 
     architecture =
-      when (val archName = config.behavioral.architecture.name) {
+      when (val archName = config.device.behavioral.architecture.name) {
         "v1model" -> V1ModelArchitecture()
         else -> return simError("unsupported architecture: $archName")
       }
@@ -122,7 +122,7 @@ class Simulator {
       arch.processPacket(
         ingressPort = req.ingressPort.toUInt(),
         payload = req.payload.toByteArray(),
-        config = config.behavioral,
+        config = config.device.behavioral,
         tableStore = tableStore,
       )
 

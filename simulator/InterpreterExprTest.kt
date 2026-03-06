@@ -1,6 +1,7 @@
 package fourward.simulator
 
 import fourward.ir.v1.ArrayIndex
+import fourward.ir.v1.BehavioralConfig
 import fourward.ir.v1.BinaryOp
 import fourward.ir.v1.BinaryOperator
 import fourward.ir.v1.BitType
@@ -13,7 +14,6 @@ import fourward.ir.v1.Literal
 import fourward.ir.v1.MethodCall
 import fourward.ir.v1.MuxExpr
 import fourward.ir.v1.NameRef
-import fourward.ir.v1.P4BehavioralConfig
 import fourward.ir.v1.Slice
 import fourward.ir.v1.Type
 import fourward.ir.v1.UnaryOp
@@ -33,7 +33,7 @@ import org.junit.Test
  */
 class InterpreterExprTest {
 
-  private val emptyConfig = P4BehavioralConfig.getDefaultInstance()
+  private val emptyConfig = BehavioralConfig.getDefaultInstance()
 
   private val emptyEnv
     get() = Environment()
@@ -610,7 +610,7 @@ class InterpreterExprTest {
 
     // Register "U" as a header_union type so invalidateUnionSiblings fires.
     val config =
-      P4BehavioralConfig.newBuilder()
+      BehavioralConfig.newBuilder()
         .addTypes(
           fourward.ir.v1.TypeDecl.newBuilder()
             .setName("U")
@@ -826,7 +826,7 @@ class InterpreterExprTest {
 
   /** Config with a simple 8-bit header type for stack tests. */
   private val stackTestConfig =
-    P4BehavioralConfig.newBuilder()
+    BehavioralConfig.newBuilder()
       .addTypes(
         fourward.ir.v1.TypeDecl.newBuilder()
           .setName("h_t")
