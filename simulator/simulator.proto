@@ -124,6 +124,8 @@ enum ForkReason {
   ACTION_SELECTOR = 1;
   CLONE = 2;
   MULTICAST = 3;
+  RESUBMIT = 4;
+  RECIRCULATE = 5;
 }
 
 // The terminal fate of a packet: either output on a port or dropped.

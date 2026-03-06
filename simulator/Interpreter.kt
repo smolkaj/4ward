@@ -798,19 +798,36 @@ class Interpreter(
         UnitVal
       }
       // clone(type, session) / clone3(type, session, data): P4 v1model I2E/E2E clone.
-      // Records the clone intent; the architecture checks pendingCloneSessionId at the
-      // ingress→egress boundary and forks there. Multiple calls use last-writer-wins,
+      // Records the clone intent; the architecture checks the appropriate pending field
+      // at the boundary and forks there. Multiple calls use last-writer-wins,
       // matching BMv2 simple_switch semantics.
       // See https://github.com/p4lang/behavioral-model/blob/main/docs/simple_switch.md
       "clone",
-      "clone3" -> {
+      "clone3",
+      "clone_preserving_field_list" -> {
+        val cloneType = (evalExpr(call.argsList[0], env) as EnumVal).member
         val sessionId = (evalExpr(call.argsList[1], env) as BitVal).bits.value.toInt()
         packetCtx?.addTraceEvent(
           traceEventBuilder()
             .setClone(fourward.sim.v1.CloneEvent.newBuilder().setSessionId(sessionId))
             .build()
         )
-        packetCtx?.pendingCloneSessionId = sessionId
+        when (cloneType) {
+          "I2E" -> packetCtx?.pendingCloneSessionId = sessionId
+          "E2E" -> packetCtx?.pendingEgressCloneSessionId = sessionId
+        }
+        UnitVal
+      }
+      // resubmit(data): re-inject the original packet into the ingress pipeline.
+      "resubmit",
+      "resubmit_preserving_field_list" -> {
+        packetCtx?.pendingResubmit = true
+        UnitVal
+      }
+      // recirculate(data): feed the deparsed packet back into the ingress pipeline.
+      "recirculate",
+      "recirculate_preserving_field_list" -> {
+        packetCtx?.pendingRecirculate = true
         UnitVal
       }
       // verify_checksum[_with_payload](condition, data, checksum, algo): v1model §14.
@@ -1189,28 +1206,62 @@ class ActionSelectorFork(
   eventsBeforeFork: List<TraceEvent>,
 ) : ForkException(eventsBeforeFork)
 
-/** Fork at the ingress→egress boundary when a clone was requested — "original" and "clone". */
-class CloneFork(val sessionId: Int, eventsBeforeFork: List<TraceEvent>) :
+/**
+ * Fork at the ingress→egress boundary when an I2E clone was requested — "original" and "clone".
+ *
+ * [parserEventCount] tracks how many trace events came from the parser (before ingress). The clone
+ * branch skips ingress, so its prefix length is shorter.
+ */
+class CloneFork(val sessionId: Int, val parserEventCount: Int, eventsBeforeFork: List<TraceEvent>) :
+  ForkException(eventsBeforeFork)
+
+/** Fork after egress controls when an E2E clone was requested — "original" and "clone". */
+class EgressCloneFork(val sessionId: Int, eventsBeforeFork: List<TraceEvent>) :
   ForkException(eventsBeforeFork)
 
 /** Fork at the ingress→egress boundary when mcast_grp is set — one branch per replica. */
-class MulticastFork(val replicas: List<MulticastReplica>, eventsBeforeFork: List<TraceEvent>) :
+class MulticastFork(val replicas: List<BranchMode.Replica>, eventsBeforeFork: List<TraceEvent>) :
   ForkException(eventsBeforeFork)
+
+/** Fork at the ingress→egress boundary when resubmit was requested — single branch re-ingress. */
+class ResubmitFork(eventsBeforeFork: List<TraceEvent>) : ForkException(eventsBeforeFork)
+
+/** Fork after deparser when recirculate was requested — single branch with deparsed bytes. */
+class RecirculateFork(val deparsedBytes: ByteArray, eventsBeforeFork: List<TraceEvent>) :
+  ForkException(eventsBeforeFork)
+
+/**
+ * Which mode this pipeline execution is in.
+ *
+ * BMv2 priority ordering guarantees at most one mode per boundary crossing: ingress (I2E clone >
+ * resubmit > multicast > unicast), egress (E2E clone > recirculate > output).
+ */
+sealed class BranchMode {
+  /** Normal pipeline — may fork at any choice point. */
+  data class Normal(val suppressI2EClone: Boolean = false, val suppressE2EClone: Boolean = false) :
+    BranchMode()
+
+  /** I2E clone branch: skip ingress, set CLONE_I2E at boundary. */
+  data class I2EClone(val sessionId: Int) : BranchMode()
+
+  /** E2E clone branch: re-run egress with CLONE_E2E after original egress completes. */
+  data class E2EClone(val sessionId: Int) : BranchMode()
+
+  /** Multicast replica: set REPLICATION metadata at boundary. */
+  data class Replica(val rid: Int, val port: Int) : BranchMode()
+}
 
 /**
  * Policies for re-execution of a pipeline branch in the trace tree.
  *
  * @property selectorMembers Forced member selections per table (action selector branches).
- * @property suppressClone If true, skip clone forking at the boundary (original branch).
- * @property cloneBranchSessionId If non-null, this is a clone branch — set up clone metadata at the
- *   boundary using this session ID instead of forking.
- * @property multicastReplica If non-null, force this replica instead of forking at multicast.
+ * @property branchMode The execution mode for this branch (normal, clone, or replica).
+ * @property instanceTypeOverride If non-null, override instance_type at pipeline init.
+ * @property pipelineDepth Tracks resubmit/recirculate nesting to prevent infinite loops.
  */
 data class ForkDecisions(
   val selectorMembers: Map<String, Int> = emptyMap(),
-  val suppressClone: Boolean = false,
-  val cloneBranchSessionId: Int? = null,
-  val multicastReplica: MulticastReplica? = null,
+  val branchMode: BranchMode = BranchMode.Normal(),
+  val instanceTypeOverride: Long? = null,
+  val pipelineDepth: Int = 0,
 )
-
-data class MulticastReplica(val rid: Int, val port: Int)
