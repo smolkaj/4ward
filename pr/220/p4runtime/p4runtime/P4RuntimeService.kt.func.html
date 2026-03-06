@@ -25,10 +25,10 @@
             <td width="5%" class="headerCovTableHead">Coverage</td>
             <td width="5%" class="headerCovTableHead" title="Covered + Uncovered code (not including EUB, ECB, DUB, DCB categories)">Total</td>
             <td width="5%" class="headerCovTableHead" title="Exercised code only (CBC + GBC + GNC + GIC)">Hit</td>
-            <td width="5%" class="headerCovTableHeadUIC" title="Uncovered Included Code (# => 0):
-Previously unused code is untested">Included (not covered)</td>
-            <td width="5%" class="headerCovTableHeadGIC" title="Gained Included Coverage (# => 1):
-Previously unused code is tested now">Included (covered)</td>
+            <td width="5%" class="headerCovTableHeadUBC" title="Uncovered Baseline Code (0 => 0):
+Unchanged code was untested before, is untested now">Not covered</td>
+            <td width="5%" class="headerCovTableHeadCBC" title="Covered Baseline Code (1 => 1):
+Unchanged code was tested before and is still tested">Covered</td>
           </tr>
           <tr>
             <td class="headerItem">Current:</td>
@@ -43,7 +43,7 @@ Previously unused code is tested now">Included (covered)</td>
           </tr>
           <tr>
             <td class="headerItem">Current Date:</td>
-            <td class="headerValue">2026-03-06 23:15:43</td>
+            <td class="headerValue">2026-03-06 23:46:57</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">94.7&nbsp;%</td>
@@ -59,7 +59,7 @@ Previously unused code is tested now">Included (covered)</td>
           </tr>
           <tr>
             <td class="headerItem">Baseline Date:</td>
-            <td class="headerValue">2026-03-06 23:09:19</td>
+            <td class="headerValue">2026-03-06 23:27:42</td>
             <td></td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
@@ -82,154 +82,154 @@ Previously unused code is tested now">Included (covered)</td>
             </tr>
             <tr>
               <td class="coverFn"><a href="P4RuntimeService.kt.gcov.html#L44">fourward/p4runtime/P4RuntimeService$PipelineState::&lt;init&gt; (Lfourward/ir/v1/PipelineConfig;Lfourward/p4runtime/TypeTranslator;Lfourward/p4runtime/WriteValidator;Lfourward/p4runtime/ConstraintValidator;)V</a></td>
-              <td class="tlaGIC">Included (covered)</td>
+              <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
               <td class="coverFn"><a href="P4RuntimeService.kt.gcov.html#L45">fourward/p4runtime/P4RuntimeService$PipelineState::getConfig ()Lfourward/ir/v1/PipelineConfig;</a></td>
-              <td class="tlaGIC">Included (covered)</td>
+              <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
               <td class="coverFn"><a href="P4RuntimeService.kt.gcov.html#L48">fourward/p4runtime/P4RuntimeService$PipelineState::getConstraintValidator ()Lfourward/p4runtime/ConstraintValidator;</a></td>
-              <td class="tlaGIC">Included (covered)</td>
+              <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
               <td class="coverFn"><a href="P4RuntimeService.kt.gcov.html#L46">fourward/p4runtime/P4RuntimeService$PipelineState::getTypeTranslator ()Lfourward/p4runtime/TypeTranslator;</a></td>
-              <td class="tlaGIC">Included (covered)</td>
+              <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
               <td class="coverFn"><a href="P4RuntimeService.kt.gcov.html#L47">fourward/p4runtime/P4RuntimeService$PipelineState::getWriteValidator ()Lfourward/p4runtime/WriteValidator;</a></td>
-              <td class="tlaGIC">Included (covered)</td>
+              <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
               <td class="coverFn"><a href="P4RuntimeService.kt.gcov.html#L168">fourward/p4runtime/P4RuntimeService$read$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;</a></td>
-              <td class="tlaGIC">Included (covered)</td>
+              <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">2</td>
               
               
             </tr>
             <tr>
               <td class="coverFnAlias"><a href="P4RuntimeService.kt.gcov.html#L168">fourward/p4runtime/P4RuntimeService$read$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;</a></td>
-              <td class="tlaGIC">Included (covered)</td>
+              <td class="tlaCBC">Covered</td>
               <td class="coverFnAliasHi">1</td>
               
               
             </tr>
             <tr>
               <td class="coverFnAlias"><a href="P4RuntimeService.kt.gcov.html#L168">fourward/p4runtime/P4RuntimeService::read (Lp4/v1/P4RuntimeOuterClass$ReadRequest;)Lkotlinx/coroutines/flow/Flow;</a></td>
-              <td class="tlaGIC">Included (covered)</td>
+              <td class="tlaCBC">Covered</td>
               <td class="coverFnAliasHi">1</td>
               
               
             </tr>
             <tr>
               <td class="coverFn"><a href="P4RuntimeService.kt.gcov.html#L198">fourward/p4runtime/P4RuntimeService$streamChannel$1$1::emit (Lp4/v1/P4RuntimeOuterClass$StreamMessageRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;</a></td>
-              <td class="tlaGIC">Included (covered)</td>
+              <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
               <td class="coverFn"><a href="P4RuntimeService.kt.gcov.html#L196">fourward/p4runtime/P4RuntimeService$streamChannel$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;</a></td>
-              <td class="tlaGIC">Included (covered)</td>
+              <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">2</td>
               
               
             </tr>
             <tr>
               <td class="coverFnAlias"><a href="P4RuntimeService.kt.gcov.html#L196">fourward/p4runtime/P4RuntimeService$streamChannel$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;</a></td>
-              <td class="tlaGIC">Included (covered)</td>
+              <td class="tlaCBC">Covered</td>
               <td class="coverFnAliasHi">1</td>
               
               
             </tr>
             <tr>
               <td class="coverFnAlias"><a href="P4RuntimeService.kt.gcov.html#L196">fourward/p4runtime/P4RuntimeService::streamChannel (Lkotlinx/coroutines/flow/Flow;)Lkotlinx/coroutines/flow/Flow;</a></td>
-              <td class="tlaGIC">Included (covered)</td>
+              <td class="tlaCBC">Covered</td>
               <td class="coverFnAliasHi">1</td>
               
               
             </tr>
             <tr>
               <td class="coverFn"><a href="P4RuntimeService.kt.gcov.html#L38">fourward/p4runtime/P4RuntimeService::&lt;init&gt; (Lfourward/simulator/Simulator;Ljava/nio/file/Path;)V</a></td>
-              <td class="tlaGIC">Included (covered)</td>
+              <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
               <td class="coverFnAlias"><a href="P4RuntimeService.kt.gcov.html#L38">fourward/p4runtime/P4RuntimeService::<init> (Lfourward/simulator/Simulator;Ljava/nio/file/Path;)V</a></td>
-              <td class="tlaGIC">Included (covered)</td>
+              <td class="tlaCBC">Covered</td>
               <td class="coverFnAliasHi">1</td>
               
               
             </tr>
             <tr>
               <td class="coverFnAlias"><a href="P4RuntimeService.kt.gcov.html#L38">fourward/p4runtime/P4RuntimeService::<init> (Lfourward/simulator/Simulator;Ljava/nio/file/Path;ILkotlin/jvm/internal/DefaultConstructorMarker;)V</a></td>
-              <td class="tlaUIC">Included (not covered)</td>
+              <td class="tlaUBC">Not covered</td>
               <td class="coverFnAliasLo">0</td>
               
               
             </tr>
             <tr>
               <td class="coverFn"><a href="P4RuntimeService.kt.gcov.html#L296">fourward/p4runtime/P4RuntimeService::capabilities (Lp4/v1/P4RuntimeOuterClass$CapabilitiesRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;</a></td>
-              <td class="tlaGIC">Included (covered)</td>
+              <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
               <td class="coverFn"><a href="P4RuntimeService.kt.gcov.html#L299">fourward/p4runtime/P4RuntimeService::close ()V</a></td>
-              <td class="tlaGIC">Included (covered)</td>
+              <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
               <td class="coverFn"><a href="P4RuntimeService.kt.gcov.html#L256">fourward/p4runtime/P4RuntimeService::extractIngressPort (Ljava/util/List;)I</a></td>
-              <td class="tlaGIC">Included (covered)</td>
+              <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
               <td class="coverFn"><a href="P4RuntimeService.kt.gcov.html#L268">fourward/p4runtime/P4RuntimeService::getForwardingPipelineConfig (Lp4/v1/P4RuntimeOuterClass$GetForwardingPipelineConfigRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;</a></td>
-              <td class="tlaGIC">Included (covered)</td>
+              <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
               <td class="coverFn"><a href="P4RuntimeService.kt.gcov.html#L54">fourward/p4runtime/P4RuntimeService::requirePipeline ()Lfourward/p4runtime/P4RuntimeService$PipelineState;</a></td>
-              <td class="tlaGIC">Included (covered)</td>
+              <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
               <td class="coverFn"><a href="P4RuntimeService.kt.gcov.html#L67">fourward/p4runtime/P4RuntimeService::setForwardingPipelineConfig (Lp4/v1/P4RuntimeOuterClass$SetForwardingPipelineConfigRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;</a></td>
-              <td class="tlaGIC">Included (covered)</td>
+              <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
               <td class="coverFn"><a href="P4RuntimeService.kt.gcov.html#L118">fourward/p4runtime/P4RuntimeService::write (Lp4/v1/P4RuntimeOuterClass$WriteRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;</a></td>
-              <td class="tlaGIC">Included (covered)</td>
+              <td class="tlaCBC">Covered</td>
               <td class="coverFnHi">1</td>
               
               

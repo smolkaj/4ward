@@ -58,7 +58,7 @@ Previously tested code is unused now">Excluded (covered)</td>
           </tr>
           <tr>
             <td class="headerItem">Current Date:</td>
-            <td class="headerValue">2026-03-06 23:15:43</td>
+            <td class="headerValue">2026-03-06 23:46:57</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">97.6&nbsp;%</td>
@@ -79,7 +79,7 @@ Previously tested code is unused now">Excluded (covered)</td>
           </tr>
           <tr>
             <td class="headerItem">Baseline Date:</td>
-            <td class="headerValue">2026-03-06 23:09:19</td>
+            <td class="headerValue">2026-03-06 23:27:42</td>
             <td></td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
@@ -164,7 +164,7 @@ Previously tested code is unused now">Excluded (covered)</td>
 <span id="L64"><span class="lineNum">      64</span>                 :     // Port width and drop port derived from the IR's standard_metadata struct definition,</span>
 <span id="L65"><span class="lineNum">      65</span>                 :     // not hardcoded. This allows modified v1model architectures with wider PortId_t.</span>
 <span id="L66"><span class="lineNum">      66</span> <a href="#L76" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :     val portBits: Int = standardMetadata.bitWidth(&quot;ingress_port&quot;)</span></span>
-<span id="L67"><span class="lineNum">      67</span> <span class="tlaGIC">              1 :     val dropPort: Int = (1 shl portBits) - 1</span></span>
+<span id="L67"><span class="lineNum">      67</span> <span class="tlaGIC">              1 :     val dropPort: Long = (1L shl portBits) - 1</span></span>
 <span id="L68"><span class="lineNum">      68</span>                 :   }</span>
 <span id="L69"><span class="lineNum">      69</span>                 : </span>
 <span id="L70"><span class="lineNum">      70</span>                 :   override fun processPacket(</span>
@@ -447,7 +447,7 @@ Previously tested code is unused now">Excluded (covered)</td>
 <span id="L347"><span class="lineNum">     347</span> <a href="#L350" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :     postEgressBoundary(ctx, s, decisions)</span></span>
 <span id="L348"><span class="lineNum">     348</span> <a href="#L360" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             : </span></span>
 <span id="L349"><span class="lineNum">     349</span> <a href="#L353" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :     val egressPort =</span></span>
-<span id="L350"><span class="lineNum">     350</span> <a href="#L358" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :       (s.standardMetadata.fields[&quot;egress_port&quot;] as? BitVal)?.bits?.value?.toInt() ?: 0</span></span>
+<span id="L350"><span class="lineNum">     350</span> <a href="#L358" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :       (s.standardMetadata.fields[&quot;egress_port&quot;] as? BitVal)?.bits?.value?.toLong() ?: 0L</span></span>
 <span id="L351"><span class="lineNum">     351</span>                 : </span>
 <span id="L352"><span class="lineNum">     352</span>                 :     // The drop port is all-ones for the port width (e.g. 511 for bit&lt;9&gt;).</span>
 <span id="L353"><span class="lineNum">     353</span> <a href="#L371" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :     if (egressPort == s.dropPort) {</span></span>
@@ -468,7 +468,7 @@ Previously tested code is unused now">Excluded (covered)</td>
 <span id="L368"><span class="lineNum">     368</span> <span class="tlaGIC">              1 :       throw RecirculateFork(outputBytes, s.packetCtx.getEvents())</span></span>
 <span id="L369"><span class="lineNum">     369</span>                 :     }</span>
 <span id="L370"><span class="lineNum">     370</span>                 : </span>
-<span id="L371"><span class="lineNum">     371</span> <a href="#L378" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :     return buildOutputTrace(s.packetCtx.getEvents(), egressPort, outputBytes)</span></span>
+<span id="L371"><span class="lineNum">     371</span> <a href="#L378" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :     return buildOutputTrace(s.packetCtx.getEvents(), egressPort.toInt(), outputBytes)</span></span>
 <span id="L372"><span class="lineNum">     372</span> <a href="#L393" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :   }</span></span>
 <span id="L373"><span class="lineNum">     373</span> <span class="tlaECB">                : </span></span>
 <span id="L374"><span class="lineNum">     374</span> <span class="tlaECB">                :   /** Runs a list of control stages, breaking on exit. */</span></span>
@@ -500,9 +500,9 @@ Previously tested code is unused now">Excluded (covered)</td>
 <span id="L400"><span class="lineNum">     400</span> <a href="#L411" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :         // I2E clone branch: set up clone metadata and continue to egress.</span></span>
 <span id="L401"><span class="lineNum">     401</span>                 :         // BMv2 drops the clone if the session doesn't exist.</span>
 <span id="L402"><span class="lineNum">     402</span> <a href="#L410" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :         val session = ctx.tableStore.getCloneSession(mode.sessionId)</span></span>
-<span id="L403"><span class="lineNum">     403</span> <span class="tlaCBC">              1 :         val clonePort = session?.replicasList?.firstOrNull()?.egressPort ?: s.dropPort</span></span>
+<span id="L403"><span class="lineNum">     403</span> <span class="tlaCBC">              1 :         val clonePort = session?.replicasList?.firstOrNull()?.egressPort?.toLong() ?: s.dropPort</span></span>
 <span id="L404"><span class="lineNum">     404</span> <span class="tlaCBC">              1 :         s.standardMetadata.setBitField(&quot;instance_type&quot;, CLONE_I2E_INSTANCE_TYPE)</span></span>
-<span id="L405"><span class="lineNum">     405</span> <span class="tlaCBC">              1 :         s.standardMetadata.setBitField(&quot;egress_port&quot;, clonePort.toLong())</span></span>
+<span id="L405"><span class="lineNum">     405</span> <span class="tlaCBC">              1 :         s.standardMetadata.setBitField(&quot;egress_port&quot;, clonePort)</span></span>
 <span id="L406"><span class="lineNum">     406</span>                 :       }</span>
 <span id="L407"><span class="lineNum">     407</span> <span class="tlaCBC">              1 :       is BranchMode.Replica -&gt; {</span></span>
 <span id="L408"><span class="lineNum">     408</span> <span class="tlaCBC">              1 :         s.standardMetadata.setBitField(&quot;instance_type&quot;, REPLICATION_INSTANCE_TYPE)</span></span>
@@ -550,9 +550,9 @@ Previously tested code is unused now">Excluded (covered)</td>
 <span id="L450"><span class="lineNum">     450</span> <span class="tlaECB">                :         // re-run egress with CLONE_E2E instance_type and the clone session's egress_port.</span></span>
 <span id="L451"><span class="lineNum">     451</span> <span class="tlaECB">                :         // BMv2 drops the clone if the session doesn't exist.</span></span>
 <span id="L452"><span class="lineNum">     452</span> <a href="#L455" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :         val session = ctx.tableStore.getCloneSession(mode.sessionId)</span></span>
-<span id="L453"><span class="lineNum">     453</span> <a href="#L460" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :         val clonePort = session?.replicasList?.firstOrNull()?.egressPort ?: s.dropPort</span></span>
+<span id="L453"><span class="lineNum">     453</span> <a href="#L460" class="tlaBgGIC"  title="Next GIC group">Included (covered)</a><span class="tlaGIC tlaBgGIC">           1 :         val clonePort = session?.replicasList?.firstOrNull()?.egressPort?.toLong() ?: s.dropPort</span></span>
 <span id="L454"><span class="lineNum">     454</span> <span class="tlaGIC">              1 :         s.standardMetadata.setBitField(&quot;instance_type&quot;, CLONE_E2E_INSTANCE_TYPE)</span></span>
-<span id="L455"><span class="lineNum">     455</span> <a href="#L462" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :         s.standardMetadata.setBitField(&quot;egress_port&quot;, clonePort.toLong())</span></span>
+<span id="L455"><span class="lineNum">     455</span> <a href="#L462" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :         s.standardMetadata.setBitField(&quot;egress_port&quot;, clonePort)</span></span>
 <span id="L456"><span class="lineNum">     456</span> <span class="tlaCBC">              1 :         s.packetCtx.pendingEgressCloneSessionId = null</span></span>
 <span id="L457"><span class="lineNum">     457</span> <span class="tlaCBC">              1 :         runControlStages(s, s.egressControls)</span></span>
 <span id="L458"><span class="lineNum">     458</span> <a href="#L465" class="tlaBgECB"  title="Next ECB group">Excluded (covered)</a><span class="tlaECB tlaBgECB">             :       }</span></span>
