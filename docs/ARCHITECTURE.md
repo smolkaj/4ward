@@ -118,21 +118,7 @@ Want to add a new one? You need:
 
 ## Testing strategy
 
-Here's the fun part: p4c ships hundreds of STF (Simple Test Framework) tests,
-and each one is basically a self-contained feature spec. An STF test says "here's
-a P4 program, here are some table entries and packets — now tell me what comes
-out." The STF runner compiles the program, loads it into the simulator, feeds the
-packets in, and diffs the output.
-
-The failing-test list *is* the feature backlog. Pick a failing test, make it
-pass, and you've shipped a feature. It's surprisingly satisfying.
-
-We also have:
-- **Unit tests** for the tricky stuff: bit-precise arithmetic, match kinds
-  (LPM, ternary), select expression semantics.
-- **P4TestGen**: symbolic execution (Z3) to generate path-covering tests.
-- **BMv2 diff testing** (maybe, someday): run the same inputs through BMv2 and
-  4ward and compare outputs.
+See [TESTING_STRATEGY.md](TESTING_STRATEGY.md).
 
 ## Trace trees
 
@@ -194,10 +180,6 @@ Controller ──gRPC──▶ P4RuntimeService ──SimRequest──▶ Simula
   Good enough for a reference implementation.
 - **Single controller.** First connection is master. No multi-controller
   arbitration, no election ID tracking.
-
-**What's not here yet:** p4-constraints validation, `@p4runtime_translation`,
-digest support, idle timeout notifications, atomic write batches. See
-[ROADMAP.md](ROADMAP.md) Track 4 for the full scope.
 
 ## Why these languages?
 

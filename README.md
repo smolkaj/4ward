@@ -207,6 +207,7 @@ report in about 5. No flakes, no "works on my machine." See for yourself on the
 | [AGENTS.md](AGENTS.md) | Guide for AI coding agents |
 | [CLAUDE.md](CLAUDE.md) | Claude Code-specific instructions |
 | [LIMITATIONS.md](docs/LIMITATIONS.md) | Known shortcuts and gaps |
+| [TESTING_STRATEGY.md](docs/TESTING_STRATEGY.md) | Why three test oracles, and what that enables |
 | [REFACTORING.md](docs/REFACTORING.md) | Tech debt and cleanup backlog |
 | [AI_WORKFLOW.md](docs/AI_WORKFLOW.md) | How to develop with AI agents |
 
