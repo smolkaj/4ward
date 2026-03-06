@@ -88,7 +88,6 @@ kt_jvm_test(
         "//e2e_tests/basic_table:basic_table_pb",
         "//e2e_tests/passthrough:passthrough_pb",
     ],
-    tags = ["manual"],
     test_class = "fourward.p4runtime.P4RuntimeConformanceTest",
     deps = [
         ":p4runtime_lib",
@@ -111,7 +110,6 @@ kt_jvm_test(
     data = [
         "//e2e_tests/basic_table:basic_table_pb",
     ],
-    tags = ["manual"],
     test_class = "fourward.p4runtime.P4RuntimeWriteErrorTest",
     deps = [
         ":p4runtime_lib",
@@ -134,7 +132,6 @@ kt_jvm_test(
     data = [
         "//e2e_tests/translated_type:translated_type_pb",
     ],
-    tags = ["manual"],
     test_class = "fourward.p4runtime.P4RuntimeTranslationTest",
     deps = [
         ":p4runtime_lib",
