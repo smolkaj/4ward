@@ -6,6 +6,69 @@
 > Reverse-chronological log. Add new entries at the top (below this header).
 > See [ROADMAP.md](ROADMAP.md) for the big picture.
 
+## 2026-03-06
+
+|                | Today   | Cumulative |
+|----------------|---------|------------|
+| PRs merged     | 19      | 184        |
+| Source (delta)  | +4.1k   | 108.7k     |
+| — Kotlin prod  |         | 37.6k      |
+| — Kotlin test  |         | 52.8k      |
+| — C++          |         | 12.0k      |
+| — Proto        |         | 6.3k       |
+
+Two tracks saw major progress: **P4Runtime is now a real server** (not a
+skeleton) and **all three testing oracles are operational**.
+
+### P4Runtime: from skeleton to spec-compliant (Track 4)
+
+The P4Runtime server went from basic Write/Read to a near-complete
+implementation in one day (PRs #170, #175, #176, #178, #179):
+
+- **Spec-compliant Write errors** — `ALREADY_EXISTS`, `NOT_FOUND`,
+  `FAILED_PRECONDITION` per P4Runtime §9.1, not generic `INVALID_ARGUMENT`
+  (#170)
+- **Real `@p4runtime_translation`** — bidirectional SDN↔data-plane mapping
+  tables with explicit, auto-allocate, and hybrid modes. Both `sdn_bitwidth`
+  and `sdn_string` translations supported. 14 new unit tests (#176)
+- **GetForwardingPipelineConfig, Capabilities, per-entry Read filtering** —
+  all three Read levels (wildcard, per-table, per-entry with match key) now
+  work (#175, #178)
+- **P4Runtime tests in CI** — conformance tests now run in the default suite
+  (#179)
+- **Testing strategy documented** (Track 4A) — what the P4Runtime equivalent
+  of STF corpus / p4testgen / BMv2 diff testing should look like (#177)
+
+28 P4Runtime conformance tests across 3 test suites. Track 4A (testing
+strategy) complete; 4B–4E remain.
+
+### Three testing oracles, all operational
+
+- **Track 1A complete** — 186/186 v1model STF tests pass. Lookahead/advance
+  implemented (#155), checksum varbit bugs fixed (#162).
+- **Track 1B complete** — p4testgen expanded from 10 → 150 programs with full
+  path exploration (#164, #166, #167, #169, #172). All tests unpinned.
+- **Track 1C landed** — BMv2 differential testing infrastructure (#173): C++
+  driver binary, Kotlin test harness, 5 programs passing. CI build fixed
+  (#183).
+
+### Docs & housekeeping
+
+- Testing strategy documented across ARCHITECTURE.md, new TESTING_STRATEGY.md
+  (#154)
+- README rewritten: "Why Kotlin?", trust section, quick-start reordering
+  (#153, #156, #157, #158, #159)
+- AGENTS.md is now the single source of truth — CLAUDE.md just points there
+  (#184)
+- AI_WORKFLOW.md: new "ask what's next" principle (#182)
+
+### What's next
+
+- **Track 4B**: p4-constraints JNI binding
+- **Track 4C**: `@p4runtime_translation("", string)` for SAI P4 port IDs
+- **Track 4E**: SAI P4 end-to-end
+- **Track 1C**: expand BMv2 diff testing beyond the initial 5 programs
+
 ## 2026-03-05
 
 Three big milestones: **v1model is essentially complete**, **trace trees are
