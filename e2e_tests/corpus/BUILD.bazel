@@ -211,7 +211,7 @@ corpus_test_suite(
 
 # Tests that need sibling skeleton .p4 files as #include dependencies.
 # These are compiled with an extra -I pointing at the testdata directory.
-# Blocked on various simulator gaps (payload mismatches, missing externs).
+# Blocked on user-defined extern support (extern functions with no P4 body).
 corpus_test_suite(
     name = "skeleton_includes_stf_corpus_test",
     includes = [
