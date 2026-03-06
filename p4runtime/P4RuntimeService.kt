@@ -3,6 +3,7 @@ package fourward.p4runtime
 import com.google.protobuf.ByteString
 import fourward.ir.v1.P4BehavioralConfig
 import fourward.ir.v1.PipelineConfig
+import fourward.sim.v1.ErrorCode
 import fourward.sim.v1.LoadPipelineRequest
 import fourward.sim.v1.ProcessPacketRequest
 import fourward.sim.v1.ReadEntriesRequest
@@ -110,8 +111,17 @@ class P4RuntimeService(private val simulator: Simulator) :
           .build()
       val simResponse = synchronized(simulator) { simulator.handle(simRequest) }
       if (simResponse.hasError()) {
-        throw Status.INVALID_ARGUMENT.withDescription("Write failed: ${simResponse.error.message}")
-          .asException()
+        val grpcStatus =
+          when (simResponse.error.code) {
+            ErrorCode.ALREADY_EXISTS -> Status.ALREADY_EXISTS
+            ErrorCode.ENTITY_NOT_FOUND -> Status.NOT_FOUND
+            ErrorCode.NO_PIPELINE_LOADED -> Status.FAILED_PRECONDITION
+            ErrorCode.INVALID_REQUEST -> Status.INVALID_ARGUMENT
+            ErrorCode.INTERNAL_ERROR,
+            ErrorCode.ERROR_CODE_UNSPECIFIED,
+            ErrorCode.UNRECOGNIZED -> Status.INTERNAL
+          }
+        throw grpcStatus.withDescription(simResponse.error.message).asException()
       }
     }
     return WriteResponse.getDefaultInstance()

@@ -103,6 +103,29 @@ kt_jvm_test(
 )
 
 kt_jvm_test(
+    name = "P4RuntimeWriteErrorTest",
+    srcs = [
+        "P4RuntimeTestHarness.kt",
+        "P4RuntimeWriteErrorTest.kt",
+    ],
+    data = [
+        "//e2e_tests/basic_table:basic_table_pb",
+    ],
+    tags = ["manual"],
+    test_class = "fourward.p4runtime.P4RuntimeWriteErrorTest",
+    deps = [
+        ":p4runtime_lib",
+        "//simulator:ir_java_proto",
+        "@grpc-java//api",
+        "@grpc-java//inprocess",
+        "@maven//:com_google_protobuf_protobuf_java",
+        "@maven//:io_grpc_grpc_kotlin_stub",
+        "@maven//:junit_junit",
+        "@maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
+    ],
+)
+
+kt_jvm_test(
     name = "P4RuntimeTranslationTest",
     srcs = [
         "P4RuntimeTestHarness.kt",

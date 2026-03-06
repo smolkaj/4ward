@@ -145,8 +145,13 @@ class Simulator {
 
   private fun handleWriteEntry(req: fourward.sim.v1.WriteEntryRequest): SimResponse {
     pipeline ?: return simError("no pipeline loaded", ErrorCode.NO_PIPELINE_LOADED)
-    tableStore.write(req.update)
-    return SimResponse.newBuilder().setWriteEntry(WriteEntryResponse.getDefaultInstance()).build()
+    return when (val result = tableStore.write(req.update)) {
+      is WriteResult.Success ->
+        SimResponse.newBuilder().setWriteEntry(WriteEntryResponse.getDefaultInstance()).build()
+      is WriteResult.AlreadyExists -> simError(result.message, ErrorCode.ALREADY_EXISTS)
+      is WriteResult.NotFound -> simError(result.message, ErrorCode.ENTITY_NOT_FOUND)
+      is WriteResult.InvalidArgument -> simError(result.message, ErrorCode.INVALID_REQUEST)
+    }
   }
 
   @Suppress("UnusedParameter") // will be used when read filters are implemented
