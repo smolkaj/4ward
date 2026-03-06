@@ -1,15 +1,15 @@
 package fourward.p4runtime
 
 import fourward.ir.v1.PipelineConfig
+import fourward.p4runtime.P4RuntimeTestHarness.Companion.assertGrpcError
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildEthernetFrame
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildExactEntry
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.loadConfig
-import io.grpc.StatusException
+import io.grpc.Status
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
-import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import p4.v1.P4RuntimeOuterClass.Entity
@@ -68,12 +68,8 @@ class P4RuntimeConformanceTest {
 
   @Test
   fun `3 - load empty config returns error`() {
-    try {
+    assertGrpcError(Status.Code.INVALID_ARGUMENT) {
       harness.loadPipeline(PipelineConfig.getDefaultInstance())
-      fail("expected error for empty pipeline config")
-    } catch (e: StatusException) {
-      // Expected — invalid pipeline config should be rejected.
-      assertTrue(e.status.code.name, e.status.code != io.grpc.Status.Code.OK)
     }
   }
 
@@ -114,35 +110,21 @@ class P4RuntimeConformanceTest {
 
   @Test
   fun `7 - write without pipeline returns error`() {
-    try {
-      val entity =
-        Entity.newBuilder()
-          .setTableEntry(p4.v1.P4RuntimeOuterClass.TableEntry.newBuilder().setTableId(1).build())
-          .build()
-      harness.installEntry(entity)
-      fail("expected error for write without pipeline")
-    } catch (e: StatusException) {
-      assertTrue(e.status.code.name, e.status.code != io.grpc.Status.Code.OK)
-    }
+    val entity =
+      Entity.newBuilder()
+        .setTableEntry(p4.v1.P4RuntimeOuterClass.TableEntry.newBuilder().setTableId(1))
+        .build()
+    assertGrpcError(Status.Code.FAILED_PRECONDITION) { harness.installEntry(entity) }
   }
 
   @Test
   fun `8 - write with invalid table ID returns error`() {
     harness.loadPipeline(loadBasicTableConfig())
-    try {
-      val entity =
-        Entity.newBuilder()
-          .setTableEntry(
-            p4.v1.P4RuntimeOuterClass.TableEntry.newBuilder()
-              .setTableId(99999) // Non-existent table.
-              .build()
-          )
-          .build()
-      harness.installEntry(entity)
-      fail("expected error for invalid table ID")
-    } catch (e: StatusException) {
-      assertTrue(e.status.code.name, e.status.code != io.grpc.Status.Code.OK)
-    }
+    val entity =
+      Entity.newBuilder()
+        .setTableEntry(p4.v1.P4RuntimeOuterClass.TableEntry.newBuilder().setTableId(99999))
+        .build()
+    assertGrpcError(Status.Code.NOT_FOUND) { harness.installEntry(entity) }
   }
 
   // =========================================================================
@@ -168,12 +150,7 @@ class P4RuntimeConformanceTest {
 
   @Test
   fun `11 - read without pipeline returns error`() {
-    try {
-      harness.readEntries()
-      fail("expected error for read without pipeline")
-    } catch (e: StatusException) {
-      assertTrue(e.status.code.name, e.status.code != io.grpc.Status.Code.OK)
-    }
+    assertGrpcError(Status.Code.FAILED_PRECONDITION) { harness.readEntries() }
   }
 
   // =========================================================================

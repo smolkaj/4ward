@@ -116,7 +116,10 @@ class P4RuntimeService(private val simulator: Simulator) :
             ErrorCode.ALREADY_EXISTS -> Status.ALREADY_EXISTS
             ErrorCode.ENTITY_NOT_FOUND -> Status.NOT_FOUND
             ErrorCode.NO_PIPELINE_LOADED -> Status.FAILED_PRECONDITION
-            else -> Status.INVALID_ARGUMENT
+            ErrorCode.INVALID_REQUEST -> Status.INVALID_ARGUMENT
+            ErrorCode.INTERNAL_ERROR,
+            ErrorCode.ERROR_CODE_UNSPECIFIED,
+            ErrorCode.UNRECOGNIZED -> Status.INTERNAL
           }
         throw grpcStatus.withDescription(simResponse.error.message).asException()
       }

@@ -42,10 +42,7 @@ class P4RuntimeWriteErrorTest {
   // P4Runtime spec §9.1: all Write operations require a forwarding pipeline to be configured.
   @Test
   fun `write without pipeline returns FAILED_PRECONDITION`() {
-    val entity =
-      Entity.newBuilder()
-        .setTableEntry(TableEntry.newBuilder().setTableId(1))
-        .build()
+    val entity = Entity.newBuilder().setTableEntry(TableEntry.newBuilder().setTableId(1)).build()
     assertGrpcError(Status.Code.FAILED_PRECONDITION) { harness.installEntry(entity) }
   }
 
@@ -69,9 +66,7 @@ class P4RuntimeWriteErrorTest {
   fun `insert with unknown table ID returns NOT_FOUND`() {
     harness.loadPipeline(loadBasicTableConfig())
     val entity =
-      Entity.newBuilder()
-        .setTableEntry(TableEntry.newBuilder().setTableId(99999))
-        .build()
+      Entity.newBuilder().setTableEntry(TableEntry.newBuilder().setTableId(99999)).build()
     assertGrpcError(Status.Code.NOT_FOUND, "unknown table ID") { harness.installEntry(entity) }
   }
 
