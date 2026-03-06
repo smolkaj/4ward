@@ -1,7 +1,7 @@
 diff --color -ruN a/BUILD.bazel b/BUILD.bazel
 --- a/BUILD.bazel	2026-03-06 06:27:42
 +++ b/BUILD.bazel	2026-03-06 06:47:28
-@@ -0,0 +1,208 @@
+@@ -0,0 +1,211 @@
 +# Native Bazel build for behavioral-model (BMv2).
 +# Minimal build: no Thrift, no nanomsg, no debugger, no PI.
 +
@@ -27,6 +27,8 @@ diff --color -ruN a/BUILD.bazel b/BUILD.bazel
 +        '([ -f {p}/gmp.h ] && cp {p}/gmp.h $@)'.format(p = p)
 +        for p in _GMP_SEARCH_PATHS
 +    ]) + ' || (echo "#error gmp.h not found -- install libgmp-dev" > $@)',
++    # System header presence depends on host state, not build inputs.
++    tags = ["no-cache", "no-remote-cache"],
 +)
 +
 +genrule(
@@ -36,6 +38,7 @@ diff --color -ruN a/BUILD.bazel b/BUILD.bazel
 +        '([ -f {p}/gmpxx.h ] && cp {p}/gmpxx.h $@)'.format(p = p)
 +        for p in _GMP_SEARCH_PATHS
 +    ]) + ' || (echo "#error gmpxx.h not found -- install libgmp-dev" > $@)',
++    tags = ["no-cache", "no-remote-cache"],
 +)
 +
 +cc_library(
