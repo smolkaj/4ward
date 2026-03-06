@@ -283,4 +283,67 @@ class P4RuntimeConformanceTest {
     assertFalse("p4info should be absent", resp.config.hasP4Info())
     assertFalse("device config should be present", resp.config.p4DeviceConfig.isEmpty)
   }
+
+  // =========================================================================
+  // Per-entry reads (scenarios 23-25)
+  // =========================================================================
+
+  @Test
+  fun `23 - read with match key filter returns only matching entry`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    val entry1 = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    val entry2 = buildExactEntry(config, matchValue = 0x0806, port = 2)
+    harness.installEntry(entry1)
+    harness.installEntry(entry2)
+
+    // Read with a filter that matches only entry1's match key.
+    val filter = buildReadFilter(config, matchValue = 0x0800)
+    val results = harness.readEntry(filter)
+    assertEquals("should return exactly one entry", 1, results.size)
+    assertEquals(
+      "returned entry should match the filter",
+      entry1.tableEntry.matchList,
+      results[0].tableEntry.matchList,
+    )
+  }
+
+  @Test
+  fun `24 - read with non-matching key returns empty`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    harness.installEntry(buildExactEntry(config, matchValue = 0x0800, port = 1))
+
+    val filter = buildReadFilter(config, matchValue = 0x9999)
+    assertTrue("non-matching key should return nothing", harness.readEntry(filter).isEmpty())
+  }
+
+  @Test
+  fun `25 - per-entry read preserves action parameters`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    val entry = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    harness.installEntry(entry)
+
+    val filter = buildReadFilter(config, matchValue = 0x0800)
+    val results = harness.readEntry(filter)
+    assertEquals(1, results.size)
+    // The returned entry should have the same action as what was installed.
+    assertTrue("should have action set", results[0].tableEntry.action.hasAction())
+    assertEquals(
+      entry.tableEntry.action.action.actionId,
+      results[0].tableEntry.action.action.actionId,
+    )
+    assertEquals(
+      entry.tableEntry.action.action.paramsList,
+      results[0].tableEntry.action.action.paramsList,
+    )
+  }
+
+  // ---------------------------------------------------------------------------
+  // Test helpers
+  // ---------------------------------------------------------------------------
+
+  private fun buildReadFilter(config: PipelineConfig, matchValue: Long): Entity =
+    P4RuntimeTestHarness.buildMatchFilter(config, matchValue)
 }
