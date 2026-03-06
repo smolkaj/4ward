@@ -1,0 +1,169 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - coverage.lcov - simulator/simulator/InterpreterTestDsl.kt</title>
+  <link rel="stylesheet" type="text/css" href="../../gcov.css">
+</head>
+
+<body>
+
+          <table width="100%" border=0 cellspacing=0 cellpadding=0>
+            <tr><td class="title">LCOV - differential code coverage report</td></tr>
+            <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+
+            <tr>
+              <td width="100%">
+                <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="10%" class="headerValue"><a href="../../index.html">top level</a> - <a href="index.html">simulator/simulator</a> - InterpreterTestDsl.kt<span style="font-size: 80%;"> (source / <a href="InterpreterTestDsl.kt.func-c.html">functions</a>)</span></td>
+            <td width="5%"></td>
+            <td width="5%"></td>
+            <td width="5%" class="headerCovTableHead">Coverage</td>
+            <td width="5%" class="headerCovTableHead" title="Covered + Uncovered code (not including EUB, ECB, DUB, DCB categories)">Total</td>
+            <td width="5%" class="headerCovTableHead" title="Exercised code only (CBC + GBC + GNC + GIC)">Hit</td>
+            <td width="5%" class="headerCovTableHeadCBC" title="Covered Baseline Code (1 => 1):
+Unchanged code was tested before and is still tested">Covered</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Current:</td>
+            <td class="headerValue">coverage.lcov</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
+            <td class="headerCovTableEntry">34</td>
+            <td class="headerCovTableEntry">34</td>
+            <td class="headerCovTableEntry"><a href="#L25" title="goto first CBC">34</a></td>
+          </tr>
+          <tr>
+            <td class="headerItem">Current Date:</td>
+            <td class="headerValue">2026-03-06 19:18:34</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
+            <td class="headerCovTableEntry">10</td>
+            <td class="headerCovTableEntry">10</td>
+            <td class="headerCovTableEntry">10</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Baseline:</td>
+            <td class="headerValue">baseline.lcov</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td class="headerItem">Baseline Date:</td>
+            <td class="headerValue">2026-03-06 19:11:44</td>
+            <td></td>
+          </tr>
+                  <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+          </table>
+
+          <table cellpadding=0 cellspacing=0 border=0>
+            <tr>
+              <td><br></td>
+            </tr>
+            <tr>
+              <td>
+<pre class="sourceHeading">           TLA  Line data    Source code</pre>
+<pre class="source">
+<span id="L1"><span class="lineNum">       1</span>                 : package fourward.simulator</span>
+<span id="L2"><span class="lineNum">       2</span>                 : </span>
+<span id="L3"><span class="lineNum">       3</span>                 : import fourward.ir.v1.AssignmentStmt</span>
+<span id="L4"><span class="lineNum">       4</span>                 : import fourward.ir.v1.BehavioralConfig</span>
+<span id="L5"><span class="lineNum">       5</span>                 : import fourward.ir.v1.BitType</span>
+<span id="L6"><span class="lineNum">       6</span>                 : import fourward.ir.v1.BlockStmt</span>
+<span id="L7"><span class="lineNum">       7</span>                 : import fourward.ir.v1.ControlDecl</span>
+<span id="L8"><span class="lineNum">       8</span>                 : import fourward.ir.v1.Expr</span>
+<span id="L9"><span class="lineNum">       9</span>                 : import fourward.ir.v1.IfStmt</span>
+<span id="L10"><span class="lineNum">      10</span>                 : import fourward.ir.v1.Literal</span>
+<span id="L11"><span class="lineNum">      11</span>                 : import fourward.ir.v1.NameRef</span>
+<span id="L12"><span class="lineNum">      12</span>                 : import fourward.ir.v1.SourceInfo</span>
+<span id="L13"><span class="lineNum">      13</span>                 : import fourward.ir.v1.Stmt</span>
+<span id="L14"><span class="lineNum">      14</span>                 : import fourward.ir.v1.Type</span>
+<span id="L15"><span class="lineNum">      15</span>                 : </span>
+<span id="L16"><span class="lineNum">      16</span>                 : /**</span>
+<span id="L17"><span class="lineNum">      17</span>                 :  * Shared proto-building helpers for interpreter unit tests.</span>
+<span id="L18"><span class="lineNum">      18</span>                 :  *</span>
+<span id="L19"><span class="lineNum">      19</span>                 :  * Extracted from the individual `Interpreter*Test.kt` files where these were duplicated as private</span>
+<span id="L20"><span class="lineNum">      20</span>                 :  * functions with identical or near-identical implementations.</span>
+<span id="L21"><span class="lineNum">      21</span>                 :  */</span>
+<span id="L22"><span class="lineNum">      22</span>                 : </span>
+<span id="L23"><span class="lineNum">      23</span>                 : /** Unsigned integer literal of [value] in [width] bits. */</span>
+<span id="L24"><span class="lineNum">      24</span>                 : fun bit(value: Long, width: Int): Expr =</span>
+<span id="L25"><span class="lineNum">      25</span> <a href="#top" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :   Expr.newBuilder()</span></span>
+<span id="L26"><span class="lineNum">      26</span> <span class="tlaCBC">              1 :     .setLiteral(Literal.newBuilder().setInteger(value))</span></span>
+<span id="L27"><span class="lineNum">      27</span> <span class="tlaCBC">              1 :     .setType(Type.newBuilder().setBit(BitType.newBuilder().setWidth(width)))</span></span>
+<span id="L28"><span class="lineNum">      28</span> <span class="tlaCBC">              1 :     .build()</span></span>
+<span id="L29"><span class="lineNum">      29</span>                 : </span>
+<span id="L30"><span class="lineNum">      30</span>                 : fun boolLit(v: Boolean): Expr =</span>
+<span id="L31"><span class="lineNum">      31</span> <span class="tlaCBC">              1 :   Expr.newBuilder()</span></span>
+<span id="L32"><span class="lineNum">      32</span> <span class="tlaCBC">              1 :     .setLiteral(Literal.newBuilder().setBoolean(v))</span></span>
+<span id="L33"><span class="lineNum">      33</span> <span class="tlaCBC">              1 :     .setType(Type.newBuilder().setBoolean(true))</span></span>
+<span id="L34"><span class="lineNum">      34</span> <span class="tlaCBC">              1 :     .build()</span></span>
+<span id="L35"><span class="lineNum">      35</span>                 : </span>
+<span id="L36"><span class="lineNum">      36</span>                 : fun nameRef(name: String): Expr =</span>
+<span id="L37"><span class="lineNum">      37</span> <span class="tlaCBC">              1 :   Expr.newBuilder().setNameRef(NameRef.newBuilder().setName(name)).build()</span></span>
+<span id="L38"><span class="lineNum">      38</span>                 : </span>
+<span id="L39"><span class="lineNum">      39</span>                 : fun bitType(width: Int): Type =</span>
+<span id="L40"><span class="lineNum">      40</span> <span class="tlaCBC">              1 :   Type.newBuilder().setBit(BitType.newBuilder().setWidth(width)).build()</span></span>
+<span id="L41"><span class="lineNum">      41</span>                 : </span>
+<span id="L42"><span class="lineNum">      42</span> <span class="tlaCBC">              1 : fun namedType(name: String): Type = Type.newBuilder().setNamed(name).build()</span></span>
+<span id="L43"><span class="lineNum">      43</span>                 : </span>
+<span id="L44"><span class="lineNum">      44</span> <span class="tlaCBC">              1 : fun ifStmt(</span></span>
+<span id="L45"><span class="lineNum">      45</span>                 :   condition: Expr,</span>
+<span id="L46"><span class="lineNum">      46</span> <span class="tlaCBC">              1 :   thenStmts: List&lt;Stmt&gt; = emptyList(),</span></span>
+<span id="L47"><span class="lineNum">      47</span> <span class="tlaCBC">              1 :   elseStmts: List&lt;Stmt&gt; = emptyList(),</span></span>
+<span id="L48"><span class="lineNum">      48</span> <span class="tlaCBC">              1 :   sourceInfo: SourceInfo? = null,</span></span>
+<span id="L49"><span class="lineNum">      49</span>                 : ): Stmt {</span>
+<span id="L50"><span class="lineNum">      50</span> <span class="tlaCBC">              1 :   val builder =</span></span>
+<span id="L51"><span class="lineNum">      51</span> <span class="tlaCBC">              1 :     Stmt.newBuilder()</span></span>
+<span id="L52"><span class="lineNum">      52</span> <span class="tlaCBC">              1 :       .setIfStmt(</span></span>
+<span id="L53"><span class="lineNum">      53</span> <span class="tlaCBC">              1 :         IfStmt.newBuilder()</span></span>
+<span id="L54"><span class="lineNum">      54</span> <span class="tlaCBC">              1 :           .setCondition(condition)</span></span>
+<span id="L55"><span class="lineNum">      55</span> <span class="tlaCBC">              1 :           .setThenBlock(BlockStmt.newBuilder().addAllStmts(thenStmts))</span></span>
+<span id="L56"><span class="lineNum">      56</span> <span class="tlaCBC">              1 :           .setElseBlock(BlockStmt.newBuilder().addAllStmts(elseStmts))</span></span>
+<span id="L57"><span class="lineNum">      57</span>                 :       )</span>
+<span id="L58"><span class="lineNum">      58</span> <span class="tlaCBC">              1 :   if (sourceInfo != null) builder.sourceInfo = sourceInfo</span></span>
+<span id="L59"><span class="lineNum">      59</span> <span class="tlaCBC">              1 :   return builder.build()</span></span>
+<span id="L60"><span class="lineNum">      60</span>                 : }</span>
+<span id="L61"><span class="lineNum">      61</span>                 : </span>
+<span id="L62"><span class="lineNum">      62</span>                 : /** Assignment statement: `varName = rhs`. */</span>
+<span id="L63"><span class="lineNum">      63</span>                 : fun assign(varName: String, rhs: Expr): Stmt =</span>
+<span id="L64"><span class="lineNum">      64</span> <span class="tlaCBC">              1 :   Stmt.newBuilder()</span></span>
+<span id="L65"><span class="lineNum">      65</span> <span class="tlaCBC">              1 :     .setAssignment(</span></span>
+<span id="L66"><span class="lineNum">      66</span> <span class="tlaCBC">              1 :       AssignmentStmt.newBuilder()</span></span>
+<span id="L67"><span class="lineNum">      67</span> <span class="tlaCBC">              1 :         .setLhs(Expr.newBuilder().setNameRef(NameRef.newBuilder().setName(varName)))</span></span>
+<span id="L68"><span class="lineNum">      68</span> <span class="tlaCBC">              1 :         .setRhs(rhs)</span></span>
+<span id="L69"><span class="lineNum">      69</span>                 :     )</span>
+<span id="L70"><span class="lineNum">      70</span> <span class="tlaCBC">              1 :     .build()</span></span>
+<span id="L71"><span class="lineNum">      71</span>                 : </span>
+<span id="L72"><span class="lineNum">      72</span>                 : /** Builds a config with a single control named &quot;MyControl&quot; whose apply body is [stmts]. */</span>
+<span id="L73"><span class="lineNum">      73</span> <span class="tlaCBC">              1 : fun controlConfig(vararg stmts: Stmt): BehavioralConfig = controlConfig(&quot;MyControl&quot;, *stmts)</span></span>
+<span id="L74"><span class="lineNum">      74</span>                 : </span>
+<span id="L75"><span class="lineNum">      75</span>                 : /** Builds a config with a single control named [controlName] whose apply body is [stmts]. */</span>
+<span id="L76"><span class="lineNum">      76</span>                 : fun controlConfig(controlName: String, vararg stmts: Stmt): BehavioralConfig =</span>
+<span id="L77"><span class="lineNum">      77</span> <span class="tlaCBC">              1 :   BehavioralConfig.newBuilder()</span></span>
+<span id="L78"><span class="lineNum">      78</span> <span class="tlaCBC">              1 :     .addControls(ControlDecl.newBuilder().setName(controlName).addAllApplyBody(stmts.toList()))</span></span>
+<span id="L79"><span class="lineNum">      79</span> <span class="tlaCBC">              1 :     .build()</span></span>
+        </pre>
+              </td>
+            </tr>
+          </table>
+          <br>
+
+          <table width="100%" border=0 cellspacing=0 cellpadding=0>
+            <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+            <tr><td class="versionInfo">Generated by: <a href="https://github.com//linux-test-project/lcov" target="_parent">LCOV version 2.0-1</a></td></tr>
+          </table>
+          <br>
+
+</body>
+</html>
