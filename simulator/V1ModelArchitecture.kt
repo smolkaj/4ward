@@ -345,10 +345,9 @@ class V1ModelArchitecture : Architecture {
     when (val mode = decisions.branchMode) {
       is BranchMode.I2EClone -> {
         // I2E clone branch: set up clone metadata and continue to egress.
-        val session =
-          ctx.tableStore.getCloneSession(mode.sessionId)
-            ?: error("unknown clone session: ${mode.sessionId}")
-        val clonePort = session.replicasList.firstOrNull()?.egressPort ?: 0
+        // BMv2 drops the clone if the session doesn't exist.
+        val session = ctx.tableStore.getCloneSession(mode.sessionId)
+        val clonePort = session?.replicasList?.firstOrNull()?.egressPort ?: DROP_PORT
         s.standardMetadata.fields["instance_type"] = BitVal(CLONE_I2E_INSTANCE_TYPE, INT32_BITS)
         s.standardMetadata.fields["egress_port"] = BitVal(clonePort.toLong(), PORT_BITS)
       }
@@ -371,12 +370,13 @@ class V1ModelArchitecture : Architecture {
         val mcastGrp =
           (s.standardMetadata.fields["mcast_grp"] as? BitVal)?.bits?.value?.toInt() ?: 0
         if (mcastGrp != 0) {
-          val group =
-            ctx.tableStore.getMulticastGroup(mcastGrp)
-              ?: error("unknown multicast group: $mcastGrp")
-          val replicas =
-            group.replicasList.map { r -> BranchMode.Replica(r.instance, r.egressPort) }
-          throw MulticastFork(replicas, s.packetCtx.getEvents())
+          // BMv2 silently ignores unknown multicast groups (no fork, no output).
+          val group = ctx.tableStore.getMulticastGroup(mcastGrp)
+          if (group != null) {
+            val replicas =
+              group.replicasList.map { r -> BranchMode.Replica(r.instance, r.egressPort) }
+            throw MulticastFork(replicas, s.packetCtx.getEvents())
+          }
         }
         // Normal unicast: copy egress_spec → egress_port for uniform read below.
         s.standardMetadata.fields["egress_port"] =
@@ -395,12 +395,9 @@ class V1ModelArchitecture : Architecture {
       is BranchMode.E2EClone -> {
         // E2E clone branch: after the original egress ran (giving us modified headers),
         // re-run egress with CLONE_E2E instance_type and the clone session's egress_port.
-        // This matches BMv2 semantics where the E2E clone re-enters egress with the
-        // post-egress packet state.
-        val session =
-          ctx.tableStore.getCloneSession(mode.sessionId)
-            ?: error("unknown clone session: ${mode.sessionId}")
-        val clonePort = session.replicasList.firstOrNull()?.egressPort ?: 0
+        // BMv2 drops the clone if the session doesn't exist.
+        val session = ctx.tableStore.getCloneSession(mode.sessionId)
+        val clonePort = session?.replicasList?.firstOrNull()?.egressPort ?: DROP_PORT
         s.standardMetadata.fields["instance_type"] = BitVal(CLONE_E2E_INSTANCE_TYPE, INT32_BITS)
         s.standardMetadata.fields["egress_port"] = BitVal(clonePort.toLong(), PORT_BITS)
         s.packetCtx.pendingEgressCloneSessionId = null
