@@ -141,7 +141,7 @@ cp /path/to/my_program.p4 e2e_tests/my_program/passthrough.p4
 $EDITOR e2e_tests/my_program/passthrough.stf
 
 # Run it!
-bazel test //e2e_tests/my_program --test_output=all
+bazel test //e2e_tests/my_program:passthrough_test --test_output=all
 ```
 
 > [!NOTE]
