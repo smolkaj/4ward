@@ -55,6 +55,22 @@ plane.
 | Fast, rigorous CI | nope | slow | **[~2 min](https://4ward.buildbuddy.io/trends/)** |
 | Development pace | slow | slow | **[AI-fast](docs/AI_WORKFLOW.md)** |
 
+## Where we're headed
+
+We have an **[ambitious roadmap](docs/ROADMAP.md)**: to build the **definitive P4 reference implementation**. In addition, we are targeting unique capabilities like *trace trees* and *architecture customization*, ensuring the simulator is production-ready for industry-grade P4 programs — complexities, edge cases, and all.
+
+To ensure we build something robust, we are driving development with two demanding real-world applications as forcing functions:
+
+1. **[SAI P4](https://github.com/sonic-net/sonic-pins/tree/main/sai_p4)**
+   — A 27-table program that exercises `@p4runtime_translation` with string port names, `@entry_restriction`, and everything the ecosystem currently papers over with hardcoded workarounds.
+2. **[DVaaS](https://github.com/sonic-net/sonic-pins/tree/main/dvaas)**
+   — SONiC's dataplane validation service. We are building 4ward to be a modern, highly capable drop-in replacement for its current BMv2 backend.
+
+4ward is pre-1.0 and moving fast. Check out the **[Roadmap](docs/ROADMAP.md)** for the big picture and **[STATUS.md](docs/STATUS.md)** for daily progress.
+
+> [!WARNING]
+> **Pre-1.0 Notice:** We are aggressively refactoring to build the best system possible. Until we reach 1.0, nothing is sacred except correctness and the test suite.
+
 ## Quick start
 
 [Tested on](https://4ward.buildbuddy.io/tests/) macOS and Ubuntu. You need [Bazel](https://bazel.build) 9+ (or just
@@ -204,15 +220,6 @@ requirements.
 ```
 
 Curious about the design? [ARCHITECTURE.md](docs/ARCHITECTURE.md) has the full story.
-
-## Where things stand
-
-4ward is pre-1.0 and growing fast. The core pipeline works end-to-end. See
-[ROADMAP.md](docs/ROADMAP.md) for where we are going and [STATUS.md](docs/STATUS.md)
-for daily progress.
-
-**CAUTION:** We will aggressively refactor to build the best system we can;
-nothing is sacred except correctness and the test suite — until we reach 1.0.
 
 ## CI that has your back
 

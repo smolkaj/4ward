@@ -70,9 +70,10 @@ Two goals, mostly orthogonal:
 
 This north star connects all the tracks: v1model completeness (track 1) makes
 4ward a credible reference, trace trees (track 3) make it *better* than BMv2,
-and the P4Runtime server (track 4) is the integration point — with
-`@p4runtime_translation` and p4-constraints support making it a P4Runtime
-reference implementation in its own right.
+the P4Runtime server (track 4) is the integration point — with p4-constraints
+support making it a P4Runtime reference implementation in its own right — and
+architecture customization (track 5) is what makes SAI P4 work end-to-end
+without the hardcoded hacks the ecosystem relies on today.
 
 ## Tracks
 
@@ -176,14 +177,11 @@ Five subtracks:
   [p4-constraints](https://github.com/p4lang/p4-constraints), validate
   `@entry_restriction` / `@action_restriction` at write time, actionable
   error messages. Core north-star requirement — SAI P4 depends on it heavily.
-- **4C: string translation.** `@p4runtime_translation("", string)` support.
-  SAI P4 translates port IDs to strings; without this, SAI P4 can't load.
+- **4C: string translation.** Subsumed by track 5.
 - **4D: write validation & RPCs.** Richer write validation (match field
   completeness, param bitwidths, per-entity reads), implement
   `GetForwardingPipelineConfig` + `Capabilities`. Spec compliance polish.
-- **4E: SAI P4 E2E.** Load SAI P4 pipeline, install entries, send packets
-  through P4Runtime, verify outputs. The capstone that proves the whole
-  stack works together.
+- **4E: SAI P4 E2E.** Subsumed by track 5.
 
 **Done when:** SAI P4 works end-to-end through standard P4Runtime:
 `SetForwardingPipelineConfig`, `Write` (with p4-constraints and
@@ -195,7 +193,44 @@ tracks 61 tested / 12 not tested / 7 not implemented. 4B: done. 4C: done.
 [P4RUNTIME_COMPLIANCE.md](P4RUNTIME_COMPLIANCE.md) and
 [LIMITATIONS.md](LIMITATIONS.md).
 
-### Track 5: architecture expansion (PSA, then PNA/TNA)
+### Track 5: architecture customization
+
+**Priority: medium — start now | Parallelizable: yes**
+
+4ward is a spec-compliant v1model implementation — but real deployments don't
+always use stock v1model. SAI P4, for example, needs wider port IDs (more than
+2^9 ports) and string-translated port names via `@p4runtime_translation`. Today,
+the ecosystem works around this with hardcoded hacks scattered across the stack.
+4ward can do better: support lightly modified architecture definitions cleanly,
+without special-casing.
+
+The principle: **the simulator should derive architecture parameters from the IR,
+not from hardcoded constants.** If someone changes `typedef bit<9> PortId_t` to
+`bit<32>` in their v1model.p4, it should just work — the IR already carries the
+correct types.
+
+Three concrete goals drive this track:
+
+1. **Dynamic standard_metadata.** Derive all field widths from the IR's struct
+   definition at pipeline load time. No hardcoded `PORT_BITS = 9`. Semantic
+   constants like `DROP_PORT` are derived (all-ones of the actual port width),
+   not hardcoded to 511.
+
+2. **P4Runtime type translation for match fields and packet metadata.**
+   Complete the `TypeTranslator` integration so that `@p4runtime_translation`
+   works end-to-end — not just action parameters (which work today), but also
+   match fields and PacketIn/PacketOut metadata. This is what makes string port
+   names work.
+
+3. **SAI P4 end-to-end.** Compile SAI P4 against a modified v1model with wider
+   `PortId_t` and string port names via `@p4runtime_translation`. Load it into
+   4ward, install entries, send packets, verify outputs. The proof that it all
+   comes together.
+
+**Done when:** SAI P4 works end-to-end with a modified v1model through standard
+P4Runtime.
+
+### Track 6: architecture expansion (PSA, then PNA/TNA)
 
 **Priority: not now**
 
@@ -219,12 +254,15 @@ corpus tests as acceptance criteria. Each architecture is a significant lift
               │                     │    │              │    │          │
   Track 4     │ P4Runtime server    │    │              │    │          │
               │                     │    │              │    │          │
-  Track 5     │                     │    │              │    │   PSA    │
+  Track 5     │ arch customization  │    │              │    │          │
+              │                     │    │              │    │          │
+  Track 6     │                     │    │              │    │   PSA    │
               └─────────────────────┘    └──────────────┘    └──────────┘
 ```
 
 **Key dependencies:**
-- Tracks 1, 3, and 4 proceed in parallel now.
+- Tracks 1, 3, 4, and 5 proceed in parallel now.
+- Track 5 subsumes Track 4C and 4E.
 - Track 2 is picked up opportunistically.
-- Track 5 (PSA) depends on v1model being done (shared interpreter, proven
+- Track 6 (PSA) depends on v1model being done (shared interpreter, proven
   patterns).
