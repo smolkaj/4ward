@@ -13,7 +13,7 @@ private fun ByteString.toUnsignedBigInteger(): BigInteger = BigInteger(1, toByte
 // P4Runtime spec §9.1: two entries are the same iff they have the same match key
 // AND the same priority (priority is part of the key for ternary/range tables).
 private fun TableEntry.sameKey(other: TableEntry): Boolean =
-  tableId == other.tableId && matchList == other.matchList && priority == other.priority
+  tableId == other.tableId && priority == other.priority && matchList == other.matchList
 
 /** Result of a [TableStore.write] operation. */
 sealed class WriteResult {
@@ -234,11 +234,13 @@ class TableStore {
       if (filter.tableId == 0) tables.values
       else listOfNotNull(tables[tableNameById[filter.tableId]])
     val hasMatchFilter = filter.matchCount > 0
-    return sources.flatMap { entries ->
-      entries
-        .filter { !hasMatchFilter || it.sameKey(filter) }
-        .map { P4RuntimeOuterClass.Entity.newBuilder().setTableEntry(it).build() }
-    }
+    return sources
+      .flatMap { entries ->
+        // P4Runtime spec §9.1: match key + priority uniquely identify an entry,
+        // so at most one entry can match a filter with match fields.
+        if (hasMatchFilter) listOfNotNull(entries.find { it.sameKey(filter) }) else entries
+      }
+      .map { P4RuntimeOuterClass.Entity.newBuilder().setTableEntry(it).build() }
   }
 
   // -------------------------------------------------------------------------

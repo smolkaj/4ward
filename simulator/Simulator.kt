@@ -156,12 +156,10 @@ class Simulator {
 
   private fun handleReadEntries(req: fourward.sim.v1.ReadEntriesRequest): SimResponse {
     // P4Runtime spec §11.1: each entity in the ReadRequest is a filter; the response is the union.
-    // A TableEntry with table_id=0 is a wildcard (all tables). An empty entity list returns
-    // nothing. Filters with match fields perform per-entry lookup.
-    val filters = req.request.entitiesList.filter { it.hasTableEntry() }.map { it.tableEntry }
     val entities =
-      if (filters.any { it.tableId == 0 && it.matchCount == 0 }) tableStore.readEntities()
-      else filters.flatMap { tableStore.readEntities(it) }
+      req.request.entitiesList
+        .filter { it.hasTableEntry() }
+        .flatMap { tableStore.readEntities(it.tableEntry) }
     return SimResponse.newBuilder()
       .setReadEntries(ReadEntriesResponse.newBuilder().addAllEntities(entities))
       .build()

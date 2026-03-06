@@ -344,31 +344,6 @@ class P4RuntimeConformanceTest {
   // Test helpers
   // ---------------------------------------------------------------------------
 
-  /**
-   * Builds a read filter entity: table_id + match key, no action (used as a ReadRequest filter).
-   */
-  @Suppress("MagicNumber")
-  private fun buildReadFilter(config: PipelineConfig, matchValue: Long): Entity {
-    val table = config.p4Info.tablesList.first()
-    val matchField = table.matchFieldsList.first()
-    val fieldMatch =
-      p4.v1.P4RuntimeOuterClass.FieldMatch.newBuilder()
-        .setFieldId(matchField.id)
-        .setExact(
-          p4.v1.P4RuntimeOuterClass.FieldMatch.Exact.newBuilder()
-            .setValue(
-              com.google.protobuf.ByteString.copyFrom(
-                P4RuntimeTestHarness.longToBytes(matchValue, (matchField.bitwidth + 7) / 8)
-              )
-            )
-        )
-        .build()
-    return Entity.newBuilder()
-      .setTableEntry(
-        p4.v1.P4RuntimeOuterClass.TableEntry.newBuilder()
-          .setTableId(table.preamble.id)
-          .addMatch(fieldMatch)
-      )
-      .build()
-  }
+  private fun buildReadFilter(config: PipelineConfig, matchValue: Long): Entity =
+    P4RuntimeTestHarness.buildMatchFilter(config, matchValue)
 }

@@ -268,16 +268,13 @@ class P4RuntimeTestHarness : Closeable {
     }
 
     /**
-     * Builds a table entry for the basic_table fixture: exact match on the table's first match
-     * field → forward(port).
+     * Builds a read-filter entity: table_id + exact match key, no action. Useful as a ReadRequest
+     * filter for per-entry reads.
      */
     @Suppress("MagicNumber")
-    fun buildExactEntry(config: PipelineConfig, matchValue: Long, port: Int): Entity {
-      val p4info = config.p4Info
-      val table = p4info.tablesList.first()
-      val forwardAction = p4info.actionsList.find { it.preamble.name.contains("forward") }!!
+    fun buildMatchFilter(config: PipelineConfig, matchValue: Long): Entity {
+      val table = config.p4Info.tablesList.first()
       val matchField = table.matchFieldsList.first()
-
       val fieldMatch =
         p4.v1.P4RuntimeOuterClass.FieldMatch.newBuilder()
           .setFieldId(matchField.id)
@@ -286,7 +283,26 @@ class P4RuntimeTestHarness : Closeable {
               .setValue(ByteString.copyFrom(longToBytes(matchValue, (matchField.bitwidth + 7) / 8)))
           )
           .build()
+      return Entity.newBuilder()
+        .setTableEntry(
+          p4.v1.P4RuntimeOuterClass.TableEntry.newBuilder()
+            .setTableId(table.preamble.id)
+            .addMatch(fieldMatch)
+        )
+        .build()
+    }
 
+    /**
+     * Builds a table entry for the basic_table fixture: exact match on the table's first match
+     * field → forward(port).
+     */
+    @Suppress("MagicNumber")
+    fun buildExactEntry(config: PipelineConfig, matchValue: Long, port: Int): Entity {
+      val p4info = config.p4Info
+      val table = p4info.tablesList.first()
+      val forwardAction = p4info.actionsList.find { it.preamble.name.contains("forward") }!!
+
+      val filter = buildMatchFilter(config, matchValue)
       val actionParam =
         p4.v1.P4RuntimeOuterClass.Action.Param.newBuilder()
           .setParamId(forwardAction.paramsList.first().id)
@@ -297,21 +313,20 @@ class P4RuntimeTestHarness : Closeable {
           )
           .build()
 
-      val tableEntry =
-        p4.v1.P4RuntimeOuterClass.TableEntry.newBuilder()
-          .setTableId(table.preamble.id)
-          .addMatch(fieldMatch)
-          .setAction(
-            p4.v1.P4RuntimeOuterClass.TableAction.newBuilder()
-              .setAction(
-                p4.v1.P4RuntimeOuterClass.Action.newBuilder()
-                  .setActionId(forwardAction.preamble.id)
-                  .addParams(actionParam)
-              )
-          )
-          .build()
-
-      return Entity.newBuilder().setTableEntry(tableEntry).build()
+      return Entity.newBuilder()
+        .setTableEntry(
+          filter.tableEntry
+            .toBuilder()
+            .setAction(
+              p4.v1.P4RuntimeOuterClass.TableAction.newBuilder()
+                .setAction(
+                  p4.v1.P4RuntimeOuterClass.Action.newBuilder()
+                    .setActionId(forwardAction.preamble.id)
+                    .addParams(actionParam)
+                )
+            )
+        )
+        .build()
     }
 
     /** Minimum-width unsigned big-endian encoding of a port number. */
