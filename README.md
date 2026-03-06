@@ -55,6 +55,28 @@ plane.
 | Fast, rigorous CI | nope | slow | **[~2 min](https://4ward.buildbuddy.io/trends/)** |
 | Development pace | slow | slow | **[AI-fast](docs/AI_WORKFLOW.md)** |
 
+## Where we're headed
+
+We have an **[ambitious roadmap](docs/ROADMAP.md)**: a **definitive P4 reference
+implementation** with unique capabilities like trace trees and architecture
+customization — production-ready for industry-grade P4 programs, warts and all.
+
+We're building towards two demanding real-world applications as a forcing function:
+
+1. **[SAI P4](https://github.com/sonic-net/sonic-pins/tree/main/sai_p4)**
+   — a 27-table program that exercises `@p4runtime_translation` with string port
+   names, `@entry_restriction`, and everything the ecosystem currently papers
+   over with hardcoded workarounds.
+
+2. **[DVaaS](https://github.com/sonic-net/sonic-pins/tree/main/dvaas)**
+   — SONiC's dataplane validation service, currently using BMv2.
+
+4ward is pre-1.0 and growing fast. See the **[Roadmap](docs/ROADMAP.md)** for
+the full plan and [STATUS.md](docs/STATUS.md) for daily progress.
+
+**CAUTION:** We will aggressively refactor to build the best system we can;
+nothing is sacred except correctness and the test suite — until we reach 1.0.
+
 ## Quick start
 
 [Tested on](https://4ward.buildbuddy.io/tests/) macOS and Ubuntu. You need [Bazel](https://bazel.build) 9+ (or just
@@ -204,15 +226,6 @@ requirements.
 ```
 
 Curious about the design? [ARCHITECTURE.md](docs/ARCHITECTURE.md) has the full story.
-
-## Where things stand
-
-4ward is pre-1.0 and growing fast. The core pipeline works end-to-end. See
-[ROADMAP.md](docs/ROADMAP.md) for where we are going and [STATUS.md](docs/STATUS.md)
-for daily progress.
-
-**CAUTION:** We will aggressively refactor to build the best system we can;
-nothing is sacred except correctness and the test suite — until we reach 1.0.
 
 ## CI that has your back
 
