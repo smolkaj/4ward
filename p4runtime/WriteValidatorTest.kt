@@ -271,6 +271,130 @@ class WriteValidatorTest {
     assert(e.status.description!!.contains("priority"))
   }
 
+  // =========================================================================
+  // Ternary/LPM semantic validation (§8.3)
+  // =========================================================================
+
+  @Test
+  fun `ternary value with bits set outside mask returns INVALID_ARGUMENT`() {
+    val v = validator()
+    // value = 0x0F00, mask = 0x00FF → byte 0 has bits set where mask is 0.
+    val e =
+      assertThrows(StatusException::class.java) {
+        v.validate(
+          insertUpdate(
+            TERNARY_TABLE_ID,
+            ternaryMatch(
+              TERNARY_FIELD_ID,
+              value = byteArrayOf(0x0F, 0x00),
+              mask = byteArrayOf(0x00, 0xFF.toByte()),
+            ),
+            ternaryAction(),
+            priority = 1,
+          )
+        )
+      }
+    assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code)
+    assert(e.status.description!!.contains("masked"))
+  }
+
+  @Test
+  fun `ternary value properly masked passes`() {
+    val v = validator()
+    // value = 0x00AB, mask = 0x00FF → value & ~mask == 0.
+    v.validate(
+      insertUpdate(
+        TERNARY_TABLE_ID,
+        ternaryMatch(
+          TERNARY_FIELD_ID,
+          value = byteArrayOf(0x00, 0xAB.toByte()),
+          mask = byteArrayOf(0x00, 0xFF.toByte()),
+        ),
+        ternaryAction(),
+        priority = 1,
+      )
+    )
+  }
+
+  @Test
+  fun `LPM value with bits set beyond prefix_len returns INVALID_ARGUMENT`() {
+    val v = validator()
+    // 16-bit field, prefix_len = 8 → second byte must be zero.
+    val e =
+      assertThrows(StatusException::class.java) {
+        v.validate(
+          insertUpdate(
+            LPM_TABLE_ID,
+            lpmMatch(LPM_FIELD_ID, value = byteArrayOf(0xFF.toByte(), 0x01), prefixLen = 8),
+            ternaryAction(),
+          )
+        )
+      }
+    assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code)
+    assert(e.status.description!!.contains("prefix"))
+  }
+
+  @Test
+  fun `LPM value with partial byte correctly masked passes`() {
+    val v = validator()
+    // 16-bit field, prefix_len = 12 → second byte low 4 bits must be zero. 0xF0 is valid.
+    v.validate(
+      insertUpdate(
+        LPM_TABLE_ID,
+        lpmMatch(LPM_FIELD_ID, value = byteArrayOf(0xFF.toByte(), 0xF0.toByte()), prefixLen = 12),
+        ternaryAction(),
+      )
+    )
+  }
+
+  @Test
+  fun `LPM value with partial byte bits set returns INVALID_ARGUMENT`() {
+    val v = validator()
+    // 16-bit field, prefix_len = 12 → second byte low 4 bits must be zero. 0xFF violates.
+    val e =
+      assertThrows(StatusException::class.java) {
+        v.validate(
+          insertUpdate(
+            LPM_TABLE_ID,
+            lpmMatch(
+              LPM_FIELD_ID,
+              value = byteArrayOf(0xFF.toByte(), 0xFF.toByte()),
+              prefixLen = 12,
+            ),
+            ternaryAction(),
+          )
+        )
+      }
+    assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code)
+    assert(e.status.description!!.contains("prefix"))
+  }
+
+  // =========================================================================
+  // Duplicate match field validation (§9.1)
+  // =========================================================================
+
+  @Test
+  fun `duplicate match field ID returns INVALID_ARGUMENT`() {
+    val v = validator()
+    val e =
+      assertThrows(StatusException::class.java) {
+        v.validate(
+          insertUpdate(
+            EXACT_TABLE_ID,
+            matches =
+              listOf(exactMatch(MATCH_FIELD_ID, bytes(2)), exactMatch(MATCH_FIELD_ID, bytes(2))),
+            action = action(),
+          )
+        )
+      }
+    assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code)
+    assert(e.status.description!!.contains("duplicate"))
+  }
+
+  // =========================================================================
+  // Priority validation (§9.1.1)
+  // =========================================================================
+
   @Test
   fun `ternary table with positive priority passes`() {
     val v = validator()

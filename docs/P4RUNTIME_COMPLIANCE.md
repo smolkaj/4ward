@@ -22,8 +22,8 @@ Legend: **Y** = tested, **N** = not tested, **—** = not implemented
 | 8.2 | Ternary value and mask must have equal byte width | Y | WriteValidatorTest |
 | 8.3 | LPM value byte width matches field bitwidth | Y | WriteValidatorTest |
 | 8.4 | Range low/high byte width matches field bitwidth | Y | WriteValidatorTest |
-| 8.5 | Ternary: masked bits must be zero in value | N | |
-| 8.6 | LPM: bits beyond prefix_len must be zero | N | |
+| 8.5 | Ternary: masked bits must be zero in value | Y | WriteValidatorTest |
+| 8.6 | LPM: bits beyond prefix_len must be zero | Y | WriteValidatorTest |
 
 ## Write RPC — table entries (§9.1)
 
@@ -47,7 +47,7 @@ Legend: **Y** = tested, **N** = not tested, **—** = not implemented
 | 9.16 | Wrong match kind (e.g. ternary on exact field) → INVALID_ARGUMENT | Y | WriteValidatorTest, WriteErrorTest |
 | 9.17 | Match field byte width mismatch → INVALID_ARGUMENT | Y | WriteValidatorTest, WriteErrorTest |
 | 9.18 | Missing required exact match field → INVALID_ARGUMENT | Y | WriteValidatorTest, WriteErrorTest |
-| 9.19 | Extra match fields not in table → INVALID_ARGUMENT | N | |
+| 9.19 | Duplicate match field ID → INVALID_ARGUMENT | Y | WriteValidatorTest |
 | 9.20 | Priority > 0 required for ternary/range/optional tables | Y | WriteValidatorTest |
 | 9.21 | Priority must be 0 for exact-only tables | Y | WriteValidatorTest, WriteErrorTest |
 | 9.22 | DELETE skips content validation | Y | WriteValidatorTest |
@@ -170,17 +170,17 @@ Legend: **Y** = tested, **N** = not tested, **—** = not implemented
 | Category | Tested | Not tested | Not implemented |
 |----------|--------|------------|-----------------|
 | SetForwardingPipelineConfig | 3 | 0 | 0 |
-| Match encoding | 4 | 2 | 0 |
-| Write — tables | 18 | 5 | 0 |
+| Match encoding | 6 | 0 | 0 |
+| Write — tables | 23 | 5 | 0 |
 | Write — profiles | 6 | 1 | 1 |
 | Write — registers | 5 | 0 | 0 |
 | Write — counters/meters | 0 | 0 | 4 |
 | Write — PRE | 2 | 0 | 0 |
 | Arbitration | 1 | 3 | 0 |
-| Read | 7 | 1 | 0 |
+| Read | 8 | 1 | 0 |
 | GetForwardingPipelineConfig | 4 | 0 | 0 |
 | Capabilities | 1 | 0 | 0 |
 | PacketIO | 3 | 0 | 2 |
 | Translation | 6 | 0 | 0 |
 | p4-constraints | 4 | 0 | 0 |
-| **Total** | **64** | **12** | **7** |
+| **Total** | **72** | **10** | **7** |
