@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.flow
 import p4.v1.P4RuntimeGrpcKt
 import p4.v1.P4RuntimeOuterClass.CapabilitiesRequest
 import p4.v1.P4RuntimeOuterClass.CapabilitiesResponse
+import p4.v1.P4RuntimeOuterClass.ForwardingPipelineConfig
 import p4.v1.P4RuntimeOuterClass.GetForwardingPipelineConfigRequest
 import p4.v1.P4RuntimeOuterClass.GetForwardingPipelineConfigResponse
 import p4.v1.P4RuntimeOuterClass.MasterArbitrationUpdate
@@ -41,14 +42,12 @@ class P4RuntimeService(private val simulator: Simulator) :
   @Volatile private var currentConfig: PipelineConfig? = null
   @Volatile private var typeTranslator: TypeTranslator? = null
 
-  private fun requirePipeline() {
-    if (currentConfig == null) {
-      throw Status.FAILED_PRECONDITION.withDescription(
+  private fun requirePipeline(): PipelineConfig =
+    currentConfig
+      ?: throw Status.FAILED_PRECONDITION.withDescription(
           "No pipeline loaded; call SetForwardingPipelineConfig first"
         )
         .asException()
-    }
-  }
 
   // ---------------------------------------------------------------------------
   // SetForwardingPipelineConfig
@@ -238,21 +237,42 @@ class P4RuntimeService(private val simulator: Simulator) :
   override suspend fun getForwardingPipelineConfig(
     request: GetForwardingPipelineConfigRequest
   ): GetForwardingPipelineConfigResponse {
-    throw Status.UNIMPLEMENTED.withDescription("GetForwardingPipelineConfig not yet implemented")
-      .asException()
+    val config = requirePipeline()
+
+    val fwdConfig = ForwardingPipelineConfig.newBuilder()
+    when (request.responseType) {
+      GetForwardingPipelineConfigRequest.ResponseType.ALL,
+      GetForwardingPipelineConfigRequest.ResponseType.UNRECOGNIZED -> {
+        fwdConfig.setP4Info(config.p4Info)
+        fwdConfig.setP4DeviceConfig(config.behavioral.toByteString())
+      }
+      GetForwardingPipelineConfigRequest.ResponseType.COOKIE_ONLY -> {
+        // No cookie support — return empty config.
+      }
+      GetForwardingPipelineConfigRequest.ResponseType.P4INFO_AND_COOKIE -> {
+        fwdConfig.setP4Info(config.p4Info)
+      }
+      GetForwardingPipelineConfigRequest.ResponseType.DEVICE_CONFIG_AND_COOKIE -> {
+        fwdConfig.setP4DeviceConfig(config.behavioral.toByteString())
+      }
+    }
+
+    return GetForwardingPipelineConfigResponse.newBuilder().setConfig(fwdConfig).build()
   }
 
   // ---------------------------------------------------------------------------
   // Capabilities
   // ---------------------------------------------------------------------------
 
-  override suspend fun capabilities(request: CapabilitiesRequest): CapabilitiesResponse {
-    throw Status.UNIMPLEMENTED.withDescription("Capabilities not yet implemented").asException()
-  }
+  override suspend fun capabilities(request: CapabilitiesRequest): CapabilitiesResponse =
+    CapabilitiesResponse.newBuilder().setP4RuntimeApiVersion(P4RUNTIME_API_VERSION).build()
 
   companion object {
     // Well-known metadata IDs for v1model packet_in/packet_out headers.
     private const val INGRESS_PORT_METADATA_ID = 1
     private const val EGRESS_PORT_METADATA_ID = 2
+
+    // Matches the p4runtime proto version declared in MODULE.bazel.
+    private const val P4RUNTIME_API_VERSION = "1.5.0"
   }
 }

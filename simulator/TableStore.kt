@@ -222,15 +222,17 @@ class TableStore {
   // Read
   // -------------------------------------------------------------------------
 
-  /** Returns all stored entities as P4Runtime Entity protos. */
-  fun readAllEntities(): List<P4RuntimeOuterClass.Entity> {
-    val entities = mutableListOf<P4RuntimeOuterClass.Entity>()
-    for (entries in tables.values) {
-      for (entry in entries) {
-        entities += P4RuntimeOuterClass.Entity.newBuilder().setTableEntry(entry).build()
-      }
+  /**
+   * Returns table entries as P4Runtime Entity protos.
+   *
+   * If [tableId] is 0 (the default), returns entries from all tables (wildcard read). If non-zero,
+   * returns only entries from the specified table.
+   */
+  fun readEntities(tableId: Int = 0): List<P4RuntimeOuterClass.Entity> {
+    val sources = if (tableId == 0) tables.values else listOfNotNull(tables[tableNameById[tableId]])
+    return sources.flatMap { entries ->
+      entries.map { P4RuntimeOuterClass.Entity.newBuilder().setTableEntry(it).build() }
     }
-    return entities
   }
 
   // -------------------------------------------------------------------------
