@@ -148,6 +148,34 @@ the simulator. Goals:
 - **Actionable error messages.** Not `INVALID_ARGUMENT`, but
   `table 'ipv4_table' entry violates constraint: vrf_id must be non-zero`.
 
+Five subtracks:
+
+- **4A: test strategy.** Define the P4Runtime testing philosophy — the
+  simulator has three independent methodologies (STF corpus, p4testgen,
+  BMv2 diff testing) and a clear confidence story; the server has 21 ad hoc
+  tests. Questions to answer:
+  - What's the P4Runtime equivalent of the STF corpus? (Maybe the P4Runtime
+    spec's own conformance expectations, systematically covered?)
+  - What's the equivalent of p4testgen? (Systematic negative testing —
+    malformed protos, out-of-range values, constraint violations, wrong
+    field IDs?)
+  - What's the equivalent of BMv2 diff testing? (Run the same P4Runtime
+    session against BMv2's gRPC server and 4ward, compare responses?)
+  - Are the existing 21 tests covering the right things, or just the things
+    that were convenient when they were written?
+- **4B: p4-constraints.** JNI binding to
+  [p4-constraints](https://github.com/p4lang/p4-constraints), validate
+  `@entry_restriction` / `@action_restriction` at write time, actionable
+  error messages. Core north-star requirement — SAI P4 depends on it heavily.
+- **4C: string translation.** `@p4runtime_translation("", string)` support.
+  SAI P4 translates port IDs to strings; without this, SAI P4 can't load.
+- **4D: write validation & RPCs.** Richer write validation (match field
+  completeness, param bitwidths, per-entity reads), implement
+  `GetForwardingPipelineConfig` + `Capabilities`. Spec compliance polish.
+- **4E: SAI P4 E2E.** Load SAI P4 pipeline, install entries, send packets
+  through P4Runtime, verify outputs. The capstone that proves the whole
+  stack works together.
+
 **Done when:** SAI P4 works end-to-end through standard P4Runtime:
 `SetForwardingPipelineConfig`, `Write` (with p4-constraints and
 `@p4runtime_translation` validation), `Read`, and `StreamChannel` packet I/O.
