@@ -110,6 +110,15 @@ data class StructVal(val typeName: String, val fields: MutableMap<String, Value>
   fun invalidateUnionExcept(keep: HeaderVal) {
     fields.values.forEach { if (it is HeaderVal && it !== keep) it.setInvalid() }
   }
+
+  /** Overwrites a bit-valued field, preserving its IR-defined width. */
+  fun setBitField(name: String, value: Long) {
+    val existing = fields[name] as BitVal
+    fields[name] = BitVal(value, existing.bits.width)
+  }
+
+  /** Returns the bit width of a bit-valued field, as defined by the IR. */
+  fun bitWidth(name: String): Int = (fields[name] as BitVal).bits.width
 }
 
 /**

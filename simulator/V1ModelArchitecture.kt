@@ -24,7 +24,7 @@ import fourward.sim.v1.TraceTree
  *
  * Architecture-specific behaviour implemented here:
  * - standard_metadata_t initialisation and egress_spec routing.
- * - mark_to_drop() (sets egress_spec to DROP_PORT = 511).
+ * - mark_to_drop() (sets egress_spec to all-ones = drop port).
  * - clone I2E/E2E at the ingress→egress / post-egress boundary (last-writer-wins).
  * - resubmit at the ingress→egress boundary.
  * - recirculate after deparser (feeds deparsed output back as new input).
@@ -62,6 +62,11 @@ class V1ModelArchitecture : Architecture {
     private val controlStages = stages.filter { it.kind == StageKind.CONTROL }
     val ingressControls: List<PipelineStage> = controlStages.take(INGRESS_CONTROL_COUNT)
     val egressControls: List<PipelineStage> = controlStages.drop(INGRESS_CONTROL_COUNT)
+
+    // Port width and drop port derived from the IR's standard_metadata struct definition,
+    // not hardcoded. This allows modified v1model architectures with wider PortId_t.
+    val portBits: Int = standardMetadata.bitWidth("ingress_port")
+    val dropPort: Int = (1 shl portBits) - 1
   }
 
   override fun processPacket(
@@ -275,16 +280,16 @@ class V1ModelArchitecture : Architecture {
     check("packet_length" in standardMetadata.fields) {
       "$standardMetaTypeName has no packet_length"
     }
-    standardMetadata.fields["ingress_port"] = BitVal(ctx.ingressPort.toLong(), PORT_BITS)
-    standardMetadata.fields["packet_length"] = BitVal(ctx.payload.size.toLong(), INT32_BITS)
+    standardMetadata.setBitField("ingress_port", ctx.ingressPort.toLong())
+    standardMetadata.setBitField("packet_length", ctx.payload.size.toLong())
     standardMetadata.fields["parser_error"] = ErrorVal("NoError")
     if (decisions.instanceTypeOverride != null) {
-      standardMetadata.fields["instance_type"] = BitVal(decisions.instanceTypeOverride, INT32_BITS)
+      standardMetadata.setBitField("instance_type", decisions.instanceTypeOverride)
     }
 
     val interpreter =
       Interpreter(ctx.config, ctx.tableStore, packetCtx, decisions) {
-        standardMetadata.fields["checksum_error"] = BitVal(1L, 1)
+        standardMetadata.setBitField("checksum_error", 1L)
       }
 
     val sharedByType =
@@ -354,8 +359,8 @@ class V1ModelArchitecture : Architecture {
     val egressPort =
       (s.standardMetadata.fields["egress_port"] as? BitVal)?.bits?.value?.toInt() ?: 0
 
-    // Port 511 is the v1model drop port (mark_to_drop sets egress_spec = 511).
-    if (egressPort == DROP_PORT) {
+    // The drop port is all-ones for the port width (e.g. 511 for bit<9>).
+    if (egressPort == s.dropPort) {
       return buildDropTrace(s.packetCtx.getEvents(), DropReason.MARK_TO_DROP)
     }
 
@@ -413,14 +418,14 @@ class V1ModelArchitecture : Architecture {
         // I2E clone branch: set up clone metadata and continue to egress.
         // BMv2 drops the clone if the session doesn't exist.
         val session = ctx.tableStore.getCloneSession(mode.sessionId)
-        val clonePort = session?.replicasList?.firstOrNull()?.egressPort ?: DROP_PORT
-        s.standardMetadata.fields["instance_type"] = BitVal(CLONE_I2E_INSTANCE_TYPE, INT32_BITS)
-        s.standardMetadata.fields["egress_port"] = BitVal(clonePort.toLong(), PORT_BITS)
+        val clonePort = session?.replicasList?.firstOrNull()?.egressPort ?: s.dropPort
+        s.standardMetadata.setBitField("instance_type", CLONE_I2E_INSTANCE_TYPE)
+        s.standardMetadata.setBitField("egress_port", clonePort.toLong())
       }
       is BranchMode.Replica -> {
-        s.standardMetadata.fields["instance_type"] = BitVal(REPLICATION_INSTANCE_TYPE, INT32_BITS)
-        s.standardMetadata.fields["egress_port"] = BitVal(mode.port.toLong(), PORT_BITS)
-        s.standardMetadata.fields["egress_rid"] = BitVal(mode.rid.toLong(), REPLICA_ID_BITS)
+        s.standardMetadata.setBitField("instance_type", REPLICATION_INSTANCE_TYPE)
+        s.standardMetadata.setBitField("egress_port", mode.port.toLong())
+        s.standardMetadata.setBitField("egress_rid", mode.rid.toLong())
       }
       is BranchMode.Normal,
       is BranchMode.E2EClone -> {
@@ -446,7 +451,7 @@ class V1ModelArchitecture : Architecture {
         }
         // Normal unicast: copy egress_spec → egress_port for uniform read below.
         s.standardMetadata.fields["egress_port"] =
-          s.standardMetadata.fields["egress_spec"] ?: BitVal(0, PORT_BITS)
+          s.standardMetadata.fields["egress_spec"] ?: BitVal(0, s.portBits)
       }
     }
   }
@@ -463,9 +468,9 @@ class V1ModelArchitecture : Architecture {
         // re-run egress with CLONE_E2E instance_type and the clone session's egress_port.
         // BMv2 drops the clone if the session doesn't exist.
         val session = ctx.tableStore.getCloneSession(mode.sessionId)
-        val clonePort = session?.replicasList?.firstOrNull()?.egressPort ?: DROP_PORT
-        s.standardMetadata.fields["instance_type"] = BitVal(CLONE_E2E_INSTANCE_TYPE, INT32_BITS)
-        s.standardMetadata.fields["egress_port"] = BitVal(clonePort.toLong(), PORT_BITS)
+        val clonePort = session?.replicasList?.firstOrNull()?.egressPort ?: s.dropPort
+        s.standardMetadata.setBitField("instance_type", CLONE_E2E_INSTANCE_TYPE)
+        s.standardMetadata.setBitField("egress_port", clonePort.toLong())
         s.packetCtx.pendingEgressCloneSessionId = null
         runControlStages(s, s.egressControls)
       }
@@ -513,8 +518,11 @@ class V1ModelArchitecture : Architecture {
       .build()
 
   companion object {
-    /** Port value used by mark_to_drop() to signal packet drop in v1model. */
-    const val DROP_PORT = 511
+    // Default v1model port width and drop port. These are the values for standard v1model.p4
+    // (bit<9> PortId_t). At runtime, the actual values are derived from the IR — see
+    // PipelineState.portBits and PipelineState.dropPort.
+    const val DEFAULT_PORT_BITS = 9
+    const val DEFAULT_DROP_PORT = (1 shl DEFAULT_PORT_BITS) - 1 // 511
 
     // Number of user-visible params in the v1model parser after removing packet_in/packet_out:
     // (hdr, meta, standard_metadata).
@@ -522,11 +530,6 @@ class V1ModelArchitecture : Architecture {
 
     // v1model: first 2 control stages are ingress-side (verify checksum, ingress).
     private const val INGRESS_CONTROL_COUNT = 2
-
-    // Bit widths for standard_metadata_t fields, as defined in v1model.p4.
-    const val PORT_BITS = 9
-    private const val INT32_BITS = 32
-    private const val REPLICA_ID_BITS = 16
 
     private const val MAX_PIPELINE_DEPTH = 10
 

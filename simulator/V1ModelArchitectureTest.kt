@@ -62,9 +62,9 @@ class V1ModelArchitectureTest {
       .setName("standard_metadata_t")
       .setStruct(
         StructDecl.newBuilder()
-          .addFields(field("ingress_port", V1ModelArchitecture.PORT_BITS))
-          .addFields(field("egress_spec", V1ModelArchitecture.PORT_BITS))
-          .addFields(field("egress_port", V1ModelArchitecture.PORT_BITS))
+          .addFields(field("ingress_port", V1ModelArchitecture.DEFAULT_PORT_BITS))
+          .addFields(field("egress_spec", V1ModelArchitecture.DEFAULT_PORT_BITS))
+          .addFields(field("egress_port", V1ModelArchitecture.DEFAULT_PORT_BITS))
           .addFields(field("instance_type", 32))
           .addFields(field("packet_length", 32))
           .addFields(field("mcast_grp", 16))
@@ -350,7 +350,8 @@ class V1ModelArchitectureTest {
 
   @Test
   fun `unicast packet emits on egress_spec port`() {
-    val config = v1modelConfig(assignField("sm", "egress_spec", 5, V1ModelArchitecture.PORT_BITS))
+    val config =
+      v1modelConfig(assignField("sm", "egress_spec", 5, V1ModelArchitecture.DEFAULT_PORT_BITS))
     val payload = byteArrayOf(0x01, 0x02, 0x03)
     val result = V1ModelArchitecture().processPacket(0u, payload, config, TableStore())
     val outputs = collectOutputs(result.trace)
@@ -367,8 +368,8 @@ class V1ModelArchitectureTest {
         assignField(
           "sm",
           "egress_spec",
-          V1ModelArchitecture.DROP_PORT.toLong(),
-          V1ModelArchitecture.PORT_BITS,
+          V1ModelArchitecture.DEFAULT_DROP_PORT.toLong(),
+          V1ModelArchitecture.DEFAULT_PORT_BITS,
         )
       )
     val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
@@ -396,7 +397,7 @@ class V1ModelArchitectureTest {
     val config =
       v1modelConfig(
         externCall("clone", enumArg("I2E"), intArg(1, 32)),
-        assignField("sm", "egress_spec", 2, V1ModelArchitecture.PORT_BITS),
+        assignField("sm", "egress_spec", 2, V1ModelArchitecture.DEFAULT_PORT_BITS),
       )
     val tableStore = TableStore()
     writeCloneSession(tableStore, sessionId = 1, egressPort = 7)
@@ -424,7 +425,8 @@ class V1ModelArchitectureTest {
     // Egress calls clone(E2E, session=1); ingress sets egress_spec=3 for routing.
     val config =
       v1modelConfig(
-        ingressStmts = listOf(assignField("sm", "egress_spec", 3, V1ModelArchitecture.PORT_BITS)),
+        ingressStmts =
+          listOf(assignField("sm", "egress_spec", 3, V1ModelArchitecture.DEFAULT_PORT_BITS)),
         egressStmts = listOf(externCall("clone", enumArg("E2E"), intArg(1, 32))),
       )
     val tableStore = TableStore()
@@ -469,7 +471,8 @@ class V1ModelArchitectureTest {
     // The recirculated branch gets instance_type=4, so it won't re-trigger.
     val config =
       v1modelConfig(
-        ingressStmts = listOf(assignField("sm", "egress_spec", 1, V1ModelArchitecture.PORT_BITS)),
+        ingressStmts =
+          listOf(assignField("sm", "egress_spec", 1, V1ModelArchitecture.DEFAULT_PORT_BITS)),
         egressStmts =
           listOf(
             ifFieldEquals("sm", "instance_type", 0, 32, externCall("recirculate", intArg(0, 8)))
@@ -491,7 +494,7 @@ class V1ModelArchitectureTest {
     val config =
       v1modelConfig(
         externCall("clone", enumArg("I2E"), intArg(99, 32)),
-        assignField("sm", "egress_spec", 2, V1ModelArchitecture.PORT_BITS),
+        assignField("sm", "egress_spec", 2, V1ModelArchitecture.DEFAULT_PORT_BITS),
       )
 
     val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
@@ -508,7 +511,8 @@ class V1ModelArchitectureTest {
   fun `E2E clone with missing session drops clone branch`() {
     val config =
       v1modelConfig(
-        ingressStmts = listOf(assignField("sm", "egress_spec", 3, V1ModelArchitecture.PORT_BITS)),
+        ingressStmts =
+          listOf(assignField("sm", "egress_spec", 3, V1ModelArchitecture.DEFAULT_PORT_BITS)),
         egressStmts = listOf(externCall("clone", enumArg("E2E"), intArg(99, 32))),
       )
 
@@ -527,7 +531,7 @@ class V1ModelArchitectureTest {
     val config =
       v1modelConfig(
         assignField("sm", "mcast_grp", 42, 16),
-        assignField("sm", "egress_spec", 5, V1ModelArchitecture.PORT_BITS),
+        assignField("sm", "egress_spec", 5, V1ModelArchitecture.DEFAULT_PORT_BITS),
       )
 
     val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
