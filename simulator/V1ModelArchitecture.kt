@@ -66,7 +66,7 @@ class V1ModelArchitecture : Architecture {
     // Port width and drop port derived from the IR's standard_metadata struct definition,
     // not hardcoded. This allows modified v1model architectures with wider PortId_t.
     val portBits: Int = standardMetadata.bitWidth("ingress_port")
-    val dropPort: Int = (1 shl portBits) - 1
+    val dropPort: Long = (1L shl portBits) - 1
   }
 
   override fun processPacket(
@@ -357,7 +357,7 @@ class V1ModelArchitecture : Architecture {
     postEgressBoundary(ctx, s, decisions)
 
     val egressPort =
-      (s.standardMetadata.fields["egress_port"] as? BitVal)?.bits?.value?.toInt() ?: 0
+      (s.standardMetadata.fields["egress_port"] as? BitVal)?.bits?.value?.toLong() ?: 0L
 
     // The drop port is all-ones for the port width (e.g. 511 for bit<9>).
     if (egressPort == s.dropPort) {
@@ -383,7 +383,7 @@ class V1ModelArchitecture : Architecture {
       throw RecirculateFork(outputBytes, s.packetCtx.getEvents())
     }
 
-    return buildOutputTrace(s.packetCtx.getEvents(), egressPort, outputBytes)
+    return buildOutputTrace(s.packetCtx.getEvents(), egressPort.toInt(), outputBytes)
   }
 
   /** Runs a list of control stages, emitting enter/exit events for each. */
@@ -418,9 +418,9 @@ class V1ModelArchitecture : Architecture {
         // I2E clone branch: set up clone metadata and continue to egress.
         // BMv2 drops the clone if the session doesn't exist.
         val session = ctx.tableStore.getCloneSession(mode.sessionId)
-        val clonePort = session?.replicasList?.firstOrNull()?.egressPort ?: s.dropPort
+        val clonePort = session?.replicasList?.firstOrNull()?.egressPort?.toLong() ?: s.dropPort
         s.standardMetadata.setBitField("instance_type", CLONE_I2E_INSTANCE_TYPE)
-        s.standardMetadata.setBitField("egress_port", clonePort.toLong())
+        s.standardMetadata.setBitField("egress_port", clonePort)
       }
       is BranchMode.Replica -> {
         s.standardMetadata.setBitField("instance_type", REPLICATION_INSTANCE_TYPE)
@@ -468,9 +468,9 @@ class V1ModelArchitecture : Architecture {
         // re-run egress with CLONE_E2E instance_type and the clone session's egress_port.
         // BMv2 drops the clone if the session doesn't exist.
         val session = ctx.tableStore.getCloneSession(mode.sessionId)
-        val clonePort = session?.replicasList?.firstOrNull()?.egressPort ?: s.dropPort
+        val clonePort = session?.replicasList?.firstOrNull()?.egressPort?.toLong() ?: s.dropPort
         s.standardMetadata.setBitField("instance_type", CLONE_E2E_INSTANCE_TYPE)
-        s.standardMetadata.setBitField("egress_port", clonePort.toLong())
+        s.standardMetadata.setBitField("egress_port", clonePort)
         s.packetCtx.pendingEgressCloneSessionId = null
         runControlStages(s, s.egressControls)
       }

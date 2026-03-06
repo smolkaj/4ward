@@ -552,7 +552,8 @@ class V1ModelArchitectureTest {
 
   @Test
   fun `trace starts with packet ingress and has enter-exit pairs for all stages`() {
-    val config = v1modelConfig(assignField("sm", "egress_spec", 1, V1ModelArchitecture.PORT_BITS))
+    val config =
+      v1modelConfig(assignField("sm", "egress_spec", 1, V1ModelArchitecture.DEFAULT_PORT_BITS))
     val result = V1ModelArchitecture().processPacket(7u, byteArrayOf(0x01), config, TableStore())
     val events = stageEvents(result.trace)
 
@@ -619,5 +620,84 @@ class V1ModelArchitectureTest {
       listOf(StageKind.PARSER to Direction.ENTER, StageKind.PARSER to Direction.EXIT),
       stages.map { it.stageKind to it.direction },
     )
+  }
+
+  // ---------------------------------------------------------------------------
+  // Wider port width tests (Track 5: architecture customization)
+  // ---------------------------------------------------------------------------
+
+  /** Builds a standard_metadata_t type with a custom port bit width. */
+  private fun standardMetaTypeWithPortWidth(portBits: Int): TypeDecl =
+    TypeDecl.newBuilder()
+      .setName("standard_metadata_t")
+      .setStruct(
+        StructDecl.newBuilder()
+          .addFields(field("ingress_port", portBits))
+          .addFields(field("egress_spec", portBits))
+          .addFields(field("egress_port", portBits))
+          .addFields(field("instance_type", 32))
+          .addFields(field("packet_length", 32))
+          .addFields(field("mcast_grp", 16))
+          .addFields(field("egress_rid", 16))
+          .addFields(field("checksum_error", 1))
+          .addFields(field("parser_error", 32))
+      )
+      .build()
+
+  /** Builds a v1model config with a custom port width and ingress statements. */
+  private fun widePortConfig(portBits: Int, vararg stmts: Stmt): BehavioralConfig =
+    v1modelConfig(*stmts)
+      .toBuilder()
+      .clearTypes()
+      .addTypes(standardMetaTypeWithPortWidth(portBits))
+      .addTypes(headersType)
+      .addTypes(metaType)
+      .build()
+
+  @Test
+  fun `wider port width unicast works with large port numbers`() {
+    val portBits = 16
+    val largePort = 1000L // beyond bit<9> range
+    val config = widePortConfig(portBits, assignField("sm", "egress_spec", largePort, portBits))
+    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val outputs = collectOutputs(result.trace)
+
+    assertEquals(1, outputs.size)
+    assertEquals(largePort.toInt(), outputs[0].egressPort)
+  }
+
+  @Test
+  fun `wider port width drop uses correct all-ones value`() {
+    val portBits = 16
+    val dropPort = (1L shl portBits) - 1 // 65535, not 511
+    val config = widePortConfig(portBits, assignField("sm", "egress_spec", dropPort, portBits))
+    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+
+    assertTrue(result.trace.hasPacketOutcome())
+    assertTrue(result.trace.packetOutcome.hasDrop())
+  }
+
+  @Test
+  fun `wider port width does not drop on standard drop port value`() {
+    // Port 511 is NOT the drop port when port width is 16 bits — it's a valid port.
+    val portBits = 16
+    val config = widePortConfig(portBits, assignField("sm", "egress_spec", 511, portBits))
+    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val outputs = collectOutputs(result.trace)
+
+    assertEquals(1, outputs.size)
+    assertEquals(511, outputs[0].egressPort)
+  }
+
+  @Test
+  fun `32-bit port width works without overflow`() {
+    val portBits = 32
+    val largePort = 100_000L
+    val config = widePortConfig(portBits, assignField("sm", "egress_spec", largePort, portBits))
+    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val outputs = collectOutputs(result.trace)
+
+    assertEquals(1, outputs.size)
+    assertEquals(largePort.toInt(), outputs[0].egressPort)
   }
 }
