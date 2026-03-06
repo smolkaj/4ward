@@ -178,6 +178,7 @@ ergonomics (sealed classes, pattern matching).
 - **Go?** Weaker type system — no algebraic data types, no pattern matching.
 - **Python?** Weak type system, slow test execution.
 - **Java?** Kotlin, but worse.
+- **OCaml?** Excellent fit, but not supported within Google's ecosystem :(
 
 **You don't need to know Kotlin to contribute to 4ward!**
 [The AI writes the code](docs/AI_WORKFLOW.md) — you just need to know your
