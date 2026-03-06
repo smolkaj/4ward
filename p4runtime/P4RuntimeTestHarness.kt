@@ -130,14 +130,8 @@ class P4RuntimeTestHarness : Closeable {
     )
   }
 
-  /** Wildcard read: returns all table entries. */
-  fun readEntries(): List<Entity> =
-    readEntries(
-      ReadRequest.newBuilder()
-        .setDeviceId(1)
-        .addEntities(Entity.newBuilder().setTableEntry(TableEntry.getDefaultInstance()))
-        .build()
-    )
+  /** Wildcard read: returns all table entries (table_id=0 is the P4Runtime wildcard). */
+  fun readEntries(): List<Entity> = readTableEntries(0)
 
   /** Per-table read: returns entries from a single table (or all tables if tableId is 0). */
   fun readTableEntries(tableId: Int): List<Entity> =

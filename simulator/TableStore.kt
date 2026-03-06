@@ -229,15 +229,10 @@ class TableStore {
    * returns only entries from the specified table.
    */
   fun readEntities(tableId: Int = 0): List<P4RuntimeOuterClass.Entity> {
-    val entities = mutableListOf<P4RuntimeOuterClass.Entity>()
-    for (entries in tables.values) {
-      for (entry in entries) {
-        if (tableId == 0 || entry.tableId == tableId) {
-          entities += P4RuntimeOuterClass.Entity.newBuilder().setTableEntry(entry).build()
-        }
-      }
+    val sources = if (tableId == 0) tables.values else listOfNotNull(tables[tableNameById[tableId]])
+    return sources.flatMap { entries ->
+      entries.map { P4RuntimeOuterClass.Entity.newBuilder().setTableEntry(it).build() }
     }
-    return entities
   }
 
   // -------------------------------------------------------------------------
