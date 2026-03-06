@@ -29,8 +29,6 @@ guilt — just write it down so someone can find it later.
 
 - **Single controller only.** No multi-controller arbitration or election ID
   tracking. The first connection is master unconditionally.
-- **No p4-constraints validation.** `Write` does not enforce `@entry_restriction`
-  or `@action_restriction` annotations from the P4 source.
 - **`@p4runtime_translation`: fully integrated for action params, match fields,
   and PacketIO metadata.** The `TypeTranslator` supports `sdn_bitwidth` and
   `sdn_string` with explicit, auto-allocate, and hybrid mapping modes.
