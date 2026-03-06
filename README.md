@@ -234,6 +234,7 @@ report in about 5. No flakes, no "works on my machine." See for yourself on the
 | [CLAUDE.md](CLAUDE.md) | Claude Code-specific instructions |
 | [LIMITATIONS.md](docs/LIMITATIONS.md) | Known shortcuts and gaps |
 | [TESTING_STRATEGY.md](docs/TESTING_STRATEGY.md) | Why three test oracles, and what that enables |
+| [P4RUNTIME_COMPLIANCE.md](docs/P4RUNTIME_COMPLIANCE.md) | P4Runtime spec compliance matrix |
 | [REFACTORING.md](docs/REFACTORING.md) | Tech debt and cleanup backlog |
 | [AI_WORKFLOW.md](docs/AI_WORKFLOW.md) | How to develop with AI agents |
 
