@@ -409,10 +409,76 @@ class P4RuntimeConformanceTest {
     assertGrpcError(Status.Code.NOT_FOUND) { harness.deleteEntry(group) }
   }
 
+  // =========================================================================
+  // Register entries (scenarios 32-34)
+  // =========================================================================
+
+  private fun loadConfigWithRegister(): PipelineConfig {
+    val base = loadBasicTableConfig()
+    // Inject a register into the p4info so the simulator creates RegisterInfo.
+    val register =
+      p4.config.v1.P4InfoOuterClass.Register.newBuilder()
+        .setPreamble(
+          p4.config.v1.P4InfoOuterClass.Preamble.newBuilder().setId(REG_ID).setName("myReg")
+        )
+        .setTypeSpec(
+          p4.config.v1.P4Types.P4DataTypeSpec.newBuilder()
+            .setBitstring(
+              p4.config.v1.P4Types.P4BitstringLikeTypeSpec.newBuilder()
+                .setBit(p4.config.v1.P4Types.P4BitTypeSpec.newBuilder().setBitwidth(REG_BITWIDTH))
+            )
+        )
+        .setSize(REG_SIZE)
+        .build()
+    return base.toBuilder().setP4Info(base.p4Info.toBuilder().addRegisters(register)).build()
+  }
+
+  @Test
+  fun `32 - write register entry and read it back`() {
+    harness.loadPipeline(loadConfigWithRegister())
+    val entry = P4RuntimeTestHarness.buildRegisterEntry(REG_ID, 0, 0xCAFE)
+    harness.modifyEntry(entry)
+    val results = harness.readRegisterEntries(REG_ID)
+    // Should return all REG_SIZE entries; index 0 has our value.
+    assertEquals(REG_SIZE, results.size)
+    val written = results.find { it.registerEntry.index.index == 0L }!!
+    assertEquals(
+      com.google.protobuf.ByteString.copyFrom(
+        P4RuntimeTestHarness.longToBytes(0xCAFE, REG_BYTEWIDTH)
+      ),
+      written.registerEntry.data.bitstring,
+    )
+  }
+
+  @Test
+  fun `33 - read unwritten register entry returns zero`() {
+    harness.loadPipeline(loadConfigWithRegister())
+    val results = harness.readRegisterEntries(REG_ID)
+    assertEquals(REG_SIZE, results.size)
+    for (entity in results) {
+      val data = entity.registerEntry.data.bitstring.toByteArray()
+      assertTrue("unwritten register should be zero", data.all { it == 0.toByte() })
+    }
+  }
+
+  @Test
+  fun `34 - INSERT register entry returns INVALID_ARGUMENT`() {
+    harness.loadPipeline(loadConfigWithRegister())
+    val entry = P4RuntimeTestHarness.buildRegisterEntry(REG_ID, 0, 1)
+    assertGrpcError(Status.Code.INVALID_ARGUMENT) { harness.installEntry(entry) }
+  }
+
   // ---------------------------------------------------------------------------
   // Test helpers
   // ---------------------------------------------------------------------------
 
   private fun buildReadFilter(config: PipelineConfig, matchValue: Long): Entity =
     P4RuntimeTestHarness.buildMatchFilter(config, matchValue)
+
+  companion object {
+    private const val REG_ID = 500
+    private const val REG_BITWIDTH = 32
+    private const val REG_BYTEWIDTH = REG_BITWIDTH / 8
+    private const val REG_SIZE = 4
+  }
 }

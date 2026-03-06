@@ -67,7 +67,17 @@ class Simulator {
         val alias = action.preamble.alias.ifEmpty { action.preamble.name }
         action.preamble.id to resolveName(alias, behavioralActions)
       }
-    tableStore.loadMappings(tableNameById, actionNameById, config.p4Info.tablesList)
+    val registerInfoById =
+      config.p4Info.registersList.associate { reg ->
+        val bitwidth = reg.typeSpec.bitstring.bit.bitwidth
+        reg.preamble.id to TableStore.RegisterInfo(reg.preamble.name, bitwidth, reg.size)
+      }
+    tableStore.loadMappings(
+      tableNameById,
+      actionNameById,
+      config.p4Info.tablesList,
+      registerInfoById,
+    )
 
     for (table in config.p4Info.tablesList) {
       // const_default_action_id: immutable default set in the P4 source with `const`.
@@ -163,6 +173,7 @@ class Simulator {
           entity.hasActionProfileMember() ->
             tableStore.readProfileMembers(entity.actionProfileMember)
           entity.hasActionProfileGroup() -> tableStore.readProfileGroups(entity.actionProfileGroup)
+          entity.hasRegisterEntry() -> tableStore.readRegisterEntries(entity.registerEntry)
           else -> emptyList()
         }
       }

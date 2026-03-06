@@ -182,6 +182,20 @@ class P4RuntimeTestHarness : Closeable {
         .build()
     )
 
+  /** Reads register entries, filtered by register ID. */
+  fun readRegisterEntries(registerId: Int): List<Entity> =
+    readEntries(
+      ReadRequest.newBuilder()
+        .setDeviceId(1)
+        .addEntities(
+          Entity.newBuilder()
+            .setRegisterEntry(
+              p4.v1.P4RuntimeOuterClass.RegisterEntry.newBuilder().setRegisterId(registerId)
+            )
+        )
+        .build()
+    )
+
   // ---------------------------------------------------------------------------
   // StreamChannel helpers
   // ---------------------------------------------------------------------------
@@ -425,6 +439,21 @@ class P4RuntimeTestHarness : Closeable {
                   .setWeight(1)
                   .build()
               }
+            )
+        )
+        .build()
+
+    /** Builds an Entity wrapping a RegisterEntry. Value is encoded as 4-byte big-endian. */
+    @Suppress("MagicNumber")
+    fun buildRegisterEntry(registerId: Int, index: Long, value: Long): Entity =
+      Entity.newBuilder()
+        .setRegisterEntry(
+          p4.v1.P4RuntimeOuterClass.RegisterEntry.newBuilder()
+            .setRegisterId(registerId)
+            .setIndex(p4.v1.P4RuntimeOuterClass.Index.newBuilder().setIndex(index))
+            .setData(
+              p4.v1.P4DataOuterClass.P4Data.newBuilder()
+                .setBitstring(ByteString.copyFrom(longToBytes(value, 4)))
             )
         )
         .build()
