@@ -61,3 +61,93 @@ Underneath the three layers, unit tests provide fast development feedback —
 bit-precise arithmetic, match kinds, select expressions, packet I/O. Not part
 of the correctness strategy, but they catch problems early, before the
 expensive end-to-end tests run.
+
+## P4Runtime server
+
+The layers above verify the data plane — does the simulator execute P4 programs
+correctly? The P4Runtime server is a different surface: a gRPC control plane
+that translates between P4Runtime-speaking controllers and the simulator.
+Different surface, same philosophy: multiple independent methodologies,
+machine-checkable success criteria.
+
+### Layer 1: Conformance tests — spec compliance
+
+Hand-written tests that walk the P4Runtime spec section by section. Each test
+cites the spec requirement it validates. Three categories:
+
+- **Per-RPC happy paths.** SetForwardingPipelineConfig, Write, Read,
+  StreamChannel — does the basic lifecycle work?
+- **Per-RPC error codes.** The P4Runtime spec (§9.1) prescribes specific gRPC
+  status codes for each error condition: ALREADY_EXISTS for duplicate INSERT,
+  NOT_FOUND for delete of nonexistent entry, FAILED_PRECONDITION for Write
+  before pipeline load. Each condition gets a test that asserts the exact code.
+  Modeled after
+  [sonic-pins/p4rt_app/tests/response_path_test.cc](https://github.com/sonic-net/sonic-pins/tree/main/p4rt_app/tests)
+  which systematically covers per-RPC error paths including batch partial
+  failure, error message sanitization, and state consistency after failed
+  writes.
+- **Translation correctness.** `@p4runtime_translation` round-trips: write a
+  value in SDN bitwidth, read it back, verify it matches. Covers both the
+  narrowing (write) and widening (read) paths.
+
+The source of truth is the P4Runtime spec itself. The blind spot: only covers
+scenarios someone thought to write.
+
+### Layer 2: Round-trip testing — simulator agreement
+
+The simulator is already validated by three independent oracles. The P4Runtime
+server is just a different front door to the same simulator. So: for programs
+in the STF corpus that have p4info, load via P4Runtime
+(`SetForwardingPipelineConfig`), install entries via `Write`, send packets via
+`StreamChannel` PacketOut, and verify outputs match what the simulator produces
+through the direct protocol.
+
+This turns the existing 186-program corpus into P4Runtime integration tests
+for free. It answers the question: does the P4Runtime layer faithfully
+translate between the controller protocol and the simulator, or does it lose
+or corrupt information along the way?
+
+The source of truth is the simulator (already validated by three independent
+oracles). The blind spot: can't catch bugs where both the P4Runtime layer and
+the simulator agree on the wrong answer — but Layer 1 and Layer 3 can.
+
+*Not implemented yet — requires p4info generation for corpus programs.
+Methodology documented here so it can be built incrementally.*
+
+### Layer 3: Fuzz testing — robustness
+
+The data plane has p4testgen exploring paths no human would write. The control
+plane equivalent is
+[sonic-pins/p4_fuzzer](https://github.com/sonic-net/sonic-pins/tree/main/p4_fuzzer):
+given a P4Info, it generates random valid and mutated P4Runtime WriteRequests
+(invalid table IDs, missing match fields, duplicate inserts, deletes of
+nonexistent entries, out-of-range values — 16 mutation types), sends them to
+the server, and checks responses against a spec oracle that knows what the
+P4Runtime spec says should happen.
+
+The key insight is the oracle pattern: the fuzzer maintains a `SwitchState`
+model that tracks what entries should be installed. After each Write, it checks:
+did the server accept/reject correctly per spec? Does a Read back match the
+modeled state? This catches crashes, state corruption, and spec violations that
+hand-written tests miss.
+
+The source of truth is the P4Runtime spec oracle (independent of our
+implementation). The blind spot: doesn't test data plane correctness, only
+control plane protocol compliance.
+
+*Not implemented yet — requires integrating sonic-pins p4_fuzzer as a Bazel
+dependency. Methodology documented here so it can be built in Track 4B+.*
+
+### Open questions
+
+- What's the P4Runtime equivalent of the STF corpus? The conformance tests
+  (Layer 1) cover the spec manually. Could we derive a more systematic
+  checklist from the spec's normative requirements?
+- What's the equivalent of p4testgen? The p4_fuzzer (Layer 3) explores the
+  Write surface. Is there an analog for Read, StreamChannel, or pipeline
+  config lifecycle?
+- What's the equivalent of BMv2 diff testing? Run the same P4Runtime session
+  against BMv2's gRPC server and 4ward, compare responses. This would catch
+  compatibility bugs that spec-reading alone misses.
+- Are the existing tests covering the right things, or just the things that
+  were convenient when they were written?
