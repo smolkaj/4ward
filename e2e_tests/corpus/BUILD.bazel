@@ -205,6 +205,7 @@ corpus_test_suite(
         "union2-bmv2",
         "union3-bmv2",
         "v1model-const-entries-bmv2",
+        "v1model-special-ops-bmv2",
     ],
 )
 
@@ -257,15 +258,6 @@ corpus_test_suite(
         "psa-top-level-assignments-bmv2",
         "psa-unicast-or-drop-bmv2",
         "psa-unicast-or-drop-corrected-bmv2",
-    ],
-)
-
-# Tests blocked on various unclassified missing features.
-corpus_test_suite(
-    name = "other_stf_corpus_test",
-    tags = ["manual"],
-    tests = [
-        "v1model-special-ops-bmv2",  # needs resubmit/recirculate
     ],
 )
 

@@ -102,12 +102,21 @@ class PacketContext(payload: ByteArray) {
   // -------------------------------------------------------------------------
 
   /**
-   * Session ID from the last clone()/clone3() call, or null if no clone was requested.
+   * Session ID from the last I2E clone()/clone3() call, or null if no clone was requested.
    *
    * BMv2 last-writer-wins: if multiple clone calls occur during ingress, only the last one takes
    * effect. The architecture checks this at the ingress→egress boundary.
    */
   var pendingCloneSessionId: Int? = null
+
+  /** Session ID from the last E2E clone()/clone3() call, checked after egress controls. */
+  var pendingEgressCloneSessionId: Int? = null
+
+  /** True if resubmit() was called during ingress; checked at the ingress→egress boundary. */
+  var pendingResubmit: Boolean = false
+
+  /** True if recirculate() was called during egress; checked after deparser. */
+  var pendingRecirculate: Boolean = false
 
   // -------------------------------------------------------------------------
   // Trace

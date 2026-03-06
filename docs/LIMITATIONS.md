@@ -43,11 +43,9 @@ guilt — just write it down so someone can find it later.
 
 ## Simulator
 
-- **Clone: I2E only, no metadata preservation.** `clone()` and `clone3()`
-  support ingress-to-egress cloning with last-writer-wins for multiple calls
-  (matching BMv2). E2E clone, `clone3` metadata field lists, resubmit, and
-  recirculate are not implemented. Blocks 1 corpus test
-  (`v1model-special-ops-bmv2`).
+- **Clone/resubmit/recirculate: no metadata preservation.** `clone3` field
+  lists, `resubmit_preserving_field_list`, and `recirculate_preserving_field_list`
+  do not carry metadata across — the replayed pipeline starts with fresh state.
 - **Multicast: basic replication only.** Multicast group replication works
   for the trace tree (forking per replica). PRE entries are installed via
   P4Runtime `PacketReplicationEngineEntry`.
