@@ -59,45 +59,26 @@ The module extension has read access to the p4c source tree (via
 
 ---
 
-## Make `matchesMasked` internal for test reuse
+## Reuse simulator process across p4testgen sub-tests
 
-**Files**: `e2e_tests/stf/Runner.kt`, `e2e_tests/stf/StfParserTest.kt`
+**Files**: `e2e_tests/stf/Runner.kt`, `e2e_tests/p4testgen/P4TestgenTest.kt`
 
-**Problem**: `matchesMasked` is `private` in `Runner.kt`, so
-`StfParserTest.kt` has an identical copy to test the logic independently.
-Kotlin `internal` visibility doesn't cross Bazel target boundaries (each
-`kt_jvm_library`/`kt_jvm_test` is a separate module).
+**Problem**: Each sub-test in a p4testgen target spawns a fresh simulator
+subprocess and re-loads the same pipeline config. With `max_tests = 100`,
+subprocess overhead (~330ms each) dominates — 100 sub-tests take ~33s
+when the actual packet processing is negligible.
 
-**Fix**: Move `matchesMasked` to a shared utility in a common target that
-both `stf_runner` and `StfParserTest` depend on, or merge the test into the
-same target.
-
----
-
-## CI hygiene
-
-Pin tool versions and add `set -euo pipefail` to `format.sh`.
+**Fix**: All sub-tests within a target share the same `.txtpb`. Launch the
+simulator once, load the pipeline once, then for each STF: install table
+entries, send packets, check outputs. `StfRunner` currently assumes
+one-shot execution (launch → run → destroy); refactor it to support a
+persistent session that resets table state between STFs.
 
 ---
 
 ## Re-enable buf lint
 
 Blocked on buf support for proto edition 2024.
-
----
-
-## Extract shared interpreter test helpers
-
-**Files**: `simulator/Interpreter*Test.kt` (6 files)
-
-**Problem**: Proto-building helpers (`boolLit`, `bit`, `nameRef`, `ifStmt`,
-`controlConfig`) are duplicated as private functions across 6 test files.
-The copies are identical or near-identical (some add optional parameters).
-
-**Fix**: Extract into a shared `InterpreterTestDsl.kt` test utility. The
-most general version of each helper (e.g. `controlConfig` with a
-`controlName` parameter, `ifStmt` with optional `sourceInfo`) subsumes
-the others.
 
 ---
 

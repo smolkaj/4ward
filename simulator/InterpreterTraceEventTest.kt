@@ -1,20 +1,14 @@
 package fourward.simulator
 
 import fourward.ir.v1.BehavioralConfig
-import fourward.ir.v1.BlockStmt
-import fourward.ir.v1.ControlDecl
 import fourward.ir.v1.Expr
-import fourward.ir.v1.IfStmt
-import fourward.ir.v1.Literal
 import fourward.ir.v1.MethodCall
 import fourward.ir.v1.MethodCallStmt
-import fourward.ir.v1.NameRef
 import fourward.ir.v1.ParserDecl
 import fourward.ir.v1.ParserState
 import fourward.ir.v1.SourceInfo
 import fourward.ir.v1.Stmt
 import fourward.ir.v1.Transition
-import fourward.ir.v1.Type
 import fourward.sim.v1.DropReason
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -32,51 +26,21 @@ class InterpreterTraceEventTest {
   // Helpers
   // ---------------------------------------------------------------------------
 
-  private fun boolLit(v: Boolean): Expr =
-    Expr.newBuilder()
-      .setLiteral(Literal.newBuilder().setBoolean(v))
-      .setType(Type.newBuilder().setBoolean(true))
-      .build()
-
   /** Builds a mark_to_drop(sm) method call statement. */
   private fun markToDropStmt(sourceInfo: SourceInfo? = null): Stmt {
     val call =
       Expr.newBuilder()
         .setMethodCall(
           MethodCall.newBuilder()
-            .setTarget(Expr.newBuilder().setNameRef(NameRef.newBuilder().setName("mark_to_drop")))
+            .setTarget(nameRef("mark_to_drop"))
             .setMethod("__call__")
-            .addArgs(Expr.newBuilder().setNameRef(NameRef.newBuilder().setName("sm")))
+            .addArgs(nameRef("sm"))
         )
         .build()
     val builder = Stmt.newBuilder().setMethodCall(MethodCallStmt.newBuilder().setCall(call))
     if (sourceInfo != null) builder.sourceInfo = sourceInfo
     return builder.build()
   }
-
-  /** Builds an if statement with optional source_info. */
-  private fun ifStmt(
-    condition: Expr,
-    thenStmts: List<Stmt> = emptyList(),
-    elseStmts: List<Stmt> = emptyList(),
-    sourceInfo: SourceInfo? = null,
-  ): Stmt {
-    val builder =
-      Stmt.newBuilder()
-        .setIfStmt(
-          IfStmt.newBuilder()
-            .setCondition(condition)
-            .setThenBlock(BlockStmt.newBuilder().addAllStmts(thenStmts))
-            .setElseBlock(BlockStmt.newBuilder().addAllStmts(elseStmts))
-        )
-    if (sourceInfo != null) builder.sourceInfo = sourceInfo
-    return builder.build()
-  }
-
-  private fun controlConfig(controlName: String, vararg stmts: Stmt): BehavioralConfig =
-    BehavioralConfig.newBuilder()
-      .addControls(ControlDecl.newBuilder().setName(controlName).addAllApplyBody(stmts.toList()))
-      .build()
 
   private fun standardMetadataEnv(): Environment {
     val env = Environment()

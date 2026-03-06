@@ -14,20 +14,14 @@
 
 package fourward.simulator
 
-import fourward.ir.v1.AssignmentStmt
 import fourward.ir.v1.BehavioralConfig
-import fourward.ir.v1.BitType
-import fourward.ir.v1.Expr
 import fourward.ir.v1.KeysetExpr
-import fourward.ir.v1.Literal
-import fourward.ir.v1.NameRef
 import fourward.ir.v1.ParserDecl
 import fourward.ir.v1.ParserState
 import fourward.ir.v1.SelectCase
 import fourward.ir.v1.SelectTransition
 import fourward.ir.v1.Stmt
 import fourward.ir.v1.Transition
-import fourward.ir.v1.Type
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -39,24 +33,6 @@ import org.junit.Test
  * states.
  */
 class InterpreterParserTest {
-
-  private fun bitType(width: Int): Type =
-    Type.newBuilder().setBit(BitType.newBuilder().setWidth(width)).build()
-
-  private fun bit(value: Long, width: Int): Expr =
-    Expr.newBuilder()
-      .setLiteral(Literal.newBuilder().setInteger(value))
-      .setType(bitType(width))
-      .build()
-
-  private fun assign(varName: String, value: Expr): Stmt =
-    Stmt.newBuilder()
-      .setAssignment(
-        AssignmentStmt.newBuilder()
-          .setLhs(Expr.newBuilder().setNameRef(NameRef.newBuilder().setName(varName)))
-          .setRhs(value)
-      )
-      .build()
 
   private fun state(name: String, nextState: String, vararg stmts: Stmt): ParserState =
     ParserState.newBuilder()

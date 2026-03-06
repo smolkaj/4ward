@@ -19,6 +19,8 @@
 # Uses `git ls-files` to respect .gitignore as the single source of truth for
 # which files belong to the project — no manual excludes needed.
 
+set -euo pipefail
+
 cd "$(git rev-parse --show-toplevel)" || exit 1
 REPO_ROOT=$(pwd)
 

@@ -15,17 +15,11 @@
 package fourward.simulator
 
 import fourward.ir.v1.ActionDecl
-import fourward.ir.v1.AssignmentStmt
 import fourward.ir.v1.BehavioralConfig
-import fourward.ir.v1.BitType
 import fourward.ir.v1.Direction
 import fourward.ir.v1.Expr
-import fourward.ir.v1.Literal
 import fourward.ir.v1.MethodCall
-import fourward.ir.v1.NameRef
 import fourward.ir.v1.ParamDecl
-import fourward.ir.v1.Stmt
-import fourward.ir.v1.Type
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -40,18 +34,6 @@ class InterpreterInlineActionTest {
   private val emptyEnv
     get() = Environment()
 
-  private fun bitType(width: Int): Type =
-    Type.newBuilder().setBit(BitType.newBuilder().setWidth(width)).build()
-
-  private fun bit(value: Long, width: Int): Expr =
-    Expr.newBuilder()
-      .setLiteral(Literal.newBuilder().setInteger(value))
-      .setType(bitType(width))
-      .build()
-
-  private fun nameRef(name: String): Expr =
-    Expr.newBuilder().setNameRef(NameRef.newBuilder().setName(name)).build()
-
   /** Builds `actionName(args...)` as a `__call__` method-call expression. */
   private fun callExpr(actionName: String, vararg args: Expr): Expr =
     Expr.newBuilder()
@@ -60,15 +42,6 @@ class InterpreterInlineActionTest {
           .setTarget(nameRef(actionName))
           .setMethod("__call__")
           .addAllArgs(args.toList())
-      )
-      .build()
-
-  private fun assignParam(paramName: String, value: Expr): Stmt =
-    Stmt.newBuilder()
-      .setAssignment(
-        AssignmentStmt.newBuilder()
-          .setLhs(Expr.newBuilder().setNameRef(NameRef.newBuilder().setName(paramName)))
-          .setRhs(value)
       )
       .build()
 
@@ -86,7 +59,7 @@ class InterpreterInlineActionTest {
         .addParams(
           ParamDecl.newBuilder().setName("x").setType(bitType(8)).setDirection(Direction.INOUT)
         )
-        .addBody(assignParam("x", bit(99, 8)))
+        .addBody(assign("x", bit(99, 8)))
         .build()
     val env = emptyEnv
     env.define("myVar", BitVal(0, 8))
@@ -104,7 +77,7 @@ class InterpreterInlineActionTest {
         .addParams(
           ParamDecl.newBuilder().setName("x").setType(bitType(8)).setDirection(Direction.IN)
         )
-        .addBody(assignParam("x", bit(99, 8)))
+        .addBody(assign("x", bit(99, 8)))
         .build()
     val env = emptyEnv
     env.define("myVar", BitVal(0, 8))
@@ -122,7 +95,7 @@ class InterpreterInlineActionTest {
         .addParams(
           ParamDecl.newBuilder().setName("x").setType(bitType(8)).setDirection(Direction.OUT)
         )
-        .addBody(assignParam("x", bit(42, 8)))
+        .addBody(assign("x", bit(42, 8)))
         .build()
     val env = emptyEnv
     env.define("result", BitVal(0, 8))
@@ -145,7 +118,7 @@ class InterpreterInlineActionTest {
         .addParams(
           ParamDecl.newBuilder().setName("b").setType(bitType(8)).setDirection(Direction.INOUT)
         )
-        .addBody(assignParam("b", bit(42, 8)))
+        .addBody(assign("b", bit(42, 8)))
         .build()
     val env = emptyEnv
     env.define("x", BitVal(7, 8))

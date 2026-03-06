@@ -15,7 +15,6 @@
 package fourward.simulator
 
 import fourward.ir.v1.BehavioralConfig
-import fourward.ir.v1.BitType
 import fourward.ir.v1.Expr
 import fourward.ir.v1.FieldAccess
 import fourward.ir.v1.FieldDecl
@@ -47,12 +46,6 @@ class InterpreterPacketTest {
   // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
-
-  private fun bitType(width: Int): Type =
-    Type.newBuilder().setBit(BitType.newBuilder().setWidth(width)).build()
-
-  private fun nameRef(name: String): Expr =
-    Expr.newBuilder().setNameRef(NameRef.newBuilder().setName(name)).build()
 
   /** Builds an extract or emit call: `pkt.<method>(headerVarName)`. */
   private fun packetCall(method: String, headerVarName: String): Expr =
@@ -246,8 +239,6 @@ class InterpreterPacketTest {
   // ---------------------------------------------------------------------------
   // extract into header union members (P4 §8.20)
   // ---------------------------------------------------------------------------
-
-  private fun namedType(name: String): Type = Type.newBuilder().setNamed(name).build()
 
   private fun headerUnionType(typeName: String, vararg members: Pair<String, String>): TypeDecl =
     TypeDecl.newBuilder()

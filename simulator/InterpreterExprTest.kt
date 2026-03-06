@@ -44,13 +44,6 @@ class InterpreterExprTest {
   // Expr builder helpers
   // ---------------------------------------------------------------------------
 
-  /** Unsigned integer literal of [value] in [width] bits. */
-  private fun bit(value: Long, width: Int): Expr =
-    Expr.newBuilder()
-      .setLiteral(Literal.newBuilder().setInteger(value))
-      .setType(Type.newBuilder().setBit(BitType.newBuilder().setWidth(width)))
-      .build()
-
   /** Signed integer literal of [value] in [width] bits. */
   private fun signedBit(value: Long, width: Int): Expr =
     Expr.newBuilder()
@@ -58,20 +51,7 @@ class InterpreterExprTest {
       .setType(Type.newBuilder().setSignedInt(IntType.newBuilder().setWidth(width)))
       .build()
 
-  private fun boolLit(v: Boolean): Expr =
-    Expr.newBuilder()
-      .setLiteral(Literal.newBuilder().setBoolean(v))
-      .setType(Type.newBuilder().setBoolean(true))
-      .build()
-
-  /** Name reference — type annotation omitted since evalExpr doesn't use it for name refs. */
-  private fun nameRef(name: String): Expr =
-    Expr.newBuilder().setNameRef(NameRef.newBuilder().setName(name)).build()
-
   private fun boolType(): Type = Type.newBuilder().setBoolean(true).build()
-
-  private fun bitType(width: Int): Type =
-    Type.newBuilder().setBit(BitType.newBuilder().setWidth(width)).build()
 
   private fun binop(op: BinaryOperator, left: Expr, right: Expr, type: Type): Expr =
     Expr.newBuilder()

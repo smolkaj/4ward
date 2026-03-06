@@ -909,11 +909,7 @@ private fun decodeExpect(hexStr: String): Pair<ByteArray, ByteArray> {
  * When [exactLength] is true, actual and expected must have the same length. When false, actual may
  * be longer — trailing bytes are ignored (BMv2 STF semantics for expects without a trailing `$`).
  */
-private fun ByteArray.matchesMasked(
-  expected: ByteArray,
-  mask: ByteArray,
-  exactLength: Boolean,
-): Boolean {
+fun ByteArray.matchesMasked(expected: ByteArray, mask: ByteArray, exactLength: Boolean): Boolean {
   if (exactLength && size != expected.size) return false
   if (size < expected.size) return false
   return expected.indices.all { i ->

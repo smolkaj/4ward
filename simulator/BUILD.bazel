@@ -85,6 +85,17 @@ kt_jvm_binary(
 )
 
 # =============================================================================
+# Test utilities
+# =============================================================================
+
+kt_jvm_library(
+    name = "interpreter_test_dsl",
+    testonly = True,
+    srcs = ["InterpreterTestDsl.kt"],
+    deps = [":ir_java_proto"],
+)
+
+# =============================================================================
 # Unit tests (colocated with source per Google convention)
 # =============================================================================
 
@@ -113,6 +124,7 @@ kt_jvm_test(
     srcs = ["InterpreterExprTest.kt"],
     test_class = "fourward.simulator.InterpreterExprTest",
     deps = [
+        ":interpreter_test_dsl",
         ":ir_java_proto",
         ":simulator_lib",
         "@maven//:junit_junit",
@@ -124,6 +136,7 @@ kt_jvm_test(
     srcs = ["InterpreterControlTest.kt"],
     test_class = "fourward.simulator.InterpreterControlTest",
     deps = [
+        ":interpreter_test_dsl",
         ":ir_java_proto",
         ":simulator_lib",
         "@maven//:junit_junit",
@@ -147,6 +160,7 @@ kt_jvm_test(
     srcs = ["InterpreterPacketTest.kt"],
     test_class = "fourward.simulator.InterpreterPacketTest",
     deps = [
+        ":interpreter_test_dsl",
         ":ir_java_proto",
         ":simulator_lib",
         "@maven//:junit_junit",
@@ -169,6 +183,7 @@ kt_jvm_test(
     srcs = ["InterpreterInlineActionTest.kt"],
     test_class = "fourward.simulator.InterpreterInlineActionTest",
     deps = [
+        ":interpreter_test_dsl",
         ":ir_java_proto",
         ":simulator_lib",
         "@maven//:junit_junit",
@@ -180,6 +195,7 @@ kt_jvm_test(
     srcs = ["V1ModelArchitectureTest.kt"],
     test_class = "fourward.simulator.V1ModelArchitectureTest",
     deps = [
+        ":interpreter_test_dsl",
         ":ir_java_proto",
         ":p4runtime_java_proto",
         ":simulator_java_proto",
@@ -194,6 +210,7 @@ kt_jvm_test(
     srcs = ["InterpreterParserTest.kt"],
     test_class = "fourward.simulator.InterpreterParserTest",
     deps = [
+        ":interpreter_test_dsl",
         ":ir_java_proto",
         ":simulator_lib",
         "@maven//:junit_junit",
@@ -206,6 +223,7 @@ kt_jvm_test(
     associates = [":simulator_lib"],
     test_class = "fourward.simulator.DefaultValuesTest",
     deps = [
+        ":interpreter_test_dsl",
         ":ir_java_proto",
         "@maven//:junit_junit",
     ],
@@ -228,6 +246,7 @@ kt_jvm_test(
     srcs = ["InterpreterTraceEventTest.kt"],
     test_class = "fourward.simulator.InterpreterTraceEventTest",
     deps = [
+        ":interpreter_test_dsl",
         ":ir_java_proto",
         ":simulator_java_proto",
         ":simulator_lib",
