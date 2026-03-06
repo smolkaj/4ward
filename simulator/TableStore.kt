@@ -183,11 +183,10 @@ class TableStore {
       }
     val hasIndex = filter.hasIndex()
     return infos.flatMap { (regId, info) ->
-      val indices =
-        if (hasIndex) listOf(filter.index.index.toInt()) else (0 until info.size).toList()
+      val byteLen = (info.bitwidth + 7) / 8
+      val indices = if (hasIndex) listOf(filter.index.index.toInt()) else (0 until info.size)
       indices.map { idx ->
         val value = registerRead(info.name, idx) as? BitVal
-        val byteLen = (info.bitwidth + 7) / 8
         val data = (value?.bits?.value ?: BigInteger.ZERO).toByteString(byteLen)
         P4RuntimeOuterClass.Entity.newBuilder()
           .setRegisterEntry(

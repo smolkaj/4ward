@@ -443,9 +443,9 @@ class P4RuntimeTestHarness : Closeable {
         )
         .build()
 
-    /** Builds an Entity wrapping a RegisterEntry. Value is encoded as 4-byte big-endian. */
+    /** Builds an Entity wrapping a RegisterEntry. */
     @Suppress("MagicNumber")
-    fun buildRegisterEntry(registerId: Int, index: Long, value: Long): Entity =
+    fun buildRegisterEntry(registerId: Int, index: Long, value: Long, byteLen: Int = 4): Entity =
       Entity.newBuilder()
         .setRegisterEntry(
           p4.v1.P4RuntimeOuterClass.RegisterEntry.newBuilder()
@@ -453,7 +453,7 @@ class P4RuntimeTestHarness : Closeable {
             .setIndex(p4.v1.P4RuntimeOuterClass.Index.newBuilder().setIndex(index))
             .setData(
               p4.v1.P4DataOuterClass.P4Data.newBuilder()
-                .setBitstring(ByteString.copyFrom(longToBytes(value, 4)))
+                .setBitstring(ByteString.copyFrom(longToBytes(value, byteLen)))
             )
         )
         .build()
