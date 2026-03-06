@@ -1,0 +1,24 @@
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
+load("//e2e_tests:p4c.bzl", "p4c_compile")
+
+p4c_compile(
+    name = "wide_port",
+    src_p4 = "wide_port.p4",
+    includes = ["v1model.p4"],
+)
+
+kt_jvm_test(
+    name = "wide_port_test",
+    srcs = ["WidePortTest.kt"],
+    data = [
+        "wide_port.stf",
+        ":wide_port_pb",
+        "//simulator",
+    ],
+    test_class = "fourward.e2e.wideport.WidePortTest",
+    deps = [
+        "//e2e_tests/stf:stf_runner",
+        "@maven//:com_google_protobuf_protobuf_java",
+        "@maven//:junit_junit",
+    ],
+)
