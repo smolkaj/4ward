@@ -1,0 +1,176 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - coverage.lcov - simulator/simulator/DefaultValues.kt</title>
+  <link rel="stylesheet" type="text/css" href="../../gcov.css">
+</head>
+
+<body>
+
+          <table width="100%" border=0 cellspacing=0 cellpadding=0>
+            <tr><td class="title">LCOV - differential code coverage report</td></tr>
+            <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+
+            <tr>
+              <td width="100%">
+                <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="10%" class="headerValue"><a href="../../index.html">top level</a> - <a href="index.html">simulator/simulator</a> - DefaultValues.kt<span style="font-size: 80%;"> (source / <a href="DefaultValues.kt.func-c.html">functions</a>)</span></td>
+            <td width="5%"></td>
+            <td width="5%"></td>
+            <td width="5%" class="headerCovTableHead">Coverage</td>
+            <td width="5%" class="headerCovTableHead" title="Covered + Uncovered code (not including EUB, ECB, DUB, DCB categories)">Total</td>
+            <td width="5%" class="headerCovTableHead" title="Exercised code only (CBC + GBC + GNC + GIC)">Hit</td>
+            <td width="5%" class="headerCovTableHeadUBC" title="Uncovered Baseline Code (0 => 0):
+Unchanged code was untested before, is untested now">Not covered</td>
+            <td width="5%" class="headerCovTableHeadCBC" title="Covered Baseline Code (1 => 1):
+Unchanged code was tested before and is still tested">Covered</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Current:</td>
+            <td class="headerValue">coverage.lcov</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntryHi">96.4&nbsp;%</td>
+            <td class="headerCovTableEntry">28</td>
+            <td class="headerCovTableEntry">27</td>
+            <td class="headerCovTableEntry"><a href="#L70" title="goto first UBC">1</a></td>
+            <td class="headerCovTableEntry"><a href="#L29" title="goto first CBC">27</a></td>
+          </tr>
+          <tr>
+            <td class="headerItem">Current Date:</td>
+            <td class="headerValue">2026-03-06 09:55:41</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
+            <td class="headerCovTableEntry">3</td>
+            <td class="headerCovTableEntry">3</td>
+            <td class="headerCovTableEntry"></td>
+            <td class="headerCovTableEntry">3</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Baseline:</td>
+            <td class="headerValue">baseline.lcov</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td class="headerItem">Baseline Date:</td>
+            <td class="headerValue">2026-03-06 09:47:42</td>
+            <td></td>
+          </tr>
+                  <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+          </table>
+
+          <table cellpadding=0 cellspacing=0 border=0>
+            <tr>
+              <td><br></td>
+            </tr>
+            <tr>
+              <td>
+<pre class="sourceHeading">           TLA  Line data    Source code</pre>
+<pre class="source">
+<span id="L1"><span class="lineNum">       1</span>                 : // Copyright 2026 4ward Authors</span>
+<span id="L2"><span class="lineNum">       2</span>                 : //</span>
+<span id="L3"><span class="lineNum">       3</span>                 : // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span id="L4"><span class="lineNum">       4</span>                 : // you may not use this file except in compliance with the License.</span>
+<span id="L5"><span class="lineNum">       5</span>                 : // You may obtain a copy of the License at</span>
+<span id="L6"><span class="lineNum">       6</span>                 : //</span>
+<span id="L7"><span class="lineNum">       7</span>                 : //     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span id="L8"><span class="lineNum">       8</span>                 : //</span>
+<span id="L9"><span class="lineNum">       9</span>                 : // Unless required by applicable law or agreed to in writing, software</span>
+<span id="L10"><span class="lineNum">      10</span>                 : // distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span id="L11"><span class="lineNum">      11</span>                 : // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span id="L12"><span class="lineNum">      12</span>                 : // See the License for the specific language governing permissions and</span>
+<span id="L13"><span class="lineNum">      13</span>                 : // limitations under the License.</span>
+<span id="L14"><span class="lineNum">      14</span>                 : </span>
+<span id="L15"><span class="lineNum">      15</span>                 : package fourward.simulator</span>
+<span id="L16"><span class="lineNum">      16</span>                 : </span>
+<span id="L17"><span class="lineNum">      17</span>                 : import fourward.ir.v1.Type</span>
+<span id="L18"><span class="lineNum">      18</span>                 : import fourward.ir.v1.TypeDecl</span>
+<span id="L19"><span class="lineNum">      19</span>                 : import java.math.BigInteger</span>
+<span id="L20"><span class="lineNum">      20</span>                 : </span>
+<span id="L21"><span class="lineNum">      21</span>                 : /**</span>
+<span id="L22"><span class="lineNum">      22</span>                 :  * Creates a zero/default [Value] for [type].</span>
+<span id="L23"><span class="lineNum">      23</span>                 :  *</span>
+<span id="L24"><span class="lineNum">      24</span>                 :  * bit&lt;N&gt; → [BitVal] zero, int&lt;N&gt; → [IntVal] zero, bool → [BoolVal] false, named types → recursively</span>
+<span id="L25"><span class="lineNum">      25</span>                 :  * initialised header (invalid), struct, or [BitVal] zero for serializable enums. varbit&lt;N&gt; and</span>
+<span id="L26"><span class="lineNum">      26</span>                 :  * unrecognised types → [UnitVal].</span>
+<span id="L27"><span class="lineNum">      27</span>                 :  */</span>
+<span id="L28"><span class="lineNum">      28</span>                 : internal fun defaultValue(type: Type, types: Map&lt;String, TypeDecl&gt;): Value =</span>
+<span id="L29"><span class="lineNum">      29</span> <a href="#L79" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :   when {</span></span>
+<span id="L30"><span class="lineNum">      30</span> <span class="tlaCBC">              1 :     type.hasBit() -&gt; BitVal(0L, type.bit.width)</span></span>
+<span id="L31"><span class="lineNum">      31</span> <span class="tlaCBC">              1 :     type.hasSignedInt() -&gt; IntVal(SignedBitVector(java.math.BigInteger.ZERO, type.signedInt.width))</span></span>
+<span id="L32"><span class="lineNum">      32</span> <span class="tlaCBC">              1 :     type.hasBoolean() -&gt; BoolVal(false)</span></span>
+<span id="L33"><span class="lineNum">      33</span> <span class="tlaCBC">              1 :     type.hasNamed() -&gt; defaultValue(type.named, types)</span></span>
+<span id="L34"><span class="lineNum">      34</span> <span class="tlaCBC">              1 :     type.hasHeaderStack() -&gt;</span></span>
+<span id="L35"><span class="lineNum">      35</span> <span class="tlaCBC">              1 :       HeaderStackVal(</span></span>
+<span id="L36"><span class="lineNum">      36</span> <span class="tlaCBC">              1 :         elementTypeName = type.headerStack.elementType,</span></span>
+<span id="L37"><span class="lineNum">      37</span>                 :         headers =</span>
+<span id="L38"><span class="lineNum">      38</span> <span class="tlaCBC">              1 :           MutableList(type.headerStack.size.toInt()) {</span></span>
+<span id="L39"><span class="lineNum">      39</span> <span class="tlaCBC">              1 :             defaultValue(type.headerStack.elementType, types)</span></span>
+<span id="L40"><span class="lineNum">      40</span>                 :           },</span>
+<span id="L41"><span class="lineNum">      41</span>                 :       )</span>
+<span id="L42"><span class="lineNum">      42</span> <span class="tlaCBC">              1 :     else -&gt; UnitVal // varbit&lt;N&gt;: variable-length; no fixed default</span></span>
+<span id="L43"><span class="lineNum">      43</span> <span class="tlaCBC">              1 :   }</span></span>
+<span id="L44"><span class="lineNum">      44</span>                 : </span>
+<span id="L45"><span class="lineNum">      45</span>                 : /**</span>
+<span id="L46"><span class="lineNum">      46</span>                 :  * Creates a zero/default [Value] for the named type.</span>
+<span id="L47"><span class="lineNum">      47</span>                 :  *</span>
+<span id="L48"><span class="lineNum">      48</span>                 :  * Looks up [typeName] in [types]; returns [UnitVal] if not found. Headers are initially invalid</span>
+<span id="L49"><span class="lineNum">      49</span>                 :  * with zeroed fields; structs are recursively initialised. Serializable enums default to a zero</span>
+<span id="L50"><span class="lineNum">      50</span>                 :  * [BitVal] of their underlying width.</span>
+<span id="L51"><span class="lineNum">      51</span>                 :  */</span>
+<span id="L52"><span class="lineNum">      52</span>                 : internal fun defaultValue(typeName: String, types: Map&lt;String, TypeDecl&gt;): Value {</span>
+<span id="L53"><span class="lineNum">      53</span> <span class="tlaCBC">              1 :   val typeDecl = types[typeName] ?: return UnitVal</span></span>
+<span id="L54"><span class="lineNum">      54</span> <span class="tlaCBC">              1 :   return when {</span></span>
+<span id="L55"><span class="lineNum">      55</span> <span class="tlaCBC">              1 :     typeDecl.hasHeader() -&gt;</span></span>
+<span id="L56"><span class="lineNum">      56</span> <span class="tlaCBC">              1 :       HeaderVal(</span></span>
+<span id="L57"><span class="lineNum">      57</span> <span class="tlaCBC">              1 :         typeName = typeName,</span></span>
+<span id="L58"><span class="lineNum">      58</span>                 :         fields =</span>
+<span id="L59"><span class="lineNum">      59</span> <span class="tlaCBC">              1 :           typeDecl.header.fieldsList.associateTo(mutableMapOf()) { f -&gt;</span></span>
+<span id="L60"><span class="lineNum">      60</span> <span class="tlaCBC">              1 :             f.name to defaultValue(f.type, types)</span></span>
+<span id="L61"><span class="lineNum">      61</span>                 :           },</span>
+<span id="L62"><span class="lineNum">      62</span> <span class="tlaCBC">              1 :         valid = false,</span></span>
+<span id="L63"><span class="lineNum">      63</span>                 :       )</span>
+<span id="L64"><span class="lineNum">      64</span> <span class="tlaCBC">              1 :     typeDecl.hasStruct() -&gt; defaultStruct(typeName, typeDecl.struct.fieldsList, types)</span></span>
+<span id="L65"><span class="lineNum">      65</span>                 :     // Header union (P4 spec §8.20): represented as a StructVal so field access works</span>
+<span id="L66"><span class="lineNum">      66</span>                 :     // uniformly; per-member validity is tracked via HeaderVal.valid.</span>
+<span id="L67"><span class="lineNum">      67</span> <span class="tlaCBC">              1 :     typeDecl.hasHeaderUnion() -&gt; defaultStruct(typeName, typeDecl.headerUnion.fieldsList, types)</span></span>
+<span id="L68"><span class="lineNum">      68</span>                 :     // Serializable enum: default to zero of the underlying bit width.</span>
+<span id="L69"><span class="lineNum">      69</span> <span class="tlaCBC">              1 :     typeDecl.hasEnum() &amp;&amp; typeDecl.enum.width &gt; 0 -&gt; BitVal(0L, typeDecl.enum.width)</span></span>
+<span id="L70"><span class="lineNum">      70</span> <a href="#top" class="tlaBgUBC"  title="Next UBC group">Not covered</a><span class="tlaUBC tlaBgUBC">           0 :     else -&gt; UnitVal</span></span>
+<span id="L71"><span class="lineNum">      71</span>                 :   }</span>
+<span id="L72"><span class="lineNum">      72</span>                 : }</span>
+<span id="L73"><span class="lineNum">      73</span>                 : </span>
+<span id="L74"><span class="lineNum">      74</span>                 : private fun defaultStruct(</span>
+<span id="L75"><span class="lineNum">      75</span>                 :   typeName: String,</span>
+<span id="L76"><span class="lineNum">      76</span>                 :   fieldDecls: List&lt;fourward.ir.v1.FieldDecl&gt;,</span>
+<span id="L77"><span class="lineNum">      77</span>                 :   types: Map&lt;String, TypeDecl&gt;,</span>
+<span id="L78"><span class="lineNum">      78</span>                 : ): StructVal =</span>
+<span id="L79"><span class="lineNum">      79</span> <a href="#top" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :   StructVal(</span></span>
+<span id="L80"><span class="lineNum">      80</span> <span class="tlaCBC">              1 :     typeName = typeName,</span></span>
+<span id="L81"><span class="lineNum">      81</span> <span class="tlaCBC">              1 :     fields = fieldDecls.associateTo(mutableMapOf()) { f -&gt; f.name to defaultValue(f.type, types) },</span></span>
+<span id="L82"><span class="lineNum">      82</span> <span class="tlaCBC">              1 :   )</span></span>
+        </pre>
+              </td>
+            </tr>
+          </table>
+          <br>
+
+          <table width="100%" border=0 cellspacing=0 cellpadding=0>
+            <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+            <tr><td class="versionInfo">Generated by: <a href="https://github.com//linux-test-project/lcov" target="_parent">LCOV version 2.0-1</a></td></tr>
+          </table>
+          <br>
+
+</body>
+</html>
