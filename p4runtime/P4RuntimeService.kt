@@ -42,12 +42,18 @@ class P4RuntimeService(
   private val constraintValidatorBinary: Path? = null,
 ) : P4RuntimeGrpcKt.P4RuntimeCoroutineImplBase(), Closeable {
 
-  @Volatile private var currentConfig: PipelineConfig? = null
-  @Volatile private var typeTranslator: TypeTranslator? = null
-  @Volatile private var constraintValidator: ConstraintValidator? = null
+  /** Bundled pipeline state — atomically swapped on pipeline load to avoid torn reads. */
+  private data class PipelineState(
+    val config: PipelineConfig,
+    val typeTranslator: TypeTranslator?,
+    val writeValidator: WriteValidator,
+    val constraintValidator: ConstraintValidator?,
+  )
 
-  private fun requirePipeline(): PipelineConfig =
-    currentConfig
+  @Volatile private var pipeline: PipelineState? = null
+
+  private fun requirePipeline(): PipelineState =
+    pipeline
       ?: throw Status.FAILED_PRECONDITION.withDescription(
           "No pipeline loaded; call SetForwardingPipelineConfig first"
         )
@@ -94,11 +100,15 @@ class P4RuntimeService(
         .asException()
     }
 
-    currentConfig = pipelineConfig
-    typeTranslator = TypeTranslator.create(fwdConfig.p4Info, deviceConfig.translationsList)
-    constraintValidator?.close()
-    constraintValidator =
-      constraintValidatorBinary?.let { ConstraintValidator.create(fwdConfig.p4Info, it) }
+    pipeline?.constraintValidator?.close()
+    pipeline =
+      PipelineState(
+        config = pipelineConfig,
+        typeTranslator = TypeTranslator.create(fwdConfig.p4Info, deviceConfig.translationsList),
+        writeValidator = WriteValidator(pipelineConfig.p4Info),
+        constraintValidator =
+          constraintValidatorBinary?.let { ConstraintValidator.create(fwdConfig.p4Info, it) },
+      )
     return SetForwardingPipelineConfigResponse.getDefaultInstance()
   }
 
@@ -107,10 +117,15 @@ class P4RuntimeService(
   // ---------------------------------------------------------------------------
 
   override suspend fun write(request: WriteRequest): WriteResponse {
-    requirePipeline()
-    val translator = typeTranslator?.takeIf { it.hasTranslations }
-    val validator = constraintValidator
+    val state = requirePipeline()
+    val translator = state.typeTranslator?.takeIf { it.hasTranslations }
+    val validator = state.constraintValidator
     for (rawUpdate in request.updatesList) {
+      // Validate against p4info before type translation so SDN-visible values
+      // are checked at canonical widths (P4Runtime spec §8.3, §9.1).
+      if (rawUpdate.entity.hasTableEntry()) {
+        state.writeValidator.validate(rawUpdate)
+      }
       val update = translator?.translateForWrite(rawUpdate) ?: rawUpdate
 
       // Validate constraints before forwarding to the simulator.
@@ -153,7 +168,7 @@ class P4RuntimeService(
   // ---------------------------------------------------------------------------
 
   override fun read(request: ReadRequest): Flow<ReadResponse> = flow {
-    requirePipeline()
+    val state = requirePipeline()
     val simRequest =
       SimRequest.newBuilder()
         .setReadEntries(ReadEntriesRequest.newBuilder().setRequest(request))
@@ -164,7 +179,7 @@ class P4RuntimeService(
         .asException()
     }
     if (simResponse.readEntries.entitiesCount > 0) {
-      val translator = typeTranslator?.takeIf { it.hasTranslations }
+      val translator = state.typeTranslator?.takeIf { it.hasTranslations }
       val entities =
         if (translator != null) {
           simResponse.readEntries.entitiesList.map { translator.translateForRead(it) }
@@ -198,7 +213,7 @@ class P4RuntimeService(
             )
           }
           msg.hasPacket() -> {
-            val translator = typeTranslator?.takeIf { it.hasTranslations }
+            val translator = pipeline?.typeTranslator?.takeIf { it.hasTranslations }
             val packetOut = translator?.translatePacketOut(msg.packet) ?: msg.packet
             val ingressPort = extractIngressPort(packetOut.metadataList)
 
@@ -252,7 +267,7 @@ class P4RuntimeService(
   override suspend fun getForwardingPipelineConfig(
     request: GetForwardingPipelineConfigRequest
   ): GetForwardingPipelineConfigResponse {
-    val config = requirePipeline()
+    val config = requirePipeline().config
 
     val fwdConfig = ForwardingPipelineConfig.newBuilder()
     when (request.responseType) {
@@ -283,7 +298,7 @@ class P4RuntimeService(
     CapabilitiesResponse.newBuilder().setP4RuntimeApiVersion(P4RUNTIME_API_VERSION).build()
 
   override fun close() {
-    constraintValidator?.close()
+    pipeline?.constraintValidator?.close()
   }
 
   companion object {
