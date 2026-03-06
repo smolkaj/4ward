@@ -5,6 +5,11 @@ cc_binary(
     name = "bmv2_driver",
     srcs = ["bmv2_driver.cpp"],
     copts = ["-std=c++17"],
+    # BMv2 uses 128-bit atomics; clang on Linux needs -latomic explicitly.
+    linkopts = select({
+        "@platforms//os:linux": ["-latomic"],
+        "//conditions:default": [],
+    }),
     deps = ["@behavioral_model//:simple_switch_lib"],
 )
 
