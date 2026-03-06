@@ -99,8 +99,8 @@ Three subtracks, each a different testing methodology:
 unpinned across the full corpus (1B), and BMv2 diff testing surfaces no
 mismatches (1C).
 
-**Current status:** 1A complete (186/186). 1B: 155 programs, all unpinned.
-1C: 183 programs diff-tested. See [STATUS.md](STATUS.md).
+**Current status:** 1A complete (185/185). 1B: 155 programs, all unpinned.
+1C: 182 programs diff-tested. See [STATUS.md](STATUS.md).
 
 ### Track 2: infrastructure
 
