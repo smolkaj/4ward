@@ -6,6 +6,8 @@ import fourward.ir.v1.TypeTranslation
 import java.util.concurrent.ConcurrentHashMap
 import p4.config.v1.P4InfoOuterClass.P4Info
 import p4.v1.P4RuntimeOuterClass.Entity
+import p4.v1.P4RuntimeOuterClass.PacketIn
+import p4.v1.P4RuntimeOuterClass.PacketOut
 import p4.v1.P4RuntimeOuterClass.Update
 
 /**
@@ -42,16 +44,23 @@ class TranslationException(message: String) : RuntimeException(message)
  * - **Hybrid**: explicit pins for known values, auto-allocate for the rest.
  *
  * When no [TypeTranslation] is provided for a URI, auto-allocation is used by default.
+ *
+ * Translates action parameters, match fields (exact/optional), and PacketIO metadata.
  */
 class TypeTranslator
 private constructor(
   private val tables: ConcurrentHashMap<String, TranslationTable>,
   private val paramUris: Map<Long, String>,
+  private val matchFieldUris: Map<Long, String>,
+  private val packetMetadataUris: Map<Int, String>,
 ) {
 
-  /** Returns true if this translator has any translated types to handle. */
-  val hasTranslations: Boolean
-    get() = tables.isNotEmpty() || paramUris.isNotEmpty()
+  /** True if this translator has any translated types to handle. */
+  val hasTranslations: Boolean =
+    tables.isNotEmpty() ||
+      paramUris.isNotEmpty() ||
+      matchFieldUris.isNotEmpty() ||
+      packetMetadataUris.isNotEmpty()
 
   /**
    * Translates an SDN bitstring value to its data-plane representation.
@@ -82,66 +91,78 @@ private constructor(
     tables.computeIfAbsent(uri) { TranslationTable(autoAllocate = true) }
 
   // ---------------------------------------------------------------------------
-  // P4Runtime Write/Read translation (delegates to per-param URI lookup)
+  // P4Runtime Write/Read translation
   // ---------------------------------------------------------------------------
 
-  /**
-   * Translates a Write update from SDN to data-plane representation.
-   *
-   * For each action parameter that uses a translated type, looks up the SDN value in the mapping
-   * table and replaces it with the corresponding data-plane value.
-   */
+  /** Translates a Write update from SDN to data-plane representation. */
   fun translateForWrite(update: Update): Update {
     if (!update.entity.hasTableEntry()) return update
-    val entry = update.entity.tableEntry
-    if (!entry.hasAction() || !entry.action.hasAction()) return update
-    val action = entry.action.action
-    val translatedParams = translateParams(action.actionId, action.paramsList, toDataplane = true)
-    translatedParams ?: return update
-    return update
-      .toBuilder()
-      .setEntity(
-        update.entity
-          .toBuilder()
-          .setTableEntry(
-            entry
-              .toBuilder()
-              .setAction(
-                entry.action
-                  .toBuilder()
-                  .setAction(action.toBuilder().clearParams().addAllParams(translatedParams))
-              )
-          )
-      )
-      .build()
+    val translated =
+      translateTableEntry(update.entity.tableEntry, toDataplane = true) ?: return update
+    return update.toBuilder().setEntity(update.entity.toBuilder().setTableEntry(translated)).build()
+  }
+
+  /** Translates a Read entity from data-plane to SDN representation. */
+  fun translateForRead(entity: Entity): Entity {
+    if (!entity.hasTableEntry()) return entity
+    val translated = translateTableEntry(entity.tableEntry, toDataplane = false) ?: return entity
+    return entity.toBuilder().setTableEntry(translated).build()
   }
 
   /**
-   * Translates a Read entity from data-plane to SDN representation.
-   *
-   * For each action parameter that uses a translated type, looks up the data-plane value and
-   * replaces it with the corresponding SDN value.
+   * Translates match field values and action parameter values in a table entry. Returns null if
+   * nothing was translated.
    */
-  fun translateForRead(entity: Entity): Entity {
-    if (!entity.hasTableEntry()) return entity
-    val entry = entity.tableEntry
-    if (!entry.hasAction() || !entry.action.hasAction()) return entity
-    val action = entry.action.action
-    val translatedParams = translateParams(action.actionId, action.paramsList, toDataplane = false)
-    translatedParams ?: return entity
-    return entity
-      .toBuilder()
-      .setTableEntry(
-        entry
+  private fun translateTableEntry(
+    entry: p4.v1.P4RuntimeOuterClass.TableEntry,
+    toDataplane: Boolean,
+  ): p4.v1.P4RuntimeOuterClass.TableEntry? {
+    val translatedMatches = translateMatchFields(entry.tableId, entry.matchList, toDataplane)
+    val translatedParams =
+      if (entry.hasAction() && entry.action.hasAction()) {
+        val action = entry.action.action
+        translateParams(action.actionId, action.paramsList, toDataplane)
+      } else {
+        null
+      }
+    if (translatedMatches == null && translatedParams == null) return null
+    val builder = entry.toBuilder()
+    if (translatedMatches != null) {
+      builder.clearMatch().addAllMatch(translatedMatches)
+    }
+    if (translatedParams != null) {
+      builder.setAction(
+        entry.action
           .toBuilder()
-          .setAction(
-            entry.action
-              .toBuilder()
-              .setAction(action.toBuilder().clearParams().addAllParams(translatedParams))
-          )
+          .setAction(entry.action.action.toBuilder().clearParams().addAllParams(translatedParams))
       )
-      .build()
+    }
+    return builder.build()
   }
+
+  // ---------------------------------------------------------------------------
+  // PacketIO metadata translation
+  // ---------------------------------------------------------------------------
+
+  /** Translates PacketOut metadata from SDN to data-plane representation. */
+  fun translatePacketOut(packetOut: PacketOut): PacketOut {
+    if (packetMetadataUris.isEmpty()) return packetOut
+    val translated =
+      translateMetadata(packetOut.metadataList, toDataplane = true) ?: return packetOut
+    return packetOut.toBuilder().clearMetadata().addAllMetadata(translated).build()
+  }
+
+  /** Translates PacketIn metadata from data-plane to SDN representation. */
+  fun translatePacketIn(packetIn: PacketIn): PacketIn {
+    if (packetMetadataUris.isEmpty()) return packetIn
+    val translated =
+      translateMetadata(packetIn.metadataList, toDataplane = false) ?: return packetIn
+    return packetIn.toBuilder().clearMetadata().addAllMetadata(translated).build()
+  }
+
+  // ---------------------------------------------------------------------------
+  // Internal translation helpers
+  // ---------------------------------------------------------------------------
 
   private fun translateParams(
     actionId: Int,
@@ -151,26 +172,10 @@ private constructor(
     var changed = false
     val result =
       params.map { param ->
-        val uri = paramUris[paramKey(actionId, param.paramId)]
+        val uri = paramUris[packKey(actionId, param.paramId)]
         if (uri != null) {
           changed = true
-          val table = getOrCreateTable(uri)
-          // Operate on ByteString directly — param.value is already ByteString,
-          // so we avoid unnecessary ByteArray↔ByteString round-trips.
-          val translated =
-            if (toDataplane) {
-              table.lookupOrAllocateBitstring(param.value)
-            } else {
-              when (val sdnValue = table.reverseLookup(param.value)) {
-                is SdnValue.Bitstring -> sdnValue.value
-                // sdn_string values can't be encoded as action param bytes — the P4Runtime
-                // spec has no mechanism to return string values inside action parameters.
-                is SdnValue.Str ->
-                  throw TranslationException(
-                    "Cannot encode sdn_string value '${sdnValue.value}' as action param bytes"
-                  )
-              }
-            }
+          val translated = translateValue(getOrCreateTable(uri), param.value, toDataplane)
           param.toBuilder().setValue(translated).build()
         } else {
           param
@@ -179,22 +184,105 @@ private constructor(
     return if (changed) result else null
   }
 
+  private fun translateMatchFields(
+    tableId: Int,
+    matches: List<p4.v1.P4RuntimeOuterClass.FieldMatch>,
+    toDataplane: Boolean,
+  ): List<p4.v1.P4RuntimeOuterClass.FieldMatch>? {
+    var changed = false
+    val result =
+      matches.map { match ->
+        val uri = matchFieldUris[packKey(tableId, match.fieldId)]
+        if (uri != null) {
+          changed = true
+          val table = getOrCreateTable(uri)
+          when {
+            match.hasExact() -> {
+              val translated = translateValue(table, match.exact.value, toDataplane)
+              match
+                .toBuilder()
+                .setExact(
+                  p4.v1.P4RuntimeOuterClass.FieldMatch.Exact.newBuilder().setValue(translated)
+                )
+                .build()
+            }
+            match.hasOptional() -> {
+              val translated = translateValue(table, match.optional.value, toDataplane)
+              match
+                .toBuilder()
+                .setOptional(
+                  p4.v1.P4RuntimeOuterClass.FieldMatch.Optional.newBuilder().setValue(translated)
+                )
+                .build()
+            }
+            // Ternary/LPM/Range on translated types is nonsensical — pass through.
+            else -> match
+          }
+        } else {
+          match
+        }
+      }
+    return if (changed) result else null
+  }
+
+  private fun translateMetadata(
+    metadata: List<p4.v1.P4RuntimeOuterClass.PacketMetadata>,
+    toDataplane: Boolean,
+  ): List<p4.v1.P4RuntimeOuterClass.PacketMetadata>? {
+    var changed = false
+    val result =
+      metadata.map { meta ->
+        val uri = packetMetadataUris[meta.metadataId]
+        if (uri != null) {
+          changed = true
+          val translated = translateValue(getOrCreateTable(uri), meta.value, toDataplane)
+          meta.toBuilder().setValue(translated).build()
+        } else {
+          meta
+        }
+      }
+    return if (changed) result else null
+  }
+
+  /** Translates a single ByteString value forward (SDN→DP) or reverse (DP→SDN). */
+  private fun translateValue(
+    table: TranslationTable,
+    value: ByteString,
+    toDataplane: Boolean,
+  ): ByteString =
+    if (toDataplane) {
+      table.lookupOrAllocateBitstring(value)
+    } else {
+      when (val sdnValue = table.reverseLookup(value)) {
+        is SdnValue.Bitstring -> sdnValue.value
+        // sdn_string values can't be encoded as bytes — the P4Runtime spec has no
+        // mechanism to return string values inside match fields or action parameters.
+        is SdnValue.Str ->
+          throw TranslationException("Cannot encode sdn_string value '${sdnValue.value}' as bytes")
+      }
+    }
+
   companion object {
     /**
      * Creates a TypeTranslator from translation configurations.
      *
      * For use without p4info — the translator supports direct URI-based lookups via
-     * [sdnToDataplane] and [dataplaneToSdn], but not [translateForWrite]/[translateForRead] (which
-     * require p4info to map action param IDs to URIs).
+     * [sdnToDataplane] and [dataplaneToSdn], but not message-level translation methods (which
+     * require p4info to map field IDs to URIs).
      */
     fun create(translations: List<TypeTranslation> = emptyList()): TypeTranslator =
-      TypeTranslator(buildTables(translations), paramUris = emptyMap())
+      TypeTranslator(
+        buildTables(translations),
+        paramUris = emptyMap(),
+        matchFieldUris = emptyMap(),
+        packetMetadataUris = emptyMap(),
+      )
 
     /**
      * Creates a TypeTranslator from p4info and translation configurations.
      *
-     * Discovers translated types from p4info and maps (actionId, paramId) pairs to URIs, enabling
-     * [translateForWrite] and [translateForRead] on P4Runtime messages.
+     * Discovers translated types from p4info and maps field IDs to URIs, enabling translation of
+     * action parameters, match fields, and PacketIO metadata in P4Runtime messages.
      */
     fun create(p4info: P4Info, translations: List<TypeTranslation> = emptyList()): TypeTranslator {
       val translatedTypes =
@@ -205,11 +293,34 @@ private constructor(
         for (param in action.paramsList) {
           if (!param.hasTypeName()) continue
           val typeSpec = translatedTypes[param.typeName.name] ?: continue
-          paramUris[paramKey(action.preamble.id, param.id)] = typeSpec.translatedType.uri
+          paramUris[packKey(action.preamble.id, param.id)] = typeSpec.translatedType.uri
         }
       }
 
-      return TypeTranslator(buildTables(translations), paramUris)
+      val matchFieldUris = mutableMapOf<Long, String>()
+      for (table in p4info.tablesList) {
+        for (matchField in table.matchFieldsList) {
+          if (!matchField.hasTypeName()) continue
+          val typeSpec = translatedTypes[matchField.typeName.name] ?: continue
+          matchFieldUris[packKey(table.preamble.id, matchField.id)] = typeSpec.translatedType.uri
+        }
+      }
+
+      val packetMetadataUris = mutableMapOf<Int, String>()
+      for (controllerMeta in p4info.controllerPacketMetadataList) {
+        for (metadata in controllerMeta.metadataList) {
+          if (!metadata.hasTypeName()) continue
+          val typeSpec = translatedTypes[metadata.typeName.name] ?: continue
+          packetMetadataUris[metadata.id] = typeSpec.translatedType.uri
+        }
+      }
+
+      return TypeTranslator(
+        buildTables(translations),
+        paramUris,
+        matchFieldUris,
+        packetMetadataUris,
+      )
     }
 
     private fun buildTables(
@@ -222,9 +333,9 @@ private constructor(
       return tables
     }
 
-    /** Encodes (actionId, paramId) as a single Long for fast lookup. */
-    private fun paramKey(actionId: Int, paramId: Int): Long =
-      (actionId.toLong() shl 32) or (paramId.toLong() and 0xFFFFFFFFL)
+    /** Packs two IDs into a single Long for fast compound-key lookup. */
+    private fun packKey(high: Int, low: Int): Long =
+      (high.toLong() shl 32) or (low.toLong() and 0xFFFFFFFFL)
   }
 }
 
