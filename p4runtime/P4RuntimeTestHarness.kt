@@ -152,6 +152,36 @@ class P4RuntimeTestHarness : Closeable {
     entities
   }
 
+  /** Reads action profile members, optionally filtered by profile ID. */
+  fun readProfileMembers(actionProfileId: Int = 0): List<Entity> =
+    readEntries(
+      ReadRequest.newBuilder()
+        .setDeviceId(1)
+        .addEntities(
+          Entity.newBuilder()
+            .setActionProfileMember(
+              p4.v1.P4RuntimeOuterClass.ActionProfileMember.newBuilder()
+                .setActionProfileId(actionProfileId)
+            )
+        )
+        .build()
+    )
+
+  /** Reads action profile groups, optionally filtered by profile ID. */
+  fun readProfileGroups(actionProfileId: Int = 0): List<Entity> =
+    readEntries(
+      ReadRequest.newBuilder()
+        .setDeviceId(1)
+        .addEntities(
+          Entity.newBuilder()
+            .setActionProfileGroup(
+              p4.v1.P4RuntimeOuterClass.ActionProfileGroup.newBuilder()
+                .setActionProfileId(actionProfileId)
+            )
+        )
+        .build()
+    )
+
   // ---------------------------------------------------------------------------
   // StreamChannel helpers
   // ---------------------------------------------------------------------------
@@ -369,5 +399,34 @@ class P4RuntimeTestHarness : Closeable {
       }
       return bytes
     }
+
+    /** Builds an Entity wrapping an ActionProfileMember with a single action param. */
+    fun buildMemberEntity(actionProfileId: Int, memberId: Int, actionId: Int): Entity =
+      Entity.newBuilder()
+        .setActionProfileMember(
+          p4.v1.P4RuntimeOuterClass.ActionProfileMember.newBuilder()
+            .setActionProfileId(actionProfileId)
+            .setMemberId(memberId)
+            .setAction(p4.v1.P4RuntimeOuterClass.Action.newBuilder().setActionId(actionId))
+        )
+        .build()
+
+    /** Builds an Entity wrapping an ActionProfileGroup with the given member IDs. */
+    fun buildGroupEntity(actionProfileId: Int, groupId: Int, memberIds: List<Int>): Entity =
+      Entity.newBuilder()
+        .setActionProfileGroup(
+          p4.v1.P4RuntimeOuterClass.ActionProfileGroup.newBuilder()
+            .setActionProfileId(actionProfileId)
+            .setGroupId(groupId)
+            .addAllMembers(
+              memberIds.map { mid ->
+                p4.v1.P4RuntimeOuterClass.ActionProfileGroup.Member.newBuilder()
+                  .setMemberId(mid)
+                  .setWeight(1)
+                  .build()
+              }
+            )
+        )
+        .build()
   }
 }

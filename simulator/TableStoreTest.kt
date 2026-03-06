@@ -440,10 +440,16 @@ class TableStoreTest {
     return store
   }
 
-  private fun writeMember(store: TableStore, memberId: Int, actionId: Int, paramValue: Byte) {
+  private fun writeMember(
+    store: TableStore,
+    memberId: Int,
+    actionId: Int,
+    paramValue: Byte,
+    type: Update.Type = Update.Type.INSERT,
+  ): WriteResult =
     store.write(
       Update.newBuilder()
-        .setType(Update.Type.INSERT)
+        .setType(type)
         .setEntity(
           Entity.newBuilder()
             .setActionProfileMember(
@@ -463,12 +469,16 @@ class TableStoreTest {
         )
         .build()
     )
-  }
 
-  private fun writeGroup(store: TableStore, groupId: Int, memberIds: List<Int>) {
+  private fun writeGroup(
+    store: TableStore,
+    groupId: Int,
+    memberIds: List<Int>,
+    type: Update.Type = Update.Type.INSERT,
+  ): WriteResult =
     store.write(
       Update.newBuilder()
-        .setType(Update.Type.INSERT)
+        .setType(type)
         .setEntity(
           Entity.newBuilder()
             .setActionProfileGroup(
@@ -487,7 +497,6 @@ class TableStoreTest {
         )
         .build()
     )
-  }
 
   private fun writeGroupEntry(store: TableStore, fieldValue: Byte, groupId: Int) {
     store.write(
@@ -683,6 +692,194 @@ class TableStoreTest {
 
     assertNull(store.getCloneSession(1))
     assertNull(store.getMulticastGroup(1))
+  }
+
+  // ---------------------------------------------------------------------------
+  // Action profile write semantics
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `insert duplicate member returns AlreadyExists`() {
+    val s = storeWithProfile()
+    assertEquals(WriteResult.Success, writeMember(s, memberId = 1, actionId = 10, paramValue = 1))
+    assertTrue(
+      writeMember(s, memberId = 1, actionId = 20, paramValue = 2) is WriteResult.AlreadyExists
+    )
+  }
+
+  @Test
+  fun `modify existing member succeeds`() {
+    val s = storeWithProfile()
+    writeMember(s, memberId = 1, actionId = 10, paramValue = 1)
+    assertEquals(
+      WriteResult.Success,
+      writeMember(s, memberId = 1, actionId = 20, paramValue = 2, type = Update.Type.MODIFY),
+    )
+  }
+
+  @Test
+  fun `modify non-existent member returns NotFound`() {
+    val s = storeWithProfile()
+    assertTrue(
+      writeMember(s, memberId = 99, actionId = 10, paramValue = 1, type = Update.Type.MODIFY)
+        is WriteResult.NotFound
+    )
+  }
+
+  @Test
+  fun `delete existing member succeeds`() {
+    val s = storeWithProfile()
+    writeMember(s, memberId = 1, actionId = 10, paramValue = 1)
+    assertEquals(
+      WriteResult.Success,
+      writeMember(s, memberId = 1, actionId = 10, paramValue = 1, type = Update.Type.DELETE),
+    )
+  }
+
+  @Test
+  fun `delete non-existent member returns NotFound`() {
+    val s = storeWithProfile()
+    assertTrue(
+      writeMember(s, memberId = 99, actionId = 10, paramValue = 1, type = Update.Type.DELETE)
+        is WriteResult.NotFound
+    )
+  }
+
+  @Test
+  fun `insert duplicate group returns AlreadyExists`() {
+    val s = storeWithProfile()
+    assertEquals(WriteResult.Success, writeGroup(s, groupId = 1, memberIds = listOf(0)))
+    assertTrue(writeGroup(s, groupId = 1, memberIds = listOf(0)) is WriteResult.AlreadyExists)
+  }
+
+  @Test
+  fun `modify existing group succeeds`() {
+    val s = storeWithProfile()
+    writeGroup(s, groupId = 1, memberIds = listOf(0))
+    assertEquals(
+      WriteResult.Success,
+      writeGroup(s, groupId = 1, memberIds = listOf(0, 1), type = Update.Type.MODIFY),
+    )
+  }
+
+  @Test
+  fun `modify non-existent group returns NotFound`() {
+    val s = storeWithProfile()
+    assertTrue(
+      writeGroup(s, groupId = 99, memberIds = listOf(0), type = Update.Type.MODIFY)
+        is WriteResult.NotFound
+    )
+  }
+
+  @Test
+  fun `delete existing group succeeds`() {
+    val s = storeWithProfile()
+    writeGroup(s, groupId = 1, memberIds = listOf(0))
+    assertEquals(
+      WriteResult.Success,
+      writeGroup(s, groupId = 1, memberIds = listOf(0), type = Update.Type.DELETE),
+    )
+  }
+
+  @Test
+  fun `delete non-existent group returns NotFound`() {
+    val s = storeWithProfile()
+    assertTrue(
+      writeGroup(s, groupId = 99, memberIds = listOf(0), type = Update.Type.DELETE)
+        is WriteResult.NotFound
+    )
+  }
+
+  // ---------------------------------------------------------------------------
+  // Action profile reads
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `readProfileMembers wildcard returns all members`() {
+    val s = storeWithProfile()
+    writeMember(s, memberId = 1, actionId = 10, paramValue = 1)
+    writeMember(s, memberId = 2, actionId = 20, paramValue = 2)
+    val results = s.readProfileMembers()
+    assertEquals(2, results.size)
+    assertTrue(results.all { it.hasActionProfileMember() })
+  }
+
+  @Test
+  fun `readProfileMembers with profile filter returns only that profile`() {
+    val s = storeWithProfile()
+    writeMember(s, memberId = 1, actionId = 10, paramValue = 1)
+    // Members from a different profile (id=999) should not be returned.
+    s.write(
+      Update.newBuilder()
+        .setType(Update.Type.INSERT)
+        .setEntity(
+          Entity.newBuilder()
+            .setActionProfileMember(
+              P4RuntimeOuterClass.ActionProfileMember.newBuilder()
+                .setActionProfileId(999)
+                .setMemberId(1)
+                .setAction(Action.newBuilder().setActionId(10))
+            )
+        )
+        .build()
+    )
+    val filter =
+      P4RuntimeOuterClass.ActionProfileMember.newBuilder().setActionProfileId(PROFILE_ID).build()
+    val results = s.readProfileMembers(filter)
+    assertEquals(1, results.size)
+    assertEquals(PROFILE_ID, results[0].actionProfileMember.actionProfileId)
+  }
+
+  @Test
+  fun `readProfileMembers with member filter returns single member`() {
+    val s = storeWithProfile()
+    writeMember(s, memberId = 1, actionId = 10, paramValue = 1)
+    writeMember(s, memberId = 2, actionId = 20, paramValue = 2)
+    val filter =
+      P4RuntimeOuterClass.ActionProfileMember.newBuilder()
+        .setActionProfileId(PROFILE_ID)
+        .setMemberId(1)
+        .build()
+    val results = s.readProfileMembers(filter)
+    assertEquals(1, results.size)
+    assertEquals(1, results[0].actionProfileMember.memberId)
+  }
+
+  @Test
+  fun `readProfileMembers non-matching returns empty`() {
+    val s = storeWithProfile()
+    writeMember(s, memberId = 1, actionId = 10, paramValue = 1)
+    val filter =
+      P4RuntimeOuterClass.ActionProfileMember.newBuilder()
+        .setActionProfileId(PROFILE_ID)
+        .setMemberId(99)
+        .build()
+    assertTrue(s.readProfileMembers(filter).isEmpty())
+  }
+
+  @Test
+  fun `readProfileGroups wildcard returns all groups`() {
+    val s = storeWithProfile()
+    writeGroup(s, groupId = 1, memberIds = listOf(0))
+    writeGroup(s, groupId = 2, memberIds = listOf(0))
+    val results = s.readProfileGroups()
+    assertEquals(2, results.size)
+    assertTrue(results.all { it.hasActionProfileGroup() })
+  }
+
+  @Test
+  fun `readProfileGroups with group filter returns single group`() {
+    val s = storeWithProfile()
+    writeGroup(s, groupId = 1, memberIds = listOf(0))
+    writeGroup(s, groupId = 2, memberIds = listOf(0))
+    val filter =
+      P4RuntimeOuterClass.ActionProfileGroup.newBuilder()
+        .setActionProfileId(PROFILE_ID)
+        .setGroupId(1)
+        .build()
+    val results = s.readProfileGroups(filter)
+    assertEquals(1, results.size)
+    assertEquals(1, results[0].actionProfileGroup.groupId)
   }
 
   // ---------------------------------------------------------------------------

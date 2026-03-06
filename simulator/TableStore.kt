@@ -135,14 +135,8 @@ class TableStore {
   fun write(update: Update): WriteResult {
     val entity = update.entity
     return when {
-      entity.hasActionProfileMember() -> {
-        writeProfileMember(entity.actionProfileMember)
-        WriteResult.Success
-      }
-      entity.hasActionProfileGroup() -> {
-        writeProfileGroup(entity.actionProfileGroup)
-        WriteResult.Success
-      }
+      entity.hasActionProfileMember() -> writeProfileMember(update.type, entity.actionProfileMember)
+      entity.hasActionProfileGroup() -> writeProfileGroup(update.type, entity.actionProfileGroup)
       entity.hasPacketReplicationEngineEntry() -> {
         writePreEntry(entity.packetReplicationEngineEntry)
         WriteResult.Success
@@ -193,12 +187,80 @@ class TableStore {
     }
   }
 
-  private fun writeProfileMember(member: P4RuntimeOuterClass.ActionProfileMember) {
-    profileMembers.getOrPut(member.actionProfileId) { mutableMapOf() }[member.memberId] = member
+  private fun writeProfileMember(
+    type: Update.Type,
+    member: P4RuntimeOuterClass.ActionProfileMember,
+  ): WriteResult {
+    val members = profileMembers.getOrPut(member.actionProfileId) { mutableMapOf() }
+    val exists = member.memberId in members
+    return when (type) {
+      Update.Type.INSERT ->
+        if (exists)
+          WriteResult.AlreadyExists(
+            "action profile ${member.actionProfileId} already contains member ${member.memberId}"
+          )
+        else {
+          members[member.memberId] = member
+          WriteResult.Success
+        }
+      Update.Type.MODIFY ->
+        if (!exists)
+          WriteResult.NotFound(
+            "action profile ${member.actionProfileId} has no member ${member.memberId}"
+          )
+        else {
+          members[member.memberId] = member
+          WriteResult.Success
+        }
+      Update.Type.DELETE ->
+        if (!exists)
+          WriteResult.NotFound(
+            "action profile ${member.actionProfileId} has no member ${member.memberId}"
+          )
+        else {
+          members.remove(member.memberId)
+          WriteResult.Success
+        }
+      else -> WriteResult.InvalidArgument("unsupported update type: $type")
+    }
   }
 
-  private fun writeProfileGroup(group: P4RuntimeOuterClass.ActionProfileGroup) {
-    profileGroups.getOrPut(group.actionProfileId) { mutableMapOf() }[group.groupId] = group
+  private fun writeProfileGroup(
+    type: Update.Type,
+    group: P4RuntimeOuterClass.ActionProfileGroup,
+  ): WriteResult {
+    val groups = profileGroups.getOrPut(group.actionProfileId) { mutableMapOf() }
+    val exists = group.groupId in groups
+    return when (type) {
+      Update.Type.INSERT ->
+        if (exists)
+          WriteResult.AlreadyExists(
+            "action profile ${group.actionProfileId} already contains group ${group.groupId}"
+          )
+        else {
+          groups[group.groupId] = group
+          WriteResult.Success
+        }
+      Update.Type.MODIFY ->
+        if (!exists)
+          WriteResult.NotFound(
+            "action profile ${group.actionProfileId} has no group ${group.groupId}"
+          )
+        else {
+          groups[group.groupId] = group
+          WriteResult.Success
+        }
+      Update.Type.DELETE ->
+        if (!exists)
+          WriteResult.NotFound(
+            "action profile ${group.actionProfileId} has no group ${group.groupId}"
+          )
+        else {
+          groups.remove(group.groupId)
+          WriteResult.Success
+        }
+      else -> WriteResult.InvalidArgument("unsupported update type: $type")
+    }
   }
 
   private fun writePreEntry(pre: P4RuntimeOuterClass.PacketReplicationEngineEntry) {
@@ -241,6 +303,47 @@ class TableStore {
         if (hasMatchFilter) listOfNotNull(entries.find { it.sameKey(filter) }) else entries
       }
       .map { P4RuntimeOuterClass.Entity.newBuilder().setTableEntry(it).build() }
+  }
+
+  /**
+   * Returns action profile members as P4Runtime Entity protos, filtered by [filter].
+   * - `action_profile_id=0` → wildcard: all members from all profiles.
+   * - `action_profile_id=N, member_id=0` → all members from profile N.
+   * - `action_profile_id=N, member_id=M` → single member (N, M).
+   */
+  fun readProfileMembers(
+    filter: P4RuntimeOuterClass.ActionProfileMember =
+      P4RuntimeOuterClass.ActionProfileMember.getDefaultInstance()
+  ): List<P4RuntimeOuterClass.Entity> {
+    val sources =
+      if (filter.actionProfileId == 0) profileMembers.values.flatMap { it.values }
+      else {
+        val members = profileMembers[filter.actionProfileId] ?: return emptyList()
+        if (filter.memberId != 0) listOfNotNull(members[filter.memberId])
+        else members.values.toList()
+      }
+    return sources.map {
+      P4RuntimeOuterClass.Entity.newBuilder().setActionProfileMember(it).build()
+    }
+  }
+
+  /**
+   * Returns action profile groups as P4Runtime Entity protos, filtered by [filter].
+   * - `action_profile_id=0` → wildcard: all groups from all profiles.
+   * - `action_profile_id=N, group_id=0` → all groups from profile N.
+   * - `action_profile_id=N, group_id=G` → single group (N, G).
+   */
+  fun readProfileGroups(
+    filter: P4RuntimeOuterClass.ActionProfileGroup =
+      P4RuntimeOuterClass.ActionProfileGroup.getDefaultInstance()
+  ): List<P4RuntimeOuterClass.Entity> {
+    val sources =
+      if (filter.actionProfileId == 0) profileGroups.values.flatMap { it.values }
+      else {
+        val groups = profileGroups[filter.actionProfileId] ?: return emptyList()
+        if (filter.groupId != 0) listOfNotNull(groups[filter.groupId]) else groups.values.toList()
+      }
+    return sources.map { P4RuntimeOuterClass.Entity.newBuilder().setActionProfileGroup(it).build() }
   }
 
   // -------------------------------------------------------------------------
