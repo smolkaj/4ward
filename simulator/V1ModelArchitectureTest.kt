@@ -25,6 +25,7 @@ import fourward.ir.v1.StructDecl
 import fourward.ir.v1.Transition
 import fourward.ir.v1.Type
 import fourward.ir.v1.TypeDecl
+import fourward.ir.v1.VarDecl
 import fourward.sim.v1.DropReason
 import fourward.sim.v1.ForkReason
 import fourward.sim.v1.OutputPacket
@@ -213,11 +214,13 @@ class V1ModelArchitectureTest {
     egressStmts: List<Stmt> = emptyList(),
     parser: ParserDecl = noopParser,
     smType: TypeDecl = standardMetaType,
+    ingressLocalVars: List<VarDecl> = emptyList(),
   ): BehavioralConfig {
-    fun control(name: String, stmts: List<Stmt>) =
+    fun control(name: String, stmts: List<Stmt>, localVars: List<VarDecl> = emptyList()) =
       ControlDecl.newBuilder()
         .setName(name)
         .addAllParams(controlParams)
+        .addAllLocalVars(localVars)
         .addAllApplyBody(stmts)
         .build()
 
@@ -228,7 +231,7 @@ class V1ModelArchitectureTest {
       .addTypes(metaType)
       .addParsers(parser)
       .addControls(noopControl("MyVerifyChecksum"))
-      .addControls(control("MyIngress", ingressStmts))
+      .addControls(control("MyIngress", ingressStmts, ingressLocalVars))
       .addControls(control("MyEgress", egressStmts))
       .addControls(noopControl("MyComputeChecksum"))
       .addControls(noopControl("MyDeparser"))
@@ -350,29 +353,16 @@ class V1ModelArchitectureTest {
   fun `execute_meter does not affect forwarding`() {
     // Meters always return GREEN in the simulator (no real packet rates).
     // Verify the pipeline still forwards normally after a meter call.
-    val ingressControl =
-      ControlDecl.newBuilder()
-        .setName("MyIngress")
-        .addAllParams(controlParams)
-        .addLocalVars(fourward.ir.v1.VarDecl.newBuilder().setName("color").setType(bitType(8)))
-        .addApplyBody(
-          methodCallStmt("my_meter", "execute_meter", bit(0, 32), nameRef("color", bitType(8)))
-        )
-        .addApplyBody(assignField("sm", "egress_spec", 5, V1ModelArchitecture.DEFAULT_PORT_BITS))
-        .build()
     val config =
-      BehavioralConfig.newBuilder()
-        .setArchitecture(v1modelArch)
-        .addTypes(standardMetaType)
-        .addTypes(headersType)
-        .addTypes(metaType)
-        .addParsers(noopParser)
-        .addControls(noopControl("MyVerifyChecksum"))
-        .addControls(ingressControl)
-        .addControls(noopControl("MyEgress"))
-        .addControls(noopControl("MyComputeChecksum"))
-        .addControls(noopControl("MyDeparser"))
-        .build()
+      v1modelConfig(
+        ingressLocalVars =
+          listOf(VarDecl.newBuilder().setName("color").setType(bitType(8)).build()),
+        ingressStmts =
+          listOf(
+            methodCallStmt("my_meter", "execute_meter", bit(0, 32), nameRef("color", bitType(8))),
+            assignField("sm", "egress_spec", 5, V1ModelArchitecture.DEFAULT_PORT_BITS),
+          ),
+      )
     val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
     val outputs = collectOutputs(result.trace)
 
