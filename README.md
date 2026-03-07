@@ -126,7 +126,7 @@ packet received: port 0, 18 bytes
   table port_table: miss -> drop
   action drop
   mark_to_drop()
-  drop
+  drop (reason: mark_to_drop)
 PASS
 ```
 

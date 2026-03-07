@@ -30,12 +30,7 @@ object TraceFormatter {
             appendLine("${pad(indent)}output port ${out.egressPort}, ${out.payload.size()} bytes")
           }
           outcome.hasDrop() -> {
-            val reason = outcome.drop.reason.humanName()
-            if (reason != null) {
-              appendLine("${pad(indent)}drop ($reason)")
-            } else {
-              appendLine("${pad(indent)}drop")
-            }
+            appendLine("${pad(indent)}drop (reason: ${outcome.drop.reason.humanName()})")
           }
         }
       }
@@ -82,13 +77,12 @@ object TraceFormatter {
   private fun com.google.protobuf.ByteString.decimal(): String =
     java.math.BigInteger(1, toByteArray()).toString()
 
-  /** Returns a human-readable drop reason, or null if the reason is already evident from events. */
-  private fun DropReason.humanName(): String? =
+  private fun DropReason.humanName(): String =
     when (this) {
-      DropReason.MARK_TO_DROP -> null // already shown as a mark_to_drop() event
+      DropReason.MARK_TO_DROP -> "mark_to_drop"
       DropReason.PARSER_REJECT -> "parser reject"
       DropReason.PIPELINE_EXECUTION_LIMIT_REACHED -> "execution limit"
-      else -> null
+      else -> "unknown"
     }
 
   private fun fourward.sim.v1.ForkReason.humanName(): String =
