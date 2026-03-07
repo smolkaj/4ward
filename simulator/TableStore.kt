@@ -40,6 +40,9 @@ class TableStore {
 
   private data class RegisterInfo(val name: String, val bitwidth: Int, val size: Int)
 
+  /** Metadata for statically-allocated indexed externs (counters, meters). */
+  private data class IndexedExternInfo(val size: Int)
+
   // tableName -> list of entries, ordered by insertion (priority is explicit in the entry)
   private val tables: MutableMap<String, MutableList<TableEntry>> = mutableMapOf()
 
@@ -60,6 +63,14 @@ class TableStore {
 
   // registerName -> index -> stored value (persists across packets)
   private val registers: MutableMap<String, MutableMap<Int, Value>> = mutableMapOf()
+
+  // counter_id -> index -> CounterData (persists across packets)
+  private val counters: MutableMap<Int, MutableMap<Int, P4RuntimeOuterClass.CounterData>> =
+    mutableMapOf()
+
+  // meter_id -> index -> MeterConfig (persists across packets)
+  private val meters: MutableMap<Int, MutableMap<Int, P4RuntimeOuterClass.MeterConfig>> =
+    mutableMapOf()
 
   // For unit tests that cannot easily construct TableEntry protos: makes lookup() return
   // hit=true with this action rather than searching the entry list.
@@ -91,6 +102,8 @@ class TableStore {
   private var tableNameById: Map<Int, String> = emptyMap()
   private var actionNameById: Map<Int, String> = emptyMap()
   private var registerInfoById: Map<Int, RegisterInfo> = emptyMap()
+  private var counterInfoById: Map<Int, IndexedExternInfo> = emptyMap()
+  private var meterInfoById: Map<Int, IndexedExternInfo> = emptyMap()
 
   /**
    * Initialises the ID→name maps for the loaded pipeline and clears all table entries.
@@ -98,11 +111,13 @@ class TableStore {
    * Must be called before [write] or [lookup]. Calling it again (pipeline reload) resets all state.
    */
   fun loadMappings(
-    tableNameById: Map<Int, String>,
-    actionNameById: Map<Int, String>,
+    tableNameById: Map<Int, String> = emptyMap(),
+    actionNameById: Map<Int, String> = emptyMap(),
     p4infoTables: List<P4InfoOuterClass.Table> = emptyList(),
     p4infoRegisters: List<P4InfoOuterClass.Register> = emptyList(),
     p4infoActionProfiles: List<P4InfoOuterClass.ActionProfile> = emptyList(),
+    p4infoCounters: List<P4InfoOuterClass.Counter> = emptyList(),
+    p4infoMeters: List<P4InfoOuterClass.Meter> = emptyList(),
   ) {
     this.tableNameById = tableNameById
     this.actionNameById = actionNameById
@@ -111,9 +126,15 @@ class TableStore {
         val bitwidth = reg.typeSpec.bitstring.bit.bitwidth
         reg.preamble.id to RegisterInfo(reg.preamble.name, bitwidth, reg.size)
       }
+    this.counterInfoById =
+      p4infoCounters.associate { it.preamble.id to IndexedExternInfo(it.size.toInt()) }
+    this.meterInfoById =
+      p4infoMeters.associate { it.preamble.id to IndexedExternInfo(it.size.toInt()) }
     tables.clear()
     forcedHits.clear()
     registers.clear()
+    counters.clear()
+    meters.clear()
     profileMembers.clear()
     profileGroups.clear()
     tableActionProfile.clear()
@@ -219,6 +240,121 @@ class TableStore {
   }
 
   // -------------------------------------------------------------------------
+  // Indexed externs (counters, meters) — shared write helper
+  // -------------------------------------------------------------------------
+
+  /**
+   * Validates and stores a value for a MODIFY-only indexed extern (counter, meter).
+   *
+   * Checks: MODIFY-only, known ID, index in bounds. On success, stores [value] at
+   * `storage[id][index]`.
+   */
+  private fun <V> writeIndexedExtern(
+    type: Update.Type,
+    entityName: String,
+    id: Int,
+    index: P4RuntimeOuterClass.Index,
+    infoById: Map<Int, IndexedExternInfo>,
+    storage: MutableMap<Int, MutableMap<Int, V>>,
+    value: V,
+  ): WriteResult {
+    if (type != Update.Type.MODIFY)
+      return WriteResult.InvalidArgument("${entityName}s only support MODIFY, not $type")
+    val info = infoById[id] ?: return WriteResult.NotFound("unknown $entityName ID: $id")
+    val idx = index.index.toInt()
+    if (idx < 0 || idx >= info.size)
+      return WriteResult.InvalidArgument("$entityName index $idx out of bounds [0, ${info.size})")
+    storage.getOrPut(id) { mutableMapOf() }[idx] = value
+    return WriteResult.Success
+  }
+
+  // -------------------------------------------------------------------------
+  // Counters
+  // -------------------------------------------------------------------------
+
+  private fun writeCounterEntry(
+    type: Update.Type,
+    entry: P4RuntimeOuterClass.CounterEntry,
+  ): WriteResult =
+    writeIndexedExtern(
+      type,
+      "counter",
+      entry.counterId,
+      entry.index,
+      counterInfoById,
+      counters,
+      entry.data,
+    )
+
+  fun readCounterEntries(
+    filter: P4RuntimeOuterClass.CounterEntry = P4RuntimeOuterClass.CounterEntry.getDefaultInstance()
+  ): List<P4RuntimeOuterClass.Entity> {
+    val infos =
+      if (filter.counterId == 0) counterInfoById
+      else {
+        val info = counterInfoById[filter.counterId] ?: return emptyList()
+        mapOf(filter.counterId to info)
+      }
+    val hasIndex = filter.hasIndex()
+    return infos.flatMap { (counterId, info) ->
+      val indices = if (hasIndex) listOf(filter.index.index.toInt()) else (0 until info.size)
+      indices.map { idx ->
+        val data =
+          counters[counterId]?.get(idx) ?: P4RuntimeOuterClass.CounterData.getDefaultInstance()
+        P4RuntimeOuterClass.Entity.newBuilder()
+          .setCounterEntry(
+            P4RuntimeOuterClass.CounterEntry.newBuilder()
+              .setCounterId(counterId)
+              .setIndex(P4RuntimeOuterClass.Index.newBuilder().setIndex(idx.toLong()))
+              .setData(data)
+          )
+          .build()
+      }
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Meters
+  // -------------------------------------------------------------------------
+
+  private fun writeMeterEntry(
+    type: Update.Type,
+    entry: P4RuntimeOuterClass.MeterEntry,
+  ): WriteResult =
+    writeIndexedExtern(
+      type,
+      "meter",
+      entry.meterId,
+      entry.index,
+      meterInfoById,
+      meters,
+      entry.config,
+    )
+
+  fun readMeterEntries(
+    filter: P4RuntimeOuterClass.MeterEntry = P4RuntimeOuterClass.MeterEntry.getDefaultInstance()
+  ): List<P4RuntimeOuterClass.Entity> {
+    val infos =
+      if (filter.meterId == 0) meterInfoById
+      else {
+        val info = meterInfoById[filter.meterId] ?: return emptyList()
+        mapOf(filter.meterId to info)
+      }
+    val hasIndex = filter.hasIndex()
+    return infos.flatMap { (meterId, info) ->
+      val indices = if (hasIndex) listOf(filter.index.index.toInt()) else (0 until info.size)
+      indices.map { idx ->
+        val builder =
+          P4RuntimeOuterClass.MeterEntry.newBuilder()
+            .setMeterId(meterId)
+            .setIndex(P4RuntimeOuterClass.Index.newBuilder().setIndex(idx.toLong()))
+        meters[meterId]?.get(idx)?.let { builder.setConfig(it) }
+        P4RuntimeOuterClass.Entity.newBuilder().setMeterEntry(builder).build()
+      }
+    }
+  }
+
+  // -------------------------------------------------------------------------
   // Write
   // -------------------------------------------------------------------------
 
@@ -228,6 +364,8 @@ class TableStore {
       entity.hasActionProfileMember() -> writeProfileMember(update.type, entity.actionProfileMember)
       entity.hasActionProfileGroup() -> writeProfileGroup(update.type, entity.actionProfileGroup)
       entity.hasRegisterEntry() -> writeRegisterEntry(update.type, entity.registerEntry)
+      entity.hasCounterEntry() -> writeCounterEntry(update.type, entity.counterEntry)
+      entity.hasMeterEntry() -> writeMeterEntry(update.type, entity.meterEntry)
       entity.hasPacketReplicationEngineEntry() -> {
         writePreEntry(entity.packetReplicationEngineEntry)
         WriteResult.Success

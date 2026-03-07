@@ -189,6 +189,32 @@ class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable 
         .build()
     )
 
+  /** Reads counter entries, filtered by counter ID. */
+  fun readCounterEntries(counterId: Int): List<Entity> =
+    readEntries(
+      ReadRequest.newBuilder()
+        .setDeviceId(1)
+        .addEntities(
+          Entity.newBuilder()
+            .setCounterEntry(
+              p4.v1.P4RuntimeOuterClass.CounterEntry.newBuilder().setCounterId(counterId)
+            )
+        )
+        .build()
+    )
+
+  /** Reads meter entries, filtered by meter ID. */
+  fun readMeterEntries(meterId: Int): List<Entity> =
+    readEntries(
+      ReadRequest.newBuilder()
+        .setDeviceId(1)
+        .addEntities(
+          Entity.newBuilder()
+            .setMeterEntry(p4.v1.P4RuntimeOuterClass.MeterEntry.newBuilder().setMeterId(meterId))
+        )
+        .build()
+    )
+
   // ---------------------------------------------------------------------------
   // StreamChannel helpers
   // ---------------------------------------------------------------------------
@@ -452,6 +478,50 @@ class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable 
             .setData(
               p4.v1.P4DataOuterClass.P4Data.newBuilder()
                 .setBitstring(ByteString.copyFrom(longToBytes(value, byteLen)))
+            )
+        )
+        .build()
+
+    /** Builds an Entity wrapping a CounterEntry. */
+    fun buildCounterEntry(
+      counterId: Int,
+      index: Long,
+      byteCount: Long = 0,
+      packetCount: Long = 0,
+    ): Entity =
+      Entity.newBuilder()
+        .setCounterEntry(
+          p4.v1.P4RuntimeOuterClass.CounterEntry.newBuilder()
+            .setCounterId(counterId)
+            .setIndex(p4.v1.P4RuntimeOuterClass.Index.newBuilder().setIndex(index))
+            .setData(
+              p4.v1.P4RuntimeOuterClass.CounterData.newBuilder()
+                .setByteCount(byteCount)
+                .setPacketCount(packetCount)
+            )
+        )
+        .build()
+
+    /** Builds an Entity wrapping a MeterEntry. */
+    fun buildMeterEntry(
+      meterId: Int,
+      index: Long,
+      cir: Long = 0,
+      cburst: Long = 0,
+      pir: Long = 0,
+      pburst: Long = 0,
+    ): Entity =
+      Entity.newBuilder()
+        .setMeterEntry(
+          p4.v1.P4RuntimeOuterClass.MeterEntry.newBuilder()
+            .setMeterId(meterId)
+            .setIndex(p4.v1.P4RuntimeOuterClass.Index.newBuilder().setIndex(index))
+            .setConfig(
+              p4.v1.P4RuntimeOuterClass.MeterConfig.newBuilder()
+                .setCir(cir)
+                .setCburst(cburst)
+                .setPir(pir)
+                .setPburst(pburst)
             )
         )
         .build()

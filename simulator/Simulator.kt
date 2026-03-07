@@ -73,6 +73,8 @@ class Simulator {
       config.p4Info.tablesList,
       config.p4Info.registersList,
       config.p4Info.actionProfilesList,
+      config.p4Info.countersList,
+      config.p4Info.metersList,
     )
 
     for (table in config.p4Info.tablesList) {
@@ -171,6 +173,8 @@ class Simulator {
             tableStore.readProfileMembers(entity.actionProfileMember)
           entity.hasActionProfileGroup() -> tableStore.readProfileGroups(entity.actionProfileGroup)
           entity.hasRegisterEntry() -> tableStore.readRegisterEntries(entity.registerEntry)
+          entity.hasCounterEntry() -> tableStore.readCounterEntries(entity.counterEntry)
+          entity.hasMeterEntry() -> tableStore.readMeterEntries(entity.meterEntry)
           else -> emptyList()
         }
       }

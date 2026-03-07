@@ -1279,6 +1279,331 @@ class TableStoreTest {
       .build()
 
   // ---------------------------------------------------------------------------
+  // Counter write semantics
+  // ---------------------------------------------------------------------------
+
+  private fun storeWithCounter(): TableStore {
+    val store = TableStore()
+    store.loadMappings(
+      p4infoCounters = listOf(buildCounterProto(COUNTER_ID, "myCounter", COUNTER_SIZE))
+    )
+    return store
+  }
+
+  private fun buildCounterProto(id: Int, name: String, size: Int): P4InfoOuterClass.Counter =
+    P4InfoOuterClass.Counter.newBuilder()
+      .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(id).setName(name))
+      .setSize(size.toLong())
+      .build()
+
+  private fun counterUpdate(
+    type: Update.Type,
+    counterId: Int = COUNTER_ID,
+    index: Long = 0,
+    byteCount: Long = 0,
+    packetCount: Long = 0,
+  ): Update {
+    val entry =
+      P4RuntimeOuterClass.CounterEntry.newBuilder()
+        .setCounterId(counterId)
+        .setIndex(P4RuntimeOuterClass.Index.newBuilder().setIndex(index))
+        .setData(
+          P4RuntimeOuterClass.CounterData.newBuilder()
+            .setByteCount(byteCount)
+            .setPacketCount(packetCount)
+        )
+        .build()
+    return Update.newBuilder()
+      .setType(type)
+      .setEntity(Entity.newBuilder().setCounterEntry(entry))
+      .build()
+  }
+
+  @Test
+  fun `modify counter entry persists value`() {
+    val s = storeWithCounter()
+    assertEquals(
+      WriteResult.Success,
+      s.write(counterUpdate(Update.Type.MODIFY, byteCount = 100, packetCount = 5)),
+    )
+    val results =
+      s.readCounterEntries(
+        P4RuntimeOuterClass.CounterEntry.newBuilder()
+          .setCounterId(COUNTER_ID)
+          .setIndex(P4RuntimeOuterClass.Index.newBuilder().setIndex(0))
+          .build()
+      )
+    assertEquals(1, results.size)
+    assertEquals(100, results[0].counterEntry.data.byteCount)
+    assertEquals(5, results[0].counterEntry.data.packetCount)
+  }
+
+  @Test
+  fun `modify counter at out-of-bounds index returns error`() {
+    val s = storeWithCounter()
+    val result = s.write(counterUpdate(Update.Type.MODIFY, index = COUNTER_SIZE.toLong()))
+    assertTrue("expected InvalidArgument", result is WriteResult.InvalidArgument)
+  }
+
+  @Test
+  fun `insert counter entry returns InvalidArgument`() {
+    val s = storeWithCounter()
+    val result = s.write(counterUpdate(Update.Type.INSERT))
+    assertTrue("expected InvalidArgument", result is WriteResult.InvalidArgument)
+  }
+
+  @Test
+  fun `delete counter entry returns InvalidArgument`() {
+    val s = storeWithCounter()
+    val result = s.write(counterUpdate(Update.Type.DELETE))
+    assertTrue("expected InvalidArgument", result is WriteResult.InvalidArgument)
+  }
+
+  @Test
+  fun `modify counter overwrites previous value`() {
+    val s = storeWithCounter()
+    s.write(counterUpdate(Update.Type.MODIFY, byteCount = 10, packetCount = 1))
+    s.write(counterUpdate(Update.Type.MODIFY, byteCount = 20, packetCount = 2))
+    val filter =
+      P4RuntimeOuterClass.CounterEntry.newBuilder()
+        .setCounterId(COUNTER_ID)
+        .setIndex(P4RuntimeOuterClass.Index.newBuilder().setIndex(0))
+        .build()
+    val results = s.readCounterEntries(filter)
+    assertEquals(20, results[0].counterEntry.data.byteCount)
+    assertEquals(2, results[0].counterEntry.data.packetCount)
+  }
+
+  @Test
+  fun `modify counter with unknown ID returns NotFound`() {
+    val s = storeWithCounter()
+    val result = s.write(counterUpdate(Update.Type.MODIFY, counterId = 999))
+    assertTrue("expected NotFound", result is WriteResult.NotFound)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Counter reads
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `readCounterEntries single index returns written value`() {
+    val s = storeWithCounter()
+    s.write(counterUpdate(Update.Type.MODIFY, index = 1, byteCount = 42, packetCount = 3))
+    val filter =
+      P4RuntimeOuterClass.CounterEntry.newBuilder()
+        .setCounterId(COUNTER_ID)
+        .setIndex(P4RuntimeOuterClass.Index.newBuilder().setIndex(1))
+        .build()
+    val results = s.readCounterEntries(filter)
+    assertEquals(1, results.size)
+    assertEquals(42, results[0].counterEntry.data.byteCount)
+    assertEquals(3, results[0].counterEntry.data.packetCount)
+  }
+
+  @Test
+  fun `readCounterEntries all indices returns full array with defaults`() {
+    val s = storeWithCounter()
+    s.write(counterUpdate(Update.Type.MODIFY, index = 2, byteCount = 99))
+    val filter = P4RuntimeOuterClass.CounterEntry.newBuilder().setCounterId(COUNTER_ID).build()
+    val results = s.readCounterEntries(filter)
+    assertEquals(COUNTER_SIZE, results.size)
+    for (entity in results) {
+      val entry = entity.counterEntry
+      val expectedBytes = if (entry.index.index == 2L) 99L else 0L
+      assertEquals(expectedBytes, entry.data.byteCount)
+    }
+  }
+
+  @Test
+  fun `readCounterEntries wildcard returns all counters`() {
+    val s = TableStore()
+    s.loadMappings(
+      tableNameById = emptyMap(),
+      actionNameById = emptyMap(),
+      p4infoCounters =
+        listOf(
+          buildCounterProto(COUNTER_ID, "counter1", 2),
+          buildCounterProto(COUNTER_ID + 1, "counter2", 1),
+        ),
+    )
+    val results = s.readCounterEntries()
+    // 2 entries from first counter + 1 from second = 3
+    assertEquals(3, results.size)
+  }
+
+  @Test
+  fun `readCounterEntries unknown counter returns empty`() {
+    val s = storeWithCounter()
+    val filter = P4RuntimeOuterClass.CounterEntry.newBuilder().setCounterId(999).build()
+    assertTrue(s.readCounterEntries(filter).isEmpty())
+  }
+
+  // ---------------------------------------------------------------------------
+  // Meter write semantics
+  // ---------------------------------------------------------------------------
+
+  private fun storeWithMeter(): TableStore {
+    val store = TableStore()
+    store.loadMappings(p4infoMeters = listOf(buildMeterProto(METER_ID, "myMeter", METER_SIZE)))
+    return store
+  }
+
+  private fun buildMeterProto(id: Int, name: String, size: Int): P4InfoOuterClass.Meter =
+    P4InfoOuterClass.Meter.newBuilder()
+      .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(id).setName(name))
+      .setSize(size.toLong())
+      .build()
+
+  private fun meterUpdate(
+    type: Update.Type,
+    meterId: Int = METER_ID,
+    index: Long = 0,
+    cir: Long = 0,
+    cburst: Long = 0,
+    pir: Long = 0,
+    pburst: Long = 0,
+  ): Update {
+    val entry =
+      P4RuntimeOuterClass.MeterEntry.newBuilder()
+        .setMeterId(meterId)
+        .setIndex(P4RuntimeOuterClass.Index.newBuilder().setIndex(index))
+        .setConfig(
+          P4RuntimeOuterClass.MeterConfig.newBuilder()
+            .setCir(cir)
+            .setCburst(cburst)
+            .setPir(pir)
+            .setPburst(pburst)
+        )
+        .build()
+    return Update.newBuilder()
+      .setType(type)
+      .setEntity(Entity.newBuilder().setMeterEntry(entry))
+      .build()
+  }
+
+  @Test
+  fun `modify meter entry persists config`() {
+    val s = storeWithMeter()
+    assertEquals(
+      WriteResult.Success,
+      s.write(meterUpdate(Update.Type.MODIFY, cir = 1000, cburst = 100, pir = 2000, pburst = 200)),
+    )
+    val results =
+      s.readMeterEntries(
+        P4RuntimeOuterClass.MeterEntry.newBuilder()
+          .setMeterId(METER_ID)
+          .setIndex(P4RuntimeOuterClass.Index.newBuilder().setIndex(0))
+          .build()
+      )
+    assertEquals(1, results.size)
+    val config = results[0].meterEntry.config
+    assertEquals(1000, config.cir)
+    assertEquals(100, config.cburst)
+    assertEquals(2000, config.pir)
+    assertEquals(200, config.pburst)
+  }
+
+  @Test
+  fun `modify meter at out-of-bounds index returns error`() {
+    val s = storeWithMeter()
+    val result = s.write(meterUpdate(Update.Type.MODIFY, index = METER_SIZE.toLong()))
+    assertTrue("expected InvalidArgument", result is WriteResult.InvalidArgument)
+  }
+
+  @Test
+  fun `insert meter entry returns InvalidArgument`() {
+    val s = storeWithMeter()
+    val result = s.write(meterUpdate(Update.Type.INSERT))
+    assertTrue("expected InvalidArgument", result is WriteResult.InvalidArgument)
+  }
+
+  @Test
+  fun `delete meter entry returns InvalidArgument`() {
+    val s = storeWithMeter()
+    val result = s.write(meterUpdate(Update.Type.DELETE))
+    assertTrue("expected InvalidArgument", result is WriteResult.InvalidArgument)
+  }
+
+  @Test
+  fun `modify meter overwrites previous config`() {
+    val s = storeWithMeter()
+    s.write(meterUpdate(Update.Type.MODIFY, cir = 100))
+    s.write(meterUpdate(Update.Type.MODIFY, cir = 200))
+    val filter =
+      P4RuntimeOuterClass.MeterEntry.newBuilder()
+        .setMeterId(METER_ID)
+        .setIndex(P4RuntimeOuterClass.Index.newBuilder().setIndex(0))
+        .build()
+    val results = s.readMeterEntries(filter)
+    assertEquals(200, results[0].meterEntry.config.cir)
+  }
+
+  @Test
+  fun `modify meter with unknown ID returns NotFound`() {
+    val s = storeWithMeter()
+    val result = s.write(meterUpdate(Update.Type.MODIFY, meterId = 999))
+    assertTrue("expected NotFound", result is WriteResult.NotFound)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Meter reads
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `readMeterEntries single index returns written config`() {
+    val s = storeWithMeter()
+    s.write(meterUpdate(Update.Type.MODIFY, index = 1, cir = 500, pir = 1000))
+    val filter =
+      P4RuntimeOuterClass.MeterEntry.newBuilder()
+        .setMeterId(METER_ID)
+        .setIndex(P4RuntimeOuterClass.Index.newBuilder().setIndex(1))
+        .build()
+    val results = s.readMeterEntries(filter)
+    assertEquals(1, results.size)
+    assertEquals(500, results[0].meterEntry.config.cir)
+    assertEquals(1000, results[0].meterEntry.config.pir)
+  }
+
+  @Test
+  fun `readMeterEntries all indices returns full array`() {
+    val s = storeWithMeter()
+    s.write(meterUpdate(Update.Type.MODIFY, index = 2, cir = 42))
+    val filter = P4RuntimeOuterClass.MeterEntry.newBuilder().setMeterId(METER_ID).build()
+    val results = s.readMeterEntries(filter)
+    assertEquals(METER_SIZE, results.size)
+    // Index 2 has config, others have no config set.
+    for (entity in results) {
+      val entry = entity.meterEntry
+      if (entry.index.index == 2L) {
+        assertEquals(42, entry.config.cir)
+      } else {
+        assertFalse("unwritten meter should have no config", entry.hasConfig())
+      }
+    }
+  }
+
+  @Test
+  fun `readMeterEntries wildcard returns all meters`() {
+    val s = TableStore()
+    s.loadMappings(
+      tableNameById = emptyMap(),
+      actionNameById = emptyMap(),
+      p4infoMeters =
+        listOf(buildMeterProto(METER_ID, "meter1", 2), buildMeterProto(METER_ID + 1, "meter2", 1)),
+    )
+    val results = s.readMeterEntries()
+    // 2 entries from first meter + 1 from second = 3
+    assertEquals(3, results.size)
+  }
+
+  @Test
+  fun `readMeterEntries unknown meter returns empty`() {
+    val s = storeWithMeter()
+    val filter = P4RuntimeOuterClass.MeterEntry.newBuilder().setMeterId(999).build()
+    assertTrue(s.readMeterEntries(filter).isEmpty())
+  }
+
+  // ---------------------------------------------------------------------------
   // Constants
   // ---------------------------------------------------------------------------
 
@@ -1292,6 +1617,10 @@ class TableStoreTest {
     private const val REGISTER_NAME = "myRegister"
     private const val REGISTER_BITWIDTH = 32
     private const val REGISTER_SIZE = 4
+    private const val COUNTER_ID = 600
+    private const val COUNTER_SIZE = 4
+    private const val METER_ID = 700
+    private const val METER_SIZE = 4
     private const val TABLE_SIZE_LIMIT = 3
     private const val MAX_GROUP_SIZE = 2
     private val ACTION_ID_TO_NAME =
