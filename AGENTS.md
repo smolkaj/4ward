@@ -10,7 +10,8 @@ simulator/*.kt               Kotlin simulator (the heart of 4ward).
 p4c_backend/*.{h,cpp}        C++ p4c backend plugin (emits proto IR from P4 source).
 p4runtime/*.kt               P4Runtime gRPC server (Kotlin).
 cli/*.kt                     Standalone CLI (4ward compile / sim / run).
-examples/*.{p4,stf}          Ready-to-run example programs.
+examples/*.p4                Ready-to-run example programs.
+examples/tutorial.t          CLI tutorial (also a cram regression test).
 e2e_tests/stf/               STF test runner (drives the simulator subprocess).
 e2e_tests/corpus/            Corpus-based STF test harness (bulk p4c test suite).
 e2e_tests/trace_tree/        Golden trace-tree tests (proto-based, not STF).
