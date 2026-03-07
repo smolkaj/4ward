@@ -12,7 +12,9 @@ The STF test installs one entry (etherType 0x0800 -> forward to port 1)
 and sends two packets: an IPv4 frame (0x0800, matches the entry) and an
 ARP frame (0x0806, no match, dropped by default action).
 
-  $ $FOURWARD run $P4 $STF
+  $ cp "$P4" basic_table.p4 && cp "$STF" basic_table.stf
+
+  $ 4ward run basic_table.p4 basic_table.stf
   parse: start -> accept
   table port_table: hit -> forward
   action forward(port=0001)

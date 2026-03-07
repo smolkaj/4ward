@@ -3,7 +3,7 @@ Error handling
 
 No arguments -- prints usage, exits 2:
 
-  $ $FOURWARD
+  $ 4ward
   Usage: 4ward <command> [options]
   
   Commands:
@@ -18,19 +18,19 @@ No arguments -- prints usage, exits 2:
 
 Unknown command:
 
-  $ $FOURWARD bogus 2>/dev/null
+  $ 4ward bogus 2>/dev/null
   [2]
 
 Missing file:
 
-  $ $FOURWARD sim /nonexistent/pipeline.txtpb /nonexistent/test.stf 2>/dev/null
+  $ 4ward sim /nonexistent/pipeline.txtpb /nonexistent/test.stf 2>/dev/null
   [1]
 
 --help exits 0 and lists all subcommands:
 
-  $ $FOURWARD --help | grep -c -E "compile|sim|run"
+  $ 4ward --help | grep -c -E "compile|sim|run"
   3
 
 Subcommand help:
 
-  $ $FOURWARD sim --help | grep -q pipeline
+  $ 4ward sim --help | grep -q pipeline
