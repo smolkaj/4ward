@@ -1,0 +1,133 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - coverage.lcov - p4runtime/p4runtime/P4RuntimeServer.kt</title>
+  <link rel="stylesheet" type="text/css" href="../../gcov.css">
+</head>
+
+<body>
+
+          <table width="100%" border=0 cellspacing=0 cellpadding=0>
+            <tr><td class="title">LCOV - differential code coverage report</td></tr>
+            <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+
+            <tr>
+              <td width="100%">
+                <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="10%" class="headerValue"><a href="../../index.html">top level</a> - <a href="index.html">p4runtime/p4runtime</a> - P4RuntimeServer.kt<span style="font-size: 80%;"> (source / <a href="P4RuntimeServer.kt.func-c.html">functions</a>)</span></td>
+            <td width="5%"></td>
+            <td width="5%"></td>
+            <td width="5%" class="headerCovTableHead">Coverage</td>
+            <td width="5%" class="headerCovTableHead" title="Covered + Uncovered code (not including EUB, ECB, DUB, DCB categories)">Total</td>
+            <td width="5%" class="headerCovTableHead" title="Exercised code only (CBC + GBC + GNC + GIC)">Hit</td>
+            <td width="5%" class="headerCovTableHeadUBC" title="Uncovered Baseline Code (0 => 0):
+Unchanged code was untested before, is untested now">Not covered</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Current:</td>
+            <td class="headerValue">coverage.lcov</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntryLo">0.0&nbsp;%</td>
+            <td class="headerCovTableEntry">18</td>
+            <td class="headerCovTableEntry">0</td>
+            <td class="headerCovTableEntry"><a href="#L8" title="goto first UBC">18</a></td>
+          </tr>
+          <tr>
+            <td class="headerItem">Current Date:</td>
+            <td class="headerValue">2026-03-07 08:18:54</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntryLo">0.0&nbsp;%</td>
+            <td class="headerCovTableEntry">8</td>
+            <td class="headerCovTableEntry">0</td>
+            <td class="headerCovTableEntry">8</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Baseline:</td>
+            <td class="headerValue">baseline.lcov</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td class="headerItem">Baseline Date:</td>
+            <td class="headerValue">2026-03-07 07:59:13</td>
+            <td></td>
+          </tr>
+                  <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+          </table>
+
+          <table cellpadding=0 cellspacing=0 border=0>
+            <tr>
+              <td><br></td>
+            </tr>
+            <tr>
+              <td>
+<pre class="sourceHeading">           TLA  Line data    Source code</pre>
+<pre class="source">
+<span id="L1"><span class="lineNum">       1</span>                 : package fourward.p4runtime</span>
+<span id="L2"><span class="lineNum">       2</span>                 : </span>
+<span id="L3"><span class="lineNum">       3</span>                 : import fourward.simulator.Simulator</span>
+<span id="L4"><span class="lineNum">       4</span>                 : import io.grpc.Server</span>
+<span id="L5"><span class="lineNum">       5</span>                 : import io.grpc.netty.NettyServerBuilder</span>
+<span id="L6"><span class="lineNum">       6</span>                 : </span>
+<span id="L7"><span class="lineNum">       7</span>                 : /** Wraps an in-process P4Runtime gRPC server backed by a 4ward [Simulator]. */</span>
+<span id="L8"><span class="lineNum">       8</span> <a href="#top" class="tlaBgUBC"  title="Next UBC group">Not covered</a><span class="tlaUBC tlaBgUBC">           0 : class P4RuntimeServer(private val port: Int = DEFAULT_PORT) {</span></span>
+<span id="L9"><span class="lineNum">       9</span>                 : </span>
+<span id="L10"><span class="lineNum">      10</span> <span class="tlaUBC">              0 :   private val simulator = Simulator()</span></span>
+<span id="L11"><span class="lineNum">      11</span> <span class="tlaUBC">              0 :   private val service = P4RuntimeService(simulator)</span></span>
+<span id="L12"><span class="lineNum">      12</span>                 :   private lateinit var server: Server</span>
+<span id="L13"><span class="lineNum">      13</span>                 : </span>
+<span id="L14"><span class="lineNum">      14</span>                 :   fun start(): P4RuntimeServer {</span>
+<span id="L15"><span class="lineNum">      15</span> <span class="tlaUBC">              0 :     server = NettyServerBuilder.forPort(port).addService(service).build().start()</span></span>
+<span id="L16"><span class="lineNum">      16</span> <span class="tlaUBC">              0 :     Runtime.getRuntime().addShutdownHook(Thread { stop() })</span></span>
+<span id="L17"><span class="lineNum">      17</span> <span class="tlaUBC">              0 :     return this</span></span>
+<span id="L18"><span class="lineNum">      18</span>                 :   }</span>
+<span id="L19"><span class="lineNum">      19</span>                 : </span>
+<span id="L20"><span class="lineNum">      20</span>                 :   fun stop() {</span>
+<span id="L21"><span class="lineNum">      21</span> <span class="tlaUBC">              0 :     if (::server.isInitialized) {</span></span>
+<span id="L22"><span class="lineNum">      22</span> <span class="tlaUBC">              0 :       server.shutdown()</span></span>
+<span id="L23"><span class="lineNum">      23</span>                 :     }</span>
+<span id="L24"><span class="lineNum">      24</span> <span class="tlaUBC">              0 :   }</span></span>
+<span id="L25"><span class="lineNum">      25</span>                 : </span>
+<span id="L26"><span class="lineNum">      26</span>                 :   fun blockUntilShutdown() {</span>
+<span id="L27"><span class="lineNum">      27</span> <span class="tlaUBC">              0 :     server.awaitTermination()</span></span>
+<span id="L28"><span class="lineNum">      28</span> <span class="tlaUBC">              0 :   }</span></span>
+<span id="L29"><span class="lineNum">      29</span>                 : </span>
+<span id="L30"><span class="lineNum">      30</span> <span class="tlaUBC">              0 :   fun port(): Int = server.port</span></span>
+<span id="L31"><span class="lineNum">      31</span>                 : </span>
+<span id="L32"><span class="lineNum">      32</span>                 :   companion object {</span>
+<span id="L33"><span class="lineNum">      33</span>                 :     const val DEFAULT_PORT = 9559</span>
+<span id="L34"><span class="lineNum">      34</span>                 :   }</span>
+<span id="L35"><span class="lineNum">      35</span>                 : }</span>
+<span id="L36"><span class="lineNum">      36</span>                 : </span>
+<span id="L37"><span class="lineNum">      37</span>                 : fun main(args: Array&lt;String&gt;) {</span>
+<span id="L38"><span class="lineNum">      38</span> <span class="tlaUBC">              0 :   val port =</span></span>
+<span id="L39"><span class="lineNum">      39</span> <span class="tlaUBC">              0 :     args.firstOrNull()?.removePrefix(&quot;--port=&quot;)?.toIntOrNull() ?: P4RuntimeServer.DEFAULT_PORT</span></span>
+<span id="L40"><span class="lineNum">      40</span> <span class="tlaUBC">              0 :   val server = P4RuntimeServer(port).start()</span></span>
+<span id="L41"><span class="lineNum">      41</span> <span class="tlaUBC">              0 :   println(&quot;P4Runtime server listening on port ${server.port()}&quot;)</span></span>
+<span id="L42"><span class="lineNum">      42</span> <span class="tlaUBC">              0 :   server.blockUntilShutdown()</span></span>
+<span id="L43"><span class="lineNum">      43</span> <span class="tlaUBC">              0 : }</span></span>
+        </pre>
+              </td>
+            </tr>
+          </table>
+          <br>
+
+          <table width="100%" border=0 cellspacing=0 cellpadding=0>
+            <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+            <tr><td class="versionInfo">Generated by: <a href="https://github.com//linux-test-project/lcov" target="_parent">LCOV version 2.0-1</a></td></tr>
+          </table>
+          <br>
+
+</body>
+</html>
