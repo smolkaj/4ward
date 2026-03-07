@@ -76,6 +76,13 @@ class BitVectorTest {
   }
 
   @Test
+  fun `allOnes produces correct values`() {
+    assertEquals(BitVector.ofInt(0xFF, 8), BitVector.allOnes(8))
+    assertEquals(BitVector.ofInt(0x1FF, 9), BitVector.allOnes(9))
+    assertEquals(BitVector(BigInteger.valueOf(0xFFFF), 16), BitVector.allOnes(16))
+  }
+
+  @Test
   fun `signed saturating addition clamps to max`() {
     // int<16>: 32766 |+| 10 = 32767 (clamped from 32776)
     val a = SignedBitVector(BigInteger.valueOf(32766), 16)

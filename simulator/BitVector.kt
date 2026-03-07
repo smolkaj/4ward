@@ -135,6 +135,10 @@ data class BitVector(val value: BigInteger, val width: Int) {
 
     fun ofLong(value: Long, width: Int): BitVector = BitVector(BigInteger.valueOf(value), width)
 
+    /** Returns a bit<N> with all bits set (value = 2^width - 1). */
+    fun allOnes(width: Int): BitVector =
+      BitVector(BigInteger.TWO.pow(width).minus(BigInteger.ONE), width)
+
     /** Decodes a big-endian byte array into a bit<N> value. */
     fun ofBytes(bytes: ByteArray, width: Int): BitVector {
       val value = BigInteger(1, bytes) // 1 = positive sign

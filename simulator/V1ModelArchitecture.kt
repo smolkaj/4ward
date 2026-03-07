@@ -56,7 +56,7 @@ class V1ModelArchitecture : Architecture {
     config: BehavioralConfig,
   ) {
     /** Drop port value (all-ones of [portBits]), derived from the IR. */
-    val dropPort: Long = (1L shl portBits) - 1
+    val dropPort: Long = BitVector.allOnes(portBits).value.toLong()
 
     private val stages = config.architecture.stagesList
     val parserStage: PipelineStage? = stages.find { it.kind == StageKind.PARSER }

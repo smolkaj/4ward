@@ -794,8 +794,8 @@ class Interpreter(
             .build()
         )
         val smeta = evalExpr(call.argsList[0], env) as StructVal
-        val portBits = (smeta.fields["egress_spec"] as BitVal).bits.width
-        smeta.fields["egress_spec"] = BitVal((1L shl portBits) - 1, portBits)
+        val portWidth = (smeta.fields["egress_spec"] as BitVal).bits.width
+        smeta.fields["egress_spec"] = BitVal(BitVector.allOnes(portWidth))
         UnitVal
       }
       // verify(condition, error): P4 spec §12.8 parser assertion.
