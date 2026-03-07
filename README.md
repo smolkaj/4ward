@@ -72,36 +72,80 @@ We are driving development by building towards two demanding real-world applicat
 
 ## Quick start
 
-[Tested on](https://4ward.buildbuddy.io/tests/) macOS and Ubuntu. You need [Bazel](https://bazel.build) 9+ (or just
-grab [Bazelisk](https://github.com/bazelbuild/bazelisk) and forget about it)
-and a C++20 compiler for the p4c backend. Everything else is hermetic — Bazel
+[Tested on](https://4ward.buildbuddy.io/tests/) macOS and Ubuntu. You need
+[Bazel](https://bazel.build) 9+ (or just grab
+[Bazelisk](https://github.com/bazelbuild/bazelisk) and forget about it) and a
+C++20 compiler for the p4c backend. Everything else is hermetic — Bazel
 handles it.
 
 ```sh
-# Build everything.
-bazel build //...
-
-# Run all tests.
-bazel test //...
+git clone https://github.com/smolkaj/4ward.git && cd 4ward
+bazel build //...   # build everything
+bazel test //...    # run all tests
+alias 4ward='bazel run //cli:4ward --'
 ```
 
-## See what your packets are up to
+Now point it at a P4 program. Here's
+[`passthrough.p4`](examples/passthrough.p4) — the simplest possible program:
+parse an Ethernet header, hardcode the output port to 1, emit the packet
+unchanged.
+
+```
+$ 4ward run examples/passthrough.p4 - << 'EOF'
+> packet 0 FFFFFFFFFFFF 000000000001 0800
+> expect 1 FFFFFFFFFFFF 000000000001 0800
+> EOF
+packet received: port 0, 14 bytes
+  parse: start -> accept
+  output port 1, 14 bytes
+PASS
+```
+
+Every step is visible: the parser walked `start` -> `accept`, the packet exited
+port 1, and the test passed. This is what *glass-box* means — you see every
+decision the simulator made.
+
+Things get interesting with tables. [`basic_table.p4`](examples/basic_table.p4)
+forwards based on Ethernet type — IPv4 packets hit the table and get forwarded,
+everything else misses and gets dropped:
+
+```
+$ 4ward run examples/basic_table.p4 - << 'EOF'
+> add port_table hdr.ethernet.etherType:0x0800 forward(1)
+> packet 0 FFFFFFFFFFFF 000000000001 0800 DEADBEEF
+> expect 1 FFFFFFFFFFFF 000000000001 0800 DEADBEEF
+> packet 0 FFFFFFFFFFFF 000000000001 0806 DEADBEEF
+> EOF
+packet received: port 0, 18 bytes
+  parse: start -> accept
+  table port_table: hit -> forward
+  action forward(port=1)
+  output port 1, 18 bytes
+packet received: port 0, 18 bytes
+  parse: start -> accept
+  table port_table: miss -> drop
+  action drop
+  mark_to_drop()
+  drop (reason: mark_to_drop)
+PASS
+```
+
+You can see exactly *why* one packet was forwarded and the other was dropped.
+No printf debugging. No Wireshark. No guessing — just read the trace.
+
+For the full walkthrough — compiling, machine-readable output, error handling,
+and more — see the **[tutorial](examples/tutorial.t)**.
+
+## Trace trees
 
 P4 programs have non-deterministic choice points — action selectors, multicast,
 clone. Other tools pick one path. 4ward shows you *all* of them as a **trace
 tree**.
 
 Here's a [63-line P4 program](e2e_tests/trace_tree/clone_with_egress.p4) that
-clones a packet and forwards the original and clone out of two different ports:
-
-```sh
-bazel test //e2e_tests/trace_tree:golden_trace_tree_test \
-  --test_filter=clone_with_egress --test_output=all \
-  --test_env=PRINT_TRACE=1
-```
-
-One packet goes in, two come out — here's what you'll see
-([full version](e2e_tests/trace_tree/clone_with_egress.golden.txtpb)):
+clones a packet and forwards the original and clone out of two different ports.
+One packet goes in, two come out
+([full trace](e2e_tests/trace_tree/clone_with_egress.golden.txtpb)):
 
 ```protobuf
 events { parser_transition { from_state: "start"  to_state: "accept" } }
@@ -124,30 +168,6 @@ fork_outcome {
   }
 }
 ```
-
-No printf debugging. No Wireshark. No guessing.
-
-### Try for yourself!
-
-```sh
-# Copy the template test directory.
-cp -r e2e_tests/passthrough e2e_tests/my_program
-
-# Drop in your P4 program (keep the filename — the build rules expect it).
-cp /path/to/my_program.p4 e2e_tests/my_program/passthrough.p4
-
-# Edit the STF file: list packets to send and expected outputs.
-$EDITOR e2e_tests/my_program/passthrough.stf
-
-# Run it! PRINT_TRACE shows what happened to your packet.
-bazel test //e2e_tests/my_program:passthrough_test \
-  --test_output=all --test_env=PRINT_TRACE=1
-```
-
-> [!NOTE]
-> A standalone `4ward run program.p4 test.stf` CLI is
-> [on the roadmap](docs/ROADMAP.md#track-7-standalone-cli). For now, tests run
-> through Bazel.
 
 ## `@p4runtime_translation` done right
 
@@ -223,11 +243,13 @@ requirements.
 
 ```
 4ward/
+├── cli/                    Standalone CLI (4ward compile / sim / run)
 ├── simulator/              Kotlin simulator — the brain
 │   ├── ir.proto            Behavioral IR (the contract between backend & sim)
 │   └── simulator.proto     Simulator service protocol (stdin/stdout framing)
 ├── p4c_backend/            p4c backend plugin (C++, emits the proto IR)
 ├── p4runtime/              P4Runtime gRPC server (Kotlin)
+├── examples/               Ready-to-run P4 programs and STF tests
 ├── e2e_tests/
 │   ├── stf/                STF runner (shared subprocess + packet I/O)
 │   ├── corpus/             p4c STF corpus (bulk regression)
@@ -254,6 +276,7 @@ report in about 5. No flakes, no "works on my machine." See for yourself on the
 
 | Document | Purpose |
 |---|---|
+| [Tutorial](examples/tutorial.t) | Getting started — from hello world to machine-readable output |
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Design rationale and component overview |
 | [ROADMAP.md](docs/ROADMAP.md) | Development tracks, priorities, and sequencing |
 | [STATUS.md](docs/STATUS.md) | Append-only log of daily progress |

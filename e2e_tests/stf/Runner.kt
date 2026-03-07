@@ -950,5 +950,5 @@ fun ByteArray.matchesMasked(expected: ByteArray, mask: ByteArray, exactLength: B
 fun ByteArray.hex(): String = joinToString("") { "%02x".format(it) }
 
 /** Like [hex] but shows `**` for wildcard bytes (mask byte == 0). */
-private fun ByteArray.hex(mask: ByteArray): String =
+fun ByteArray.hex(mask: ByteArray): String =
   indices.joinToString("") { i -> if (mask[i] == 0.toByte()) "**" else "%02x".format(this[i]) }

@@ -1,0 +1,44 @@
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_binary", "kt_jvm_library", "kt_jvm_test")
+
+exports_files(
+    ["run_cram.py"],
+    visibility = ["//:__subpackages__"],
+)
+
+kt_jvm_library(
+    name = "cli_lib",
+    srcs = glob(
+        ["*.kt"],
+        exclude = ["*Test.kt"],
+    ),
+    visibility = ["//visibility:public"],
+    deps = [
+        "//e2e_tests/stf:stf_runner",
+        "//simulator:simulator_java_proto",
+        "//simulator:simulator_lib",
+        "@maven//:com_google_protobuf_protobuf_java",
+    ],
+)
+
+kt_jvm_binary(
+    name = "4ward",
+    data = [
+        "//p4c_backend:p4c-4ward",
+        "@p4c//:p4include",
+    ],
+    main_class = "fourward.cli.MainKt",
+    visibility = ["//visibility:public"],
+    runtime_deps = [":cli_lib"],
+)
+
+kt_jvm_test(
+    name = "TraceFormatterTest",
+    srcs = ["TraceFormatterTest.kt"],
+    test_class = "fourward.cli.TraceFormatterTest",
+    deps = [
+        ":cli_lib",
+        "//simulator:simulator_java_proto",
+        "@maven//:com_google_protobuf_protobuf_java",
+        "@maven//:junit_junit",
+    ],
+)

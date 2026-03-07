@@ -1,0 +1,27 @@
+# Example P4 programs and a tutorial that doubles as a cram test.
+
+load("//cli:cram.bzl", "cram_test")
+
+exports_files(
+    [
+        "passthrough.p4",
+        "basic_table.p4",
+    ],
+    visibility = ["//cli:__subpackages__"],
+)
+
+cram_test(
+    name = "tutorial_test",
+    src = "tutorial.t",
+    data = [
+        "//cli:4ward",
+        "//examples:basic_table.p4",
+        "//examples:passthrough.p4",
+        "@p4c//:p4include",
+    ],
+    env_args = [
+        "FOURWARD=$(rootpath //cli:4ward)",
+        "PASSTHROUGH_P4=$(rootpath //examples:passthrough.p4)",
+        "BASIC_TABLE_P4=$(rootpath //examples:basic_table.p4)",
+    ],
+)

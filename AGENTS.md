@@ -5,11 +5,13 @@
 ```
 docs/ARCHITECTURE.md         Design rationale. Read this first.
 simulator/ir.proto           The behavioral IR. The core contract of the project.
-simulator/simulator.proto    Shared proto types (packets, trace trees, Dataplane gRPC).
+simulator/simulator.proto    The simulator service protocol (stdin/stdout IPC).
 simulator/*.kt               Kotlin simulator (the heart of 4ward).
 p4c_backend/*.{h,cpp}        C++ p4c backend plugin (emits proto IR from P4 source).
 p4runtime/*.kt               P4Runtime gRPC server (Kotlin).
-e2e_tests/stf/               STF test runner (drives the simulator in-process).
+cli/*.kt                     Standalone CLI (4ward compile / sim / run).
+examples/*.{p4,stf}          Ready-to-run example programs.
+e2e_tests/stf/               STF test runner (drives the simulator subprocess).
 e2e_tests/corpus/            Corpus-based STF test harness (bulk p4c test suite).
 e2e_tests/trace_tree/        Golden trace-tree tests (proto-based, not STF).
 e2e_tests/p4testgen/         p4testgen-generated STF tests (one target per P4 program).
@@ -136,7 +138,7 @@ Key points:
 
 To add a new P4 architecture, follow the existing `V1ModelArchitecture.kt` as
 the reference implementation. Register the new architecture in the `when`
-expression inside `Simulator.loadPipeline()`.
+expression inside `Simulator.handleLoadPipeline()`.
 
 ## Proto changes
 
