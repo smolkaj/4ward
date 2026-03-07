@@ -6,16 +6,92 @@
 > Reverse-chronological log. Add new entries at the top (below this header).
 > See [ROADMAP.md](ROADMAP.md) for the big picture.
 
+## 2026-03-07
+
+|                | Delta   | Total  |
+|----------------|---------|--------|
+| PRs merged     | 38      | 235    |
+| Kotlin prod    | +0.8k   | 5.3k   |
+| Kotlin test    | +1.6k   | 12.7k  |
+| C++ prod       | +0      | 1.3k   |
+| C++ test       | +10     | 1.1k   |
+| Proto          | -36     | 0.8k   |
+| **Total**      | **+2.4k** | **21.2k** |
+
+**4ward is now a user-facing tool.** A standalone CLI (`4ward compile / sim /
+run`) lets anyone try 4ward on their own P4 programs without touching Bazel —
+and the biggest architectural debt (the stdin/stdout IPC subprocess layer) is
+gone, replaced by direct in-process calls and a proper Dataplane gRPC service.
+
+### Track 7: Standalone CLI — done
+
+The CLI landed in a single PR (#236) with three subcommands:
+
+- **`4ward run program.p4 test.stf`** — compile + simulate in one shot
+- **`4ward compile program.p4`** — emit pipeline config only
+- **`4ward sim pipeline.txtpb test.stf`** — simulate a pre-compiled pipeline
+
+Human-readable trace output by default; `--format=textproto` for tooling. A
+6-part cram tutorial (`examples/tutorial.t`) doubles as documentation and a
+regression test. Two example P4 programs ship alongside.
+
+### Simulator: IPC → in-process library (#244)
+
+The biggest architectural simplification since day one. The simulator is no
+longer a subprocess speaking length-delimited protobufs — it's a direct
+in-process library with typed methods (`loadPipeline`, `processPacket`,
+`writeEntry`, `readEntries`). A new Dataplane gRPC service
+(`DataplaneService.kt`) exposes `ProcessPacket` and
+`ProcessPacketWithTraceTree` RPCs alongside the existing P4Runtime service,
+sharing a mutex to prevent control-plane/data-plane races.
+
+### Track 5: Architecture customization — done
+
+`standard_metadata` field widths (port width, drop port) are now derived from
+the IR at pipeline load time instead of hardcoded `bit<9>` (#220). A
+wide-port E2E test verifies 16-bit ports: forwarding to port 1000,
+`mark_to_drop()` computing all-ones (65535), and correct drop detection.
+
+### P4Runtime: 85/92 spec compliance
+
+Closed 6 untested compliance gaps (#237): table capacity enforcement,
+group max_size limits, write batch ordering, multi-controller arbitration.
+Added indirect counter and meter read/write (#243), const table and default
+entry reads (#215), and tightened write validation — ternary masked bits,
+LPM trailing bits, duplicate fields (#211).
+
+### Testing & quality
+
+- **BMv2 diff: 186/186 pass** (#233) — all corpus tests match BMv2
+  bit-for-bit. Fixed multicast PRE type and exact→LPM promotion.
+- **Trace trees: structural events** (#231) — `PacketIngress` and
+  `PipelineStage` (enter/exit) events give every trace a full pipeline
+  skeleton. 13 golden files updated.
+- **STF runner** (#242) — smart output validation only rejects unexpected
+  packets when the STF file has `expect` directives. Eliminates false
+  positives.
+- **Meter support** (#228) — `execute_meter()` and `direct_meter.read()`
+  return GREEN. Rate limiting isn't meaningful in STF tests.
+
+### What's next
+
+- **DVaaS integration**: 4ward now has all the building blocks (P4Runtime,
+  Dataplane gRPC, trace trees, SAI P4 support). Next step is wiring it into
+  DVaaS as a BMv2 replacement.
+- **Track 5 continued**: PSA architecture (26 blocked corpus tests)
+- **Track 1B**: expand p4testgen coverage
+
 ## 2026-03-06 (morning)
 
-|                | Today   | Cumulative |
-|----------------|---------|------------|
-| PRs merged     | 19      | 196        |
-| Source (delta)  | +9.4k   | 118.1k     |
-| — Kotlin prod  |         | 5.7k       |
-| — Kotlin test  |         | 9.9k       |
-| — C++          |         | 2.5k       |
-| — Proto        |         | 0.9k       |
+|                | Delta   | Total  |
+|----------------|---------|--------|
+| PRs merged     | 20      | 197    |
+| Kotlin prod    | +0.7k   | 4.5k   |
+| Kotlin test    | +2.6k   | 11.1k  |
+| C++ prod       | +0      | 1.3k   |
+| C++ test       | +0.7k   | 1.1k   |
+| Proto          | +58     | 0.9k   |
+| **Total**      | **+4.1k** | **18.9k** |
 
 **The north star is reached.** SAI P4 works end-to-end through 4ward's
 P4Runtime stack — pipeline load, `Write` with `sdn_string` type translation
@@ -58,14 +134,15 @@ All five subtracks landed in a single day:
 
 ## 2026-03-06
 
-|                | Today   | Cumulative |
-|----------------|---------|------------|
-| PRs merged     | 19      | 184        |
-| Source (delta)  | +4.1k   | 108.7k     |
-| — Kotlin prod  |         | 37.6k      |
-| — Kotlin test  |         | 52.8k      |
-| — C++          |         | 12.0k      |
-| — Proto        |         | 6.3k       |
+|                | Delta   | Total  |
+|----------------|---------|--------|
+| PRs merged     | 45      | 177    |
+| Kotlin prod    | +1.0k   | 3.8k   |
+| Kotlin test    | +2.5k   | 8.5k   |
+| C++ prod       | +75     | 1.3k   |
+| C++ test       | +417    | 0.4k   |
+| Proto          | +61     | 0.8k   |
+| **Total**      | **+4.1k** | **14.8k** |
 
 Two tracks saw major progress: **P4Runtime is now a real server** (not a
 skeleton) and **all three testing oracles are operational**.
@@ -121,6 +198,16 @@ strategy) complete; 4B–4E remain.
 
 ## 2026-03-05
 
+|                | Delta   | Total  |
+|----------------|---------|--------|
+| PRs merged     | 48      | 132    |
+| Kotlin prod    | +0.9k   | 2.8k   |
+| Kotlin test    | +2.6k   | 5.9k   |
+| C++ prod       | +49     | 1.2k   |
+| C++ test       | +0      | 0      |
+| Proto          | +96     | 0.8k   |
+| **Total**      | **+3.7k** | **10.7k** |
+
 Three big milestones: **v1model is essentially complete**, **trace trees are
 fully operational**, and **the project has a clear north star with a
 parallelizable roadmap**. The simulator now passes 94% of v1model corpus tests
@@ -175,6 +262,16 @@ documented BMv2 simple_switch as the v1model reference spec.
   `SetForwardingPipelineConfig`.
 
 ## 2026-03-04
+
+|                | Delta   | Total  |
+|----------------|---------|--------|
+| PRs merged     | 49      | 84     |
+| Kotlin prod    | +213    | 1.9k   |
+| Kotlin test    | +91     | 3.3k   |
+| C++ prod       | +152    | 1.1k   |
+| C++ test       | +0      | 0      |
+| Proto          | +3      | 0.7k   |
+| **Total**      | **+0.5k** | **7.0k** |
 
 **Corpus expansion.** Classified every remaining p4c STF test (PRs #39–#86).
 
@@ -331,6 +428,16 @@ Next highest-impact items:
 4. **Register read/write + counter** (3 tests) — implement extern methods
 
 ## 2026-03-03
+
+|                | Delta   | Total  |
+|----------------|---------|--------|
+| PRs merged     | 35      | 35     |
+| Kotlin prod    | +1.7k   | 1.7k   |
+| Kotlin test    | +3.2k   | 3.2k   |
+| C++ prod       | +1.0k   | 1.0k   |
+| C++ test       | +0      | 0      |
+| Proto          | +0.7k   | 0.7k   |
+| **Total**      | **+6.5k** | **6.5k** |
 
 **Day one.** Stood up the project end-to-end: proto IR, p4c backend, Kotlin
 simulator, STF test runner, CI pipeline, coverage reporting.
