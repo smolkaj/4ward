@@ -79,6 +79,8 @@ C++20 compiler for the p4c backend. Everything else is hermetic.
 
 ```sh
 git clone https://github.com/smolkaj/4ward.git && cd 4ward
+bazel build //...   # build everything
+bazel test //...    # run all tests
 alias 4ward='bazel run //cli:4ward --'
 ```
 
