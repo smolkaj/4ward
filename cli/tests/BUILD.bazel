@@ -1,4 +1,0 @@
-exports_files(
-    ["run_cram.py"],
-    visibility = ["//:__subpackages__"],
-)

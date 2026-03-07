@@ -1,6 +1,6 @@
 # Example P4 programs and a tutorial that doubles as a cram test.
 
-load("//cli/tests:cram.bzl", "cram_test")
+load("//cli:cram.bzl", "cram_test")
 
 exports_files(
     [
