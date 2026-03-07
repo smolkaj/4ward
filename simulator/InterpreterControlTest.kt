@@ -431,6 +431,44 @@ class InterpreterControlTest {
   }
 
   // ---------------------------------------------------------------------------
+  // Registers
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `register read returns written value`() {
+    val writeStmt =
+      methodCallStmt("my_reg", "write", bit(0, 32), bit(42, 8))
+    val readStmt =
+      methodCallStmt(
+        "my_reg",
+        "read",
+        nameRef("dst").toBuilder().setType(bitType(8)).build(),
+        bit(0, 32),
+      )
+    val config = controlConfig(writeStmt, readStmt)
+    val env = emptyEnv
+    env.define("dst", BitVal(0, 8))
+    interp(config).runControl("MyControl", env)
+    assertEquals(BitVal(42, 8), env.lookup("dst"))
+  }
+
+  @Test
+  fun `register read returns zero for unwritten index`() {
+    val readStmt =
+      methodCallStmt(
+        "my_reg",
+        "read",
+        nameRef("dst").toBuilder().setType(bitType(8)).build(),
+        bit(5, 32),
+      )
+    val config = controlConfig(readStmt)
+    val env = emptyEnv
+    env.define("dst", BitVal(0xFF, 8))
+    interp(config).runControl("MyControl", env)
+    assertEquals(BitVal(0, 8), env.lookup("dst"))
+  }
+
+  // ---------------------------------------------------------------------------
   // Meters
   // ---------------------------------------------------------------------------
 
