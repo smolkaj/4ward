@@ -99,26 +99,18 @@ Three subtracks, each a different testing methodology:
 unpinned across the full corpus (1B), and BMv2 diff testing surfaces no
 mismatches (1C).
 
-**Current status:** 1A complete (185/185). 1B: 155 programs, all unpinned.
-1C: 183 programs diff-tested (2 excluded). See [STATUS.md](STATUS.md).
+**Current status:** 1A complete. 1B complete. 1C complete. See
+[LIMITATIONS.md](LIMITATIONS.md) for remaining gaps.
 
 ### Track 2: infrastructure
 
-**Priority: high (p4testgen batching) / nice to have (rest) | Parallelizable: yes**
+**Priority: nice to have | Parallelizable: yes**
 
-Build plumbing, CI improvements, cleanup.
-
-**Highest priority item: p4testgen JVM batching.** p4testgen currently spawns
-186 separate JVM processes (one per P4 program), which makes it impossible
-to run locally without exhausting memory. Batch all p4testgen tests into a
-single JVM (like the corpus test suite does for 186 STF tests). This would
-make `bazel test //...` viable on developer machines again. Until then,
-p4testgen tests are tagged `heavy` and skipped locally.
-
-The rest is picked up opportunistically — see [REFACTORING.md](REFACTORING.md)
+Build plumbing, CI improvements, cleanup. See [REFACTORING.md](REFACTORING.md)
 for the full list.
 
-**Current status:** p4testgen batching done (155 tests in one JVM).
+**Current status:** p4testgen batching done. Remaining items tracked in
+[REFACTORING.md](REFACTORING.md).
 
 ### Track 3: trace trees
 
@@ -187,11 +179,10 @@ Five subtracks:
 `SetForwardingPipelineConfig`, `Write` (with p4-constraints and
 `@p4runtime_translation` validation), `Read`, and `StreamChannel` packet I/O.
 
-**Current status:** 4A: three-layer strategy defined, compliance matrix
-tracks 61 tested / 12 not tested / 7 not implemented. 4B: done. 4C: done.
+**Current status:** 4A: three-layer strategy defined. 4B: done. 4C: done.
 4D: in progress. 4E: blocked on 4D. See
-[P4RUNTIME_COMPLIANCE.md](P4RUNTIME_COMPLIANCE.md) and
-[LIMITATIONS.md](LIMITATIONS.md).
+[P4RUNTIME_COMPLIANCE.md](P4RUNTIME_COMPLIANCE.md) for the compliance matrix
+and [LIMITATIONS.md](LIMITATIONS.md) for known gaps.
 
 ### Track 5: architecture customization
 
