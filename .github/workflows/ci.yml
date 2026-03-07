@@ -180,6 +180,8 @@ jobs:
     if: github.event.action != 'closed'  # skip on PR close; only cancel job runs
     name: Coverage
     runs-on: ubuntu-24.04
+    # Coverage is informational — a slow or flaky run should not block PRs.
+    continue-on-error: true
     permissions:
       contents: write
       pull-requests: write
@@ -243,9 +245,12 @@ jobs:
         if: always()
         run: bazel shutdown && rm -rf $(bazel info repository_cache)
 
+      # Only save the coverage cache on main pushes. PR coverage runs restore
+      # from the main cache but don't save — this prevents PR caches (~625 MB
+      # each) from evicting the warm main cache under GitHub's 10 GB limit.
       - name: Save Bazel cache
         uses: actions/cache/save@v5
-        if: always() && (github.ref_name == 'main' || env.DURATION > 300)
+        if: always() && github.ref_name == 'main'
         with:
           path: ~/.cache/bazel
           key: bazel-coverage-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', 'bazel/*.patch') }}-${{ github.run_id }}
