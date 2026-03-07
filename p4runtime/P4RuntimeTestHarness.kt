@@ -103,28 +103,31 @@ class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable 
   // Table entry management
   // ---------------------------------------------------------------------------
 
-  fun installEntry(entity: Entity): WriteResponse = runBlocking {
+  fun installEntry(entity: Entity, electionId: Uint128? = null): WriteResponse = runBlocking {
     stub.write(
       WriteRequest.newBuilder()
         .setDeviceId(1)
+        .apply { if (electionId != null) setElectionId(electionId) }
         .addUpdates(Update.newBuilder().setType(Update.Type.INSERT).setEntity(entity))
         .build()
     )
   }
 
-  fun modifyEntry(entity: Entity): WriteResponse = runBlocking {
+  fun modifyEntry(entity: Entity, electionId: Uint128? = null): WriteResponse = runBlocking {
     stub.write(
       WriteRequest.newBuilder()
         .setDeviceId(1)
+        .apply { if (electionId != null) setElectionId(electionId) }
         .addUpdates(Update.newBuilder().setType(Update.Type.MODIFY).setEntity(entity))
         .build()
     )
   }
 
-  fun deleteEntry(entity: Entity): WriteResponse = runBlocking {
+  fun deleteEntry(entity: Entity, electionId: Uint128? = null): WriteResponse = runBlocking {
     stub.write(
       WriteRequest.newBuilder()
         .setDeviceId(1)
+        .apply { if (electionId != null) setElectionId(electionId) }
         .addUpdates(Update.newBuilder().setType(Update.Type.DELETE).setEntity(entity))
         .build()
     )

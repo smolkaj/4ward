@@ -559,6 +559,93 @@ class P4RuntimeConformanceTest {
     assertGrpcError(Status.Code.INVALID_ARGUMENT) { harness.installEntry(entry) }
   }
 
+  // =========================================================================
+  // Multi-controller arbitration (scenarios 40-45)
+  // =========================================================================
+
+  private fun electionId(value: Long): p4.v1.P4RuntimeOuterClass.Uint128 =
+    p4.v1.P4RuntimeOuterClass.Uint128.newBuilder().setHigh(0).setLow(value).build()
+
+  /** P4Runtime spec §10.2: higher election_id becomes primary. */
+  @Test
+  fun `40 - higher election_id becomes primary`() {
+    harness.openStream().use { stream ->
+      val resp1 = stream.arbitrate(electionId = 1)
+      assertEquals(
+        "first arbitration should be OK",
+        com.google.rpc.Code.OK_VALUE,
+        resp1.arbitration.status.code,
+      )
+      val resp2 = stream.arbitrate(electionId = 5)
+      assertEquals(
+        "higher election_id should be OK",
+        com.google.rpc.Code.OK_VALUE,
+        resp2.arbitration.status.code,
+      )
+    }
+  }
+
+  /** P4Runtime spec §10.2: lower election_id is non-primary. */
+  @Test
+  fun `41 - lower election_id is non-primary`() {
+    harness.openStream().use { stream ->
+      stream.arbitrate(electionId = 5)
+      val resp = stream.arbitrate(electionId = 1)
+      assertEquals(
+        "lower election_id should get ALREADY_EXISTS",
+        com.google.rpc.Code.ALREADY_EXISTS_VALUE,
+        resp.arbitration.status.code,
+      )
+    }
+  }
+
+  /** P4Runtime spec §10.3: non-primary writes return PERMISSION_DENIED. */
+  @Test
+  fun `42 - non-primary write returns PERMISSION_DENIED`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    harness.openStream().use { stream -> stream.arbitrate(electionId = 5) }
+    val entry = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    assertGrpcError(Status.Code.PERMISSION_DENIED) { harness.installEntry(entry, electionId(3)) }
+  }
+
+  /** P4Runtime spec §10.3: primary write succeeds. */
+  @Test
+  fun `43 - primary write succeeds`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    harness.openStream().use { stream -> stream.arbitrate(electionId = 5) }
+    val entry = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    harness.installEntry(entry, electionId(5))
+    // Verify the entry was written.
+    val results = harness.readEntries()
+    assertEquals(1, results.size)
+  }
+
+  /** Backward compatibility: write without any prior arbitration succeeds. */
+  @Test
+  fun `44 - write without arbitration succeeds`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    // No arbitration — write should still work.
+    val entry = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    harness.installEntry(entry)
+    assertEquals(1, harness.readEntries().size)
+  }
+
+  /** P4Runtime spec §10.4: all controllers may read regardless of role. */
+  @Test
+  fun `45 - all controllers may read regardless of role`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    harness.openStream().use { stream -> stream.arbitrate(electionId = 5) }
+    val entry = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    harness.installEntry(entry, electionId(5))
+    // Read with no election_id (any controller) should succeed.
+    val results = harness.readEntries()
+    assertEquals("read should return the installed entry", 1, results.size)
+  }
+
   // ---------------------------------------------------------------------------
   // Test helpers
   // ---------------------------------------------------------------------------

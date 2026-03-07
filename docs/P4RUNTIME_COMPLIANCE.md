@@ -104,9 +104,9 @@ Legend: **Y** = tested, **N** = not tested, **—** = not implemented
 | # | Requirement | Status | Test |
 |---|-------------|--------|------|
 | 10.1 | Arbitration establishes master | Y | ConformanceTest #12 |
-| 10.2 | Higher election_id becomes primary | N | |
-| 10.3 | Non-primary writes → PERMISSION_DENIED | N | |
-| 10.4 | All controllers may read regardless of role | N | |
+| 10.2 | Higher election_id becomes primary | Y | ConformanceTest #40-41 |
+| 10.3 | Non-primary writes → PERMISSION_DENIED | Y | ConformanceTest #42-44 |
+| 10.4 | All controllers may read regardless of role | Y | ConformanceTest #45 |
 
 ## Read RPC (§11)
 
@@ -179,11 +179,11 @@ Legend: **Y** = tested, **N** = not tested, **—** = not implemented
 | Write — registers | 5 | 0 | 0 |
 | Write — counters/meters | 0 | 0 | 4 |
 | Write — PRE | 2 | 0 | 0 |
-| Arbitration | 1 | 3 | 0 |
+| Arbitration | 4 | 0 | 0 |
 | Read | 9 | 0 | 0 |
 | GetForwardingPipelineConfig | 5 | 0 | 0 |
 | Capabilities | 1 | 0 | 0 |
 | PacketIO | 3 | 0 | 2 |
 | Translation | 6 | 0 | 0 |
 | p4-constraints | 4 | 0 | 0 |
-| **Total** | **82** | **3** | **7** |
+| **Total** | **85** | **0** | **7** |
