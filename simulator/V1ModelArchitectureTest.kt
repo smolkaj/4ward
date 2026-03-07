@@ -60,14 +60,14 @@ class V1ModelArchitectureTest {
     ParamDecl.newBuilder().setName(name).setType(namedType(typeName)).build()
 
   /** standard_metadata_t with the minimal fields V1ModelArchitecture reads/writes. */
-  private val standardMetaType: TypeDecl =
+  private fun standardMetaType(portBits: Int = V1ModelArchitecture.PORT_BITS): TypeDecl =
     TypeDecl.newBuilder()
       .setName("standard_metadata_t")
       .setStruct(
         StructDecl.newBuilder()
-          .addFields(field("ingress_port", V1ModelArchitecture.PORT_BITS))
-          .addFields(field("egress_spec", V1ModelArchitecture.PORT_BITS))
-          .addFields(field("egress_port", V1ModelArchitecture.PORT_BITS))
+          .addFields(field("ingress_port", portBits))
+          .addFields(field("egress_spec", portBits))
+          .addFields(field("egress_port", portBits))
           .addFields(field("instance_type", 32))
           .addFields(field("packet_length", 32))
           .addFields(field("mcast_grp", 16))
@@ -238,9 +238,6 @@ class V1ModelArchitectureTest {
       .setType(bitType(width))
       .build()
 
-  private fun nameRefArg(name: String): Expr =
-    Expr.newBuilder().setNameRef(NameRef.newBuilder().setName(name)).build()
-
   /**
    * Builds a minimal v1model [BehavioralConfig].
    *
@@ -261,7 +258,7 @@ class V1ModelArchitectureTest {
 
     return BehavioralConfig.newBuilder()
       .setArchitecture(v1modelArch)
-      .addTypes(standardMetaType)
+      .addTypes(standardMetaType())
       .addTypes(headersType)
       .addTypes(metaType)
       .addParsers(parser)
@@ -368,7 +365,7 @@ class V1ModelArchitectureTest {
 
   @Test
   fun `mark_to_drop produces no output packets`() {
-    val config = v1modelConfig(externCall("mark_to_drop", nameRefArg("sm")))
+    val config = v1modelConfig(externCall("mark_to_drop", nameRef("sm")))
     val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
 
     assertTrue(result.trace.hasPacketOutcome())
@@ -619,30 +616,12 @@ class V1ModelArchitectureTest {
   // Wide-port tests: verify port width is derived from the IR, not hardcoded
   // ---------------------------------------------------------------------------
 
-  /** standard_metadata_t with 16-bit port fields (instead of the standard 9-bit). */
-  private val widePortMetaType: TypeDecl =
-    TypeDecl.newBuilder()
-      .setName("standard_metadata_t")
-      .setStruct(
-        StructDecl.newBuilder()
-          .addFields(field("ingress_port", widePortBits))
-          .addFields(field("egress_spec", widePortBits))
-          .addFields(field("egress_port", widePortBits))
-          .addFields(field("instance_type", 32))
-          .addFields(field("packet_length", 32))
-          .addFields(field("mcast_grp", 16))
-          .addFields(field("egress_rid", 16))
-          .addFields(field("checksum_error", 1))
-          .addFields(field("parser_error", 32))
-      )
-      .build()
-
   /** Builds a v1model config using 16-bit port fields. */
   private fun widePortConfig(vararg stmts: Stmt): BehavioralConfig =
     v1modelConfig(*stmts)
       .toBuilder()
       .clearTypes()
-      .addTypes(widePortMetaType)
+      .addTypes(standardMetaType(widePortBits))
       .addTypes(headersType)
       .addTypes(metaType)
       .build()
@@ -650,7 +629,7 @@ class V1ModelArchitectureTest {
   @Test
   fun `wide-port mark_to_drop sets all-ones of wider width`() {
     // mark_to_drop must set egress_spec to 65535 (not 511) with 16-bit ports.
-    val config = widePortConfig(externCall("mark_to_drop", nameRefArg("sm")))
+    val config = widePortConfig(externCall("mark_to_drop", nameRef("sm")))
     val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
 
     assertTrue(result.trace.hasPacketOutcome())
@@ -671,7 +650,7 @@ class V1ModelArchitectureTest {
   @Test
   fun `wide-port drop uses all-ones of wider width`() {
     // With 16-bit ports, drop port is 65535, not 511.
-    val wideDropPort = (1L shl widePortBits) - 1
+    val wideDropPort = BitVector.allOnes(widePortBits).value.toLong()
     val config = widePortConfig(assignField("sm", "egress_spec", wideDropPort, widePortBits))
     val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
 
