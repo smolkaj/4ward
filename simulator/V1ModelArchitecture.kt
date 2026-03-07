@@ -321,6 +321,7 @@ class V1ModelArchitecture : Architecture {
       try {
         s.interpreter.runParser(s.parserStage.blockName, s.env)
       } catch (e: ExitException) {
+        s.packetCtx.addTraceEvent(stageEvent(s.parserStage, PipelineStageEvent.Direction.EXIT))
         return buildDropTrace(s.packetCtx.getEvents(), DropReason.MARK_TO_DROP)
       } catch (e: ParserErrorException) {
         // BMv2 v1model: parser errors don't drop the packet. Set parser_error and
@@ -359,8 +360,11 @@ class V1ModelArchitecture : Architecture {
     // --- Deparser ---
     if (s.deparserStage != null) {
       s.packetCtx.addTraceEvent(stageEvent(s.deparserStage, PipelineStageEvent.Direction.ENTER))
-      s.interpreter.runControl(s.deparserStage.blockName, s.env)
-      s.packetCtx.addTraceEvent(stageEvent(s.deparserStage, PipelineStageEvent.Direction.EXIT))
+      try {
+        s.interpreter.runControl(s.deparserStage.blockName, s.env)
+      } finally {
+        s.packetCtx.addTraceEvent(stageEvent(s.deparserStage, PipelineStageEvent.Direction.EXIT))
+      }
     }
 
     // Append any bytes the parser did not extract (the un-parsed packet body).
@@ -382,10 +386,10 @@ class V1ModelArchitecture : Architecture {
       try {
         s.interpreter.runControl(stage.blockName, s.env)
       } catch (_: ExitException) {
-        s.packetCtx.addTraceEvent(stageEvent(stage, PipelineStageEvent.Direction.EXIT))
         break
+      } finally {
+        s.packetCtx.addTraceEvent(stageEvent(stage, PipelineStageEvent.Direction.EXIT))
       }
-      s.packetCtx.addTraceEvent(stageEvent(stage, PipelineStageEvent.Direction.EXIT))
     }
   }
 
