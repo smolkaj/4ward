@@ -56,6 +56,7 @@ fun simulate(pipelinePath: Path, stfPath: Path, format: OutputFormat): Int {
   }
 
   val outputQueue = mutableListOf<ReceivedPacket>()
+  val textProtoPrinter = TextFormat.printer()
 
   for (packet in stf.packets) {
     val resp = sim.processPacket(packet.ingressPort, packet.payload)
@@ -65,7 +66,7 @@ fun simulate(pipelinePath: Path, stfPath: Path, format: OutputFormat): Int {
         println("packet received: port ${packet.ingressPort}, ${packet.payload.size} bytes")
         println(TraceFormatter.format(trace).trim().prependIndent("  "))
       }
-      OutputFormat.TEXTPROTO -> print(TextFormat.printer().printToString(trace))
+      OutputFormat.TEXTPROTO -> print(textProtoPrinter.printToString(trace))
     }
     val pkts = resp.outputPacketsList.ifEmpty { collectOutputsFromTrace(trace) }
     for (pkt in pkts) {
