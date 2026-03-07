@@ -13,11 +13,6 @@ cc_binary(
     deps = ["@behavioral_model//:simple_switch_lib"],
 )
 
-# Tests excluded from the diff suite:
-#
-# ipv6-switch-ml-bmv2, v1model-special-ops-bmv2:
-#   MC_NODE_CREATE fails — the STF multicast setup exceeds BMv2's PRE limits
-#   or the driver's multicast handling needs extension.
 bmv2_diff_test_suite(
     name = "bmv2_diff_test",
     includes = [
@@ -131,6 +126,7 @@ bmv2_diff_test_suite(
         "header-bool-bmv2",
         "header-stack-ops-bmv2",
         "invalid-hdr-warnings3-bmv2",
+        "ipv6-switch-ml-bmv2",
         "issue-2123-2-bmv2",
         "issue-2123-3-bmv2",
         "issue1000-bmv2",
@@ -209,5 +205,6 @@ bmv2_diff_test_suite(
         "union2-bmv2",
         "union3-bmv2",
         "v1model-const-entries-bmv2",
+        "v1model-special-ops-bmv2",
     ],
 )

@@ -19,6 +19,7 @@
 
 #include <bm/bm_sim/options_parse.h>
 #include <bm/bm_sim/simple_pre.h>
+#include <bm/bm_sim/simple_pre_lag.h>
 #include <bm/bm_sim/switch.h>
 #include <simple_switch.h>
 
@@ -242,6 +243,8 @@ int main(int argc, char* argv[]) {
 
   sw->start_and_return();
 
+  auto pre = sw->get_component<bm::McSimplePreLAG>();
+
   // Signal readiness.
   std::cout << "READY" << std::endl;
 
@@ -347,7 +350,6 @@ int main(int argc, char* argv[]) {
         std::cout << "ERROR bad MC_MGRP_CREATE" << std::endl;
         continue;
       }
-      auto pre = sw->get_component<bm::McSimplePre>();
       bm::McSimplePre::mgrp_hdl_t mgrp_hdl;
       auto rc = pre->mc_mgrp_create(std::stoi(tokens[1]), &mgrp_hdl);
       if (rc != bm::McSimplePre::McReturnCode::SUCCESS) {
@@ -362,7 +364,6 @@ int main(int argc, char* argv[]) {
         std::cout << "ERROR bad MC_NODE_CREATE" << std::endl;
         continue;
       }
-      auto pre = sw->get_component<bm::McSimplePre>();
       int rid = std::stoi(tokens[1]);
       bm::McSimplePre::PortMap port_map;
       for (size_t i = 2; i < tokens.size(); i++) {
@@ -370,7 +371,9 @@ int main(int argc, char* argv[]) {
         if (p >= 0 && static_cast<size_t>(p) < port_map.size()) port_map[p] = 1;
       }
       bm::McSimplePre::l1_hdl_t l1_hdl;
-      auto rc = pre->mc_node_create(rid, port_map, &l1_hdl);
+      // McSimplePreLAG::mc_node_create requires a LagMap; pass empty (no LAG).
+      bm::McSimplePreLAG::LagMap lag_map;
+      auto rc = pre->mc_node_create(rid, port_map, lag_map, &l1_hdl);
       if (rc != bm::McSimplePre::McReturnCode::SUCCESS) {
         std::cout << "ERROR MC_NODE_CREATE failed" << std::endl;
       } else {
@@ -383,7 +386,6 @@ int main(int argc, char* argv[]) {
         std::cout << "ERROR bad MC_NODE_ASSOCIATE" << std::endl;
         continue;
       }
-      auto pre = sw->get_component<bm::McSimplePre>();
       auto mgrp_hdl =
           static_cast<bm::McSimplePre::mgrp_hdl_t>(std::stoi(tokens[1]));
       auto l1_hdl =

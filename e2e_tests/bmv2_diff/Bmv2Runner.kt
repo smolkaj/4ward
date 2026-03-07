@@ -172,11 +172,12 @@ class Bmv2Runner(driverBinary: Path, jsonPath: Path, private val p4Info: P4InfoO
         "$valueHex&&&$maskHex"
       }
       MatchKind.EXACT -> {
-        // If the table declares ternary but the STF value is exact, promote to ternary.
-        if (mf.matchType == P4InfoOuterClass.MatchField.MatchType.TERNARY) {
-          "$valueHex&&&${allOnesMaskHex(mf.bitwidth)}"
-        } else {
-          valueHex
+        when (mf.matchType) {
+          // If the table declares ternary/lpm but the STF value is exact, promote.
+          P4InfoOuterClass.MatchField.MatchType.TERNARY ->
+            "$valueHex&&&${allOnesMaskHex(mf.bitwidth)}"
+          P4InfoOuterClass.MatchField.MatchType.LPM -> "$valueHex/${mf.bitwidth}"
+          else -> valueHex
         }
       }
     }
