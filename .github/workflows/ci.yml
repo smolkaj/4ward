@@ -177,7 +177,8 @@ jobs:
 
 
   coverage:
-    if: github.event.action != 'closed'  # skip on PR close; only cancel job runs
+    # TODO: re-enable for PRs once coverage runs are faster/more reliable.
+    if: github.event_name == 'push'
     name: Coverage
     runs-on: ubuntu-24.04
     # Coverage is informational — a slow or flaky run should not block PRs.
