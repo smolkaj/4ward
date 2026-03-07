@@ -695,6 +695,12 @@ private fun resolveStfMatchField(
       fmBuilder.setOptional(
         P4RuntimeOuterClass.FieldMatch.Optional.newBuilder().setValue(encodedValue)
       )
+    m.kind == MatchKind.EXACT && p4infoType == P4InfoOuterClass.MatchField.MatchType.LPM ->
+      fmBuilder.setLpm(
+        P4RuntimeOuterClass.FieldMatch.LPM.newBuilder()
+          .setValue(encodedValue)
+          .setPrefixLen(mf.bitwidth)
+      )
     else ->
       fmBuilder.setExact(P4RuntimeOuterClass.FieldMatch.Exact.newBuilder().setValue(encodedValue))
   }
