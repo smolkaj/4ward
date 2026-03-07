@@ -11,12 +11,12 @@ want to hack on it, keep reading.
 4ward's primary goal is to be a faithful implementation of the
 [P4₁₆ language specification](https://p4.org/wp-content/uploads/sites/53/p4-spec/docs/p4-16-working-draft.html).
 Every language feature should behave exactly as the spec describes. When the
-spec is ambiguous, we follow p4c's reference compiler behaviour and document
+spec is ambiguous, we follow p4c's reference compiler behavior and document
 the ambiguity. When the spec is clear, we follow it — even if BMv2 or other
 implementations do something different.
 
 This means correctness always wins over convenience, performance, or
-compatibility with non-standard behaviour. The simulator is meant to be the
+compatibility with non-standard behavior. The simulator is meant to be the
 implementation you trust when you need to know what a P4 program *should* do.
 
 The north star is to replace BMv2 as the reference simulator in
@@ -90,7 +90,7 @@ Interpreter.kt           The big one: IR tree-walker for parsers, controls, acti
 Environment.kt           Variable bindings, packet state (headers + metadata)
 Values.kt                Runtime value types (BitVector, BoolVal, HeaderVal, ...)
 BitVector.kt             Bit-precise integer arithmetic (backed by BigInteger)
-Architecture.kt          Interface for architecture-specific behaviour
+Architecture.kt          Interface for architecture-specific behavior
 V1ModelArchitecture.kt   v1model specifics: recirculate, clone, resubmit, drop
 ```
 

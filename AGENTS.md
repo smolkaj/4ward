@@ -115,7 +115,7 @@ this isn't the intended design — and knows exactly how to clean it up later.
 for language semantics is the
 [P4₁₆ Language Specification](https://p4.org/wp-content/uploads/sites/53/p4-spec/docs/p4-16-working-draft.html).
 **When in doubt, consult the spec.** If the spec is ambiguous, follow p4c's
-behaviour and document the ambiguity with a comment citing the relevant spec
+behavior and document the ambiguity with a comment citing the relevant spec
 section. For v1model architecture semantics (clone/resubmit/recirculate
 ordering, last-writer-wins, metadata preservation, ingress→egress boundary),
 the de facto spec is the

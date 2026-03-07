@@ -46,7 +46,7 @@ Run `./tools/dev.sh help` for a summary of available developer commands.
 ## Making changes
 
 1. Fork the repo and create a branch.
-2. Make your change. New behaviour needs a test (usually an STF test does the
+2. Make your change. New behavior needs a test (usually an STF test does the
    trick).
 3. Run `bazel test //...` — everything should be green.
 4. Run `./tools/format.sh` to auto-format everything.
@@ -75,7 +75,7 @@ Add new fields instead.
 4ward is a spec-compliant reference implementation: it should behave exactly as
 the [P4₁₆ spec](https://p4.org/wp-content/uploads/sites/53/p4-spec/docs/p4-16-working-draft.html)
 describes. When you're unsure about a language detail, check the spec. If the
-spec is ambiguous, follow p4c's behaviour and document the ambiguity in a
+spec is ambiguous, follow p4c's behavior and document the ambiguity in a
 comment citing the relevant section.
 
 4ward is proudly not fast. It's correct, it's observable, and it's readable.
