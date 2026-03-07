@@ -134,9 +134,9 @@ deterministic, it's often more useful to reason about them as
 non-deterministic — "what *could* happen to my packet?" rather than "what
 happens with this specific hash seed?"
 
-**Status:** The `TraceTree` proto schema is defined and the simulator produces
-zero-fork trees. Forking (action selectors, clone, multicast) is under active
-development — see [ROADMAP.md](ROADMAP.md) Track 3.
+**Status:** Complete. The simulator produces full trace trees with forking at
+all non-deterministic choice points: action selectors, clone (I2E/E2E),
+multicast replication, resubmit, and recirculate.
 
 **Why this matters:**
 

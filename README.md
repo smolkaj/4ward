@@ -42,18 +42,15 @@ optimised for **correctness, observability, and extensibility** rather than
 performance. Think of it as a debugger that speaks P4, not a production data
 plane.
 
-| | Real hardware | BMv2 | **4ward** |
-|---|---|---|---|
-| Spec-compliance | varies | has gaps | [**by design**](docs/ROADMAP.md#track-1-v1model-spec-compliance) |
-| P4Runtime support | sure | has gaps | [**100% spec-compliant (planned)**](docs/ROADMAP.md#track-4-p4runtime-reference-implementation) |
-| Trace format | nope | text | [**proto/JSON**](https://github.com/smolkaj/4ward/blob/main/e2e_tests/trace_tree/clone_with_egress.golden.txtpb) |
-| All possible traces | nope | not natively | [**trace trees!**](docs/ROADMAP.md#track-3-trace-trees) |
-| Architecture-generic | nope | nope | [**by design**](docs/ROADMAP.md#track-6-architecture-expansion-psa-then-pnatna) |
-| Architecture customization | nope | nope | [**by design**](docs/ROADMAP.md#track-5-architecture-customization) |
-| Easy to extend | ehh | ehh | [**if AI can extend it, anyone can**](docs/ROADMAP.md#why-4ward-is-easier-to-extend) |
-| Simple, readable codebase | ehh | ehh | [**yes!**](docs/ROADMAP.md#keeping-it-easy-the-strategy) |
-| Fast, rigorous CI | nope | slow | **[~2 min](https://4ward.buildbuddy.io/trends/)** |
-| Development pace | slow | slow | **[AI-fast](docs/AI_WORKFLOW.md)** |
+| | BMv2 | **4ward** |
+|---|---|---|
+| [v1model spec compliance](docs/ROADMAP.md#track-1-v1model-spec-compliance) | has gaps | **185/185** corpus tests, **155** p4testgen programs |
+| [Structured traces](docs/ROADMAP.md#track-3-trace-trees) | text logs | **proto/JSON** [trace trees](e2e_tests/trace_tree/clone_with_egress.golden.txtpb) |
+| [P4Runtime server](docs/ROADMAP.md#track-4-p4runtime-reference-implementation) | has gaps | **in progress** — Write, Read, PacketIO |
+| [`@p4runtime_translation`](docs/ROADMAP.md#track-5-architecture-customization) | no | **yes** — sdn_string, sdn_bitwidth, [3 mapping modes](#p4runtime_translation-done-right) |
+| [Architecture customization](docs/ROADMAP.md#track-5-architecture-customization) | no | **yes** — port widths derived from IR |
+| [Multiple architectures](docs/ROADMAP.md#track-6-architecture-expansion-psa-then-pnatna) | v1model only | v1model (PSA [planned](docs/ROADMAP.md#track-6-architecture-expansion-psa-then-pnatna)) |
+| CI | slow | **[~2 min](https://4ward.buildbuddy.io/trends/)** with [differential coverage](https://smolkaj.github.io/4ward/main/) |
 
 ## Where we're headed
 
@@ -173,52 +170,32 @@ Hybrid mode example — pin special ports, auto-allocate the rest:
   auto:      "Ethernet2"  →   2
 ```
 
-## Should you trust AI-written code?
+## Three testing oracles
 
-4ward is **[100% AI-written](docs/AI_WORKFLOW.md)** — every line, every test,
-every doc you're reading right now. Naturally, you might wonder: should you
-trust the output?
+4ward is [100% AI-written](docs/AI_WORKFLOW.md). Trust the tests, not the
+author — three independent oracles validate every change:
 
-The answer isn't "trust the AI." It's **trust the tests.**
+- **200+ conformance tests** from p4c's own test suite.
+- **Symbolic path exploration** via p4testgen — systematically covers
+  execution paths humans wouldn't think to write.
+- **Differential testing** against BMv2 — identical inputs, compare every
+  output bit-for-bit.
 
-4ward uses three independent testing layers, each with a different source of
-truth:
-
-- **200+ conformance tests** from p4c's own test suite — hand-written
-  expectations by the people who built the language.
-- **Symbolic path exploration** via p4testgen — auto-generated tests that
-  systematically cover execution paths humans wouldn't think to exercise.
-- **Differential testing** against BMv2 — run identical inputs through the
-  reference implementation and 4ward, compare every output.
-
-When three independent oracles agree, the code is correct — regardless of who
-wrote it. See [Testing Strategy](docs/TESTING_STRATEGY.md) for the full story.
+When three independent oracles agree, the code is correct. See
+[Testing Strategy](docs/TESTING_STRATEGY.md) for the full story.
 
 ## Why Kotlin?
 
-The P4 ecosystem is written in C++. So why isn't 4ward?
+Performance doesn't matter here — correctness and readability do. Kotlin gives
+us fast builds, sealed classes with exhaustive pattern matching (the compiler
+catches missing cases), and excellent protobuf ergonomics. The P4 ecosystem
+lives in C++, but C++'s strengths (speed, ecosystem familiarity) don't apply
+and its weaknesses (compile times, complexity) hurt.
 
-Since no one needs to hold language minutiae in their head — the
-[AI writes the code](docs/AI_WORKFLOW.md) — we're free to pick the best
-language for the problem, not the most familiar one.
-
-**Why not C++?** Its top strengths — speed, ecosystem familiarity —
-don't matter here. Its top weaknesses — compile times, complexity — matter a lot.
-
-**Why Kotlin?** Fast builds, simple language, strong type system, excellent
-ergonomics (sealed classes, pattern matching).
-
-**Why not…**
-- **Rust?** Borrow checker is overkill — we don't need manual memory control.
-- **Go?** Weaker type system — no algebraic data types, no pattern matching.
-- **Python?** Weak type system, slow test execution.
-- **Java?** Kotlin, but worse.
-- **OCaml?** Excellent fit, but not well-supported within Google's ecosystem :(
-
-> [!IMPORTANT]  
+> [!IMPORTANT]
 > **You don't need to know Kotlin to contribute to 4ward!**
 > [The AI writes the code](docs/AI_WORKFLOW.md) — you just need to know your
-requirements.
+> requirements.
 
 ## Project structure
 
@@ -242,14 +219,6 @@ requirements.
 ```
 
 Curious about the design? [ARCHITECTURE.md](docs/ARCHITECTURE.md) has the full story.
-
-## CI that has your back
-
-We think fast, reliable CI is key to keeping developers happy and productive.
-
-Every PR gets built, linted, and tested in about 2 minutes — with a differential coverage
-report in about 5. No flakes, no "works on my machine." See for yourself on the
-[BuildBuddy dashboard](https://4ward.buildbuddy.io/trends/).
 
 ## Documentation
 
