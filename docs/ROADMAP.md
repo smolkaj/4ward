@@ -247,7 +247,7 @@ bazel run //cli:4ward -- sim pipeline.txtpb test.stf
 
 Three subcommands: `compile`, `sim`, `run`. Human-readable trace output by
 default (`--format=textproto` for machine-readable). In-process simulator
-(no subprocess). Examples in `examples/`, integration tests in `cli/tests/`.
+(no subprocess). Examples and tutorial in `examples/`.
 
 ## Sequencing
 
