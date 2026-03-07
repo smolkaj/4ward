@@ -1,7 +1,6 @@
 // passthrough.p4 — the simplest possible v1model program.
 //
-// Try it:
-//   bazel run //cli:4ward -- run examples/passthrough.p4 examples/passthrough.stf
+// See examples/tutorial.t for a walkthrough.
 //
 // What it does: extracts an Ethernet header, hardcodes egress port to 1,
 // and emits the packet unchanged. No tables, no actions.

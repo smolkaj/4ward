@@ -1,7 +1,6 @@
 // basic_table.p4 — simplest table-based v1model program.
 //
-// Try it:
-//   bazel run //cli:4ward -- run examples/basic_table.p4 examples/basic_table.stf
+// See examples/tutorial.t for a walkthrough.
 //
 // What it does: looks up the Ethernet type in an exact-match table.
 // If it matches, forward to the specified port; otherwise, drop.

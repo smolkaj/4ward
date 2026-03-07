@@ -1,16 +1,11 @@
-# Example P4 programs and STF tests.
-#
-# These are self-contained copies from e2e_tests/ with CLI-oriented comments,
-# intended as starting points for newcomers.
+# Example P4 programs and a tutorial that doubles as a cram test.
 
 load("//cli/tests:cram.bzl", "cram_test")
 
 exports_files(
     [
         "passthrough.p4",
-        "passthrough.stf",
         "basic_table.p4",
-        "basic_table.stf",
     ],
     visibility = ["//cli:__subpackages__"],
 )

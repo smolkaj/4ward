@@ -75,7 +75,8 @@ We are driving development by building towards two demanding real-world applicat
 [Tested on](https://4ward.buildbuddy.io/tests/) macOS and Ubuntu. You need
 [Bazel](https://bazel.build) 9+ (or just grab
 [Bazelisk](https://github.com/bazelbuild/bazelisk) and forget about it) and a
-C++20 compiler for the p4c backend. Everything else is hermetic.
+C++20 compiler for the p4c backend. Everything else is hermetic — Bazel
+handles it.
 
 ```sh
 git clone https://github.com/smolkaj/4ward.git && cd 4ward
