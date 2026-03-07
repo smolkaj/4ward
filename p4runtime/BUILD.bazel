@@ -213,6 +213,16 @@ cc_binary(
 # =============================================================================
 
 kt_jvm_test(
+    name = "P4RuntimeServiceTest",
+    srcs = ["P4RuntimeServiceTest.kt"],
+    test_class = "fourward.p4runtime.P4RuntimeServiceTest",
+    deps = [
+        ":p4runtime_lib",
+        "@maven//:junit_junit",
+    ],
+)
+
+kt_jvm_test(
     name = "P4RuntimeConstraintTest",
     srcs = [
         "P4RuntimeConstraintTest.kt",

@@ -33,6 +33,16 @@ import p4.v1.P4RuntimeOuterClass.WriteRequest
 import p4.v1.P4RuntimeOuterClass.WriteResponse
 
 /**
+ * Compares two [Uint128] values as unsigned 128-bit integers. Returns negative if [a] < [b], zero
+ * if equal, positive if [a] > [b].
+ */
+fun compareUint128(a: Uint128, b: Uint128): Int {
+  val highCmp = a.high.toULong().compareTo(b.high.toULong())
+  if (highCmp != 0) return highCmp
+  return a.low.toULong().compareTo(b.low.toULong())
+}
+
+/**
  * P4Runtime gRPC service backed by a 4ward [Simulator].
  *
  * Supports basic multi-controller arbitration: the controller with the highest election_id is
@@ -331,18 +341,6 @@ class P4RuntimeService(
   }
 
   companion object {
-
-    /**
-     * Compares two Uint128 values as unsigned 128-bit integers. Returns negative if a < b, zero if
-     * a == b, positive if a > b.
-     */
-    private fun compareUint128(a: Uint128, b: Uint128): Int {
-      // Compare high as unsigned: convert to Long.toULong() for unsigned comparison.
-      val highCmp = a.high.toULong().compareTo(b.high.toULong())
-      if (highCmp != 0) return highCmp
-      return a.low.toULong().compareTo(b.low.toULong())
-    }
-
     // Well-known metadata IDs for v1model packet_in/packet_out headers.
     private const val INGRESS_PORT_METADATA_ID = 1
     private const val EGRESS_PORT_METADATA_ID = 2
