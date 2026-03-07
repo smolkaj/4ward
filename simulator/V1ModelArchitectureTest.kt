@@ -8,6 +8,7 @@ import fourward.ir.v1.BinaryOp
 import fourward.ir.v1.BinaryOperator
 import fourward.ir.v1.BlockStmt
 import fourward.ir.v1.ControlDecl
+import fourward.ir.v1.ExitStmt
 import fourward.ir.v1.Expr
 import fourward.ir.v1.FieldAccess
 import fourward.ir.v1.FieldDecl
@@ -26,8 +27,11 @@ import fourward.ir.v1.StructDecl
 import fourward.ir.v1.Transition
 import fourward.ir.v1.Type
 import fourward.ir.v1.TypeDecl
+import fourward.sim.v1.DropReason
 import fourward.sim.v1.ForkReason
 import fourward.sim.v1.OutputPacket
+import fourward.sim.v1.PipelineStageEvent.Direction
+import fourward.sim.v1.TraceEvent
 import fourward.sim.v1.TraceTree
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -88,6 +92,61 @@ class V1ModelArchitectureTest {
 
   private val controlParams =
     listOf(param("hdr", "headers_t"), param("meta", "meta_t"), param("sm", "standard_metadata_t"))
+
+  private fun noopControl(name: String): ControlDecl =
+    ControlDecl.newBuilder().setName(name).addAllParams(controlParams).build()
+
+  private val noopParser: ParserDecl =
+    ParserDecl.newBuilder()
+      .setName("MyParser")
+      .addAllParams(parserParams)
+      .addStates(
+        ParserState.newBuilder()
+          .setName("start")
+          .setTransition(Transition.newBuilder().setNextState("accept"))
+      )
+      .build()
+
+  private val v1modelArch: Architecture =
+    Architecture.newBuilder()
+      .setName("v1model")
+      .addStages(
+        PipelineStage.newBuilder()
+          .setName("parser")
+          .setKind(StageKind.PARSER)
+          .setBlockName("MyParser")
+      )
+      .addStages(
+        PipelineStage.newBuilder()
+          .setName("verify_checksum")
+          .setKind(StageKind.CONTROL)
+          .setBlockName("MyVerifyChecksum")
+      )
+      .addStages(
+        PipelineStage.newBuilder()
+          .setName("ingress")
+          .setKind(StageKind.CONTROL)
+          .setBlockName("MyIngress")
+      )
+      .addStages(
+        PipelineStage.newBuilder()
+          .setName("egress")
+          .setKind(StageKind.CONTROL)
+          .setBlockName("MyEgress")
+      )
+      .addStages(
+        PipelineStage.newBuilder()
+          .setName("compute_checksum")
+          .setKind(StageKind.CONTROL)
+          .setBlockName("MyComputeChecksum")
+      )
+      .addStages(
+        PipelineStage.newBuilder()
+          .setName("deparser")
+          .setKind(StageKind.DEPARSER)
+          .setBlockName("MyDeparser")
+      )
+      .build()
 
   /** An assignment statement: target.fieldName = value (integer literal). */
   private fun assignField(target: String, fieldName: String, value: Long, width: Int): Stmt =
@@ -177,77 +236,16 @@ class V1ModelArchitectureTest {
       .build()
 
   /**
-   * Builds a minimal v1model [BehavioralConfig] where the ingress control executes [stmts].
+   * Builds a minimal v1model [BehavioralConfig].
    *
-   * The pipeline has: parser (no-op) -> verify_checksum (no-op) -> ingress ([stmts]) -> egress
-   * (no-op) -> compute_checksum (no-op) -> deparser (no-op).
+   * The pipeline has: parser -> verify_checksum -> ingress ([ingressStmts]) -> egress
+   * ([egressStmts]) -> compute_checksum -> deparser. All stages default to no-op.
    */
-  private fun v1modelConfig(vararg stmts: Stmt): BehavioralConfig {
-    val noopParser =
-      ParserDecl.newBuilder()
-        .setName("MyParser")
-        .addAllParams(parserParams)
-        .addStates(
-          ParserState.newBuilder()
-            .setName("start")
-            .setTransition(Transition.newBuilder().setNextState("accept"))
-        )
-        .build()
-
-    fun noopControl(name: String) =
-      ControlDecl.newBuilder().setName(name).addAllParams(controlParams).build()
-
-    val ingressControl =
-      ControlDecl.newBuilder()
-        .setName("MyIngress")
-        .addAllParams(controlParams)
-        .addAllApplyBody(stmts.toList())
-        .build()
-
-    val arch =
-      Architecture.newBuilder()
-        .setName("v1model")
-        .addStages(PipelineStage.newBuilder().setKind(StageKind.PARSER).setBlockName("MyParser"))
-        .addStages(
-          PipelineStage.newBuilder().setKind(StageKind.CONTROL).setBlockName("MyVerifyChecksum")
-        )
-        .addStages(PipelineStage.newBuilder().setKind(StageKind.CONTROL).setBlockName("MyIngress"))
-        .addStages(PipelineStage.newBuilder().setKind(StageKind.CONTROL).setBlockName("MyEgress"))
-        .addStages(
-          PipelineStage.newBuilder().setKind(StageKind.CONTROL).setBlockName("MyComputeChecksum")
-        )
-        .addStages(
-          PipelineStage.newBuilder().setKind(StageKind.DEPARSER).setBlockName("MyDeparser")
-        )
-        .build()
-
-    return BehavioralConfig.newBuilder()
-      .setArchitecture(arch)
-      .addTypes(standardMetaType)
-      .addTypes(headersType)
-      .addTypes(metaType)
-      .addParsers(noopParser)
-      .addControls(noopControl("MyVerifyChecksum"))
-      .addControls(ingressControl)
-      .addControls(noopControl("MyEgress"))
-      .addControls(noopControl("MyComputeChecksum"))
-      .addControls(noopControl("MyDeparser"))
-      .build()
-  }
-
-  /** Overload that injects statements into both ingress and egress controls. */
-  private fun v1modelConfig(ingressStmts: List<Stmt>, egressStmts: List<Stmt>): BehavioralConfig {
-    val noopParser =
-      ParserDecl.newBuilder()
-        .setName("MyParser")
-        .addAllParams(parserParams)
-        .addStates(
-          ParserState.newBuilder()
-            .setName("start")
-            .setTransition(Transition.newBuilder().setNextState("accept"))
-        )
-        .build()
-
+  private fun v1modelConfig(
+    ingressStmts: List<Stmt> = emptyList(),
+    egressStmts: List<Stmt> = emptyList(),
+    parser: ParserDecl = noopParser,
+  ): BehavioralConfig {
     fun control(name: String, stmts: List<Stmt>) =
       ControlDecl.newBuilder()
         .setName(name)
@@ -255,31 +253,12 @@ class V1ModelArchitectureTest {
         .addAllApplyBody(stmts)
         .build()
 
-    fun noopControl(name: String) = control(name, emptyList())
-
-    val arch =
-      Architecture.newBuilder()
-        .setName("v1model")
-        .addStages(PipelineStage.newBuilder().setKind(StageKind.PARSER).setBlockName("MyParser"))
-        .addStages(
-          PipelineStage.newBuilder().setKind(StageKind.CONTROL).setBlockName("MyVerifyChecksum")
-        )
-        .addStages(PipelineStage.newBuilder().setKind(StageKind.CONTROL).setBlockName("MyIngress"))
-        .addStages(PipelineStage.newBuilder().setKind(StageKind.CONTROL).setBlockName("MyEgress"))
-        .addStages(
-          PipelineStage.newBuilder().setKind(StageKind.CONTROL).setBlockName("MyComputeChecksum")
-        )
-        .addStages(
-          PipelineStage.newBuilder().setKind(StageKind.DEPARSER).setBlockName("MyDeparser")
-        )
-        .build()
-
     return BehavioralConfig.newBuilder()
-      .setArchitecture(arch)
+      .setArchitecture(v1modelArch)
       .addTypes(standardMetaType)
       .addTypes(headersType)
       .addTypes(metaType)
-      .addParsers(noopParser)
+      .addParsers(parser)
       .addControls(noopControl("MyVerifyChecksum"))
       .addControls(control("MyIngress", ingressStmts))
       .addControls(control("MyEgress", egressStmts))
@@ -287,6 +266,10 @@ class V1ModelArchitectureTest {
       .addControls(noopControl("MyDeparser"))
       .build()
   }
+
+  /** Convenience overload: ingress-only statements. */
+  private fun v1modelConfig(vararg stmts: Stmt): BehavioralConfig =
+    v1modelConfig(ingressStmts = stmts.toList())
 
   private fun writeCloneSession(store: TableStore, sessionId: Int, egressPort: Int) {
     store.write(
@@ -553,5 +536,84 @@ class V1ModelArchitectureTest {
     val outputs = collectOutputs(result.trace)
     assertEquals(1, outputs.size)
     assertEquals(5, outputs[0].egressPort)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Stage event tests
+  // ---------------------------------------------------------------------------
+
+  /** Extracts only PacketIngressEvent and PipelineStageEvent from a trace's events. */
+  private fun stageEvents(tree: TraceTree): List<TraceEvent> =
+    tree.eventsList.filter { it.hasPacketIngress() || it.hasPipelineStage() }
+
+  @Test
+  fun `trace starts with packet ingress and has enter-exit pairs for all stages`() {
+    val config = v1modelConfig(assignField("sm", "egress_spec", 1, V1ModelArchitecture.PORT_BITS))
+    val result = V1ModelArchitecture().processPacket(7u, byteArrayOf(0x01), config, TableStore())
+    val events = stageEvents(result.trace)
+
+    // First event: packet ingress with correct port.
+    assertTrue(events[0].hasPacketIngress())
+    assertEquals(7, events[0].packetIngress.ingressPort)
+
+    // Remaining events: enter/exit pairs for parser, 4 controls, deparser.
+    data class StageStep(val name: String, val kind: StageKind, val direction: Direction)
+
+    val stages =
+      events.drop(1).map {
+        StageStep(
+          it.pipelineStage.stageName,
+          it.pipelineStage.stageKind,
+          it.pipelineStage.direction,
+        )
+      }
+    val expected =
+      listOf(
+        StageStep("parser", StageKind.PARSER, Direction.ENTER),
+        StageStep("parser", StageKind.PARSER, Direction.EXIT),
+        StageStep("verify_checksum", StageKind.CONTROL, Direction.ENTER),
+        StageStep("verify_checksum", StageKind.CONTROL, Direction.EXIT),
+        StageStep("ingress", StageKind.CONTROL, Direction.ENTER),
+        StageStep("ingress", StageKind.CONTROL, Direction.EXIT),
+        StageStep("egress", StageKind.CONTROL, Direction.ENTER),
+        StageStep("egress", StageKind.CONTROL, Direction.EXIT),
+        StageStep("compute_checksum", StageKind.CONTROL, Direction.ENTER),
+        StageStep("compute_checksum", StageKind.CONTROL, Direction.EXIT),
+        StageStep("deparser", StageKind.DEPARSER, Direction.ENTER),
+        StageStep("deparser", StageKind.DEPARSER, Direction.EXIT),
+      )
+    assertEquals(expected, stages)
+  }
+
+  @Test
+  fun `parser exit emits EXIT event before drop`() {
+    // Parser with an exit statement — triggers ExitException in the parser.
+    val exitParser =
+      ParserDecl.newBuilder()
+        .setName("MyParser")
+        .addAllParams(parserParams)
+        .addStates(
+          ParserState.newBuilder()
+            .setName("start")
+            .addStmts(Stmt.newBuilder().setExit(ExitStmt.getDefaultInstance()))
+            .setTransition(Transition.newBuilder().setNextState("accept"))
+        )
+        .build()
+
+    val config = v1modelConfig(parser = exitParser)
+    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+
+    // Should be a drop.
+    assertTrue(result.trace.hasPacketOutcome())
+    assertTrue(result.trace.packetOutcome.hasDrop())
+    assertEquals(DropReason.MARK_TO_DROP, result.trace.packetOutcome.drop.reason)
+
+    // Parser EXIT event must be present even though the parser exited early.
+    val events = stageEvents(result.trace)
+    val stages = events.drop(1).map { it.pipelineStage }
+    assertEquals(
+      listOf(StageKind.PARSER to Direction.ENTER, StageKind.PARSER to Direction.EXIT),
+      stages.map { it.stageKind to it.direction },
+    )
   }
 }

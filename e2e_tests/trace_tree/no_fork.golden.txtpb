@@ -1,4 +1,16 @@
 events {
+  packet_ingress {
+    ingress_port: 0
+  }
+}
+events {
+  pipeline_stage {
+    stage_name: "parser"
+    stage_kind: PARSER
+    direction: ENTER
+  }
+}
+events {
   parser_transition {
     parser_name: "MyParser"
     from_state: "start"
@@ -9,6 +21,34 @@ events {
     line: 22
     column: 10
     source_fragment: "start"
+  }
+}
+events {
+  pipeline_stage {
+    stage_name: "parser"
+    stage_kind: PARSER
+    direction: EXIT
+  }
+}
+events {
+  pipeline_stage {
+    stage_name: "verify_checksum"
+    stage_kind: CONTROL
+    direction: ENTER
+  }
+}
+events {
+  pipeline_stage {
+    stage_name: "verify_checksum"
+    stage_kind: CONTROL
+    direction: EXIT
+  }
+}
+events {
+  pipeline_stage {
+    stage_name: "ingress"
+    stage_kind: CONTROL
+    direction: ENTER
   }
 }
 events {
@@ -55,6 +95,55 @@ events {
     line: 41
     column: 12
     source_fragment: "routing.apply()"
+  }
+}
+events {
+  pipeline_stage {
+    stage_name: "ingress"
+    stage_kind: CONTROL
+    direction: EXIT
+  }
+}
+events {
+  pipeline_stage {
+    stage_name: "egress"
+    stage_kind: CONTROL
+    direction: ENTER
+  }
+}
+events {
+  pipeline_stage {
+    stage_name: "egress"
+    stage_kind: CONTROL
+    direction: EXIT
+  }
+}
+events {
+  pipeline_stage {
+    stage_name: "compute_checksum"
+    stage_kind: CONTROL
+    direction: ENTER
+  }
+}
+events {
+  pipeline_stage {
+    stage_name: "compute_checksum"
+    stage_kind: CONTROL
+    direction: EXIT
+  }
+}
+events {
+  pipeline_stage {
+    stage_name: "deparser"
+    stage_kind: DEPARSER
+    direction: ENTER
+  }
+}
+events {
+  pipeline_stage {
+    stage_name: "deparser"
+    stage_kind: DEPARSER
+    direction: EXIT
   }
 }
 packet_outcome {

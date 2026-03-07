@@ -8,7 +8,9 @@ import fourward.sim.v1.DropReason
 import fourward.sim.v1.Fork
 import fourward.sim.v1.ForkBranch
 import fourward.sim.v1.ForkReason
+import fourward.sim.v1.PacketIngressEvent
 import fourward.sim.v1.PacketOutcome
+import fourward.sim.v1.PipelineStageEvent
 import fourward.sim.v1.TraceEvent
 import fourward.sim.v1.TraceTree
 
@@ -310,18 +312,26 @@ class V1ModelArchitecture : Architecture {
   private fun runPipeline(ctx: PipelineContext, decisions: ForkDecisions): TraceTree {
     val s = initPipelineState(ctx, decisions)
 
+    // --- Packet ingress ---
+    s.packetCtx.addTraceEvent(packetIngressEvent(ctx.ingressPort))
+
     // --- Parser ---
+    var parserExitDrop = false
     if (s.parserStage != null) {
+      s.packetCtx.addTraceEvent(stageEvent(s.parserStage, PipelineStageEvent.Direction.ENTER))
       try {
         s.interpreter.runParser(s.parserStage.blockName, s.env)
-      } catch (e: ExitException) {
-        return buildDropTrace(s.packetCtx.getEvents(), DropReason.MARK_TO_DROP)
+      } catch (_: ExitException) {
+        parserExitDrop = true
       } catch (e: ParserErrorException) {
         // BMv2 v1model: parser errors don't drop the packet. Set parser_error and
         // continue to the ingress pipeline, letting the P4 program decide the fate.
         s.standardMetadata.fields["parser_error"] = ErrorVal(e.errorName)
+      } finally {
+        s.packetCtx.addTraceEvent(stageEvent(s.parserStage, PipelineStageEvent.Direction.EXIT))
       }
     }
+    if (parserExitDrop) return buildDropTrace(s.packetCtx.getEvents(), DropReason.MARK_TO_DROP)
 
     val parserEventCount = s.packetCtx.getEvents().size
 
@@ -351,7 +361,12 @@ class V1ModelArchitecture : Architecture {
 
     // --- Deparser ---
     if (s.deparserStage != null) {
-      s.interpreter.runControl(s.deparserStage.blockName, s.env)
+      s.packetCtx.addTraceEvent(stageEvent(s.deparserStage, PipelineStageEvent.Direction.ENTER))
+      try {
+        s.interpreter.runControl(s.deparserStage.blockName, s.env)
+      } finally {
+        s.packetCtx.addTraceEvent(stageEvent(s.deparserStage, PipelineStageEvent.Direction.EXIT))
+      }
     }
 
     // Append any bytes the parser did not extract (the un-parsed packet body).
@@ -366,13 +381,16 @@ class V1ModelArchitecture : Architecture {
     return buildOutputTrace(s.packetCtx.getEvents(), egressPort, outputBytes)
   }
 
-  /** Runs a list of control stages, breaking on exit. */
+  /** Runs a list of control stages, emitting enter/exit events for each. */
   private fun runControlStages(s: PipelineState, stages: List<PipelineStage>) {
     for (stage in stages) {
+      s.packetCtx.addTraceEvent(stageEvent(stage, PipelineStageEvent.Direction.ENTER))
       try {
         s.interpreter.runControl(stage.blockName, s.env)
       } catch (_: ExitException) {
         break
+      } finally {
+        s.packetCtx.addTraceEvent(stageEvent(stage, PipelineStageEvent.Direction.EXIT))
       }
     }
   }
@@ -475,6 +493,24 @@ class V1ModelArchitecture : Architecture {
     val outcome = PacketOutcome.newBuilder().setOutput(output).build()
     return TraceTree.newBuilder().addAllEvents(events).setPacketOutcome(outcome).build()
   }
+
+  private fun packetIngressEvent(ingressPort: UInt): TraceEvent =
+    TraceEvent.newBuilder()
+      .setPacketIngress(PacketIngressEvent.newBuilder().setIngressPort(ingressPort.toInt()))
+      .build()
+
+  private fun stageEvent(
+    stage: PipelineStage,
+    direction: PipelineStageEvent.Direction,
+  ): TraceEvent =
+    TraceEvent.newBuilder()
+      .setPipelineStage(
+        PipelineStageEvent.newBuilder()
+          .setStageName(stage.name)
+          .setStageKind(stage.kind)
+          .setDirection(direction)
+      )
+      .build()
 
   companion object {
     /** Port value used by mark_to_drop() to signal packet drop in v1model. */

@@ -1,4 +1,16 @@
 events {
+  packet_ingress {
+    ingress_port: 0
+  }
+}
+events {
+  pipeline_stage {
+    stage_name: "parser"
+    stage_kind: PARSER
+    direction: ENTER
+  }
+}
+events {
   parser_transition {
     parser_name: "MyParser"
     from_state: "start"
@@ -11,11 +23,53 @@ events {
     source_fragment: "start"
   }
 }
+events {
+  pipeline_stage {
+    stage_name: "parser"
+    stage_kind: PARSER
+    direction: EXIT
+  }
+}
+events {
+  pipeline_stage {
+    stage_name: "verify_checksum"
+    stage_kind: CONTROL
+    direction: ENTER
+  }
+}
+events {
+  pipeline_stage {
+    stage_name: "verify_checksum"
+    stage_kind: CONTROL
+    direction: EXIT
+  }
+}
+events {
+  pipeline_stage {
+    stage_name: "ingress"
+    stage_kind: CONTROL
+    direction: ENTER
+  }
+}
+events {
+  pipeline_stage {
+    stage_name: "ingress"
+    stage_kind: CONTROL
+    direction: EXIT
+  }
+}
 fork_outcome {
   reason: MULTICAST
   branches {
     label: "replica_0_port_1"
     subtree {
+      events {
+        pipeline_stage {
+          stage_name: "egress"
+          stage_kind: CONTROL
+          direction: ENTER
+        }
+      }
       events {
         table_lookup {
           table_name: "egress_selector"
@@ -55,6 +109,41 @@ fork_outcome {
                 line: 58
                 column: 12
                 source_fragment: "egress_selector.apply()"
+              }
+            }
+            events {
+              pipeline_stage {
+                stage_name: "egress"
+                stage_kind: CONTROL
+                direction: EXIT
+              }
+            }
+            events {
+              pipeline_stage {
+                stage_name: "compute_checksum"
+                stage_kind: CONTROL
+                direction: ENTER
+              }
+            }
+            events {
+              pipeline_stage {
+                stage_name: "compute_checksum"
+                stage_kind: CONTROL
+                direction: EXIT
+              }
+            }
+            events {
+              pipeline_stage {
+                stage_name: "deparser"
+                stage_kind: DEPARSER
+                direction: ENTER
+              }
+            }
+            events {
+              pipeline_stage {
+                stage_name: "deparser"
+                stage_kind: DEPARSER
+                direction: EXIT
               }
             }
             packet_outcome {
@@ -79,6 +168,41 @@ fork_outcome {
                 source_fragment: "egress_selector.apply()"
               }
             }
+            events {
+              pipeline_stage {
+                stage_name: "egress"
+                stage_kind: CONTROL
+                direction: EXIT
+              }
+            }
+            events {
+              pipeline_stage {
+                stage_name: "compute_checksum"
+                stage_kind: CONTROL
+                direction: ENTER
+              }
+            }
+            events {
+              pipeline_stage {
+                stage_name: "compute_checksum"
+                stage_kind: CONTROL
+                direction: EXIT
+              }
+            }
+            events {
+              pipeline_stage {
+                stage_name: "deparser"
+                stage_kind: DEPARSER
+                direction: ENTER
+              }
+            }
+            events {
+              pipeline_stage {
+                stage_name: "deparser"
+                stage_kind: DEPARSER
+                direction: EXIT
+              }
+            }
             packet_outcome {
               output {
                 egress_port: 1
@@ -93,6 +217,13 @@ fork_outcome {
   branches {
     label: "replica_0_port_2"
     subtree {
+      events {
+        pipeline_stage {
+          stage_name: "egress"
+          stage_kind: CONTROL
+          direction: ENTER
+        }
+      }
       events {
         table_lookup {
           table_name: "egress_selector"
@@ -132,6 +263,41 @@ fork_outcome {
                 line: 58
                 column: 12
                 source_fragment: "egress_selector.apply()"
+              }
+            }
+            events {
+              pipeline_stage {
+                stage_name: "egress"
+                stage_kind: CONTROL
+                direction: EXIT
+              }
+            }
+            events {
+              pipeline_stage {
+                stage_name: "compute_checksum"
+                stage_kind: CONTROL
+                direction: ENTER
+              }
+            }
+            events {
+              pipeline_stage {
+                stage_name: "compute_checksum"
+                stage_kind: CONTROL
+                direction: EXIT
+              }
+            }
+            events {
+              pipeline_stage {
+                stage_name: "deparser"
+                stage_kind: DEPARSER
+                direction: ENTER
+              }
+            }
+            events {
+              pipeline_stage {
+                stage_name: "deparser"
+                stage_kind: DEPARSER
+                direction: EXIT
               }
             }
             packet_outcome {
@@ -154,6 +320,41 @@ fork_outcome {
                 line: 58
                 column: 12
                 source_fragment: "egress_selector.apply()"
+              }
+            }
+            events {
+              pipeline_stage {
+                stage_name: "egress"
+                stage_kind: CONTROL
+                direction: EXIT
+              }
+            }
+            events {
+              pipeline_stage {
+                stage_name: "compute_checksum"
+                stage_kind: CONTROL
+                direction: ENTER
+              }
+            }
+            events {
+              pipeline_stage {
+                stage_name: "compute_checksum"
+                stage_kind: CONTROL
+                direction: EXIT
+              }
+            }
+            events {
+              pipeline_stage {
+                stage_name: "deparser"
+                stage_kind: DEPARSER
+                direction: ENTER
+              }
+            }
+            events {
+              pipeline_stage {
+                stage_name: "deparser"
+                stage_kind: DEPARSER
+                direction: EXIT
               }
             }
             packet_outcome {
