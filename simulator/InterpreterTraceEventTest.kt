@@ -47,7 +47,7 @@ class InterpreterTraceEventTest {
     val sm =
       StructVal(
         "standard_metadata_t",
-        mutableMapOf("egress_spec" to BitVal(0, V1ModelArchitecture.PORT_BITS)),
+        mutableMapOf("egress_spec" to BitVal(0, V1ModelArchitecture.DEFAULT_PORT_BITS)),
       )
     env.define("sm", sm)
     return env

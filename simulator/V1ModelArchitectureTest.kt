@@ -58,21 +58,7 @@ class V1ModelArchitectureTest {
 
   /** standard_metadata_t with the minimal fields V1ModelArchitecture reads/writes. */
   private val standardMetaType: TypeDecl =
-    TypeDecl.newBuilder()
-      .setName("standard_metadata_t")
-      .setStruct(
-        StructDecl.newBuilder()
-          .addFields(field("ingress_port", V1ModelArchitecture.PORT_BITS))
-          .addFields(field("egress_spec", V1ModelArchitecture.PORT_BITS))
-          .addFields(field("egress_port", V1ModelArchitecture.PORT_BITS))
-          .addFields(field("instance_type", 32))
-          .addFields(field("packet_length", 32))
-          .addFields(field("mcast_grp", 16))
-          .addFields(field("egress_rid", 16))
-          .addFields(field("checksum_error", 1))
-          .addFields(field("parser_error", 32))
-      )
-      .build()
+    standardMetaTypeWithPortWidth(V1ModelArchitecture.DEFAULT_PORT_BITS)
 
   /** Empty headers struct (no parsed headers needed for these tests). */
   private val headersType: TypeDecl =
@@ -245,6 +231,7 @@ class V1ModelArchitectureTest {
     ingressStmts: List<Stmt> = emptyList(),
     egressStmts: List<Stmt> = emptyList(),
     parser: ParserDecl = noopParser,
+    smType: TypeDecl = standardMetaType,
   ): BehavioralConfig {
     fun control(name: String, stmts: List<Stmt>) =
       ControlDecl.newBuilder()
@@ -255,7 +242,7 @@ class V1ModelArchitectureTest {
 
     return BehavioralConfig.newBuilder()
       .setArchitecture(v1modelArch)
-      .addTypes(standardMetaType)
+      .addTypes(smType)
       .addTypes(headersType)
       .addTypes(metaType)
       .addParsers(parser)
@@ -350,7 +337,8 @@ class V1ModelArchitectureTest {
 
   @Test
   fun `unicast packet emits on egress_spec port`() {
-    val config = v1modelConfig(assignField("sm", "egress_spec", 5, V1ModelArchitecture.PORT_BITS))
+    val config =
+      v1modelConfig(assignField("sm", "egress_spec", 5, V1ModelArchitecture.DEFAULT_PORT_BITS))
     val payload = byteArrayOf(0x01, 0x02, 0x03)
     val result = V1ModelArchitecture().processPacket(0u, payload, config, TableStore())
     val outputs = collectOutputs(result.trace)
@@ -367,8 +355,8 @@ class V1ModelArchitectureTest {
         assignField(
           "sm",
           "egress_spec",
-          V1ModelArchitecture.DROP_PORT.toLong(),
-          V1ModelArchitecture.PORT_BITS,
+          V1ModelArchitecture.DEFAULT_DROP_PORT.toLong(),
+          V1ModelArchitecture.DEFAULT_PORT_BITS,
         )
       )
     val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
@@ -396,7 +384,7 @@ class V1ModelArchitectureTest {
     val config =
       v1modelConfig(
         externCall("clone", enumArg("I2E"), intArg(1, 32)),
-        assignField("sm", "egress_spec", 2, V1ModelArchitecture.PORT_BITS),
+        assignField("sm", "egress_spec", 2, V1ModelArchitecture.DEFAULT_PORT_BITS),
       )
     val tableStore = TableStore()
     writeCloneSession(tableStore, sessionId = 1, egressPort = 7)
@@ -424,7 +412,8 @@ class V1ModelArchitectureTest {
     // Egress calls clone(E2E, session=1); ingress sets egress_spec=3 for routing.
     val config =
       v1modelConfig(
-        ingressStmts = listOf(assignField("sm", "egress_spec", 3, V1ModelArchitecture.PORT_BITS)),
+        ingressStmts =
+          listOf(assignField("sm", "egress_spec", 3, V1ModelArchitecture.DEFAULT_PORT_BITS)),
         egressStmts = listOf(externCall("clone", enumArg("E2E"), intArg(1, 32))),
       )
     val tableStore = TableStore()
@@ -469,7 +458,8 @@ class V1ModelArchitectureTest {
     // The recirculated branch gets instance_type=4, so it won't re-trigger.
     val config =
       v1modelConfig(
-        ingressStmts = listOf(assignField("sm", "egress_spec", 1, V1ModelArchitecture.PORT_BITS)),
+        ingressStmts =
+          listOf(assignField("sm", "egress_spec", 1, V1ModelArchitecture.DEFAULT_PORT_BITS)),
         egressStmts =
           listOf(
             ifFieldEquals("sm", "instance_type", 0, 32, externCall("recirculate", intArg(0, 8)))
@@ -491,7 +481,7 @@ class V1ModelArchitectureTest {
     val config =
       v1modelConfig(
         externCall("clone", enumArg("I2E"), intArg(99, 32)),
-        assignField("sm", "egress_spec", 2, V1ModelArchitecture.PORT_BITS),
+        assignField("sm", "egress_spec", 2, V1ModelArchitecture.DEFAULT_PORT_BITS),
       )
 
     val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
@@ -508,7 +498,8 @@ class V1ModelArchitectureTest {
   fun `E2E clone with missing session drops clone branch`() {
     val config =
       v1modelConfig(
-        ingressStmts = listOf(assignField("sm", "egress_spec", 3, V1ModelArchitecture.PORT_BITS)),
+        ingressStmts =
+          listOf(assignField("sm", "egress_spec", 3, V1ModelArchitecture.DEFAULT_PORT_BITS)),
         egressStmts = listOf(externCall("clone", enumArg("E2E"), intArg(99, 32))),
       )
 
@@ -527,7 +518,7 @@ class V1ModelArchitectureTest {
     val config =
       v1modelConfig(
         assignField("sm", "mcast_grp", 42, 16),
-        assignField("sm", "egress_spec", 5, V1ModelArchitecture.PORT_BITS),
+        assignField("sm", "egress_spec", 5, V1ModelArchitecture.DEFAULT_PORT_BITS),
       )
 
     val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
@@ -548,7 +539,8 @@ class V1ModelArchitectureTest {
 
   @Test
   fun `trace starts with packet ingress and has enter-exit pairs for all stages`() {
-    val config = v1modelConfig(assignField("sm", "egress_spec", 1, V1ModelArchitecture.PORT_BITS))
+    val config =
+      v1modelConfig(assignField("sm", "egress_spec", 1, V1ModelArchitecture.DEFAULT_PORT_BITS))
     val result = V1ModelArchitecture().processPacket(7u, byteArrayOf(0x01), config, TableStore())
     val events = stageEvents(result.trace)
 
@@ -615,5 +607,96 @@ class V1ModelArchitectureTest {
       listOf(StageKind.PARSER to Direction.ENTER, StageKind.PARSER to Direction.EXIT),
       stages.map { it.stageKind to it.direction },
     )
+  }
+
+  // ---------------------------------------------------------------------------
+  // Wider port width tests (Track 5: architecture customization)
+  // ---------------------------------------------------------------------------
+
+  /** Builds a standard_metadata_t type with a custom port bit width. */
+  private fun standardMetaTypeWithPortWidth(portBits: Int): TypeDecl =
+    TypeDecl.newBuilder()
+      .setName("standard_metadata_t")
+      .setStruct(
+        StructDecl.newBuilder()
+          .addFields(field("ingress_port", portBits))
+          .addFields(field("egress_spec", portBits))
+          .addFields(field("egress_port", portBits))
+          .addFields(field("instance_type", 32))
+          .addFields(field("packet_length", 32))
+          .addFields(field("mcast_grp", 16))
+          .addFields(field("egress_rid", 16))
+          .addFields(field("checksum_error", 1))
+          .addFields(field("parser_error", 32))
+      )
+      .build()
+
+  /** Builds a v1model config with a custom port width and ingress statements. */
+  private fun widePortConfig(portBits: Int, vararg stmts: Stmt): BehavioralConfig =
+    v1modelConfig(ingressStmts = stmts.toList(), smType = standardMetaTypeWithPortWidth(portBits))
+
+  @Test
+  fun `wider port width unicast works with large port numbers`() {
+    val portBits = 16
+    val largePort = 1000L // beyond bit<9> range
+    val config = widePortConfig(portBits, assignField("sm", "egress_spec", largePort, portBits))
+    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val outputs = collectOutputs(result.trace)
+
+    assertEquals(1, outputs.size)
+    assertEquals(largePort.toInt(), outputs[0].egressPort)
+  }
+
+  @Test
+  fun `wider port width drop uses correct all-ones value`() {
+    val portBits = 16
+    val dropPort = (1L shl portBits) - 1 // 65535, not 511
+    val config = widePortConfig(portBits, assignField("sm", "egress_spec", dropPort, portBits))
+    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+
+    assertTrue(result.trace.hasPacketOutcome())
+    assertTrue(result.trace.packetOutcome.hasDrop())
+  }
+
+  @Test
+  fun `wider port width does not drop on standard drop port value`() {
+    // Port 511 is NOT the drop port when port width is 16 bits — it's a valid port.
+    val portBits = 16
+    val config = widePortConfig(portBits, assignField("sm", "egress_spec", 511, portBits))
+    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val outputs = collectOutputs(result.trace)
+
+    assertEquals(1, outputs.size)
+    assertEquals(511, outputs[0].egressPort)
+  }
+
+  @Test
+  fun `wider port mark_to_drop sets correct all-ones value`() {
+    // Exercises the Interpreter's mark_to_drop path (which derives drop value from the struct's
+    // egress_spec width independently) and the Architecture's drop detection (which uses
+    // PipelineState.dropPort derived from ingress_port width). Both must agree.
+    val portBits = 16
+    val markToDrop =
+      externCall(
+        "mark_to_drop",
+        Expr.newBuilder().setNameRef(NameRef.newBuilder().setName("sm")).build(),
+      )
+    val config = widePortConfig(portBits, markToDrop)
+    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+
+    assertTrue(result.trace.hasPacketOutcome())
+    assertTrue(result.trace.packetOutcome.hasDrop())
+  }
+
+  @Test
+  fun `32-bit port width works without overflow`() {
+    val portBits = 32
+    val largePort = 100_000L
+    val config = widePortConfig(portBits, assignField("sm", "egress_spec", largePort, portBits))
+    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val outputs = collectOutputs(result.trace)
+
+    assertEquals(1, outputs.size)
+    assertEquals(largePort.toInt(), outputs[0].egressPort)
   }
 }

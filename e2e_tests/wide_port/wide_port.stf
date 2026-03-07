@@ -1,0 +1,19 @@
+# Wide port E2E test: 16-bit port fields (modified v1model.p4).
+
+add port_table hdr.ethernet.etherType:0x0800 forward(1000)
+add port_table hdr.ethernet.etherType:0x0806 forward(511)
+add port_table hdr.ethernet.etherType:0x8100 forward(65535)
+
+# Port 1000 — does not fit in 9 bits.
+packet 0 FFFFFFFFFFFF 000000000001 0800
+expect 1000 FFFFFFFFFFFF 000000000001 0800
+
+# Port 511 — NOT a drop with 16-bit ports.
+packet 0 FFFFFFFFFFFF 000000000001 0806
+expect 511 FFFFFFFFFFFF 000000000001 0806
+
+# Port 65535 — all-ones of bit<16>, this IS the drop port.
+packet 0 FFFFFFFFFFFF 000000000001 8100
+
+# mark_to_drop — default action, also drops.
+packet 0 FFFFFFFFFFFF 000000000001 86DD
