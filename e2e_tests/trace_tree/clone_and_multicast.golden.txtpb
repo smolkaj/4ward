@@ -1,4 +1,16 @@
 events {
+  packet_ingress {
+    ingress_port: 0
+  }
+}
+events {
+  pipeline_stage {
+    stage_name: "parser"
+    stage_kind: PARSER
+    direction: ENTER
+  }
+}
+events {
   parser_transition {
     parser_name: "MyParser"
     from_state: "start"
@@ -12,6 +24,34 @@ events {
   }
 }
 events {
+  pipeline_stage {
+    stage_name: "parser"
+    stage_kind: PARSER
+    direction: EXIT
+  }
+}
+events {
+  pipeline_stage {
+    stage_name: "verify_checksum"
+    stage_kind: CONTROL
+    direction: ENTER
+  }
+}
+events {
+  pipeline_stage {
+    stage_name: "verify_checksum"
+    stage_kind: CONTROL
+    direction: EXIT
+  }
+}
+events {
+  pipeline_stage {
+    stage_name: "ingress"
+    stage_kind: CONTROL
+    direction: ENTER
+  }
+}
+events {
   clone {
     session_id: 100
   }
@@ -20,6 +60,13 @@ events {
     line: 35
     column: 8
     source_fragment: "clone(CloneType.I2E, 32w100)"
+  }
+}
+events {
+  pipeline_stage {
+    stage_name: "ingress"
+    stage_kind: CONTROL
+    direction: EXIT
   }
 }
 fork_outcome {
@@ -32,6 +79,48 @@ fork_outcome {
         branches {
           label: "replica_0_port_1"
           subtree {
+            events {
+              pipeline_stage {
+                stage_name: "egress"
+                stage_kind: CONTROL
+                direction: ENTER
+              }
+            }
+            events {
+              pipeline_stage {
+                stage_name: "egress"
+                stage_kind: CONTROL
+                direction: EXIT
+              }
+            }
+            events {
+              pipeline_stage {
+                stage_name: "compute_checksum"
+                stage_kind: CONTROL
+                direction: ENTER
+              }
+            }
+            events {
+              pipeline_stage {
+                stage_name: "compute_checksum"
+                stage_kind: CONTROL
+                direction: EXIT
+              }
+            }
+            events {
+              pipeline_stage {
+                stage_name: "deparser"
+                stage_kind: DEPARSER
+                direction: ENTER
+              }
+            }
+            events {
+              pipeline_stage {
+                stage_name: "deparser"
+                stage_kind: DEPARSER
+                direction: EXIT
+              }
+            }
             packet_outcome {
               output {
                 egress_port: 1
@@ -43,6 +132,48 @@ fork_outcome {
         branches {
           label: "replica_0_port_2"
           subtree {
+            events {
+              pipeline_stage {
+                stage_name: "egress"
+                stage_kind: CONTROL
+                direction: ENTER
+              }
+            }
+            events {
+              pipeline_stage {
+                stage_name: "egress"
+                stage_kind: CONTROL
+                direction: EXIT
+              }
+            }
+            events {
+              pipeline_stage {
+                stage_name: "compute_checksum"
+                stage_kind: CONTROL
+                direction: ENTER
+              }
+            }
+            events {
+              pipeline_stage {
+                stage_name: "compute_checksum"
+                stage_kind: CONTROL
+                direction: EXIT
+              }
+            }
+            events {
+              pipeline_stage {
+                stage_name: "deparser"
+                stage_kind: DEPARSER
+                direction: ENTER
+              }
+            }
+            events {
+              pipeline_stage {
+                stage_name: "deparser"
+                stage_kind: DEPARSER
+                direction: EXIT
+              }
+            }
             packet_outcome {
               output {
                 egress_port: 2
@@ -57,6 +188,48 @@ fork_outcome {
   branches {
     label: "clone"
     subtree {
+      events {
+        pipeline_stage {
+          stage_name: "egress"
+          stage_kind: CONTROL
+          direction: ENTER
+        }
+      }
+      events {
+        pipeline_stage {
+          stage_name: "egress"
+          stage_kind: CONTROL
+          direction: EXIT
+        }
+      }
+      events {
+        pipeline_stage {
+          stage_name: "compute_checksum"
+          stage_kind: CONTROL
+          direction: ENTER
+        }
+      }
+      events {
+        pipeline_stage {
+          stage_name: "compute_checksum"
+          stage_kind: CONTROL
+          direction: EXIT
+        }
+      }
+      events {
+        pipeline_stage {
+          stage_name: "deparser"
+          stage_kind: DEPARSER
+          direction: ENTER
+        }
+      }
+      events {
+        pipeline_stage {
+          stage_name: "deparser"
+          stage_kind: DEPARSER
+          direction: EXIT
+        }
+      }
       packet_outcome {
         output {
           egress_port: 3

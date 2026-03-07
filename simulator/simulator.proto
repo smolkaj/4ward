@@ -151,6 +151,8 @@ message TraceEvent {
     ExternCallEvent extern_call = 5;
     MarkToDropEvent mark_to_drop = 6;
     CloneEvent clone = 7;
+    PacketIngressEvent packet_ingress = 8;
+    PipelineStageEvent pipeline_stage = 9;
   }
 
   fourward.ir.v1.SourceInfo source_info = 100;
@@ -200,6 +202,25 @@ message MarkToDropEvent {
 // Fired when the P4 program requests a packet clone.
 message CloneEvent {
   uint32 session_id = 1;
+}
+
+// Fired when a packet arrives at the pipeline — the very first event in any
+// trace.
+message PacketIngressEvent {
+  uint32 ingress_port = 1;
+}
+
+// Fired when the pipeline enters or exits a processing stage (parser, control,
+// deparser).
+message PipelineStageEvent {
+  string stage_name = 1;
+  fourward.ir.v1.StageKind stage_kind = 2;
+  enum Direction {
+    DIRECTION_UNSPECIFIED = 0;
+    ENTER = 1;
+    EXIT = 2;
+  }
+  Direction direction = 3;
 }
 
 enum DropReason {
