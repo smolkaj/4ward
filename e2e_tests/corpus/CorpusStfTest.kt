@@ -51,8 +51,7 @@ class CorpusStfTest(private val testName: String) {
 
   @Test
   fun test() {
-    // TODO(#220): enable rejectUnexpected once gauntlet_enum_assign-bmv2 is fixed.
-    val result = runStfTest(testName, "e2e_tests/corpus", rejectUnexpected = false)
+    val result = runStfTest(testName, "e2e_tests/corpus")
     if (result is TestResult.Failure) fail(result.message)
   }
 }
