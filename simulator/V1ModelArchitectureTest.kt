@@ -58,21 +58,7 @@ class V1ModelArchitectureTest {
 
   /** standard_metadata_t with the minimal fields V1ModelArchitecture reads/writes. */
   private val standardMetaType: TypeDecl =
-    TypeDecl.newBuilder()
-      .setName("standard_metadata_t")
-      .setStruct(
-        StructDecl.newBuilder()
-          .addFields(field("ingress_port", V1ModelArchitecture.DEFAULT_PORT_BITS))
-          .addFields(field("egress_spec", V1ModelArchitecture.DEFAULT_PORT_BITS))
-          .addFields(field("egress_port", V1ModelArchitecture.DEFAULT_PORT_BITS))
-          .addFields(field("instance_type", 32))
-          .addFields(field("packet_length", 32))
-          .addFields(field("mcast_grp", 16))
-          .addFields(field("egress_rid", 16))
-          .addFields(field("checksum_error", 1))
-          .addFields(field("parser_error", 32))
-      )
-      .build()
+    standardMetaTypeWithPortWidth(V1ModelArchitecture.DEFAULT_PORT_BITS)
 
   /** Empty headers struct (no parsed headers needed for these tests). */
   private val headersType: TypeDecl =
@@ -245,6 +231,7 @@ class V1ModelArchitectureTest {
     ingressStmts: List<Stmt> = emptyList(),
     egressStmts: List<Stmt> = emptyList(),
     parser: ParserDecl = noopParser,
+    smType: TypeDecl = standardMetaType,
   ): BehavioralConfig {
     fun control(name: String, stmts: List<Stmt>) =
       ControlDecl.newBuilder()
@@ -255,7 +242,7 @@ class V1ModelArchitectureTest {
 
     return BehavioralConfig.newBuilder()
       .setArchitecture(v1modelArch)
-      .addTypes(standardMetaType)
+      .addTypes(smType)
       .addTypes(headersType)
       .addTypes(metaType)
       .addParsers(parser)
@@ -646,13 +633,7 @@ class V1ModelArchitectureTest {
 
   /** Builds a v1model config with a custom port width and ingress statements. */
   private fun widePortConfig(portBits: Int, vararg stmts: Stmt): BehavioralConfig =
-    v1modelConfig(*stmts)
-      .toBuilder()
-      .clearTypes()
-      .addTypes(standardMetaTypeWithPortWidth(portBits))
-      .addTypes(headersType)
-      .addTypes(metaType)
-      .build()
+    v1modelConfig(ingressStmts = stmts.toList(), smType = standardMetaTypeWithPortWidth(portBits))
 
   @Test
   fun `wider port width unicast works with large port numbers`() {
