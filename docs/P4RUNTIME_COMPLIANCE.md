@@ -57,8 +57,8 @@ Legend: **Y** = tested, **N** = not tested, **—** = not implemented
 | 9.24 | Constant table rejects INSERT/MODIFY/DELETE | Y | WriteValidatorTest |
 | 9.25 | Default entry: match fields must be absent | Y | WriteValidatorTest |
 | 9.26 | Default entry: MODIFY semantics | Y | WriteValidatorTest |
-| 9.27 | RESOURCE_EXHAUSTED when table is full | N | |
-| 9.28 | Write batch: updates applied in order | N | |
+| 9.27 | RESOURCE_EXHAUSTED when table is full | Y | TableStoreTest, ConformanceTest |
+| 9.28 | Write batch: updates applied in order | Y | ConformanceTest #39 |
 
 ## Write RPC — action profiles (§9.2)
 
@@ -71,7 +71,7 @@ Legend: **Y** = tested, **N** = not tested, **—** = not implemented
 | 9.34 | Modify group with different members | Y | ConformanceTest #30 |
 | 9.35 | Delete non-existent group → NOT_FOUND | Y | ConformanceTest #31 |
 | 9.36 | One-shot action selector | — | |
-| 9.37 | Group max_size enforcement | N | |
+| 9.37 | Group max_size enforcement | Y | TableStoreTest |
 
 ## Write RPC — registers (§9.7)
 
@@ -174,8 +174,8 @@ Legend: **Y** = tested, **N** = not tested, **—** = not implemented
 |----------|--------|------------|-----------------|
 | SetForwardingPipelineConfig | 5 | 0 | 0 |
 | Match encoding | 6 | 0 | 0 |
-| Write — tables | 26 | 2 | 0 |
-| Write — profiles | 6 | 1 | 1 |
+| Write — tables | 28 | 0 | 0 |
+| Write — profiles | 7 | 0 | 1 |
 | Write — registers | 5 | 0 | 0 |
 | Write — counters/meters | 0 | 0 | 4 |
 | Write — PRE | 2 | 0 | 0 |
@@ -186,4 +186,4 @@ Legend: **Y** = tested, **N** = not tested, **—** = not implemented
 | PacketIO | 3 | 0 | 2 |
 | Translation | 6 | 0 | 0 |
 | p4-constraints | 4 | 0 | 0 |
-| **Total** | **79** | **6** | **7** |
+| **Total** | **82** | **3** | **7** |

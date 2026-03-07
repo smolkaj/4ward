@@ -251,6 +251,49 @@ class P4RuntimeConformanceTest {
   }
 
   // =========================================================================
+  // Write batch ordering (scenario 39)
+  // =========================================================================
+
+  /** P4Runtime spec §9.28: updates within a WriteRequest are applied in order. */
+  @Test
+  fun `39 - write batch applies updates in order`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+
+    val entry1 = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    val entry2 = buildExactEntry(config, matchValue = 0x0800, port = 2)
+
+    // Single WriteRequest: INSERT then MODIFY of the same key.
+    // If ordering is correct, both succeed and the entry has port=2.
+    runBlocking {
+      harness.stub.write(
+        p4.v1.P4RuntimeOuterClass.WriteRequest.newBuilder()
+          .setDeviceId(1)
+          .addUpdates(
+            p4.v1.P4RuntimeOuterClass.Update.newBuilder()
+              .setType(p4.v1.P4RuntimeOuterClass.Update.Type.INSERT)
+              .setEntity(entry1)
+          )
+          .addUpdates(
+            p4.v1.P4RuntimeOuterClass.Update.newBuilder()
+              .setType(p4.v1.P4RuntimeOuterClass.Update.Type.MODIFY)
+              .setEntity(entry2)
+          )
+          .build()
+      )
+    }
+
+    // Read back: should have the MODIFY's action (port=2).
+    val results = harness.readEntry(P4RuntimeTestHarness.buildMatchFilter(config, 0x0800))
+    assertEquals("entry should exist", 1, results.size)
+    assertEquals(
+      "entry should have the MODIFY's action",
+      entry2.tableEntry.action.action.paramsList,
+      results[0].tableEntry.action.action.paramsList,
+    )
+  }
+
+  // =========================================================================
   // SetForwardingPipelineConfig validation (scenarios 37-38)
   // =========================================================================
 

@@ -153,6 +153,7 @@ class P4RuntimeService(
             ErrorCode.ENTITY_NOT_FOUND -> Status.NOT_FOUND
             ErrorCode.NO_PIPELINE_LOADED -> Status.FAILED_PRECONDITION
             ErrorCode.INVALID_REQUEST -> Status.INVALID_ARGUMENT
+            ErrorCode.RESOURCE_EXHAUSTED -> Status.RESOURCE_EXHAUSTED
             ErrorCode.INTERNAL_ERROR,
             ErrorCode.ERROR_CODE_UNSPECIFIED,
             ErrorCode.UNRECOGNIZED -> Status.INTERNAL
