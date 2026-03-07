@@ -1,12 +1,13 @@
 package fourward.cli
 
 import com.google.protobuf.TextFormat
-import fourward.e2e.EgressPacket
+import fourward.e2e.ReceivedPacket
 import fourward.e2e.StfFile
 import fourward.e2e.collectOutputsFromTrace
 import fourward.e2e.installStfEntries
 import fourward.e2e.loadPipelineConfig
-import fourward.e2e.verifyPacketOutputs
+import fourward.e2e.matchOutputAgainstExpects
+import fourward.simulator.Simulator
 import java.io.FileNotFoundException
 import java.nio.file.NoSuchFileException
 import java.nio.file.Path
@@ -38,11 +39,12 @@ fun simulate(pipelinePath: Path, stfPath: Path, format: OutputFormat): Int {
       System.err.println("error: $stfPath: no such file")
       return ExitCode.USAGE_ERROR
     }
-  val sim = InProcessSimulator()
+  val sim = Simulator()
 
-  val loadResp = sim.loadPipeline(config)
-  if (loadResp.hasError()) {
-    System.err.println("error: failed to load pipeline: ${loadResp.error.message}")
+  try {
+    sim.loadPipeline(config)
+  } catch (e: IllegalArgumentException) {
+    System.err.println("error: failed to load pipeline: ${e.message}")
     return ExitCode.INTERNAL_ERROR
   }
 
@@ -53,15 +55,11 @@ fun simulate(pipelinePath: Path, stfPath: Path, format: OutputFormat): Int {
     return ExitCode.INTERNAL_ERROR
   }
 
-  val outputQueue = mutableListOf<EgressPacket>()
+  val outputQueue = mutableListOf<ReceivedPacket>()
 
-  for ((i, packet) in stf.packets.withIndex()) {
+  for (packet in stf.packets) {
     val resp = sim.processPacket(packet.ingressPort, packet.payload)
-    if (resp.hasError()) {
-      System.err.println("error: ${resp.error.message}")
-      return ExitCode.INTERNAL_ERROR
-    }
-    val trace = resp.processPacket.trace
+    val trace = resp.trace
     when (format) {
       OutputFormat.HUMAN -> {
         println("packet received: port ${packet.ingressPort}, ${packet.payload.size} bytes")
@@ -69,13 +67,13 @@ fun simulate(pipelinePath: Path, stfPath: Path, format: OutputFormat): Int {
       }
       OutputFormat.TEXTPROTO -> print(TextFormat.printer().printToString(trace))
     }
-    val pkts = resp.processPacket.outputPacketsList.ifEmpty { collectOutputsFromTrace(trace) }
+    val pkts = resp.outputPacketsList.ifEmpty { collectOutputsFromTrace(trace) }
     for (pkt in pkts) {
-      outputQueue += EgressPacket(pkt.egressPort, pkt.payload.toByteArray())
+      outputQueue += ReceivedPacket(pkt.egressPort, pkt.payload.toByteArray())
     }
   }
 
-  val failures = verifyPacketOutputs(outputQueue, stf.expects)
+  val failures = matchOutputAgainstExpects(stf.expects, outputQueue)
   if (failures.isNotEmpty()) {
     System.err.println("FAIL")
     for (f in failures) System.err.println("  $f")

@@ -122,6 +122,7 @@ always outputs on port 1. Let's write a test that expects port 9:
     output port 1, 14 bytes
   FAIL
     expected packet on port 9 but got none
+    unexpected packet on port 1: ffffffffffff0000000000010800
   [1]
 
 The trace shows exactly what happened -- the packet exited port 1,
@@ -192,11 +193,10 @@ The human-readable trace is compact but lossy -- it omits source
 locations and raw byte payloads. The --format=textproto flag outputs
 the full trace tree as a protocol buffer:
 
-  $ 4ward run --format=textproto passthrough.p4 - << 'EOF'
+  $ 4ward run --format=textproto passthrough.p4 - << 'EOF' | grep -A 10 parser_transition
   > packet 0 FFFFFFFFFFFF 000000000001 0800
   > expect 1 FFFFFFFFFFFF 000000000001 0800
   > EOF
-  events {
     parser_transition {
       parser_name: "MyParser"
       from_state: "start"
@@ -204,22 +204,15 @@ the full trace tree as a protocol buffer:
     }
     source_info {
       file: "passthrough.p4"
-      line: 26
+      line: 25
       column: 10
       source_fragment: "start"
     }
-  }
-  packet_outcome {
-    output {
-      egress_port: 1
-      payload: "\377\377\377\377\377\377\000\000\000\000\000\001\b\000"
-    }
-  }
-  PASS
 
-Same packet, same result, but now you get source locations
-(passthrough.p4:26), raw payload bytes, and a structured format you
-can parse, diff, or feed into other tools.
+The full textproto includes every pipeline stage and the raw payload
+bytes -- a structured format you can parse, diff, or feed into other
+tools. Here we grep for the interesting part: the source location
+(passthrough.p4:25) that the human-readable output omits.
 
 
 Part 6: Error handling

@@ -1,19 +1,19 @@
 package fourward.cli
 
 import com.google.protobuf.ByteString
-import fourward.sim.v1.ActionExecutionEvent
-import fourward.sim.v1.Drop
-import fourward.sim.v1.DropReason
-import fourward.sim.v1.Fork
-import fourward.sim.v1.ForkBranch
-import fourward.sim.v1.ForkReason
-import fourward.sim.v1.MarkToDropEvent
-import fourward.sim.v1.OutputPacket
-import fourward.sim.v1.PacketOutcome
-import fourward.sim.v1.ParserTransitionEvent
-import fourward.sim.v1.TableLookupEvent
-import fourward.sim.v1.TraceEvent
-import fourward.sim.v1.TraceTree
+import fourward.sim.v1.SimulatorProto.ActionExecutionEvent
+import fourward.sim.v1.SimulatorProto.Drop
+import fourward.sim.v1.SimulatorProto.DropReason
+import fourward.sim.v1.SimulatorProto.Fork
+import fourward.sim.v1.SimulatorProto.ForkBranch
+import fourward.sim.v1.SimulatorProto.ForkReason
+import fourward.sim.v1.SimulatorProto.MarkToDropEvent
+import fourward.sim.v1.SimulatorProto.OutputPacket
+import fourward.sim.v1.SimulatorProto.PacketOutcome
+import fourward.sim.v1.SimulatorProto.ParserTransitionEvent
+import fourward.sim.v1.SimulatorProto.TableLookupEvent
+import fourward.sim.v1.SimulatorProto.TraceEvent
+import fourward.sim.v1.SimulatorProto.TraceTree
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
