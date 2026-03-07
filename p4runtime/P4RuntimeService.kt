@@ -336,7 +336,7 @@ class P4RuntimeService(
      * Compares two Uint128 values as unsigned 128-bit integers. Returns negative if a < b, zero if
      * a == b, positive if a > b.
      */
-    fun compareUint128(a: Uint128, b: Uint128): Int {
+    private fun compareUint128(a: Uint128, b: Uint128): Int {
       // Compare high as unsigned: convert to Long.toULong() for unsigned comparison.
       val highCmp = a.high.toULong().compareTo(b.high.toULong())
       if (highCmp != 0) return highCmp
