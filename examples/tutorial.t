@@ -7,6 +7,14 @@ parser states it visits, which tables it hits or misses, which actions
 fire, and where the packet ends up. This tutorial walks through
 everything you need to know.
 
+To try it yourself, clone the repo and set up a shell alias:
+
+$ git clone https://github.com/smolkaj/4ward.git && cd 4ward
+$ alias 4ward='bazel run //cli:4ward --'
+
+With that alias, every command below will work as shown. The example
+programs live in the examples/ directory.
+
 
 Part 1: Hello world
 --------------------
