@@ -1,0 +1,40 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+sh_test(
+    name = "getting_started_test",
+    srcs = ["getting_started.sh"],
+    args = [
+        "$(rootpath //cli:4ward)",
+        "$(rootpath //examples:passthrough.p4)",
+        "$(rootpath //examples:passthrough.stf)",
+    ],
+    data = [
+        "//cli:4ward",
+        "//examples:passthrough.p4",
+        "//examples:passthrough.stf",
+        "@p4c//:p4include",
+    ],
+)
+
+sh_test(
+    name = "compile_test",
+    srcs = ["compile.sh"],
+    args = [
+        "$(rootpath //cli:4ward)",
+        "$(rootpath //examples:passthrough.p4)",
+        "$(rootpath //examples:passthrough.stf)",
+    ],
+    data = [
+        "//cli:4ward",
+        "//examples:passthrough.p4",
+        "//examples:passthrough.stf",
+        "@p4c//:p4include",
+    ],
+)
+
+sh_test(
+    name = "errors_test",
+    srcs = ["errors.sh"],
+    args = ["$(rootpath //cli:4ward)"],
+    data = ["//cli:4ward"],
+)

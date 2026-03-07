@@ -127,27 +127,21 @@ fork_outcome {
 
 No printf debugging. No Wireshark. No guessing.
 
-### Try for yourself!
+### Try it with your own program
 
 ```sh
-# Copy the template test directory.
-cp -r e2e_tests/passthrough e2e_tests/my_program
+# Compile and run in one shot:
+bazel run //cli:4ward -- run my_program.p4 my_test.stf
 
-# Drop in your P4 program (keep the filename — the build rules expect it).
-cp /path/to/my_program.p4 e2e_tests/my_program/passthrough.p4
+# Or step by step:
+bazel run //cli:4ward -- compile my_program.p4 -o pipeline.txtpb
+bazel run //cli:4ward -- sim pipeline.txtpb my_test.stf
 
-# Edit the STF file: list packets to send and expected outputs.
-$EDITOR e2e_tests/my_program/passthrough.stf
-
-# Run it! PRINT_TRACE shows what happened to your packet.
-bazel test //e2e_tests/my_program:passthrough_test \
-  --test_output=all --test_env=PRINT_TRACE=1
+# Choose your trace format:
+bazel run //cli:4ward -- run --format=textproto my_program.p4 my_test.stf
 ```
 
-> [!NOTE]
-> A standalone `4ward run program.p4 test.stf` CLI is
-> [on the roadmap](docs/ROADMAP.md#track-7-standalone-cli). For now, tests run
-> through Bazel.
+See [`examples/`](examples/) for ready-to-run P4 programs and STF tests.
 
 ## `@p4runtime_translation` done right
 
@@ -223,11 +217,13 @@ requirements.
 
 ```
 4ward/
+├── cli/                    Standalone CLI (4ward compile / sim / run)
 ├── simulator/              Kotlin simulator — the brain
 │   ├── ir.proto            Behavioral IR (the contract between backend & sim)
 │   └── simulator.proto     Simulator service protocol (stdin/stdout framing)
 ├── p4c_backend/            p4c backend plugin (C++, emits the proto IR)
 ├── p4runtime/              P4Runtime gRPC server (Kotlin)
+├── examples/               Ready-to-run P4 programs and STF tests
 ├── e2e_tests/
 │   ├── stf/                STF runner (shared subprocess + packet I/O)
 │   ├── corpus/             p4c STF corpus (bulk regression)

@@ -1,0 +1,14 @@
+# Example P4 programs and STF tests.
+#
+# These are self-contained copies from e2e_tests/ with CLI-oriented comments,
+# intended as starting points for newcomers.
+
+exports_files(
+    [
+        "passthrough.p4",
+        "passthrough.stf",
+        "basic_table.p4",
+        "basic_table.stf",
+    ],
+    visibility = ["//cli:__subpackages__"],
+)

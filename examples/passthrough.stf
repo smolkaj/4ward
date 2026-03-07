@@ -1,0 +1,7 @@
+# passthrough.stf — test for passthrough.p4
+#
+# Sends an Ethernet frame on port 0, expects it on port 1 unchanged.
+# No table entries needed — the program hardcodes the output port.
+
+packet 0 FFFFFFFFFFFF 000000000001 0800
+expect 1 FFFFFFFFFFFF 000000000001 0800

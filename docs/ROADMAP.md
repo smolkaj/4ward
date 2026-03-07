@@ -234,38 +234,20 @@ corpus tests as acceptance criteria. Each architecture is a significant lift
 
 ### Track 7: standalone CLI
 
-**Priority: not now | Depends on: tracks 1, 3**
-
-Today 4ward is only usable through Bazel test targets or the P4Runtime gRPC
-API. There's no `4ward run my_program.p4` — a newcomer who finds the repo
-can build and test, but can't easily try it with their own program.
-
-A standalone CLI would make 4ward accessible to anyone with a P4 program and
-an STF test file:
+**Priority: done**
 
 ```sh
 # Compile and simulate in one step.
-4ward run program.p4 test.stf
+bazel run //cli:4ward -- run program.p4 test.stf
 
 # Or step by step.
-4ward compile program.p4 -o pipeline.txtpb
-4ward sim pipeline.txtpb test.stf
+bazel run //cli:4ward -- compile program.p4 -o pipeline.txtpb
+bazel run //cli:4ward -- sim pipeline.txtpb test.stf
 ```
 
-STF is the natural interface — it already handles table entries, packets, and
-expectations in one file, and it's the P4 ecosystem's established test format.
-
-Scope:
-
-1. **`4ward compile`** — thin wrapper around `p4c-4ward` with sensible
-   defaults (auto-detect include paths, architecture).
-2. **`4ward sim`** — load a pipeline, run an STF file, print trace trees to
-   stdout in text proto or JSON.
-3. **`4ward run`** — compile + simulate in one shot. The "hello world"
-   experience.
-
-**Done when:** a newcomer can `4ward run examples/passthrough.p4` and see a
-trace tree without touching Bazel.
+Three subcommands: `compile`, `sim`, `run`. Human-readable trace output by
+default (`--format=textproto` for machine-readable). In-process simulator
+(no subprocess). Examples in `examples/`, integration tests in `cli/tests/`.
 
 ## Sequencing
 
@@ -284,8 +266,8 @@ trace tree without touching Bazel.
               │                     │    │              │    │          │
   Track 6     │                     │    │              │    │   PSA    │
               │                     │    │              │    │          │
-  Track 7     │                     │    │ standalone   │    │          │
-              │                     │    │ CLI          │    │          │
+  Track 7     │ standalone CLI ✓    │    │              │    │          │
+              │                     │    │              │    │          │
               └─────────────────────┘    └──────────────┘    └──────────┘
 ```
 
