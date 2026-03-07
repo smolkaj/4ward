@@ -442,7 +442,7 @@ class InterpreterControlTest {
       methodCallStmt(
         "my_reg",
         "read",
-        nameRef("dst").toBuilder().setType(bitType(8)).build(),
+        nameRef("dst", bitType(8)),
         bit(0, 32),
       )
     val config = controlConfig(writeStmt, readStmt)
@@ -458,7 +458,7 @@ class InterpreterControlTest {
       methodCallStmt(
         "my_reg",
         "read",
-        nameRef("dst").toBuilder().setType(bitType(8)).build(),
+        nameRef("dst", bitType(8)),
         bit(5, 32),
       )
     val config = controlConfig(readStmt)
@@ -475,7 +475,7 @@ class InterpreterControlTest {
   @Test
   fun `direct_meter read writes GREEN to out parameter`() {
     val stmt =
-      methodCallStmt("my_meter", "read", nameRef("color").toBuilder().setType(bitType(2)).build())
+      methodCallStmt("my_meter", "read", nameRef("color", bitType(2)))
     val config = controlConfig(stmt)
     val env = emptyEnv
     env.define("color", BitVal(3, 2))
@@ -490,7 +490,7 @@ class InterpreterControlTest {
         "my_meter",
         "execute_meter",
         bit(0, 32),
-        nameRef("color").toBuilder().setType(bitType(8)).build(),
+        nameRef("color", bitType(8)),
       )
     val config = controlConfig(stmt)
     val env = emptyEnv

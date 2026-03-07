@@ -610,6 +610,8 @@ class Interpreter(
         UnitVal
       }
       "emit" -> execEmit(call, env)
+      // TODO(meters): dispatch on the target's extern type name instead of arg count
+      // once more externs with a `read` method are added.
       // register.read(dst, index) has 2 args; direct_meter.read(out color) has 1.
       "read" -> {
         if (call.argsList.size == 1) {

@@ -38,6 +38,9 @@ fun boolLit(v: Boolean): Expr =
 fun nameRef(name: String): Expr =
   Expr.newBuilder().setNameRef(NameRef.newBuilder().setName(name)).build()
 
+fun nameRef(name: String, type: Type): Expr =
+  Expr.newBuilder().setNameRef(NameRef.newBuilder().setName(name)).setType(type).build()
+
 fun bitType(width: Int): Type =
   Type.newBuilder().setBit(BitType.newBuilder().setWidth(width)).build()
 
