@@ -82,10 +82,15 @@ handles it.
 git clone https://github.com/smolkaj/4ward.git && cd 4ward
 bazel build //...   # build everything
 bazel test //...    # run all tests
+```
+
+Now point it at a P4 program. Set up a shell alias first:
+
+```sh
 alias 4ward='bazel run //cli:4ward --'
 ```
 
-Now point it at a P4 program. Here's
+Here's
 [`passthrough.p4`](examples/passthrough.p4) — the simplest possible program:
 parse an Ethernet header, hardcode the output port to 1, emit the packet
 unchanged.
