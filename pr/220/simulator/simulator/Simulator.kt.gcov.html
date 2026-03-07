@@ -27,8 +27,6 @@
             <td width="5%" class="headerCovTableHead" title="Exercised code only (CBC + GBC + GNC + GIC)">Hit</td>
             <td width="5%" class="headerCovTableHeadUBC" title="Uncovered Baseline Code (0 => 0):
 Unchanged code was untested before, is untested now">Not covered</td>
-            <td width="5%" class="headerCovTableHeadGBC" title="Gained Baseline Coverage (0 => 1):
-Unchanged code is tested now">Newly covered</td>
             <td width="5%" class="headerCovTableHeadCBC" title="Covered Baseline Code (1 => 1):
 Unchanged code was tested before and is still tested">Covered</td>
           </tr>
@@ -41,18 +39,16 @@ Unchanged code was tested before and is still tested">Covered</td>
             <td class="headerCovTableEntry">93</td>
             <td class="headerCovTableEntry">92</td>
             <td class="headerCovTableEntry"><a href="#L95" title="goto first UBC">1</a></td>
-            <td class="headerCovTableEntry"><a href="#L35" title="goto first GBC">1</a></td>
-            <td class="headerCovTableEntry"><a href="#L23" title="goto first CBC">91</a></td>
+            <td class="headerCovTableEntry"><a href="#L23" title="goto first CBC">92</a></td>
           </tr>
           <tr>
             <td class="headerItem">Current Date:</td>
-            <td class="headerValue">2026-03-07 00:27:13</td>
+            <td class="headerValue">2026-03-07 01:30:15</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
             <td class="headerCovTableEntry">9</td>
             <td class="headerCovTableEntry">9</td>
-            <td class="headerCovTableEntry"></td>
             <td class="headerCovTableEntry"></td>
             <td class="headerCovTableEntry">9</td>
           </tr>
@@ -63,7 +59,7 @@ Unchanged code was tested before and is still tested">Covered</td>
           </tr>
           <tr>
             <td class="headerItem">Baseline Date:</td>
-            <td class="headerValue">2026-03-07 00:07:34</td>
+            <td class="headerValue">2026-03-07 01:09:31</td>
             <td></td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
@@ -104,7 +100,7 @@ Unchanged code was tested before and is still tested">Covered</td>
 <span id="L20"><span class="lineNum">      20</span>                 :  * One [Simulator] instance runs for the lifetime of the process; it is single-threaded (callers</span>
 <span id="L21"><span class="lineNum">      21</span>                 :  * must serialise concurrent requests).</span>
 <span id="L22"><span class="lineNum">      22</span>                 :  */</span>
-<span id="L23"><span class="lineNum">      23</span> <a href="#L36" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 : class Simulator {</span></span>
+<span id="L23"><span class="lineNum">      23</span> <a href="#L96" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 : class Simulator {</span></span>
 <span id="L24"><span class="lineNum">      24</span>                 : </span>
 <span id="L25"><span class="lineNum">      25</span>                 :   private var pipeline: PipelineConfig? = null</span>
 <span id="L26"><span class="lineNum">      26</span>                 :   private var architecture: Architecture? = null</span>
@@ -116,8 +112,8 @@ Unchanged code was tested before and is still tested">Covered</td>
 <span id="L32"><span class="lineNum">      32</span> <span class="tlaCBC">              1 :       request.hasProcessPacket() -&gt; handleProcessPacket(request.processPacket)</span></span>
 <span id="L33"><span class="lineNum">      33</span> <span class="tlaCBC">              1 :       request.hasWriteEntry() -&gt; handleWriteEntry(request.writeEntry)</span></span>
 <span id="L34"><span class="lineNum">      34</span> <span class="tlaCBC">              1 :       request.hasReadEntries() -&gt; handleReadEntries(request.readEntries)</span></span>
-<span id="L35"><span class="lineNum">      35</span> <a href="#top" class="tlaBgGBC"  title="Next GBC group">Newly covered</a><span class="tlaGBC tlaBgGBC">           1 :       else -&gt; error(&quot;unhandled request kind: $request&quot;)</span></span>
-<span id="L36"><span class="lineNum">      36</span> <a href="#L96" class="tlaBgCBC"  title="Next CBC group">Covered</a><span class="tlaCBC tlaBgCBC">           1 :     }</span></span>
+<span id="L35"><span class="lineNum">      35</span> <span class="tlaCBC">              1 :       else -&gt; error(&quot;unhandled request kind: $request&quot;)</span></span>
+<span id="L36"><span class="lineNum">      36</span> <span class="tlaCBC">              1 :     }</span></span>
 <span id="L37"><span class="lineNum">      37</span>                 : </span>
 <span id="L38"><span class="lineNum">      38</span>                 :   // -------------------------------------------------------------------------</span>
 <span id="L39"><span class="lineNum">      39</span>                 :   // Pipeline loading</span>
