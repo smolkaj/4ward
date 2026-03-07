@@ -2,7 +2,6 @@ package fourward.cli
 
 import java.nio.file.Files
 import java.nio.file.Path
-import kotlin.system.exitProcess
 
 /**
  * `4ward compile program.p4 -o output.txtpb` — compile a P4 program to a pipeline config.
@@ -13,43 +12,49 @@ import kotlin.system.exitProcess
  * 3. `PATH` lookup.
  *
  * Automatically adds the p4c standard include directory (containing `core.p4`, `v1model.p4`) from
- * runfiles when available.
+ * runfiles when available. Returns an exit code (does not call `exitProcess`).
  */
-fun compile(p4Source: Path, outputPath: Path?, includeDirs: List<Path>) {
+fun compile(p4Source: Path, outputPath: Path?, includeDirs: List<Path>): Int {
   val p4c = findP4c4ward()
-  val includeArgs = resolveIncludeDirs(p4c, includeDirs)
-  val output = outputPath ?: p4Source.resolveSibling(p4Source.fileName.toString().replace(".p4", ".txtpb"))
+  if (p4c == null) {
+    System.err.println(
+      "error: p4c-4ward not found. Set P4C_4WARD_PATH or use 'bazel run //cli:4ward'."
+    )
+    return ExitCode.COMPILE_ERROR
+  }
+  val includeArgs = resolveIncludeDirs(includeDirs)
+  val output =
+    outputPath ?: p4Source.resolveSibling(p4Source.fileName.toString().replace(".p4", ".txtpb"))
 
   val cmd = mutableListOf(p4c.toString())
   cmd += includeArgs.flatMap { listOf("-I", it.toString()) }
   cmd += listOf("-o", output.toString())
   cmd += p4Source.toString()
 
-  val process =
-    ProcessBuilder(cmd).redirectError(ProcessBuilder.Redirect.INHERIT).start()
-  // Forward stdout so the user sees any compiler diagnostics.
+  val process = ProcessBuilder(cmd).redirectError(ProcessBuilder.Redirect.INHERIT).start()
   process.inputStream.copyTo(System.out)
   val exitCode = process.waitFor()
   if (exitCode != 0) {
     System.err.println("error: p4c-4ward exited with code $exitCode")
-    exitProcess(ExitCode.COMPILE_ERROR)
+    return ExitCode.COMPILE_ERROR
   }
+  return ExitCode.SUCCESS
 }
 
 /**
- * Compiles [p4Source] to a temporary file and returns its path.
+ * Compiles [p4Source] to a temporary file and returns its path, or null on failure.
  *
  * Used by the `run` subcommand to compile-then-simulate in one shot.
  */
-fun compileToTemp(p4Source: Path, includeDirs: List<Path>): Path {
+fun compileToTemp(p4Source: Path, includeDirs: List<Path>): Pair<Path?, Int> {
   val tmp = Files.createTempFile("4ward-", ".txtpb")
   tmp.toFile().deleteOnExit()
-  compile(p4Source, tmp, includeDirs)
-  return tmp
+  val exitCode = compile(p4Source, tmp, includeDirs)
+  return if (exitCode == ExitCode.SUCCESS) tmp to exitCode else null to exitCode
 }
 
-/** Locates the p4c-4ward binary: runfiles → env → PATH. */
-private fun findP4c4ward(): Path {
+/** Locates the p4c-4ward binary: runfiles → env → PATH. Returns null if not found. */
+private fun findP4c4ward(): Path? {
   // 1. Bazel runfiles: works when invoked via `bazel run //cli:4ward`.
   val runfiles = System.getenv("JAVA_RUNFILES")
   if (runfiles != null) {
@@ -72,15 +77,14 @@ private fun findP4c4ward(): Path {
     if (Files.isExecutable(candidate)) return candidate
   }
 
-  System.err.println("error: p4c-4ward not found. Set P4C_4WARD_PATH or use 'bazel run //cli:4ward'.")
-  exitProcess(ExitCode.COMPILE_ERROR)
+  return null
 }
 
 /**
- * Resolves include directories. Adds the p4c standard include dir from runfiles when available,
- * so `#include <core.p4>` and `#include <v1model.p4>` work out of the box.
+ * Resolves include directories. Adds the p4c standard include dir from runfiles when available, so
+ * `#include <core.p4>` and `#include <v1model.p4>` work out of the box.
  */
-private fun resolveIncludeDirs(p4c: Path, userDirs: List<Path>): List<Path> {
+private fun resolveIncludeDirs(userDirs: List<Path>): List<Path> {
   val dirs = mutableListOf<Path>()
 
   // p4c standard includes from runfiles (core.p4, v1model.p4, etc.).

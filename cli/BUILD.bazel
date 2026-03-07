@@ -9,8 +9,8 @@ kt_jvm_library(
     visibility = ["//visibility:public"],
     deps = [
         "//e2e_tests/stf:stf_runner",
-        "//simulator:simulator_lib",
         "//simulator:simulator_java_proto",
+        "//simulator:simulator_lib",
         "@maven//:com_google_protobuf_protobuf_java",
     ],
 )

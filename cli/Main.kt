@@ -9,6 +9,9 @@ enum class OutputFormat {
   TEXTPROTO,
 }
 
+/** Thrown on invalid CLI arguments. Caught by [main] and reported as a usage error. */
+private class UsageError(message: String) : RuntimeException(message)
+
 private const val USAGE =
   """Usage: 4ward <command> [options]
 
@@ -53,25 +56,25 @@ fun main(args: Array<String>) {
     exitProcess(if (args.isEmpty()) ExitCode.USAGE_ERROR else ExitCode.SUCCESS)
   }
 
-  val command = args[0]
-  val rest = args.drop(1)
-
-  when (command) {
-    "sim" -> handleSim(rest)
-    "compile" -> handleCompile(rest)
-    "run" -> handleRun(rest)
-    else -> {
-      System.err.println("error: unknown command '$command'")
-      System.err.println(USAGE)
-      exitProcess(ExitCode.USAGE_ERROR)
+  val exitCode =
+    try {
+      when (val command = args[0]) {
+        "sim" -> handleSim(args.drop(1))
+        "compile" -> handleCompile(args.drop(1))
+        "run" -> handleRun(args.drop(1))
+        else -> throw UsageError("unknown command '$command'\n$USAGE")
+      }
+    } catch (e: UsageError) {
+      System.err.println("error: ${e.message}")
+      ExitCode.USAGE_ERROR
     }
-  }
+  exitProcess(exitCode)
 }
 
-private fun handleSim(args: List<String>) {
+private fun handleSim(args: List<String>): Int {
   if (args.any { it == "--help" || it == "-h" }) {
     println(SIM_USAGE)
-    exitProcess(ExitCode.SUCCESS)
+    return ExitCode.SUCCESS
   }
 
   var format = OutputFormat.HUMAN
@@ -79,38 +82,23 @@ private fun handleSim(args: List<String>) {
 
   for (arg in args) {
     when {
-      arg.startsWith("--format=") -> {
-        format =
-          when (val f = arg.removePrefix("--format=")) {
-            "human" -> OutputFormat.HUMAN
-            "textproto" -> OutputFormat.TEXTPROTO
-            else -> {
-              System.err.println("error: unknown format '$f'")
-              exitProcess(ExitCode.USAGE_ERROR)
-            }
-          }
-      }
-      arg.startsWith("-") -> {
-        System.err.println("error: unknown option '$arg'")
-        exitProcess(ExitCode.USAGE_ERROR)
-      }
+      arg.startsWith("--format=") -> format = parseFormat(arg)
+      arg.startsWith("-") -> throw UsageError("unknown option '$arg'")
       else -> positional += arg
     }
   }
 
   if (positional.size != 2) {
-    System.err.println("error: 'sim' requires exactly 2 arguments: <pipeline.txtpb> <test.stf>")
-    System.err.println(SIM_USAGE)
-    exitProcess(ExitCode.USAGE_ERROR)
+    throw UsageError("'sim' requires exactly 2 arguments: <pipeline.txtpb> <test.stf>\n$SIM_USAGE")
   }
 
-  simulate(Path.of(positional[0]), Path.of(positional[1]), format)
+  return simulate(Path.of(positional[0]), Path.of(positional[1]), format)
 }
 
-private fun handleCompile(args: List<String>) {
+private fun handleCompile(args: List<String>): Int {
   if (args.any { it == "--help" || it == "-h" }) {
     println(COMPILE_USAGE)
-    exitProcess(ExitCode.SUCCESS)
+    return ExitCode.SUCCESS
   }
 
   var outputPath: String? = null
@@ -122,42 +110,35 @@ private fun handleCompile(args: List<String>) {
     when {
       args[i] == "-o" -> {
         i++
-        if (i >= args.size) {
-          System.err.println("error: -o requires an argument")
-          exitProcess(ExitCode.USAGE_ERROR)
-        }
+        if (i >= args.size) throw UsageError("-o requires an argument")
         outputPath = args[i]
       }
       args[i] == "-I" -> {
         i++
-        if (i >= args.size) {
-          System.err.println("error: -I requires an argument")
-          exitProcess(ExitCode.USAGE_ERROR)
-        }
+        if (i >= args.size) throw UsageError("-I requires an argument")
         includeDirs += args[i]
       }
-      args[i].startsWith("-") -> {
-        System.err.println("error: unknown option '${args[i]}'")
-        exitProcess(ExitCode.USAGE_ERROR)
-      }
+      args[i].startsWith("-") -> throw UsageError("unknown option '${args[i]}'")
       else -> positional += args[i]
     }
     i++
   }
 
   if (positional.size != 1) {
-    System.err.println("error: 'compile' requires exactly 1 argument: <program.p4>")
-    System.err.println(COMPILE_USAGE)
-    exitProcess(ExitCode.USAGE_ERROR)
+    throw UsageError("'compile' requires exactly 1 argument: <program.p4>\n$COMPILE_USAGE")
   }
 
-  compile(Path.of(positional[0]), outputPath?.let { Path.of(it) }, includeDirs.map { Path.of(it) })
+  return compile(
+    Path.of(positional[0]),
+    outputPath?.let { Path.of(it) },
+    includeDirs.map { Path.of(it) },
+  )
 }
 
-private fun handleRun(args: List<String>) {
+private fun handleRun(args: List<String>): Int {
   if (args.any { it == "--help" || it == "-h" }) {
     println(RUN_USAGE)
-    exitProcess(ExitCode.SUCCESS)
+    return ExitCode.SUCCESS
   }
 
   var format = OutputFormat.HUMAN
@@ -167,44 +148,33 @@ private fun handleRun(args: List<String>) {
   var i = 0
   while (i < args.size) {
     when {
-      args[i].startsWith("--format=") -> {
-        format =
-          when (val f = args[i].removePrefix("--format=")) {
-            "human" -> OutputFormat.HUMAN
-            "textproto" -> OutputFormat.TEXTPROTO
-            else -> {
-              System.err.println("error: unknown format '$f'")
-              exitProcess(ExitCode.USAGE_ERROR)
-            }
-          }
-      }
+      args[i].startsWith("--format=") -> format = parseFormat(args[i])
       args[i] == "-I" -> {
         i++
-        if (i >= args.size) {
-          System.err.println("error: -I requires an argument")
-          exitProcess(ExitCode.USAGE_ERROR)
-        }
+        if (i >= args.size) throw UsageError("-I requires an argument")
         includeDirs += args[i]
       }
-      args[i].startsWith("-") -> {
-        System.err.println("error: unknown option '${args[i]}'")
-        exitProcess(ExitCode.USAGE_ERROR)
-      }
+      args[i].startsWith("-") -> throw UsageError("unknown option '${args[i]}'")
       else -> positional += args[i]
     }
     i++
   }
 
   if (positional.size != 2) {
-    System.err.println("error: 'run' requires exactly 2 arguments: <program.p4> <test.stf>")
-    System.err.println(RUN_USAGE)
-    exitProcess(ExitCode.USAGE_ERROR)
+    throw UsageError("'run' requires exactly 2 arguments: <program.p4> <test.stf>\n$RUN_USAGE")
   }
 
-  run(
+  return run(
     Path.of(positional[0]),
     Path.of(positional[1]),
     format,
     includeDirs.map { Path.of(it) },
   )
 }
+
+private fun parseFormat(arg: String): OutputFormat =
+  when (val f = arg.removePrefix("--format=")) {
+    "human" -> OutputFormat.HUMAN
+    "textproto" -> OutputFormat.TEXTPROTO
+    else -> throw UsageError("unknown format '$f'")
+  }

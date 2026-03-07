@@ -13,8 +13,8 @@ import fourward.simulator.Simulator
 /**
  * In-process [SimulatorFacade] backed by a [Simulator] instance.
  *
- * This is the same pattern used by [fourward.p4runtime.P4RuntimeService]: the simulator runs
- * in the same JVM, no subprocess or pipe protocol needed.
+ * This is the same pattern used by [fourward.p4runtime.P4RuntimeService]: the simulator runs in the
+ * same JVM, no subprocess or pipe protocol needed.
  */
 class InProcessSimulator : SimulatorFacade {
   private val simulator = Simulator()

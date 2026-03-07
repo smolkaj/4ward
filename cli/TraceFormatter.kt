@@ -1,5 +1,6 @@
 package fourward.cli
 
+import fourward.e2e.hex
 import fourward.sim.v1.DropReason
 import fourward.sim.v1.TraceEvent
 import fourward.sim.v1.TraceTree
@@ -81,8 +82,7 @@ object TraceFormatter {
 
   private fun pad(level: Int): String = "  ".repeat(level)
 
-  private fun com.google.protobuf.ByteString.hex(): String =
-    toByteArray().joinToString("") { "%02x".format(it) }
+  private fun com.google.protobuf.ByteString.hex(): String = toByteArray().hex()
 
   private fun fourward.sim.v1.ForkReason.humanName(): String =
     name.removePrefix("ACTION_").lowercase().replace('_', ' ')

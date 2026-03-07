@@ -106,8 +106,7 @@ class TraceFormatterTest {
             .setMarkToDrop(MarkToDropEvent.newBuilder().setReason(DropReason.MARK_TO_DROP))
         )
         .setPacketOutcome(
-          PacketOutcome.newBuilder()
-            .setDrop(Drop.newBuilder().setReason(DropReason.MARK_TO_DROP))
+          PacketOutcome.newBuilder().setDrop(Drop.newBuilder().setReason(DropReason.MARK_TO_DROP))
         )
         .build()
 
