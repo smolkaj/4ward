@@ -232,22 +232,17 @@ corpus tests as acceptance criteria. Each architecture is a significant lift
 
 **Done when:** PSA corpus tests pass.
 
-### Track 7: standalone CLI
-
-**Priority: done**
+### Track 7: standalone CLI — done
 
 ```sh
-# Compile and simulate in one step.
 bazel run //cli:4ward -- run program.p4 test.stf
-
-# Or step by step.
 bazel run //cli:4ward -- compile program.p4 -o pipeline.txtpb
 bazel run //cli:4ward -- sim pipeline.txtpb test.stf
 ```
 
 Three subcommands: `compile`, `sim`, `run`. Human-readable trace output by
-default (`--format=textproto` for machine-readable). In-process simulator
-(no subprocess). Examples and tutorial in `examples/`.
+default (`--format=textproto` for machine-readable). In-process simulator.
+See [`examples/tutorial.t`](../examples/tutorial.t) for the full walkthrough.
 
 ## Sequencing
 
