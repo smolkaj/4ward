@@ -3140,11 +3140,13 @@ FN:49,fourward/simulator/InterpreterTestDslKt::ifStmt$default (Lfourward/ir/v1/E
 FNDA:1,fourward/simulator/InterpreterTestDslKt::ifStmt$default (Lfourward/ir/v1/Expr;Ljava/util/List;Ljava/util/List;Lfourward/ir/v1/SourceInfo;ILjava/lang/Object;)Lfourward/ir/v1/Stmt;
 FN:69,fourward/simulator/InterpreterTestDslKt::assign (Ljava/lang/String;Lfourward/ir/v1/Expr;)Lfourward/ir/v1/Stmt;
 FNDA:1,fourward/simulator/InterpreterTestDslKt::assign (Ljava/lang/String;Lfourward/ir/v1/Expr;)Lfourward/ir/v1/Stmt;
-FN:79,fourward/simulator/InterpreterTestDslKt::methodCallStmt (Ljava/lang/String;Ljava/lang/String;[Lfourward/ir/v1/Expr;)Lfourward/ir/v1/Stmt;
+FN:83,fourward/simulator/InterpreterTestDslKt::externCall (Ljava/lang/String;[Lfourward/ir/v1/Expr;)Lfourward/ir/v1/Stmt;
+FNDA:1,fourward/simulator/InterpreterTestDslKt::externCall (Ljava/lang/String;[Lfourward/ir/v1/Expr;)Lfourward/ir/v1/Stmt;
+FN:87,fourward/simulator/InterpreterTestDslKt::methodCallStmt (Ljava/lang/String;Ljava/lang/String;[Lfourward/ir/v1/Expr;)Lfourward/ir/v1/Stmt;
 FNDA:1,fourward/simulator/InterpreterTestDslKt::methodCallStmt (Ljava/lang/String;Ljava/lang/String;[Lfourward/ir/v1/Expr;)Lfourward/ir/v1/Stmt;
-FN:95,fourward/simulator/InterpreterTestDslKt::controlConfig ([Lfourward/ir/v1/Stmt;)Lfourward/ir/v1/BehavioralConfig;
+FN:103,fourward/simulator/InterpreterTestDslKt::controlConfig ([Lfourward/ir/v1/Stmt;)Lfourward/ir/v1/BehavioralConfig;
 FNDA:1,fourward/simulator/InterpreterTestDslKt::controlConfig ([Lfourward/ir/v1/Stmt;)Lfourward/ir/v1/BehavioralConfig;
-FN:99,fourward/simulator/InterpreterTestDslKt::controlConfig (Ljava/lang/String;[Lfourward/ir/v1/Stmt;)Lfourward/ir/v1/BehavioralConfig;
+FN:107,fourward/simulator/InterpreterTestDslKt::controlConfig (Ljava/lang/String;[Lfourward/ir/v1/Stmt;)Lfourward/ir/v1/BehavioralConfig;
 FNDA:1,fourward/simulator/InterpreterTestDslKt::controlConfig (Ljava/lang/String;[Lfourward/ir/v1/Stmt;)Lfourward/ir/v1/BehavioralConfig;
 BRDA:63,0,0,1
 BRDA:63,0,1,1
@@ -3179,23 +3181,24 @@ DA:71,1
 DA:72,1
 DA:73,1
 DA:75,1
-DA:79,1
-DA:80,1
-DA:81,1
-DA:82,1
 DA:83,1
-DA:84,1
-DA:85,1
-DA:86,1
 DA:87,1
 DA:88,1
+DA:89,1
+DA:90,1
+DA:91,1
 DA:92,1
+DA:93,1
+DA:94,1
 DA:95,1
-DA:99,1
+DA:96,1
 DA:100,1
-DA:101,1
-LH:46
-LF:46
+DA:103,1
+DA:107,1
+DA:108,1
+DA:109,1
+LH:47
+LF:47
 end_of_record
 SF:simulator/Main.kt
 FN:24,fourward/simulator/MainKt::main ()V
