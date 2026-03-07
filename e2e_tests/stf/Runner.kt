@@ -47,10 +47,11 @@ class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPat
    * Cross-port ordering is ignored; within the same port, outputs are matched FIFO (first output on
    * that port satisfies the first expect for that port). This matches BMv2's STF semantics.
    *
-   * When [rejectUnexpected] is true, output packets that no `expect` directive matches cause a test
-   * failure. This catches bugs where packets are forwarded instead of dropped.
+   * Unexpected output packets (those not matched by any `expect` directive) cause a test failure
+   * when the STF file contains at least one `expect` — indicating the test makes assertions about
+   * output. STF files with no `expect` directives are "send-only" tests that don't check output.
    */
-  fun run(stfPath: Path, rejectUnexpected: Boolean = true): TestResult {
+  fun run(stfPath: Path): TestResult {
     val stf = StfFile.parse(stfPath)
     val config = loadPipelineConfig(pipelineConfigPath)
 
@@ -67,8 +68,7 @@ class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPat
       }
 
       val failures = mutableListOf<String>()
-      data class Output(val port: Int, val payload: ByteArray)
-      val outputQueue = mutableListOf<Output>()
+      val outputQueue = mutableListOf<ReceivedPacket>()
 
       for (packet in stf.packets) {
         val resp = sim.processPacket(packet.ingressPort, packet.payload)
@@ -89,37 +89,56 @@ class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPat
             collectOutputsFromTrace(resp.processPacket.trace)
           }
         for (pkt in pkts) {
-          outputQueue += Output(pkt.egressPort, pkt.payload.toByteArray())
+          outputQueue += ReceivedPacket(pkt.egressPort, pkt.payload.toByteArray())
         }
       }
 
-      for (expected in stf.expects) {
-        val idx = outputQueue.indexOfFirst { it.port == expected.port }
-        if (idx < 0) {
-          failures += "expected packet on port ${expected.port} but got none"
-        } else {
-          val actual = outputQueue.removeAt(idx)
-          if (
-            !actual.payload.matchesMasked(expected.payload, expected.mask, expected.exactLength)
-          ) {
-            failures +=
-              "port ${expected.port}: payload mismatch\n" +
-                "  expected: ${expected.payload.hex(expected.mask)}\n" +
-                "  actual:   ${actual.payload.hex()}"
-          }
-        }
-      }
-
-      if (rejectUnexpected) {
-        for (unexpected in outputQueue) {
-          failures += "unexpected packet on port ${unexpected.port}: ${unexpected.payload.hex()}"
-        }
-      }
+      failures += matchOutputAgainstExpects(stf.expects, outputQueue)
 
       return if (failures.isEmpty()) TestResult.Pass
       else TestResult.Failure(failures.joinToString("\n"))
     }
   }
+}
+
+/**
+ * Matches simulator output against STF expects, returning a list of failure messages (empty =
+ * pass).
+ *
+ * Cross-port ordering is ignored; within the same port, outputs are matched FIFO. Unexpected output
+ * (not matched by any expect) is rejected only when the STF has at least one expect — otherwise the
+ * test is "send-only" and doesn't make claims about output.
+ */
+fun matchOutputAgainstExpects(
+  expects: List<StfExpectedOutput>,
+  outputs: MutableList<ReceivedPacket>,
+): List<String> {
+  val failures = mutableListOf<String>()
+
+  for (expected in expects) {
+    val idx = outputs.indexOfFirst { it.egressPort == expected.port }
+    if (idx < 0) {
+      failures += "expected packet on port ${expected.port} but got none"
+    } else {
+      val actual = outputs.removeAt(idx)
+      if (!actual.payload.matchesMasked(expected.payload, expected.mask, expected.exactLength)) {
+        failures +=
+          "port ${expected.port}: payload mismatch\n" +
+            "  expected: ${expected.payload.hex(expected.mask)}\n" +
+            "  actual:   ${actual.payload.hex()}"
+      }
+    }
+  }
+
+  // Reject unexpected output only when the STF has explicit expects — otherwise
+  // the test is "send-only" and doesn't make claims about output.
+  if (expects.isNotEmpty()) {
+    for (unexpected in outputs) {
+      failures += "unexpected packet on port ${unexpected.egressPort}: ${unexpected.payload.hex()}"
+    }
+  }
+
+  return failures
 }
 
 /**
@@ -172,28 +191,17 @@ sealed class TestResult {
  * `_main/<pkg>/<testName>.stf` under `JAVA_RUNFILES`. The [pkg] defaults to `e2e_tests/<testName>`
  * (matching the per-test package layout of the regular e2e tests).
  */
-fun runStfTest(
-  testName: String,
-  pkg: String = "e2e_tests/$testName",
-  rejectUnexpected: Boolean = true,
-): TestResult {
+fun runStfTest(testName: String, pkg: String = "e2e_tests/$testName"): TestResult {
   val r = System.getenv("JAVA_RUNFILES") ?: "."
   return runStf(
     r,
     Paths.get(r, "_main/$pkg/$testName.txtpb"),
     Paths.get(r, "_main/$pkg/$testName.stf"),
-    rejectUnexpected,
   )
 }
 
-fun runStf(
-  runfiles: String,
-  configPath: Path,
-  stfPath: Path,
-  rejectUnexpected: Boolean = true,
-): TestResult =
-  StfRunner(Paths.get(runfiles, "_main/simulator/simulator"), configPath)
-    .run(stfPath, rejectUnexpected)
+fun runStf(runfiles: String, configPath: Path, stfPath: Path): TestResult =
+  StfRunner(Paths.get(runfiles, "_main/simulator/simulator"), configPath).run(stfPath)
 
 /** Packet Replication Engine configuration parsed from STF directives. */
 data class StfPreConfig(
@@ -764,6 +772,9 @@ fun encodeValue(raw: String, bitwidth: Int): ByteString {
 // ---------------------------------------------------------------------------
 
 data class StfPacket(val ingressPort: Int, val payload: ByteArray)
+
+/** An output packet received from the simulator, before matching against expects. */
+class ReceivedPacket(val egressPort: Int, val payload: ByteArray)
 
 class StfExpectedOutput(
   val port: Int,
