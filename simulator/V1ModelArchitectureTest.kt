@@ -25,6 +25,7 @@ import fourward.ir.v1.StructDecl
 import fourward.ir.v1.Transition
 import fourward.ir.v1.Type
 import fourward.ir.v1.TypeDecl
+import fourward.ir.v1.VarDecl
 import fourward.sim.v1.DropReason
 import fourward.sim.v1.ForkReason
 import fourward.sim.v1.OutputPacket
@@ -154,10 +155,6 @@ class V1ModelArchitectureTest {
       )
       .build()
 
-  /** A method-call statement: externName(args...) — for clone, resubmit, recirculate. */
-  private fun externCall(name: String, vararg args: Expr): Stmt =
-    methodCallStmt(name, "__call__", *args)
-
   /** Wraps [body] in `if (target.fieldName == value) { body }`. */
   private fun ifFieldEquals(
     target: String,
@@ -217,11 +214,13 @@ class V1ModelArchitectureTest {
     egressStmts: List<Stmt> = emptyList(),
     parser: ParserDecl = noopParser,
     smType: TypeDecl = standardMetaType,
+    ingressLocalVars: List<VarDecl> = emptyList(),
   ): BehavioralConfig {
-    fun control(name: String, stmts: List<Stmt>) =
+    fun control(name: String, stmts: List<Stmt>, localVars: List<VarDecl> = emptyList()) =
       ControlDecl.newBuilder()
         .setName(name)
         .addAllParams(controlParams)
+        .addAllLocalVars(localVars)
         .addAllApplyBody(stmts)
         .build()
 
@@ -232,7 +231,7 @@ class V1ModelArchitectureTest {
       .addTypes(metaType)
       .addParsers(parser)
       .addControls(noopControl("MyVerifyChecksum"))
-      .addControls(control("MyIngress", ingressStmts))
+      .addControls(control("MyIngress", ingressStmts, ingressLocalVars))
       .addControls(control("MyEgress", egressStmts))
       .addControls(noopControl("MyComputeChecksum"))
       .addControls(noopControl("MyDeparser"))
@@ -348,6 +347,27 @@ class V1ModelArchitectureTest {
 
     assertTrue(result.trace.hasPacketOutcome())
     assertTrue(result.trace.packetOutcome.hasDrop())
+  }
+
+  @Test
+  fun `execute_meter does not affect forwarding`() {
+    // Meters always return GREEN in the simulator (no real packet rates).
+    // Verify the pipeline still forwards normally after a meter call.
+    val config =
+      v1modelConfig(
+        ingressLocalVars =
+          listOf(VarDecl.newBuilder().setName("color").setType(bitType(8)).build()),
+        ingressStmts =
+          listOf(
+            methodCallStmt("my_meter", "execute_meter", bit(0, 32), nameRef("color", bitType(8))),
+            assignField("sm", "egress_spec", 5, V1ModelArchitecture.DEFAULT_PORT_BITS),
+          ),
+      )
+    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val outputs = collectOutputs(result.trace)
+
+    assertEquals(1, outputs.size)
+    assertEquals(5, outputs[0].egressPort)
   }
 
   @Test
