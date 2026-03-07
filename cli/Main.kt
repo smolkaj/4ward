@@ -40,7 +40,7 @@ private const val COMPILE_USAGE =
 Compiles a P4 program to a pipeline config (text-format protobuf).
 
 Options:
-  -o <path>            Output file (default: stdout).
+  -o <path>            Output file (default: <program>.txtpb).
   -I <dir>             Add include directory for P4 headers."""
 
 private const val RUN_USAGE =
@@ -184,6 +184,7 @@ private fun parseFormat(arg: String): OutputFormat =
 private fun stfPath(arg: String): Path =
   if (arg == "-") {
     Files.createTempFile("4ward-", ".stf").also {
+      it.toFile().deleteOnExit()
       it.toFile().writeText(System.`in`.reader().readText())
     }
   } else {

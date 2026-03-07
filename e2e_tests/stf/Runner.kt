@@ -21,37 +21,6 @@ fun collectOutputsFromTrace(tree: TraceTree): List<fourward.sim.v1.SimulatorProt
     else -> emptyList()
   }
 
-/** A packet collected from simulator output, pending verification against STF expects. */
-data class EgressPacket(val port: Int, val payload: ByteArray)
-
-/**
- * Verifies actual output packets against STF expected outputs.
- *
- * Cross-port ordering is ignored; within the same port, outputs are matched FIFO. Returns a list of
- * failure messages (empty on success). Consumes matched packets from [outputQueue].
- */
-fun verifyPacketOutputs(
-  outputQueue: MutableList<EgressPacket>,
-  expects: List<StfExpectedOutput>,
-): List<String> {
-  val failures = mutableListOf<String>()
-  for (expected in expects) {
-    val idx = outputQueue.indexOfFirst { it.port == expected.port }
-    if (idx < 0) {
-      failures += "expected packet on port ${expected.port} but got none"
-    } else {
-      val actual = outputQueue.removeAt(idx)
-      if (!actual.payload.matchesMasked(expected.payload, expected.mask, expected.exactLength)) {
-        failures +=
-          "port ${expected.port}: payload mismatch\n" +
-            "  expected: ${expected.payload.hex(expected.mask)}\n" +
-            "  actual:   ${actual.payload.hex()}"
-      }
-    }
-  }
-  return failures
-}
-
 /** BMv2 STF files use `$N` for array indices; normalize to `[N]`. */
 private val ARRAY_INDEX_REGEX = Regex("\\$(\\d+)")
 private val WHITESPACE_REGEX = Regex("\\s+")

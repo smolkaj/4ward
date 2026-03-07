@@ -108,8 +108,6 @@ maven.install(
 )
 use_repo(maven, "maven")
 
-# --- Dev tools ---
-
 # --- Python (cram test runner) ---
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
