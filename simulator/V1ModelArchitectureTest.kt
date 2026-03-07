@@ -347,6 +347,40 @@ class V1ModelArchitectureTest {
   }
 
   @Test
+  fun `execute_meter does not affect forwarding`() {
+    // Meters always return GREEN in the simulator (no real packet rates).
+    // Verify the pipeline still forwards normally after a meter call.
+    val ingressControl =
+      ControlDecl.newBuilder()
+        .setName("MyIngress")
+        .addAllParams(controlParams)
+        .addLocalVars(fourward.ir.v1.VarDecl.newBuilder().setName("color").setType(bitType(8)))
+        .addApplyBody(
+          methodCallStmt("my_meter", "execute_meter", bit(0, 32), nameRef("color", bitType(8)))
+        )
+        .addApplyBody(assignField("sm", "egress_spec", 5, V1ModelArchitecture.DEFAULT_PORT_BITS))
+        .build()
+    val config =
+      BehavioralConfig.newBuilder()
+        .setArchitecture(v1modelArch)
+        .addTypes(standardMetaType)
+        .addTypes(headersType)
+        .addTypes(metaType)
+        .addParsers(noopParser)
+        .addControls(noopControl("MyVerifyChecksum"))
+        .addControls(ingressControl)
+        .addControls(noopControl("MyEgress"))
+        .addControls(noopControl("MyComputeChecksum"))
+        .addControls(noopControl("MyDeparser"))
+        .build()
+    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val outputs = collectOutputs(result.trace)
+
+    assertEquals(1, outputs.size)
+    assertEquals(5, outputs[0].egressPort)
+  }
+
+  @Test
   fun `multicast fork trace tree has fork node`() {
     val config = v1modelConfig(assignField("sm", "mcast_grp", 1, 16))
     val tableStore = TableStore()
