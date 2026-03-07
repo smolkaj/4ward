@@ -238,6 +238,9 @@ class V1ModelArchitectureTest {
       .setType(bitType(width))
       .build()
 
+  private fun nameRefArg(name: String): Expr =
+    Expr.newBuilder().setNameRef(NameRef.newBuilder().setName(name)).build()
+
   /**
    * Builds a minimal v1model [BehavioralConfig].
    *
@@ -365,15 +368,7 @@ class V1ModelArchitectureTest {
 
   @Test
   fun `mark_to_drop produces no output packets`() {
-    val config =
-      v1modelConfig(
-        assignField(
-          "sm",
-          "egress_spec",
-          V1ModelArchitecture.DROP_PORT.toLong(),
-          V1ModelArchitecture.PORT_BITS,
-        )
-      )
+    val config = v1modelConfig(externCall("mark_to_drop", nameRefArg("sm")))
     val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
 
     assertTrue(result.trace.hasPacketOutcome())
@@ -651,6 +646,16 @@ class V1ModelArchitectureTest {
       .addTypes(headersType)
       .addTypes(metaType)
       .build()
+
+  @Test
+  fun `wide-port mark_to_drop sets all-ones of wider width`() {
+    // mark_to_drop must set egress_spec to 65535 (not 511) with 16-bit ports.
+    val config = widePortConfig(externCall("mark_to_drop", nameRefArg("sm")))
+    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+
+    assertTrue(result.trace.hasPacketOutcome())
+    assertTrue(result.trace.packetOutcome.hasDrop())
+  }
 
   @Test
   fun `wide-port unicast emits on high-numbered port`() {
