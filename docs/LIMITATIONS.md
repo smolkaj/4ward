@@ -39,8 +39,9 @@ guilt — just write it down so someone can find it later.
   `sdn_string` with explicit, auto-allocate, and hybrid mapping modes.
   Note: v1model `p4c` does not emit `controller_packet_metadata` with
   `type_name`, so PacketIO translation is exercised via unit tests only.
-- **No counters or meters via P4Runtime.** These work via the simulator
-  protocol but cannot be managed through the gRPC server.
+- **No direct counters or direct meters via P4Runtime.** Indirect
+  (standalone) counters and meters can be read/written via the gRPC server;
+  direct counters/meters (associated with table entries) are not yet supported.
 - **No digests, idle timeouts, or atomic write batches.**
 
 ## Simulator

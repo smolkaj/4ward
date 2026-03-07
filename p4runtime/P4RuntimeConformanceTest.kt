@@ -644,6 +644,107 @@ class P4RuntimeConformanceTest {
     assertEquals("read should return the installed entry", 1, results.size)
   }
 
+  // =========================================================================
+  // Counter entries (scenarios 46-48)
+  // =========================================================================
+
+  private fun loadConfigWithCounter(): PipelineConfig {
+    val base = loadBasicTableConfig()
+    val counter =
+      p4.config.v1.P4InfoOuterClass.Counter.newBuilder()
+        .setPreamble(
+          p4.config.v1.P4InfoOuterClass.Preamble.newBuilder().setId(CTR_ID).setName("myCounter")
+        )
+        .setSize(CTR_SIZE.toLong())
+        .build()
+    return base.toBuilder().setP4Info(base.p4Info.toBuilder().addCounters(counter)).build()
+  }
+
+  @Test
+  fun `46 - write counter entry and read it back`() {
+    harness.loadPipeline(loadConfigWithCounter())
+    val entry = P4RuntimeTestHarness.buildCounterEntry(CTR_ID, 0, byteCount = 100, packetCount = 5)
+    harness.modifyEntry(entry)
+    val results = harness.readCounterEntries(CTR_ID)
+    assertEquals(CTR_SIZE, results.size)
+    val written = results.find { it.counterEntry.index.index == 0L }!!
+    assertEquals(100, written.counterEntry.data.byteCount)
+    assertEquals(5, written.counterEntry.data.packetCount)
+  }
+
+  @Test
+  fun `47 - read unwritten counter entry returns zero`() {
+    harness.loadPipeline(loadConfigWithCounter())
+    val results = harness.readCounterEntries(CTR_ID)
+    assertEquals(CTR_SIZE, results.size)
+    for (entity in results) {
+      assertEquals(0, entity.counterEntry.data.byteCount)
+      assertEquals(0, entity.counterEntry.data.packetCount)
+    }
+  }
+
+  @Test
+  fun `48 - INSERT counter entry returns INVALID_ARGUMENT`() {
+    harness.loadPipeline(loadConfigWithCounter())
+    val entry = P4RuntimeTestHarness.buildCounterEntry(CTR_ID, 0, byteCount = 1)
+    assertGrpcError(Status.Code.INVALID_ARGUMENT) { harness.installEntry(entry) }
+  }
+
+  // =========================================================================
+  // Meter entries (scenarios 49-51)
+  // =========================================================================
+
+  private fun loadConfigWithMeter(): PipelineConfig {
+    val base = loadBasicTableConfig()
+    val meter =
+      p4.config.v1.P4InfoOuterClass.Meter.newBuilder()
+        .setPreamble(
+          p4.config.v1.P4InfoOuterClass.Preamble.newBuilder().setId(MTR_ID).setName("myMeter")
+        )
+        .setSize(MTR_SIZE.toLong())
+        .build()
+    return base.toBuilder().setP4Info(base.p4Info.toBuilder().addMeters(meter)).build()
+  }
+
+  @Test
+  fun `49 - write meter entry and read it back`() {
+    harness.loadPipeline(loadConfigWithMeter())
+    val entry =
+      P4RuntimeTestHarness.buildMeterEntry(
+        MTR_ID,
+        0,
+        cir = 1000,
+        cburst = 100,
+        pir = 2000,
+        pburst = 200,
+      )
+    harness.modifyEntry(entry)
+    val results = harness.readMeterEntries(MTR_ID)
+    assertEquals(MTR_SIZE, results.size)
+    val written = results.find { it.meterEntry.index.index == 0L }!!
+    assertEquals(1000, written.meterEntry.config.cir)
+    assertEquals(100, written.meterEntry.config.cburst)
+    assertEquals(2000, written.meterEntry.config.pir)
+    assertEquals(200, written.meterEntry.config.pburst)
+  }
+
+  @Test
+  fun `50 - read unwritten meter entry has no config`() {
+    harness.loadPipeline(loadConfigWithMeter())
+    val results = harness.readMeterEntries(MTR_ID)
+    assertEquals(MTR_SIZE, results.size)
+    for (entity in results) {
+      assertFalse("unwritten meter should have no config", entity.meterEntry.hasConfig())
+    }
+  }
+
+  @Test
+  fun `51 - INSERT meter entry returns INVALID_ARGUMENT`() {
+    harness.loadPipeline(loadConfigWithMeter())
+    val entry = P4RuntimeTestHarness.buildMeterEntry(MTR_ID, 0, cir = 1)
+    assertGrpcError(Status.Code.INVALID_ARGUMENT) { harness.installEntry(entry) }
+  }
+
   // ---------------------------------------------------------------------------
   // Test helpers
   // ---------------------------------------------------------------------------
@@ -667,5 +768,9 @@ class P4RuntimeConformanceTest {
     private const val REG_BITWIDTH = 32
     private const val REG_BYTEWIDTH = REG_BITWIDTH / 8
     private const val REG_SIZE = 4
+    private const val CTR_ID = 600
+    private const val CTR_SIZE = 4
+    private const val MTR_ID = 700
+    private const val MTR_SIZE = 4
   }
 }
