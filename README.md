@@ -82,19 +82,26 @@ handles it.
 git clone https://github.com/smolkaj/4ward.git && cd 4ward
 bazel build //...   # build everything
 bazel test //...    # run all tests
+```
+
+Now point it at a P4 program. Set up a shell alias first:
+
+```sh
 alias 4ward='bazel run //cli:4ward --'
 ```
 
-Now point it at a P4 program. Here's
+Here's
 [`passthrough.p4`](examples/passthrough.p4) — the simplest possible program:
 parse an Ethernet header, hardcode the output port to 1, emit the packet
 unchanged.
 
+```sh
+4ward run examples/passthrough.p4 - << 'EOF'
+packet 0 FFFFFFFFFFFF 000000000001 0800
+expect 1 FFFFFFFFFFFF 000000000001 0800
+EOF
 ```
-$ 4ward run examples/passthrough.p4 - << 'EOF'
-> packet 0 FFFFFFFFFFFF 000000000001 0800
-> expect 1 FFFFFFFFFFFF 000000000001 0800
-> EOF
+```
 packet received: port 0, 14 bytes
   parse: start -> accept
   output port 1, 14 bytes
@@ -109,13 +116,15 @@ Things get interesting with tables. [`basic_table.p4`](examples/basic_table.p4)
 forwards based on Ethernet type — IPv4 packets hit the table and get forwarded,
 everything else misses and gets dropped:
 
+```sh
+4ward run examples/basic_table.p4 - << 'EOF'
+add port_table hdr.ethernet.etherType:0x0800 forward(1)
+packet 0 FFFFFFFFFFFF 000000000001 0800 DEADBEEF
+expect 1 FFFFFFFFFFFF 000000000001 0800 DEADBEEF
+packet 0 FFFFFFFFFFFF 000000000001 0806 DEADBEEF
+EOF
 ```
-$ 4ward run examples/basic_table.p4 - << 'EOF'
-> add port_table hdr.ethernet.etherType:0x0800 forward(1)
-> packet 0 FFFFFFFFFFFF 000000000001 0800 DEADBEEF
-> expect 1 FFFFFFFFFFFF 000000000001 0800 DEADBEEF
-> packet 0 FFFFFFFFFFFF 000000000001 0806 DEADBEEF
-> EOF
+```
 packet received: port 0, 18 bytes
   parse: start -> accept
   table port_table: hit -> forward
@@ -246,12 +255,12 @@ requirements.
 ├── cli/                    Standalone CLI (4ward compile / sim / run)
 ├── simulator/              Kotlin simulator — the brain
 │   ├── ir.proto            Behavioral IR (the contract between backend & sim)
-│   └── simulator.proto     Simulator service protocol (stdin/stdout framing)
+│   └── simulator.proto     Simulator service protocol (in-process + gRPC)
 ├── p4c_backend/            p4c backend plugin (C++, emits the proto IR)
 ├── p4runtime/              P4Runtime gRPC server (Kotlin)
 ├── examples/               Ready-to-run P4 programs and STF tests
 ├── e2e_tests/
-│   ├── stf/                STF runner (shared subprocess + packet I/O)
+│   ├── stf/                STF runner (drives the simulator directly)
 │   ├── corpus/             p4c STF corpus (bulk regression)
 │   ├── trace_tree/         Golden trace-tree tests
 │   ├── p4testgen/          p4testgen integration (auto-generated paths)

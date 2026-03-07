@@ -93,7 +93,7 @@ private fun handleSim(args: List<String>): Int {
     throw UsageError("'sim' requires exactly 2 arguments: <pipeline.txtpb> <test.stf>\n$SIM_USAGE")
   }
 
-  return simulate(Path.of(positional[0]), stfPath(positional[1]), format)
+  return simulate(resolveUserPath(positional[0]), stfPath(positional[1]), format)
 }
 
 private fun handleCompile(args: List<String>): Int {
@@ -130,9 +130,9 @@ private fun handleCompile(args: List<String>): Int {
   }
 
   return compile(
-    Path.of(positional[0]),
-    outputPath?.let { Path.of(it) },
-    includeDirs.map { Path.of(it) },
+    resolveUserPath(positional[0]),
+    outputPath?.let { resolveUserPath(it) },
+    includeDirs.map { resolveUserPath(it) },
   )
 }
 
@@ -166,10 +166,10 @@ private fun handleRun(args: List<String>): Int {
   }
 
   return run(
-    Path.of(positional[0]),
+    resolveUserPath(positional[0]),
     stfPath(positional[1]),
     format,
-    includeDirs.map { Path.of(it) },
+    includeDirs.map { resolveUserPath(it) },
   )
 }
 
@@ -188,5 +188,18 @@ private fun stfPath(arg: String): Path =
       it.toFile().writeText(System.`in`.reader().readText())
     }
   } else {
-    Path.of(arg)
+    resolveUserPath(arg)
   }
+
+/**
+ * Resolves a user-supplied path against the original working directory.
+ *
+ * `bazel run` changes cwd to the runfiles tree, so relative paths like `examples/passthrough.p4`
+ * won't resolve without this. Bazel sets `BUILD_WORKING_DIRECTORY` to the user's actual cwd.
+ */
+private fun resolveUserPath(arg: String): Path {
+  val p = Path.of(arg)
+  if (p.isAbsolute) return p
+  val bwd = System.getenv("BUILD_WORKING_DIRECTORY") ?: return p
+  return Path.of(bwd).resolve(p)
+}
