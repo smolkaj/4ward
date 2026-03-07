@@ -18,15 +18,14 @@ with the same bytes. The '-' tells 4ward to read the test from stdin:
   > packet 0 FFFFFFFFFFFF 000000000001 0800
   > expect 1 FFFFFFFFFFFF 000000000001 0800
   > EOF
-  parse: start -> accept
-  output port 1, 14 bytes
+  ingress port 0, 14 bytes
+    parse: start -> accept
+    output port 1, 14 bytes
   PASS
 
-Three lines, each a window into the data plane:
-
-"parse: start -> accept" -- the parser extracted an Ethernet header.
-"output port 1, 14 bytes" -- the packet exits port 1, unchanged.
-"PASS" -- the actual output matched the expected output.
+The trace shows every step: ingress on port 0, parser extracts the
+Ethernet header (start -> accept), packet exits on port 1. PASS
+means the actual output matched the expected output.
 
 This is what glass-box means: you see every decision the simulator
 made. When something goes wrong, the trace tells you exactly why

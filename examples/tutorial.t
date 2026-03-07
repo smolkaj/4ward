@@ -35,19 +35,15 @@ to read the test from stdin:
   > packet 0 FFFFFFFFFFFF 000000000001 0800
   > expect 1 FFFFFFFFFFFF 000000000001 0800
   > EOF
-  parse: start -> accept
-  output port 1, 14 bytes
+  ingress port 0, 14 bytes
+    parse: start -> accept
+    output port 1, 14 bytes
   PASS
 
-Three lines, each a window into the data plane:
-
-"parse: start -> accept" -- the parser walked from its start state
-to accept, extracting the Ethernet header along the way.
-
-"output port 1, 14 bytes" -- the packet exits port 1. All 14 bytes
-(6-byte dst + 6-byte src + 2-byte etherType) came through unchanged.
-
-"PASS" -- the actual output matched what the test expected.
+Each packet trace starts with the ingress port and size. Then the
+events: the parser walked start -> accept (extracting the Ethernet
+header), and the packet exits port 1, all 14 bytes intact. PASS
+means the actual output matched the expected output.
 
 This is what glass-box means. Instead of a binary pass/fail, you see
 every decision the simulator made.
@@ -81,15 +77,17 @@ an IPv4 frame that matches, and an ARP frame that doesn't.
   > expect 1 FFFFFFFFFFFF 000000000001 0800 DEADBEEF
   > packet 0 FFFFFFFFFFFF 000000000001 0806 DEADBEEF
   > EOF
-  parse: start -> accept
-  table port_table: hit -> forward
-  action forward(port=1)
-  output port 1, 18 bytes
-  parse: start -> accept
-  table port_table: miss -> drop
-  action drop
-  mark_to_drop()
-  drop (mark_to_drop())
+  ingress port 0, 18 bytes
+    parse: start -> accept
+    table port_table: hit -> forward
+    action forward(port=1)
+    output port 1, 18 bytes
+  ingress port 0, 18 bytes
+    parse: start -> accept
+    table port_table: miss -> drop
+    action drop
+    mark_to_drop()
+    drop (mark_to_drop())
   PASS
 
 Now the trace tells a much richer story. The first packet (etherType
@@ -111,8 +109,9 @@ always outputs on port 1. Let's write a test that expects port 9:
   > packet 0 FFFFFFFFFFFF 000000000001 0800
   > expect 9 FFFFFFFFFFFF 000000000001 0800
   > EOF
-  parse: start -> accept
-  output port 1, 14 bytes
+  ingress port 0, 14 bytes
+    parse: start -> accept
+    output port 1, 14 bytes
   FAIL
     expected packet on port 9 but got none
   [1]
@@ -132,7 +131,7 @@ Step 1: compile P4 source to a pipeline config.
 
   $ 4ward compile -o pipeline.txtpb passthrough.p4
 
-The output is a text-format protobuf containing the full compiled
+The compiled output is a text-format protobuf containing the full
 program and its P4Info metadata. Here's the top:
 
   $ head -20 pipeline.txtpb
@@ -168,8 +167,9 @@ Step 2: simulate a test against the compiled pipeline.
   > packet 0 FFFFFFFFFFFF 000000000001 0800
   > expect 1 FFFFFFFFFFFF 000000000001 0800
   > EOF
-  parse: start -> accept
-  output port 1, 14 bytes
+  ingress port 0, 14 bytes
+    parse: start -> accept
+    output port 1, 14 bytes
   PASS
 
 Same trace, same verdict. This workflow is useful when you want to

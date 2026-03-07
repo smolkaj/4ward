@@ -36,8 +36,9 @@ The output is a text-format protobuf. Let's peek at the structure:
         stages {
 
 You can see the v1model pipeline stages (parser, verify_checksum,
-ingress, egress, ...), the P4Info metadata, and the full compiled
-program -- all in one file.
+ingress, egress, ...) and the block names from the P4 source. The
+full file also contains the parser states, control flow, expressions,
+table definitions -- everything the simulator needs.
 
 Step 2: simulate a test against the compiled pipeline.
 
@@ -45,8 +46,9 @@ Step 2: simulate a test against the compiled pipeline.
   > packet 0 FFFFFFFFFFFF 000000000001 0800
   > expect 1 FFFFFFFFFFFF 000000000001 0800
   > EOF
-  parse: start -> accept
-  output port 1, 14 bytes
+  ingress port 0, 14 bytes
+    parse: start -> accept
+    output port 1, 14 bytes
   PASS
 
 Same trace, same verdict -- but now you can reuse the compiled

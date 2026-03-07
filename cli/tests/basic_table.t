@@ -22,15 +22,17 @@ can inline it directly:
   > # ARP frame -- no matching entry, dropped by default action.
   > packet 0 FFFFFFFFFFFF 000000000001 0806 DEADBEEF
   > EOF
-  parse: start -> accept
-  table port_table: hit -> forward
-  action forward(port=1)
-  output port 1, 18 bytes
-  parse: start -> accept
-  table port_table: miss -> drop
-  action drop
-  mark_to_drop()
-  drop (mark_to_drop())
+  ingress port 0, 18 bytes
+    parse: start -> accept
+    table port_table: hit -> forward
+    action forward(port=1)
+    output port 1, 18 bytes
+  ingress port 0, 18 bytes
+    parse: start -> accept
+    table port_table: miss -> drop
+    action drop
+    mark_to_drop()
+    drop (mark_to_drop())
   PASS
 
 The trace shows both outcomes side by side. The IPv4 packet hits the

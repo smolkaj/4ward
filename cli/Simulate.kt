@@ -55,7 +55,7 @@ fun simulate(pipelinePath: Path, stfPath: Path, format: OutputFormat): Int {
 
   val outputQueue = mutableListOf<EgressPacket>()
 
-  for (packet in stf.packets) {
+  for ((i, packet) in stf.packets.withIndex()) {
     val resp = sim.processPacket(packet.ingressPort, packet.payload)
     if (resp.hasError()) {
       System.err.println("error: ${resp.error.message}")
@@ -63,7 +63,10 @@ fun simulate(pipelinePath: Path, stfPath: Path, format: OutputFormat): Int {
     }
     val trace = resp.processPacket.trace
     when (format) {
-      OutputFormat.HUMAN -> print(TraceFormatter.format(trace))
+      OutputFormat.HUMAN -> {
+        println("ingress port ${packet.ingressPort}, ${packet.payload.size} bytes")
+        println(TraceFormatter.format(trace).trim().prependIndent("  "))
+      }
       OutputFormat.TEXTPROTO -> print(TextFormat.printer().printToString(trace))
     }
     val pkts = resp.processPacket.outputPacketsList.ifEmpty { collectOutputsFromTrace(trace) }
