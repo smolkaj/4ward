@@ -38,3 +38,49 @@ sh_test(
     args = ["$(rootpath //cli:4ward)"],
     data = ["//cli:4ward"],
 )
+
+sh_test(
+    name = "basic_table_test",
+    srcs = ["basic_table.sh"],
+    args = [
+        "$(rootpath //cli:4ward)",
+        "$(rootpath //examples:basic_table.p4)",
+        "$(rootpath //examples:basic_table.stf)",
+    ],
+    data = [
+        "//cli:4ward",
+        "//examples:basic_table.p4",
+        "//examples:basic_table.stf",
+        "@p4c//:p4include",
+    ],
+)
+
+sh_test(
+    name = "textproto_test",
+    srcs = ["textproto.sh"],
+    args = [
+        "$(rootpath //cli:4ward)",
+        "$(rootpath //examples:passthrough.p4)",
+        "$(rootpath //examples:passthrough.stf)",
+    ],
+    data = [
+        "//cli:4ward",
+        "//examples:passthrough.p4",
+        "//examples:passthrough.stf",
+        "@p4c//:p4include",
+    ],
+)
+
+sh_test(
+    name = "packet_mismatch_test",
+    srcs = ["packet_mismatch.sh"],
+    args = [
+        "$(rootpath //cli:4ward)",
+        "$(rootpath //examples:passthrough.p4)",
+    ],
+    data = [
+        "//cli:4ward",
+        "//examples:passthrough.p4",
+        "@p4c//:p4include",
+    ],
+)
