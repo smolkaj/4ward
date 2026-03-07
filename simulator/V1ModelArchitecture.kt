@@ -3,16 +3,16 @@ package fourward.simulator
 import fourward.ir.v1.BehavioralConfig
 import fourward.ir.v1.PipelineStage
 import fourward.ir.v1.StageKind
-import fourward.sim.v1.Drop
-import fourward.sim.v1.DropReason
-import fourward.sim.v1.Fork
-import fourward.sim.v1.ForkBranch
-import fourward.sim.v1.ForkReason
-import fourward.sim.v1.PacketIngressEvent
-import fourward.sim.v1.PacketOutcome
-import fourward.sim.v1.PipelineStageEvent
-import fourward.sim.v1.TraceEvent
-import fourward.sim.v1.TraceTree
+import fourward.sim.v1.SimulatorProto.Drop
+import fourward.sim.v1.SimulatorProto.DropReason
+import fourward.sim.v1.SimulatorProto.Fork
+import fourward.sim.v1.SimulatorProto.ForkBranch
+import fourward.sim.v1.SimulatorProto.ForkReason
+import fourward.sim.v1.SimulatorProto.PacketIngressEvent
+import fourward.sim.v1.SimulatorProto.PacketOutcome
+import fourward.sim.v1.SimulatorProto.PipelineStageEvent
+import fourward.sim.v1.SimulatorProto.TraceEvent
+import fourward.sim.v1.SimulatorProto.TraceTree
 
 /**
  * v1model pipeline implementation.
@@ -491,7 +491,7 @@ class V1ModelArchitecture : Architecture {
 
   private fun buildOutputTrace(events: List<TraceEvent>, port: Int, payload: ByteArray): TraceTree {
     val output =
-      fourward.sim.v1.OutputPacket.newBuilder()
+      fourward.sim.v1.SimulatorProto.OutputPacket.newBuilder()
         .setEgressPort(port)
         .setPayload(com.google.protobuf.ByteString.copyFrom(payload))
         .build()

@@ -15,13 +15,13 @@ import fourward.ir.v1.TableApplyExpr
 import fourward.ir.v1.TableBehavior
 import fourward.ir.v1.Type
 import fourward.ir.v1.UnaryOperator
-import fourward.sim.v1.ActionExecutionEvent
-import fourward.sim.v1.BranchEvent
-import fourward.sim.v1.DropReason
-import fourward.sim.v1.MarkToDropEvent
-import fourward.sim.v1.ParserTransitionEvent
-import fourward.sim.v1.TableLookupEvent
-import fourward.sim.v1.TraceEvent
+import fourward.sim.v1.SimulatorProto.ActionExecutionEvent
+import fourward.sim.v1.SimulatorProto.BranchEvent
+import fourward.sim.v1.SimulatorProto.DropReason
+import fourward.sim.v1.SimulatorProto.MarkToDropEvent
+import fourward.sim.v1.SimulatorProto.ParserTransitionEvent
+import fourward.sim.v1.SimulatorProto.TableLookupEvent
+import fourward.sim.v1.SimulatorProto.TraceEvent
 import java.math.BigInteger
 
 /**
@@ -549,6 +549,7 @@ class Interpreter(
     return StructVal(typeName, fields)
   }
 
+  @Suppress("CyclomaticComplexMethod")
   private fun evalMethodCall(call: MethodCall, returnType: Type, env: Environment): Value {
     return when (call.method) {
       // Header validity methods: target is the header instance.
@@ -831,7 +832,9 @@ class Interpreter(
         val sessionId = (evalExpr(call.argsList[1], env) as BitVal).bits.value.toInt()
         packetCtx?.addTraceEvent(
           traceEventBuilder()
-            .setClone(fourward.sim.v1.CloneEvent.newBuilder().setSessionId(sessionId))
+            .setClone(
+              fourward.sim.v1.SimulatorProto.CloneEvent.newBuilder().setSessionId(sessionId)
+            )
             .build()
         )
         when (cloneType) {

@@ -22,11 +22,7 @@ import fourward.ir.v1.PipelineConfig
 import fourward.ir.v1.PipelineStage
 import fourward.ir.v1.StageKind
 import fourward.ir.v1.TableBehavior
-import fourward.sim.v1.ErrorCode
-import fourward.sim.v1.LoadPipelineRequest
-import fourward.sim.v1.ProcessPacketRequest
-import fourward.sim.v1.SimRequest
-import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import p4.config.v1.P4InfoOuterClass
@@ -80,14 +76,6 @@ class SimulatorTest {
       .build()
   }
 
-  private fun loadRequest(config: PipelineConfig): SimRequest =
-    SimRequest.newBuilder()
-      .setLoadPipeline(LoadPipelineRequest.newBuilder().setConfig(config))
-      .build()
-
-  private fun processPacketRequest(): SimRequest =
-    SimRequest.newBuilder().setProcessPacket(ProcessPacketRequest.getDefaultInstance()).build()
-
   private fun p4infoTable(id: Int, alias: String): P4InfoOuterClass.Table =
     P4InfoOuterClass.Table.newBuilder()
       .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(id).setAlias(alias))
@@ -108,8 +96,8 @@ class SimulatorTest {
         behavioralActionNames = listOf("my_action"),
       )
     val sim = Simulator()
-    val resp = sim.handle(loadRequest(config))
-    assertTrue("load should succeed", resp.hasLoadPipeline())
+    sim.loadPipeline(config)
+    // No exception means success.
   }
 
   @Test
@@ -125,12 +113,12 @@ class SimulatorTest {
         behavioralActionNames = listOf("c_a"),
       )
     val sim = Simulator()
-    val resp = sim.handle(loadRequest(config))
-    assertTrue("load with suffix-resolved names should succeed", resp.hasLoadPipeline())
+    sim.loadPipeline(config)
+    // No exception means success.
   }
 
   @Test
-  fun `load pipeline with unknown architecture returns error`() {
+  fun `load pipeline with unknown architecture throws`() {
     val behavioral =
       BehavioralConfig.newBuilder()
         .setArchitecture(Architecture.newBuilder().setName("unknown_arch"))
@@ -140,41 +128,27 @@ class SimulatorTest {
         .setDevice(DeviceConfig.newBuilder().setBehavioral(behavioral))
         .build()
     val sim = Simulator()
-    val resp = sim.handle(loadRequest(config))
-    assertTrue("unknown arch should return error", resp.hasError())
-    assertTrue(resp.error.message.contains("unsupported architecture"))
+    val e = assertThrows(IllegalArgumentException::class.java) { sim.loadPipeline(config) }
+    assertTrue(e.message!!.contains("unsupported architecture"))
   }
 
   // ---------------------------------------------------------------------------
-  // Error responses
+  // Error handling
   // ---------------------------------------------------------------------------
 
   @Test
-  fun `process packet with no pipeline loaded returns NO_PIPELINE_LOADED error`() {
+  fun `process packet with no pipeline loaded throws`() {
     val sim = Simulator()
-    val resp = sim.handle(processPacketRequest())
-    assertTrue("should return error", resp.hasError())
-    assertEquals(ErrorCode.NO_PIPELINE_LOADED, resp.error.code)
+    assertThrows(IllegalStateException::class.java) {
+      sim.processPacket(ingressPort = 0, payload = ByteArray(0))
+    }
   }
 
   @Test
-  fun `handleSafely catches exception and returns INTERNAL_ERROR`() {
+  fun `write entry with no pipeline loaded throws`() {
     val sim = Simulator()
-    // An empty SimRequest has no request kind set, causing Simulator.handle() to throw.
-    val resp = handleSafely(sim, SimRequest.getDefaultInstance())
-    assertTrue("should return error", resp.hasError())
-    assertEquals(ErrorCode.INTERNAL_ERROR, resp.error.code)
-  }
-
-  @Test
-  fun `write entry with no pipeline loaded returns NO_PIPELINE_LOADED error`() {
-    val sim = Simulator()
-    val req =
-      SimRequest.newBuilder()
-        .setWriteEntry(fourward.sim.v1.WriteEntryRequest.getDefaultInstance())
-        .build()
-    val resp = sim.handle(req)
-    assertTrue("should return error", resp.hasError())
-    assertEquals(ErrorCode.NO_PIPELINE_LOADED, resp.error.code)
+    assertThrows(IllegalStateException::class.java) {
+      sim.writeEntry(p4.v1.P4RuntimeOuterClass.Update.getDefaultInstance())
+    }
   }
 }

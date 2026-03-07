@@ -39,6 +39,7 @@ _TEST_DEPS = [
     "//simulator:ir_java_proto",
     "//simulator:p4runtime_java_proto",
     "//simulator:simulator_java_proto",
+    "//simulator:simulator_lib",
     "@maven//:com_google_protobuf_protobuf_java",
     "@maven//:junit_junit",
 ]
@@ -48,9 +49,7 @@ kt_jvm_test(
     srcs = ["GoldenTraceTreeTest.kt"],
     data = ["%s.stf" % n for n in _PASSING] +
            ["%s.golden.txtpb" % n for n in _PASSING] +
-           [":%s_pb" % n for n in _PASSING] + [
-        "//simulator",
-    ],
+           [":%s_pb" % n for n in _PASSING],
     test_class = "fourward.e2e.tracetree.GoldenTraceTreeTest",
     deps = _TEST_DEPS,
 )
@@ -59,9 +58,7 @@ kt_jvm_test(
     name = "trace_tree_consistency_test",
     srcs = ["TraceTreeConsistencyTest.kt"],
     data = ["%s.stf" % n for n in _PASSING] +
-           [":%s_pb" % n for n in _PASSING] + [
-        "//simulator",
-    ],
+           [":%s_pb" % n for n in _PASSING],
     test_class = "fourward.e2e.tracetree.TraceTreeConsistencyTest",
     deps = _TEST_DEPS,
 )
@@ -71,9 +68,7 @@ kt_jvm_test(
     srcs = ["GoldenTraceTreeTest.kt"],
     data = ["%s.stf" % n for n in _MANUAL] +
            ["%s.golden.txtpb" % n for n in _MANUAL] +
-           [":%s_pb" % n for n in _MANUAL] + [
-        "//simulator",
-    ],
+           [":%s_pb" % n for n in _MANUAL],
     tags = ["manual"],
     test_class = "fourward.e2e.tracetree.GoldenTraceTreeTest",
     deps = _TEST_DEPS,

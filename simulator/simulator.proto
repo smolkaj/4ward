@@ -1,17 +1,12 @@
-// 4ward Simulator Service
+// 4ward Simulator
 //
-// Request/response protocol between a controller (P4Runtime server, STF runner,
-// or any other client) and the simulator subprocess.
-//
-// Transport: length-delimited protocol buffers over stdin/stdout — a 4-byte
-// big-endian length prefix followed by the serialised SimRequest or
-// SimResponse. This is the same framing used by Bazel's persistent worker
-// protocol.
+// Proto definitions shared between the simulator library and its clients
+// (P4Runtime server, STF runner, trace tree tests, BMv2 differential tests).
 //
 // Concurrency: the simulator processes one request at a time. Clients that need
 // concurrent access must serialise requests (e.g. with a mutex).
 
-edition = "2024";
+syntax = "proto3";
 
 package fourward.sim.v1;
 
@@ -19,41 +14,24 @@ import "ir.proto";
 import "p4/v1/p4runtime.proto";
 
 option java_package = "fourward.sim.v1";
+option java_outer_classname = "SimulatorProto";
 
 // =============================================================================
-// Envelope
+// Dataplane gRPC service
 // =============================================================================
 
-message SimRequest {
-  oneof request {
-    LoadPipelineRequest load_pipeline = 1;
-    ProcessPacketRequest process_packet = 2;
-    WriteEntryRequest write_entry = 3;
-    ReadEntriesRequest read_entries = 4;
-  }
+service Dataplane {
+  // Inject a packet, return output packets only.
+  rpc ProcessPacket(ProcessPacketRequest) returns (ProcessPacketResponse);
+  // Inject a packet, return output packets + full trace tree.
+  rpc ProcessPacketWithTraceTree(ProcessPacketRequest)
+      returns (ProcessPacketWithTraceTreeResponse);
 }
 
-message SimResponse {
-  oneof response {
-    LoadPipelineResponse load_pipeline = 1;
-    ProcessPacketResponse process_packet = 2;
-    WriteEntryResponse write_entry = 3;
-    ReadEntriesResponse read_entries = 4;
-    ErrorResponse error = 100;
-  }
+message ProcessPacketWithTraceTreeResponse {
+  repeated OutputPacket output_packets = 1;
+  TraceTree trace = 2;
 }
-
-// =============================================================================
-// Pipeline management
-// =============================================================================
-
-// Installs a compiled P4 program. Must be sent before any ProcessPacketRequest.
-// Sending a new LoadPipelineRequest replaces the current program and clears all
-// table entries.
-message LoadPipelineRequest {
-  fourward.ir.v1.PipelineConfig config = 1;
-}
-message LoadPipelineResponse {}
 
 // =============================================================================
 // Packet processing
@@ -229,40 +207,4 @@ enum DropReason {
   PARSER_REJECT = 2;  // parser transitioned to reject state
   PIPELINE_EXECUTION_LIMIT_REACHED =
       3;  // too many fork branches (exponential blowup guard)
-}
-
-// =============================================================================
-// Table entry management
-// =============================================================================
-
-// Reuses P4Runtime's Update message so clients can share entry-building code.
-message WriteEntryRequest {
-  p4.v1.Update update = 1;
-}
-message WriteEntryResponse {}
-
-message ReadEntriesRequest {
-  p4.v1.ReadRequest request = 1;
-}
-message ReadEntriesResponse {
-  repeated p4.v1.Entity entities = 1;
-}
-
-// =============================================================================
-// Errors
-// =============================================================================
-
-message ErrorResponse {
-  string message = 1;
-  ErrorCode code = 2;
-}
-
-enum ErrorCode {
-  ERROR_CODE_UNSPECIFIED = 0;
-  INVALID_REQUEST = 1;
-  NO_PIPELINE_LOADED = 2;
-  INTERNAL_ERROR = 3;
-  ALREADY_EXISTS = 4;
-  ENTITY_NOT_FOUND = 5;
-  RESOURCE_EXHAUSTED = 6;
 }

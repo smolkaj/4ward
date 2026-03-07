@@ -13,7 +13,6 @@ kt_jvm_test(
     data = [
         "basic_table.stf",
         ":basic_table_pb",
-        "//simulator",
     ],
     test_class = "fourward.e2e.basictable.BasicTableTest",
     deps = [

@@ -1,11 +1,11 @@
 package fourward.e2e.tracetree
 
 import com.google.protobuf.TextFormat
-import fourward.e2e.SimulatorClient
 import fourward.e2e.StfFile
 import fourward.e2e.installStfEntries
 import fourward.e2e.loadPipelineConfig
-import fourward.sim.v1.TraceTree
+import fourward.sim.v1.SimulatorProto.TraceTree
+import fourward.simulator.Simulator
 import java.nio.file.Path
 import java.nio.file.Paths
 import org.junit.Assert.fail
@@ -52,7 +52,7 @@ class GoldenTraceTreeTest(private val testName: String) {
     val goldenPath = Paths.get(r, "_main/$PKG/$testName.golden.txtpb")
 
     val expected = loadGoldenTraceTree(goldenPath)
-    val actual = captureTraceTree(r, configPath, stfPath)
+    val actual = captureTraceTree(configPath, stfPath)
     if (System.getenv("PRINT_TRACE") != null) {
       println("--- Trace tree for $testName ---")
       print(TextFormat.printer().printToString(actual))
@@ -74,24 +74,18 @@ class GoldenTraceTreeTest(private val testName: String) {
   }
 
   /**
-   * Launches the simulator, loads the pipeline, installs table entries from the STF file, sends the
+   * Creates a simulator, loads the pipeline, installs table entries from the STF file, sends the
    * first packet, and returns the TraceTree from the response.
    */
-  private fun captureTraceTree(runfiles: String, configPath: Path, stfPath: Path): TraceTree {
+  private fun captureTraceTree(configPath: Path, stfPath: Path): TraceTree {
     val config = loadPipelineConfig(configPath)
     val stf = StfFile.parse(stfPath)
-    val simPath = Paths.get(runfiles, "_main/simulator/simulator")
 
-    SimulatorClient(simPath).use { sim ->
-      val loadResp = sim.loadPipeline(config)
-      if (loadResp.hasError()) fail("LoadPipeline failed: ${loadResp.error.message}")
+    val sim = Simulator()
+    sim.loadPipeline(config)
+    installStfEntries(sim, stf, config.p4Info)
 
-      installStfEntries(sim, stf, config.p4Info)
-
-      val packet = stf.packets.first()
-      val resp = sim.processPacket(packet.ingressPort, packet.payload)
-      if (resp.hasError()) fail("ProcessPacket failed: ${resp.error.message}")
-      return resp.processPacket.trace
-    }
+    val packet = stf.packets.first()
+    return sim.processPacket(packet.ingressPort, packet.payload).trace
   }
 }

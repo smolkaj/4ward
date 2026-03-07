@@ -12,7 +12,6 @@ kt_jvm_test(
     data = [
         "multi_table.stf",
         ":multi_table_pb",
-        "//simulator",
     ],
     test_class = "fourward.e2e.multitable.MultiTableTest",
     deps = [

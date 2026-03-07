@@ -23,7 +23,6 @@ kt_jvm_test(
     data = [
         "wide_port.stf",
         ":wide_port_pb",
-        "//simulator",
     ],
     test_class = "fourward.e2e.wideport.WidePortTest",
     deps = [

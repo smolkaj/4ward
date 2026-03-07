@@ -1,11 +1,11 @@
 package fourward.e2e.bmv2
 
-import fourward.e2e.SimulatorClient
 import fourward.e2e.StfFile
 import fourward.e2e.collectOutputsFromTrace
 import fourward.e2e.hex
 import fourward.e2e.installStfEntries
 import fourward.e2e.loadPipelineConfig
+import fourward.simulator.Simulator
 import java.io.File
 import java.nio.file.Paths
 import org.junit.Assert
@@ -44,27 +44,20 @@ class Bmv2DiffTest(private val testName: String) {
     val jsonPath = Paths.get(r, "_main/$pkg/$testName.json")
     val configPath = Paths.get(r, "_main/$pkg/$testName.txtpb")
     val driverBinary = Paths.get(r, "_main/$pkg/bmv2_driver")
-    val simulatorBinary = Paths.get(r, "_main/simulator/simulator")
 
     val stf = StfFile.parse(stfPath)
     val config = loadPipelineConfig(configPath)
 
     // --- Run through 4ward ---
     val fourwardOutputs = mutableListOf<Pair<Int, ByteArray>>()
-    SimulatorClient(simulatorBinary).use { sim ->
-      val loadResp = sim.loadPipeline(config)
-      check(!loadResp.hasError()) { "4ward LoadPipeline failed: ${loadResp.error.message}" }
-      installStfEntries(sim, stf, config.p4Info)
-      for (packet in stf.packets) {
-        val resp = sim.processPacket(packet.ingressPort, packet.payload)
-        check(!resp.hasError()) { "4ward ProcessPacket failed: ${resp.error.message}" }
-        val pkts =
-          resp.processPacket.outputPacketsList.ifEmpty {
-            collectOutputsFromTrace(resp.processPacket.trace)
-          }
-        for (pkt in pkts) {
-          fourwardOutputs.add(pkt.egressPort to pkt.payload.toByteArray())
-        }
+    val sim = Simulator()
+    sim.loadPipeline(config)
+    installStfEntries(sim, stf, config.p4Info)
+    for (packet in stf.packets) {
+      val resp = sim.processPacket(packet.ingressPort, packet.payload)
+      val pkts = resp.outputPacketsList.ifEmpty { collectOutputsFromTrace(resp.trace) }
+      for (pkt in pkts) {
+        fourwardOutputs.add(pkt.egressPort to pkt.payload.toByteArray())
       }
     }
 

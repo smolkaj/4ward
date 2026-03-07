@@ -41,4 +41,4 @@ interface Architecture {
  * The [trace] tree carries the complete execution trace. Leaf nodes contain [PacketOutcome]s
  * (output packets or drops); fork nodes represent non-deterministic choice points.
  */
-data class PipelineResult(val trace: fourward.sim.v1.TraceTree)
+data class PipelineResult(val trace: fourward.sim.v1.SimulatorProto.TraceTree)

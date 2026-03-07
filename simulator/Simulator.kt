@@ -1,21 +1,16 @@
 package fourward.simulator
 
 import fourward.ir.v1.PipelineConfig
-import fourward.sim.v1.ErrorCode
-import fourward.sim.v1.ErrorResponse
-import fourward.sim.v1.LoadPipelineResponse
-import fourward.sim.v1.ProcessPacketResponse
-import fourward.sim.v1.ReadEntriesResponse
-import fourward.sim.v1.SimRequest
-import fourward.sim.v1.SimResponse
-import fourward.sim.v1.WriteEntryResponse
+import fourward.sim.v1.SimulatorProto.ProcessPacketResponse
 
 /**
  * The top-level simulator state machine.
  *
  * Holds the loaded pipeline configuration and all mutable data-plane state (table entries,
- * counter/meter/register values). Dispatches [SimRequest] messages to the appropriate handler and
- * returns [SimResponse] messages.
+ * counter/meter/register values).
+ *
+ * Public methods: [loadPipeline], [processPacket], [writeEntry], [readEntries]. These use natural
+ * Kotlin error handling (exceptions, sealed results).
  *
  * One [Simulator] instance runs for the lifetime of the process; it is single-threaded (callers
  * must serialise concurrent requests).
@@ -26,21 +21,14 @@ class Simulator {
   private var architecture: Architecture? = null
   private val tableStore = TableStore()
 
-  fun handle(request: SimRequest): SimResponse =
-    when {
-      request.hasLoadPipeline() -> handleLoadPipeline(request.loadPipeline)
-      request.hasProcessPacket() -> handleProcessPacket(request.processPacket)
-      request.hasWriteEntry() -> handleWriteEntry(request.writeEntry)
-      request.hasReadEntries() -> handleReadEntries(request.readEntries)
-      else -> error("unhandled request kind: $request")
-    }
-
-  // -------------------------------------------------------------------------
-  // Pipeline loading
-  // -------------------------------------------------------------------------
-
-  private fun handleLoadPipeline(req: fourward.sim.v1.LoadPipelineRequest): SimResponse {
-    val config = req.config
+  /**
+   * Installs a compiled P4 program. Must be called before [processPacket].
+   *
+   * Replaces the current program and clears all table entries.
+   *
+   * @throws IllegalArgumentException if the architecture is unsupported.
+   */
+  fun loadPipeline(config: PipelineConfig) {
     pipeline = config
 
     // The behavioral IR uses its own table/action names (TableBehavior.name,
@@ -110,26 +98,23 @@ class Simulator {
     architecture =
       when (val archName = config.device.behavioral.architecture.name) {
         "v1model" -> V1ModelArchitecture()
-        else -> return simError("unsupported architecture: $archName")
+        else -> throw IllegalArgumentException("unsupported architecture: $archName")
       }
-
-    return SimResponse.newBuilder()
-      .setLoadPipeline(LoadPipelineResponse.getDefaultInstance())
-      .build()
   }
 
-  // -------------------------------------------------------------------------
-  // Packet processing
-  // -------------------------------------------------------------------------
-
-  private fun handleProcessPacket(req: fourward.sim.v1.ProcessPacketRequest): SimResponse {
-    val config = pipeline ?: return simError("no pipeline loaded", ErrorCode.NO_PIPELINE_LOADED)
-    val arch = architecture ?: return simError("no pipeline loaded", ErrorCode.NO_PIPELINE_LOADED)
+  /**
+   * Processes a single packet through the pipeline.
+   *
+   * @throws IllegalStateException if no pipeline is loaded.
+   */
+  fun processPacket(ingressPort: Int, payload: ByteArray): ProcessPacketResponse {
+    val config = checkNotNull(pipeline) { "no pipeline loaded" }
+    val arch = checkNotNull(architecture) { "no pipeline loaded" }
 
     val result =
       arch.processPacket(
-        ingressPort = req.ingressPort.toUInt(),
-        payload = req.payload.toByteArray(),
+        ingressPort = ingressPort.toUInt(),
+        payload = payload,
         config = config.device.behavioral,
         tableStore = tableStore,
       )
@@ -142,53 +127,36 @@ class Simulator {
     if (trace.hasPacketOutcome() && trace.packetOutcome.hasOutput()) {
       responseBuilder.addOutputPackets(trace.packetOutcome.output)
     }
-    val response = responseBuilder.build()
-
-    return SimResponse.newBuilder().setProcessPacket(response).build()
+    return responseBuilder.build()
   }
 
-  // -------------------------------------------------------------------------
-  // Table entry management
-  // -------------------------------------------------------------------------
-
-  private fun handleWriteEntry(req: fourward.sim.v1.WriteEntryRequest): SimResponse {
-    pipeline ?: return simError("no pipeline loaded", ErrorCode.NO_PIPELINE_LOADED)
-    return when (val result = tableStore.write(req.update)) {
-      is WriteResult.Success ->
-        SimResponse.newBuilder().setWriteEntry(WriteEntryResponse.getDefaultInstance()).build()
-      is WriteResult.AlreadyExists -> simError(result.message, ErrorCode.ALREADY_EXISTS)
-      is WriteResult.NotFound -> simError(result.message, ErrorCode.ENTITY_NOT_FOUND)
-      is WriteResult.InvalidArgument -> simError(result.message, ErrorCode.INVALID_REQUEST)
-      is WriteResult.ResourceExhausted -> simError(result.message, ErrorCode.RESOURCE_EXHAUSTED)
-    }
+  /**
+   * Writes a table entry (insert, modify, or delete).
+   *
+   * @throws IllegalStateException if no pipeline is loaded.
+   */
+  fun writeEntry(update: p4.v1.P4RuntimeOuterClass.Update): WriteResult {
+    checkNotNull(pipeline) { "no pipeline loaded" }
+    return tableStore.write(update)
   }
 
-  private fun handleReadEntries(req: fourward.sim.v1.ReadEntriesRequest): SimResponse {
-    // P4Runtime spec §11.1: each entity in the ReadRequest is a filter; the response is the union.
-    val entities =
-      req.request.entitiesList.flatMap { entity ->
-        when {
-          entity.hasTableEntry() -> tableStore.readEntities(entity.tableEntry)
-          entity.hasActionProfileMember() ->
-            tableStore.readProfileMembers(entity.actionProfileMember)
-          entity.hasActionProfileGroup() -> tableStore.readProfileGroups(entity.actionProfileGroup)
-          entity.hasRegisterEntry() -> tableStore.readRegisterEntries(entity.registerEntry)
-          entity.hasCounterEntry() -> tableStore.readCounterEntries(entity.counterEntry)
-          entity.hasMeterEntry() -> tableStore.readMeterEntries(entity.meterEntry)
-          else -> emptyList()
-        }
+  /**
+   * Reads entities matching the given filters.
+   *
+   * P4Runtime spec §11.1: each entity in the list is a filter; the result is the union.
+   */
+  fun readEntries(
+    filters: List<p4.v1.P4RuntimeOuterClass.Entity>
+  ): List<p4.v1.P4RuntimeOuterClass.Entity> =
+    filters.flatMap { entity ->
+      when {
+        entity.hasTableEntry() -> tableStore.readEntities(entity.tableEntry)
+        entity.hasActionProfileMember() -> tableStore.readProfileMembers(entity.actionProfileMember)
+        entity.hasActionProfileGroup() -> tableStore.readProfileGroups(entity.actionProfileGroup)
+        entity.hasRegisterEntry() -> tableStore.readRegisterEntries(entity.registerEntry)
+        entity.hasCounterEntry() -> tableStore.readCounterEntries(entity.counterEntry)
+        entity.hasMeterEntry() -> tableStore.readMeterEntries(entity.meterEntry)
+        else -> emptyList()
       }
-    return SimResponse.newBuilder()
-      .setReadEntries(ReadEntriesResponse.newBuilder().addAllEntities(entities))
-      .build()
-  }
-
-  // -------------------------------------------------------------------------
-  // Helpers
-  // -------------------------------------------------------------------------
-
-  private fun simError(message: String, code: ErrorCode = ErrorCode.INTERNAL_ERROR): SimResponse =
-    SimResponse.newBuilder()
-      .setError(ErrorResponse.newBuilder().setMessage(message).setCode(code))
-      .build()
+    }
 }

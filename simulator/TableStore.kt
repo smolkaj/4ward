@@ -17,15 +17,18 @@ private fun TableEntry.sameKey(other: TableEntry): Boolean =
 
 /** Result of a [TableStore.write] operation. */
 sealed class WriteResult {
+  open val message: String
+    get() = ""
+
   data object Success : WriteResult()
 
-  data class AlreadyExists(val message: String) : WriteResult()
+  data class AlreadyExists(override val message: String) : WriteResult()
 
-  data class NotFound(val message: String) : WriteResult()
+  data class NotFound(override val message: String) : WriteResult()
 
-  data class InvalidArgument(val message: String) : WriteResult()
+  data class InvalidArgument(override val message: String) : WriteResult()
 
-  data class ResourceExhausted(val message: String) : WriteResult()
+  data class ResourceExhausted(override val message: String) : WriteResult()
 }
 
 /**

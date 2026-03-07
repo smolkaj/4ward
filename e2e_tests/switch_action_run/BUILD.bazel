@@ -12,7 +12,6 @@ kt_jvm_test(
     data = [
         "switch_action_run.stf",
         ":switch_action_run_pb",
-        "//simulator",
     ],
     test_class = "fourward.e2e.switchactionrun.SwitchActionRunTest",
     deps = [

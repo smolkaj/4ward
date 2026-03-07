@@ -9,7 +9,7 @@ import fourward.ir.v1.ParserState
 import fourward.ir.v1.SourceInfo
 import fourward.ir.v1.Stmt
 import fourward.ir.v1.Transition
-import fourward.sim.v1.DropReason
+import fourward.sim.v1.SimulatorProto.DropReason
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
