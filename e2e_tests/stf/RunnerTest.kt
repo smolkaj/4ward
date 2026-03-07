@@ -14,26 +14,19 @@ class RunnerTest {
       mask = ByteArray(bytes.size) { 0xFF.toByte() },
     )
 
-  private fun received(port: Int, vararg bytes: Int) =
-    ReceivedPacket(port, ByteArray(bytes.size) { bytes[it].toByte() })
+  private fun received(egressPort: Int, vararg bytes: Int) =
+    ReceivedPacket(egressPort, ByteArray(bytes.size) { bytes[it].toByte() })
 
   @Test
   fun `all expects matched with no leftover output`() {
     val failures =
-      matchOutputAgainstExpects(
-        listOf(expect(1, 0xAA)),
-        mutableListOf(received(1, 0xAA)),
-      )
+      matchOutputAgainstExpects(listOf(expect(1, 0xAA)), mutableListOf(received(1, 0xAA)))
     assertTrue(failures.isEmpty())
   }
 
   @Test
   fun `missing expected output is a failure`() {
-    val failures =
-      matchOutputAgainstExpects(
-        listOf(expect(1, 0xAA)),
-        mutableListOf(),
-      )
+    val failures = matchOutputAgainstExpects(listOf(expect(1, 0xAA)), mutableListOf())
     assertEquals(1, failures.size)
     assertTrue(failures[0].contains("expected packet on port 1 but got none"))
   }
@@ -52,20 +45,14 @@ class RunnerTest {
   @Test
   fun `unexpected output ignored when no expects (send-only test)`() {
     val failures =
-      matchOutputAgainstExpects(
-        emptyList(),
-        mutableListOf(received(1, 0xAA), received(2, 0xBB)),
-      )
+      matchOutputAgainstExpects(emptyList(), mutableListOf(received(1, 0xAA), received(2, 0xBB)))
     assertTrue(failures.isEmpty())
   }
 
   @Test
   fun `payload mismatch is a failure`() {
     val failures =
-      matchOutputAgainstExpects(
-        listOf(expect(1, 0xAA)),
-        mutableListOf(received(1, 0xBB)),
-      )
+      matchOutputAgainstExpects(listOf(expect(1, 0xAA)), mutableListOf(received(1, 0xBB)))
     assertEquals(1, failures.size)
     assertTrue(failures[0].contains("payload mismatch"))
   }

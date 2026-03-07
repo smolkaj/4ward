@@ -101,8 +101,6 @@ class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPat
   }
 }
 
-data class ReceivedPacket(val port: Int, val payload: ByteArray)
-
 /**
  * Matches simulator output against STF expects, returning a list of failure messages (empty =
  * pass).
@@ -118,7 +116,7 @@ fun matchOutputAgainstExpects(
   val failures = mutableListOf<String>()
 
   for (expected in expects) {
-    val idx = outputs.indexOfFirst { it.port == expected.port }
+    val idx = outputs.indexOfFirst { it.egressPort == expected.port }
     if (idx < 0) {
       failures += "expected packet on port ${expected.port} but got none"
     } else {
@@ -136,7 +134,7 @@ fun matchOutputAgainstExpects(
   // the test is "send-only" and doesn't make claims about output.
   if (expects.isNotEmpty()) {
     for (unexpected in outputs) {
-      failures += "unexpected packet on port ${unexpected.port}: ${unexpected.payload.hex()}"
+      failures += "unexpected packet on port ${unexpected.egressPort}: ${unexpected.payload.hex()}"
     }
   }
 
@@ -774,6 +772,9 @@ fun encodeValue(raw: String, bitwidth: Int): ByteString {
 // ---------------------------------------------------------------------------
 
 data class StfPacket(val ingressPort: Int, val payload: ByteArray)
+
+/** An output packet received from the simulator, before matching against expects. */
+class ReceivedPacket(val egressPort: Int, val payload: ByteArray)
 
 class StfExpectedOutput(
   val port: Int,
