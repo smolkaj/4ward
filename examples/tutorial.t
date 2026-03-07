@@ -18,11 +18,13 @@ the pipeline.
 
   $ cp "$PASSTHROUGH_P4" passthrough.p4
 
-Here's the key line -- the ingress control sets egress_spec to 1,
-meaning every packet exits on port 1:
+Here's the interesting part -- the ingress apply block sets
+egress_spec to 1, meaning every packet exits on port 1:
 
-  $ grep egress_spec passthrough.p4
+  $ grep -B 1 -A 1 egress_spec passthrough.p4
+      apply {
           standard_metadata.egress_spec = 1;
+      }
 
 Now let's run it. The test sends one Ethernet frame on port 0 and
 expects it back on port 1 with the same bytes. The '-' tells 4ward
@@ -60,13 +62,15 @@ table keyed on the Ethernet type field:
 
   $ cp "$BASIC_TABLE_P4" basic_table.p4
 
-  $ grep -E 'table |key =|default_action' basic_table.p4
+  $ grep -A 4 'table port_table' basic_table.p4
       table port_table {
           key = { hdr.ethernet.etherType : exact; }
+          actions = { forward; drop; NoAction; }
           default_action = drop();
+      }
 
-If the etherType matches an installed table entry, forward to the
-specified port. Otherwise, the default action drops the packet.
+If the etherType matches an installed entry, forward to the specified
+port. Otherwise, the default action drops the packet.
 
 The test installs one entry (IPv4 -> port 1) and sends two packets:
 an IPv4 frame that matches, and an ARP frame that doesn't.
