@@ -154,10 +154,6 @@ class V1ModelArchitectureTest {
       )
       .build()
 
-  /** A method-call statement: externName(args...) — for clone, resubmit, recirculate. */
-  private fun externCall(name: String, vararg args: Expr): Stmt =
-    methodCallStmt(name, "__call__", *args)
-
   /** Wraps [body] in `if (target.fieldName == value) { body }`. */
   private fun ifFieldEquals(
     target: String,

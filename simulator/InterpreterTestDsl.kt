@@ -74,6 +74,14 @@ fun assign(varName: String, rhs: Expr): Stmt =
     )
     .build()
 
+/**
+ * Statement that calls a free extern function: `name(args...)`.
+ *
+ * In the IR, free function calls use `"__call__"` as the method name (as opposed to instance method
+ * calls like `register.read()`).
+ */
+fun externCall(name: String, vararg args: Expr): Stmt = methodCallStmt(name, "__call__", *args)
+
 /** Statement that calls `target.method(args...)` — for extern method calls. */
 fun methodCallStmt(target: String, method: String, vararg args: Expr): Stmt =
   Stmt.newBuilder()
