@@ -316,20 +316,22 @@ class V1ModelArchitecture : Architecture {
     s.packetCtx.addTraceEvent(packetIngressEvent(ctx.ingressPort))
 
     // --- Parser ---
+    var parserExitDrop = false
     if (s.parserStage != null) {
       s.packetCtx.addTraceEvent(stageEvent(s.parserStage, PipelineStageEvent.Direction.ENTER))
       try {
         s.interpreter.runParser(s.parserStage.blockName, s.env)
-      } catch (e: ExitException) {
-        s.packetCtx.addTraceEvent(stageEvent(s.parserStage, PipelineStageEvent.Direction.EXIT))
-        return buildDropTrace(s.packetCtx.getEvents(), DropReason.MARK_TO_DROP)
+      } catch (_: ExitException) {
+        parserExitDrop = true
       } catch (e: ParserErrorException) {
         // BMv2 v1model: parser errors don't drop the packet. Set parser_error and
         // continue to the ingress pipeline, letting the P4 program decide the fate.
         s.standardMetadata.fields["parser_error"] = ErrorVal(e.errorName)
+      } finally {
+        s.packetCtx.addTraceEvent(stageEvent(s.parserStage, PipelineStageEvent.Direction.EXIT))
       }
-      s.packetCtx.addTraceEvent(stageEvent(s.parserStage, PipelineStageEvent.Direction.EXIT))
     }
+    if (parserExitDrop) return buildDropTrace(s.packetCtx.getEvents(), DropReason.MARK_TO_DROP)
 
     val parserEventCount = s.packetCtx.getEvents().size
 
