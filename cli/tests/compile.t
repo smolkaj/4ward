@@ -15,9 +15,6 @@ The output is a text-format protobuf containing the compiled program
 (parser, match-action pipeline, expressions) and its P4Info metadata
 (tables, actions, match fields).
 
-  $ test -s pipeline.txtpb
-  $ grep -q p4info pipeline.txtpb
-
 Step 2: simulate an STF test against the compiled pipeline.
 
   $ 4ward sim pipeline.txtpb passthrough.stf
