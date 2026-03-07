@@ -126,6 +126,27 @@ anyone adds equality checks or uses them as map/set keys.
 
 ---
 
+## Separate simulator return type from gRPC wire type
+
+**Files**: `simulator/Simulator.kt`, `p4runtime/DataplaneService.kt`,
+`simulator/simulator.proto`
+
+**Problem**: `Simulator.processPacket` returns `ProcessPacketResponse` (a proto
+message that also serves as the Dataplane gRPC wire type). This forces
+`DataplaneService.processPacket` to rebuild the response just to strip the
+`trace` field — the unary RPC shouldn't expose the trace, but the proto
+carries it because the simulator populates it internally.
+
+**Fix**: Have `Simulator.processPacket` return a plain Kotlin data class
+(e.g. `ProcessPacketResult(outputPackets, trace)`) and let each gRPC method
+build its own proto response. This decouples the simulator's internal
+representation from the wire format.
+
+**Trigger**: when a third consumer of `processPacket` appears, or when the
+response fields diverge further between the two Dataplane RPCs.
+
+---
+
 ## Upstream p4c backend
 
 Land the 4ward backend in the p4c repository. Blocked on upstream review.
