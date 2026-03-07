@@ -236,41 +236,63 @@ corpus tests as acceptance criteria. Each architecture is a significant lift
 
 **Priority: not now | Depends on: tracks 1, 3**
 
-Today 4ward is only usable through Bazel test targets or the P4Runtime gRPC
-API. There's no `4ward run my_program.p4` — a newcomer who finds the repo
-can build and test, but can't easily try it with their own program.
+A standalone CLI that makes 4ward accessible to anyone with a P4 program and
+an STF test file — no Bazel knowledge required.
 
-A standalone CLI would make 4ward accessible to anyone with a P4 program and
-an STF test file:
-
-```sh
-# Compile and simulate in one step.
-4ward run program.p4 test.stf
-
-# Or step by step.
-4ward compile program.p4 -o pipeline.txtpb
-4ward sim pipeline.txtpb test.stf
-```
-
-STF is the natural interface — it already handles table entries, packets, and
-expectations in one file, and it's the P4 ecosystem's established test format.
-
-Scope:
-
-1. **`4ward compile`** — thin wrapper around `p4c-4ward` with sensible
-   defaults (auto-detect include paths, architecture).
-2. **`4ward sim`** — load a pipeline, run an STF file, print trace trees to
-   stdout in text proto or JSON.
-3. **`4ward run`** — compile + simulate in one shot. The "hello world"
-   experience.
+Three subcommands: `4ward compile` (P4 → pipeline config), `4ward sim`
+(pipeline + STF → trace tree), and `4ward run` (compile + simulate in one
+shot). Human-readable output by default, `--format=textproto` for tooling.
+Example programs and a cram tutorial ship alongside.
 
 **Done when:** a newcomer can `4ward run examples/passthrough.p4` and see a
 trace tree without touching Bazel.
 
+**Current status:** complete.
+
+### Track 8: compelling interfaces
+
+**Priority: next | Depends on: tracks 3, 7**
+
+4ward has a spectrum of interfaces from machine-friendly to human-friendly.
+The machine end (gRPC) and the middle (CLI) exist. This track fills in the
+rest and polishes what's there.
+
+```
+machine-friendly                                          human-friendly
+     ◄──────────────────────────────────────────────────────────────►
+     gRPC services        CLI             TUI              web app
+     (P4Runtime,       (compile,      (rich terminal    (visual trace
+      Dataplane)       sim, run)       trace trees)     explorer)
+```
+
+Four layers, each building on the one before:
+
+1. **gRPC services** (done). P4Runtime + Dataplane RPCs. The integration
+   point for DVaaS and programmatic consumers.
+
+2. **CLI** (done). `4ward compile / sim / run`. Copy-pastable, CI-scriptable,
+   works with heredocs for quick experiments. The README quick-start
+   experience.
+
+3. **Rich terminal output.** ANSI colors, tree-drawing characters, collapsible
+   trace nodes. Makes CLI traces *readable* — parsers in blue, table hits in
+   green, drops in red, indented tree structure instead of flat text. No
+   dependencies beyond a terminal emulator. A natural evolution of the CLI's
+   `--format=human` output.
+
+4. **Web app — the "P4 Playground."** Paste a P4 program, send packets,
+   explore the trace tree interactively. Visual trace tree with clickable
+   nodes, source location highlighting, hex packet inspection. Zero-install
+   "try it now" experience — linked from the README, no clone required. This
+   is where 4ward's glass-box philosophy shines brightest: every decision the
+   simulator makes is visible, navigable, and linked back to the P4 source.
+
+**Done when:** the web app is live and linked from the README.
+
 ## Sequencing
 
 ```
-                    now                          next             later
+                     done                         next             later
               ┌─────────────────────┐    ┌──────────────┐    ┌──────────┐
   Track 1     │ v1model complete    │    │              │    │          │
               │                     │    │              │    │          │
@@ -284,16 +306,17 @@ trace tree without touching Bazel.
               │                     │    │              │    │          │
   Track 6     │                     │    │              │    │   PSA    │
               │                     │    │              │    │          │
-  Track 7     │                     │    │ standalone   │    │          │
-              │                     │    │ CLI          │    │          │
+  Track 7     │ standalone CLI      │    │              │    │          │
+              │                     │    │              │    │          │
+  Track 8     │                     │    │ compelling   │    │          │
+              │                     │    │ interfaces   │    │          │
               └─────────────────────┘    └──────────────┘    └──────────┘
 ```
 
 **Key dependencies:**
-- Tracks 1, 3, 4, and 5 proceed in parallel now.
+- Tracks 1, 3, 4, 5, and 7 are complete.
 - Track 5 subsumes Track 4C and 4E.
 - Track 2 is picked up opportunistically.
 - Track 6 (PSA) depends on v1model being done (shared interpreter, proven
   patterns).
-- Track 7 (CLI) depends on the simulator being feature-complete enough to be
-  useful standalone (tracks 1, 3).
+- Track 8 (interfaces) builds on the CLI (track 7) and trace trees (track 3).
