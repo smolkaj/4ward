@@ -22,12 +22,12 @@ can inline it directly:
   > # ARP frame -- no matching entry, dropped by default action.
   > packet 0 FFFFFFFFFFFF 000000000001 0806 DEADBEEF
   > EOF
-  ingress port 0, 18 bytes
+  packet received: port 0, 18 bytes
     parse: start -> accept
     table port_table: hit -> forward
     action forward(port=1)
     output port 1, 18 bytes
-  ingress port 0, 18 bytes
+  packet received: port 0, 18 bytes
     parse: start -> accept
     table port_table: miss -> drop
     action drop

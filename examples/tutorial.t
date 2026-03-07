@@ -43,12 +43,12 @@ to read the test from stdin:
   > packet 0 FFFFFFFFFFFF 000000000001 0800
   > expect 1 FFFFFFFFFFFF 000000000001 0800
   > EOF
-  ingress port 0, 14 bytes
+  packet received: port 0, 14 bytes
     parse: start -> accept
     output port 1, 14 bytes
   PASS
 
-Each packet trace starts with the ingress port and size. Then the
+Each packet trace starts with the port and size of the incoming packet. Then the
 events: the parser walked start -> accept (extracting the Ethernet
 header), and the packet exits port 1, all 14 bytes intact. PASS
 means the actual output matched the expected output.
@@ -85,12 +85,12 @@ an IPv4 frame that matches, and an ARP frame that doesn't.
   > expect 1 FFFFFFFFFFFF 000000000001 0800 DEADBEEF
   > packet 0 FFFFFFFFFFFF 000000000001 0806 DEADBEEF
   > EOF
-  ingress port 0, 18 bytes
+  packet received: port 0, 18 bytes
     parse: start -> accept
     table port_table: hit -> forward
     action forward(port=1)
     output port 1, 18 bytes
-  ingress port 0, 18 bytes
+  packet received: port 0, 18 bytes
     parse: start -> accept
     table port_table: miss -> drop
     action drop
@@ -117,7 +117,7 @@ always outputs on port 1. Let's write a test that expects port 9:
   > packet 0 FFFFFFFFFFFF 000000000001 0800
   > expect 9 FFFFFFFFFFFF 000000000001 0800
   > EOF
-  ingress port 0, 14 bytes
+  packet received: port 0, 14 bytes
     parse: start -> accept
     output port 1, 14 bytes
   FAIL
@@ -175,7 +175,7 @@ Step 2: simulate a test against the compiled pipeline.
   > packet 0 FFFFFFFFFFFF 000000000001 0800
   > expect 1 FFFFFFFFFFFF 000000000001 0800
   > EOF
-  ingress port 0, 14 bytes
+  packet received: port 0, 14 bytes
     parse: start -> accept
     output port 1, 14 bytes
   PASS

@@ -13,7 +13,7 @@ passthrough.p4 always outputs on port 1. If we expect port 9:
   > packet 0 FFFFFFFFFFFF 000000000001 0800
   > expect 9 FFFFFFFFFFFF 000000000001 0800
   > EOF
-  ingress port 0, 14 bytes
+  packet received: port 0, 14 bytes
     parse: start -> accept
     output port 1, 14 bytes
   FAIL

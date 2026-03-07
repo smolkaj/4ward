@@ -18,7 +18,7 @@ with the same bytes. The '-' tells 4ward to read the test from stdin:
   > packet 0 FFFFFFFFFFFF 000000000001 0800
   > expect 1 FFFFFFFFFFFF 000000000001 0800
   > EOF
-  ingress port 0, 14 bytes
+  packet received: port 0, 14 bytes
     parse: start -> accept
     output port 1, 14 bytes
   PASS

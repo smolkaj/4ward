@@ -64,7 +64,7 @@ fun simulate(pipelinePath: Path, stfPath: Path, format: OutputFormat): Int {
     val trace = resp.processPacket.trace
     when (format) {
       OutputFormat.HUMAN -> {
-        println("ingress port ${packet.ingressPort}, ${packet.payload.size} bytes")
+        println("packet received: port ${packet.ingressPort}, ${packet.payload.size} bytes")
         println(TraceFormatter.format(trace).trim().prependIndent("  "))
       }
       OutputFormat.TEXTPROTO -> print(TextFormat.printer().printToString(trace))
