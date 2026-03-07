@@ -46,8 +46,11 @@ class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPat
    *
    * Cross-port ordering is ignored; within the same port, outputs are matched FIFO (first output on
    * that port satisfies the first expect for that port). This matches BMv2's STF semantics.
+   *
+   * When [rejectUnexpected] is true, output packets that no `expect` directive matches cause a test
+   * failure. This catches bugs where packets are forwarded instead of dropped.
    */
-  fun run(stfPath: Path): TestResult {
+  fun run(stfPath: Path, rejectUnexpected: Boolean = true): TestResult {
     val stf = StfFile.parse(stfPath)
     val config = loadPipelineConfig(pipelineConfigPath)
 
@@ -107,6 +110,12 @@ class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPat
         }
       }
 
+      if (rejectUnexpected) {
+        for (unexpected in outputQueue) {
+          failures += "unexpected packet on port ${unexpected.port}: ${unexpected.payload.hex()}"
+        }
+      }
+
       return if (failures.isEmpty()) TestResult.Pass
       else TestResult.Failure(failures.joinToString("\n"))
     }
@@ -163,17 +172,28 @@ sealed class TestResult {
  * `_main/<pkg>/<testName>.stf` under `JAVA_RUNFILES`. The [pkg] defaults to `e2e_tests/<testName>`
  * (matching the per-test package layout of the regular e2e tests).
  */
-fun runStfTest(testName: String, pkg: String = "e2e_tests/$testName"): TestResult {
+fun runStfTest(
+  testName: String,
+  pkg: String = "e2e_tests/$testName",
+  rejectUnexpected: Boolean = true,
+): TestResult {
   val r = System.getenv("JAVA_RUNFILES") ?: "."
   return runStf(
     r,
     Paths.get(r, "_main/$pkg/$testName.txtpb"),
     Paths.get(r, "_main/$pkg/$testName.stf"),
+    rejectUnexpected,
   )
 }
 
-fun runStf(runfiles: String, configPath: Path, stfPath: Path): TestResult =
-  StfRunner(Paths.get(runfiles, "_main/simulator/simulator"), configPath).run(stfPath)
+fun runStf(
+  runfiles: String,
+  configPath: Path,
+  stfPath: Path,
+  rejectUnexpected: Boolean = true,
+): TestResult =
+  StfRunner(Paths.get(runfiles, "_main/simulator/simulator"), configPath)
+    .run(stfPath, rejectUnexpected)
 
 /** Packet Replication Engine configuration parsed from STF directives. */
 data class StfPreConfig(
