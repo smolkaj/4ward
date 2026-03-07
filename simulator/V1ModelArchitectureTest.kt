@@ -50,6 +50,9 @@ class V1ModelArchitectureTest {
   // Helpers: minimal v1model config construction
   // ---------------------------------------------------------------------------
 
+  /** Port width for wide-port tests (SAI P4 uses bit<32>, we use 16 for test simplicity). */
+  private val widePortBits = 16
+
   private fun field(name: String, width: Int): FieldDecl =
     FieldDecl.newBuilder().setName(name).setType(bitType(width)).build()
 
@@ -615,5 +618,70 @@ class V1ModelArchitectureTest {
       listOf(StageKind.PARSER to Direction.ENTER, StageKind.PARSER to Direction.EXIT),
       stages.map { it.stageKind to it.direction },
     )
+  }
+
+  // ---------------------------------------------------------------------------
+  // Wide-port tests: verify port width is derived from the IR, not hardcoded
+  // ---------------------------------------------------------------------------
+
+  /** standard_metadata_t with 16-bit port fields (instead of the standard 9-bit). */
+  private val widePortMetaType: TypeDecl =
+    TypeDecl.newBuilder()
+      .setName("standard_metadata_t")
+      .setStruct(
+        StructDecl.newBuilder()
+          .addFields(field("ingress_port", widePortBits))
+          .addFields(field("egress_spec", widePortBits))
+          .addFields(field("egress_port", widePortBits))
+          .addFields(field("instance_type", 32))
+          .addFields(field("packet_length", 32))
+          .addFields(field("mcast_grp", 16))
+          .addFields(field("egress_rid", 16))
+          .addFields(field("checksum_error", 1))
+          .addFields(field("parser_error", 32))
+      )
+      .build()
+
+  /** Builds a v1model config using 16-bit port fields. */
+  private fun widePortConfig(vararg stmts: Stmt): BehavioralConfig =
+    v1modelConfig(*stmts)
+      .toBuilder()
+      .clearTypes()
+      .addTypes(widePortMetaType)
+      .addTypes(headersType)
+      .addTypes(metaType)
+      .build()
+
+  @Test
+  fun `wide-port unicast emits on high-numbered port`() {
+    // Port 1000 exceeds 9-bit range — verifies the architecture uses the IR-derived width.
+    val config = widePortConfig(assignField("sm", "egress_spec", 1000, widePortBits))
+    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val outputs = collectOutputs(result.trace)
+
+    assertEquals(1, outputs.size)
+    assertEquals(1000, outputs[0].egressPort)
+  }
+
+  @Test
+  fun `wide-port drop uses all-ones of wider width`() {
+    // With 16-bit ports, drop port is 65535, not 511.
+    val wideDropPort = (1L shl widePortBits) - 1
+    val config = widePortConfig(assignField("sm", "egress_spec", wideDropPort, widePortBits))
+    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+
+    assertTrue(result.trace.hasPacketOutcome())
+    assertTrue(result.trace.packetOutcome.hasDrop())
+  }
+
+  @Test
+  fun `wide-port 511 is not treated as drop`() {
+    // 511 is only the drop port for 9-bit v1model. With 16-bit ports, it's a valid port.
+    val config = widePortConfig(assignField("sm", "egress_spec", 511, widePortBits))
+    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val outputs = collectOutputs(result.trace)
+
+    assertEquals(1, outputs.size)
+    assertEquals(511, outputs[0].egressPort)
   }
 }

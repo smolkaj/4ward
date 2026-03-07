@@ -784,7 +784,9 @@ class Interpreter(
   private fun execExternCall(call: MethodCall, env: Environment): Value {
     val funcName = call.target.nameRef.name
     return when (funcName) {
-      // mark_to_drop(standard_metadata): sets egress_spec to the v1model drop port (511).
+      // mark_to_drop(standard_metadata): sets egress_spec to all-ones of the port width.
+      // The width is derived from the field's existing value (which carries the IR-defined width),
+      // so this works for both standard 9-bit v1model and wider port architectures.
       "mark_to_drop" -> {
         packetCtx?.addTraceEvent(
           traceEventBuilder()
@@ -792,8 +794,8 @@ class Interpreter(
             .build()
         )
         val smeta = evalExpr(call.argsList[0], env) as StructVal
-        smeta.fields["egress_spec"] =
-          BitVal(V1ModelArchitecture.DROP_PORT.toLong(), V1ModelArchitecture.PORT_BITS)
+        val portBits = (smeta.fields["egress_spec"] as BitVal).bits.width
+        smeta.fields["egress_spec"] = BitVal((1L shl portBits) - 1, portBits)
         UnitVal
       }
       // verify(condition, error): P4 spec §12.8 parser assertion.
