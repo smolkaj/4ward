@@ -8,13 +8,20 @@ basic_table.p4 defines a table (port_table) keyed on the Ethernet type
 field. If the etherType matches an installed entry, forward to the
 specified port; otherwise, the default action drops the packet.
 
-The STF test installs one entry (etherType 0x0800 -> forward to port 1)
-and sends two packets: an IPv4 frame (0x0800, matches the entry) and an
-ARP frame (0x0806, no match, dropped by default action).
+The '-' argument tells 4ward to read the STF test from stdin, so we
+can inline it directly:
 
-  $ cp "$P4" basic_table.p4 && cp "$STF" basic_table.stf
+  $ cp "$P4" basic_table.p4
 
-  $ 4ward run basic_table.p4 basic_table.stf
+  $ 4ward run basic_table.p4 - << 'EOF'
+  > # Install one entry: etherType 0x0800 (IPv4) -> forward to port 1.
+  > add port_table hdr.ethernet.etherType:0x0800 forward(1)
+  > # IPv4 frame -- matches the entry, forwarded to port 1.
+  > packet 0 FFFFFFFFFFFF 000000000001 0800 DEADBEEF
+  > expect 1 FFFFFFFFFFFF 000000000001 0800 DEADBEEF
+  > # ARP frame -- no matching entry, dropped by default action.
+  > packet 0 FFFFFFFFFFFF 000000000001 0806 DEADBEEF
+  > EOF
   parse: start -> accept
   table port_table: hit -> forward
   action forward(port=0001)

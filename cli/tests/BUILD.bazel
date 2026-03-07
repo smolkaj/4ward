@@ -38,13 +38,11 @@ cram_test(
     data = [
         "//cli:4ward",
         "//examples:basic_table.p4",
-        "//examples:basic_table.stf",
         "@p4c//:p4include",
     ],
     env_args = [
         "FOURWARD=$(rootpath //cli:4ward)",
         "P4=$(rootpath //examples:basic_table.p4)",
-        "STF=$(rootpath //examples:basic_table.stf)",
     ],
 )
 

@@ -1,5 +1,6 @@
 package fourward.cli
 
+import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.system.exitProcess
 
@@ -83,7 +84,7 @@ private fun handleSim(args: List<String>): Int {
   for (arg in args) {
     when {
       arg.startsWith("--format=") -> format = parseFormat(arg)
-      arg.startsWith("-") -> throw UsageError("unknown option '$arg'")
+      arg.startsWith("-") && arg != "-" -> throw UsageError("unknown option '$arg'")
       else -> positional += arg
     }
   }
@@ -92,7 +93,7 @@ private fun handleSim(args: List<String>): Int {
     throw UsageError("'sim' requires exactly 2 arguments: <pipeline.txtpb> <test.stf>\n$SIM_USAGE")
   }
 
-  return simulate(Path.of(positional[0]), Path.of(positional[1]), format)
+  return simulate(Path.of(positional[0]), stfPath(positional[1]), format)
 }
 
 private fun handleCompile(args: List<String>): Int {
@@ -154,7 +155,7 @@ private fun handleRun(args: List<String>): Int {
         if (i >= args.size) throw UsageError("-I requires an argument")
         includeDirs += args[i]
       }
-      args[i].startsWith("-") -> throw UsageError("unknown option '${args[i]}'")
+      args[i].startsWith("-") && args[i] != "-" -> throw UsageError("unknown option '${args[i]}'")
       else -> positional += args[i]
     }
     i++
@@ -166,7 +167,7 @@ private fun handleRun(args: List<String>): Int {
 
   return run(
     Path.of(positional[0]),
-    Path.of(positional[1]),
+    stfPath(positional[1]),
     format,
     includeDirs.map { Path.of(it) },
   )
@@ -177,4 +178,12 @@ private fun parseFormat(arg: String): OutputFormat =
     "human" -> OutputFormat.HUMAN
     "textproto" -> OutputFormat.TEXTPROTO
     else -> throw UsageError("unknown format '$f'")
+  }
+
+/** Resolves an STF argument: `-` reads stdin into a temp file, anything else is a file path. */
+private fun stfPath(arg: String): Path =
+  if (arg == "-") {
+    Files.createTempFile("4ward-", ".stf").also { it.toFile().writeText(System.`in`.reader().readText()) }
+  } else {
+    Path.of(arg)
   }
