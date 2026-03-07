@@ -95,7 +95,7 @@ an IPv4 frame that matches, and an ARP frame that doesn't.
     table port_table: miss -> drop
     action drop
     mark_to_drop()
-    drop (mark_to_drop())
+    drop
   PASS
 
 Now the trace tells a much richer story. The first packet (etherType

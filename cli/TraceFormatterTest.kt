@@ -114,7 +114,7 @@ class TraceFormatterTest {
     assertEquals(
       """
       |mark_to_drop()
-      |drop (mark_to_drop())
+      |drop
       |"""
         .trimMargin(),
       output,
