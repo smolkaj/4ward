@@ -14,8 +14,6 @@ import fourward.ir.v1.FieldAccess
 import fourward.ir.v1.FieldDecl
 import fourward.ir.v1.IfStmt
 import fourward.ir.v1.Literal
-import fourward.ir.v1.MethodCall
-import fourward.ir.v1.MethodCallStmt
 import fourward.ir.v1.NameRef
 import fourward.ir.v1.ParamDecl
 import fourward.ir.v1.ParserDecl
@@ -158,20 +156,7 @@ class V1ModelArchitectureTest {
 
   /** A method-call statement: externName(args...) — for clone, resubmit, recirculate. */
   private fun externCall(name: String, vararg args: Expr): Stmt =
-    Stmt.newBuilder()
-      .setMethodCall(
-        MethodCallStmt.newBuilder()
-          .setCall(
-            Expr.newBuilder()
-              .setMethodCall(
-                MethodCall.newBuilder()
-                  .setTarget(Expr.newBuilder().setNameRef(NameRef.newBuilder().setName(name)))
-                  .setMethod("__call__")
-                  .addAllArgs(args.toList())
-              )
-          )
-      )
-      .build()
+    methodCallStmt(name, "__call__", *args)
 
   /** Wraps [body] in `if (target.fieldName == value) { body }`. */
   private fun ifFieldEquals(

@@ -429,4 +429,53 @@ class InterpreterControlTest {
     // The switch matched on the original name "setbyte" (y=10, not default 20)
     assertEquals(BitVal(10, 8), env.lookup("y"))
   }
+
+  // ---------------------------------------------------------------------------
+  // Registers
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `register read returns written value`() {
+    val writeStmt = methodCallStmt("my_reg", "write", bit(0, 32), bit(42, 8))
+    val readStmt = methodCallStmt("my_reg", "read", nameRef("dst", bitType(8)), bit(0, 32))
+    val config = controlConfig(writeStmt, readStmt)
+    val env = emptyEnv
+    env.define("dst", BitVal(0, 8))
+    interp(config).runControl("MyControl", env)
+    assertEquals(BitVal(42, 8), env.lookup("dst"))
+  }
+
+  @Test
+  fun `register read returns zero for unwritten index`() {
+    val readStmt = methodCallStmt("my_reg", "read", nameRef("dst", bitType(8)), bit(5, 32))
+    val config = controlConfig(readStmt)
+    val env = emptyEnv
+    env.define("dst", BitVal(0xFF, 8))
+    interp(config).runControl("MyControl", env)
+    assertEquals(BitVal(0, 8), env.lookup("dst"))
+  }
+
+  // ---------------------------------------------------------------------------
+  // Meters
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `direct_meter read writes GREEN to out parameter`() {
+    val stmt = methodCallStmt("my_meter", "read", nameRef("color", bitType(2)))
+    val config = controlConfig(stmt)
+    val env = emptyEnv
+    env.define("color", BitVal(3, 2))
+    interp(config).runControl("MyControl", env)
+    assertEquals(BitVal(0, 2), env.lookup("color"))
+  }
+
+  @Test
+  fun `execute_meter writes GREEN to out parameter`() {
+    val stmt = methodCallStmt("my_meter", "execute_meter", bit(0, 32), nameRef("color", bitType(8)))
+    val config = controlConfig(stmt)
+    val env = emptyEnv
+    env.define("color", BitVal(0xFF, 8))
+    interp(config).runControl("MyControl", env)
+    assertEquals(BitVal(0, 8), env.lookup("color"))
+  }
 }
