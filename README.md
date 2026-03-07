@@ -38,7 +38,7 @@ branch — delivered as a structured trace tree you can actually read.
 4ward is a **spec-compliant reference implementation** of the
 [P4₁₆ language](https://p4.org/wp-content/uploads/sites/53/p4-spec/docs/p4-16-working-draft.html)
 and [P4Runtime](https://p4lang.github.io/p4runtime/spec/main/P4Runtime-Spec.html),
-optimised for **correctness, observability, and extensibility** rather than
+optimized for **correctness, observability, and extensibility** rather than
 performance. Think of it as a debugger that speaks P4, not a production data
 plane.
 
