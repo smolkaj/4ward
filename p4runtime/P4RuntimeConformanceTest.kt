@@ -7,6 +7,7 @@ import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildExactEntry
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildGroupEntity
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildMemberEntity
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.loadConfig
+import fourward.p4runtime.P4RuntimeTestHarness.Companion.uint128
 import io.grpc.Status
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -563,9 +564,6 @@ class P4RuntimeConformanceTest {
   // Multi-controller arbitration (scenarios 40-45)
   // =========================================================================
 
-  private fun electionId(value: Long): p4.v1.P4RuntimeOuterClass.Uint128 =
-    p4.v1.P4RuntimeOuterClass.Uint128.newBuilder().setHigh(0).setLow(value).build()
-
   /** P4Runtime spec §10.2: higher election_id becomes primary. */
   @Test
   fun `40 - higher election_id becomes primary`() {
@@ -606,7 +604,7 @@ class P4RuntimeConformanceTest {
     harness.loadPipeline(config)
     harness.openStream().use { stream -> stream.arbitrate(electionId = 5) }
     val entry = buildExactEntry(config, matchValue = 0x0800, port = 1)
-    assertGrpcError(Status.Code.PERMISSION_DENIED) { harness.installEntry(entry, electionId(3)) }
+    assertGrpcError(Status.Code.PERMISSION_DENIED) { harness.installEntry(entry, uint128(low = 3)) }
   }
 
   /** P4Runtime spec §10.3: primary write succeeds. */
@@ -616,7 +614,7 @@ class P4RuntimeConformanceTest {
     harness.loadPipeline(config)
     harness.openStream().use { stream -> stream.arbitrate(electionId = 5) }
     val entry = buildExactEntry(config, matchValue = 0x0800, port = 1)
-    harness.installEntry(entry, electionId(5))
+    harness.installEntry(entry, uint128(low = 5))
     // Verify the entry was written.
     val results = harness.readEntries()
     assertEquals(1, results.size)
@@ -640,7 +638,7 @@ class P4RuntimeConformanceTest {
     harness.loadPipeline(config)
     harness.openStream().use { stream -> stream.arbitrate(electionId = 5) }
     val entry = buildExactEntry(config, matchValue = 0x0800, port = 1)
-    harness.installEntry(entry, electionId(5))
+    harness.installEntry(entry, uint128(low = 5))
     // Read with no election_id (any controller) should succeed.
     val results = harness.readEntries()
     assertEquals("read should return the installed entry", 1, results.size)

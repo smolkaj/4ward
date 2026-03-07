@@ -329,8 +329,9 @@ class P4RuntimeService(
   private fun requirePrimaryOrNoArbitration(requestElectionId: Uint128) {
     val primary = primaryElectionId ?: return
     if (requestElectionId != primary) {
+      val id = if (primary.high == 0L) "${primary.low}" else "(${primary.high}, ${primary.low})"
       throw Status.PERMISSION_DENIED.withDescription(
-          "only the primary controller (election_id=${primary.low}) may write"
+          "only the primary controller (election_id=$id) may write"
         )
         .asException()
     }

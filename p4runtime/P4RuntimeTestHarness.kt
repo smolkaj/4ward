@@ -103,35 +103,25 @@ class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable 
   // Table entry management
   // ---------------------------------------------------------------------------
 
-  fun installEntry(entity: Entity, electionId: Uint128? = null): WriteResponse = runBlocking {
-    stub.write(
-      WriteRequest.newBuilder()
-        .setDeviceId(1)
-        .apply { if (electionId != null) setElectionId(electionId) }
-        .addUpdates(Update.newBuilder().setType(Update.Type.INSERT).setEntity(entity))
-        .build()
-    )
-  }
+  fun installEntry(entity: Entity, electionId: Uint128? = null): WriteResponse =
+    writeEntity(Update.Type.INSERT, entity, electionId)
 
-  fun modifyEntry(entity: Entity, electionId: Uint128? = null): WriteResponse = runBlocking {
-    stub.write(
-      WriteRequest.newBuilder()
-        .setDeviceId(1)
-        .apply { if (electionId != null) setElectionId(electionId) }
-        .addUpdates(Update.newBuilder().setType(Update.Type.MODIFY).setEntity(entity))
-        .build()
-    )
-  }
+  fun modifyEntry(entity: Entity, electionId: Uint128? = null): WriteResponse =
+    writeEntity(Update.Type.MODIFY, entity, electionId)
 
-  fun deleteEntry(entity: Entity, electionId: Uint128? = null): WriteResponse = runBlocking {
-    stub.write(
-      WriteRequest.newBuilder()
-        .setDeviceId(1)
-        .apply { if (electionId != null) setElectionId(electionId) }
-        .addUpdates(Update.newBuilder().setType(Update.Type.DELETE).setEntity(entity))
-        .build()
-    )
-  }
+  fun deleteEntry(entity: Entity, electionId: Uint128? = null): WriteResponse =
+    writeEntity(Update.Type.DELETE, entity, electionId)
+
+  private fun writeEntity(type: Update.Type, entity: Entity, electionId: Uint128?): WriteResponse =
+    runBlocking {
+      stub.write(
+        WriteRequest.newBuilder()
+          .setDeviceId(1)
+          .apply { if (electionId != null) setElectionId(electionId) }
+          .addUpdates(Update.newBuilder().setType(type).setEntity(entity))
+          .build()
+      )
+    }
 
   /** Wildcard read: returns all table entries (table_id=0 is the P4Runtime wildcard). */
   fun readEntries(): List<Entity> = readTableEntries(0)
@@ -286,6 +276,10 @@ class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable 
 
   companion object {
     private const val STREAM_TIMEOUT_MS = 5000L
+
+    /** Builds a [Uint128] from high and low parts. */
+    fun uint128(high: Long = 0, low: Long): Uint128 =
+      Uint128.newBuilder().setHigh(high).setLow(low).build()
 
     /**
      * Asserts that [block] throws a [StatusException] with the expected gRPC [code]. Optionally
