@@ -27,8 +27,11 @@ guilt — just write it down so someone can find it later.
 
 ## P4Runtime server
 
-- **Single controller only.** No multi-controller arbitration or election ID
-  tracking. The first connection is master unconditionally.
+- **Basic multi-controller arbitration.** The highest `election_id` becomes
+  primary and may write; all controllers may read (P4Runtime spec §10).
+  Not implemented: demotion notifications to existing non-primary controllers
+  when a new primary is elected, and automatic promotion of the next-highest
+  controller when the primary disconnects.
 - **`@p4runtime_translation`: fully integrated for action params, match fields,
   and PacketIO metadata.** The `TypeTranslator` supports `sdn_bitwidth` and
   `sdn_string` with explicit, auto-allocate, and hybrid mapping modes.

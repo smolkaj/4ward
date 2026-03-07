@@ -213,6 +213,25 @@ cc_binary(
 # =============================================================================
 
 kt_jvm_test(
+    name = "P4RuntimeServiceTest",
+    srcs = [
+        "P4RuntimeServiceTest.kt",
+        "P4RuntimeTestHarness.kt",
+    ],
+    test_class = "fourward.p4runtime.P4RuntimeServiceTest",
+    deps = [
+        ":p4runtime_lib",
+        "//simulator:ir_java_proto",
+        "@grpc-java//api",
+        "@grpc-java//inprocess",
+        "@maven//:com_google_protobuf_protobuf_java",
+        "@maven//:io_grpc_grpc_kotlin_stub",
+        "@maven//:junit_junit",
+        "@maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
+    ],
+)
+
+kt_jvm_test(
     name = "P4RuntimeConstraintTest",
     srcs = [
         "P4RuntimeConstraintTest.kt",

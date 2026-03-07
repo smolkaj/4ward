@@ -42,10 +42,11 @@ complexity:
     excludes: ['**/test/**', '**/*Test.kt']
 
   # The default (150 lines) is unreasonable for tree-walking interpreters whose
-  # size scales linearly with the number of language constructs. The more targeted
+  # size scales linearly with the number of language constructs, or test classes
+  # that grow proportionally with the feature set. The more targeted
   # TooManyFunctions and CyclomaticComplexMethod checks catch actual complexity.
   LargeClass:
-    threshold: 1000
+    threshold: 1500
 
   # 11 is far too low for operator-rich value classes like BitVector (21 functions)
   # or dispatch classes like Interpreter (one function per AST node kind).

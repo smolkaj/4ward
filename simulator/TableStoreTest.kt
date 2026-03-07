@@ -421,6 +421,77 @@ class TableStoreTest {
   }
 
   // ---------------------------------------------------------------------------
+  // Table capacity enforcement (P4Runtime spec §9.27)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `insert into full table returns ResourceExhausted`() {
+    val store = storeWithTableSize(TABLE_SIZE_LIMIT)
+    // Fill the table to capacity.
+    for (i in 0 until TABLE_SIZE_LIMIT) {
+      assertEquals(
+        WriteResult.Success,
+        store.write(insertUpdate(exactEntry(1, byteArrayOf(i.toByte()), 10))),
+      )
+    }
+    // One more INSERT should fail.
+    val result = store.write(insertUpdate(exactEntry(1, byteArrayOf(0xFF.toByte()), 10)))
+    assertTrue("expected ResourceExhausted", result is WriteResult.ResourceExhausted)
+  }
+
+  @Test
+  fun `modify in full table succeeds`() {
+    val store = storeWithTableSize(TABLE_SIZE_LIMIT)
+    for (i in 0 until TABLE_SIZE_LIMIT) {
+      store.write(insertUpdate(exactEntry(1, byteArrayOf(i.toByte()), 10)))
+    }
+    // MODIFY doesn't consume capacity — it replaces an existing entry.
+    val result =
+      store.write(
+        Update.newBuilder()
+          .setType(Update.Type.MODIFY)
+          .setEntity(Entity.newBuilder().setTableEntry(exactEntry(1, byteArrayOf(0x00), 99)))
+          .build()
+      )
+    assertEquals(WriteResult.Success, result)
+  }
+
+  @Test
+  fun `delete then insert in full table succeeds`() {
+    val store = storeWithTableSize(TABLE_SIZE_LIMIT)
+    val entry = exactEntry(1, byteArrayOf(0x01), 10)
+    for (i in 0 until TABLE_SIZE_LIMIT) {
+      store.write(insertUpdate(exactEntry(1, byteArrayOf(i.toByte()), 10)))
+    }
+    // Delete frees a slot.
+    store.write(
+      Update.newBuilder()
+        .setType(Update.Type.DELETE)
+        .setEntity(Entity.newBuilder().setTableEntry(entry))
+        .build()
+    )
+    // Now INSERT should succeed.
+    val result = store.write(insertUpdate(exactEntry(1, byteArrayOf(0xAA.toByte()), 10)))
+    assertEquals(WriteResult.Success, result)
+  }
+
+  /** Creates a TableStore with a table that has a size limit. */
+  private fun storeWithTableSize(size: Int): TableStore {
+    val store = TableStore()
+    val p4infoTable =
+      P4InfoOuterClass.Table.newBuilder()
+        .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(TABLE_ID))
+        .setSize(size.toLong())
+        .build()
+    store.loadMappings(
+      tableNameById = mapOf(TABLE_ID to TABLE_NAME),
+      actionNameById = ACTION_ID_TO_NAME,
+      p4infoTables = listOf(p4infoTable),
+    )
+    return store
+  }
+
+  // ---------------------------------------------------------------------------
   // Action profiles
   // ---------------------------------------------------------------------------
 
@@ -788,6 +859,53 @@ class TableStoreTest {
       writeGroup(s, groupId = 99, memberIds = listOf(0), type = Update.Type.DELETE)
         is WriteResult.NotFound
     )
+  }
+
+  // ---------------------------------------------------------------------------
+  // Group max_size enforcement (P4Runtime spec §9.2)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `group exceeding max_group_size returns ResourceExhausted`() {
+    val s = storeWithProfileMaxGroupSize(MAX_GROUP_SIZE)
+    val result = writeGroup(s, groupId = 1, memberIds = listOf(1, 2, 3))
+    assertTrue("expected ResourceExhausted", result is WriteResult.ResourceExhausted)
+  }
+
+  @Test
+  fun `group at max_group_size succeeds`() {
+    val s = storeWithProfileMaxGroupSize(MAX_GROUP_SIZE)
+    assertEquals(WriteResult.Success, writeGroup(s, groupId = 1, memberIds = listOf(1, 2)))
+  }
+
+  @Test
+  fun `modify group exceeding max_group_size returns ResourceExhausted`() {
+    val s = storeWithProfileMaxGroupSize(MAX_GROUP_SIZE)
+    writeGroup(s, groupId = 1, memberIds = listOf(1))
+    val result = writeGroup(s, groupId = 1, memberIds = listOf(1, 2, 3), type = Update.Type.MODIFY)
+    assertTrue("expected ResourceExhausted", result is WriteResult.ResourceExhausted)
+  }
+
+  /** Creates a TableStore with an action profile that has a max_group_size limit. */
+  private fun storeWithProfileMaxGroupSize(maxGroupSize: Int): TableStore {
+    val store = TableStore()
+    val p4infoTable =
+      P4InfoOuterClass.Table.newBuilder()
+        .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(PROFILE_TABLE_ID))
+        .setImplementationId(PROFILE_ID)
+        .build()
+    val p4infoActionProfile =
+      P4InfoOuterClass.ActionProfile.newBuilder()
+        .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(PROFILE_ID))
+        .setMaxGroupSize(maxGroupSize)
+        .build()
+    store.loadMappings(
+      tableNameById = mapOf(PROFILE_TABLE_ID to PROFILE_TABLE_NAME),
+      actionNameById = ACTION_ID_TO_NAME,
+      p4infoTables = listOf(p4infoTable),
+      p4infoActionProfiles = listOf(p4infoActionProfile),
+    )
+    return store
   }
 
   // ---------------------------------------------------------------------------
@@ -1174,6 +1292,8 @@ class TableStoreTest {
     private const val REGISTER_NAME = "myRegister"
     private const val REGISTER_BITWIDTH = 32
     private const val REGISTER_SIZE = 4
+    private const val TABLE_SIZE_LIMIT = 3
+    private const val MAX_GROUP_SIZE = 2
     private val ACTION_ID_TO_NAME =
       listOf(10, 20, 42, 50, 77, 99, 100, 200).associateWith { "action$it" }
   }

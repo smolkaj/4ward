@@ -24,6 +24,8 @@ sealed class WriteResult {
   data class NotFound(val message: String) : WriteResult()
 
   data class InvalidArgument(val message: String) : WriteResult()
+
+  data class ResourceExhausted(val message: String) : WriteResult()
 }
 
 /**
@@ -40,6 +42,13 @@ class TableStore {
 
   // tableName -> list of entries, ordered by insertion (priority is explicit in the entry)
   private val tables: MutableMap<String, MutableList<TableEntry>> = mutableMapOf()
+
+  // tableName -> maximum number of entries (from p4info Table.size); absent = unlimited
+  private var tableSizeLimit: Map<String, Int> = emptyMap()
+
+  // action_profile_id -> max_group_size (from p4info ActionProfile.max_group_size); absent =
+  // unlimited
+  private var profileMaxGroupSize: Map<Int, Int> = emptyMap()
 
   // tableName -> default action name + arguments (from p4info)
   private data class DefaultAction(
@@ -93,6 +102,7 @@ class TableStore {
     actionNameById: Map<Int, String>,
     p4infoTables: List<P4InfoOuterClass.Table> = emptyList(),
     p4infoRegisters: List<P4InfoOuterClass.Register> = emptyList(),
+    p4infoActionProfiles: List<P4InfoOuterClass.ActionProfile> = emptyList(),
   ) {
     this.tableNameById = tableNameById
     this.actionNameById = actionNameById
@@ -109,6 +119,22 @@ class TableStore {
     tableActionProfile.clear()
     cloneSessions.clear()
     multicastGroups.clear()
+
+    // P4Runtime spec §9.27: enforce table size limits from p4info.
+    tableSizeLimit =
+      p4infoTables
+        .filter { it.size > 0 }
+        .mapNotNull { table ->
+          val name = tableNameById[table.preamble.id] ?: return@mapNotNull null
+          name to table.size.toInt()
+        }
+        .toMap()
+
+    // P4Runtime spec §9.2: enforce max_group_size from p4info action profiles.
+    profileMaxGroupSize =
+      p4infoActionProfiles
+        .filter { it.maxGroupSize > 0 }
+        .associate { it.preamble.id to it.maxGroupSize }
 
     // Register which tables use action profiles (implementation_id != 0).
     for (table in p4infoTables) {
@@ -228,8 +254,13 @@ class TableStore {
             "table '$tableName' already contains an entry with the same match key"
           )
         } else {
-          entries.add(entry)
-          WriteResult.Success
+          val limit = tableSizeLimit[tableName]
+          if (limit != null && entries.size >= limit) {
+            WriteResult.ResourceExhausted("table '$tableName' is full ($limit entries)")
+          } else {
+            entries.add(entry)
+            WriteResult.Success
+          }
         }
       }
       Update.Type.MODIFY -> {
@@ -297,14 +328,24 @@ class TableStore {
   private fun writeProfileGroup(
     type: Update.Type,
     group: P4RuntimeOuterClass.ActionProfileGroup,
-  ): WriteResult =
-    writeProfileEntity(
+  ): WriteResult {
+    // P4Runtime spec §9.2: enforce max_group_size on INSERT and MODIFY.
+    if (type == Update.Type.INSERT || type == Update.Type.MODIFY) {
+      val maxSize = profileMaxGroupSize[group.actionProfileId]
+      if (maxSize != null && group.membersCount > maxSize) {
+        return WriteResult.ResourceExhausted(
+          "group ${group.groupId} has ${group.membersCount} members, max is $maxSize"
+        )
+      }
+    }
+    return writeProfileEntity(
       type,
       profileGroups.getOrPut(group.actionProfileId) { mutableMapOf() },
       group.groupId,
       group,
       "group ${group.groupId} in action profile ${group.actionProfileId}",
     )
+  }
 
   private fun writePreEntry(pre: P4RuntimeOuterClass.PacketReplicationEngineEntry) {
     when {

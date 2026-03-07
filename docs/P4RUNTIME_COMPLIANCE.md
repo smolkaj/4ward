@@ -57,8 +57,8 @@ Legend: **Y** = tested, **N** = not tested, **—** = not implemented
 | 9.24 | Constant table rejects INSERT/MODIFY/DELETE | Y | WriteValidatorTest |
 | 9.25 | Default entry: match fields must be absent | Y | WriteValidatorTest |
 | 9.26 | Default entry: MODIFY semantics | Y | WriteValidatorTest |
-| 9.27 | RESOURCE_EXHAUSTED when table is full | N | |
-| 9.28 | Write batch: updates applied in order | N | |
+| 9.27 | RESOURCE_EXHAUSTED when table is full | Y | TableStoreTest, ConformanceTest |
+| 9.28 | Write batch: updates applied in order | Y | ConformanceTest #39 |
 
 ## Write RPC — action profiles (§9.2)
 
@@ -71,7 +71,7 @@ Legend: **Y** = tested, **N** = not tested, **—** = not implemented
 | 9.34 | Modify group with different members | Y | ConformanceTest #30 |
 | 9.35 | Delete non-existent group → NOT_FOUND | Y | ConformanceTest #31 |
 | 9.36 | One-shot action selector | — | |
-| 9.37 | Group max_size enforcement | N | |
+| 9.37 | Group max_size enforcement | Y | TableStoreTest |
 
 ## Write RPC — registers (§9.7)
 
@@ -104,9 +104,9 @@ Legend: **Y** = tested, **N** = not tested, **—** = not implemented
 | # | Requirement | Status | Test |
 |---|-------------|--------|------|
 | 10.1 | Arbitration establishes master | Y | ConformanceTest #12 |
-| 10.2 | Higher election_id becomes primary | N | |
-| 10.3 | Non-primary writes → PERMISSION_DENIED | N | |
-| 10.4 | All controllers may read regardless of role | N | |
+| 10.2 | Higher election_id becomes primary | Y | ConformanceTest #40-41 |
+| 10.3 | Non-primary writes → PERMISSION_DENIED | Y | ConformanceTest #42-44 |
+| 10.4 | All controllers may read regardless of role | Y | ConformanceTest #45 |
 
 ## Read RPC (§11)
 
@@ -174,16 +174,16 @@ Legend: **Y** = tested, **N** = not tested, **—** = not implemented
 |----------|--------|------------|-----------------|
 | SetForwardingPipelineConfig | 5 | 0 | 0 |
 | Match encoding | 6 | 0 | 0 |
-| Write — tables | 26 | 2 | 0 |
-| Write — profiles | 6 | 1 | 1 |
+| Write — tables | 28 | 0 | 0 |
+| Write — profiles | 7 | 0 | 1 |
 | Write — registers | 5 | 0 | 0 |
 | Write — counters/meters | 0 | 0 | 4 |
 | Write — PRE | 2 | 0 | 0 |
-| Arbitration | 1 | 3 | 0 |
+| Arbitration | 4 | 0 | 0 |
 | Read | 9 | 0 | 0 |
 | GetForwardingPipelineConfig | 5 | 0 | 0 |
 | Capabilities | 1 | 0 | 0 |
 | PacketIO | 3 | 0 | 2 |
 | Translation | 6 | 0 | 0 |
 | p4-constraints | 4 | 0 | 0 |
-| **Total** | **79** | **6** | **7** |
+| **Total** | **85** | **0** | **7** |

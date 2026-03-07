@@ -28,14 +28,26 @@ import p4.v1.P4RuntimeOuterClass.SetForwardingPipelineConfigRequest
 import p4.v1.P4RuntimeOuterClass.SetForwardingPipelineConfigResponse
 import p4.v1.P4RuntimeOuterClass.StreamMessageRequest
 import p4.v1.P4RuntimeOuterClass.StreamMessageResponse
+import p4.v1.P4RuntimeOuterClass.Uint128
 import p4.v1.P4RuntimeOuterClass.WriteRequest
 import p4.v1.P4RuntimeOuterClass.WriteResponse
 
 /**
+ * Compares two [Uint128] values as unsigned 128-bit integers. Returns negative if [a] < [b], zero
+ * if equal, positive if [a] > [b].
+ */
+fun compareUint128(a: Uint128, b: Uint128): Int {
+  val highCmp = a.high.toULong().compareTo(b.high.toULong())
+  if (highCmp != 0) return highCmp
+  return a.low.toULong().compareTo(b.low.toULong())
+}
+
+/**
  * P4Runtime gRPC service backed by a 4ward [Simulator].
  *
- * Simplifications: single controller (first connection is master), synchronous packet processing,
- * no digest support.
+ * Supports basic multi-controller arbitration: the controller with the highest election_id is
+ * primary and may write; all controllers may read. No demotion notifications or disconnect
+ * handling.
  */
 class P4RuntimeService(
   private val simulator: Simulator,
@@ -51,6 +63,10 @@ class P4RuntimeService(
   )
 
   @Volatile private var pipeline: PipelineState? = null
+
+  // P4Runtime spec §10: highest election_id is the primary controller.
+  // null = no arbitration has occurred; writes are allowed for backward compatibility.
+  @Volatile private var primaryElectionId: Uint128? = null
 
   private fun requirePipeline(): PipelineState =
     pipeline
@@ -118,6 +134,7 @@ class P4RuntimeService(
 
   override suspend fun write(request: WriteRequest): WriteResponse {
     val state = requirePipeline()
+    requirePrimaryOrNoArbitration(request.electionId)
     val translator = state.typeTranslator?.takeIf { it.hasTranslations }
     val validator = state.constraintValidator
     for (rawUpdate in request.updatesList) {
@@ -153,6 +170,7 @@ class P4RuntimeService(
             ErrorCode.ENTITY_NOT_FOUND -> Status.NOT_FOUND
             ErrorCode.NO_PIPELINE_LOADED -> Status.FAILED_PRECONDITION
             ErrorCode.INVALID_REQUEST -> Status.INVALID_ARGUMENT
+            ErrorCode.RESOURCE_EXHAUSTED -> Status.RESOURCE_EXHAUSTED
             ErrorCode.INTERNAL_ERROR,
             ErrorCode.ERROR_CODE_UNSPECIFIED,
             ErrorCode.UNRECOGNIZED -> Status.INTERNAL
@@ -199,15 +217,20 @@ class P4RuntimeService(
       requests.collect { msg ->
         when {
           msg.hasArbitration() -> {
+            val incomingId = msg.arbitration.electionId
+            val current = primaryElectionId
+            val isPrimary = current == null || compareUint128(incomingId, current) >= 0
+            if (isPrimary) primaryElectionId = incomingId
+            val statusCode =
+              if (isPrimary) com.google.rpc.Code.OK_VALUE
+              else com.google.rpc.Code.ALREADY_EXISTS_VALUE
             emit(
               StreamMessageResponse.newBuilder()
                 .setArbitration(
                   MasterArbitrationUpdate.newBuilder()
                     .setDeviceId(msg.arbitration.deviceId)
-                    .setElectionId(msg.arbitration.electionId)
-                    .setStatus(
-                      com.google.rpc.Status.newBuilder().setCode(com.google.rpc.Code.OK_VALUE)
-                    )
+                    .setElectionId(incomingId)
+                    .setStatus(com.google.rpc.Status.newBuilder().setCode(statusCode))
                 )
                 .build()
             )
@@ -296,6 +319,23 @@ class P4RuntimeService(
 
   override suspend fun capabilities(request: CapabilitiesRequest): CapabilitiesResponse =
     CapabilitiesResponse.newBuilder().setP4RuntimeApiVersion(P4RUNTIME_API_VERSION).build()
+
+  /**
+   * Ensures the requester is the primary controller, or that no arbitration has occurred.
+   *
+   * P4Runtime spec §10: only the primary (highest election_id) may write. If no arbitration has
+   * occurred, writes are allowed for backward compatibility with single-controller clients.
+   */
+  private fun requirePrimaryOrNoArbitration(requestElectionId: Uint128) {
+    val primary = primaryElectionId ?: return
+    if (requestElectionId != primary) {
+      val id = if (primary.high == 0L) "${primary.low}" else "(${primary.high}, ${primary.low})"
+      throw Status.PERMISSION_DENIED.withDescription(
+          "only the primary controller (election_id=$id) may write"
+        )
+        .asException()
+    }
+  }
 
   override fun close() {
     pipeline?.constraintValidator?.close()

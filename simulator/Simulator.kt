@@ -72,6 +72,7 @@ class Simulator {
       actionNameById,
       config.p4Info.tablesList,
       config.p4Info.registersList,
+      config.p4Info.actionProfilesList,
     )
 
     for (table in config.p4Info.tablesList) {
@@ -156,6 +157,7 @@ class Simulator {
       is WriteResult.AlreadyExists -> simError(result.message, ErrorCode.ALREADY_EXISTS)
       is WriteResult.NotFound -> simError(result.message, ErrorCode.ENTITY_NOT_FOUND)
       is WriteResult.InvalidArgument -> simError(result.message, ErrorCode.INVALID_REQUEST)
+      is WriteResult.ResourceExhausted -> simError(result.message, ErrorCode.RESOURCE_EXHAUSTED)
     }
   }
 
