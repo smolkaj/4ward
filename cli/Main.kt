@@ -183,7 +183,9 @@ private fun parseFormat(arg: String): OutputFormat =
 /** Resolves an STF argument: `-` reads stdin into a temp file, anything else is a file path. */
 private fun stfPath(arg: String): Path =
   if (arg == "-") {
-    Files.createTempFile("4ward-", ".stf").also { it.toFile().writeText(System.`in`.reader().readText()) }
+    Files.createTempFile("4ward-", ".stf").also {
+      it.toFile().writeText(System.`in`.reader().readText())
+    }
   } else {
     Path.of(arg)
   }

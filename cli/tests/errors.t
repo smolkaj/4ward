@@ -1,36 +1,26 @@
 Error handling
 ==============
 
-No arguments -- prints usage, exits 2:
+4ward gives clear errors, not stacktraces.
 
-  $ 4ward
-  Usage: 4ward <command> [options]
-  
-  Commands:
-    compile  program.p4 -o output.txtpb   Compile a P4 program to a pipeline config.
-    sim      pipeline.txtpb test.stf       Run an STF test against a compiled pipeline.
-    run      program.p4 test.stf           Compile and simulate in one step.
-  
-  Options:
-    --format=human|textproto   Trace output format (default: human).
-    --help                     Show this help message.
+Missing file:
+
+  $ 4ward sim missing.txtpb missing.stf 2>&1
+  error: missing.txtpb (No such file or directory)
   [2]
 
 Unknown command:
 
-  $ 4ward bogus 2>/dev/null
-  [2]
+  $ 4ward bogus 2>&1 | head -1
+  error: unknown command 'bogus'
 
-Missing file:
+Every subcommand has --help:
 
-  $ 4ward sim /nonexistent/pipeline.txtpb /nonexistent/test.stf 2>/dev/null
-  [1]
+  $ 4ward compile --help | head -1
+  Usage: 4ward compile [options] <program.p4>
 
---help exits 0 and lists all subcommands:
+  $ 4ward sim --help | head -1
+  Usage: 4ward sim [--format=human|textproto] <pipeline.txtpb> <test.stf>
 
-  $ 4ward --help | grep -c -E "compile|sim|run"
-  3
-
-Subcommand help:
-
-  $ 4ward sim --help | grep -q pipeline
+  $ 4ward run --help | head -1
+  Usage: 4ward run [--format=human|textproto] <program.p4> <test.stf>

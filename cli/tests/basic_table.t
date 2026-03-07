@@ -24,7 +24,7 @@ can inline it directly:
   > EOF
   parse: start -> accept
   table port_table: hit -> forward
-  action forward(port=0001)
+  action forward(port=1)
   output port 1, 18 bytes
   parse: start -> accept
   table port_table: miss -> drop

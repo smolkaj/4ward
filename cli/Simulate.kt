@@ -7,6 +7,8 @@ import fourward.e2e.collectOutputsFromTrace
 import fourward.e2e.installStfEntries
 import fourward.e2e.loadPipelineConfig
 import fourward.e2e.verifyPacketOutputs
+import java.io.FileNotFoundException
+import java.nio.file.NoSuchFileException
 import java.nio.file.Path
 
 /**
@@ -16,8 +18,26 @@ import java.nio.file.Path
  * trace tree for each packet. Returns an exit code (does not call `exitProcess`).
  */
 fun simulate(pipelinePath: Path, stfPath: Path, format: OutputFormat): Int {
-  val config = loadPipelineConfig(pipelinePath)
-  val stf = StfFile.parse(stfPath)
+  val config =
+    try {
+      loadPipelineConfig(pipelinePath)
+    } catch (e: FileNotFoundException) {
+      System.err.println("error: ${e.message}")
+      return ExitCode.USAGE_ERROR
+    } catch (e: NoSuchFileException) {
+      System.err.println("error: $pipelinePath: no such file")
+      return ExitCode.USAGE_ERROR
+    }
+  val stf =
+    try {
+      StfFile.parse(stfPath)
+    } catch (e: FileNotFoundException) {
+      System.err.println("error: ${e.message}")
+      return ExitCode.USAGE_ERROR
+    } catch (e: NoSuchFileException) {
+      System.err.println("error: $stfPath: no such file")
+      return ExitCode.USAGE_ERROR
+    }
   val sim = InProcessSimulator()
 
   val loadResp = sim.loadPipeline(config)

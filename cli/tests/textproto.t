@@ -1,12 +1,17 @@
 Textproto output format
 =======================
 
-The --format=textproto flag prints the trace tree as a protocol buffer
-text format instead of the human-readable summary.
+The default trace is human-readable but lossy -- it omits source
+locations and raw byte payloads. The --format=textproto flag outputs
+the full trace tree as a protocol buffer, for programmatic analysis
+or diffing between runs.
 
-  $ cp "$P4" passthrough.p4 && cp "$STF" passthrough.stf
+  $ cp "$P4" passthrough.p4
 
-  $ 4ward run --format=textproto passthrough.p4 passthrough.stf
+  $ 4ward run --format=textproto passthrough.p4 - << 'EOF'
+  > packet 0 FFFFFFFFFFFF 000000000001 0800
+  > expect 1 FFFFFFFFFFFF 000000000001 0800
+  > EOF
   events {
     parser_transition {
       parser_name: "MyParser"
@@ -27,3 +32,7 @@ text format instead of the human-readable summary.
     }
   }
   PASS
+
+Compare with the human-readable output from getting_started.t --
+same packet, same result, but the textproto includes the source
+location (passthrough.p4:26) and the raw payload bytes.

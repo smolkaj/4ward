@@ -6,13 +6,11 @@ cram_test(
     data = [
         "//cli:4ward",
         "//examples:passthrough.p4",
-        "//examples:passthrough.stf",
         "@p4c//:p4include",
     ],
     env_args = [
         "FOURWARD=$(rootpath //cli:4ward)",
         "P4=$(rootpath //examples:passthrough.p4)",
-        "STF=$(rootpath //examples:passthrough.stf)",
     ],
 )
 
@@ -22,13 +20,11 @@ cram_test(
     data = [
         "//cli:4ward",
         "//examples:passthrough.p4",
-        "//examples:passthrough.stf",
         "@p4c//:p4include",
     ],
     env_args = [
         "FOURWARD=$(rootpath //cli:4ward)",
         "P4=$(rootpath //examples:passthrough.p4)",
-        "STF=$(rootpath //examples:passthrough.stf)",
     ],
 )
 
@@ -63,13 +59,11 @@ cram_test(
     data = [
         "//cli:4ward",
         "//examples:passthrough.p4",
-        "//examples:passthrough.stf",
         "@p4c//:p4include",
     ],
     env_args = [
         "FOURWARD=$(rootpath //cli:4ward)",
         "P4=$(rootpath //examples:passthrough.p4)",
-        "STF=$(rootpath //examples:passthrough.stf)",
     ],
 )
 

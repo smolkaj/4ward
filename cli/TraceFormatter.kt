@@ -1,6 +1,5 @@
 package fourward.cli
 
-import fourward.e2e.hex
 import fourward.sim.v1.DropReason
 import fourward.sim.v1.TraceEvent
 import fourward.sim.v1.TraceTree
@@ -62,7 +61,7 @@ object TraceFormatter {
         if (ae.paramsMap.isEmpty()) {
           appendLine("${prefix}action ${ae.actionName}")
         } else {
-          val params = ae.paramsMap.entries.joinToString(", ") { (k, v) -> "$k=${v.hex()}" }
+          val params = ae.paramsMap.entries.joinToString(", ") { (k, v) -> "$k=${v.decimal()}" }
           appendLine("${prefix}action ${ae.actionName}($params)")
         }
       }
@@ -82,7 +81,8 @@ object TraceFormatter {
 
   private fun pad(level: Int): String = "  ".repeat(level)
 
-  private fun com.google.protobuf.ByteString.hex(): String = toByteArray().hex()
+  private fun com.google.protobuf.ByteString.decimal(): String =
+    java.math.BigInteger(1, toByteArray()).toString()
 
   private fun fourward.sim.v1.ForkReason.humanName(): String =
     name.removePrefix("ACTION_").lowercase().replace('_', ' ')

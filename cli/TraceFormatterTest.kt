@@ -89,7 +89,7 @@ class TraceFormatterTest {
     assertEquals(
       """
       |table port_table: hit -> forward
-      |action forward(port=01)
+      |action forward(port=1)
       |output port 1, 0 bytes
       |"""
         .trimMargin(),

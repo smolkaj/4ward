@@ -1,33 +1,33 @@
 Getting started with 4ward
 ==========================
 
-4ward is a glass-box P4 simulator. You give it a P4 program and a test
-file (.stf), and it shows you exactly what the simulator does with each
-packet: which parser states it visits, which tables it looks up, and
-where the packet ends up.
+4ward is a glass-box P4 simulator. Give it a P4 program and a test,
+and it shows you exactly what happens to each packet -- parser states,
+table lookups, and where the packet ends up.
 
-Let's try passthrough.p4 -- the simplest possible program. It parses an
-Ethernet header, hardcodes the output port to 1, and emits the packet
-unchanged. No tables, no conditionals.
+passthrough.p4 is the simplest possible program: parse an Ethernet
+header, hardcode the output port to 1, emit the packet unchanged.
 
-The test file sends one packet on port 0 and expects it on port 1 with
-the same bytes (packet 0 ... / expect 1 ...).
+  $ cp "$P4" passthrough.p4
 
-  $ cp "$P4" passthrough.p4 && cp "$STF" passthrough.stf
+The test sends one packet on port 0 and expects it back on port 1
+with the same bytes. The '-' tells 4ward to read the test from stdin:
 
-The 'run' subcommand compiles the P4 source and simulates in one shot:
-
-  $ 4ward run passthrough.p4 passthrough.stf
+  $ 4ward run passthrough.p4 - << 'EOF'
+  > # Send one Ethernet frame on port 0, expect it on port 1.
+  > packet 0 FFFFFFFFFFFF 000000000001 0800
+  > expect 1 FFFFFFFFFFFF 000000000001 0800
+  > EOF
   parse: start -> accept
   output port 1, 14 bytes
   PASS
 
-The trace shows every decision the simulator made:
+Three lines, each a window into the data plane:
 
-"parse: start -> accept" means the parser extracted the Ethernet header.
-"output port 1, 14 bytes" means the packet exits on port 1.
-"PASS" means the actual output matched the STF's 'expect' line.
+"parse: start -> accept" -- the parser extracted an Ethernet header.
+"output port 1, 14 bytes" -- the packet exits port 1, unchanged.
+"PASS" -- the actual output matched the expected output.
 
-This is the key feature of 4ward: glass-box visibility into the data
-plane. Compare this to basic_table.t, which introduces match-action
-tables and shows a richer trace with hits, misses, and drops.
+This is what glass-box means: you see every decision the simulator
+made. When something goes wrong, the trace tells you exactly why
+(see packet_mismatch.t for an example).
