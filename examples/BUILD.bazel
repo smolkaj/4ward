@@ -3,6 +3,8 @@
 # These are self-contained copies from e2e_tests/ with CLI-oriented comments,
 # intended as starting points for newcomers.
 
+load("//cli/tests:cram.bzl", "cram_test")
+
 exports_files(
     [
         "passthrough.p4",
@@ -11,4 +13,20 @@ exports_files(
         "basic_table.stf",
     ],
     visibility = ["//cli:__subpackages__"],
+)
+
+cram_test(
+    name = "tutorial_test",
+    src = "tutorial.t",
+    data = [
+        "//cli:4ward",
+        "//examples:basic_table.p4",
+        "//examples:passthrough.p4",
+        "@p4c//:p4include",
+    ],
+    env_args = [
+        "FOURWARD=$(rootpath //cli:4ward)",
+        "PASSTHROUGH_P4=$(rootpath //examples:passthrough.p4)",
+        "BASIC_TABLE_P4=$(rootpath //examples:basic_table.p4)",
+    ],
 )

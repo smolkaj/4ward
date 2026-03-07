@@ -14,7 +14,7 @@ def cram_test(name, src, env_args, data):
     """
     py_test(
         name = name,
-        srcs = ["run_cram.py"],
+        srcs = ["//cli/tests:run_cram.py"],
         main = "run_cram.py",
         args = env_args + ["$(rootpath %s)" % src],
         data = [src] + data,
