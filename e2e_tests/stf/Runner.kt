@@ -3,8 +3,9 @@ package fourward.e2e
 import com.google.protobuf.ByteString
 import com.google.protobuf.TextFormat
 import fourward.ir.v1.PipelineConfig
-import fourward.sim.v1.TraceTree
-import fourward.sim.v1.WriteEntryRequest
+import fourward.sim.v1.SimulatorProto.TraceTree
+import fourward.simulator.Simulator
+import fourward.simulator.WriteResult
 import java.math.BigInteger
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -12,7 +13,7 @@ import p4.config.v1.P4InfoOuterClass
 import p4.v1.P4RuntimeOuterClass
 
 /** Recursively collects output packets from trace tree leaves (for forking programs). */
-fun collectOutputsFromTrace(tree: TraceTree): List<fourward.sim.v1.OutputPacket> =
+fun collectOutputsFromTrace(tree: TraceTree): List<fourward.sim.v1.SimulatorProto.OutputPacket> =
   when {
     tree.hasForkOutcome() ->
       tree.forkOutcome.branchesList.flatMap { collectOutputsFromTrace(it.subtree) }
@@ -33,13 +34,12 @@ private val INTEGER_REGEX = Regex("\\d+")
  * - A .stf file with table entries, input packets, and expected output packets.
  *
  * The runner:
- * 1. Launches the simulator subprocess.
- * 2. Loads the pipeline config.
- * 3. Installs table entries.
- * 4. Sends each input packet and compares output to expected.
- * 5. Reports pass/fail.
+ * 1. Creates a simulator and loads the pipeline config.
+ * 2. Installs table entries.
+ * 3. Sends each input packet and compares output to expected.
+ * 4. Reports pass/fail.
  */
-class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPath: Path) {
+class StfRunner(private val pipelineConfigPath: Path) {
 
   /**
    * Runs an STF test: loads the pipeline, installs entries, sends packets, and compares output.
@@ -55,49 +55,42 @@ class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPat
     val stf = StfFile.parse(stfPath)
     val config = loadPipelineConfig(pipelineConfigPath)
 
-    SimulatorClient(simulatorBinary).use { sim ->
-      val loadResp = sim.loadPipeline(config)
-      if (loadResp.hasError()) {
-        return TestResult.Failure("LoadPipeline failed: ${loadResp.error.message}")
-      }
-
-      try {
-        installStfEntries(sim, stf, config.p4Info)
-      } catch (e: IllegalStateException) {
-        return TestResult.Failure(e.message ?: "WriteEntry failed")
-      }
-
-      val failures = mutableListOf<String>()
-      val outputQueue = mutableListOf<ReceivedPacket>()
-
-      for (packet in stf.packets) {
-        val resp = sim.processPacket(packet.ingressPort, packet.payload)
-        if (resp.hasError()) {
-          failures += "ProcessPacket failed: ${resp.error.message}"
-          continue
-        }
-        if (System.getenv("PRINT_TRACE") != null) {
-          println("--- Trace tree (port ${packet.ingressPort}) ---")
-          print(TextFormat.printer().printToString(resp.processPacket.trace))
-          println("--- End trace tree ---")
-        }
-        // For non-forking programs, output_packets is populated. For forking
-        // programs (multicast, clone, action selector), outputs live only in
-        // trace tree leaves — collect them recursively.
-        val pkts =
-          resp.processPacket.outputPacketsList.ifEmpty {
-            collectOutputsFromTrace(resp.processPacket.trace)
-          }
-        for (pkt in pkts) {
-          outputQueue += ReceivedPacket(pkt.egressPort, pkt.payload.toByteArray())
-        }
-      }
-
-      failures += matchOutputAgainstExpects(stf.expects, outputQueue)
-
-      return if (failures.isEmpty()) TestResult.Pass
-      else TestResult.Failure(failures.joinToString("\n"))
+    val sim = Simulator()
+    try {
+      sim.loadPipeline(config)
+    } catch (e: IllegalArgumentException) {
+      return TestResult.Failure("LoadPipeline failed: ${e.message}")
     }
+
+    try {
+      installStfEntries(sim, stf, config.p4Info)
+    } catch (e: IllegalStateException) {
+      return TestResult.Failure(e.message ?: "WriteEntry failed")
+    }
+
+    val failures = mutableListOf<String>()
+    val outputQueue = mutableListOf<ReceivedPacket>()
+
+    for (packet in stf.packets) {
+      val resp = sim.processPacket(packet.ingressPort, packet.payload)
+      if (System.getenv("PRINT_TRACE") != null) {
+        println("--- Trace tree (port ${packet.ingressPort}) ---")
+        print(TextFormat.printer().printToString(resp.trace))
+        println("--- End trace tree ---")
+      }
+      // For non-forking programs, output_packets is populated. For forking
+      // programs (multicast, clone, action selector), outputs live only in
+      // trace tree leaves — collect them recursively.
+      val pkts = resp.outputPacketsList.ifEmpty { collectOutputsFromTrace(resp.trace) }
+      for (pkt in pkts) {
+        outputQueue += ReceivedPacket(pkt.egressPort, pkt.payload.toByteArray())
+      }
+    }
+
+    failures += matchOutputAgainstExpects(stf.expects, outputQueue)
+
+    return if (failures.isEmpty()) TestResult.Pass
+    else TestResult.Failure(failures.joinToString("\n"))
   }
 }
 
@@ -145,29 +138,31 @@ fun matchOutputAgainstExpects(
  * Installs all STF-declared entries (PRE, action profile members/groups, table entries) into the
  * simulator. Throws [IllegalStateException] on write failure.
  */
-fun installStfEntries(sim: SimulatorClient, stf: StfFile, p4Info: P4InfoOuterClass.P4Info) {
+fun installStfEntries(sim: Simulator, stf: StfFile, p4Info: P4InfoOuterClass.P4Info) {
+  fun write(update: P4RuntimeOuterClass.Update, label: String) {
+    val result = sim.writeEntry(update)
+    if (result !is WriteResult.Success) {
+      error("WriteEntry ($label) failed: ${result.message}")
+    }
+  }
+
   for (mirror in stf.pre.mirroringAdds) {
-    val resp = sim.writeEntry(resolveStfMirroringAdd(mirror))
-    if (resp.hasError()) error("WriteEntry (mirroring) failed: ${resp.error.message}")
+    write(resolveStfMirroringAdd(mirror), "mirroring")
   }
   for (mcGroup in stf.pre.mcGroupCreates) {
-    val resp =
-      sim.writeEntry(
-        resolveStfMulticastGroup(mcGroup.groupId, stf.pre.mcNodeCreates, stf.pre.mcNodeAssociates)
-      )
-    if (resp.hasError()) error("WriteEntry (multicast) failed: ${resp.error.message}")
+    write(
+      resolveStfMulticastGroup(mcGroup.groupId, stf.pre.mcNodeCreates, stf.pre.mcNodeAssociates),
+      "multicast",
+    )
   }
   for (member in stf.memberDirectives) {
-    val resp = sim.writeEntry(resolveStfMember(member, p4Info))
-    if (resp.hasError()) error("WriteEntry (member) failed: ${resp.error.message}")
+    write(resolveStfMember(member, p4Info), "member")
   }
   for (group in stf.groupDirectives) {
-    val resp = sim.writeEntry(resolveStfGroup(group, p4Info))
-    if (resp.hasError()) error("WriteEntry (group) failed: ${resp.error.message}")
+    write(resolveStfGroup(group, p4Info), "group")
   }
   for (directive in stf.tableEntries) {
-    val resp = sim.writeEntry(resolveStfTableEntry(directive, p4Info))
-    if (resp.hasError()) error("WriteEntry (table) failed: ${resp.error.message}")
+    write(resolveStfTableEntry(directive, p4Info), "table")
   }
 }
 
@@ -187,21 +182,19 @@ sealed class TestResult {
 /**
  * Runs the STF test named [testName] using the standard Bazel runfiles layout.
  *
- * Looks for `_main/simulator/simulator`, `_main/<pkg>/<testName>.txtpb`, and
- * `_main/<pkg>/<testName>.stf` under `JAVA_RUNFILES`. The [pkg] defaults to `e2e_tests/<testName>`
- * (matching the per-test package layout of the regular e2e tests).
+ * Looks for `_main/<pkg>/<testName>.txtpb` and `_main/<pkg>/<testName>.stf` under `JAVA_RUNFILES`.
+ * The [pkg] defaults to `e2e_tests/<testName>` (matching the per-test package layout of the regular
+ * e2e tests).
  */
 fun runStfTest(testName: String, pkg: String = "e2e_tests/$testName"): TestResult {
   val r = System.getenv("JAVA_RUNFILES") ?: "."
   return runStf(
-    r,
     Paths.get(r, "_main/$pkg/$testName.txtpb"),
     Paths.get(r, "_main/$pkg/$testName.stf"),
   )
 }
 
-fun runStf(runfiles: String, configPath: Path, stfPath: Path): TestResult =
-  StfRunner(Paths.get(runfiles, "_main/simulator/simulator"), configPath).run(stfPath)
+fun runStf(configPath: Path, stfPath: Path): TestResult = StfRunner(configPath).run(stfPath)
 
 /** Packet Replication Engine configuration parsed from STF directives. */
 data class StfPreConfig(
@@ -461,11 +454,11 @@ data class StfFile(
 // Table entry resolution
 // ---------------------------------------------------------------------------
 
-/** Resolves an STF table directive against the p4info to produce a [WriteEntryRequest]. */
+/** Resolves an STF table directive against the p4info to produce a P4Runtime [Update]. */
 fun resolveStfTableEntry(
   directive: StfTableDirective,
   p4info: P4InfoOuterClass.P4Info,
-): WriteEntryRequest {
+): P4RuntimeOuterClass.Update {
   val table = findTable(directive.tableName, p4info)
 
   val tableEntry = P4RuntimeOuterClass.TableEntry.newBuilder().setTableId(table.preamble.id)
@@ -517,17 +510,17 @@ fun resolveStfTableEntry(
       }
     }
 
-  return writeEntryRequest(
+  return update(
     P4RuntimeOuterClass.Entity.newBuilder().setTableEntry(tableEntry).build(),
     updateType,
   )
 }
 
-/** Resolves an STF member directive to a P4Runtime WriteEntryRequest. */
+/** Resolves an STF member directive to a P4Runtime [Update]. */
 fun resolveStfMember(
   directive: StfMemberDirective,
   p4info: P4InfoOuterClass.P4Info,
-): WriteEntryRequest {
+): P4RuntimeOuterClass.Update {
   val profile = findActionProfile(directive.profileName, p4info)
   val action = findAction(directive.actionName, p4info)
 
@@ -553,16 +546,14 @@ fun resolveStfMember(
       )
       .build()
 
-  return writeEntryRequest(
-    P4RuntimeOuterClass.Entity.newBuilder().setActionProfileMember(member).build()
-  )
+  return update(P4RuntimeOuterClass.Entity.newBuilder().setActionProfileMember(member).build())
 }
 
-/** Resolves an STF group directive to a P4Runtime WriteEntryRequest. */
+/** Resolves an STF group directive to a P4Runtime [Update]. */
 fun resolveStfGroup(
   directive: StfGroupDirective,
   p4info: P4InfoOuterClass.P4Info,
-): WriteEntryRequest {
+): P4RuntimeOuterClass.Update {
   val profile = findActionProfile(directive.profileName, p4info)
 
   val group =
@@ -579,20 +570,18 @@ fun resolveStfGroup(
       )
       .build()
 
-  return writeEntryRequest(
-    P4RuntimeOuterClass.Entity.newBuilder().setActionProfileGroup(group).build()
-  )
+  return update(P4RuntimeOuterClass.Entity.newBuilder().setActionProfileGroup(group).build())
 }
 
-/** Resolves a mirroring_add directive to a P4Runtime WriteEntryRequest (clone session). */
-fun resolveStfMirroringAdd(directive: StfMirroringAdd): WriteEntryRequest {
+/** Resolves a mirroring_add directive to a P4Runtime [Update] (clone session). */
+fun resolveStfMirroringAdd(directive: StfMirroringAdd): P4RuntimeOuterClass.Update {
   val session =
     P4RuntimeOuterClass.CloneSessionEntry.newBuilder()
       .setSessionId(directive.sessionId)
       .addReplicas(P4RuntimeOuterClass.Replica.newBuilder().setEgressPort(directive.egressPort))
       .build()
 
-  return writeEntryRequest(
+  return update(
     P4RuntimeOuterClass.Entity.newBuilder()
       .setPacketReplicationEngineEntry(
         P4RuntimeOuterClass.PacketReplicationEngineEntry.newBuilder().setCloneSessionEntry(session)
@@ -602,7 +591,7 @@ fun resolveStfMirroringAdd(directive: StfMirroringAdd): WriteEntryRequest {
 }
 
 /**
- * Resolves multicast STF directives into a P4Runtime WriteEntryRequest.
+ * Resolves multicast STF directives into a P4Runtime [Update].
  *
  * BMv2 STF uses three directives to configure multicast: mc_mgrp_create, mc_node_create, and
  * mc_node_associate. We merge them into a single MulticastGroupEntry with all replicas.
@@ -614,7 +603,7 @@ fun resolveStfMulticastGroup(
   groupId: Int,
   nodes: List<StfMcNodeCreate>,
   associations: List<StfMcNodeAssociate>,
-): WriteEntryRequest {
+): P4RuntimeOuterClass.Update {
   val replicas =
     associations
       .filter { it.groupId == groupId }
@@ -632,7 +621,7 @@ fun resolveStfMulticastGroup(
       .addAllReplicas(replicas)
       .build()
 
-  return writeEntryRequest(
+  return update(
     P4RuntimeOuterClass.Entity.newBuilder()
       .setPacketReplicationEngineEntry(
         P4RuntimeOuterClass.PacketReplicationEngineEntry.newBuilder().setMulticastGroupEntry(group)
@@ -641,14 +630,12 @@ fun resolveStfMulticastGroup(
   )
 }
 
-/** Wraps a P4Runtime Entity in a WriteEntryRequest with the given update type. */
-private fun writeEntryRequest(
+/** Wraps a P4Runtime Entity in an [Update] with the given update type. */
+private fun update(
   entity: P4RuntimeOuterClass.Entity,
   type: P4RuntimeOuterClass.Update.Type = P4RuntimeOuterClass.Update.Type.INSERT,
-): WriteEntryRequest =
-  WriteEntryRequest.newBuilder()
-    .setUpdate(P4RuntimeOuterClass.Update.newBuilder().setType(type).setEntity(entity))
-    .build()
+): P4RuntimeOuterClass.Update =
+  P4RuntimeOuterClass.Update.newBuilder().setType(type).setEntity(entity).build()
 
 /** Returns a bit-precise hex mask for the given bitwidth (e.g. 9 → "0x01FF", 16 → "0xFFFF"). */
 private fun allOnesMask(bitwidth: Int): String {

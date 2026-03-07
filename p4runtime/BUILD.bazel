@@ -58,6 +58,7 @@ kt_jvm_library(
         "//simulator:ir_java_proto",
         "//simulator:p4runtime_java_proto",
         "//simulator:simulator_java_proto",
+        "//simulator:simulator_kt_grpc",
         "//simulator:simulator_lib",
         "@grpc-java//api",
         "@grpc-java//netty",
@@ -96,6 +97,8 @@ kt_jvm_test(
     deps = [
         ":p4runtime_lib",
         "//simulator:ir_java_proto",
+        "//simulator:simulator_java_proto",
+        "//simulator:simulator_kt_grpc",
         "@grpc-java//api",
         "@grpc-java//inprocess",
         "@maven//:com_google_protobuf_protobuf_java",
@@ -118,6 +121,8 @@ kt_jvm_test(
     deps = [
         ":p4runtime_lib",
         "//simulator:ir_java_proto",
+        "//simulator:simulator_java_proto",
+        "//simulator:simulator_kt_grpc",
         "@grpc-java//api",
         "@grpc-java//inprocess",
         "@maven//:com_google_protobuf_protobuf_java",
@@ -246,6 +251,8 @@ kt_jvm_test(
     deps = [
         ":p4runtime_lib",
         "//simulator:ir_java_proto",
+        "//simulator:simulator_java_proto",
+        "//simulator:simulator_kt_grpc",
         "@grpc-java//api",
         "@grpc-java//inprocess",
         "@maven//:com_google_protobuf_protobuf_java",
@@ -268,6 +275,8 @@ kt_jvm_test(
     deps = [
         ":p4runtime_lib",
         "//simulator:ir_java_proto",
+        "//simulator:simulator_java_proto",
+        "//simulator:simulator_kt_grpc",
         "@grpc-java//api",
         "@grpc-java//inprocess",
         "@maven//:com_google_protobuf_protobuf_java",
@@ -290,6 +299,8 @@ kt_jvm_test(
     deps = [
         ":p4runtime_lib",
         "//simulator:ir_java_proto",
+        "//simulator:simulator_java_proto",
+        "//simulator:simulator_kt_grpc",
         "@grpc-java//api",
         "@grpc-java//inprocess",
         "@maven//:com_google_protobuf_protobuf_java",

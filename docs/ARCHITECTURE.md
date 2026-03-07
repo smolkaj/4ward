@@ -69,22 +69,19 @@ it makes sense.
 **Type-complete expressions.** Every `Expr` node carries a `Type` annotation.
 The simulator never guesses bit widths; p4c already figured that out.
 
-### Simulator service protocol (`simulator/simulator.proto`) — the wire
+### Simulator shared types (`simulator/simulator.proto`)
 
-How does the outside world talk to the simulator? Length-delimited proto messages
-over stdin/stdout (4-byte big-endian length prefix + serialised bytes). Same
-pattern as the Language Server Protocol — boring, reliable, easy to debug.
-
-The protocol is refreshingly simple: load a pipeline, send packets, read and
-write table entries. That's about it.
+Proto definitions shared between the simulator library and its callers (P4Runtime
+server, STF runner, trace tree tests). Defines `ProcessPacketRequest`/`Response`,
+output packets, trace trees, and the Dataplane gRPC service.
 
 ### Simulator (`simulator/`) — where the magic happens
 
-A Kotlin/JVM interpreter that walks the proto IR and actually *runs* your P4
-program, one packet at a time. Here's the lay of the land:
+A Kotlin/JVM library that walks the proto IR and actually *runs* your P4
+program, one packet at a time. Callers instantiate `Simulator` directly and
+use its typed API (`loadPipeline`, `processPacket`, `writeEntry`, `readEntries`).
 
 ```
-Main.kt                  Front door: stdin/stdout framing, request dispatch
 Simulator.kt             Top-level state: pipeline config, table entries
 Interpreter.kt           The big one: IR tree-walker for parsers, controls, actions
 Environment.kt           Variable bindings, packet state (headers + metadata)
@@ -147,14 +144,14 @@ verification, and understanding complex P4 programs.
 ## P4Runtime (`p4runtime/`)
 
 The P4Runtime gRPC server is a thin translation layer between standard
-P4Runtime RPCs and the simulator's `SimRequest`/`SimResponse` protocol.
-All P4 logic stays in the simulator — the server just speaks gRPC.
+P4Runtime RPCs and the simulator's typed API. All P4 logic stays in the
+simulator — the server just speaks gRPC.
 
 ```
-Controller ──gRPC──▶ P4RuntimeService ──SimRequest──▶ Simulator
-                           │                              │
-                     translates protos              runs your program
-                     enforces preconditions          returns SimResponse
+Controller ──gRPC──▶ P4RuntimeService ──▶ Simulator
+                           │                    │
+                     translates protos      runs your program
+                     enforces preconditions  returns typed results
 ```
 
 **Implemented RPCs:**
@@ -165,19 +162,19 @@ Controller ──gRPC──▶ P4RuntimeService ──SimRequest──▶ Simula
 | `Write` | Working — forwards `Update` protos directly to the simulator |
 | `Read` | Working — returns all table entries (wildcard read; filtering is TODO) |
 | `StreamChannel` | Working — arbitration + PacketOut→PacketIn via the simulator |
-| `GetForwardingPipelineConfig` | Stub (UNIMPLEMENTED) |
-| `Capabilities` | Stub (UNIMPLEMENTED) |
+| `GetForwardingPipelineConfig` | Working — returns p4info and/or device config per response type |
+| `Capabilities` | Working — returns P4Runtime API version |
 
 **Key design decisions:**
 
-- **In-process, not subprocess.** The server calls `Simulator.handle()` directly
-  rather than piping through stdin/stdout. Same `SimRequest`/`SimResponse`
-  contract, just no serialization overhead.
+- **In-process library, not subprocess.** The server calls `Simulator` methods
+  directly — no serialization overhead, no process management.
 - **grpc-kotlin with coroutine Flows.** `StreamChannel` is a bidirectional
   stream — Kotlin Flows map naturally to gRPC's streaming model.
-- **`synchronized(simulator)` for thread safety.** The simulator is
-  single-threaded; the gRPC server serializes concurrent requests with a lock.
-  Good enough for a reference implementation.
+- **`Mutex` for coroutine-safe serialization.** The simulator is
+  single-threaded; the gRPC server serializes concurrent requests with a
+  `kotlinx.coroutines.sync.Mutex` shared between P4RuntimeService and
+  DataplaneService.
 - **Single controller.** First connection is master. No multi-controller
   arbitration, no election ID tracking.
 

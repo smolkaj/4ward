@@ -2,18 +2,15 @@ package fourward.p4runtime
 
 import fourward.ir.v1.DeviceConfig
 import fourward.ir.v1.PipelineConfig
-import fourward.sim.v1.ErrorCode
-import fourward.sim.v1.LoadPipelineRequest
-import fourward.sim.v1.ProcessPacketRequest
-import fourward.sim.v1.ReadEntriesRequest
-import fourward.sim.v1.SimRequest
-import fourward.sim.v1.WriteEntryRequest
 import fourward.simulator.Simulator
+import fourward.simulator.WriteResult
 import io.grpc.Status
 import java.io.Closeable
 import java.nio.file.Path
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import p4.v1.P4RuntimeGrpcKt
 import p4.v1.P4RuntimeOuterClass.CapabilitiesRequest
 import p4.v1.P4RuntimeOuterClass.CapabilitiesResponse
@@ -52,6 +49,7 @@ fun compareUint128(a: Uint128, b: Uint128): Int {
 class P4RuntimeService(
   private val simulator: Simulator,
   private val constraintValidatorBinary: Path? = null,
+  private val lock: Mutex = Mutex(),
 ) : P4RuntimeGrpcKt.P4RuntimeCoroutineImplBase(), Closeable {
 
   /** Bundled pipeline state — atomically swapped on pipeline load to avoid torn reads. */
@@ -81,130 +79,118 @@ class P4RuntimeService(
 
   override suspend fun setForwardingPipelineConfig(
     request: SetForwardingPipelineConfigRequest
-  ): SetForwardingPipelineConfigResponse {
-    val fwdConfig = request.config
-    if (!fwdConfig.hasP4Info() || fwdConfig.p4DeviceConfig.isEmpty) {
-      throw Status.INVALID_ARGUMENT.withDescription(
-          "ForwardingPipelineConfig must include p4info and p4_device_config"
-        )
-        .asException()
-    }
-
-    val deviceConfig =
-      try {
-        DeviceConfig.parseFrom(fwdConfig.p4DeviceConfig)
-      } catch (e: com.google.protobuf.InvalidProtocolBufferException) {
+  ): SetForwardingPipelineConfigResponse =
+    lock.withLock {
+      val fwdConfig = request.config
+      if (!fwdConfig.hasP4Info() || fwdConfig.p4DeviceConfig.isEmpty) {
         throw Status.INVALID_ARGUMENT.withDescription(
-            "p4_device_config is not a valid DeviceConfig: ${e.message}"
+            "ForwardingPipelineConfig must include p4info and p4_device_config"
           )
           .asException()
       }
 
-    val pipelineConfig =
-      PipelineConfig.newBuilder().setP4Info(fwdConfig.p4Info).setDevice(deviceConfig).build()
+      val deviceConfig =
+        try {
+          DeviceConfig.parseFrom(fwdConfig.p4DeviceConfig)
+        } catch (e: com.google.protobuf.InvalidProtocolBufferException) {
+          throw Status.INVALID_ARGUMENT.withDescription(
+              "p4_device_config is not a valid DeviceConfig: ${e.message}"
+            )
+            .asException()
+        }
 
-    val simRequest =
-      SimRequest.newBuilder()
-        .setLoadPipeline(LoadPipelineRequest.newBuilder().setConfig(pipelineConfig))
-        .build()
+      val pipelineConfig =
+        PipelineConfig.newBuilder().setP4Info(fwdConfig.p4Info).setDevice(deviceConfig).build()
 
-    val simResponse = synchronized(simulator) { simulator.handle(simRequest) }
-    if (simResponse.hasError()) {
-      throw Status.INTERNAL.withDescription(
-          "Simulator rejected pipeline: ${simResponse.error.message}"
+      try {
+        simulator.loadPipeline(pipelineConfig)
+      } catch (e: IllegalArgumentException) {
+        throw Status.INTERNAL.withDescription("Simulator rejected pipeline: ${e.message}")
+          .asException()
+      }
+
+      pipeline?.constraintValidator?.close()
+      pipeline =
+        PipelineState(
+          config = pipelineConfig,
+          typeTranslator = TypeTranslator.create(fwdConfig.p4Info, deviceConfig.translationsList),
+          writeValidator = WriteValidator(pipelineConfig.p4Info),
+          constraintValidator =
+            constraintValidatorBinary?.let { ConstraintValidator.create(fwdConfig.p4Info, it) },
         )
-        .asException()
+      SetForwardingPipelineConfigResponse.getDefaultInstance()
     }
-
-    pipeline?.constraintValidator?.close()
-    pipeline =
-      PipelineState(
-        config = pipelineConfig,
-        typeTranslator = TypeTranslator.create(fwdConfig.p4Info, deviceConfig.translationsList),
-        writeValidator = WriteValidator(pipelineConfig.p4Info),
-        constraintValidator =
-          constraintValidatorBinary?.let { ConstraintValidator.create(fwdConfig.p4Info, it) },
-      )
-    return SetForwardingPipelineConfigResponse.getDefaultInstance()
-  }
 
   // ---------------------------------------------------------------------------
   // Write
   // ---------------------------------------------------------------------------
 
-  override suspend fun write(request: WriteRequest): WriteResponse {
-    val state = requirePipeline()
-    requirePrimaryOrNoArbitration(request.electionId)
-    val translator = state.typeTranslator?.takeIf { it.hasTranslations }
-    val validator = state.constraintValidator
-    for (rawUpdate in request.updatesList) {
-      // Validate against p4info before type translation so SDN-visible values
-      // are checked at canonical widths (P4Runtime spec §8.3, §9.1).
-      if (rawUpdate.entity.hasTableEntry()) {
-        state.writeValidator.validate(rawUpdate)
-      }
-      val update = translator?.translateForWrite(rawUpdate) ?: rawUpdate
+  override suspend fun write(request: WriteRequest): WriteResponse =
+    lock.withLock {
+      val state = requirePipeline()
+      requirePrimaryOrNoArbitration(request.electionId)
+      val translator = state.typeTranslator?.takeIf { it.hasTranslations }
+      val validator = state.constraintValidator
+      for (rawUpdate in request.updatesList) {
+        // Validate against p4info before type translation so SDN-visible values
+        // are checked at canonical widths (P4Runtime spec §8.3, §9.1).
+        if (rawUpdate.entity.hasTableEntry()) {
+          state.writeValidator.validate(rawUpdate)
+        }
+        val update = translator?.translateForWrite(rawUpdate) ?: rawUpdate
 
-      // Validate constraints before forwarding to the simulator.
-      // Skip DELETE — you can always remove an entry regardless of constraints.
-      if (
-        validator != null &&
-          update.entity.hasTableEntry() &&
-          update.type != p4.v1.P4RuntimeOuterClass.Update.Type.DELETE
-      ) {
-        val violation = validator.validateEntry(update.entity.tableEntry)
-        if (violation != null) {
-          throw Status.INVALID_ARGUMENT.withDescription(violation).asException()
+        // Validate constraints before forwarding to the simulator.
+        // Skip DELETE — you can always remove an entry regardless of constraints.
+        if (
+          validator != null &&
+            update.entity.hasTableEntry() &&
+            update.type != p4.v1.P4RuntimeOuterClass.Update.Type.DELETE
+        ) {
+          val violation = validator.validateEntry(update.entity.tableEntry)
+          if (violation != null) {
+            throw Status.INVALID_ARGUMENT.withDescription(violation).asException()
+          }
+        }
+
+        when (val result = simulator.writeEntry(update)) {
+          is WriteResult.Success -> {}
+          is WriteResult.AlreadyExists ->
+            throw Status.ALREADY_EXISTS.withDescription(result.message).asException()
+          is WriteResult.NotFound ->
+            throw Status.NOT_FOUND.withDescription(result.message).asException()
+          is WriteResult.InvalidArgument ->
+            throw Status.INVALID_ARGUMENT.withDescription(result.message).asException()
+          is WriteResult.ResourceExhausted ->
+            throw Status.RESOURCE_EXHAUSTED.withDescription(result.message).asException()
         }
       }
-
-      val simRequest =
-        SimRequest.newBuilder()
-          .setWriteEntry(WriteEntryRequest.newBuilder().setUpdate(update))
-          .build()
-      val simResponse = synchronized(simulator) { simulator.handle(simRequest) }
-      if (simResponse.hasError()) {
-        val grpcStatus =
-          when (simResponse.error.code) {
-            ErrorCode.ALREADY_EXISTS -> Status.ALREADY_EXISTS
-            ErrorCode.ENTITY_NOT_FOUND -> Status.NOT_FOUND
-            ErrorCode.NO_PIPELINE_LOADED -> Status.FAILED_PRECONDITION
-            ErrorCode.INVALID_REQUEST -> Status.INVALID_ARGUMENT
-            ErrorCode.RESOURCE_EXHAUSTED -> Status.RESOURCE_EXHAUSTED
-            ErrorCode.INTERNAL_ERROR,
-            ErrorCode.ERROR_CODE_UNSPECIFIED,
-            ErrorCode.UNRECOGNIZED -> Status.INTERNAL
-          }
-        throw grpcStatus.withDescription(simResponse.error.message).asException()
-      }
+      WriteResponse.getDefaultInstance()
     }
-    return WriteResponse.getDefaultInstance()
-  }
 
   // ---------------------------------------------------------------------------
   // Read
   // ---------------------------------------------------------------------------
 
   override fun read(request: ReadRequest): Flow<ReadResponse> = flow {
-    val state = requirePipeline()
-    val simRequest =
-      SimRequest.newBuilder()
-        .setReadEntries(ReadEntriesRequest.newBuilder().setRequest(request))
-        .build()
-    val simResponse = synchronized(simulator) { simulator.handle(simRequest) }
-    if (simResponse.hasError()) {
-      throw Status.INTERNAL.withDescription("Read failed: ${simResponse.error.message}")
-        .asException()
-    }
-    if (simResponse.readEntries.entitiesCount > 0) {
-      val translator = state.typeTranslator?.takeIf { it.hasTranslations }
-      val entities =
-        if (translator != null) {
-          simResponse.readEntries.entitiesList.map { translator.translateForRead(it) }
+    // Acquire the lock for the entire read (pipeline check + read + translation)
+    // so the pipeline can't be swapped mid-read.
+    val response =
+      lock.withLock {
+        val state = requirePipeline()
+        val entities = simulator.readEntries(request.entitiesList)
+        if (entities.isNotEmpty()) {
+          val translator = state.typeTranslator?.takeIf { it.hasTranslations }
+          if (translator != null) {
+            entities.map { translator.translateForRead(it) }
+          } else {
+            entities
+          }
         } else {
-          simResponse.readEntries.entitiesList
+          null
         }
-      emit(ReadResponse.newBuilder().addAllEntities(entities).build())
+      }
+    if (response != null) {
+      emit(ReadResponse.newBuilder().addAllEntities(response).build())
     }
   }
 
@@ -236,41 +222,36 @@ class P4RuntimeService(
             )
           }
           msg.hasPacket() -> {
-            val translator = pipeline?.typeTranslator?.takeIf { it.hasTranslations }
-            val packetOut = translator?.translatePacketOut(msg.packet) ?: msg.packet
-            val ingressPort = extractIngressPort(packetOut.metadataList)
+            val packetIns =
+              lock.withLock {
+                val translator = pipeline?.typeTranslator?.takeIf { it.hasTranslations }
+                val packetOut = translator?.translatePacketOut(msg.packet) ?: msg.packet
+                val ingressPort = extractIngressPort(packetOut.metadataList)
 
-            val simRequest =
-              SimRequest.newBuilder()
-                .setProcessPacket(
-                  ProcessPacketRequest.newBuilder()
-                    .setIngressPort(ingressPort)
-                    .setPayload(packetOut.payload)
-                )
-                .build()
+                val response =
+                  try {
+                    simulator.processPacket(ingressPort, packetOut.payload.toByteArray())
+                  } catch (_: IllegalStateException) {
+                    return@withLock null
+                  }
 
-            val simResponse = synchronized(simulator) { simulator.handle(simRequest) }
-            if (simResponse.hasError()) {
-              return@collect
-            }
-
-            // Convert output packets to PacketIn messages.
-            for (outputPacket in simResponse.processPacket.outputPacketsList) {
-              val rawPacketIn =
-                PacketIn.newBuilder()
-                  .setPayload(outputPacket.payload)
-                  .addMetadata(
-                    p4.v1.P4RuntimeOuterClass.PacketMetadata.newBuilder()
-                      .setMetadataId(EGRESS_PORT_METADATA_ID)
-                      .setValue(encodeMinWidth(outputPacket.egressPort))
-                  )
-                  .build()
-              emit(
-                StreamMessageResponse.newBuilder()
-                  .setPacket(translator?.translatePacketIn(rawPacketIn) ?: rawPacketIn)
-                  .build()
-              )
-            }
+                // Convert output packets to PacketIn messages.
+                response.outputPacketsList.map { outputPacket ->
+                  val rawPacketIn =
+                    PacketIn.newBuilder()
+                      .setPayload(outputPacket.payload)
+                      .addMetadata(
+                        p4.v1.P4RuntimeOuterClass.PacketMetadata.newBuilder()
+                          .setMetadataId(EGRESS_PORT_METADATA_ID)
+                          .setValue(encodeMinWidth(outputPacket.egressPort))
+                      )
+                      .build()
+                  StreamMessageResponse.newBuilder()
+                    .setPacket(translator?.translatePacketIn(rawPacketIn) ?: rawPacketIn)
+                    .build()
+                }
+              }
+            packetIns?.forEach { emit(it) }
           }
         }
       }

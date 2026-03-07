@@ -527,7 +527,7 @@ class StfParserTest {
       )
     val assocs = listOf(StfMcNodeAssociate(groupId = 1, nodeHandle = 0))
     val req = resolveStfMulticastGroup(1, nodes, assocs)
-    val group = req.update.entity.packetReplicationEngineEntry.multicastGroupEntry
+    val group = req.entity.packetReplicationEngineEntry.multicastGroupEntry
     assertEquals(1, group.multicastGroupId)
     assertEquals(1, group.replicasCount)
     assertEquals(6, group.replicasList[0].egressPort)

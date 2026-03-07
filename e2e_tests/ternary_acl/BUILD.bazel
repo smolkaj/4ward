@@ -12,7 +12,6 @@ kt_jvm_test(
     data = [
         "ternary_acl.stf",
         ":ternary_acl_pb",
-        "//simulator",
     ],
     test_class = "fourward.e2e.ternaryacl.TernaryAclTest",
     deps = [

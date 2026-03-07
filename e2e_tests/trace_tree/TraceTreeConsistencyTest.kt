@@ -1,13 +1,13 @@
 package fourward.e2e.tracetree
 
 import com.google.protobuf.TextFormat
-import fourward.e2e.SimulatorClient
 import fourward.e2e.StfFile
 import fourward.e2e.installStfEntries
 import fourward.e2e.loadPipelineConfig
-import fourward.sim.v1.PacketOutcome
-import fourward.sim.v1.ProcessPacketResponse
-import fourward.sim.v1.TraceTree
+import fourward.sim.v1.SimulatorProto.PacketOutcome
+import fourward.sim.v1.SimulatorProto.ProcessPacketResponse
+import fourward.sim.v1.SimulatorProto.TraceTree
+import fourward.simulator.Simulator
 import java.nio.file.Paths
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -50,19 +50,13 @@ class TraceTreeConsistencyTest(private val testName: String) {
 
     val config = loadPipelineConfig(configPath)
     val stf = StfFile.parse(stfPath)
-    val simPath = Paths.get(r, "_main/simulator/simulator")
 
-    SimulatorClient(simPath).use { sim ->
-      val loadResp = sim.loadPipeline(config)
-      assertTrue("LoadPipeline failed: ${loadResp.error.message}", !loadResp.hasError())
+    val sim = Simulator()
+    sim.loadPipeline(config)
+    installStfEntries(sim, stf, config.p4Info)
 
-      installStfEntries(sim, stf, config.p4Info)
-
-      for (packet in stf.packets) {
-        val resp = sim.processPacket(packet.ingressPort, packet.payload)
-        assertTrue("ProcessPacket failed: ${resp.error.message}", !resp.hasError())
-        verifyConsistency(resp.processPacket)
-      }
+    for (packet in stf.packets) {
+      verifyConsistency(sim.processPacket(packet.ingressPort, packet.payload))
     }
   }
 

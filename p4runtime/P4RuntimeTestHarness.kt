@@ -2,6 +2,9 @@ package fourward.p4runtime
 
 import com.google.protobuf.ByteString
 import fourward.ir.v1.PipelineConfig
+import fourward.sim.v1.DataplaneGrpcKt.DataplaneCoroutineStub
+import fourward.sim.v1.SimulatorProto.OutputPacket
+import fourward.sim.v1.SimulatorProto.ProcessPacketRequest
 import fourward.simulator.Simulator
 import io.grpc.ManagedChannel
 import io.grpc.Status
@@ -17,6 +20,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import p4.v1.P4RuntimeGrpcKt.P4RuntimeCoroutineStub
@@ -49,15 +53,23 @@ class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable 
 
   private val serverName = InProcessServerBuilder.generateName()
   private val simulator = Simulator()
-  private val service = P4RuntimeService(simulator, constraintValidatorBinary)
+  private val lock = Mutex()
+  private val service = P4RuntimeService(simulator, constraintValidatorBinary, lock)
+  private val dataplaneService = DataplaneService(simulator, lock)
 
   private val server =
-    InProcessServerBuilder.forName(serverName).directExecutor().addService(service).build().start()
+    InProcessServerBuilder.forName(serverName)
+      .directExecutor()
+      .addService(service)
+      .addService(dataplaneService)
+      .build()
+      .start()
 
   private val channel: ManagedChannel =
     InProcessChannelBuilder.forName(serverName).directExecutor().build()
 
   val stub: P4RuntimeCoroutineStub = P4RuntimeCoroutineStub(channel)
+  private val dataplaneStub: DataplaneCoroutineStub = DataplaneCoroutineStub(channel)
 
   // ---------------------------------------------------------------------------
   // Pipeline management
@@ -97,6 +109,22 @@ class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable 
 
   fun capabilities(): CapabilitiesResponse = runBlocking {
     stub.capabilities(CapabilitiesRequest.getDefaultInstance())
+  }
+
+  // ---------------------------------------------------------------------------
+  // Dataplane
+  // ---------------------------------------------------------------------------
+
+  /** Sends a packet through the simulator via the Dataplane gRPC service. */
+  fun simulatePacket(ingressPort: Int, payload: ByteArray): List<OutputPacket> = runBlocking {
+    dataplaneStub
+      .processPacket(
+        ProcessPacketRequest.newBuilder()
+          .setIngressPort(ingressPort)
+          .setPayload(ByteString.copyFrom(payload))
+          .build()
+      )
+      .outputPacketsList
   }
 
   // ---------------------------------------------------------------------------

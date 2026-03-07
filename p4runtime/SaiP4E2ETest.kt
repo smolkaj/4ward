@@ -7,6 +7,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import p4.config.v1.P4InfoOuterClass
 import p4.v1.P4RuntimeOuterClass.Entity
 import p4.v1.P4RuntimeOuterClass.FieldMatch
 import p4.v1.P4RuntimeOuterClass.TableEntry
@@ -120,14 +121,16 @@ class SaiP4E2ETest {
     val entry = entities[0].tableEntry
 
     // Verify vrf_id match field round-trips as string.
-    val vrfMatch = entry.matchList.find { it.fieldId == 1 }!!
+    val vrfFieldId = matchFieldId(ipv4Table, "vrf_id")
+    val vrfMatch = entry.matchList.find { it.fieldId == vrfFieldId }!!
     assertEquals("vrf-10", vrfMatch.exact.value.toStringUtf8())
 
     // Verify set_nexthop_id action param round-trips as string.
     val action = entry.action.action
     val setNexthopId = findAction("set_nexthop_id")
     assertEquals(setNexthopId.preamble.id, action.actionId)
-    val nexthopParam = action.paramsList.find { it.paramId == 1 }!!
+    val nexthopParamId = paramId(setNexthopId, "nexthop_id")
+    val nexthopParam = action.paramsList.find { it.paramId == nexthopParamId }!!
     assertEquals("nhop-1", nexthopParam.value.toStringUtf8())
   }
 
@@ -152,7 +155,9 @@ class SaiP4E2ETest {
 
     // Verify router_interface_id action param round-trips as string.
     val action = entry.action.action
-    val rifParam = action.paramsList.find { it.paramId == 1 }!!
+    val setIpNexthop = findAction("set_ip_nexthop")
+    val rifParamId = paramId(setIpNexthop, "router_interface_id")
+    val rifParam = action.paramsList.find { it.paramId == rifParamId }!!
     assertEquals("rif-1", rifParam.value.toStringUtf8())
   }
 
@@ -177,8 +182,41 @@ class SaiP4E2ETest {
 
     // port param (port_id_t, string) and src_mac param (48-bit, not translated).
     val action = entry.action.action
-    val portParam = action.paramsList.find { it.paramId == 1 }!!
+    val setPortAndSrcMac = findAction("set_port_and_src_mac")
+    val portParamId = paramId(setPortAndSrcMac, "port")
+    val portParam = action.paramsList.find { it.paramId == portParamId }!!
     assertEquals("Ethernet0", portParam.value.toStringUtf8())
+  }
+
+  // =========================================================================
+  // Packet forwarding
+  // =========================================================================
+
+  @Test
+  fun `IPv4 packet is forwarded with correct MAC rewrites and TTL decrement`() {
+    // Install routing entries via P4Runtime.
+    // Default VRF (vrf_id="") is implicit — no vrf_table entry needed.
+    harness.installEntry(buildIpv4RouteEntry(vrfId = "", nexthopId = "nhop-1"))
+    harness.installEntry(buildNexthopEntry(nexthopId = "nhop-1", routerInterfaceId = "rif-1"))
+    harness.installEntry(buildRouterInterfaceEntry("rif-1", "Ethernet1", RIF_MAC))
+    harness.installEntry(buildNeighborEntry("rif-1", NEIGHBOR_ID, NEIGHBOR_MAC))
+
+    // Build and send an IPv4 packet.
+    val packet = buildIpv4Packet(dstMac = UNICAST_MAC, srcMac = SRC_MAC, ttl = 64)
+    val outputs = harness.simulatePacket(ingressPort = 0, payload = packet)
+
+    assertEquals("expected exactly one output packet", 1, outputs.size)
+    val output = outputs[0].payload.toByteArray()
+
+    // dst_mac rewritten to neighbor MAC.
+    assertBytesEqual("dst_mac", NEIGHBOR_MAC, output, 0)
+    // src_mac rewritten to RIF MAC.
+    assertBytesEqual("src_mac", RIF_MAC, output, MAC_LEN)
+    // TTL decremented by 1.
+    assertEquals("TTL should be decremented", 63, output[TTL_OFFSET].toInt() and 0xFF)
+    // IP addresses unchanged.
+    assertBytesEqual("src_ip", SRC_IP, output, SRC_IP_OFFSET)
+    assertBytesEqual("dst_ip", DST_IP, output, DST_IP_OFFSET)
   }
 
   // =========================================================================
@@ -198,7 +236,7 @@ class SaiP4E2ETest {
   }
 
   // =========================================================================
-  // Helpers
+  // p4info lookup helpers
   // =========================================================================
 
   private fun findTable(alias: String) =
@@ -209,36 +247,104 @@ class SaiP4E2ETest {
     config.p4Info.actionsList.find { it.preamble.alias == alias }
       ?: error("action '$alias' not found in p4info")
 
-  private fun stringExactMatch(fieldId: Int, value: String): FieldMatch =
+  private fun matchFieldId(table: P4InfoOuterClass.Table, name: String): Int =
+    table.matchFieldsList.find { it.name == name }?.id
+      ?: error("match field '$name' not found in table '${table.preamble.alias}'")
+
+  private fun paramId(action: P4InfoOuterClass.Action, name: String): Int =
+    action.paramsList.find { it.name == name }?.id
+      ?: error("param '$name' not found in action '${action.preamble.alias}'")
+
+  // =========================================================================
+  // Match field and action param builders
+  // =========================================================================
+
+  private fun exactStringMatch(
+    table: P4InfoOuterClass.Table,
+    fieldName: String,
+    value: String,
+  ): FieldMatch =
     FieldMatch.newBuilder()
-      .setFieldId(fieldId)
+      .setFieldId(matchFieldId(table, fieldName))
       .setExact(FieldMatch.Exact.newBuilder().setValue(ByteString.copyFromUtf8(value)))
       .build()
 
-  private fun stringParam(paramId: Int, value: String): p4.v1.P4RuntimeOuterClass.Action.Param =
+  private fun exactBytesMatch(
+    table: P4InfoOuterClass.Table,
+    fieldName: String,
+    value: ByteArray,
+  ): FieldMatch =
+    FieldMatch.newBuilder()
+      .setFieldId(matchFieldId(table, fieldName))
+      .setExact(FieldMatch.Exact.newBuilder().setValue(ByteString.copyFrom(value)))
+      .build()
+
+  @Suppress("SameParameterValue")
+  private fun lpmMatch(
+    table: P4InfoOuterClass.Table,
+    fieldName: String,
+    value: ByteArray,
+    prefixLen: Int,
+  ): FieldMatch =
+    FieldMatch.newBuilder()
+      .setFieldId(matchFieldId(table, fieldName))
+      .setLpm(
+        FieldMatch.LPM.newBuilder().setValue(ByteString.copyFrom(value)).setPrefixLen(prefixLen)
+      )
+      .build()
+
+  private fun stringParam(
+    action: P4InfoOuterClass.Action,
+    paramName: String,
+    value: String,
+  ): p4.v1.P4RuntimeOuterClass.Action.Param =
     p4.v1.P4RuntimeOuterClass.Action.Param.newBuilder()
-      .setParamId(paramId)
+      .setParamId(paramId(action, paramName))
       .setValue(ByteString.copyFromUtf8(value))
+      .build()
+
+  private fun bytesParam(
+    action: P4InfoOuterClass.Action,
+    paramName: String,
+    value: ByteArray,
+  ): p4.v1.P4RuntimeOuterClass.Action.Param =
+    p4.v1.P4RuntimeOuterClass.Action.Param.newBuilder()
+      .setParamId(paramId(action, paramName))
+      .setValue(ByteString.copyFrom(value))
+      .build()
+
+  // =========================================================================
+  // Table entry builders
+  // =========================================================================
+
+  /** Builds a table entry with the given matches and action params. */
+  private fun buildEntry(
+    table: P4InfoOuterClass.Table,
+    action: P4InfoOuterClass.Action,
+    matches: List<FieldMatch>,
+    params: List<p4.v1.P4RuntimeOuterClass.Action.Param> = emptyList(),
+  ): Entity =
+    Entity.newBuilder()
+      .setTableEntry(
+        TableEntry.newBuilder()
+          .setTableId(table.preamble.id)
+          .addAllMatch(matches)
+          .setAction(
+            p4.v1.P4RuntimeOuterClass.TableAction.newBuilder()
+              .setAction(
+                p4.v1.P4RuntimeOuterClass.Action.newBuilder()
+                  .setActionId(action.preamble.id)
+                  .addAllParams(params)
+              )
+          )
+      )
       .build()
 
   /** Builds a vrf_table entry: exact match on vrf_id (string) → no_action. */
   private fun buildVrfEntry(vrfId: String): Entity {
     val table = findTable("vrf_table")
-    val noAction = findAction("no_action")
-
-    val tableEntry =
-      TableEntry.newBuilder()
-        .setTableId(table.preamble.id)
-        .addMatch(stringExactMatch(1, vrfId))
-        .setAction(
-          p4.v1.P4RuntimeOuterClass.TableAction.newBuilder()
-            .setAction(
-              p4.v1.P4RuntimeOuterClass.Action.newBuilder().setActionId(noAction.preamble.id)
-            )
-        )
-        .build()
-
-    return Entity.newBuilder().setTableEntry(tableEntry).build()
+    val action = findAction("no_action")
+    return buildEntry(table, action, matches = listOf(exactStringMatch(table, "vrf_id", vrfId)))
   }
 
   /**
@@ -246,33 +352,19 @@ class SaiP4E2ETest {
    * - match: router_interface_id (string, exact)
    * - action: set_port_and_src_mac(port: string, src_mac: 48-bit MAC)
    */
-  private fun buildRouterInterfaceEntry(rifId: String, port: String): Entity {
+  private fun buildRouterInterfaceEntry(
+    rifId: String,
+    port: String,
+    srcMac: ByteArray = RIF_MAC,
+  ): Entity {
     val table = findTable("router_interface_table")
     val action = findAction("set_port_and_src_mac")
-
-    // src_mac: non-zero (action_restriction enforces src_mac != 0).
-    val srcMacParam =
-      p4.v1.P4RuntimeOuterClass.Action.Param.newBuilder()
-        .setParamId(2)
-        .setValue(ByteString.copyFrom(byteArrayOf(0x00, 0x11, 0x22, 0x33, 0x44, 0x55)))
-        .build()
-
-    val tableEntry =
-      TableEntry.newBuilder()
-        .setTableId(table.preamble.id)
-        .addMatch(stringExactMatch(1, rifId))
-        .setAction(
-          p4.v1.P4RuntimeOuterClass.TableAction.newBuilder()
-            .setAction(
-              p4.v1.P4RuntimeOuterClass.Action.newBuilder()
-                .setActionId(action.preamble.id)
-                .addParams(stringParam(1, port))
-                .addParams(srcMacParam)
-            )
-        )
-        .build()
-
-    return Entity.newBuilder().setTableEntry(tableEntry).build()
+    return buildEntry(
+      table,
+      action,
+      matches = listOf(exactStringMatch(table, "router_interface_id", rifId)),
+      params = listOf(stringParam(action, "port", port), bytesParam(action, "src_mac", srcMac)),
+    )
   }
 
   /**
@@ -283,34 +375,16 @@ class SaiP4E2ETest {
   private fun buildIpv4RouteEntry(vrfId: String, nexthopId: String): Entity {
     val table = findTable("ipv4_table")
     val action = findAction("set_nexthop_id")
-
-    // ipv4_dst: 10.0.0.0/8 as LPM.
-    val ipv4DstMatch =
-      FieldMatch.newBuilder()
-        .setFieldId(2)
-        .setLpm(
-          FieldMatch.LPM.newBuilder()
-            .setValue(ByteString.copyFrom(byteArrayOf(10, 0, 0, 0)))
-            .setPrefixLen(8)
-        )
-        .build()
-
-    val tableEntry =
-      TableEntry.newBuilder()
-        .setTableId(table.preamble.id)
-        .addMatch(stringExactMatch(1, vrfId))
-        .addMatch(ipv4DstMatch)
-        .setAction(
-          p4.v1.P4RuntimeOuterClass.TableAction.newBuilder()
-            .setAction(
-              p4.v1.P4RuntimeOuterClass.Action.newBuilder()
-                .setActionId(action.preamble.id)
-                .addParams(stringParam(1, nexthopId))
-            )
-        )
-        .build()
-
-    return Entity.newBuilder().setTableEntry(tableEntry).build()
+    return buildEntry(
+      table,
+      action,
+      matches =
+        listOf(
+          exactStringMatch(table, "vrf_id", vrfId),
+          lpmMatch(table, "ipv4_dst", byteArrayOf(10, 0, 0, 0), prefixLen = 8),
+        ),
+      params = listOf(stringParam(action, "nexthop_id", nexthopId)),
+    )
   }
 
   /**
@@ -318,36 +392,103 @@ class SaiP4E2ETest {
    * - match: nexthop_id (string, exact)
    * - action: set_ip_nexthop(router_interface_id: string, neighbor_id: IPv6)
    */
-  private fun buildNexthopEntry(nexthopId: String, routerInterfaceId: String): Entity {
+  private fun buildNexthopEntry(
+    nexthopId: String,
+    routerInterfaceId: String,
+    neighborId: ByteArray = NEIGHBOR_ID,
+  ): Entity {
     val table = findTable("nexthop_table")
     val action = findAction("set_ip_nexthop")
+    return buildEntry(
+      table,
+      action,
+      matches = listOf(exactStringMatch(table, "nexthop_id", nexthopId)),
+      params =
+        listOf(
+          stringParam(action, "router_interface_id", routerInterfaceId),
+          bytesParam(action, "neighbor_id", neighborId),
+        ),
+    )
+  }
 
-    // neighbor_id is ipv6_addr_t (128-bit) — NOT translated.
-    val neighborParam =
-      p4.v1.P4RuntimeOuterClass.Action.Param.newBuilder()
-        .setParamId(2)
-        .setValue(
-          ByteString.copyFrom(
-            ByteArray(16) { if (it == 15) 1 else 0 } // ::1
-          )
-        )
-        .build()
+  /**
+   * Builds a neighbor_table entry:
+   * - match: router_interface_id (string, exact) + neighbor_id (IPv6, exact)
+   * - action: set_dst_mac(dst_mac: 48-bit MAC)
+   */
+  @Suppress("SameParameterValue")
+  private fun buildNeighborEntry(rifId: String, neighborId: ByteArray, dstMac: ByteArray): Entity {
+    val table = findTable("neighbor_table")
+    val action = findAction("set_dst_mac")
+    return buildEntry(
+      table,
+      action,
+      matches =
+        listOf(
+          exactStringMatch(table, "router_interface_id", rifId),
+          exactBytesMatch(table, "neighbor_id", neighborId),
+        ),
+      params = listOf(bytesParam(action, "dst_mac", dstMac)),
+    )
+  }
 
-    val tableEntry =
-      TableEntry.newBuilder()
-        .setTableId(table.preamble.id)
-        .addMatch(stringExactMatch(1, nexthopId))
-        .setAction(
-          p4.v1.P4RuntimeOuterClass.TableAction.newBuilder()
-            .setAction(
-              p4.v1.P4RuntimeOuterClass.Action.newBuilder()
-                .setActionId(action.preamble.id)
-                .addParams(stringParam(1, routerInterfaceId))
-                .addParams(neighborParam)
-            )
-        )
-        .build()
+  // =========================================================================
+  // Packet builders and assertions
+  // =========================================================================
 
-    return Entity.newBuilder().setTableEntry(tableEntry).build()
+  /** Builds a minimal Ethernet + IPv4 packet (no payload beyond the IP header). */
+  @Suppress("SameParameterValue", "MagicNumber")
+  private fun buildIpv4Packet(
+    dstMac: ByteArray,
+    srcMac: ByteArray,
+    ttl: Int,
+    srcIp: ByteArray = SRC_IP,
+    dstIp: ByteArray = DST_IP,
+  ): ByteArray {
+    val packet = ByteArray(ETHERNET_HEADER_LEN + IPV4_HEADER_LEN)
+    // Ethernet header: dst_mac + src_mac + ethertype (0x0800 = IPv4).
+    System.arraycopy(dstMac, 0, packet, 0, MAC_LEN)
+    System.arraycopy(srcMac, 0, packet, MAC_LEN, MAC_LEN)
+    packet[12] = 0x08.toByte()
+    packet[13] = 0x00.toByte()
+    // IPv4 header (20 bytes, no options).
+    packet[14] = 0x45.toByte() // version=4, IHL=5
+    // total length = 20
+    packet[16] = 0x00.toByte()
+    packet[17] = IPV4_HEADER_LEN.toByte()
+    packet[22] = ttl.toByte()
+    packet[23] = 0x06.toByte() // protocol = TCP (arbitrary, not checked)
+    // Checksum left as 0 — SAI P4 doesn't verify ingress checksums.
+    System.arraycopy(srcIp, 0, packet, SRC_IP_OFFSET, 4)
+    System.arraycopy(dstIp, 0, packet, DST_IP_OFFSET, 4)
+    return packet
+  }
+
+  /** Asserts that [expected] bytes match [actual] starting at [offset]. */
+  private fun assertBytesEqual(label: String, expected: ByteArray, actual: ByteArray, offset: Int) {
+    for (i in expected.indices) {
+      assertEquals("$label byte $i mismatch", expected[i], actual[offset + i])
+    }
+  }
+
+  @Suppress("MagicNumber")
+  companion object {
+    private const val MAC_LEN = 6
+    private const val ETHERNET_HEADER_LEN = 14
+    private const val IPV4_HEADER_LEN = 20
+    private const val TTL_OFFSET = 22 // Ethernet(14) + IPv4 byte 8
+    private const val SRC_IP_OFFSET = 26 // Ethernet(14) + IPv4 byte 12
+    private const val DST_IP_OFFSET = 30 // Ethernet(14) + IPv4 byte 16
+
+    // ::1 — used as neighbor_id in nexthop and neighbor table entries.
+    private val NEIGHBOR_ID = ByteArray(16) { if (it == 15) 1 else 0 }
+
+    private val NEIGHBOR_MAC =
+      byteArrayOf(0x00, 0xAA.toByte(), 0xBB.toByte(), 0xCC.toByte(), 0xDD.toByte(), 0xEE.toByte())
+    private val RIF_MAC = byteArrayOf(0x00, 0x11, 0x22, 0x33, 0x44, 0x55)
+    private val UNICAST_MAC = byteArrayOf(0x00, 0x01, 0x02, 0x03, 0x04, 0x05)
+    private val SRC_MAC = byteArrayOf(0x00, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E)
+    private val SRC_IP = byteArrayOf(192.toByte(), 168.toByte(), 1, 1)
+    private val DST_IP = byteArrayOf(10, 0, 0, 1)
   }
 }

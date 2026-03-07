@@ -12,7 +12,6 @@ kt_jvm_test(
     data = [
         "lpm_routing.stf",
         ":lpm_routing_pb",
-        "//simulator",
     ],
     test_class = "fourward.e2e.lpmrouting.LpmRoutingTest",
     deps = [

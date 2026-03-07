@@ -3,16 +3,24 @@ package fourward.p4runtime
 import fourward.simulator.Simulator
 import io.grpc.Server
 import io.grpc.netty.NettyServerBuilder
+import kotlinx.coroutines.sync.Mutex
 
-/** Wraps an in-process P4Runtime gRPC server backed by a 4ward [Simulator]. */
+/** Wraps a P4Runtime + Dataplane gRPC server backed by a 4ward [Simulator]. */
 class P4RuntimeServer(private val port: Int = DEFAULT_PORT) {
 
   private val simulator = Simulator()
-  private val service = P4RuntimeService(simulator)
+  private val lock = Mutex()
+  private val service = P4RuntimeService(simulator, lock = lock)
+  private val dataplaneService = DataplaneService(simulator, lock)
   private lateinit var server: Server
 
   fun start(): P4RuntimeServer {
-    server = NettyServerBuilder.forPort(port).addService(service).build().start()
+    server =
+      NettyServerBuilder.forPort(port)
+        .addService(service)
+        .addService(dataplaneService)
+        .build()
+        .start()
     Runtime.getRuntime().addShutdownHook(Thread { stop() })
     return this
   }

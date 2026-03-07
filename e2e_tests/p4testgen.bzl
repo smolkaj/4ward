@@ -137,7 +137,7 @@ def p4_testgen_test(name, src_p4 = None, includes = [], max_tests = 0, seed = 0,
         name = name + "_test",
         test_class = "fourward.e2e.p4testgen.P4TestgenSuiteTest",
         tags = tags + ["heavy"],
-        data = data + ["//simulator"],
+        data = data,
         deps = [
             "//e2e_tests/p4testgen:p4testgen_test_class",
             "@maven//:junit_junit",
@@ -157,7 +157,7 @@ def p4_testgen_suite(name, tests, includes = {}, max_tests = {}, tags = []):
         max_tests: dict mapping program names to max-test limits.
         tags:      Bazel tags forwarded to the kt_jvm_test.
     """
-    data = ["//simulator"]
+    data = []
 
     for test in tests:
         src_p4 = "@p4c//testdata/p4_16_samples:" + test + ".p4"

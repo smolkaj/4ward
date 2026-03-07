@@ -31,7 +31,6 @@ def bmv2_diff_test_suite(name, tests, tags = [], includes = []):
     """
     data = [
         ":bmv2_driver",
-        "//simulator",
     ]
 
     include_flags = "".join([
@@ -84,6 +83,8 @@ def bmv2_diff_test_suite(name, tests, tags = [], includes = []):
         data = data,
         deps = [
             "//e2e_tests/stf:stf_runner",
+            "//simulator:simulator_java_proto",
+            "//simulator:simulator_lib",
             "@maven//:com_google_protobuf_protobuf_java",
             "@maven//:junit_junit",
         ],
