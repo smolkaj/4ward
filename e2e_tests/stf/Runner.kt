@@ -68,8 +68,7 @@ class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPat
       }
 
       val failures = mutableListOf<String>()
-      data class Output(val port: Int, val payload: ByteArray)
-      val outputQueue = mutableListOf<Output>()
+      val outputQueue = mutableListOf<ReceivedPacket>()
 
       for (packet in stf.packets) {
         val resp = sim.processPacket(packet.ingressPort, packet.payload)
@@ -90,39 +89,58 @@ class StfRunner(private val simulatorBinary: Path, private val pipelineConfigPat
             collectOutputsFromTrace(resp.processPacket.trace)
           }
         for (pkt in pkts) {
-          outputQueue += Output(pkt.egressPort, pkt.payload.toByteArray())
+          outputQueue += ReceivedPacket(pkt.egressPort, pkt.payload.toByteArray())
         }
       }
 
-      for (expected in stf.expects) {
-        val idx = outputQueue.indexOfFirst { it.port == expected.port }
-        if (idx < 0) {
-          failures += "expected packet on port ${expected.port} but got none"
-        } else {
-          val actual = outputQueue.removeAt(idx)
-          if (
-            !actual.payload.matchesMasked(expected.payload, expected.mask, expected.exactLength)
-          ) {
-            failures +=
-              "port ${expected.port}: payload mismatch\n" +
-                "  expected: ${expected.payload.hex(expected.mask)}\n" +
-                "  actual:   ${actual.payload.hex()}"
-          }
-        }
-      }
-
-      // Reject unexpected output only when the STF has explicit expects — otherwise
-      // the test is "send-only" and doesn't make claims about output.
-      if (stf.expects.isNotEmpty()) {
-        for (unexpected in outputQueue) {
-          failures += "unexpected packet on port ${unexpected.port}: ${unexpected.payload.hex()}"
-        }
-      }
+      failures += matchOutputAgainstExpects(stf.expects, outputQueue)
 
       return if (failures.isEmpty()) TestResult.Pass
       else TestResult.Failure(failures.joinToString("\n"))
     }
   }
+}
+
+data class ReceivedPacket(val port: Int, val payload: ByteArray)
+
+/**
+ * Matches simulator output against STF expects, returning a list of failure messages (empty =
+ * pass).
+ *
+ * Cross-port ordering is ignored; within the same port, outputs are matched FIFO. Unexpected output
+ * (not matched by any expect) is rejected only when the STF has at least one expect — otherwise the
+ * test is "send-only" and doesn't make claims about output.
+ */
+fun matchOutputAgainstExpects(
+  expects: List<StfExpectedOutput>,
+  outputs: MutableList<ReceivedPacket>,
+): List<String> {
+  val failures = mutableListOf<String>()
+
+  for (expected in expects) {
+    val idx = outputs.indexOfFirst { it.port == expected.port }
+    if (idx < 0) {
+      failures += "expected packet on port ${expected.port} but got none"
+    } else {
+      val actual = outputs.removeAt(idx)
+      if (!actual.payload.matchesMasked(expected.payload, expected.mask, expected.exactLength)) {
+        failures +=
+          "port ${expected.port}: payload mismatch\n" +
+            "  expected: ${expected.payload.hex(expected.mask)}\n" +
+            "  actual:   ${actual.payload.hex()}"
+      }
+    }
+  }
+
+  // Reject unexpected output only when the STF has explicit expects — otherwise
+  // the test is "send-only" and doesn't make claims about output.
+  if (expects.isNotEmpty()) {
+    for (unexpected in outputs) {
+      failures += "unexpected packet on port ${unexpected.port}: ${unexpected.payload.hex()}"
+    }
+  }
+
+  return failures
 }
 
 /**

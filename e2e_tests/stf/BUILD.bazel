@@ -25,3 +25,13 @@ kt_jvm_test(
         "@maven//:junit_junit",
     ],
 )
+
+kt_jvm_test(
+    name = "RunnerTest",
+    srcs = ["RunnerTest.kt"],
+    test_class = "fourward.e2e.RunnerTest",
+    deps = [
+        ":stf_runner",
+        "@maven//:junit_junit",
+    ],
+)
