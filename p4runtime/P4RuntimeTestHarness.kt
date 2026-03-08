@@ -442,6 +442,26 @@ class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable 
       return builder.build()
     }
 
+    /** Finds a table by alias in p4info, or throws with a clear error. */
+    fun findTable(config: PipelineConfig, alias: String) =
+      config.p4Info.tablesList.find { it.preamble.alias == alias }
+        ?: error("table '$alias' not found in p4info")
+
+    /** Finds an action by alias in p4info, or throws with a clear error. */
+    fun findAction(config: PipelineConfig, alias: String) =
+      config.p4Info.actionsList.find { it.preamble.alias == alias }
+        ?: error("action '$alias' not found in p4info")
+
+    /** Finds a match field ID by name in a table, or throws with a clear error. */
+    fun matchFieldId(table: p4.config.v1.P4InfoOuterClass.Table, name: String): Int =
+      table.matchFieldsList.find { it.name == name }?.id
+        ?: error("match field '$name' not found in table '${table.preamble.alias}'")
+
+    /** Finds an action param ID by name, or throws with a clear error. */
+    fun paramId(action: p4.config.v1.P4InfoOuterClass.Action, name: String): Int =
+      action.paramsList.find { it.name == name }?.id
+        ?: error("param '$name' not found in action '${action.preamble.alias}'")
+
     /** Builds a minimal Ethernet frame: dst=FF:FF:FF:FF:FF:FF src=00:00:00:00:00:01 + etherType. */
     @Suppress("MagicNumber")
     fun buildEthernetFrame(etherType: Int): ByteArray {
