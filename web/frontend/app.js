@@ -1209,7 +1209,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const isMac = navigator.platform.includes('Mac');
   const mod = isMac ? '⌘' : 'Ctrl';
   initEditor().then(() => {
-    log(`Editor ready — ${mod}+Enter to compile, ${mod}+Enter in payload to send packet`, 'info');
+    log(`Editor ready — ${mod}+Enter to compile & load`, 'info');
   });
 
   // Check if pipeline is already loaded (e.g. page refresh)
