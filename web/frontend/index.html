@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>4ward Playground</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header id="header">
+    <div class="header-left">
+      <h1>4ward<span class="header-subtle"> Playground</span></h1>
+    </div>
+    <div class="header-right">
+      <span id="status-indicator" class="status-dot"></span>
+      <span id="status-text" class="status-text">No pipeline loaded</span>
+      <button id="btn-compile" class="btn btn-primary" title="Compile P4 source and load into simulator">
+        Compile &amp; Load
+      </button>
+    </div>
+  </header>
+
+  <!-- Main layout: editor + right panel -->
+  <div id="main">
+
+    <!-- Left: P4 editor -->
+    <div id="editor-pane">
+      <div class="pane-header">
+        <span class="pane-title">P4 Source</span>
+        <select id="example-select" class="select-small" title="Load example program">
+          <option value="">Examples…</option>
+          <option value="basic_table">basic_table.p4</option>
+          <option value="passthrough">passthrough.p4</option>
+        </select>
+      </div>
+      <div id="editor-container"></div>
+    </div>
+
+    <!-- Resize handle -->
+    <div id="resize-handle" class="resize-handle"></div>
+
+    <!-- Right: tabbed panels -->
+    <div id="right-pane">
+      <div class="tab-bar">
+        <button class="tab active" data-tab="tables">Tables</button>
+        <button class="tab" data-tab="packets">Packets</button>
+        <button class="tab" data-tab="trace">Trace</button>
+      </div>
+
+      <!-- Tables tab -->
+      <div id="tab-tables" class="tab-content active">
+        <div id="tables-empty" class="empty-state">
+          <p>No pipeline loaded.</p>
+          <p class="empty-hint">Write P4 code and click <strong>Compile &amp; Load</strong> to get started.</p>
+        </div>
+        <div id="tables-loaded" class="hidden">
+          <div class="form-section">
+            <h3>Add Table Entry</h3>
+            <div class="form-row">
+              <label for="entry-table">Table</label>
+              <select id="entry-table" class="select-full"></select>
+            </div>
+            <div id="match-fields"></div>
+            <div class="form-row">
+              <label for="entry-action">Action</label>
+              <select id="entry-action" class="select-full"></select>
+            </div>
+            <div id="action-params"></div>
+            <div class="form-row" id="priority-row" style="display:none">
+              <label for="entry-priority">Priority</label>
+              <input id="entry-priority" type="number" value="1" min="1" class="input-full">
+            </div>
+            <button id="btn-add-entry" class="btn btn-secondary">Insert Entry</button>
+          </div>
+          <div class="form-section">
+            <h3>Installed Entries</h3>
+            <div id="entries-list" class="entries-list">
+              <p class="empty-hint">No entries installed.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Packets tab -->
+      <div id="tab-packets" class="tab-content">
+        <div class="form-section">
+          <h3>Send Packet</h3>
+          <div class="form-row">
+            <label>Presets</label>
+            <div class="preset-buttons">
+              <button class="btn btn-small" onclick="applyPreset('ipv4')" title="Ethernet + IPv4 (etherType=0x0800)">IPv4</button>
+              <button class="btn btn-small" onclick="applyPreset('ipv6')" title="Ethernet + IPv6 (etherType=0x86DD)">IPv6</button>
+              <button class="btn btn-small" onclick="applyPreset('arp')" title="Ethernet + ARP (etherType=0x0806)">ARP</button>
+              <button class="btn btn-small" onclick="applyPreset('raw')" title="Minimal Ethernet frame">Raw</button>
+            </div>
+          </div>
+          <div class="form-row">
+            <label for="pkt-port">Ingress Port</label>
+            <input id="pkt-port" type="number" value="0" min="0" class="input-full">
+          </div>
+          <div class="form-row">
+            <label for="pkt-payload">Payload (hex)</label>
+            <textarea id="pkt-payload" class="input-full mono" rows="3"
+              placeholder="ff ff ff ff ff ff 00 00 00 00 00 01 08 00 de ad be ef"></textarea>
+          </div>
+          <div class="form-row">
+            <button id="btn-send-packet" class="btn btn-secondary" disabled>Send Packet</button>
+          </div>
+        </div>
+        <div id="packet-results" class="hidden">
+          <div class="form-section">
+            <h3>Output Packets</h3>
+            <div id="output-packets" class="output-area mono"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Trace tab -->
+      <div id="tab-trace" class="tab-content">
+        <div id="trace-empty" class="empty-state">
+          <p>No trace yet.</p>
+          <p class="empty-hint">Send a packet to see the execution trace.</p>
+        </div>
+        <div id="trace-tree" class="hidden"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Log bar -->
+  <div id="log-bar">
+    <span id="log-text"></span>
+  </div>
+
+  <!-- Monaco Editor from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
