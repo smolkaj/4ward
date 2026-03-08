@@ -860,26 +860,24 @@ class Interpreter(
         }
         UnitVal
       }
-      // resubmit(data): re-inject the original packet into the ingress pipeline.
-      "resubmit" -> {
-        packetCtx?.pendingResubmit = true
-        UnitVal
-      }
+      // resubmit[_preserving_field_list](data): re-inject into ingress.
+      "resubmit",
       "resubmit_preserving_field_list" -> {
         packetCtx?.pendingResubmit = true
-        packetCtx?.pendingResubmitFieldListId =
-          (evalExpr(call.argsList[0], env) as BitVal).bits.value.toInt()
+        if (funcName == "resubmit_preserving_field_list") {
+          packetCtx?.pendingResubmitFieldListId =
+            (evalExpr(call.argsList[0], env) as BitVal).bits.value.toInt()
+        }
         UnitVal
       }
-      // recirculate(data): feed the deparsed packet back into the ingress pipeline.
-      "recirculate" -> {
-        packetCtx?.pendingRecirculate = true
-        UnitVal
-      }
+      // recirculate[_preserving_field_list](data): feed deparsed packet back into ingress.
+      "recirculate",
       "recirculate_preserving_field_list" -> {
         packetCtx?.pendingRecirculate = true
-        packetCtx?.pendingRecirculateFieldListId =
-          (evalExpr(call.argsList[0], env) as BitVal).bits.value.toInt()
+        if (funcName == "recirculate_preserving_field_list") {
+          packetCtx?.pendingRecirculateFieldListId =
+            (evalExpr(call.argsList[0], env) as BitVal).bits.value.toInt()
+        }
         UnitVal
       }
       // verify_checksum[_with_payload](condition, data, checksum, algo): v1model §14.
@@ -1270,8 +1268,7 @@ class CloneFork(
   val clonePort: Long,
   val parserEventCount: Int,
   eventsBeforeFork: List<TraceEvent>,
-  val fieldListId: Int? = null,
-  val metadataSnapshot: Map<String, Value>? = null,
+  val preservedMetadata: Map<String, Value>? = null,
 ) : ForkException(eventsBeforeFork)
 
 /** Fork after egress controls when an E2E clone was requested — "original" and "clone". */
@@ -1279,8 +1276,7 @@ class EgressCloneFork(
   val sessionId: Int,
   val clonePort: Long,
   eventsBeforeFork: List<TraceEvent>,
-  val fieldListId: Int? = null,
-  val metadataSnapshot: Map<String, Value>? = null,
+  val preservedMetadata: Map<String, Value>? = null,
 ) : ForkException(eventsBeforeFork)
 
 /** Fork at the ingress→egress boundary when mcast_grp is set — one branch per replica. */
@@ -1290,16 +1286,14 @@ class MulticastFork(val replicas: List<BranchMode.Replica>, eventsBeforeFork: Li
 /** Fork at the ingress→egress boundary when resubmit was requested — single branch re-ingress. */
 class ResubmitFork(
   eventsBeforeFork: List<TraceEvent>,
-  val fieldListId: Int? = null,
-  val metadataSnapshot: Map<String, Value>? = null,
+  val preservedMetadata: Map<String, Value>? = null,
 ) : ForkException(eventsBeforeFork)
 
 /** Fork after deparser when recirculate was requested — single branch with deparsed bytes. */
 class RecirculateFork(
   val deparsedBytes: ByteArray,
   eventsBeforeFork: List<TraceEvent>,
-  val fieldListId: Int? = null,
-  val metadataSnapshot: Map<String, Value>? = null,
+  val preservedMetadata: Map<String, Value>? = null,
 ) : ForkException(eventsBeforeFork)
 
 /**
@@ -1336,7 +1330,6 @@ data class ForkDecisions(
   val branchMode: BranchMode = BranchMode.Normal(),
   val instanceTypeOverride: Long? = null,
   val pipelineDepth: Int = 0,
-  /** Metadata fields to preserve across clone/resubmit/recirculate, keyed by field list ID. */
-  val preservedFieldListId: Int? = null,
+  /** Pre-filtered metadata fields to restore from clone/resubmit/recirculate preservation. */
   val preservedMetadata: Map<String, Value>? = null,
 )
