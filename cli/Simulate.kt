@@ -18,7 +18,12 @@ import java.nio.file.Path
  * Loads the pipeline, installs table entries, sends packets, verifies expectations, and prints the
  * trace tree for each packet. Returns an exit code (does not call `exitProcess`).
  */
-fun simulate(pipelinePath: Path, stfPath: Path, format: OutputFormat): Int {
+fun simulate(
+  pipelinePath: Path,
+  stfPath: Path,
+  format: OutputFormat,
+  color: AnsiColor = AnsiColor.auto(),
+): Int {
   val config =
     try {
       loadPipelineConfig(pipelinePath)
@@ -63,8 +68,10 @@ fun simulate(pipelinePath: Path, stfPath: Path, format: OutputFormat): Int {
     val trace = resp.trace
     when (format) {
       OutputFormat.HUMAN -> {
-        println("packet received: port ${packet.ingressPort}, ${packet.payload.size} bytes")
-        println(TraceFormatter.format(trace).trim().prependIndent("  "))
+        println(
+          color.bold("packet received: port ${packet.ingressPort}, ${packet.payload.size} bytes")
+        )
+        println(TraceFormatter.format(trace, color).trim().prependIndent("  "))
       }
       OutputFormat.TEXTPROTO -> print(textProtoPrinter.printToString(trace))
     }
@@ -76,10 +83,10 @@ fun simulate(pipelinePath: Path, stfPath: Path, format: OutputFormat): Int {
 
   val failures = matchOutputAgainstExpects(stf.expects, outputQueue)
   if (failures.isNotEmpty()) {
-    System.err.println("FAIL")
+    System.err.println(color.red("FAIL"))
     for (f in failures) System.err.println("  $f")
     return ExitCode.TEST_FAILURE
   }
-  println("PASS")
+  println(color.green("PASS"))
   return ExitCode.SUCCESS
 }

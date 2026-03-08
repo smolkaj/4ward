@@ -168,10 +168,114 @@ class TraceFormatterTest {
       """
       |parse: start -> accept
       |fork (clone)
-      |  branch: original
-      |    output port 1, 0 bytes
-      |  branch: clone
+      |├── original
+      |│   output port 1, 0 bytes
+      |└── clone
       |    output port 2, 0 bytes
+      |"""
+        .trimMargin(),
+      output,
+    )
+  }
+
+  @Test
+  fun colorOutput() {
+    val tree =
+      TraceTree.newBuilder()
+        .addEvents(
+          TraceEvent.newBuilder()
+            .setParserTransition(
+              ParserTransitionEvent.newBuilder().setFromState("start").setToState("accept")
+            )
+        )
+        .addEvents(
+          TraceEvent.newBuilder()
+            .setTableLookup(
+              TableLookupEvent.newBuilder().setTableName("t").setHit(true).setActionName("fwd")
+            )
+        )
+        .setPacketOutcome(
+          PacketOutcome.newBuilder().setDrop(Drop.newBuilder().setReason(DropReason.MARK_TO_DROP))
+        )
+        .build()
+
+    val c = AnsiColor(enabled = true)
+    val output = TraceFormatter.format(tree, c)
+    // Verify ANSI escape codes are present.
+    assert(output.contains("\u001b[")) { "Expected ANSI escape codes in color output" }
+    assert(output.contains("\u001b[36m")) { "Expected cyan for parse" }
+    assert(output.contains("\u001b[32m")) { "Expected green for hit" }
+    assert(output.contains("\u001b[31m")) { "Expected red for drop" }
+  }
+
+  @Test
+  fun nestedForkTree() {
+    val innerFork =
+      TraceTree.newBuilder()
+        .setForkOutcome(
+          Fork.newBuilder()
+            .setReason(ForkReason.CLONE)
+            .addBranches(
+              ForkBranch.newBuilder()
+                .setLabel("a")
+                .setSubtree(
+                  TraceTree.newBuilder()
+                    .setPacketOutcome(
+                      PacketOutcome.newBuilder()
+                        .setOutput(
+                          OutputPacket.newBuilder().setEgressPort(1).setPayload(ByteString.EMPTY)
+                        )
+                    )
+                )
+            )
+            .addBranches(
+              ForkBranch.newBuilder()
+                .setLabel("b")
+                .setSubtree(
+                  TraceTree.newBuilder()
+                    .setPacketOutcome(
+                      PacketOutcome.newBuilder()
+                        .setDrop(Drop.newBuilder().setReason(DropReason.MARK_TO_DROP))
+                    )
+                )
+            )
+        )
+        .build()
+
+    val tree =
+      TraceTree.newBuilder()
+        .setForkOutcome(
+          Fork.newBuilder()
+            .setReason(ForkReason.ACTION_SELECTOR)
+            .addBranches(ForkBranch.newBuilder().setLabel("original").setSubtree(innerFork))
+            .addBranches(
+              ForkBranch.newBuilder()
+                .setLabel("clone")
+                .setSubtree(
+                  TraceTree.newBuilder()
+                    .setPacketOutcome(
+                      PacketOutcome.newBuilder()
+                        .setOutput(
+                          OutputPacket.newBuilder().setEgressPort(3).setPayload(ByteString.EMPTY)
+                        )
+                    )
+                )
+            )
+        )
+        .build()
+
+    val output = TraceFormatter.format(tree)
+    assertEquals(
+      """
+      |fork (selector)
+      |├── original
+      |│   fork (clone)
+      |│   ├── a
+      |│   │   output port 1, 0 bytes
+      |│   └── b
+      |│       drop (reason: mark_to_drop)
+      |└── clone
+      |    output port 3, 0 bytes
       |"""
         .trimMargin(),
       output,
