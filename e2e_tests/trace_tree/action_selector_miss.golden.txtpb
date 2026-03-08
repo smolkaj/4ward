@@ -93,34 +93,6 @@ events {
     direction: EXIT
   }
 }
-events {
-  pipeline_stage {
-    stage_name: "egress"
-    stage_kind: CONTROL
-    direction: ENTER
-  }
-}
-events {
-  pipeline_stage {
-    stage_name: "egress"
-    stage_kind: CONTROL
-    direction: EXIT
-  }
-}
-events {
-  pipeline_stage {
-    stage_name: "compute_checksum"
-    stage_kind: CONTROL
-    direction: ENTER
-  }
-}
-events {
-  pipeline_stage {
-    stage_name: "compute_checksum"
-    stage_kind: CONTROL
-    direction: EXIT
-  }
-}
 packet_outcome {
   drop {
     reason: MARK_TO_DROP

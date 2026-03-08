@@ -3,6 +3,7 @@ package fourward.simulator
 import fourward.ir.v1.BehavioralConfig
 import fourward.ir.v1.PipelineStage
 import fourward.ir.v1.StageKind
+import fourward.sim.v1.SimulatorProto.CloneSessionLookupEvent
 import fourward.sim.v1.SimulatorProto.Drop
 import fourward.sim.v1.SimulatorProto.DropReason
 import fourward.sim.v1.SimulatorProto.Fork
@@ -192,7 +193,7 @@ class V1ModelArchitecture : Architecture {
             BranchSpec(
               "clone",
               ctx,
-              decisions.copy(branchMode = BranchMode.I2EClone(fork.sessionId)),
+              decisions.copy(branchMode = BranchMode.I2EClone(fork.sessionId, fork.clonePort)),
               fork.parserEventCount,
             ),
           )
@@ -209,7 +210,7 @@ class V1ModelArchitecture : Architecture {
             BranchSpec(
               "clone",
               ctx,
-              decisions.copy(branchMode = BranchMode.E2EClone(fork.sessionId)),
+              decisions.copy(branchMode = BranchMode.E2EClone(fork.sessionId, fork.clonePort)),
               fork.eventsBeforeFork.size,
             ),
           )
@@ -347,20 +348,26 @@ class V1ModelArchitecture : Architecture {
       runControlStages(s, s.ingressControls)
     }
 
-    // --- Ingress→egress boundary ---
+    // --- Ingress→egress boundary (traffic manager) ---
     ingressEgressBoundary(ctx, s, decisions, parserEventCount)
+    if (egressPortIsDropPort(s)) {
+      return buildDropTrace(s.packetCtx.getEvents(), DropReason.MARK_TO_DROP)
+    }
 
     // --- Egress controls (egress, compute checksum) ---
     runControlStages(s, s.egressControls)
 
-    // --- Post-egress boundary ---
+    // --- Post-egress boundary (E2E clone / recirculate) ---
     postEgressBoundary(ctx, s, decisions)
 
-    val egressPort =
-      (s.standardMetadata.fields["egress_port"] as? BitVal)?.bits?.value?.toLong() ?: 0L
+    // E2E clone branch: postEgressBoundary set up clone metadata — run egress again.
+    if (decisions.branchMode is BranchMode.E2EClone) {
+      runControlStages(s, s.egressControls)
+    }
 
-    // The drop port is all-ones for the port width (e.g. 511 for bit<9>).
-    if (egressPort == s.dropPort) {
+    // mark_to_drop() called during egress (or the E2E clone's second egress run)
+    // sets egress_spec to the drop port.
+    if (egressSpecIsDropPort(s)) {
       return buildDropTrace(s.packetCtx.getEvents(), DropReason.MARK_TO_DROP)
     }
 
@@ -383,7 +390,9 @@ class V1ModelArchitecture : Architecture {
       throw RecirculateFork(outputBytes, s.packetCtx.getEvents())
     }
 
-    return buildOutputTrace(s.packetCtx.getEvents(), egressPort.toInt(), outputBytes)
+    val egressPort =
+      (s.standardMetadata.fields["egress_port"] as? BitVal)?.bits?.value?.toInt() ?: 0
+    return buildOutputTrace(s.packetCtx.getEvents(), egressPort, outputBytes)
   }
 
   /** Runs a list of control stages, emitting enter/exit events for each. */
@@ -415,12 +424,8 @@ class V1ModelArchitecture : Architecture {
   ) {
     when (val mode = decisions.branchMode) {
       is BranchMode.I2EClone -> {
-        // I2E clone branch: set up clone metadata and continue to egress.
-        // BMv2 drops the clone if the session doesn't exist.
-        val session = ctx.tableStore.getCloneSession(mode.sessionId)
-        val clonePort = session?.replicasList?.firstOrNull()?.egressPort?.toLong() ?: s.dropPort
         s.standardMetadata.setBitField("instance_type", CLONE_I2E_INSTANCE_TYPE)
-        s.standardMetadata.setBitField("egress_port", clonePort)
+        s.standardMetadata.setBitField("egress_port", mode.clonePort)
       }
       is BranchMode.Replica -> {
         s.standardMetadata.setBitField("instance_type", REPLICATION_INSTANCE_TYPE)
@@ -429,11 +434,13 @@ class V1ModelArchitecture : Architecture {
       }
       is BranchMode.Normal,
       is BranchMode.E2EClone -> {
-        // Normal path: check for pending I2E clone, resubmit, multicast, unicast.
+        // Both Normal and E2EClone run ingress normally and check for I2E clone/resubmit/multicast.
         val suppressI2E = (mode as? BranchMode.Normal)?.suppressI2EClone == true
         val pendingClone = s.packetCtx.pendingCloneSessionId
         if (pendingClone != null && !suppressI2E) {
-          throw CloneFork(pendingClone, parserEventCount, s.packetCtx.getEvents())
+          resolveCloneSession(ctx, s, pendingClone)?.let { clonePort ->
+            throw CloneFork(pendingClone, clonePort, parserEventCount, s.packetCtx.getEvents())
+          }
         }
         if (s.packetCtx.pendingResubmit) {
           throw ResubmitFork(s.packetCtx.getEvents())
@@ -464,21 +471,18 @@ class V1ModelArchitecture : Architecture {
   private fun postEgressBoundary(ctx: PipelineContext, s: PipelineState, decisions: ForkDecisions) {
     when (val mode = decisions.branchMode) {
       is BranchMode.E2EClone -> {
-        // E2E clone branch: after the original egress ran (giving us modified headers),
-        // re-run egress with CLONE_E2E instance_type and the clone session's egress_port.
-        // BMv2 drops the clone if the session doesn't exist.
-        val session = ctx.tableStore.getCloneSession(mode.sessionId)
-        val clonePort = session?.replicasList?.firstOrNull()?.egressPort?.toLong() ?: s.dropPort
         s.standardMetadata.setBitField("instance_type", CLONE_E2E_INSTANCE_TYPE)
-        s.standardMetadata.setBitField("egress_port", clonePort)
+        s.standardMetadata.setBitField("egress_port", mode.clonePort)
+        // Suppress chained E2E clones: BMv2 does not re-clone from a clone's egress run.
         s.packetCtx.pendingEgressCloneSessionId = null
-        runControlStages(s, s.egressControls)
       }
       else -> {
         val suppressE2E = (mode as? BranchMode.Normal)?.suppressE2EClone == true
         val pendingE2EClone = s.packetCtx.pendingEgressCloneSessionId
         if (pendingE2EClone != null && !suppressE2E) {
-          throw EgressCloneFork(pendingE2EClone, s.packetCtx.getEvents())
+          resolveCloneSession(ctx, s, pendingE2EClone)?.let { clonePort ->
+            throw EgressCloneFork(pendingE2EClone, clonePort, s.packetCtx.getEvents())
+          }
         }
       }
     }
@@ -489,6 +493,17 @@ class V1ModelArchitecture : Architecture {
     return TraceTree.newBuilder().addAllEvents(events).setPacketOutcome(outcome).build()
   }
 
+  /**
+   * Traffic manager drop check: egress_port == drop port (set by boundary from egress_spec or clone
+   * session).
+   */
+  private fun egressPortIsDropPort(s: PipelineState): Boolean =
+    (s.standardMetadata.fields["egress_port"] as? BitVal)?.bits?.value?.toLong() == s.dropPort
+
+  /** Post-egress drop check: mark_to_drop() in egress sets egress_spec to drop port. */
+  private fun egressSpecIsDropPort(s: PipelineState): Boolean =
+    (s.standardMetadata.fields["egress_spec"] as? BitVal)?.bits?.value?.toLong() == s.dropPort
+
   private fun buildOutputTrace(events: List<TraceEvent>, port: Int, payload: ByteArray): TraceTree {
     val output =
       fourward.sim.v1.SimulatorProto.OutputPacket.newBuilder()
@@ -498,6 +513,38 @@ class V1ModelArchitecture : Architecture {
     val outcome = PacketOutcome.newBuilder().setOutput(output).build()
     return TraceTree.newBuilder().addAllEvents(events).setPacketOutcome(outcome).build()
   }
+
+  /**
+   * Resolves a pending clone session: emits a [CloneSessionLookupEvent] and returns the clone port,
+   * or emits a miss event and returns null if the session doesn't exist.
+   */
+  private fun resolveCloneSession(ctx: PipelineContext, s: PipelineState, sessionId: Int): Long? {
+    val session = ctx.tableStore.getCloneSession(sessionId)
+    if (session != null) {
+      val egressPort = session.replicasList.first().egressPort
+      s.packetCtx.addTraceEvent(cloneSessionLookupEvent(sessionId, egressPort))
+      return egressPort.toLong()
+    }
+    s.packetCtx.addTraceEvent(cloneSessionMissEvent(sessionId))
+    return null
+  }
+
+  private fun cloneSessionLookupEvent(sessionId: Int, egressPort: Int): TraceEvent =
+    TraceEvent.newBuilder()
+      .setCloneSessionLookup(
+        CloneSessionLookupEvent.newBuilder()
+          .setSessionId(sessionId)
+          .setSessionFound(true)
+          .setEgressPort(egressPort)
+      )
+      .build()
+
+  private fun cloneSessionMissEvent(sessionId: Int): TraceEvent =
+    TraceEvent.newBuilder()
+      .setCloneSessionLookup(
+        CloneSessionLookupEvent.newBuilder().setSessionId(sessionId).setSessionFound(false)
+      )
+      .build()
 
   private fun packetIngressEvent(ingressPort: UInt): TraceEvent =
     TraceEvent.newBuilder()
