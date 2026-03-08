@@ -334,14 +334,39 @@ class WebServer(
 
     /** Minimal JSON string extraction — avoids pulling in a JSON library. */
     fun extractJsonString(json: String, key: String): String? {
-      val regex = """"$key"\s*:\s*"((?:[^"\\]|\\.)*)"""".toRegex()
-      val match = regex.find(json) ?: return null
-      return match.groupValues[1]
-        .replace("\\\"", "\"")
-        .replace("\\n", "\n")
-        .replace("\\r", "\r")
-        .replace("\\t", "\t")
-        .replace("\\\\", "\\")
+      // Manual scan instead of regex: Java's NFA regex engine recurses per
+      // character in `(?:[^"\\]|\\.)*`, causing StackOverflowError on long
+      // P4 source strings.
+      val keyPattern = "\"$key\""
+      val keyIdx = json.indexOf(keyPattern)
+      if (keyIdx < 0) return null
+      var i = keyIdx + keyPattern.length
+      while (i < json.length && json[i].isWhitespace()) i++
+      if (i >= json.length || json[i] != ':') return null
+      i++
+      while (i < json.length && json[i].isWhitespace()) i++
+      if (i >= json.length || json[i] != '"') return null
+      i++ // skip opening quote
+      val sb = StringBuilder()
+      while (i < json.length) {
+        val c = json[i]
+        if (c == '"') return sb.toString()
+        if (c == '\\' && i + 1 < json.length) {
+          when (json[++i]) {
+            '"' -> sb.append('"')
+            '\\' -> sb.append('\\')
+            'n' -> sb.append('\n')
+            'r' -> sb.append('\r')
+            't' -> sb.append('\t')
+            '/' -> sb.append('/')
+            else -> { sb.append('\\'); sb.append(json[i]) }
+          }
+        } else {
+          sb.append(c)
+        }
+        i++
+      }
+      return null // unterminated string
     }
 
     fun extractJsonInt(json: String, key: String): Int? {
