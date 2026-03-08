@@ -547,6 +547,87 @@ class V1ModelArchitectureTest {
   }
 
   // ---------------------------------------------------------------------------
+  // Stale egress_spec tests — verify mark_to_drop() from ingress or a prior
+  // egress run doesn't leak through to replicas, I2E clones, or E2E clones.
+  // ---------------------------------------------------------------------------
+
+  /** mark_to_drop() call as an ingress statement. */
+  private val markToDrop: Stmt =
+    externCall(
+      "mark_to_drop",
+      Expr.newBuilder().setNameRef(NameRef.newBuilder().setName("sm")).build(),
+    )
+
+  @Test
+  fun `multicast replicas survive ingress mark_to_drop`() {
+    // Ingress calls mark_to_drop(), then sets mcast_grp. Replicas must still be
+    // forwarded — the post-egress drop check should only trigger on mark_to_drop()
+    // called during egress, not on stale ingress state.
+    val config = v1modelConfig(markToDrop, assignField("sm", "mcast_grp", 1, 16))
+    val tableStore = TableStore()
+    writeMulticastGroup(tableStore, groupId = 1, replicas = listOf(0 to 2, 0 to 3))
+
+    val result =
+      V1ModelArchitecture().processPacket(0u, byteArrayOf(0xAA.toByte()), config, tableStore)
+    val outputs = collectOutputsFromTrace(result.trace)
+
+    assertEquals(2, outputs.size)
+    assertEquals(2, outputs[0].egressPort)
+    assertEquals(3, outputs[1].egressPort)
+  }
+
+  @Test
+  fun `I2E clone survives ingress mark_to_drop on original`() {
+    // Ingress calls clone(I2E) then mark_to_drop(). The original should be dropped
+    // (egress_spec == drop port), but the clone branch should still forward.
+    val config = v1modelConfig(externCall("clone", enumArg("I2E"), intArg(1, 32)), markToDrop)
+    val tableStore = TableStore()
+    writeCloneSession(tableStore, sessionId = 1, egressPort = 7)
+
+    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, tableStore)
+
+    assertTrue(result.trace.hasForkOutcome())
+    val outputs = collectOutputsFromTrace(result.trace)
+    // Original is dropped (mark_to_drop set egress_spec to drop port).
+    // Clone survives on port 7.
+    assertEquals(1, outputs.size)
+    assertEquals(7, outputs[0].egressPort)
+  }
+
+  @Test
+  fun `E2E clone survives egress mark_to_drop on original`() {
+    // Egress calls clone(E2E) then mark_to_drop(). The original should be dropped,
+    // but the clone's second egress run should start with a clean egress_spec.
+    val config =
+      v1modelConfig(
+        ingressStmts =
+          listOf(assignField("sm", "egress_spec", 3, V1ModelArchitecture.DEFAULT_PORT_BITS)),
+        egressStmts =
+          listOf(
+            // Only clone + drop on the first egress pass (instance_type == 0).
+            ifFieldEquals(
+              "sm",
+              "instance_type",
+              0,
+              32,
+              externCall("clone", enumArg("E2E"), intArg(1, 32)),
+            ),
+            ifFieldEquals("sm", "instance_type", 0, 32, markToDrop),
+          ),
+      )
+    val tableStore = TableStore()
+    writeCloneSession(tableStore, sessionId = 1, egressPort = 8)
+
+    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, tableStore)
+
+    assertTrue(result.trace.hasForkOutcome())
+    val outputs = collectOutputsFromTrace(result.trace)
+    // Original is dropped (egress mark_to_drop). Clone survives on port 8.
+    assertEquals(1, outputs.size)
+    assertEquals(8, outputs[0].egressPort)
+  }
+
+  // ---------------------------------------------------------------------------
   // Stage event tests
   // ---------------------------------------------------------------------------
 
