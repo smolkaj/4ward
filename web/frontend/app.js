@@ -872,11 +872,13 @@ function renderTraceEvent(event) {
 function formatSourceInfo(si) {
   if (!si) return '';
   const fragment = si.source_fragment || '';
-  const loc = si.line ? `:${si.line}` : '';
-  if (!fragment && !loc) return '';
-  const text = fragment ? escapeHtml(fragment) : `line ${si.line}`;
-  const lineAttr = si.line ? ` data-line="${si.line}"` : '';
-  return ` <span class="trace-source" onclick="jumpToLine(${si.line || 0})"${lineAttr}>${text}</span>`;
+  const line = si.line || 0;
+  if (!fragment && !line) return '';
+  const linePrefix = line ? `L${line}` : '';
+  const text = fragment
+    ? (linePrefix ? `${linePrefix}: ${escapeHtml(fragment)}` : escapeHtml(fragment))
+    : linePrefix;
+  return ` <span class="trace-source" onclick="jumpToLine(${line})" title="Jump to line ${line} in editor">${text}</span>`;
 }
 
 function jumpToLine(line) {
