@@ -69,6 +69,9 @@ class Environment {
  */
 class PacketContext(payload: ByteArray) {
 
+  /** Original ingress packet length in bytes (for direct counter byte counts). */
+  val payloadSize: Int = payload.size
+
   // -------------------------------------------------------------------------
   // Packet buffer
   // -------------------------------------------------------------------------

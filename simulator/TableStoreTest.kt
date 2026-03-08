@@ -39,6 +39,8 @@ class TableStoreTest {
     actionProfiles: List<P4InfoOuterClass.ActionProfile> = emptyList(),
     counters: List<P4InfoOuterClass.Counter> = emptyList(),
     meters: List<P4InfoOuterClass.Meter> = emptyList(),
+    directCounters: List<P4InfoOuterClass.DirectCounter> = emptyList(),
+    directMeters: List<P4InfoOuterClass.DirectMeter> = emptyList(),
   ): P4InfoOuterClass.P4Info =
     P4InfoOuterClass.P4Info.newBuilder()
       .addAllTables(tables)
@@ -47,6 +49,8 @@ class TableStoreTest {
       .addAllActionProfiles(actionProfiles)
       .addAllCounters(counters)
       .addAllMeters(meters)
+      .addAllDirectCounters(directCounters)
+      .addAllDirectMeters(directMeters)
       .build()
 
   /** Builds a minimal p4info [P4InfoOuterClass.Table] with the given ID and name. */
@@ -694,6 +698,99 @@ class TableStoreTest {
     val params = result.members!![0].params
     assertEquals(1, params.size)
     assertEquals(ByteString.copyFrom(byteArrayOf(0x42)), params[0].value)
+  }
+
+  // ---------------------------------------------------------------------------
+  // One-shot action selector (§9.2.3)
+  // ---------------------------------------------------------------------------
+
+  private fun writeOneShotEntry(
+    store: TableStore,
+    fieldValue: Byte,
+    actions: List<Pair<Int, Byte>>,
+  ) {
+    store.write(
+      Update.newBuilder()
+        .setType(Update.Type.INSERT)
+        .setEntity(
+          Entity.newBuilder()
+            .setTableEntry(
+              TableEntry.newBuilder()
+                .setTableId(PROFILE_TABLE_ID)
+                .addMatch(
+                  FieldMatch.newBuilder()
+                    .setFieldId(1)
+                    .setExact(
+                      FieldMatch.Exact.newBuilder()
+                        .setValue(ByteString.copyFrom(byteArrayOf(fieldValue)))
+                    )
+                )
+                .setAction(
+                  TableAction.newBuilder()
+                    .setActionProfileActionSet(
+                      P4RuntimeOuterClass.ActionProfileActionSet.newBuilder()
+                        .addAllActionProfileActions(
+                          actions.map { (actionId, paramValue) ->
+                            P4RuntimeOuterClass.ActionProfileAction.newBuilder()
+                              .setAction(
+                                Action.newBuilder()
+                                  .setActionId(actionId)
+                                  .addParams(
+                                    Action.Param.newBuilder()
+                                      .setParamId(1)
+                                      .setValue(ByteString.copyFrom(byteArrayOf(paramValue)))
+                                  )
+                              )
+                              .setWeight(1)
+                              .build()
+                          }
+                        )
+                    )
+                )
+            )
+        )
+        .build()
+    )
+  }
+
+  @Test
+  fun `one-shot entry lookup returns members for forking`() {
+    val s = storeWithProfile()
+    writeOneShotEntry(s, fieldValue = 0x0A, actions = listOf(10 to 0x01, 20 to 0x02))
+
+    val result = s.lookup(PROFILE_TABLE_NAME, listOf("1" to BitVal(0x0A, 8)))
+    assertTrue(result.hit)
+    assertNotNull(result.members)
+    assertEquals(2, result.members!!.size)
+    assertEquals("action10", result.members!![0].actionName)
+    assertEquals("action20", result.members!![1].actionName)
+  }
+
+  @Test
+  fun `one-shot entry with single action returns one member`() {
+    val s = storeWithProfile()
+    writeOneShotEntry(s, fieldValue = 0x0B, actions = listOf(42 to 0x7F))
+
+    val result = s.lookup(PROFILE_TABLE_NAME, listOf("1" to BitVal(0x0B, 8)))
+    assertTrue(result.hit)
+    assertNotNull(result.members)
+    assertEquals(1, result.members!!.size)
+    assertEquals("action42", result.members!![0].actionName)
+    val params = result.members!![0].params
+    assertEquals(1, params.size)
+    assertEquals(ByteString.copyFrom(byteArrayOf(0x7F)), params[0].value)
+  }
+
+  @Test
+  fun `one-shot member IDs are synthetic sequential indices`() {
+    val s = storeWithProfile()
+    writeOneShotEntry(s, fieldValue = 0x0C, actions = listOf(10 to 0x01, 20 to 0x02, 42 to 0x03))
+
+    val result = s.lookup(PROFILE_TABLE_NAME, listOf("1" to BitVal(0x0C, 8)))
+    assertEquals(3, result.members!!.size)
+    assertEquals(0, result.members!![0].memberId)
+    assertEquals(1, result.members!![1].memberId)
+    assertEquals(2, result.members!![2].memberId)
   }
 
   // ---------------------------------------------------------------------------
@@ -1652,6 +1749,343 @@ class TableStoreTest {
   }
 
   // ---------------------------------------------------------------------------
+  // Direct counters
+  // ---------------------------------------------------------------------------
+
+  /** Creates a TableStore with a table that has a direct counter attached. */
+  private fun storeWithDirectCounter(): TableStore {
+    val store = TableStore()
+    store.loadMappings(
+      p4info =
+        buildP4Info(
+          tables = listOf(p4infoTable(TABLE_ID, TABLE_NAME)),
+          actions = ACTION_LIST,
+          directCounters =
+            listOf(
+              P4InfoOuterClass.DirectCounter.newBuilder()
+                .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(DIRECT_COUNTER_ID))
+                .setDirectTableId(TABLE_ID)
+                .build()
+            ),
+        )
+    )
+    return store
+  }
+
+  @Test
+  fun `directCounterIncrement accumulates packet and byte counts`() {
+    val s = storeWithDirectCounter()
+    val entry = exactEntry(fieldId = 1, value = byteArrayOf(10), actionId = 10)
+    s.write(insertUpdate(entry))
+
+    s.directCounterIncrement(TABLE_NAME, entry, 100)
+    s.directCounterIncrement(TABLE_NAME, entry, 200)
+
+    val results =
+      s.readDirectCounterEntries(
+        P4RuntimeOuterClass.DirectCounterEntry.newBuilder().setTableEntry(entry).build()
+      )
+    assertEquals(1, results.size)
+    val data = results[0].directCounterEntry.data
+    assertEquals(2, data.packetCount)
+    assertEquals(300, data.byteCount)
+  }
+
+  @Test
+  fun `directCounterIncrement is no-op for table without direct counter`() {
+    // Default store has no direct counter configured.
+    val entry = exactEntry(fieldId = 1, value = byteArrayOf(10), actionId = 10)
+    store.write(insertUpdate(entry))
+    store.directCounterIncrement(TABLE_NAME, entry, 100)
+    // Should not crash; reading returns empty since no direct counter is configured.
+    val results = store.readDirectCounterEntries()
+    assertTrue(results.isEmpty())
+  }
+
+  @Test
+  fun `readDirectCounterEntries returns zero for unincremented entries`() {
+    val s = storeWithDirectCounter()
+    val entry = exactEntry(fieldId = 1, value = byteArrayOf(10), actionId = 10)
+    s.write(insertUpdate(entry))
+
+    val results =
+      s.readDirectCounterEntries(
+        P4RuntimeOuterClass.DirectCounterEntry.newBuilder()
+          .setTableEntry(TableEntry.newBuilder().setTableId(TABLE_ID))
+          .build()
+      )
+    assertEquals(1, results.size)
+    assertEquals(0, results[0].directCounterEntry.data.packetCount)
+    assertEquals(0, results[0].directCounterEntry.data.byteCount)
+  }
+
+  @Test
+  fun `readDirectCounterEntries wildcard returns all entries`() {
+    val s = storeWithDirectCounter()
+    val entry1 = exactEntry(fieldId = 1, value = byteArrayOf(10), actionId = 10)
+    val entry2 = exactEntry(fieldId = 1, value = byteArrayOf(20), actionId = 20)
+    s.write(insertUpdate(entry1))
+    s.write(insertUpdate(entry2))
+    s.directCounterIncrement(TABLE_NAME, entry1, 50)
+
+    val results = s.readDirectCounterEntries()
+    assertEquals(2, results.size)
+  }
+
+  @Test
+  fun `writeDirectCounterEntry MODIFY updates counter data`() {
+    val s = storeWithDirectCounter()
+    val entry = exactEntry(fieldId = 1, value = byteArrayOf(10), actionId = 10)
+    s.write(insertUpdate(entry))
+
+    val directCounterEntry =
+      P4RuntimeOuterClass.DirectCounterEntry.newBuilder()
+        .setTableEntry(entry)
+        .setData(P4RuntimeOuterClass.CounterData.newBuilder().setPacketCount(42).setByteCount(1000))
+        .build()
+    val result =
+      s.write(
+        Update.newBuilder()
+          .setType(Update.Type.MODIFY)
+          .setEntity(Entity.newBuilder().setDirectCounterEntry(directCounterEntry))
+          .build()
+      )
+    assertEquals(WriteResult.Success, result)
+
+    val readBack =
+      s.readDirectCounterEntries(
+        P4RuntimeOuterClass.DirectCounterEntry.newBuilder().setTableEntry(entry).build()
+      )
+    assertEquals(42, readBack[0].directCounterEntry.data.packetCount)
+    assertEquals(1000, readBack[0].directCounterEntry.data.byteCount)
+  }
+
+  @Test
+  fun `writeDirectCounterEntry INSERT returns InvalidArgument`() {
+    val s = storeWithDirectCounter()
+    val entry = exactEntry(fieldId = 1, value = byteArrayOf(10), actionId = 10)
+    s.write(insertUpdate(entry))
+
+    val directCounterEntry =
+      P4RuntimeOuterClass.DirectCounterEntry.newBuilder()
+        .setTableEntry(entry)
+        .setData(P4RuntimeOuterClass.CounterData.newBuilder().setPacketCount(1))
+        .build()
+    val result =
+      s.write(
+        Update.newBuilder()
+          .setType(Update.Type.INSERT)
+          .setEntity(Entity.newBuilder().setDirectCounterEntry(directCounterEntry))
+          .build()
+      )
+    assertTrue("expected InvalidArgument", result is WriteResult.InvalidArgument)
+  }
+
+  @Test
+  fun `writeDirectCounterEntry for non-existent table entry returns NotFound`() {
+    val s = storeWithDirectCounter()
+    val entry = exactEntry(fieldId = 1, value = byteArrayOf(10), actionId = 10)
+    // Don't insert the entry into the table.
+
+    val directCounterEntry =
+      P4RuntimeOuterClass.DirectCounterEntry.newBuilder()
+        .setTableEntry(entry)
+        .setData(P4RuntimeOuterClass.CounterData.newBuilder().setPacketCount(1))
+        .build()
+    val result =
+      s.write(
+        Update.newBuilder()
+          .setType(Update.Type.MODIFY)
+          .setEntity(Entity.newBuilder().setDirectCounterEntry(directCounterEntry))
+          .build()
+      )
+    assertTrue("expected NotFound", result is WriteResult.NotFound)
+  }
+
+  @Test
+  fun `deleting table entry clears direct counter data`() {
+    val s = storeWithDirectCounter()
+    val entry = exactEntry(fieldId = 1, value = byteArrayOf(10), actionId = 10)
+    s.write(insertUpdate(entry))
+    s.directCounterIncrement(TABLE_NAME, entry, 100)
+
+    // Delete the table entry.
+    s.write(
+      Update.newBuilder()
+        .setType(Update.Type.DELETE)
+        .setEntity(Entity.newBuilder().setTableEntry(entry))
+        .build()
+    )
+
+    // Re-insert and verify counter is reset to zero.
+    s.write(insertUpdate(entry))
+    val results =
+      s.readDirectCounterEntries(
+        P4RuntimeOuterClass.DirectCounterEntry.newBuilder().setTableEntry(entry).build()
+      )
+    assertEquals(0, results[0].directCounterEntry.data.packetCount)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Direct meters
+  // ---------------------------------------------------------------------------
+
+  /** Creates a TableStore with a table that has a direct meter attached. */
+  private fun storeWithDirectMeter(): TableStore {
+    val store = TableStore()
+    store.loadMappings(
+      p4info =
+        buildP4Info(
+          tables = listOf(p4infoTable(TABLE_ID, TABLE_NAME)),
+          actions = ACTION_LIST,
+          directMeters =
+            listOf(
+              P4InfoOuterClass.DirectMeter.newBuilder()
+                .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(DIRECT_METER_ID))
+                .setDirectTableId(TABLE_ID)
+                .build()
+            ),
+        )
+    )
+    return store
+  }
+
+  @Test
+  fun `writeDirectMeterEntry MODIFY persists config`() {
+    val s = storeWithDirectMeter()
+    val entry = exactEntry(fieldId = 1, value = byteArrayOf(10), actionId = 10)
+    s.write(insertUpdate(entry))
+
+    val directMeterEntry =
+      P4RuntimeOuterClass.DirectMeterEntry.newBuilder()
+        .setTableEntry(entry)
+        .setConfig(
+          P4RuntimeOuterClass.MeterConfig.newBuilder()
+            .setCir(1000)
+            .setCburst(100)
+            .setPir(2000)
+            .setPburst(200)
+        )
+        .build()
+    val result =
+      s.write(
+        Update.newBuilder()
+          .setType(Update.Type.MODIFY)
+          .setEntity(Entity.newBuilder().setDirectMeterEntry(directMeterEntry))
+          .build()
+      )
+    assertEquals(WriteResult.Success, result)
+
+    val readBack =
+      s.readDirectMeterEntries(
+        P4RuntimeOuterClass.DirectMeterEntry.newBuilder().setTableEntry(entry).build()
+      )
+    assertEquals(1, readBack.size)
+    val config = readBack[0].directMeterEntry.config
+    assertEquals(1000, config.cir)
+    assertEquals(2000, config.pir)
+  }
+
+  @Test
+  fun `writeDirectMeterEntry INSERT returns InvalidArgument`() {
+    val s = storeWithDirectMeter()
+    val entry = exactEntry(fieldId = 1, value = byteArrayOf(10), actionId = 10)
+    s.write(insertUpdate(entry))
+
+    val directMeterEntry =
+      P4RuntimeOuterClass.DirectMeterEntry.newBuilder()
+        .setTableEntry(entry)
+        .setConfig(P4RuntimeOuterClass.MeterConfig.newBuilder().setCir(100))
+        .build()
+    val result =
+      s.write(
+        Update.newBuilder()
+          .setType(Update.Type.INSERT)
+          .setEntity(Entity.newBuilder().setDirectMeterEntry(directMeterEntry))
+          .build()
+      )
+    assertTrue("expected InvalidArgument", result is WriteResult.InvalidArgument)
+  }
+
+  @Test
+  fun `writeDirectMeterEntry for non-existent table entry returns NotFound`() {
+    val s = storeWithDirectMeter()
+    val entry = exactEntry(fieldId = 1, value = byteArrayOf(10), actionId = 10)
+
+    val directMeterEntry =
+      P4RuntimeOuterClass.DirectMeterEntry.newBuilder()
+        .setTableEntry(entry)
+        .setConfig(P4RuntimeOuterClass.MeterConfig.newBuilder().setCir(100))
+        .build()
+    val result =
+      s.write(
+        Update.newBuilder()
+          .setType(Update.Type.MODIFY)
+          .setEntity(Entity.newBuilder().setDirectMeterEntry(directMeterEntry))
+          .build()
+      )
+    assertTrue("expected NotFound", result is WriteResult.NotFound)
+  }
+
+  @Test
+  fun `readDirectMeterEntries returns no config for unconfigured entries`() {
+    val s = storeWithDirectMeter()
+    val entry = exactEntry(fieldId = 1, value = byteArrayOf(10), actionId = 10)
+    s.write(insertUpdate(entry))
+
+    val results =
+      s.readDirectMeterEntries(
+        P4RuntimeOuterClass.DirectMeterEntry.newBuilder()
+          .setTableEntry(TableEntry.newBuilder().setTableId(TABLE_ID))
+          .build()
+      )
+    assertEquals(1, results.size)
+    assertFalse(
+      "unconfigured direct meter should have no config",
+      results[0].directMeterEntry.hasConfig(),
+    )
+  }
+
+  @Test
+  fun `deleting table entry clears direct meter data`() {
+    val s = storeWithDirectMeter()
+    val entry = exactEntry(fieldId = 1, value = byteArrayOf(10), actionId = 10)
+    s.write(insertUpdate(entry))
+
+    // Configure the direct meter.
+    val directMeterEntry =
+      P4RuntimeOuterClass.DirectMeterEntry.newBuilder()
+        .setTableEntry(entry)
+        .setConfig(P4RuntimeOuterClass.MeterConfig.newBuilder().setCir(100))
+        .build()
+    s.write(
+      Update.newBuilder()
+        .setType(Update.Type.MODIFY)
+        .setEntity(Entity.newBuilder().setDirectMeterEntry(directMeterEntry))
+        .build()
+    )
+
+    // Delete and re-insert the table entry.
+    s.write(
+      Update.newBuilder()
+        .setType(Update.Type.DELETE)
+        .setEntity(Entity.newBuilder().setTableEntry(entry))
+        .build()
+    )
+    s.write(insertUpdate(entry))
+
+    // Direct meter config should be cleared.
+    val results =
+      s.readDirectMeterEntries(
+        P4RuntimeOuterClass.DirectMeterEntry.newBuilder().setTableEntry(entry).build()
+      )
+    assertFalse(
+      "should have no config after delete+re-insert",
+      results[0].directMeterEntry.hasConfig(),
+    )
+  }
+
+  // ---------------------------------------------------------------------------
   // Constants
   // ---------------------------------------------------------------------------
 
@@ -1671,7 +2105,10 @@ class TableStoreTest {
     private const val METER_SIZE = 4
     private const val TABLE_SIZE_LIMIT = 3
     private const val MAX_GROUP_SIZE = 2
+    private const val DIRECT_COUNTER_ID = 800
+    private const val DIRECT_METER_ID = 900
     private val ACTION_IDS = listOf(10, 20, 42, 50, 77, 99, 100, 200)
+    private val ACTION_ID_TO_NAME = ACTION_IDS.associateWith { "action$it" }
     private val ACTION_LIST: List<P4InfoOuterClass.Action> =
       ACTION_IDS.map { id ->
         P4InfoOuterClass.Action.newBuilder()

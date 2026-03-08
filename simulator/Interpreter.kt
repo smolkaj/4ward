@@ -666,6 +666,11 @@ class Interpreter(
 
     val result = tableStore.lookup(tableName, keyValues)
 
+    // P4Runtime spec §9.3: direct counters are incremented on every table hit.
+    if (result.hit && result.entry != null && packetCtx != null) {
+      tableStore.directCounterIncrement(tableName, result.entry, packetCtx.payloadSize)
+    }
+
     packetCtx?.addTraceEvent(
       traceEventBuilder()
         .setTableLookup(

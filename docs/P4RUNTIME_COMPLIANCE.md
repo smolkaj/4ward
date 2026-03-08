@@ -70,7 +70,7 @@ Legend: **Y** = tested, **N** = not tested, **—** = not implemented
 | 9.33 | Insert action profile group succeeds | Y | ConformanceTest #29 |
 | 9.34 | Modify group with different members | Y | ConformanceTest #30 |
 | 9.35 | Delete non-existent group → NOT_FOUND | Y | ConformanceTest #31 |
-| 9.36 | One-shot action selector | — | |
+| 9.36 | One-shot action selector | Y | TableStoreTest, WriteValidatorTest |
 | 9.37 | Group max_size enforcement | Y | TableStoreTest |
 
 ## Write RPC — registers (§9.7)
@@ -87,9 +87,9 @@ Legend: **Y** = tested, **N** = not tested, **—** = not implemented
 
 | # | Requirement | Status | Test |
 |---|-------------|--------|------|
-| 9.50 | Direct counter read/write | — | |
+| 9.50 | Direct counter read/write | Y | TableStoreTest, ConformanceTest #52-54 |
 | 9.51 | Indirect counter read/write | Y | TableStoreTest, ConformanceTest #46-48 |
-| 9.52 | Direct meter config | — | |
+| 9.52 | Direct meter config | Y | TableStoreTest, ConformanceTest #55-57 |
 | 9.53 | Indirect meter config | Y | TableStoreTest, ConformanceTest #49-51 |
 
 ## Write RPC — PRE (§9.5)
@@ -175,9 +175,9 @@ Legend: **Y** = tested, **N** = not tested, **—** = not implemented
 | SetForwardingPipelineConfig | 5 | 0 | 0 |
 | Match encoding | 6 | 0 | 0 |
 | Write — tables | 28 | 0 | 0 |
-| Write — profiles | 7 | 0 | 1 |
+| Write — profiles | 8 | 0 | 0 |
 | Write — registers | 5 | 0 | 0 |
-| Write — counters/meters | 2 | 0 | 2 |
+| Write — counters/meters | 4 | 0 | 0 |
 | Write — PRE | 2 | 0 | 0 |
 | Arbitration | 4 | 0 | 0 |
 | Read | 9 | 0 | 0 |
@@ -186,4 +186,4 @@ Legend: **Y** = tested, **N** = not tested, **—** = not implemented
 | PacketIO | 3 | 0 | 2 |
 | Translation | 6 | 0 | 0 |
 | p4-constraints | 4 | 0 | 0 |
-| **Total** | **87** | **0** | **5** |
+| **Total** | **90** | **0** | **2** |

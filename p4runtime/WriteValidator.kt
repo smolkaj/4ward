@@ -59,8 +59,16 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
     // P4Runtime spec §9.1: DELETE only needs the match key; skip content validation.
     if (update.type == P4RuntimeOuterClass.Update.Type.DELETE) return
 
-    if (entry.hasAction() && entry.action.hasAction()) {
-      validateAction(entry.action.action, tableInfo)
+    if (entry.hasAction()) {
+      val tableAction = entry.action
+      when {
+        tableAction.hasAction() -> validateAction(tableAction.action, tableInfo)
+        // P4Runtime spec §9.2.3: validate each action in a one-shot action set.
+        tableAction.hasActionProfileActionSet() ->
+          for (profileAction in tableAction.actionProfileActionSet.actionProfileActionsList) {
+            validateAction(profileAction.action, tableInfo)
+          }
+      }
     }
     validateMatchFields(entry, tableInfo)
     validatePriority(entry, tableInfo)
