@@ -34,6 +34,22 @@ class TableStoreTest {
     )
   }
 
+  /** Builds a [P4InfoOuterClass.P4Info] from individual entity lists. */
+  private fun buildP4Info(
+    tables: List<P4InfoOuterClass.Table> = emptyList(),
+    registers: List<P4InfoOuterClass.Register> = emptyList(),
+    actionProfiles: List<P4InfoOuterClass.ActionProfile> = emptyList(),
+    counters: List<P4InfoOuterClass.Counter> = emptyList(),
+    meters: List<P4InfoOuterClass.Meter> = emptyList(),
+  ): P4InfoOuterClass.P4Info =
+    P4InfoOuterClass.P4Info.newBuilder()
+      .addAllTables(tables)
+      .addAllRegisters(registers)
+      .addAllActionProfiles(actionProfiles)
+      .addAllCounters(counters)
+      .addAllMeters(meters)
+      .build()
+
   // ---------------------------------------------------------------------------
   // Entry builders
   // ---------------------------------------------------------------------------
@@ -486,7 +502,7 @@ class TableStoreTest {
     store.loadMappings(
       tableNameById = mapOf(TABLE_ID to TABLE_NAME),
       actionNameById = ACTION_ID_TO_NAME,
-      p4infoTables = listOf(p4infoTable),
+      p4info = buildP4Info(tables = listOf(p4infoTable)),
     )
     return store
   }
@@ -506,7 +522,7 @@ class TableStoreTest {
     store.loadMappings(
       tableNameById = mapOf(PROFILE_TABLE_ID to PROFILE_TABLE_NAME),
       actionNameById = ACTION_ID_TO_NAME,
-      p4infoTables = listOf(p4infoTable),
+      p4info = buildP4Info(tables = listOf(p4infoTable)),
     )
     return store
   }
@@ -902,8 +918,8 @@ class TableStoreTest {
     store.loadMappings(
       tableNameById = mapOf(PROFILE_TABLE_ID to PROFILE_TABLE_NAME),
       actionNameById = ACTION_ID_TO_NAME,
-      p4infoTables = listOf(p4infoTable),
-      p4infoActionProfiles = listOf(p4infoActionProfile),
+      p4info =
+        buildP4Info(tables = listOf(p4infoTable), actionProfiles = listOf(p4infoActionProfile)),
     )
     return store
   }
@@ -1008,10 +1024,11 @@ class TableStoreTest {
   private fun storeWithRegister(): TableStore {
     val store = TableStore()
     store.loadMappings(
-      tableNameById = mapOf(TABLE_ID to TABLE_NAME),
-      actionNameById = ACTION_ID_TO_NAME,
-      p4infoRegisters =
-        listOf(buildRegisterProto(REGISTER_ID, REGISTER_NAME, REGISTER_BITWIDTH, REGISTER_SIZE)),
+      p4info =
+        buildP4Info(
+          registers =
+            listOf(buildRegisterProto(REGISTER_ID, REGISTER_NAME, REGISTER_BITWIDTH, REGISTER_SIZE))
+        )
     )
     return store
   }
@@ -1146,13 +1163,14 @@ class TableStoreTest {
   fun `readRegisterEntries wildcard returns all registers`() {
     val s = TableStore()
     s.loadMappings(
-      tableNameById = emptyMap(),
-      actionNameById = emptyMap(),
-      p4infoRegisters =
-        listOf(
-          buildRegisterProto(REGISTER_ID, REGISTER_NAME, REGISTER_BITWIDTH, 2),
-          buildRegisterProto(REGISTER_ID + 1, "otherRegister", 8, 1),
-        ),
+      p4info =
+        buildP4Info(
+          registers =
+            listOf(
+              buildRegisterProto(REGISTER_ID, REGISTER_NAME, REGISTER_BITWIDTH, 2),
+              buildRegisterProto(REGISTER_ID + 1, "otherRegister", 8, 1),
+            )
+        )
     )
     s.write(registerUpdate(Update.Type.MODIFY, registerId = REGISTER_ID, index = 0, value = 1))
     val filter = P4RuntimeOuterClass.RegisterEntry.getDefaultInstance()
@@ -1254,6 +1272,7 @@ class TableStoreTest {
       tableNameById = mapOf(TABLE_ID to TABLE_NAME, 3 to "otherTable"),
       actionNameById = ACTION_ID_TO_NAME,
     )
+
     val entry1 = exactEntry(fieldId = 1, value = byteArrayOf(1), actionId = 10)
     val entry2 =
       TableEntry.newBuilder()
@@ -1285,7 +1304,8 @@ class TableStoreTest {
   private fun storeWithCounter(): TableStore {
     val store = TableStore()
     store.loadMappings(
-      p4infoCounters = listOf(buildCounterProto(COUNTER_ID, "myCounter", COUNTER_SIZE))
+      p4info =
+        buildP4Info(counters = listOf(buildCounterProto(COUNTER_ID, "myCounter", COUNTER_SIZE)))
     )
     return store
   }
@@ -1418,13 +1438,14 @@ class TableStoreTest {
   fun `readCounterEntries wildcard returns all counters`() {
     val s = TableStore()
     s.loadMappings(
-      tableNameById = emptyMap(),
-      actionNameById = emptyMap(),
-      p4infoCounters =
-        listOf(
-          buildCounterProto(COUNTER_ID, "counter1", 2),
-          buildCounterProto(COUNTER_ID + 1, "counter2", 1),
-        ),
+      p4info =
+        buildP4Info(
+          counters =
+            listOf(
+              buildCounterProto(COUNTER_ID, "counter1", 2),
+              buildCounterProto(COUNTER_ID + 1, "counter2", 1),
+            )
+        )
     )
     val results = s.readCounterEntries()
     // 2 entries from first counter + 1 from second = 3
@@ -1444,7 +1465,9 @@ class TableStoreTest {
 
   private fun storeWithMeter(): TableStore {
     val store = TableStore()
-    store.loadMappings(p4infoMeters = listOf(buildMeterProto(METER_ID, "myMeter", METER_SIZE)))
+    store.loadMappings(
+      p4info = buildP4Info(meters = listOf(buildMeterProto(METER_ID, "myMeter", METER_SIZE)))
+    )
     return store
   }
 
@@ -1586,10 +1609,14 @@ class TableStoreTest {
   fun `readMeterEntries wildcard returns all meters`() {
     val s = TableStore()
     s.loadMappings(
-      tableNameById = emptyMap(),
-      actionNameById = emptyMap(),
-      p4infoMeters =
-        listOf(buildMeterProto(METER_ID, "meter1", 2), buildMeterProto(METER_ID + 1, "meter2", 1)),
+      p4info =
+        buildP4Info(
+          meters =
+            listOf(
+              buildMeterProto(METER_ID, "meter1", 2),
+              buildMeterProto(METER_ID + 1, "meter2", 1),
+            )
+        )
     )
     val results = s.readMeterEntries()
     // 2 entries from first meter + 1 from second = 3

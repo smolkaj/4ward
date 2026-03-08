@@ -38,7 +38,7 @@ style:
 complexity:
   # Test builder helpers legitimately need many parameters to fully specify a test
   # case without introducing opaque intermediate objects.
-  # loadMappings() takes one parameter per p4info entity type — no natural grouping.
+  # writeIndexedExtern() has 7 params (generic validation: type, name, id, index, info, storage, value).
   LongParameterList:
     functionThreshold: 8
     excludes: ['**/test/**', '**/*Test.kt']

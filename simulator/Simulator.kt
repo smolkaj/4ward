@@ -57,15 +57,7 @@ class Simulator {
         val alias = action.preamble.alias.ifEmpty { action.preamble.name }
         action.preamble.id to resolveName(alias, behavioralActions)
       }
-    tableStore.loadMappings(
-      tableNameById,
-      actionNameById,
-      config.p4Info.tablesList,
-      config.p4Info.registersList,
-      config.p4Info.actionProfilesList,
-      config.p4Info.countersList,
-      config.p4Info.metersList,
-    )
+    tableStore.loadMappings(tableNameById, actionNameById, config.p4Info)
 
     for (table in config.p4Info.tablesList) {
       // const_default_action_id: immutable default set in the P4 source with `const`.

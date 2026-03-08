@@ -111,28 +111,28 @@ class TableStore {
   /**
    * Initialises the ID→name maps for the loaded pipeline and clears all table entries.
    *
+   * [tableNameById] and [actionNameById] resolve p4info IDs to behavioral IR names (which may
+   * differ from p4info aliases for inlined controls). The remaining entity metadata is extracted
+   * from [p4info] internally.
+   *
    * Must be called before [write] or [lookup]. Calling it again (pipeline reload) resets all state.
    */
   fun loadMappings(
     tableNameById: Map<Int, String> = emptyMap(),
     actionNameById: Map<Int, String> = emptyMap(),
-    p4infoTables: List<P4InfoOuterClass.Table> = emptyList(),
-    p4infoRegisters: List<P4InfoOuterClass.Register> = emptyList(),
-    p4infoActionProfiles: List<P4InfoOuterClass.ActionProfile> = emptyList(),
-    p4infoCounters: List<P4InfoOuterClass.Counter> = emptyList(),
-    p4infoMeters: List<P4InfoOuterClass.Meter> = emptyList(),
+    p4info: P4InfoOuterClass.P4Info = P4InfoOuterClass.P4Info.getDefaultInstance(),
   ) {
     this.tableNameById = tableNameById
     this.actionNameById = actionNameById
     this.registerInfoById =
-      p4infoRegisters.associate { reg ->
+      p4info.registersList.associate { reg ->
         val bitwidth = reg.typeSpec.bitstring.bit.bitwidth
         reg.preamble.id to RegisterInfo(reg.preamble.name, bitwidth, reg.size)
       }
     this.counterInfoById =
-      p4infoCounters.associate { it.preamble.id to IndexedExternInfo(it.size.toInt()) }
+      p4info.countersList.associate { it.preamble.id to IndexedExternInfo(it.size.toInt()) }
     this.meterInfoById =
-      p4infoMeters.associate { it.preamble.id to IndexedExternInfo(it.size.toInt()) }
+      p4info.metersList.associate { it.preamble.id to IndexedExternInfo(it.size.toInt()) }
     tables.clear()
     forcedHits.clear()
     registers.clear()
@@ -144,9 +144,12 @@ class TableStore {
     cloneSessions.clear()
     multicastGroups.clear()
 
+    // Cache proto repeated-field accessors (each call creates a defensive copy).
+    val tables = p4info.tablesList
+
     // P4Runtime spec §9.27: enforce table size limits from p4info.
     tableSizeLimit =
-      p4infoTables
+      tables
         .filter { it.size > 0 }
         .mapNotNull { table ->
           val name = tableNameById[table.preamble.id] ?: return@mapNotNull null
@@ -156,12 +159,12 @@ class TableStore {
 
     // P4Runtime spec §9.2: enforce max_group_size from p4info action profiles.
     profileMaxGroupSize =
-      p4infoActionProfiles
+      p4info.actionProfilesList
         .filter { it.maxGroupSize > 0 }
         .associate { it.preamble.id to it.maxGroupSize }
 
     // Register which tables use action profiles (implementation_id != 0).
-    for (table in p4infoTables) {
+    for (table in tables) {
       if (table.implementationId != 0) {
         val tableName = tableNameById[table.preamble.id] ?: continue
         tableActionProfile[tableName] = table.implementationId
