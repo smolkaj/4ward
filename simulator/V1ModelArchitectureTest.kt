@@ -215,6 +215,7 @@ class V1ModelArchitectureTest {
     parser: ParserDecl = noopParser,
     smType: TypeDecl = standardMetaType,
     ingressLocalVars: List<VarDecl> = emptyList(),
+    metaTypeDecl: TypeDecl = metaType,
   ): BehavioralConfig {
     fun control(name: String, stmts: List<Stmt>, localVars: List<VarDecl> = emptyList()) =
       ControlDecl.newBuilder()
@@ -228,7 +229,7 @@ class V1ModelArchitectureTest {
       .setArchitecture(v1modelArch)
       .addTypes(smType)
       .addTypes(headersType)
-      .addTypes(metaType)
+      .addTypes(metaTypeDecl)
       .addParsers(parser)
       .addControls(noopControl("MyVerifyChecksum"))
       .addControls(control("MyIngress", ingressStmts, ingressLocalVars))
@@ -796,5 +797,118 @@ class V1ModelArchitectureTest {
 
     assertEquals(1, outputs.size)
     assertEquals(largePort.toInt(), outputs[0].egressPort)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Metadata preservation tests (clone_preserving_field_list)
+  // ---------------------------------------------------------------------------
+
+  /** Metadata struct with `preserved` in field list 1 and `not_preserved` in no list. */
+  private val metaTypeWithFieldList: TypeDecl =
+    TypeDecl.newBuilder()
+      .setName("meta_t")
+      .setStruct(
+        StructDecl.newBuilder()
+          .addFields(
+            FieldDecl.newBuilder().setName("preserved").setType(bitType(16)).addFieldListIds(1)
+          )
+          .addFields(field("not_preserved", 16))
+      )
+      .build()
+
+  @Test
+  fun `clone_preserving_field_list preserves annotated metadata`() {
+    // Ingress: set meta.preserved = 0xABCD, then clone with field_list 1.
+    // Egress (clone branch only): if meta.preserved == 0 → drop.
+    // With preservation working, meta.preserved is 0xABCD on the clone, so no drop → 2 outputs.
+    // Without preservation, meta.preserved would be 0 (default), so clone drops → 1 output.
+    val config =
+      v1modelConfig(
+        ingressStmts =
+          listOf(
+            assignField("meta", "preserved", 0xABCD, 16),
+            externCall("clone_preserving_field_list", enumArg("I2E"), intArg(1, 32), intArg(1, 8)),
+            assignField("sm", "egress_spec", 2, V1ModelArchitecture.DEFAULT_PORT_BITS),
+          ),
+        egressStmts =
+          listOf(
+            // On clone branch (instance_type == 1): drop if metadata was reset.
+            ifFieldEquals(
+              "sm",
+              "instance_type",
+              1,
+              32,
+              ifFieldEquals(
+                "meta",
+                "preserved",
+                0,
+                16,
+                externCall(
+                  "mark_to_drop",
+                  Expr.newBuilder().setNameRef(NameRef.newBuilder().setName("sm")).build(),
+                ),
+              ),
+            )
+          ),
+        metaTypeDecl = metaTypeWithFieldList,
+      )
+    val tableStore = TableStore()
+    writeCloneSession(tableStore, sessionId = 1, egressPort = 7)
+
+    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, tableStore)
+
+    assertTrue(result.trace.hasForkOutcome())
+    assertEquals(ForkReason.CLONE, result.trace.forkOutcome.reason)
+    val outputs = collectOutputsFromTrace(result.trace)
+    // Both original and clone produce output (metadata was preserved, so no drop).
+    assertEquals(2, outputs.size)
+    assertEquals(2, outputs[0].egressPort)
+    assertEquals(7, outputs[1].egressPort)
+  }
+
+  @Test
+  fun `clone_preserving_field_list does not preserve non-annotated fields`() {
+    // Same setup, but check that not_preserved (no @field_list annotation) resets to 0.
+    // Egress (clone branch): if meta.not_preserved == 0 → set egress_spec to 42 (distinctive).
+    // If not_preserved was correctly reset, the clone outputs on port 42.
+    val config =
+      v1modelConfig(
+        ingressStmts =
+          listOf(
+            assignField("meta", "not_preserved", 0x1234, 16),
+            externCall("clone_preserving_field_list", enumArg("I2E"), intArg(1, 32), intArg(1, 8)),
+            assignField("sm", "egress_spec", 2, V1ModelArchitecture.DEFAULT_PORT_BITS),
+          ),
+        egressStmts =
+          listOf(
+            // On clone branch: drop if not_preserved was NOT reset (still has ingress value).
+            ifFieldEquals(
+              "sm",
+              "instance_type",
+              1,
+              32,
+              ifFieldEquals(
+                "meta",
+                "not_preserved",
+                0x1234,
+                16,
+                externCall(
+                  "mark_to_drop",
+                  Expr.newBuilder().setNameRef(NameRef.newBuilder().setName("sm")).build(),
+                ),
+              ),
+            )
+          ),
+        metaTypeDecl = metaTypeWithFieldList,
+      )
+    val tableStore = TableStore()
+    writeCloneSession(tableStore, sessionId = 1, egressPort = 7)
+
+    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, tableStore)
+
+    assertTrue(result.trace.hasForkOutcome())
+    val outputs = collectOutputsFromTrace(result.trace)
+    // Clone should NOT drop: not_preserved was reset to 0, so 0x1234 check is false.
+    assertEquals(2, outputs.size)
   }
 }

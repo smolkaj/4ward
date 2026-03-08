@@ -523,6 +523,17 @@ void FourWardBackend::emitTypeDecls(const IR::P4Program* program) {
         auto* fd = sdecl->add_fields();
         fd->set_name(field->name.name.c_str());
         *fd->mutable_type() = emitType(field->type);
+        // Emit @field_list annotations for metadata preservation across
+        // clone/resubmit/recirculate.
+        for (const auto* ann : field->annotations) {
+          if (ann->name.name == "field_list") {
+            for (const auto* arg : ann->getExpr()) {
+              if (const auto* c = arg->to<IR::Constant>()) {
+                fd->add_field_list_ids(c->asInt());
+              }
+            }
+          }
+        }
       }
     } else if (const auto* serEnum = decl->to<IR::Type_SerEnum>()) {
       // Serializable enums (enum bit<N> E { ... }) can appear as header field

@@ -835,6 +835,12 @@ class Interpreter(
       "clone_preserving_field_list" -> {
         val cloneType = (evalExpr(call.argsList[0], env) as EnumVal).member
         val sessionId = (evalExpr(call.argsList[1], env) as BitVal).bits.value.toInt()
+        val fieldListId =
+          if (funcName == "clone_preserving_field_list") {
+            (evalExpr(call.argsList[2], env) as BitVal).bits.value.toInt()
+          } else {
+            null
+          }
         packetCtx?.addTraceEvent(
           traceEventBuilder()
             .setClone(
@@ -843,21 +849,37 @@ class Interpreter(
             .build()
         )
         when (cloneType) {
-          "I2E" -> packetCtx?.pendingCloneSessionId = sessionId
-          "E2E" -> packetCtx?.pendingEgressCloneSessionId = sessionId
+          "I2E" -> {
+            packetCtx?.pendingCloneSessionId = sessionId
+            packetCtx?.pendingCloneFieldListId = fieldListId
+          }
+          "E2E" -> {
+            packetCtx?.pendingEgressCloneSessionId = sessionId
+            packetCtx?.pendingEgressCloneFieldListId = fieldListId
+          }
         }
         UnitVal
       }
       // resubmit(data): re-inject the original packet into the ingress pipeline.
-      "resubmit",
-      "resubmit_preserving_field_list" -> {
+      "resubmit" -> {
         packetCtx?.pendingResubmit = true
         UnitVal
       }
+      "resubmit_preserving_field_list" -> {
+        packetCtx?.pendingResubmit = true
+        packetCtx?.pendingResubmitFieldListId =
+          (evalExpr(call.argsList[0], env) as BitVal).bits.value.toInt()
+        UnitVal
+      }
       // recirculate(data): feed the deparsed packet back into the ingress pipeline.
-      "recirculate",
+      "recirculate" -> {
+        packetCtx?.pendingRecirculate = true
+        UnitVal
+      }
       "recirculate_preserving_field_list" -> {
         packetCtx?.pendingRecirculate = true
+        packetCtx?.pendingRecirculateFieldListId =
+          (evalExpr(call.argsList[0], env) as BitVal).bits.value.toInt()
         UnitVal
       }
       // verify_checksum[_with_payload](condition, data, checksum, algo): v1model §14.
@@ -1248,22 +1270,37 @@ class CloneFork(
   val clonePort: Long,
   val parserEventCount: Int,
   eventsBeforeFork: List<TraceEvent>,
+  val fieldListId: Int? = null,
+  val metadataSnapshot: Map<String, Value>? = null,
 ) : ForkException(eventsBeforeFork)
 
 /** Fork after egress controls when an E2E clone was requested — "original" and "clone". */
-class EgressCloneFork(val sessionId: Int, val clonePort: Long, eventsBeforeFork: List<TraceEvent>) :
-  ForkException(eventsBeforeFork)
+class EgressCloneFork(
+  val sessionId: Int,
+  val clonePort: Long,
+  eventsBeforeFork: List<TraceEvent>,
+  val fieldListId: Int? = null,
+  val metadataSnapshot: Map<String, Value>? = null,
+) : ForkException(eventsBeforeFork)
 
 /** Fork at the ingress→egress boundary when mcast_grp is set — one branch per replica. */
 class MulticastFork(val replicas: List<BranchMode.Replica>, eventsBeforeFork: List<TraceEvent>) :
   ForkException(eventsBeforeFork)
 
 /** Fork at the ingress→egress boundary when resubmit was requested — single branch re-ingress. */
-class ResubmitFork(eventsBeforeFork: List<TraceEvent>) : ForkException(eventsBeforeFork)
+class ResubmitFork(
+  eventsBeforeFork: List<TraceEvent>,
+  val fieldListId: Int? = null,
+  val metadataSnapshot: Map<String, Value>? = null,
+) : ForkException(eventsBeforeFork)
 
 /** Fork after deparser when recirculate was requested — single branch with deparsed bytes. */
-class RecirculateFork(val deparsedBytes: ByteArray, eventsBeforeFork: List<TraceEvent>) :
-  ForkException(eventsBeforeFork)
+class RecirculateFork(
+  val deparsedBytes: ByteArray,
+  eventsBeforeFork: List<TraceEvent>,
+  val fieldListId: Int? = null,
+  val metadataSnapshot: Map<String, Value>? = null,
+) : ForkException(eventsBeforeFork)
 
 /**
  * Which mode this pipeline execution is in.
@@ -1299,4 +1336,7 @@ data class ForkDecisions(
   val branchMode: BranchMode = BranchMode.Normal(),
   val instanceTypeOverride: Long? = null,
   val pipelineDepth: Int = 0,
+  /** Metadata fields to preserve across clone/resubmit/recirculate, keyed by field list ID. */
+  val preservedFieldListId: Int? = null,
+  val preservedMetadata: Map<String, Value>? = null,
 )

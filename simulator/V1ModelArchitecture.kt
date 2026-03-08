@@ -52,6 +52,7 @@ class V1ModelArchitecture : Architecture {
     val interpreter: Interpreter,
     val env: Environment,
     val standardMetadata: StructVal,
+    val metaParamName: String,
     config: BehavioralConfig,
   ) {
     private val stages = config.architecture.stagesList
@@ -193,7 +194,11 @@ class V1ModelArchitecture : Architecture {
             BranchSpec(
               "clone",
               ctx,
-              decisions.copy(branchMode = BranchMode.I2EClone(fork.sessionId, fork.clonePort)),
+              decisions.copy(
+                branchMode = BranchMode.I2EClone(fork.sessionId, fork.clonePort),
+                preservedFieldListId = fork.fieldListId,
+                preservedMetadata = fork.metadataSnapshot,
+              ),
               fork.parserEventCount,
             ),
           )
@@ -210,7 +215,11 @@ class V1ModelArchitecture : Architecture {
             BranchSpec(
               "clone",
               ctx,
-              decisions.copy(branchMode = BranchMode.E2EClone(fork.sessionId, fork.clonePort)),
+              decisions.copy(
+                branchMode = BranchMode.E2EClone(fork.sessionId, fork.clonePort),
+                preservedFieldListId = fork.fieldListId,
+                preservedMetadata = fork.metadataSnapshot,
+              ),
               fork.eventsBeforeFork.size,
             ),
           )
@@ -232,6 +241,8 @@ class V1ModelArchitecture : Architecture {
           ForkDecisions(
             pipelineDepth = decisions.pipelineDepth + 1,
             instanceTypeOverride = RESUBMIT_INSTANCE_TYPE,
+            preservedFieldListId = fork.fieldListId,
+            preservedMetadata = fork.metadataSnapshot,
           )
         ForkReason.RESUBMIT to listOf(BranchSpec("resubmit", ctx, d, fork.eventsBeforeFork.size))
       }
@@ -240,6 +251,8 @@ class V1ModelArchitecture : Architecture {
           ForkDecisions(
             pipelineDepth = decisions.pipelineDepth + 1,
             instanceTypeOverride = RECIRC_INSTANCE_TYPE,
+            preservedFieldListId = fork.fieldListId,
+            preservedMetadata = fork.metadataSnapshot,
           )
         ForkReason.RECIRCULATE to
           listOf(BranchSpec("recirculate", ctx.copy(payload = fork.deparsedBytes), d, 0))
@@ -293,10 +306,32 @@ class V1ModelArchitecture : Architecture {
         standardMetadata.setBitField("checksum_error", 1L)
       }
 
+    val metaValue = defaultValue(metaTypeName, typesByName)
+
+    // Restore preserved metadata fields from clone/resubmit/recirculate.
+    // The @field_list(N) annotation on a struct field means it belongs to field list N;
+    // only fields matching the fork's field_list_id are preserved.
+    if (
+      decisions.preservedFieldListId != null &&
+        decisions.preservedMetadata != null &&
+        metaValue is StructVal
+    ) {
+      val metaDecl = typesByName[metaTypeName]?.struct
+      if (metaDecl != null) {
+        for (fieldDecl in metaDecl.fieldsList) {
+          if (decisions.preservedFieldListId in fieldDecl.fieldListIdsList) {
+            decisions.preservedMetadata[fieldDecl.name]?.let {
+              metaValue.fields[fieldDecl.name] = it
+            }
+          }
+        }
+      }
+    }
+
     val sharedByType =
       mapOf(
         headersTypeName to defaultValue(headersTypeName, typesByName),
-        metaTypeName to defaultValue(metaTypeName, typesByName),
+        metaTypeName to metaValue,
         standardMetaTypeName to standardMetadata,
       )
     for (parser in config.parsersList) {
@@ -310,7 +345,10 @@ class V1ModelArchitecture : Architecture {
       }
     }
 
-    return PipelineState(packetCtx, interpreter, env, standardMetadata, config)
+    // The metadata parameter name from the parser (used to snapshot metadata at fork
+    // boundaries for field list preservation).
+    val metaParamName = parserUserParams[1].name
+    return PipelineState(packetCtx, interpreter, env, standardMetadata, metaParamName, config)
   }
 
   /** Executes the full v1model pipeline once, returning a flat trace tree with a leaf outcome. */
@@ -392,7 +430,12 @@ class V1ModelArchitecture : Architecture {
     val outputBytes = s.packetCtx.outputPayload() + s.packetCtx.drainRemainingInput()
 
     if (s.packetCtx.pendingRecirculate) {
-      throw RecirculateFork(outputBytes, s.packetCtx.getEvents())
+      throw RecirculateFork(
+        outputBytes,
+        s.packetCtx.getEvents(),
+        s.packetCtx.pendingRecirculateFieldListId,
+        snapshotMetadata(s),
+      )
     }
 
     val egressPort =
@@ -444,11 +487,22 @@ class V1ModelArchitecture : Architecture {
         val pendingClone = s.packetCtx.pendingCloneSessionId
         if (pendingClone != null && !suppressI2E) {
           resolveCloneSession(ctx, s, pendingClone)?.let { clonePort ->
-            throw CloneFork(pendingClone, clonePort, parserEventCount, s.packetCtx.getEvents())
+            throw CloneFork(
+              pendingClone,
+              clonePort,
+              parserEventCount,
+              s.packetCtx.getEvents(),
+              s.packetCtx.pendingCloneFieldListId,
+              snapshotMetadata(s),
+            )
           }
         }
         if (s.packetCtx.pendingResubmit) {
-          throw ResubmitFork(s.packetCtx.getEvents())
+          throw ResubmitFork(
+            s.packetCtx.getEvents(),
+            s.packetCtx.pendingResubmitFieldListId,
+            snapshotMetadata(s),
+          )
         }
         val mcastGrp =
           (s.standardMetadata.fields["mcast_grp"] as? BitVal)?.bits?.value?.toInt() ?: 0
@@ -486,7 +540,13 @@ class V1ModelArchitecture : Architecture {
         val pendingE2EClone = s.packetCtx.pendingEgressCloneSessionId
         if (pendingE2EClone != null && !suppressE2E) {
           resolveCloneSession(ctx, s, pendingE2EClone)?.let { clonePort ->
-            throw EgressCloneFork(pendingE2EClone, clonePort, s.packetCtx.getEvents())
+            throw EgressCloneFork(
+              pendingE2EClone,
+              clonePort,
+              s.packetCtx.getEvents(),
+              s.packetCtx.pendingEgressCloneFieldListId,
+              snapshotMetadata(s),
+            )
           }
         }
       }
@@ -517,6 +577,10 @@ class V1ModelArchitecture : Architecture {
     s.standardMetadata.fields["egress_spec"] =
       s.standardMetadata.fields["egress_port"] ?: BitVal(0, s.portBits)
   }
+
+  /** Snapshots the user metadata fields for preservation across a fork. */
+  private fun snapshotMetadata(s: PipelineState): Map<String, Value>? =
+    (s.env.lookup(s.metaParamName) as? StructVal)?.fields?.toMap()
 
   /** Post-egress drop check: mark_to_drop() in egress sets egress_spec to drop port. */
   private fun egressSpecIsDropPort(s: PipelineState): Boolean =

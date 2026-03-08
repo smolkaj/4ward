@@ -24,6 +24,7 @@ _P4_PROGRAMS = [
     "action_selector_nested",
     "clone_and_multicast",
     "clone_ingress_egress",
+    "clone_preserve_meta",
     "clone_last_wins",
     "clone_plus_selector",
     "clone_with_egress",

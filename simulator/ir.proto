@@ -227,6 +227,11 @@ message EnumDecl {
 message FieldDecl {
   string name = 1;
   Type type = 2;
+  // @field_list annotation values on this struct field. Used by
+  // clone_preserving_field_list, resubmit_preserving_field_list, and
+  // recirculate_preserving_field_list to determine which metadata fields
+  // survive across pipeline re-executions.
+  repeated int32 field_list_ids = 3;
 }
 
 message ParamDecl {
