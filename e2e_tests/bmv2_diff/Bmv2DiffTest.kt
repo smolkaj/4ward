@@ -66,7 +66,10 @@ class Bmv2DiffTest(private val testName: String) {
     Bmv2Runner(driverBinary, jsonPath, config.p4Info).use { bmv2 ->
       bmv2.installEntries(stf)
       for (packet in stf.packets) {
-        bmv2Outputs.addAll(bmv2.sendPacket(packet.ingressPort, packet.payload))
+        // sendPacketExploring handles action selectors via round-robin exploration
+        // (temporarily reducing groups to single members); falls back to a normal
+        // sendPacket when no selector groups are present.
+        bmv2Outputs.addAll(bmv2.sendPacketExploring(packet.ingressPort, packet.payload))
       }
     }
 

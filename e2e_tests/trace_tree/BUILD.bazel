@@ -1,6 +1,14 @@
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
 load("//e2e_tests:p4c.bzl", "p4c_compile")
 
+# P4/STF files used by bmv2_diff tests (cross-package reference).
+exports_files([
+    "action_selector_3.p4",
+    "action_selector_3.stf",
+    "selector_exit.p4",
+    "selector_exit.stf",
+])
+
 # =============================================================================
 # Trace tree golden tests (Track 3)
 #

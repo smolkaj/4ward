@@ -3,7 +3,9 @@ package fourward.e2e.bmv2
 import fourward.e2e.MatchKind
 import fourward.e2e.StfAddEntry
 import fourward.e2e.StfFile
+import fourward.e2e.StfGroupDirective
 import fourward.e2e.StfMatchField
+import fourward.e2e.StfMemberDirective
 import fourward.e2e.StfSetDefault
 import fourward.e2e.StfTableDirective
 import fourward.e2e.allOnesMask
@@ -11,6 +13,7 @@ import fourward.e2e.decodeHex
 import fourward.e2e.encodeValue
 import fourward.e2e.extractParamName
 import fourward.e2e.findAction
+import fourward.e2e.findActionProfile
 import fourward.e2e.findTable
 import fourward.e2e.hex
 import fourward.e2e.stripNamedParamPrefix
@@ -31,6 +34,9 @@ class Bmv2Runner(driverBinary: Path, jsonPath: Path, private val p4Info: P4InfoO
   private val process: Process
   private val writer: java.io.BufferedWriter
   private val reader: java.io.BufferedReader
+
+  /** Action selector groups installed by [installEntries], used for round-robin exploration. */
+  private val selectorGroups = mutableListOf<SelectorGroup>()
 
   init {
     process =
@@ -61,10 +67,15 @@ class Bmv2Runner(driverBinary: Path, jsonPath: Path, private val p4Info: P4InfoO
     return lines
   }
 
-  private fun sendChecked(cmd: String) {
+  private fun sendChecked(cmd: String): List<String> {
     val resp = sendCommand(cmd)
     check(resp.lastOrNull()?.startsWith("OK") == true) { "$cmd failed: ${resp.joinToString("\n")}" }
+    return resp
   }
+
+  /** Sends a command that returns a handle on success (e.g. "OK 3"), returns the handle. */
+  private fun sendForHandle(cmd: String): Int =
+    sendChecked(cmd).last().removePrefix("OK ").trim().toInt()
 
   /** Install all STF-declared entries (PRE + table entries). Throws on failure. */
   fun installEntries(stf: StfFile) {
@@ -83,8 +94,29 @@ class Bmv2Runner(driverBinary: Path, jsonPath: Path, private val p4Info: P4InfoO
       sendChecked("MC_NODE_ASSOCIATE ${assoc.groupId} ${assoc.nodeHandle}")
     }
 
+    // Action profile members and groups must be installed before table entries
+    // that reference them. BMv2 auto-assigns handles sequentially; we track the
+    // mapping from STF IDs to BMv2 handles so references resolve correctly.
+    val memberHandles = mutableMapOf<Int, Int>()
+    for (member in stf.memberDirectives) {
+      memberHandles[member.memberId] = sendForHandle(translateMember(member))
+    }
+    val groupHandles = mutableMapOf<Int, Int>()
+    for (group in stf.groupDirectives) {
+      val grpHandle = sendForHandle(translateCreateGroup(group))
+      groupHandles[group.groupId] = grpHandle
+      val profileName = findActionProfileName(group.profileName)
+      val mbrHandles = mutableListOf<Int>()
+      for (memberId in group.memberIds) {
+        val mbrHandle = memberHandles[memberId] ?: error("unknown member: $memberId")
+        sendChecked("ACT_PROF_ADD_MEMBER_TO_GROUP $profileName $mbrHandle $grpHandle")
+        mbrHandles.add(mbrHandle)
+      }
+      selectorGroups.add(SelectorGroup(profileName, grpHandle, mbrHandles))
+    }
+
     for (directive in stf.tableEntries) {
-      sendChecked(translateTableEntry(directive))
+      sendChecked(translateTableEntry(directive, groupHandles))
     }
   }
 
@@ -99,23 +131,74 @@ class Bmv2Runner(driverBinary: Path, jsonPath: Path, private val p4Info: P4InfoO
       }
   }
 
+  /**
+   * Sends a packet once per member in the action selector group, collecting all outputs.
+   *
+   * For each iteration, temporarily reduces the group to a single member (so BMv2's hash always
+   * selects it), sends the packet, collects output, then restores the group. The collected outputs
+   * across all iterations match 4ward's forked exploration of the selector.
+   *
+   * Only supports a single action selector group. Falls back to [sendPacket] if no groups exist.
+   */
+  fun sendPacketExploring(port: Int, payload: ByteArray): List<Pair<Int, ByteArray>> {
+    if (selectorGroups.isEmpty()) return sendPacket(port, payload)
+    check(selectorGroups.size == 1) {
+      "round-robin exploration only supports a single action selector group"
+    }
+    val group = selectorGroups[0]
+    val allOutputs = mutableListOf<Pair<Int, ByteArray>>()
+    for (activeIdx in group.memberHandles.indices) {
+      // Remove all members except the active one.
+      for ((i, mbrHandle) in group.memberHandles.withIndex()) {
+        if (i != activeIdx) {
+          sendChecked(
+            "ACT_PROF_REMOVE_MEMBER_FROM_GROUP ${group.profileName} $mbrHandle ${group.grpHandle}"
+          )
+        }
+      }
+      allOutputs.addAll(sendPacket(port, payload))
+      // Restore removed members.
+      for ((i, mbrHandle) in group.memberHandles.withIndex()) {
+        if (i != activeIdx) {
+          sendChecked(
+            "ACT_PROF_ADD_MEMBER_TO_GROUP ${group.profileName} $mbrHandle ${group.grpHandle}"
+          )
+        }
+      }
+    }
+    return allOutputs
+  }
+
   // -- Table entry translation --
 
-  private fun translateTableEntry(directive: StfTableDirective): String =
+  private fun translateTableEntry(
+    directive: StfTableDirective,
+    groupHandles: Map<Int, Int>,
+  ): String =
     when (directive) {
-      is StfAddEntry -> translateAdd(directive)
+      is StfAddEntry -> translateAdd(directive, groupHandles)
       is StfSetDefault -> translateSetDefault(directive)
     }
 
   @Suppress("CyclomaticComplexMethod")
-  private fun translateAdd(entry: StfAddEntry): String {
+  private fun translateAdd(entry: StfAddEntry, groupHandles: Map<Int, Int>): String {
     val table = findTable(entry.tableName, p4Info)
-    val action = findAction(entry.actionName, p4Info)
 
     // Encode match fields in P4Info table key order.
     val matchParts =
       table.matchFieldsList.map { mf -> encodeMatchForDriver(findStfMatch(entry, mf), mf) }
 
+    // Indirect table entry pointing to a group (action selector with group=N).
+    if (entry.groupId != null) {
+      val grpHandle = groupHandles[entry.groupId] ?: error("unknown group: ${entry.groupId}")
+      return buildString {
+        append("TABLE_ADD_GROUP ${table.preamble.name} $grpHandle")
+        for (m in matchParts) append(" $m")
+        if (entry.priority != null) append(" priority ${entry.priority}")
+      }
+    }
+
+    val action = findAction(entry.actionName, p4Info)
     val paramParts = encodeActionParams(entry.actionParams, action)
 
     return buildString {
@@ -137,6 +220,37 @@ class Bmv2Runner(driverBinary: Path, jsonPath: Path, private val p4Info: P4InfoO
       for (p in paramParts) append(" $p")
     }
   }
+
+  // -- Action profile translation --
+
+  private fun translateMember(member: StfMemberDirective): String {
+    val profileName = findActionProfileName(member.profileName)
+    val action = findAction(member.actionName, p4Info)
+    val paramParts = encodeNamedParams(member.params, action)
+    return buildString {
+      append("ACT_PROF_ADD_MEMBER $profileName ${action.preamble.name}")
+      for (p in paramParts) append(" $p")
+    }
+  }
+
+  private fun translateCreateGroup(group: StfGroupDirective): String =
+    "ACT_PROF_CREATE_GROUP ${findActionProfileName(group.profileName)}"
+
+  /** Resolves an STF profile name to the BMv2-visible (p4info) name. */
+  private fun findActionProfileName(stfName: String): String =
+    findActionProfile(stfName, p4Info).preamble.name
+
+  /**
+   * Encodes named params (from member directives) directly, without round-tripping through strings.
+   */
+  private fun encodeNamedParams(
+    params: Map<String, String>,
+    action: P4InfoOuterClass.Action,
+  ): List<String> =
+    action.paramsList.map { paramInfo ->
+      val raw = params[paramInfo.name] ?: error("missing ${paramInfo.name}")
+      encodeValue(raw, paramInfo.bitwidth).toByteArray().hex()
+    }
 
   private fun encodeActionParams(
     stfParams: List<String>,
@@ -188,6 +302,12 @@ class Bmv2Runner(driverBinary: Path, jsonPath: Path, private val p4Info: P4InfoO
     writer.close()
     if (!process.waitFor(5, TimeUnit.SECONDS)) process.destroyForcibly()
   }
+
+  private data class SelectorGroup(
+    val profileName: String,
+    val grpHandle: Int,
+    val memberHandles: List<Int>,
+  )
 
   companion object {
     private val ARRAY_INDEX_REGEX = Regex("\\$(\\d+)")

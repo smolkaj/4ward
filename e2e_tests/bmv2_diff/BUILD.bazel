@@ -20,6 +20,16 @@ bmv2_diff_test_suite(
         "@p4c//testdata/p4_16_samples:arith-skeleton.p4",
         "@p4c//testdata/p4_16_samples:ml-headers.p4",
     ],
+    # Local action-selector tests use round-robin exploration: BMv2 is run once
+    # per group member (temporarily reducing the group to 1 member each time)
+    # so that every selector outcome is covered, matching 4ward's fork-all
+    # exploration. Only works for tests with a single selector and no other
+    # packet replication (clone/multicast), since replaying the whole packet
+    # would duplicate those side effects.
+    local_tests = {
+        "action_selector_3": "//e2e_tests/trace_tree",
+        "selector_exit": "//e2e_tests/trace_tree",
+    },
     tests = [
         "arith-bmv2",
         "arith-inline-bmv2",
