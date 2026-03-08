@@ -28,15 +28,13 @@ class TableStoreTest {
   @Before
   fun setUp() {
     store = TableStore()
-    store.loadMappings(
-      tableNameById = mapOf(TABLE_ID to TABLE_NAME),
-      actionNameById = ACTION_ID_TO_NAME,
-    )
+    store.loadMappings(p4info = BASE_P4INFO)
   }
 
   /** Builds a [P4InfoOuterClass.P4Info] from individual entity lists. */
   private fun buildP4Info(
     tables: List<P4InfoOuterClass.Table> = emptyList(),
+    actions: List<P4InfoOuterClass.Action> = emptyList(),
     registers: List<P4InfoOuterClass.Register> = emptyList(),
     actionProfiles: List<P4InfoOuterClass.ActionProfile> = emptyList(),
     counters: List<P4InfoOuterClass.Counter> = emptyList(),
@@ -44,10 +42,24 @@ class TableStoreTest {
   ): P4InfoOuterClass.P4Info =
     P4InfoOuterClass.P4Info.newBuilder()
       .addAllTables(tables)
+      .addAllActions(actions)
       .addAllRegisters(registers)
       .addAllActionProfiles(actionProfiles)
       .addAllCounters(counters)
       .addAllMeters(meters)
+      .build()
+
+  /** Builds a minimal p4info [P4InfoOuterClass.Table] with the given ID and name. */
+  private fun p4infoTable(
+    id: Int,
+    name: String,
+    size: Long = 0,
+    implementationId: Int = 0,
+  ): P4InfoOuterClass.Table =
+    P4InfoOuterClass.Table.newBuilder()
+      .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(id).setAlias(name))
+      .setSize(size)
+      .setImplementationId(implementationId)
       .build()
 
   // ---------------------------------------------------------------------------
@@ -494,15 +506,12 @@ class TableStoreTest {
   /** Creates a TableStore with a table that has a size limit. */
   private fun storeWithTableSize(size: Int): TableStore {
     val store = TableStore()
-    val p4infoTable =
-      P4InfoOuterClass.Table.newBuilder()
-        .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(TABLE_ID))
-        .setSize(size.toLong())
-        .build()
     store.loadMappings(
-      tableNameById = mapOf(TABLE_ID to TABLE_NAME),
-      actionNameById = ACTION_ID_TO_NAME,
-      p4info = buildP4Info(tables = listOf(p4infoTable)),
+      p4info =
+        buildP4Info(
+          tables = listOf(p4infoTable(TABLE_ID, TABLE_NAME, size = size.toLong())),
+          actions = ACTION_LIST,
+        )
     )
     return store
   }
@@ -514,15 +523,15 @@ class TableStoreTest {
   /** Creates a TableStore with an action-profile-backed table for profile tests. */
   private fun storeWithProfile(): TableStore {
     val store = TableStore()
-    val p4infoTable =
-      P4InfoOuterClass.Table.newBuilder()
-        .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(PROFILE_TABLE_ID))
-        .setImplementationId(PROFILE_ID)
-        .build()
     store.loadMappings(
-      tableNameById = mapOf(PROFILE_TABLE_ID to PROFILE_TABLE_NAME),
-      actionNameById = ACTION_ID_TO_NAME,
-      p4info = buildP4Info(tables = listOf(p4infoTable)),
+      p4info =
+        buildP4Info(
+          tables =
+            listOf(
+              p4infoTable(PROFILE_TABLE_ID, PROFILE_TABLE_NAME, implementationId = PROFILE_ID)
+            ),
+          actions = ACTION_LIST,
+        )
     )
     return store
   }
@@ -772,13 +781,21 @@ class TableStoreTest {
     writeCloneSession(sessionId = 1, egressPort = 5)
     writeMulticastGroup(groupId = 1, replicas = listOf(0 to 1))
 
-    store.loadMappings(
-      tableNameById = mapOf(TABLE_ID to TABLE_NAME),
-      actionNameById = ACTION_ID_TO_NAME,
-    )
+    store.loadMappings(p4info = BASE_P4INFO)
 
     assertNull(store.getCloneSession(1))
     assertNull(store.getMulticastGroup(1))
+  }
+
+  @Test
+  fun `loadMappings clears default actions`() {
+    store.setDefaultAction(TABLE_NAME, "customAction")
+    assertEquals("customAction", store.lookup(TABLE_NAME, emptyList()).actionName)
+
+    // Reload without any default action configured — should revert to NoAction.
+    store.loadMappings(p4info = BASE_P4INFO)
+
+    assertEquals("NoAction", store.lookup(TABLE_NAME, emptyList()).actionName)
   }
 
   // ---------------------------------------------------------------------------
@@ -905,21 +922,22 @@ class TableStoreTest {
   /** Creates a TableStore with an action profile that has a max_group_size limit. */
   private fun storeWithProfileMaxGroupSize(maxGroupSize: Int): TableStore {
     val store = TableStore()
-    val p4infoTable =
-      P4InfoOuterClass.Table.newBuilder()
-        .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(PROFILE_TABLE_ID))
-        .setImplementationId(PROFILE_ID)
-        .build()
-    val p4infoActionProfile =
-      P4InfoOuterClass.ActionProfile.newBuilder()
-        .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(PROFILE_ID))
-        .setMaxGroupSize(maxGroupSize)
-        .build()
     store.loadMappings(
-      tableNameById = mapOf(PROFILE_TABLE_ID to PROFILE_TABLE_NAME),
-      actionNameById = ACTION_ID_TO_NAME,
       p4info =
-        buildP4Info(tables = listOf(p4infoTable), actionProfiles = listOf(p4infoActionProfile)),
+        buildP4Info(
+          tables =
+            listOf(
+              p4infoTable(PROFILE_TABLE_ID, PROFILE_TABLE_NAME, implementationId = PROFILE_ID)
+            ),
+          actions = ACTION_LIST,
+          actionProfiles =
+            listOf(
+              P4InfoOuterClass.ActionProfile.newBuilder()
+                .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(PROFILE_ID))
+                .setMaxGroupSize(maxGroupSize)
+                .build()
+            ),
+        )
     )
     return store
   }
@@ -1269,8 +1287,11 @@ class TableStoreTest {
   @Test
   fun `readEntities wildcard returns all entries across tables`() {
     store.loadMappings(
-      tableNameById = mapOf(TABLE_ID to TABLE_NAME, 3 to "otherTable"),
-      actionNameById = ACTION_ID_TO_NAME,
+      p4info =
+        buildP4Info(
+          tables = listOf(p4infoTable(TABLE_ID, TABLE_NAME), p4infoTable(3, "otherTable")),
+          actions = ACTION_LIST,
+        )
     )
 
     val entry1 = exactEntry(fieldId = 1, value = byteArrayOf(1), actionId = 10)
@@ -1650,7 +1671,24 @@ class TableStoreTest {
     private const val METER_SIZE = 4
     private const val TABLE_SIZE_LIMIT = 3
     private const val MAX_GROUP_SIZE = 2
-    private val ACTION_ID_TO_NAME =
-      listOf(10, 20, 42, 50, 77, 99, 100, 200).associateWith { "action$it" }
+    private val ACTION_IDS = listOf(10, 20, 42, 50, 77, 99, 100, 200)
+    private val ACTION_LIST: List<P4InfoOuterClass.Action> =
+      ACTION_IDS.map { id ->
+        P4InfoOuterClass.Action.newBuilder()
+          .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(id).setAlias("action$id"))
+          .build()
+      }
+
+    /** Default p4info used by most tests: one table + the standard set of action IDs. */
+    private val BASE_P4INFO: P4InfoOuterClass.P4Info =
+      P4InfoOuterClass.P4Info.newBuilder()
+        .addTables(
+          P4InfoOuterClass.Table.newBuilder()
+            .setPreamble(
+              P4InfoOuterClass.Preamble.newBuilder().setId(TABLE_ID).setAlias(TABLE_NAME)
+            )
+        )
+        .addAllActions(ACTION_LIST)
+        .build()
   }
 }
