@@ -246,9 +246,10 @@ control MyIngress(inout headers_t hdr, inout metadata_t meta,
 
     apply {
         if (hdr.ipv4.isValid()) {
-            ipv4_lpm.apply();
-            // Mirror all forwarded traffic (clone to session 100).
-            clone(CloneType.I2E, 32w100);
+            if (ipv4_lpm.apply().hit) {
+                // Mirror forwarded traffic (clone to session 100).
+                clone(CloneType.I2E, 32w100);
+            }
         }
     }
 }
