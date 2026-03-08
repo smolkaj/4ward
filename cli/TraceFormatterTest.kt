@@ -19,6 +19,8 @@ import org.junit.Test
 
 class TraceFormatterTest {
 
+  // -- Plain text (color=false, the default) --
+
   @Test
   fun simplePassthrough() {
     val tree =
@@ -174,6 +176,130 @@ class TraceFormatterTest {
       |    output port 2, 0 bytes
       |"""
         .trimMargin(),
+      output,
+    )
+  }
+
+  // -- Colored output (color=true) --
+
+  @Test
+  fun coloredPassthrough() {
+    val tree =
+      TraceTree.newBuilder()
+        .addEvents(
+          TraceEvent.newBuilder()
+            .setParserTransition(
+              ParserTransitionEvent.newBuilder().setFromState("start").setToState("accept")
+            )
+        )
+        .setPacketOutcome(
+          PacketOutcome.newBuilder()
+            .setOutput(OutputPacket.newBuilder().setEgressPort(1).setPayload(ByteString.EMPTY))
+        )
+        .build()
+
+    val output = TraceFormatter.format(tree, color = true)
+    assertEquals(
+      "\u001b[36mparse: start → accept\u001b[0m\n" +
+        "\u001b[1;32moutput port 1, 0 bytes\u001b[0m\n",
+      output,
+    )
+  }
+
+  @Test
+  fun coloredTableHitAndMiss() {
+    val hit =
+      TraceTree.newBuilder()
+        .addEvents(
+          TraceEvent.newBuilder()
+            .setTableLookup(
+              TableLookupEvent.newBuilder().setTableName("t").setHit(true).setActionName("fwd")
+            )
+        )
+        .build()
+    val miss =
+      TraceTree.newBuilder()
+        .addEvents(
+          TraceEvent.newBuilder()
+            .setTableLookup(
+              TableLookupEvent.newBuilder().setTableName("t").setHit(false).setActionName("drop")
+            )
+        )
+        .build()
+
+    assertEquals(
+      "\u001b[32mtable t: hit → fwd\u001b[0m\n",
+      TraceFormatter.format(hit, color = true),
+    )
+    assertEquals(
+      "\u001b[31mtable t: miss → drop\u001b[0m\n",
+      TraceFormatter.format(miss, color = true),
+    )
+  }
+
+  @Test
+  fun coloredDrop() {
+    val tree =
+      TraceTree.newBuilder()
+        .addEvents(
+          TraceEvent.newBuilder()
+            .setMarkToDrop(MarkToDropEvent.newBuilder().setReason(DropReason.MARK_TO_DROP))
+        )
+        .setPacketOutcome(
+          PacketOutcome.newBuilder().setDrop(Drop.newBuilder().setReason(DropReason.MARK_TO_DROP))
+        )
+        .build()
+
+    val output = TraceFormatter.format(tree, color = true)
+    assertEquals(
+      "\u001b[31mmark_to_drop()\u001b[0m\n" + "\u001b[1;31mdrop (reason: mark_to_drop)\u001b[0m\n",
+      output,
+    )
+  }
+
+  @Test
+  fun coloredForkUsesTreeChars() {
+    val tree =
+      TraceTree.newBuilder()
+        .setForkOutcome(
+          Fork.newBuilder()
+            .setReason(ForkReason.CLONE)
+            .addBranches(
+              ForkBranch.newBuilder()
+                .setLabel("original")
+                .setSubtree(
+                  TraceTree.newBuilder()
+                    .setPacketOutcome(
+                      PacketOutcome.newBuilder()
+                        .setOutput(
+                          OutputPacket.newBuilder().setEgressPort(1).setPayload(ByteString.EMPTY)
+                        )
+                    )
+                )
+            )
+            .addBranches(
+              ForkBranch.newBuilder()
+                .setLabel("clone")
+                .setSubtree(
+                  TraceTree.newBuilder()
+                    .setPacketOutcome(
+                      PacketOutcome.newBuilder()
+                        .setOutput(
+                          OutputPacket.newBuilder().setEgressPort(2).setPayload(ByteString.EMPTY)
+                        )
+                    )
+                )
+            )
+        )
+        .build()
+
+    val output = TraceFormatter.format(tree, color = true)
+    assertEquals(
+      "\u001b[35mfork (clone)\u001b[0m\n" +
+        "\u001b[35m├─ original\u001b[0m\n" +
+        "│  \u001b[1;32moutput port 1, 0 bytes\u001b[0m\n" +
+        "\u001b[35m└─ clone\u001b[0m\n" +
+        "   \u001b[1;32moutput port 2, 0 bytes\u001b[0m\n",
       output,
     )
   }
