@@ -3,7 +3,9 @@ package fourward.e2e.bmv2
 import fourward.e2e.MatchKind
 import fourward.e2e.StfAddEntry
 import fourward.e2e.StfFile
+import fourward.e2e.StfGroupDirective
 import fourward.e2e.StfMatchField
+import fourward.e2e.StfMemberDirective
 import fourward.e2e.StfSetDefault
 import fourward.e2e.StfTableDirective
 import fourward.e2e.allOnesMask
@@ -11,6 +13,7 @@ import fourward.e2e.decodeHex
 import fourward.e2e.encodeValue
 import fourward.e2e.extractParamName
 import fourward.e2e.findAction
+import fourward.e2e.findActionProfile
 import fourward.e2e.findTable
 import fourward.e2e.hex
 import fourward.e2e.stripNamedParamPrefix
@@ -83,6 +86,21 @@ class Bmv2Runner(driverBinary: Path, jsonPath: Path, private val p4Info: P4InfoO
       sendChecked("MC_NODE_ASSOCIATE ${assoc.groupId} ${assoc.nodeHandle}")
     }
 
+    // Action profile members and groups must be installed before table entries
+    // that reference them.
+    for (member in stf.memberDirectives) {
+      sendChecked(translateMember(member))
+    }
+    for (group in stf.groupDirectives) {
+      val resp = sendCommand(translateCreateGroup(group))
+      check(resp.lastOrNull()?.startsWith("OK") == true) { "create group failed: $resp" }
+      val grpHandle = resp.last().removePrefix("OK ").trim().toInt()
+      val profileName = findActionProfileName(group.profileName)
+      for (memberId in group.memberIds) {
+        sendChecked("ACT_PROF_ADD_MEMBER_TO_GROUP $profileName $memberId $grpHandle")
+      }
+    }
+
     for (directive in stf.tableEntries) {
       sendChecked(translateTableEntry(directive))
     }
@@ -110,12 +128,21 @@ class Bmv2Runner(driverBinary: Path, jsonPath: Path, private val p4Info: P4InfoO
   @Suppress("CyclomaticComplexMethod")
   private fun translateAdd(entry: StfAddEntry): String {
     val table = findTable(entry.tableName, p4Info)
-    val action = findAction(entry.actionName, p4Info)
 
     // Encode match fields in P4Info table key order.
     val matchParts =
       table.matchFieldsList.map { mf -> encodeMatchForDriver(findStfMatch(entry, mf), mf) }
 
+    // Indirect table entry pointing to a group (action selector with group=N).
+    if (entry.groupId != null) {
+      return buildString {
+        append("TABLE_ADD_GROUP ${table.preamble.name} ${entry.groupId}")
+        for (m in matchParts) append(" $m")
+        if (entry.priority != null) append(" priority ${entry.priority}")
+      }
+    }
+
+    val action = findAction(entry.actionName, p4Info)
     val paramParts = encodeActionParams(entry.actionParams, action)
 
     return buildString {
@@ -137,6 +164,32 @@ class Bmv2Runner(driverBinary: Path, jsonPath: Path, private val p4Info: P4InfoO
       for (p in paramParts) append(" $p")
     }
   }
+
+  // -- Action profile translation --
+
+  private fun translateMember(member: StfMemberDirective): String {
+    val profileName = findActionProfileName(member.profileName)
+    val action = findAction(member.actionName, p4Info)
+    val paramParts = encodeActionParams(memberParamsToList(member.params, action), action)
+    return buildString {
+      append("ACT_PROF_ADD_MEMBER $profileName ${action.preamble.name}")
+      for (p in paramParts) append(" $p")
+    }
+  }
+
+  private fun translateCreateGroup(group: StfGroupDirective): String =
+    "ACT_PROF_CREATE_GROUP ${findActionProfileName(group.profileName)}"
+
+  /** Resolves an STF profile name to the BMv2-visible (p4info) name. */
+  private fun findActionProfileName(stfName: String): String =
+    findActionProfile(stfName, p4Info).preamble.name
+
+  /** Converts named member params (map) to positional list for encodeActionParams. */
+  private fun memberParamsToList(
+    params: Map<String, String>,
+    action: P4InfoOuterClass.Action,
+  ): List<String> =
+    action.paramsList.map { "${it.name}=${params[it.name] ?: error("missing ${it.name}")}" }
 
   private fun encodeActionParams(
     stfParams: List<String>,

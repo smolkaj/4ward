@@ -5,7 +5,12 @@
 //
 // Commands:
 //   TABLE_ADD <table> <action> <match_fields...> => <params...> [priority <N>]
+//   TABLE_ADD_MEMBER <table> <member_handle> <match...> [priority <N>]
+//   TABLE_ADD_GROUP <table> <group_handle> <match...> [priority <N>]
 //   TABLE_SET_DEFAULT <table> <action> [params...]
+//   ACT_PROF_ADD_MEMBER <profile> <action> <params...>
+//   ACT_PROF_CREATE_GROUP <profile>
+//   ACT_PROF_ADD_MEMBER_TO_GROUP <profile> <member_handle> <group_handle>
 //   MIRRORING_ADD <session_id> <port>
 //   MC_MGRP_CREATE <gid>
 //   MC_NODE_CREATE <rid> <ports...>
@@ -38,6 +43,9 @@
 using bm::ActionData;
 using bm::MatchErrorCode;
 using bm::MatchKeyParam;
+// BMv2 handle types (both uint32_t under the hood).
+using mbr_hdl_t = unsigned int;
+using grp_hdl_t = unsigned int;
 
 // Hex encoding/decoding helpers.
 static std::string to_hex(const char* buf, int len) {
@@ -393,6 +401,121 @@ int main(int argc, char* argv[]) {
       auto rc = pre->mc_node_associate(mgrp_hdl, l1_hdl);
       if (rc != bm::McSimplePre::McReturnCode::SUCCESS) {
         std::cout << "ERROR MC_NODE_ASSOCIATE failed" << std::endl;
+      } else {
+        std::cout << "OK" << std::endl;
+      }
+
+    } else if (cmd == "ACT_PROF_ADD_MEMBER") {
+      // ACT_PROF_ADD_MEMBER <profile> <action> <params...>
+      // Returns: OK <member_handle>
+      if (tokens.size() < 3) {
+        std::cout << "ERROR bad ACT_PROF_ADD_MEMBER" << std::endl;
+        continue;
+      }
+      auto profile = tokens[1];
+      auto action = tokens[2];
+      std::vector<std::string> params(tokens.begin() + 3, tokens.end());
+      auto ad = parse_action_data(params);
+      mbr_hdl_t mbr;
+      auto rc =
+          sw->mt_act_prof_add_member(0, profile, action, std::move(ad), &mbr);
+      if (rc != MatchErrorCode::SUCCESS) {
+        std::cout << "ERROR ACT_PROF_ADD_MEMBER failed: "
+                  << static_cast<int>(rc) << std::endl;
+      } else {
+        std::cout << "OK " << mbr << std::endl;
+      }
+
+    } else if (cmd == "ACT_PROF_CREATE_GROUP") {
+      // ACT_PROF_CREATE_GROUP <profile>
+      // Returns: OK <group_handle>
+      if (tokens.size() < 2) {
+        std::cout << "ERROR bad ACT_PROF_CREATE_GROUP" << std::endl;
+        continue;
+      }
+      auto profile = tokens[1];
+      grp_hdl_t grp;
+      auto rc = sw->mt_act_prof_create_group(0, profile, &grp);
+      if (rc != MatchErrorCode::SUCCESS) {
+        std::cout << "ERROR ACT_PROF_CREATE_GROUP failed: "
+                  << static_cast<int>(rc) << std::endl;
+      } else {
+        std::cout << "OK " << grp << std::endl;
+      }
+
+    } else if (cmd == "ACT_PROF_ADD_MEMBER_TO_GROUP") {
+      // ACT_PROF_ADD_MEMBER_TO_GROUP <profile> <member_handle> <group_handle>
+      if (tokens.size() < 4) {
+        std::cout << "ERROR bad ACT_PROF_ADD_MEMBER_TO_GROUP" << std::endl;
+        continue;
+      }
+      auto profile = tokens[1];
+      auto mbr = static_cast<mbr_hdl_t>(std::stoi(tokens[2]));
+      auto grp = static_cast<grp_hdl_t>(std::stoi(tokens[3]));
+      auto rc = sw->mt_act_prof_add_member_to_group(0, profile, mbr, grp);
+      if (rc != MatchErrorCode::SUCCESS) {
+        std::cout << "ERROR ACT_PROF_ADD_MEMBER_TO_GROUP failed: "
+                  << static_cast<int>(rc) << std::endl;
+      } else {
+        std::cout << "OK" << std::endl;
+      }
+
+    } else if (cmd == "TABLE_ADD_MEMBER") {
+      // TABLE_ADD_MEMBER <table> <member_handle> <match...> [priority <N>]
+      if (tokens.size() < 3) {
+        std::cout << "ERROR bad TABLE_ADD_MEMBER" << std::endl;
+        continue;
+      }
+      auto table = tokens[1];
+      auto mbr = static_cast<mbr_hdl_t>(std::stoi(tokens[2]));
+
+      std::vector<MatchKeyParam> match_keys;
+      std::optional<int> priority;
+      for (size_t i = 3; i < tokens.size(); i++) {
+        if (tokens[i] == "priority" && i + 1 < tokens.size()) {
+          priority = std::stoi(tokens[i + 1]);
+          break;
+        }
+        match_keys.push_back(parse_match_field(tokens[i]));
+      }
+
+      bm::entry_handle_t handle;
+      int bmv2_priority = priority.has_value() ? -*priority : -1;
+      auto rc = sw->mt_indirect_add_entry(0, table, match_keys, mbr, &handle,
+                                          bmv2_priority);
+      if (rc != MatchErrorCode::SUCCESS) {
+        std::cout << "ERROR TABLE_ADD_MEMBER failed: " << static_cast<int>(rc)
+                  << std::endl;
+      } else {
+        std::cout << "OK" << std::endl;
+      }
+
+    } else if (cmd == "TABLE_ADD_GROUP") {
+      // TABLE_ADD_GROUP <table> <group_handle> <match...> [priority <N>]
+      if (tokens.size() < 3) {
+        std::cout << "ERROR bad TABLE_ADD_GROUP" << std::endl;
+        continue;
+      }
+      auto table = tokens[1];
+      auto grp = static_cast<grp_hdl_t>(std::stoi(tokens[2]));
+
+      std::vector<MatchKeyParam> match_keys;
+      std::optional<int> priority;
+      for (size_t i = 3; i < tokens.size(); i++) {
+        if (tokens[i] == "priority" && i + 1 < tokens.size()) {
+          priority = std::stoi(tokens[i + 1]);
+          break;
+        }
+        match_keys.push_back(parse_match_field(tokens[i]));
+      }
+
+      bm::entry_handle_t handle;
+      int bmv2_priority = priority.has_value() ? -*priority : -1;
+      auto rc = sw->mt_indirect_ws_add_entry(0, table, match_keys, grp, &handle,
+                                             bmv2_priority);
+      if (rc != MatchErrorCode::SUCCESS) {
+        std::cout << "ERROR TABLE_ADD_GROUP failed: " << static_cast<int>(rc)
+                  << std::endl;
       } else {
         std::cout << "OK" << std::endl;
       }

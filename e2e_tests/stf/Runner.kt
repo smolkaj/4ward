@@ -645,7 +645,7 @@ fun findAction(name: String, p4info: P4InfoOuterClass.P4Info): P4InfoOuterClass.
     ?: p4info.actionsList.find { it.preamble.name.endsWith(".$name") }
     ?: error("unknown action: $name")
 
-private fun findActionProfile(
+fun findActionProfile(
   name: String,
   p4info: P4InfoOuterClass.P4Info,
 ): P4InfoOuterClass.ActionProfile =

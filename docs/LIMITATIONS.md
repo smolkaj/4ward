@@ -55,9 +55,6 @@ guilt — just write it down so someone can find it later.
   P4Runtime `PacketReplicationEngineEntry`.
 ## BMv2 differential testing
 
-- **No action profile support in BMv2 driver.** The bmv2_driver binary does not
-  handle `member` or `group` STF directives. Tests that use action selectors or
-  action profiles cannot be diff-tested yet.
 - **System libgmp/libpcap dependency.** The BMv2 build links against system
   `libgmp` and `libpcap` rather than building them from source. The build uses
   genrules to copy headers into the build tree, but runtime linking requires the
