@@ -236,24 +236,18 @@ class SaiP4E2ETest {
   }
 
   // =========================================================================
-  // p4info lookup helpers
+  // p4info lookup helpers — delegates to P4RuntimeTestHarness.Companion
   // =========================================================================
 
-  private fun findTable(alias: String) =
-    config.p4Info.tablesList.find { it.preamble.alias == alias }
-      ?: error("table '$alias' not found in p4info")
+  private fun findTable(alias: String) = P4RuntimeTestHarness.findTable(config, alias)
 
-  private fun findAction(alias: String) =
-    config.p4Info.actionsList.find { it.preamble.alias == alias }
-      ?: error("action '$alias' not found in p4info")
+  private fun findAction(alias: String) = P4RuntimeTestHarness.findAction(config, alias)
 
-  private fun matchFieldId(table: P4InfoOuterClass.Table, name: String): Int =
-    table.matchFieldsList.find { it.name == name }?.id
-      ?: error("match field '$name' not found in table '${table.preamble.alias}'")
+  private fun matchFieldId(table: P4InfoOuterClass.Table, name: String) =
+    P4RuntimeTestHarness.matchFieldId(table, name)
 
-  private fun paramId(action: P4InfoOuterClass.Action, name: String): Int =
-    action.paramsList.find { it.name == name }?.id
-      ?: error("param '$name' not found in action '${action.preamble.alias}'")
+  private fun paramId(action: P4InfoOuterClass.Action, name: String) =
+    P4RuntimeTestHarness.paramId(action, name)
 
   // =========================================================================
   // Match field and action param builders
