@@ -87,9 +87,9 @@ Legend: **Y** = tested, **N** = not tested, **—** = not implemented
 
 | # | Requirement | Status | Test |
 |---|-------------|--------|------|
-| 9.50 | Direct counter read/write | Y | TableStoreTest |
+| 9.50 | Direct counter read/write | Y | TableStoreTest, ConformanceTest #52-54 |
 | 9.51 | Indirect counter read/write | Y | TableStoreTest, ConformanceTest #46-48 |
-| 9.52 | Direct meter config | Y | TableStoreTest |
+| 9.52 | Direct meter config | Y | TableStoreTest, ConformanceTest #55-57 |
 | 9.53 | Indirect meter config | Y | TableStoreTest, ConformanceTest #49-51 |
 
 ## Write RPC — PRE (§9.5)

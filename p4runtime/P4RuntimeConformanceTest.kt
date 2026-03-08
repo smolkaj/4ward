@@ -745,6 +745,173 @@ class P4RuntimeConformanceTest {
     assertGrpcError(Status.Code.INVALID_ARGUMENT) { harness.installEntry(entry) }
   }
 
+  // =========================================================================
+  // Direct counter entries (scenarios 52-54)
+  // =========================================================================
+
+  private fun loadConfigWithDirectCounter(): PipelineConfig {
+    val base = loadBasicTableConfig()
+    val tableId = base.p4Info.tablesList.first().preamble.id
+    val directCounter =
+      p4.config.v1.P4InfoOuterClass.DirectCounter.newBuilder()
+        .setPreamble(
+          p4.config.v1.P4InfoOuterClass.Preamble.newBuilder()
+            .setId(DCTR_ID)
+            .setName("myDirectCounter")
+        )
+        .setDirectTableId(tableId)
+        .build()
+    return base
+      .toBuilder()
+      .setP4Info(base.p4Info.toBuilder().addDirectCounters(directCounter))
+      .build()
+  }
+
+  @Test
+  fun `52 - write direct counter entry and read it back`() {
+    val config = loadConfigWithDirectCounter()
+    harness.loadPipeline(config)
+    val tableEntry = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    harness.installEntry(tableEntry)
+
+    // MODIFY the direct counter for the installed entry.
+    val directCounterEntity =
+      Entity.newBuilder()
+        .setDirectCounterEntry(
+          p4.v1.P4RuntimeOuterClass.DirectCounterEntry.newBuilder()
+            .setTableEntry(tableEntry.tableEntry)
+            .setData(
+              p4.v1.P4RuntimeOuterClass.CounterData.newBuilder()
+                .setPacketCount(42)
+                .setByteCount(1000)
+            )
+        )
+        .build()
+    harness.modifyEntry(directCounterEntity)
+
+    val tableId = config.p4Info.tablesList.first().preamble.id
+    val results = harness.readDirectCounterEntries(tableId)
+    assertEquals(1, results.size)
+    assertEquals(42, results[0].directCounterEntry.data.packetCount)
+    assertEquals(1000, results[0].directCounterEntry.data.byteCount)
+  }
+
+  @Test
+  fun `53 - read unwritten direct counter returns zero`() {
+    val config = loadConfigWithDirectCounter()
+    harness.loadPipeline(config)
+    val tableEntry = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    harness.installEntry(tableEntry)
+
+    val tableId = config.p4Info.tablesList.first().preamble.id
+    val results = harness.readDirectCounterEntries(tableId)
+    assertEquals(1, results.size)
+    assertEquals(0, results[0].directCounterEntry.data.packetCount)
+    assertEquals(0, results[0].directCounterEntry.data.byteCount)
+  }
+
+  @Test
+  fun `54 - INSERT direct counter entry returns INVALID_ARGUMENT`() {
+    val config = loadConfigWithDirectCounter()
+    harness.loadPipeline(config)
+    val tableEntry = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    harness.installEntry(tableEntry)
+
+    val directCounterEntity =
+      Entity.newBuilder()
+        .setDirectCounterEntry(
+          p4.v1.P4RuntimeOuterClass.DirectCounterEntry.newBuilder()
+            .setTableEntry(tableEntry.tableEntry)
+            .setData(p4.v1.P4RuntimeOuterClass.CounterData.newBuilder().setPacketCount(1))
+        )
+        .build()
+    assertGrpcError(Status.Code.INVALID_ARGUMENT) { harness.installEntry(directCounterEntity) }
+  }
+
+  // =========================================================================
+  // Direct meter entries (scenarios 55-57)
+  // =========================================================================
+
+  private fun loadConfigWithDirectMeter(): PipelineConfig {
+    val base = loadBasicTableConfig()
+    val tableId = base.p4Info.tablesList.first().preamble.id
+    val directMeter =
+      p4.config.v1.P4InfoOuterClass.DirectMeter.newBuilder()
+        .setPreamble(
+          p4.config.v1.P4InfoOuterClass.Preamble.newBuilder()
+            .setId(DMTR_ID)
+            .setName("myDirectMeter")
+        )
+        .setDirectTableId(tableId)
+        .build()
+    return base.toBuilder().setP4Info(base.p4Info.toBuilder().addDirectMeters(directMeter)).build()
+  }
+
+  @Test
+  fun `55 - write direct meter entry and read it back`() {
+    val config = loadConfigWithDirectMeter()
+    harness.loadPipeline(config)
+    val tableEntry = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    harness.installEntry(tableEntry)
+
+    val directMeterEntity =
+      Entity.newBuilder()
+        .setDirectMeterEntry(
+          p4.v1.P4RuntimeOuterClass.DirectMeterEntry.newBuilder()
+            .setTableEntry(tableEntry.tableEntry)
+            .setConfig(
+              p4.v1.P4RuntimeOuterClass.MeterConfig.newBuilder()
+                .setCir(1000)
+                .setCburst(100)
+                .setPir(2000)
+                .setPburst(200)
+            )
+        )
+        .build()
+    harness.modifyEntry(directMeterEntity)
+
+    val tableId = config.p4Info.tablesList.first().preamble.id
+    val results = harness.readDirectMeterEntries(tableId)
+    assertEquals(1, results.size)
+    val config2 = results[0].directMeterEntry.config
+    assertEquals(1000, config2.cir)
+    assertEquals(2000, config2.pir)
+  }
+
+  @Test
+  fun `56 - read unconfigured direct meter has no config`() {
+    val config = loadConfigWithDirectMeter()
+    harness.loadPipeline(config)
+    val tableEntry = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    harness.installEntry(tableEntry)
+
+    val tableId = config.p4Info.tablesList.first().preamble.id
+    val results = harness.readDirectMeterEntries(tableId)
+    assertEquals(1, results.size)
+    assertFalse(
+      "unconfigured direct meter should have no config",
+      results[0].directMeterEntry.hasConfig(),
+    )
+  }
+
+  @Test
+  fun `57 - INSERT direct meter entry returns INVALID_ARGUMENT`() {
+    val config = loadConfigWithDirectMeter()
+    harness.loadPipeline(config)
+    val tableEntry = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    harness.installEntry(tableEntry)
+
+    val directMeterEntity =
+      Entity.newBuilder()
+        .setDirectMeterEntry(
+          p4.v1.P4RuntimeOuterClass.DirectMeterEntry.newBuilder()
+            .setTableEntry(tableEntry.tableEntry)
+            .setConfig(p4.v1.P4RuntimeOuterClass.MeterConfig.newBuilder().setCir(100))
+        )
+        .build()
+    assertGrpcError(Status.Code.INVALID_ARGUMENT) { harness.installEntry(directMeterEntity) }
+  }
+
   // ---------------------------------------------------------------------------
   // Test helpers
   // ---------------------------------------------------------------------------
@@ -772,5 +939,7 @@ class P4RuntimeConformanceTest {
     private const val CTR_SIZE = 4
     private const val MTR_ID = 700
     private const val MTR_SIZE = 4
+    private const val DCTR_ID = 800
+    private const val DMTR_ID = 900
   }
 }

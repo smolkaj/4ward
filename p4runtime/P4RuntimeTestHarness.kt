@@ -243,6 +243,40 @@ class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable 
         .build()
     )
 
+  /** Reads direct counter entries for all entries in the given table. */
+  fun readDirectCounterEntries(tableId: Int): List<Entity> =
+    readEntries(
+      ReadRequest.newBuilder()
+        .setDeviceId(1)
+        .addEntities(
+          Entity.newBuilder()
+            .setDirectCounterEntry(
+              p4.v1.P4RuntimeOuterClass.DirectCounterEntry.newBuilder()
+                .setTableEntry(
+                  p4.v1.P4RuntimeOuterClass.TableEntry.newBuilder().setTableId(tableId)
+                )
+            )
+        )
+        .build()
+    )
+
+  /** Reads direct meter entries for all entries in the given table. */
+  fun readDirectMeterEntries(tableId: Int): List<Entity> =
+    readEntries(
+      ReadRequest.newBuilder()
+        .setDeviceId(1)
+        .addEntities(
+          Entity.newBuilder()
+            .setDirectMeterEntry(
+              p4.v1.P4RuntimeOuterClass.DirectMeterEntry.newBuilder()
+                .setTableEntry(
+                  p4.v1.P4RuntimeOuterClass.TableEntry.newBuilder().setTableId(tableId)
+                )
+            )
+        )
+        .build()
+    )
+
   // ---------------------------------------------------------------------------
   // StreamChannel helpers
   // ---------------------------------------------------------------------------
