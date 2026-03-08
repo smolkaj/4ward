@@ -3,23 +3,14 @@ package fourward.e2e
 import com.google.protobuf.ByteString
 import com.google.protobuf.TextFormat
 import fourward.ir.v1.PipelineConfig
-import fourward.sim.v1.SimulatorProto.TraceTree
 import fourward.simulator.Simulator
 import fourward.simulator.WriteResult
+import fourward.simulator.collectOutputsFromTrace
 import java.math.BigInteger
 import java.nio.file.Path
 import java.nio.file.Paths
 import p4.config.v1.P4InfoOuterClass
 import p4.v1.P4RuntimeOuterClass
-
-/** Recursively collects output packets from trace tree leaves (for forking programs). */
-fun collectOutputsFromTrace(tree: TraceTree): List<fourward.sim.v1.SimulatorProto.OutputPacket> =
-  when {
-    tree.hasForkOutcome() ->
-      tree.forkOutcome.branchesList.flatMap { collectOutputsFromTrace(it.subtree) }
-    tree.hasPacketOutcome() && tree.packetOutcome.hasOutput() -> listOf(tree.packetOutcome.output)
-    else -> emptyList()
-  }
 
 /** BMv2 STF files use `$N` for array indices; normalize to `[N]`. */
 private val ARRAY_INDEX_REGEX = Regex("\\$(\\d+)")
@@ -758,7 +749,7 @@ fun encodeValue(raw: String, bitwidth: Int): ByteString {
 // Data types
 // ---------------------------------------------------------------------------
 
-data class StfPacket(val ingressPort: Int, val payload: ByteArray)
+class StfPacket(val ingressPort: Int, val payload: ByteArray)
 
 /** An output packet received from the simulator, before matching against expects. */
 class ReceivedPacket(val egressPort: Int, val payload: ByteArray)

@@ -3,11 +3,11 @@ package fourward.cli
 import com.google.protobuf.TextFormat
 import fourward.e2e.ReceivedPacket
 import fourward.e2e.StfFile
-import fourward.e2e.collectOutputsFromTrace
 import fourward.e2e.installStfEntries
 import fourward.e2e.loadPipelineConfig
 import fourward.e2e.matchOutputAgainstExpects
 import fourward.simulator.Simulator
+import fourward.simulator.collectOutputsFromTrace
 import java.io.FileNotFoundException
 import java.nio.file.NoSuchFileException
 import java.nio.file.Path
