@@ -701,18 +701,23 @@ class TypeTranslatorTest {
 
   /** Builds a TypeTranslator with sdn_string translated PacketIO metadata. */
   private fun buildP4InfoTranslatorWithStringPacketIO(): TypeTranslator {
+    val translatedMetadata =
+      P4InfoOuterClass.ControllerPacketMetadata.Metadata.newBuilder()
+        .setId(PACKET_METADATA_ID)
+        .setName("ingress_port")
+        .setBitwidth(32)
+        .setTypeName(P4Types.P4NamedType.newBuilder().setName(STRING_TYPE_NAME))
     val p4info =
       P4InfoOuterClass.P4Info.newBuilder()
         .addControllerPacketMetadata(
           P4InfoOuterClass.ControllerPacketMetadata.newBuilder()
             .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(1).setName("packet_out"))
-            .addMetadata(
-              P4InfoOuterClass.ControllerPacketMetadata.Metadata.newBuilder()
-                .setId(PACKET_METADATA_ID)
-                .setName("ingress_port")
-                .setBitwidth(32)
-                .setTypeName(P4Types.P4NamedType.newBuilder().setName(STRING_TYPE_NAME))
-            )
+            .addMetadata(translatedMetadata)
+        )
+        .addControllerPacketMetadata(
+          P4InfoOuterClass.ControllerPacketMetadata.newBuilder()
+            .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(2).setName("packet_in"))
+            .addMetadata(translatedMetadata)
         )
         .setTypeInfo(stringTypeInfo())
         .build()
@@ -803,24 +808,29 @@ class TypeTranslatorTest {
 
   /** Builds a TypeTranslator from synthetic p4info with translated PacketIO metadata. */
   private fun buildP4InfoTranslatorWithPacketIO(): TypeTranslator {
+    val translatedMetadata =
+      P4InfoOuterClass.ControllerPacketMetadata.Metadata.newBuilder()
+        .setId(PACKET_METADATA_ID)
+        .setName("ingress_port")
+        .setBitwidth(32)
+        .setTypeName(P4Types.P4NamedType.newBuilder().setName(TYPE_NAME))
     val p4info =
       P4InfoOuterClass.P4Info.newBuilder()
         .addControllerPacketMetadata(
           P4InfoOuterClass.ControllerPacketMetadata.newBuilder()
             .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(1).setName("packet_out"))
-            .addMetadata(
-              P4InfoOuterClass.ControllerPacketMetadata.Metadata.newBuilder()
-                .setId(PACKET_METADATA_ID)
-                .setName("ingress_port")
-                .setBitwidth(32)
-                .setTypeName(P4Types.P4NamedType.newBuilder().setName(TYPE_NAME))
-            )
+            .addMetadata(translatedMetadata)
             .addMetadata(
               P4InfoOuterClass.ControllerPacketMetadata.Metadata.newBuilder()
                 .setId(NON_TRANSLATED_METADATA_ID)
                 .setName("padding")
                 .setBitwidth(7)
             )
+        )
+        .addControllerPacketMetadata(
+          P4InfoOuterClass.ControllerPacketMetadata.newBuilder()
+            .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(2).setName("packet_in"))
+            .addMetadata(translatedMetadata)
         )
         .setTypeInfo(bitstringTypeInfo())
         .build()

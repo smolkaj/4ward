@@ -5,6 +5,7 @@ import fourward.ir.v1.TranslationEntry
 import fourward.ir.v1.TypeTranslation
 import java.util.concurrent.ConcurrentHashMap
 import p4.config.v1.P4InfoOuterClass.P4Info
+import p4.config.v1.P4Types
 import p4.v1.P4RuntimeOuterClass.Entity
 import p4.v1.P4RuntimeOuterClass.PacketIn
 import p4.v1.P4RuntimeOuterClass.PacketOut
@@ -52,7 +53,10 @@ private constructor(
   private val tables: ConcurrentHashMap<String, TranslationTable>,
   private val paramUris: Map<Long, String>,
   private val matchFieldUris: Map<Long, String>,
-  private val packetMetadataUris: Map<Int, String>,
+  // Separate maps per direction: packet_out and packet_in metadata IDs can
+  // overlap (both use @id(1), @id(2), …) but refer to different fields.
+  private val packetOutMetadataUris: Map<Int, String>,
+  private val packetInMetadataUris: Map<Int, String>,
 ) {
 
   /** True if this translator has any translated types to handle. */
@@ -60,7 +64,8 @@ private constructor(
     tables.isNotEmpty() ||
       paramUris.isNotEmpty() ||
       matchFieldUris.isNotEmpty() ||
-      packetMetadataUris.isNotEmpty()
+      packetOutMetadataUris.isNotEmpty() ||
+      packetInMetadataUris.isNotEmpty()
 
   /**
    * Translates an SDN bitstring value to its data-plane representation.
@@ -136,17 +141,28 @@ private constructor(
 
   /** Translates PacketOut metadata from SDN to data-plane representation. */
   fun translatePacketOut(packetOut: PacketOut): PacketOut {
-    if (packetMetadataUris.isEmpty()) return packetOut
+    if (packetOutMetadataUris.isEmpty()) return packetOut
     val translated =
-      translateMetadata(packetOut.metadataList, toDataplane = true) ?: return packetOut
+      translateMetadata(packetOutMetadataUris, packetOut.metadataList, toDataplane = true)
+        ?: return packetOut
     return packetOut.toBuilder().clearMetadata().addAllMetadata(translated).build()
   }
 
-  /** Translates PacketIn metadata from data-plane to SDN representation. */
+  /**
+   * Translates PacketIn metadata from data-plane to SDN representation.
+   *
+   * Lenient: metadata values without a reverse mapping (e.g. the CPU port, which the controller
+   * never forward-allocated) are passed through unchanged.
+   */
   fun translatePacketIn(packetIn: PacketIn): PacketIn {
-    if (packetMetadataUris.isEmpty()) return packetIn
+    if (packetInMetadataUris.isEmpty()) return packetIn
     val translated =
-      translateMetadata(packetIn.metadataList, toDataplane = false) ?: return packetIn
+      translateMetadata(
+        packetInMetadataUris,
+        packetIn.metadataList,
+        toDataplane = false,
+        lenient = true,
+      ) ?: return packetIn
     return packetIn.toBuilder().clearMetadata().addAllMetadata(translated).build()
   }
 
@@ -263,17 +279,32 @@ private constructor(
   }
 
   private fun translateMetadata(
+    uriMap: Map<Int, String>,
     metadata: List<p4.v1.P4RuntimeOuterClass.PacketMetadata>,
     toDataplane: Boolean,
+    lenient: Boolean = false,
   ): List<p4.v1.P4RuntimeOuterClass.PacketMetadata>? {
     var changed = false
     val result =
       metadata.map { meta ->
-        val uri = packetMetadataUris[meta.metadataId]
+        val uri = uriMap[meta.metadataId]
         if (uri != null) {
-          changed = true
-          val translated = translateValue(getOrCreateTable(uri), meta.value, toDataplane)
-          meta.toBuilder().setValue(translated).build()
+          val translated =
+            if (lenient) {
+              try {
+                translateValue(getOrCreateTable(uri), meta.value, toDataplane)
+              } catch (_: TranslationException) {
+                null
+              }
+            } else {
+              translateValue(getOrCreateTable(uri), meta.value, toDataplane)
+            }
+          if (translated != null) {
+            changed = true
+            meta.toBuilder().setValue(translated).build()
+          } else {
+            meta
+          }
         } else {
           meta
         }
@@ -318,7 +349,8 @@ private constructor(
         buildTables(translations),
         paramUris = emptyMap(),
         matchFieldUris = emptyMap(),
-        packetMetadataUris = emptyMap(),
+        packetOutMetadataUris = emptyMap(),
+        packetInMetadataUris = emptyMap(),
       )
 
     /**
@@ -331,32 +363,10 @@ private constructor(
       val translatedTypes =
         p4info.typeInfo.newTypesMap.filter { (_, spec) -> spec.hasTranslatedType() }
 
-      val paramUris = mutableMapOf<Long, String>()
-      for (action in p4info.actionsList) {
-        for (param in action.paramsList) {
-          if (!param.hasTypeName()) continue
-          val typeSpec = translatedTypes[param.typeName.name] ?: continue
-          paramUris[packKey(action.preamble.id, param.id)] = typeSpec.translatedType.uri
-        }
-      }
-
-      val matchFieldUris = mutableMapOf<Long, String>()
-      for (table in p4info.tablesList) {
-        for (matchField in table.matchFieldsList) {
-          if (!matchField.hasTypeName()) continue
-          val typeSpec = translatedTypes[matchField.typeName.name] ?: continue
-          matchFieldUris[packKey(table.preamble.id, matchField.id)] = typeSpec.translatedType.uri
-        }
-      }
-
-      val packetMetadataUris = mutableMapOf<Int, String>()
-      for (controllerMeta in p4info.controllerPacketMetadataList) {
-        for (metadata in controllerMeta.metadataList) {
-          if (!metadata.hasTypeName()) continue
-          val typeSpec = translatedTypes[metadata.typeName.name] ?: continue
-          packetMetadataUris[metadata.id] = typeSpec.translatedType.uri
-        }
-      }
+      val paramUris = buildParamUris(p4info, translatedTypes)
+      val matchFieldUris = buildMatchFieldUris(p4info, translatedTypes)
+      val (packetOutMetadataUris, packetInMetadataUris) =
+        buildPacketMetadataUris(p4info, translatedTypes)
 
       val stringUris =
         translatedTypes.values
@@ -370,7 +380,70 @@ private constructor(
         tables.computeIfAbsent(uri) { TranslationTable(autoAllocate = true, isStringType = true) }
       }
 
-      return TypeTranslator(tables, paramUris, matchFieldUris, packetMetadataUris)
+      return TypeTranslator(
+        tables,
+        paramUris,
+        matchFieldUris,
+        packetOutMetadataUris,
+        packetInMetadataUris,
+      )
+    }
+
+    private fun buildParamUris(
+      p4info: P4Info,
+      translatedTypes: Map<String, P4Types.P4NewTypeSpec>,
+    ): Map<Long, String> {
+      val uris = mutableMapOf<Long, String>()
+      for (action in p4info.actionsList) {
+        for (param in action.paramsList) {
+          if (!param.hasTypeName()) continue
+          val typeSpec = translatedTypes[param.typeName.name] ?: continue
+          uris[packKey(action.preamble.id, param.id)] = typeSpec.translatedType.uri
+        }
+      }
+      return uris
+    }
+
+    private fun buildMatchFieldUris(
+      p4info: P4Info,
+      translatedTypes: Map<String, P4Types.P4NewTypeSpec>,
+    ): Map<Long, String> {
+      val uris = mutableMapOf<Long, String>()
+      for (table in p4info.tablesList) {
+        for (matchField in table.matchFieldsList) {
+          if (!matchField.hasTypeName()) continue
+          val typeSpec = translatedTypes[matchField.typeName.name] ?: continue
+          uris[packKey(table.preamble.id, matchField.id)] = typeSpec.translatedType.uri
+        }
+      }
+      return uris
+    }
+
+    /**
+     * Builds per-direction metadata URI maps. IDs can overlap between packet_out and packet_in
+     * (both start @id(1)), so a flat map would cause untranslated fields (like submit_to_ingress)
+     * to be incorrectly translated.
+     */
+    private fun buildPacketMetadataUris(
+      p4info: P4Info,
+      translatedTypes: Map<String, P4Types.P4NewTypeSpec>,
+    ): Pair<Map<Int, String>, Map<Int, String>> {
+      val packetOut = mutableMapOf<Int, String>()
+      val packetIn = mutableMapOf<Int, String>()
+      for (controllerMeta in p4info.controllerPacketMetadataList) {
+        val target =
+          when (controllerMeta.preamble.name) {
+            "packet_out" -> packetOut
+            "packet_in" -> packetIn
+            else -> continue
+          }
+        for (metadata in controllerMeta.metadataList) {
+          if (!metadata.hasTypeName()) continue
+          val typeSpec = translatedTypes[metadata.typeName.name] ?: continue
+          target[metadata.id] = typeSpec.translatedType.uri
+        }
+      }
+      return packetOut to packetIn
     }
 
     private fun buildTables(

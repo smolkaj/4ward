@@ -314,6 +314,8 @@ class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable 
     private val requestChannel = Channel<StreamMessageRequest>(Channel.UNLIMITED)
     private val responseChannel = Channel<StreamMessageResponse>(Channel.UNLIMITED)
 
+    // Launched eagerly; cancelled via scope.cancel() in close().
+    @Suppress("UnusedPrivateProperty")
     private val job =
       scope.launch {
         stub.streamChannel(requestChannel.consumeAsFlow()).collect { responseChannel.send(it) }
@@ -330,6 +332,12 @@ class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable 
           .build()
       )
       withTimeout(STREAM_TIMEOUT_MS) { responseChannel.receive() }
+    }
+
+    /** Sends a fully-constructed PacketOut and waits for a response. */
+    fun sendPacketOut(packetOut: PacketOut): StreamMessageResponse? = runBlocking {
+      requestChannel.send(StreamMessageRequest.newBuilder().setPacket(packetOut).build())
+      withTimeoutOrNull(STREAM_TIMEOUT_MS) { responseChannel.receive() }
     }
 
     @Suppress("MagicNumber")
