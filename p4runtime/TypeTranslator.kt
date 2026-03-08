@@ -159,26 +159,17 @@ private constructor(
     toDataplane: Boolean,
   ): p4.v1.P4RuntimeOuterClass.TableAction? {
     if (tableAction.hasAction()) {
-      val action = tableAction.action
-      val translated =
-        translateParams(action.actionId, action.paramsList, toDataplane) ?: return null
-      return tableAction
-        .toBuilder()
-        .setAction(action.toBuilder().clearParams().addAllParams(translated))
-        .build()
+      val translated = translateAction(tableAction.action, toDataplane) ?: return null
+      return tableAction.toBuilder().setAction(translated).build()
     }
     if (tableAction.hasActionProfileActionSet()) {
       var changed = false
       val translatedActions =
         tableAction.actionProfileActionSet.actionProfileActionsList.map { profileAction ->
-          val action = profileAction.action
-          val translated = translateParams(action.actionId, action.paramsList, toDataplane)
+          val translated = translateAction(profileAction.action, toDataplane)
           if (translated != null) {
             changed = true
-            profileAction
-              .toBuilder()
-              .setAction(action.toBuilder().clearParams().addAllParams(translated))
-              .build()
+            profileAction.toBuilder().setAction(translated).build()
           } else {
             profileAction
           }
@@ -195,6 +186,15 @@ private constructor(
         .build()
     }
     return null
+  }
+
+  /** Translates params of a single [Action], returning null if no translation was needed. */
+  private fun translateAction(
+    action: p4.v1.P4RuntimeOuterClass.Action,
+    toDataplane: Boolean,
+  ): p4.v1.P4RuntimeOuterClass.Action? {
+    val translated = translateParams(action.actionId, action.paramsList, toDataplane) ?: return null
+    return action.toBuilder().clearParams().addAllParams(translated).build()
   }
 
   // ---------------------------------------------------------------------------
