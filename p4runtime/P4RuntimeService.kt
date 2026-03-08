@@ -228,7 +228,11 @@ class P4RuntimeService(
               lock.withLock {
                 val state = pipeline
                 if (state == null) {
-                  // No pipeline configured yet — report via StreamError per P4Runtime spec.
+                  // P4Runtime spec §16.6: StreamError reporting is optional and for
+                  // debugging. The spec requires dropping invalid PacketOut messages
+                  // (§16.1) but is silent on the "no pipeline" case specifically.
+                  // We report FAILED_PRECONDITION (matching Write/Read RPC behavior)
+                  // to help clients diagnose misconfigured pipelines.
                   return@withLock listOf(
                     StreamMessageResponse.newBuilder()
                       .setError(
