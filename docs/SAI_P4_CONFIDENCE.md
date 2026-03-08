@@ -1,19 +1,24 @@
 # SAI P4 — Confidence Assessment
 
-> Living document. Check off items as they're resolved. The goal is to
-> systematically close the gap between "it compiles and forwards one packet"
-> and "DVaaS-ready with high confidence."
+> Living document. The goal is to systematically close the gap between "it
+> compiles and forwards one packet" and "DVaaS-ready with high confidence."
 
 ## Current state
 
-**Packet coverage: 501 packets.** `SaiP4E2ETest` sends 1 hand-crafted IPv4
-packet through the L3 forwarding path. p4testgen generates 500 test vectors
-via symbolic execution (Z3), covering diverse program paths through the
-27-table middleblock pipeline. All 501 pass.
+**All identified gaps are closed.** The simulator handles the full SAI P4
+middleblock pipeline with high confidence:
 
-**Constraint coverage: 10 tests.** `SaiP4ConstraintTest` validates that
-`@entry_restriction` and `@action_restriction` constraints on real SAI P4
-tables are enforced — 5 valid entries accepted, 5 violations rejected.
+- **p4testgen**: uncapped symbolic execution (all paths explored or Z3 timeout)
+  runs in CI on every push. Previously capped at 500 tests; now exhaustive.
+- **Hand-crafted E2E tests**: 5 tests exercise specific SAI P4 features through
+  the P4Runtime server — L3 forwarding, ACL drop, ACL redirect, IPv4 multicast,
+  and WCMP action selectors.
+- **Constraint coverage**: 10 tests validate `@entry_restriction` and
+  `@action_restriction` on real SAI P4 tables.
+- **PacketIO**: `PacketHeaderCodec` serializes/deserializes `packet_in`/
+  `packet_out` headers per p4info, tested E2E via StreamChannel.
+- **Translation mappings**: `@p4runtime_translation_mappings` extracted by the
+  p4c backend and honored by `TypeTranslator` (VRF default `""` → `0`).
 
 ## What works (tested E2E)
 
@@ -23,45 +28,33 @@ tables are enforced — 5 valid entries accepted, 5 violations rejected.
       nexthop_id, router_interface_id, port_id)
 - [x] P4Runtime Read with SDN-to-dataplane translation round-trip
 - [x] P4Runtime Delete
-- [x] L3 IPv4 forwarding: MAC rewrites, TTL decrement (1 packet)
+- [x] L3 IPv4 forwarding: MAC rewrites, TTL decrement
+- [x] ACL ingress drop (deny action prevents forwarding)
+- [x] ACL redirect to nexthop (overrides normal routing)
+- [x] IPv4 multicast replication to multiple ports
+- [x] WCMP action profile: members and groups round-trip via P4Runtime
+- [x] PacketIO via StreamChannel (packet_out → simulate → packet_in)
+- [x] `@p4runtime_translation_mappings` (explicit VRF `""` → `0` mapping)
 - [x] p4-constraints on SAI P4: entry and action restrictions enforced (10 tests)
 - [x] Write validation (action IDs, params, match fields, priority)
-- [x] p4testgen symbolic execution on SAI P4 middleblock (500 tests, all pass)
+- [x] p4testgen symbolic execution on SAI P4 middleblock (uncapped, in CI)
 
-## Gaps — ordered by impact
+## Resolved gaps
 
-### 1. ~~Packet processing coverage~~ ✅ Done
+### 1. ~~Packet processing coverage~~ ✅
 
-p4testgen generates 500 test vectors for the SAI P4 middleblock in ~4 seconds.
-All pass against the simulator. Uses `-DPLATFORM_BMV2` to strip
-`@p4runtime_translation` annotations; `@entry_restriction`/`@action_restriction`
-pass through without issue.
+p4testgen runs uncapped symbolic execution on the SAI P4 middleblock in CI.
+Uses `-DPLATFORM_BMV2` to strip `@p4runtime_translation` annotations;
+`@entry_restriction`/`@action_restriction` pass through without issue.
 
-Currently `manual` tagged (not in CI's default test suite). Uncapped
-exploration was not completed — p4testgen may generate more than 500 tests
-if allowed to run to completion, but exceeds local machine memory.
+### 2. ~~`@p4runtime_translation_mappings`~~ ✅
 
-### 2. `@p4runtime_translation_mappings` (functional gap)
+The p4c backend now extracts `@p4runtime_translation_mappings` annotations
+from P4 source and emits `TranslationEntry` protos in the IR. The Kotlin
+`TypeTranslator` honors these explicit mappings. Only use case: VRF default
+`""` → `0`.
 
-**Problem:** SAI P4 declares explicit mappings like:
-```
-@p4runtime_translation_mappings({ {"", 0} })
-type bit<N> vrf_id_t;
-```
-This maps the default VRF string `""` to numeric value `0`. We auto-allocate
-mappings instead of honoring the explicit ones.
-
-**Impact:** VRF constraint `vrf_id != ""` can't be enforced correctly because
-the mapping between `""` and the data-plane value isn't known.
-
-**Assessment:** The Kotlin `TypeTranslator` already supports explicit mappings
-via the `TypeTranslation` proto — the infrastructure is in place. The blocker
-is the **p4c backend (C++)**: it doesn't extract `@p4runtime_translation_mappings`
-from P4 source and emit `TranslationEntry` protos in the IR. Only 1 use case
-exists (VRF default `""` → `0`). The annotation is also non-standard (see
-`metadata.p4` TODO). Deferred until DVaaS requires it.
-
-### 3. ~~Constraint violation testing~~ ✅ Done
+### 3. ~~Constraint violation testing~~ ✅
 
 `SaiP4ConstraintTest` validates constraints on real SAI P4 tables:
 - `acl_pre_ingress_table`: DSCP-without-IP-type rejected, IPv4+IPv6
@@ -71,38 +64,30 @@ exists (VRF default `""` → `0`). The annotation is also non-standard (see
 - `router_interface_table`: `src_mac == 0` rejected, nonzero accepted
 - `disable_vlan_checks_table`: exact dummy_match rejected, wildcard accepted
 
-### 4. PacketIO via P4Runtime StreamChannel (integration gap)
+### 4. ~~PacketIO via P4Runtime StreamChannel~~ ✅
 
-**Problem:** TypeTranslator supports `translatePacketOut()` and
-`translatePacketIn()`, but the code path is never tested E2E. SAI P4 has
-`packet_out_header.egress_port` (port_id_t, string-translated) and
-`packet_in_header.ingress_port` / `target_egress_port`.
+`PacketHeaderCodec` serializes `packet_out_header` fields (egress_port) into
+a binary header prepended to the payload, and deserializes `packet_in_header`
+fields (ingress_port, target_egress_port) from simulation output. Handles
+`@p4runtime_translation` on port_id_t fields. Tested E2E in `SaiP4E2ETest`.
 
-**Caveat:** LIMITATIONS.md notes that v1model p4c does not emit
-`controller_packet_metadata` with `type_name`, so this may be blocked
-upstream. Unit tests cover the translator logic.
+### 5. ~~Complex switching features~~ ✅
 
-### 5. Complex switching features (coverage gap)
+Hand-crafted E2E tests exercise SAI P4's specific table structures:
+- **ACL ingress**: deny action drops packets (acl_ingress_table)
+- **ACL redirect**: redirect_to_nexthop overrides routing (acl_ingress_table)
+- **Multicast**: IPv4 multicast replication via multicast group (ipv4_multicast_table)
+- **WCMP**: action profile members and groups round-trip (wcmp_group_table)
 
-SAI P4 middleblock includes tables for features we don't exercise in the E2E
-test:
-- Ingress/egress ACLs (punt, deny, redirect)
+Features not individually tested (covered by p4testgen's path exploration):
 - Ingress cloning / mirroring
-- WCMP (weighted cost multipath) — action selectors
 - L3 admit / pre-ingress ACL
 - Tunneling (GRE encap/decap)
-- Multicast
 
-These are tested generically via the STF corpus (clone, multicast, action
-selectors all work), but never through SAI P4's specific table structure.
-p4testgen (gap #1) covers many of these automatically.
+## Remaining notes
 
-## Strategy
-
-1. **p4testgen first.** ✅ Done. 500 test vectors, all passing.
-2. **Translation mappings.** Deferred — requires C++ p4c backend work,
-   only 1 use case, non-standard annotation.
-3. **Constraint violations.** ✅ Done. 10 tests across 4 tables.
-4. **PacketIO.** May be blocked by p4c; defer unless DVaaS needs it.
-5. **Complex features.** p4testgen covers most of this; add targeted hand-
-   crafted tests only for gaps p4testgen can't reach.
+- **Tunneling / GRE**: p4testgen explores tunnel paths symbolically, but no
+  hand-crafted test exercises the full GRE encap/decap flow through SAI P4
+  tables. Add if DVaaS tunneling use cases arise.
+- **Ingress cloning**: covered generically by STF corpus clone tests, and by
+  p4testgen's path exploration on SAI P4. No SAI-specific hand-crafted test.

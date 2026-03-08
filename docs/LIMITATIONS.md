@@ -37,8 +37,8 @@ guilt — just write it down so someone can find it later.
 - **`@p4runtime_translation`: fully integrated for action params, match fields,
   and PacketIO metadata.** The `TypeTranslator` supports `sdn_bitwidth` and
   `sdn_string` with explicit, auto-allocate, and hybrid mapping modes.
-  Note: v1model `p4c` does not emit `controller_packet_metadata` with
-  `type_name`, so PacketIO translation is exercised via unit tests only.
+  `PacketHeaderCodec` handles `packet_in`/`packet_out` header serialization
+  per p4info `controller_packet_metadata`, tested E2E on SAI P4.
 - **Direct meters always return GREEN.** Direct meter configs can be
   written and read via P4Runtime, but the simulator does not perform
   real rate limiting — `direct_meter.read()` always returns the default

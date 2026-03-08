@@ -12,15 +12,15 @@ import p4.config.v1.P4InfoOuterClass.P4Info
 import p4.v1.P4RuntimeOuterClass.PacketMetadata
 
 /**
- * Converts P4Runtime PacketOut/PacketIn metadata to/from the bit-packed binary
- * headers expected by the P4 parser and deparser.
+ * Converts P4Runtime PacketOut/PacketIn metadata to/from the bit-packed binary headers expected by
+ * the P4 parser and deparser.
  *
- * The P4Runtime spec defines PacketOut metadata as structured fields
- * corresponding to the `@controller_header("packet_out")` header. This codec
- * packs metadata values into a binary header that gets prepended to the payload
- * before the simulator processes it.
+ * The P4Runtime spec defines PacketOut metadata as structured fields corresponding to the
+ * `@controller_header("packet_out")` header. This codec packs metadata values into a binary header
+ * that gets prepended to the payload before the simulator processes it.
  */
-class PacketHeaderCodec private constructor(
+class PacketHeaderCodec
+private constructor(
   private val packetOutFields: List<FieldDef>,
   private val packetInFields: List<FieldDef>,
   /** The CPU port for PacketOut packets (v1model convention: 2^portBits - 2). */
@@ -40,9 +40,8 @@ class PacketHeaderCodec private constructor(
   /**
    * Builds PacketIn metadata from ingress and egress port values.
    *
-   * On non-BMv2 platforms, the P4 program does not prepend a packet_in header
-   * to CPU-bound packets. Instead, the service constructs metadata from the
-   * simulation context.
+   * On non-BMv2 platforms, the P4 program does not prepend a packet_in header to CPU-bound packets.
+   * Instead, the service constructs metadata from the simulation context.
    */
   fun buildPacketInMetadata(ingressPort: Int, egressPort: Int): List<PacketMetadata> {
     val result = mutableListOf<PacketMetadata>()
@@ -50,20 +49,14 @@ class PacketHeaderCodec private constructor(
       // Convention: first field is ingress_port, second is target_egress_port.
       val value = if (field == packetInFields.firstOrNull()) ingressPort else egressPort
       result.add(
-        PacketMetadata.newBuilder()
-          .setMetadataId(field.id)
-          .setValue(encodeMinWidth(value))
-          .build()
+        PacketMetadata.newBuilder().setMetadataId(field.id).setValue(encodeMinWidth(value)).build()
       )
     }
     return result
   }
 
   @Suppress("MagicNumber")
-  private fun packFields(
-    fields: List<FieldDef>,
-    metadata: Map<Int, PacketMetadata>,
-  ): ByteArray {
+  private fun packFields(fields: List<FieldDef>, metadata: Map<Int, PacketMetadata>): ByteArray {
     var bits = 0L
     var totalBits = 0
     for (field in fields) {
@@ -89,14 +82,12 @@ class PacketHeaderCodec private constructor(
 
   companion object {
     /**
-     * Creates a codec from the pipeline config, or null if no
-     * `controller_packet_metadata` is defined (programs without
-     * `@controller_header`).
+     * Creates a codec from the pipeline config, or null if no `controller_packet_metadata` is
+     * defined (programs without `@controller_header`).
      */
     fun create(p4info: P4Info, behavioral: BehavioralConfig): PacketHeaderCodec? {
       val packetOutMeta =
-        p4info.controllerPacketMetadataList.find { it.preamble.name == "packet_out" }
-          ?: return null
+        p4info.controllerPacketMetadataList.find { it.preamble.name == "packet_out" } ?: return null
 
       // Build header-type → field-name → bitwidth map from behavioral config.
       val headerWidths = buildMap {
@@ -132,8 +123,7 @@ class PacketHeaderCodec private constructor(
           FieldDef(
             id = meta.id,
             bitWidth =
-              if (meta.bitwidth > 0) meta.bitwidth
-              else packetInType?.get(meta.name) ?: portBits,
+              if (meta.bitwidth > 0) meta.bitwidth else packetInType?.get(meta.name) ?: portBits,
           )
         } ?: emptyList()
 
@@ -149,6 +139,5 @@ class PacketHeaderCodec private constructor(
         type.hasBoolean() -> 1
         else -> error("unsupported type in packet header: $type")
       }
-
   }
 }

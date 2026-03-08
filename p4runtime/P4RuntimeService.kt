@@ -19,12 +19,10 @@ import p4.v1.P4RuntimeOuterClass.GetForwardingPipelineConfigRequest
 import p4.v1.P4RuntimeOuterClass.GetForwardingPipelineConfigResponse
 import p4.v1.P4RuntimeOuterClass.MasterArbitrationUpdate
 import p4.v1.P4RuntimeOuterClass.PacketIn
-import p4.v1.P4RuntimeOuterClass.PacketOutError
 import p4.v1.P4RuntimeOuterClass.ReadRequest
 import p4.v1.P4RuntimeOuterClass.ReadResponse
 import p4.v1.P4RuntimeOuterClass.SetForwardingPipelineConfigRequest
 import p4.v1.P4RuntimeOuterClass.SetForwardingPipelineConfigResponse
-import p4.v1.P4RuntimeOuterClass.StreamError
 import p4.v1.P4RuntimeOuterClass.StreamMessageRequest
 import p4.v1.P4RuntimeOuterClass.StreamMessageResponse
 import p4.v1.P4RuntimeOuterClass.Uint128

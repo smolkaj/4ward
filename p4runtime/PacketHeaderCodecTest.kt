@@ -25,8 +25,8 @@ import p4.v1.P4RuntimeOuterClass.PacketMetadata
 /**
  * Unit tests for [PacketHeaderCodec].
  *
- * Validates bit-packing of PacketOut metadata into binary headers and
- * construction of PacketIn metadata from port values.
+ * Validates bit-packing of PacketOut metadata into binary headers and construction of PacketIn
+ * metadata from port values.
  */
 class PacketHeaderCodecTest {
 
@@ -60,10 +60,11 @@ class PacketHeaderCodecTest {
     val (p4info, behavioral) = buildSaiLikeConfig()
     val codec = PacketHeaderCodec.create(p4info, behavioral)!!
 
-    val metadata = listOf(
-      buildMetadata(id = 1, value = byteArrayOf(0)),
-      buildMetadata(id = 2, value = byteArrayOf(0)),
-    )
+    val metadata =
+      listOf(
+        buildMetadata(id = 1, value = byteArrayOf(0)),
+        buildMetadata(id = 2, value = byteArrayOf(0)),
+      )
     val header = codec.serializePacketOut(metadata)
     // 9 bits egress_port=0, 1 bit submit_to_ingress=0, 6 bits padding=0
     // = 0x0000
@@ -77,10 +78,11 @@ class PacketHeaderCodecTest {
     val (p4info, behavioral) = buildSaiLikeConfig()
     val codec = PacketHeaderCodec.create(p4info, behavioral)!!
 
-    val metadata = listOf(
-      buildMetadata(id = 1, value = byteArrayOf(1)), // egress_port=1
-      buildMetadata(id = 2, value = byteArrayOf(0)), // submit_to_ingress=0
-    )
+    val metadata =
+      listOf(
+        buildMetadata(id = 1, value = byteArrayOf(1)), // egress_port=1
+        buildMetadata(id = 2, value = byteArrayOf(0)), // submit_to_ingress=0
+      )
     val header = codec.serializePacketOut(metadata)
     // 9 bits: 000000001, 1 bit: 0, 6 bits padding: 000000
     // = 00000000 10000000 = [0x00, 0x80]
@@ -94,10 +96,11 @@ class PacketHeaderCodecTest {
     val (p4info, behavioral) = buildSaiLikeConfig()
     val codec = PacketHeaderCodec.create(p4info, behavioral)!!
 
-    val metadata = listOf(
-      buildMetadata(id = 1, value = byteArrayOf(0)),
-      buildMetadata(id = 2, value = byteArrayOf(1)), // submit_to_ingress=1
-    )
+    val metadata =
+      listOf(
+        buildMetadata(id = 1, value = byteArrayOf(0)),
+        buildMetadata(id = 2, value = byteArrayOf(1)), // submit_to_ingress=1
+      )
     val header = codec.serializePacketOut(metadata)
     // 9 bits: 000000000, 1 bit: 1, 6 bits padding: 000000
     // = 00000000 01000000 = [0x00, 0x40]
@@ -111,10 +114,11 @@ class PacketHeaderCodecTest {
     val (p4info, behavioral) = buildSaiLikeConfig()
     val codec = PacketHeaderCodec.create(p4info, behavioral)!!
 
-    val metadata = listOf(
-      buildMetadata(id = 1, value = byteArrayOf(0x01, 0xFE.toByte())), // egress_port=510
-      buildMetadata(id = 2, value = byteArrayOf(1)), // submit_to_ingress=1
-    )
+    val metadata =
+      listOf(
+        buildMetadata(id = 1, value = byteArrayOf(0x01, 0xFE.toByte())), // egress_port=510
+        buildMetadata(id = 2, value = byteArrayOf(1)), // submit_to_ingress=1
+      )
     val header = codec.serializePacketOut(metadata)
     // 9 bits: 111111110 (510), 1 bit: 1, 6 bits padding: 000000
     // = 11111111 01000000 = [0xFF, 0x40]
@@ -170,38 +174,44 @@ class PacketHeaderCodecTest {
    */
   @Suppress("MagicNumber")
   private fun buildSaiLikeConfig(): Pair<P4Info, BehavioralConfig> {
-    val p4info = P4Info.newBuilder()
-      .addControllerPacketMetadata(
-        ControllerPacketMetadata.newBuilder()
-          .setPreamble(Preamble.newBuilder().setName("packet_out"))
-          .addMetadata(meta(1, "egress_port"))
-          .addMetadata(meta(2, "submit_to_ingress"))
-      )
-      .addControllerPacketMetadata(
-        ControllerPacketMetadata.newBuilder()
-          .setPreamble(Preamble.newBuilder().setName("packet_in"))
-          .addMetadata(meta(3, "ingress_port"))
-          .addMetadata(meta(4, "target_egress_port"))
-      )
-      .build()
+    val p4info =
+      P4Info.newBuilder()
+        .addControllerPacketMetadata(
+          ControllerPacketMetadata.newBuilder()
+            .setPreamble(Preamble.newBuilder().setName("packet_out"))
+            .addMetadata(meta(1, "egress_port"))
+            .addMetadata(meta(2, "submit_to_ingress"))
+        )
+        .addControllerPacketMetadata(
+          ControllerPacketMetadata.newBuilder()
+            .setPreamble(Preamble.newBuilder().setName("packet_in"))
+            .addMetadata(meta(3, "ingress_port"))
+            .addMetadata(meta(4, "target_egress_port"))
+        )
+        .build()
 
-    val behavioral = BehavioralConfig.newBuilder()
-      .addTypes(
-        TypeDecl.newBuilder().setName("packet_out_header_t").setHeader(
-          HeaderDecl.newBuilder()
-            .addFields(bitField("egress_port", 9))
-            .addFields(bitField("submit_to_ingress", 1))
-            .addFields(bitField("unused_pad", 6))
+    val behavioral =
+      BehavioralConfig.newBuilder()
+        .addTypes(
+          TypeDecl.newBuilder()
+            .setName("packet_out_header_t")
+            .setHeader(
+              HeaderDecl.newBuilder()
+                .addFields(bitField("egress_port", 9))
+                .addFields(bitField("submit_to_ingress", 1))
+                .addFields(bitField("unused_pad", 6))
+            )
         )
-      )
-      .addTypes(
-        TypeDecl.newBuilder().setName("packet_in_header_t").setHeader(
-          HeaderDecl.newBuilder()
-            .addFields(bitField("ingress_port", 9))
-            .addFields(bitField("target_egress_port", 9))
+        .addTypes(
+          TypeDecl.newBuilder()
+            .setName("packet_in_header_t")
+            .setHeader(
+              HeaderDecl.newBuilder()
+                .addFields(bitField("ingress_port", 9))
+                .addFields(bitField("target_egress_port", 9))
+            )
         )
-      )
-      .build()
+        .build()
 
     return p4info to behavioral
   }
@@ -210,7 +220,8 @@ class PacketHeaderCodecTest {
     ControllerPacketMetadata.Metadata.newBuilder().setId(id).setName(name).build()
 
   private fun bitField(name: String, width: Int): FieldDecl =
-    FieldDecl.newBuilder().setName(name)
+    FieldDecl.newBuilder()
+      .setName(name)
       .setType(Type.newBuilder().setBit(BitType.newBuilder().setWidth(width)))
       .build()
 }
