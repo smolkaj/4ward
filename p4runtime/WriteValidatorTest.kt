@@ -519,6 +519,44 @@ class WriteValidatorTest {
   }
 
   // =========================================================================
+  // One-shot action profile action set (§9.2.3)
+  // =========================================================================
+
+  @Test
+  fun `valid one-shot action set passes validation`() {
+    val v = validator()
+    v.validate(oneShotUpdate(EXACT_TABLE_ID, exactMatch(MATCH_FIELD_ID, bytes(2)), action()))
+  }
+
+  @Test
+  fun `one-shot with unknown action ID returns INVALID_ARGUMENT`() {
+    val v = validator()
+    val e =
+      assertThrows(StatusException::class.java) {
+        v.validate(
+          oneShotUpdate(EXACT_TABLE_ID, exactMatch(MATCH_FIELD_ID, bytes(2)), action(actionId = 99))
+        )
+      }
+    assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code)
+  }
+
+  @Test
+  fun `one-shot with wrong param count returns INVALID_ARGUMENT`() {
+    val v = validator()
+    val e =
+      assertThrows(StatusException::class.java) {
+        v.validate(
+          oneShotUpdate(
+            EXACT_TABLE_ID,
+            exactMatch(MATCH_FIELD_ID, bytes(2)),
+            action(params = emptyList()),
+          )
+        )
+      }
+    assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code)
+  }
+
+  // =========================================================================
   // Priority validation (§9.1.1)
   // =========================================================================
 
@@ -774,4 +812,34 @@ class WriteValidatorTest {
     priority: Int = 0,
   ): P4RuntimeOuterClass.Update =
     tableUpdate(P4RuntimeOuterClass.Update.Type.INSERT, tableId, matches, action, priority)
+
+  /** Builds an INSERT update with a one-shot ActionProfileActionSet. */
+  private fun oneShotUpdate(
+    tableId: Int,
+    match: P4RuntimeOuterClass.FieldMatch,
+    vararg actions: P4RuntimeOuterClass.Action,
+  ): P4RuntimeOuterClass.Update {
+    val entry =
+      P4RuntimeOuterClass.TableEntry.newBuilder()
+        .setTableId(tableId)
+        .addMatch(match)
+        .setAction(
+          P4RuntimeOuterClass.TableAction.newBuilder()
+            .setActionProfileActionSet(
+              P4RuntimeOuterClass.ActionProfileActionSet.newBuilder()
+                .addAllActionProfileActions(
+                  actions.map { action ->
+                    P4RuntimeOuterClass.ActionProfileAction.newBuilder()
+                      .setAction(action)
+                      .setWeight(1)
+                      .build()
+                  }
+                )
+            )
+        )
+    return P4RuntimeOuterClass.Update.newBuilder()
+      .setType(P4RuntimeOuterClass.Update.Type.INSERT)
+      .setEntity(P4RuntimeOuterClass.Entity.newBuilder().setTableEntry(entry))
+      .build()
+  }
 }

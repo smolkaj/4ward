@@ -856,6 +856,16 @@ class TableStore {
       return LookupResult(true, best.entry, actionName, members = members)
     }
 
+    // One-shot action selector (P4Runtime spec §9.2.3): the entry embeds actions inline.
+    if (tableAction.hasActionProfileActionSet()) {
+      val members =
+        tableAction.actionProfileActionSet.actionProfileActionsList.mapIndexed { i, action ->
+          MemberAction(i, resolveActionName(action.action.actionId), action.action.paramsList)
+        }
+      val actionName = members.firstOrNull()?.actionName ?: "NoAction"
+      return LookupResult(true, best.entry, actionName, members = members)
+    }
+
     // Action profile member (direct, no group): resolve to a single action.
     if (tableAction.hasActionProfileMemberId() && tableAction.actionProfileMemberId != 0) {
       val profileId =

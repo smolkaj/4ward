@@ -62,6 +62,12 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
     if (entry.hasAction() && entry.action.hasAction()) {
       validateAction(entry.action.action, tableInfo)
     }
+    // P4Runtime spec §9.2.3: validate each action in a one-shot action set.
+    if (entry.hasAction() && entry.action.hasActionProfileActionSet()) {
+      for (profileAction in entry.action.actionProfileActionSet.actionProfileActionsList) {
+        validateAction(profileAction.action, tableInfo)
+      }
+    }
     validateMatchFields(entry, tableInfo)
     validatePriority(entry, tableInfo)
   }

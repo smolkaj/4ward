@@ -701,6 +701,99 @@ class TableStoreTest {
   }
 
   // ---------------------------------------------------------------------------
+  // One-shot action selector (§9.2.3)
+  // ---------------------------------------------------------------------------
+
+  private fun writeOneShotEntry(
+    store: TableStore,
+    fieldValue: Byte,
+    actions: List<Pair<Int, Byte>>,
+  ) {
+    store.write(
+      Update.newBuilder()
+        .setType(Update.Type.INSERT)
+        .setEntity(
+          Entity.newBuilder()
+            .setTableEntry(
+              TableEntry.newBuilder()
+                .setTableId(PROFILE_TABLE_ID)
+                .addMatch(
+                  FieldMatch.newBuilder()
+                    .setFieldId(1)
+                    .setExact(
+                      FieldMatch.Exact.newBuilder()
+                        .setValue(ByteString.copyFrom(byteArrayOf(fieldValue)))
+                    )
+                )
+                .setAction(
+                  TableAction.newBuilder()
+                    .setActionProfileActionSet(
+                      P4RuntimeOuterClass.ActionProfileActionSet.newBuilder()
+                        .addAllActionProfileActions(
+                          actions.map { (actionId, paramValue) ->
+                            P4RuntimeOuterClass.ActionProfileAction.newBuilder()
+                              .setAction(
+                                Action.newBuilder()
+                                  .setActionId(actionId)
+                                  .addParams(
+                                    Action.Param.newBuilder()
+                                      .setParamId(1)
+                                      .setValue(ByteString.copyFrom(byteArrayOf(paramValue)))
+                                  )
+                              )
+                              .setWeight(1)
+                              .build()
+                          }
+                        )
+                    )
+                )
+            )
+        )
+        .build()
+    )
+  }
+
+  @Test
+  fun `one-shot entry lookup returns members for forking`() {
+    val s = storeWithProfile()
+    writeOneShotEntry(s, fieldValue = 0x0A, actions = listOf(10 to 0x01, 20 to 0x02))
+
+    val result = s.lookup(PROFILE_TABLE_NAME, listOf("1" to BitVal(0x0A, 8)))
+    assertTrue(result.hit)
+    assertNotNull(result.members)
+    assertEquals(2, result.members!!.size)
+    assertEquals("action10", result.members!![0].actionName)
+    assertEquals("action20", result.members!![1].actionName)
+  }
+
+  @Test
+  fun `one-shot entry with single action returns one member`() {
+    val s = storeWithProfile()
+    writeOneShotEntry(s, fieldValue = 0x0B, actions = listOf(42 to 0x7F))
+
+    val result = s.lookup(PROFILE_TABLE_NAME, listOf("1" to BitVal(0x0B, 8)))
+    assertTrue(result.hit)
+    assertNotNull(result.members)
+    assertEquals(1, result.members!!.size)
+    assertEquals("action42", result.members!![0].actionName)
+    val params = result.members!![0].params
+    assertEquals(1, params.size)
+    assertEquals(ByteString.copyFrom(byteArrayOf(0x7F)), params[0].value)
+  }
+
+  @Test
+  fun `one-shot member IDs are synthetic sequential indices`() {
+    val s = storeWithProfile()
+    writeOneShotEntry(s, fieldValue = 0x0C, actions = listOf(10 to 0x01, 20 to 0x02, 42 to 0x03))
+
+    val result = s.lookup(PROFILE_TABLE_NAME, listOf("1" to BitVal(0x0C, 8)))
+    assertEquals(3, result.members!!.size)
+    assertEquals(0, result.members!![0].memberId)
+    assertEquals(1, result.members!![1].memberId)
+    assertEquals(2, result.members!![2].memberId)
+  }
+
+  // ---------------------------------------------------------------------------
   // PRE: clone sessions and multicast groups
   // ---------------------------------------------------------------------------
 
