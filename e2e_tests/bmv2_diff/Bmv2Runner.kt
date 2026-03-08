@@ -6,6 +6,7 @@ import fourward.e2e.StfFile
 import fourward.e2e.StfMatchField
 import fourward.e2e.StfSetDefault
 import fourward.e2e.StfTableDirective
+import fourward.e2e.allOnesMask
 import fourward.e2e.decodeHex
 import fourward.e2e.encodeValue
 import fourward.e2e.extractParamName
@@ -168,14 +169,13 @@ class Bmv2Runner(driverBinary: Path, jsonPath: Path, private val p4Info: P4InfoO
         val mask = stf.mask
         val maskHex =
           if (mask != null) encodeValue(mask, mf.bitwidth).toByteArray().hex()
-          else allOnesMaskHex(mf.bitwidth)
+          else allOnesMask(mf.bitwidth)
         "$valueHex&&&$maskHex"
       }
       MatchKind.EXACT -> {
         when (mf.matchType) {
           // If the table declares ternary/lpm but the STF value is exact, promote.
-          P4InfoOuterClass.MatchField.MatchType.TERNARY ->
-            "$valueHex&&&${allOnesMaskHex(mf.bitwidth)}"
+          P4InfoOuterClass.MatchField.MatchType.TERNARY -> "$valueHex&&&${allOnesMask(mf.bitwidth)}"
           P4InfoOuterClass.MatchField.MatchType.LPM -> "$valueHex/${mf.bitwidth}"
           else -> valueHex
         }
@@ -192,13 +192,4 @@ class Bmv2Runner(driverBinary: Path, jsonPath: Path, private val p4Info: P4InfoO
   companion object {
     private val ARRAY_INDEX_REGEX = Regex("\\$(\\d+)")
   }
-}
-
-@Suppress("MagicNumber")
-private fun allOnesMaskHex(bitwidth: Int): String {
-  val byteLen = (bitwidth + 7) / 8
-  val bytes = ByteArray(byteLen) { 0xFF.toByte() }
-  val unusedBits = byteLen * 8 - bitwidth
-  if (unusedBits > 0) bytes[0] = (bytes[0].toInt() and (0xFF shr unusedBits)).toByte()
-  return bytes.hex()
 }

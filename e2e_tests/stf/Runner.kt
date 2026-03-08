@@ -628,11 +628,11 @@ private fun update(
 ): P4RuntimeOuterClass.Update =
   P4RuntimeOuterClass.Update.newBuilder().setType(type).setEntity(entity).build()
 
-/** Returns a bit-precise hex mask for the given bitwidth (e.g. 9 → "0x01FF", 16 → "0xFFFF"). */
-private fun allOnesMask(bitwidth: Int): String {
+/** Returns a bare-hex all-ones mask for the given bitwidth (e.g. 9 → "01ff", 16 → "ffff"). */
+fun allOnesMask(bitwidth: Int): String {
   val byteLen = (bitwidth + 7) / 8
   val value = BigInteger.ONE.shiftLeft(bitwidth).subtract(BigInteger.ONE)
-  return "0x" + value.toString(16).padStart(byteLen * 2, '0')
+  return value.toString(16).padStart(byteLen * 2, '0')
 }
 
 fun findTable(name: String, p4info: P4InfoOuterClass.P4Info): P4InfoOuterClass.Table =
@@ -686,7 +686,7 @@ private fun resolveStfMatchField(
     m.kind == MatchKind.TERNARY ||
       (m.kind == MatchKind.EXACT &&
         p4infoType == P4InfoOuterClass.MatchField.MatchType.TERNARY) -> {
-      val mask = m.mask ?: allOnesMask(mf.bitwidth)
+      val mask = m.mask ?: "0x${allOnesMask(mf.bitwidth)}"
       fmBuilder.setTernary(
         P4RuntimeOuterClass.FieldMatch.Ternary.newBuilder()
           .setValue(encodedValue)

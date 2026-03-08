@@ -65,47 +65,6 @@ Blocked on buf support for proto edition 2024.
 
 ---
 
-## Deduplicate `collectOutputsFromTrace`
-
-**Files**: `e2e_tests/stf/Runner.kt`, `simulator/V1ModelArchitectureTest.kt`
-
-**Problem**: `V1ModelArchitectureTest.collectOutputs` is a private copy of the
-public `collectOutputsFromTrace` in `Runner.kt`. Both recursively walk a
-`TraceTree` to collect output packets from leaves.
-
-**Fix**: Delete the private copy and import `collectOutputsFromTrace` from
-`fourward.e2e`.
-
----
-
-## Deduplicate `allOnesMask` helpers
-
-**Files**: `e2e_tests/stf/Runner.kt`, `e2e_tests/bmv2_diff/Bmv2Runner.kt`
-
-**Problem**: `Runner.allOnesMask` and `Bmv2Runner.allOnesMaskHex` both compute
-an all-ones bitmask for a given bitwidth. They differ only in output format
-(`0x`-prefixed vs bare hex).
-
-**Fix**: Extract a shared utility, or have one call the other with a format
-flag.
-
----
-
-## `data class` + `ByteArray` on `StfPacket`
-
-**Files**: `e2e_tests/stf/Runner.kt`
-
-**Problem**: `data class StfPacket` contains a `ByteArray` field. Kotlin data
-classes generate `equals`/`hashCode` using reference identity for arrays, so
-two `StfPacket` instances with identical content compare as not equal. Currently
-harmless (instances are only iterated, never compared), but a latent bug if
-anyone adds equality checks or uses them as map/set keys.
-
-**Fix**: Drop the `data` modifier (matching `StfExpectedOutput` and
-`ReceivedPacket`), or add `contentEquals`/`contentHashCode` overrides.
-
----
-
 ## Separate simulator return type from gRPC wire type
 
 **Files**: `simulator/Simulator.kt`, `p4runtime/DataplaneService.kt`,
