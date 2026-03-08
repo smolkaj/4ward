@@ -30,12 +30,13 @@ def _p4testgen_stfs_impl(ctx):
 
     out_dir = ctx.actions.declare_directory(ctx.label.name)
     include_flags = ["-I " + f.dirname for f in ctx.files.includes]
+    define_flags = ["-D" + d for d in ctx.attr.defines]
     args = " ".join([
         "--target bmv2 --arch v1model --test-backend stf",
         "--max-tests " + str(ctx.attr.max_tests),
         "--seed " + str(ctx.attr.seed),
         "-I " + ctx.file._core_p4.dirname,
-    ] + include_flags + [
+    ] + include_flags + define_flags + [
         ctx.file.src_p4.path,
         "--out-dir " + out_dir.path,
     ])
@@ -69,7 +70,8 @@ _p4testgen_stfs = rule(
     implementation = _p4testgen_stfs_impl,
     attrs = {
         "src_p4": attr.label(allow_single_file = [".p4"]),
-        "includes": attr.label_list(allow_files = [".p4"]),
+        "includes": attr.label_list(allow_files = True),
+        "defines": attr.string_list(default = []),
         "max_tests": attr.int(default = 0),
         "seed": attr.int(default = 0),
         "_p4testgen": attr.label(
@@ -89,7 +91,7 @@ _p4testgen_stfs = rule(
     fragments = ["cpp"],
 )
 
-def _p4_testgen_rules(name, src_p4, includes, max_tests, seed, tags):
+def _p4_testgen_rules(name, src_p4, includes, max_tests, seed, tags, defines = []):
     """Creates the stfs + txtpb build rules for a single P4 program.
 
     Returns:
@@ -102,16 +104,20 @@ def _p4_testgen_rules(name, src_p4, includes, max_tests, seed, tags):
         name = stfs_name,
         src_p4 = src_p4,
         includes = includes,
+        defines = defines,
         max_tests = max_tests,
         seed = seed,
         tags = tags,
     )
 
-    p4c_compile(name, src_p4, includes, tags)
+    # Pass includes as extra_srcs (deps only, no -I flags) rather than
+    # includes.  p4c resolves #include "..." relative to the source file,
+    # so -I flags are redundant — and $(execpath) would fail on filegroups.
+    p4c_compile(name, src_p4, tags = tags, defines = defines, extra_srcs = includes)
 
     return [":" + stfs_name, ":" + name + "_pb"]
 
-def p4_testgen_test(name, src_p4 = None, includes = [], max_tests = 0, seed = 0, tags = []):
+def p4_testgen_test(name, src_p4 = None, includes = [], max_tests = 0, seed = 0, tags = [], defines = []):
     """Generates p4testgen STF tests and runs them against the 4ward simulator.
 
     Creates a dedicated kt_jvm_test for a single P4 program. Use this for
@@ -131,7 +137,7 @@ def p4_testgen_test(name, src_p4 = None, includes = [], max_tests = 0, seed = 0,
     if src_p4 == None:
         src_p4 = "@p4c//testdata/p4_16_samples:" + name + ".p4"
 
-    data = _p4_testgen_rules(name, src_p4, includes, max_tests, seed, tags)
+    data = _p4_testgen_rules(name, src_p4, includes, max_tests, seed, tags, defines)
 
     kt_jvm_test(
         name = name + "_test",

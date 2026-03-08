@@ -1,6 +1,16 @@
 # SAI P4 (middleblock instantiation) — vendored from sonic-net/sonic-pins.
 # Used for E2E testing of the P4Runtime server with @p4runtime_translation.
 
+exports_files(
+    glob([
+        "fixed/*.p4",
+        "fixed/*.h",
+        "instantiations/google/*.p4",
+        "instantiations/google/*.h",
+    ]),
+    visibility = ["//e2e_tests:__subpackages__"],
+)
+
 filegroup(
     name = "sai_p4_srcs",
     srcs = glob([
@@ -9,6 +19,7 @@ filegroup(
         "instantiations/google/*.p4",
         "instantiations/google/*.h",
     ]),
+    visibility = ["//e2e_tests:__subpackages__"],
 )
 
 genrule(

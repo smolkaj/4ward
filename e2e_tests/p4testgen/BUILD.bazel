@@ -249,3 +249,15 @@ p4_testgen_test(
     max_tests = 20,
     tags = ["manual"],  # exponential clone/recirculate fork tree exceeds execution budget
 )
+
+# SAI P4 middleblock — probe p4testgen feasibility on a large real-world program.
+# Compiled with -DPLATFORM_BMV2 to strip @p4runtime_translation annotations that
+# p4testgen doesn't support.
+p4_testgen_test(
+    name = "sai-middleblock",
+    defines = ["PLATFORM_BMV2"],
+    includes = ["//e2e_tests/sai_p4:sai_p4_srcs"],
+    max_tests = 10,
+    src_p4 = "//e2e_tests/sai_p4:instantiations/google/middleblock.p4",
+    tags = ["manual"],  # feasibility probe
+)
