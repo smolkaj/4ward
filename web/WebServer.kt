@@ -359,7 +359,10 @@ class WebServer(
             'r' -> sb.append('\r')
             't' -> sb.append('\t')
             '/' -> sb.append('/')
-            else -> { sb.append('\\'); sb.append(json[i]) }
+            else -> {
+              sb.append('\\')
+              sb.append(json[i])
+            }
           }
         } else {
           sb.append(c)

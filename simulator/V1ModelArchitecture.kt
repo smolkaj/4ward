@@ -347,20 +347,25 @@ class V1ModelArchitecture : Architecture {
       runControlStages(s, s.ingressControls)
     }
 
-    // --- Ingress→egress boundary ---
+    // --- Ingress→egress boundary (traffic manager) ---
     ingressEgressBoundary(ctx, s, decisions, parserEventCount)
+    if (egressPortIsDropPort(s)) {
+      return buildDropTrace(s.packetCtx.getEvents(), DropReason.MARK_TO_DROP)
+    }
 
     // --- Egress controls (egress, compute checksum) ---
     runControlStages(s, s.egressControls)
 
-    // --- Post-egress boundary ---
+    // --- Post-egress boundary (E2E clone / recirculate) ---
     postEgressBoundary(ctx, s, decisions)
 
-    val egressPort =
-      (s.standardMetadata.fields["egress_port"] as? BitVal)?.bits?.value?.toLong() ?: 0L
+    // E2E clone branch: postEgressBoundary set up clone metadata — run egress again.
+    if (decisions.branchMode is BranchMode.E2EClone) {
+      runControlStages(s, s.egressControls)
+    }
 
-    // The drop port is all-ones for the port width (e.g. 511 for bit<9>).
-    if (egressPort == s.dropPort) {
+    // mark_to_drop() in egress sets egress_spec to the drop port.
+    if (egressSpecIsDropPort(s)) {
       return buildDropTrace(s.packetCtx.getEvents(), DropReason.MARK_TO_DROP)
     }
 
@@ -383,7 +388,9 @@ class V1ModelArchitecture : Architecture {
       throw RecirculateFork(outputBytes, s.packetCtx.getEvents())
     }
 
-    return buildOutputTrace(s.packetCtx.getEvents(), egressPort.toInt(), outputBytes)
+    val egressPort =
+      (s.standardMetadata.fields["egress_port"] as? BitVal)?.bits?.value?.toInt() ?: 0
+    return buildOutputTrace(s.packetCtx.getEvents(), egressPort, outputBytes)
   }
 
   /** Runs a list of control stages, emitting enter/exit events for each. */
@@ -415,10 +422,9 @@ class V1ModelArchitecture : Architecture {
   ) {
     when (val mode = decisions.branchMode) {
       is BranchMode.I2EClone -> {
-        // I2E clone branch: set up clone metadata and continue to egress.
-        // BMv2 drops the clone if the session doesn't exist.
-        val session = ctx.tableStore.getCloneSession(mode.sessionId)
-        val clonePort = session?.replicasList?.firstOrNull()?.egressPort?.toLong() ?: s.dropPort
+        // I2E clone branch: session is guaranteed to exist (checked at fork creation).
+        val session = ctx.tableStore.getCloneSession(mode.sessionId)!!
+        val clonePort = session.replicasList.first().egressPort.toLong()
         s.standardMetadata.setBitField("instance_type", CLONE_I2E_INSTANCE_TYPE)
         s.standardMetadata.setBitField("egress_port", clonePort)
       }
@@ -431,8 +437,13 @@ class V1ModelArchitecture : Architecture {
       is BranchMode.E2EClone -> {
         // Normal path: check for pending I2E clone, resubmit, multicast, unicast.
         val suppressI2E = (mode as? BranchMode.Normal)?.suppressI2EClone == true
+        // BMv2 silently ignores clone() when the session doesn't exist.
         val pendingClone = s.packetCtx.pendingCloneSessionId
-        if (pendingClone != null && !suppressI2E) {
+        if (
+          pendingClone != null &&
+            !suppressI2E &&
+            ctx.tableStore.getCloneSession(pendingClone) != null
+        ) {
           throw CloneFork(pendingClone, parserEventCount, s.packetCtx.getEvents())
         }
         if (s.packetCtx.pendingResubmit) {
@@ -464,20 +475,22 @@ class V1ModelArchitecture : Architecture {
   private fun postEgressBoundary(ctx: PipelineContext, s: PipelineState, decisions: ForkDecisions) {
     when (val mode = decisions.branchMode) {
       is BranchMode.E2EClone -> {
-        // E2E clone branch: after the original egress ran (giving us modified headers),
-        // re-run egress with CLONE_E2E instance_type and the clone session's egress_port.
-        // BMv2 drops the clone if the session doesn't exist.
-        val session = ctx.tableStore.getCloneSession(mode.sessionId)
-        val clonePort = session?.replicasList?.firstOrNull()?.egressPort?.toLong() ?: s.dropPort
+        // E2E clone branch: session is guaranteed to exist (checked at fork creation).
+        val session = ctx.tableStore.getCloneSession(mode.sessionId)!!
+        val clonePort = session.replicasList.first().egressPort.toLong()
         s.standardMetadata.setBitField("instance_type", CLONE_E2E_INSTANCE_TYPE)
         s.standardMetadata.setBitField("egress_port", clonePort)
         s.packetCtx.pendingEgressCloneSessionId = null
-        runControlStages(s, s.egressControls)
       }
       else -> {
         val suppressE2E = (mode as? BranchMode.Normal)?.suppressE2EClone == true
+        // BMv2 silently ignores clone() when the session doesn't exist.
         val pendingE2EClone = s.packetCtx.pendingEgressCloneSessionId
-        if (pendingE2EClone != null && !suppressE2E) {
+        if (
+          pendingE2EClone != null &&
+            !suppressE2E &&
+            ctx.tableStore.getCloneSession(pendingE2EClone) != null
+        ) {
           throw EgressCloneFork(pendingE2EClone, s.packetCtx.getEvents())
         }
       }
@@ -488,6 +501,17 @@ class V1ModelArchitecture : Architecture {
     val outcome = PacketOutcome.newBuilder().setDrop(Drop.newBuilder().setReason(reason)).build()
     return TraceTree.newBuilder().addAllEvents(events).setPacketOutcome(outcome).build()
   }
+
+  /**
+   * Traffic manager drop check: egress_port == drop port (set by boundary from egress_spec or clone
+   * session).
+   */
+  private fun egressPortIsDropPort(s: PipelineState): Boolean =
+    (s.standardMetadata.fields["egress_port"] as? BitVal)?.bits?.value?.toLong() == s.dropPort
+
+  /** Post-egress drop check: mark_to_drop() in egress sets egress_spec to drop port. */
+  private fun egressSpecIsDropPort(s: PipelineState): Boolean =
+    (s.standardMetadata.fields["egress_spec"] as? BitVal)?.bits?.value?.toLong() == s.dropPort
 
   private fun buildOutputTrace(events: List<TraceEvent>, port: Int, payload: ByteArray): TraceTree {
     val output =

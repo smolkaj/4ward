@@ -179,24 +179,9 @@ fork_outcome {
           direction: EXIT
         }
       }
-      events {
-        pipeline_stage {
-          stage_name: "deparser"
-          stage_kind: DEPARSER
-          direction: ENTER
-        }
-      }
-      events {
-        pipeline_stage {
-          stage_name: "deparser"
-          stage_kind: DEPARSER
-          direction: EXIT
-        }
-      }
       packet_outcome {
-        output {
-          egress_port: 2
-          payload: "\377\377\377\377\377\377\000\000\000\000\000\001\b\000"
+        drop {
+          reason: MARK_TO_DROP
         }
       }
     }
