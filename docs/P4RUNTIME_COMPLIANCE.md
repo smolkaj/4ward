@@ -87,9 +87,9 @@ Legend: **Y** = tested, **N** = not tested, **—** = not implemented
 
 | # | Requirement | Status | Test |
 |---|-------------|--------|------|
-| 9.50 | Direct counter read/write | — | |
+| 9.50 | Direct counter read/write | Y | TableStoreTest |
 | 9.51 | Indirect counter read/write | Y | TableStoreTest, ConformanceTest #46-48 |
-| 9.52 | Direct meter config | — | |
+| 9.52 | Direct meter config | Y | TableStoreTest |
 | 9.53 | Indirect meter config | Y | TableStoreTest, ConformanceTest #49-51 |
 
 ## Write RPC — PRE (§9.5)
@@ -177,7 +177,7 @@ Legend: **Y** = tested, **N** = not tested, **—** = not implemented
 | Write — tables | 28 | 0 | 0 |
 | Write — profiles | 7 | 0 | 1 |
 | Write — registers | 5 | 0 | 0 |
-| Write — counters/meters | 2 | 0 | 2 |
+| Write — counters/meters | 4 | 0 | 0 |
 | Write — PRE | 2 | 0 | 0 |
 | Arbitration | 4 | 0 | 0 |
 | Read | 9 | 0 | 0 |
@@ -186,4 +186,4 @@ Legend: **Y** = tested, **N** = not tested, **—** = not implemented
 | PacketIO | 3 | 0 | 2 |
 | Translation | 6 | 0 | 0 |
 | p4-constraints | 4 | 0 | 0 |
-| **Total** | **87** | **0** | **5** |
+| **Total** | **89** | **0** | **3** |

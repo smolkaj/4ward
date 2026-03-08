@@ -96,6 +96,9 @@ class Simulator {
         entity.hasRegisterEntry() -> tableStore.readRegisterEntries(entity.registerEntry)
         entity.hasCounterEntry() -> tableStore.readCounterEntries(entity.counterEntry)
         entity.hasMeterEntry() -> tableStore.readMeterEntries(entity.meterEntry)
+        entity.hasDirectCounterEntry() ->
+          tableStore.readDirectCounterEntries(entity.directCounterEntry)
+        entity.hasDirectMeterEntry() -> tableStore.readDirectMeterEntries(entity.directMeterEntry)
         else -> emptyList()
       }
     }
