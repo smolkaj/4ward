@@ -69,11 +69,7 @@ class P4RuntimeService(
   @Volatile private var primaryElectionId: Uint128? = null
 
   private fun requirePipeline(): PipelineState =
-    pipeline
-      ?: throw Status.FAILED_PRECONDITION.withDescription(
-          "No pipeline loaded; call SetForwardingPipelineConfig first"
-        )
-        .asException()
+    pipeline ?: throw Status.FAILED_PRECONDITION.withDescription(NO_PIPELINE_MESSAGE).asException()
 
   // ---------------------------------------------------------------------------
   // SetForwardingPipelineConfig
@@ -238,7 +234,7 @@ class P4RuntimeService(
                       .setError(
                         StreamError.newBuilder()
                           .setCanonicalCode(Status.FAILED_PRECONDITION.code.value())
-                          .setMessage("No pipeline loaded; call SetForwardingPipelineConfig first")
+                          .setMessage(NO_PIPELINE_MESSAGE)
                           .setPacketOut(PacketOutError.newBuilder().setPacketOut(msg.packet))
                       )
                       .build()
@@ -344,5 +340,8 @@ class P4RuntimeService(
 
     // Matches the p4runtime proto version declared in MODULE.bazel.
     private const val P4RUNTIME_API_VERSION = "1.5.0"
+
+    private const val NO_PIPELINE_MESSAGE =
+      "No pipeline loaded; call SetForwardingPipelineConfig first"
   }
 }

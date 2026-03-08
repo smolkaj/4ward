@@ -35,11 +35,11 @@ fun boolLit(v: Boolean): Expr =
     .setType(Type.newBuilder().setBoolean(true))
     .build()
 
-fun nameRef(name: String): Expr =
-  Expr.newBuilder().setNameRef(NameRef.newBuilder().setName(name)).build()
-
-fun nameRef(name: String, type: Type): Expr =
-  Expr.newBuilder().setNameRef(NameRef.newBuilder().setName(name)).setType(type).build()
+fun nameRef(name: String, type: Type? = null): Expr =
+  Expr.newBuilder()
+    .setNameRef(NameRef.newBuilder().setName(name))
+    .apply { if (type != null) setType(type) }
+    .build()
 
 fun bitType(width: Int): Type =
   Type.newBuilder().setBit(BitType.newBuilder().setWidth(width)).build()
@@ -96,7 +96,7 @@ fun methodCallStmt(
           Expr.newBuilder()
             .setMethodCall(
               MethodCall.newBuilder()
-                .setTarget(if (targetType != null) nameRef(target, targetType) else nameRef(target))
+                .setTarget(nameRef(target, targetType))
                 .setMethod(method)
                 .addAllArgs(args.toList())
             )
