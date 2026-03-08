@@ -93,9 +93,9 @@ class TableStore {
   // tableName → action_profile_id (populated from p4info at load time)
   private val tableActionProfile: MutableMap<String, Int> = mutableMapOf()
 
-  // Direct counter/meter: tableName → whether the table has one (populated from p4info)
-  private var directCounterByTable: Map<String, Int> = emptyMap()
-  private var directMeterByTable: Map<String, Int> = emptyMap()
+  // Tables that have a direct counter/meter attached (populated from p4info).
+  private var directCounterTables: Set<String> = emptySet()
+  private var directMeterTables: Set<String> = emptySet()
 
   // Direct counter/meter data, keyed by (tableName, entry key)
   private data class EntryKey(
@@ -176,20 +176,10 @@ class TableStore {
       p4info.countersList.associate { it.preamble.id to IndexedExternInfo(it.size.toInt()) }
     this.meterInfoById =
       p4info.metersList.associate { it.preamble.id to IndexedExternInfo(it.size.toInt()) }
-    this.directCounterByTable =
-      p4info.directCountersList
-        .mapNotNull { dc ->
-          val tableName = tableNameById[dc.directTableId] ?: return@mapNotNull null
-          tableName to dc.preamble.id
-        }
-        .toMap()
-    this.directMeterByTable =
-      p4info.directMetersList
-        .mapNotNull { dm ->
-          val tableName = tableNameById[dm.directTableId] ?: return@mapNotNull null
-          tableName to dm.preamble.id
-        }
-        .toMap()
+    this.directCounterTables =
+      p4info.directCountersList.mapNotNull { tableNameById[it.directTableId] }.toSet()
+    this.directMeterTables =
+      p4info.directMetersList.mapNotNull { tableNameById[it.directTableId] }.toSet()
     tables.clear()
     defaultActions.clear()
     forcedHits.clear()
@@ -455,7 +445,7 @@ class TableStore {
 
   /** Increments the direct counter for [entry] in [tableName] (called on every table hit). */
   fun directCounterIncrement(tableName: String, entry: TableEntry, packetLengthBytes: Int) {
-    if (tableName !in directCounterByTable) return
+    if (tableName !in directCounterTables) return
     val key = entry.entryKey()
     val map = directCounterData.getOrPut(tableName) { mutableMapOf() }
     val existing = map[key] ?: P4RuntimeOuterClass.CounterData.getDefaultInstance()
@@ -467,25 +457,47 @@ class TableStore {
         .build()
   }
 
-  private fun writeDirectCounterEntry(
+  /**
+   * Validates and stores a value for a MODIFY-only direct extern (direct counter, direct meter).
+   *
+   * Checks: MODIFY-only, known table ID, table has the direct extern, table entry exists. On
+   * success, stores [value] at `storage[tableName][entryKey]`.
+   */
+  private fun <V> writeDirectExtern(
     type: Update.Type,
-    entry: P4RuntimeOuterClass.DirectCounterEntry,
+    entityName: String,
+    tableEntry: TableEntry,
+    knownTables: Set<String>,
+    storage: MutableMap<String, MutableMap<EntryKey, V>>,
+    value: V,
   ): WriteResult {
     if (type != Update.Type.MODIFY)
-      return WriteResult.InvalidArgument("direct counters only support MODIFY, not $type")
-    val tableEntry = entry.tableEntry
+      return WriteResult.InvalidArgument("${entityName}s only support MODIFY, not $type")
     val tableName =
       tableNameById[tableEntry.tableId]
         ?: return WriteResult.NotFound("unknown table ID: ${tableEntry.tableId}")
-    if (tableName !in directCounterByTable)
-      return WriteResult.InvalidArgument("table '$tableName' has no direct counter")
+    if (tableName !in knownTables)
+      return WriteResult.InvalidArgument("table '$tableName' has no $entityName")
     val entries =
       tables[tableName] ?: return WriteResult.NotFound("no entries in table '$tableName'")
     if (entries.none { it.sameKey(tableEntry) })
       return WriteResult.NotFound("no matching entry in table '$tableName'")
-    directCounterData.getOrPut(tableName) { mutableMapOf() }[tableEntry.entryKey()] = entry.data
+    storage.getOrPut(tableName) { mutableMapOf() }[tableEntry.entryKey()] = value
     return WriteResult.Success
   }
+
+  private fun writeDirectCounterEntry(
+    type: Update.Type,
+    entry: P4RuntimeOuterClass.DirectCounterEntry,
+  ): WriteResult =
+    writeDirectExtern(
+      type,
+      "direct counter",
+      entry.tableEntry,
+      directCounterTables,
+      directCounterData,
+      entry.data,
+    )
 
   fun readDirectCounterEntries(
     filter: P4RuntimeOuterClass.DirectCounterEntry =
@@ -493,10 +505,10 @@ class TableStore {
   ): List<P4RuntimeOuterClass.Entity> {
     val tableEntry = filter.tableEntry
     val tablesToRead =
-      if (tableEntry.tableId == 0) directCounterByTable.keys
+      if (tableEntry.tableId == 0) directCounterTables
       else {
         val tableName = tableNameById[tableEntry.tableId] ?: return emptyList()
-        if (tableName !in directCounterByTable) return emptyList()
+        if (tableName !in directCounterTables) return emptyList()
         setOf(tableName)
       }
     val hasMatchFilter = tableEntry.matchCount > 0
@@ -523,22 +535,15 @@ class TableStore {
   private fun writeDirectMeterEntry(
     type: Update.Type,
     entry: P4RuntimeOuterClass.DirectMeterEntry,
-  ): WriteResult {
-    if (type != Update.Type.MODIFY)
-      return WriteResult.InvalidArgument("direct meters only support MODIFY, not $type")
-    val tableEntry = entry.tableEntry
-    val tableName =
-      tableNameById[tableEntry.tableId]
-        ?: return WriteResult.NotFound("unknown table ID: ${tableEntry.tableId}")
-    if (tableName !in directMeterByTable)
-      return WriteResult.InvalidArgument("table '$tableName' has no direct meter")
-    val entries =
-      tables[tableName] ?: return WriteResult.NotFound("no entries in table '$tableName'")
-    if (entries.none { it.sameKey(tableEntry) })
-      return WriteResult.NotFound("no matching entry in table '$tableName'")
-    directMeterData.getOrPut(tableName) { mutableMapOf() }[tableEntry.entryKey()] = entry.config
-    return WriteResult.Success
-  }
+  ): WriteResult =
+    writeDirectExtern(
+      type,
+      "direct meter",
+      entry.tableEntry,
+      directMeterTables,
+      directMeterData,
+      entry.config,
+    )
 
   fun readDirectMeterEntries(
     filter: P4RuntimeOuterClass.DirectMeterEntry =
@@ -546,10 +551,10 @@ class TableStore {
   ): List<P4RuntimeOuterClass.Entity> {
     val tableEntry = filter.tableEntry
     val tablesToRead =
-      if (tableEntry.tableId == 0) directMeterByTable.keys
+      if (tableEntry.tableId == 0) directMeterTables
       else {
         val tableName = tableNameById[tableEntry.tableId] ?: return emptyList()
-        if (tableName !in directMeterByTable) return emptyList()
+        if (tableName !in directMeterTables) return emptyList()
         setOf(tableName)
       }
     val hasMatchFilter = tableEntry.matchCount > 0
