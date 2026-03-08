@@ -436,8 +436,10 @@ class InterpreterControlTest {
 
   @Test
   fun `register read returns written value`() {
-    val writeStmt = methodCallStmt("my_reg", "write", bit(0, 32), bit(42, 8))
-    val readStmt = methodCallStmt("my_reg", "read", nameRef("dst", bitType(8)), bit(0, 32))
+    val regType = namedType("register")
+    val writeStmt = methodCallStmt("my_reg", "write", bit(0, 32), bit(42, 8), targetType = regType)
+    val readStmt =
+      methodCallStmt("my_reg", "read", nameRef("dst", bitType(8)), bit(0, 32), targetType = regType)
     val config = controlConfig(writeStmt, readStmt)
     val env = emptyEnv
     env.define("dst", BitVal(0, 8))
@@ -447,7 +449,14 @@ class InterpreterControlTest {
 
   @Test
   fun `register read returns zero for unwritten index`() {
-    val readStmt = methodCallStmt("my_reg", "read", nameRef("dst", bitType(8)), bit(5, 32))
+    val readStmt =
+      methodCallStmt(
+        "my_reg",
+        "read",
+        nameRef("dst", bitType(8)),
+        bit(5, 32),
+        targetType = namedType("register"),
+      )
     val config = controlConfig(readStmt)
     val env = emptyEnv
     env.define("dst", BitVal(0xFF, 8))
@@ -461,7 +470,13 @@ class InterpreterControlTest {
 
   @Test
   fun `direct_meter read writes GREEN to out parameter`() {
-    val stmt = methodCallStmt("my_meter", "read", nameRef("color", bitType(2)))
+    val stmt =
+      methodCallStmt(
+        "my_meter",
+        "read",
+        nameRef("color", bitType(2)),
+        targetType = namedType("direct_meter"),
+      )
     val config = controlConfig(stmt)
     val env = emptyEnv
     env.define("color", BitVal(3, 2))

@@ -19,10 +19,12 @@ import p4.v1.P4RuntimeOuterClass.GetForwardingPipelineConfigRequest
 import p4.v1.P4RuntimeOuterClass.GetForwardingPipelineConfigResponse
 import p4.v1.P4RuntimeOuterClass.MasterArbitrationUpdate
 import p4.v1.P4RuntimeOuterClass.PacketIn
+import p4.v1.P4RuntimeOuterClass.PacketOutError
 import p4.v1.P4RuntimeOuterClass.ReadRequest
 import p4.v1.P4RuntimeOuterClass.ReadResponse
 import p4.v1.P4RuntimeOuterClass.SetForwardingPipelineConfigRequest
 import p4.v1.P4RuntimeOuterClass.SetForwardingPipelineConfigResponse
+import p4.v1.P4RuntimeOuterClass.StreamError
 import p4.v1.P4RuntimeOuterClass.StreamMessageRequest
 import p4.v1.P4RuntimeOuterClass.StreamMessageResponse
 import p4.v1.P4RuntimeOuterClass.Uint128
@@ -222,7 +224,7 @@ class P4RuntimeService(
             )
           }
           msg.hasPacket() -> {
-            val packetIns =
+            val responses =
               lock.withLock {
                 val translator = pipeline?.typeTranslator?.takeIf { it.hasTranslations }
                 val packetOut = translator?.translatePacketOut(msg.packet) ?: msg.packet
@@ -231,8 +233,18 @@ class P4RuntimeService(
                 val response =
                   try {
                     simulator.processPacket(ingressPort, packetOut.payload.toByteArray())
-                  } catch (_: IllegalStateException) {
-                    return@withLock null
+                  } catch (e: IllegalStateException) {
+                    // P4Runtime spec: report PacketOut errors via StreamError.
+                    return@withLock listOf(
+                      StreamMessageResponse.newBuilder()
+                        .setError(
+                          StreamError.newBuilder()
+                            .setCanonicalCode(Status.FAILED_PRECONDITION.code.value())
+                            .setMessage(e.message ?: "PacketOut processing failed")
+                            .setPacketOut(PacketOutError.newBuilder().setPacketOut(msg.packet))
+                        )
+                        .build()
+                    )
                   }
 
                 // Convert output packets to PacketIn messages.
@@ -251,7 +263,7 @@ class P4RuntimeService(
                     .build()
                 }
               }
-            packetIns?.forEach { emit(it) }
+            responses.forEach { emit(it) }
           }
         }
       }

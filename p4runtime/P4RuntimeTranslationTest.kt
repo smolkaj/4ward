@@ -187,7 +187,6 @@ class P4RuntimeTranslationTest {
     buildEntry(tableName = "port_forward", matchValue = sdnPort.toLong(), portValue = forwardPort)
 
   /** Builds a table entry: exact match on the first field → forward(port). */
-  @Suppress("MagicNumber")
   private fun buildEntry(
     matchValue: Long = 0x0800,
     portValue: ByteArray,

@@ -83,7 +83,12 @@ fun assign(varName: String, rhs: Expr): Stmt =
 fun externCall(name: String, vararg args: Expr): Stmt = methodCallStmt(name, "__call__", *args)
 
 /** Statement that calls `target.method(args...)` — for extern method calls. */
-fun methodCallStmt(target: String, method: String, vararg args: Expr): Stmt =
+fun methodCallStmt(
+  target: String,
+  method: String,
+  vararg args: Expr,
+  targetType: Type? = null,
+): Stmt =
   Stmt.newBuilder()
     .setMethodCall(
       MethodCallStmt.newBuilder()
@@ -91,7 +96,7 @@ fun methodCallStmt(target: String, method: String, vararg args: Expr): Stmt =
           Expr.newBuilder()
             .setMethodCall(
               MethodCall.newBuilder()
-                .setTarget(nameRef(target))
+                .setTarget(if (targetType != null) nameRef(target, targetType) else nameRef(target))
                 .setMethod(method)
                 .addAllArgs(args.toList())
             )
