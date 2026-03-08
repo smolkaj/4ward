@@ -62,11 +62,19 @@ class Bmv2DiffTest(private val testName: String) {
     }
 
     // --- Run through BMv2 ---
+    // Use round-robin exploration for action selector tests: temporarily reduce
+    // the group to one member at a time, collecting outputs for each member.
+    // This matches 4ward's fork-all-members exploration of selector groups.
+    val explore = stf.groupDirectives.isNotEmpty()
     val bmv2Outputs = mutableListOf<Pair<Int, ByteArray>>()
     Bmv2Runner(driverBinary, jsonPath, config.p4Info).use { bmv2 ->
       bmv2.installEntries(stf)
       for (packet in stf.packets) {
-        bmv2Outputs.addAll(bmv2.sendPacket(packet.ingressPort, packet.payload))
+        if (explore) {
+          bmv2Outputs.addAll(bmv2.sendPacketExploring(packet.ingressPort, packet.payload))
+        } else {
+          bmv2Outputs.addAll(bmv2.sendPacket(packet.ingressPort, packet.payload))
+        }
       }
     }
 

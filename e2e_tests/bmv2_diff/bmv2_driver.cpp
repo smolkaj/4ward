@@ -11,6 +11,7 @@
 //   ACT_PROF_ADD_MEMBER <profile> <action> <params...>
 //   ACT_PROF_CREATE_GROUP <profile>
 //   ACT_PROF_ADD_MEMBER_TO_GROUP <profile> <member_handle> <group_handle>
+//   ACT_PROF_REMOVE_MEMBER_FROM_GROUP <profile> <member_handle> <group_handle>
 //   MIRRORING_ADD <session_id> <port>
 //   MC_MGRP_CREATE <gid>
 //   MC_NODE_CREATE <rid> <ports...>
@@ -477,6 +478,24 @@ int main(int argc, char* argv[]) {
       auto rc = sw->mt_act_prof_add_member_to_group(0, profile, mbr, grp);
       if (rc != MatchErrorCode::SUCCESS) {
         std::cout << "ERROR ACT_PROF_ADD_MEMBER_TO_GROUP failed: "
+                  << static_cast<int>(rc) << std::endl;
+      } else {
+        std::cout << "OK" << std::endl;
+      }
+
+    } else if (cmd == "ACT_PROF_REMOVE_MEMBER_FROM_GROUP") {
+      // ACT_PROF_REMOVE_MEMBER_FROM_GROUP <profile> <member_handle>
+      //                                   <group_handle>
+      if (tokens.size() < 4) {
+        std::cout << "ERROR bad ACT_PROF_REMOVE_MEMBER_FROM_GROUP" << std::endl;
+        continue;
+      }
+      auto profile = tokens[1];
+      auto mbr = static_cast<mbr_hdl_t>(std::stoi(tokens[2]));
+      auto grp = static_cast<grp_hdl_t>(std::stoi(tokens[3]));
+      auto rc = sw->mt_act_prof_remove_member_from_group(0, profile, mbr, grp);
+      if (rc != MatchErrorCode::SUCCESS) {
+        std::cout << "ERROR ACT_PROF_REMOVE_MEMBER_FROM_GROUP failed: "
                   << static_cast<int>(rc) << std::endl;
       } else {
         std::cout << "OK" << std::endl;

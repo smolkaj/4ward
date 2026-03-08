@@ -35,6 +35,9 @@ class Bmv2Runner(driverBinary: Path, jsonPath: Path, private val p4Info: P4InfoO
   private val writer: java.io.BufferedWriter
   private val reader: java.io.BufferedReader
 
+  /** Action selector groups installed by [installEntries], used for round-robin exploration. */
+  private val selectorGroups = mutableListOf<SelectorGroup>()
+
   init {
     process =
       ProcessBuilder(driverBinary.toString(), jsonPath.toString())
@@ -64,17 +67,15 @@ class Bmv2Runner(driverBinary: Path, jsonPath: Path, private val p4Info: P4InfoO
     return lines
   }
 
-  private fun sendChecked(cmd: String) {
+  private fun sendChecked(cmd: String): List<String> {
     val resp = sendCommand(cmd)
     check(resp.lastOrNull()?.startsWith("OK") == true) { "$cmd failed: ${resp.joinToString("\n")}" }
+    return resp
   }
 
   /** Sends a command that returns a handle on success (e.g. "OK 3"), returns the handle. */
-  private fun sendForHandle(cmd: String): Int {
-    val resp = sendCommand(cmd)
-    check(resp.lastOrNull()?.startsWith("OK") == true) { "$cmd failed: ${resp.joinToString("\n")}" }
-    return resp.last().removePrefix("OK ").trim().toInt()
-  }
+  private fun sendForHandle(cmd: String): Int =
+    sendChecked(cmd).last().removePrefix("OK ").trim().toInt()
 
   /** Install all STF-declared entries (PRE + table entries). Throws on failure. */
   fun installEntries(stf: StfFile) {
@@ -105,10 +106,13 @@ class Bmv2Runner(driverBinary: Path, jsonPath: Path, private val p4Info: P4InfoO
       val grpHandle = sendForHandle(translateCreateGroup(group))
       groupHandles[group.groupId] = grpHandle
       val profileName = findActionProfileName(group.profileName)
+      val mbrHandles = mutableListOf<Int>()
       for (memberId in group.memberIds) {
         val mbrHandle = memberHandles[memberId] ?: error("unknown member: $memberId")
         sendChecked("ACT_PROF_ADD_MEMBER_TO_GROUP $profileName $mbrHandle $grpHandle")
+        mbrHandles.add(mbrHandle)
       }
+      selectorGroups.add(SelectorGroup(profileName, grpHandle, mbrHandles))
     }
 
     for (directive in stf.tableEntries) {
@@ -125,6 +129,44 @@ class Bmv2Runner(driverBinary: Path, jsonPath: Path, private val p4Info: P4InfoO
         val parts = line.split(" ", limit = 3)
         parts[1].toInt() to parts[2].decodeHex()
       }
+  }
+
+  /**
+   * Sends a packet once per member in the action selector group, collecting all outputs.
+   *
+   * For each iteration, temporarily reduces the group to a single member (so BMv2's hash always
+   * selects it), sends the packet, collects output, then restores the group. The collected outputs
+   * across all iterations match 4ward's forked exploration of the selector.
+   *
+   * Only supports a single action selector group. Falls back to [sendPacket] if no groups exist.
+   */
+  fun sendPacketExploring(port: Int, payload: ByteArray): List<Pair<Int, ByteArray>> {
+    if (selectorGroups.isEmpty()) return sendPacket(port, payload)
+    check(selectorGroups.size == 1) {
+      "round-robin exploration only supports a single action selector group"
+    }
+    val group = selectorGroups[0]
+    val allOutputs = mutableListOf<Pair<Int, ByteArray>>()
+    for (activeIdx in group.memberHandles.indices) {
+      // Remove all members except the active one.
+      for ((i, mbrHandle) in group.memberHandles.withIndex()) {
+        if (i != activeIdx) {
+          sendChecked(
+            "ACT_PROF_REMOVE_MEMBER_FROM_GROUP ${group.profileName} $mbrHandle ${group.grpHandle}"
+          )
+        }
+      }
+      allOutputs.addAll(sendPacket(port, payload))
+      // Restore removed members.
+      for ((i, mbrHandle) in group.memberHandles.withIndex()) {
+        if (i != activeIdx) {
+          sendChecked(
+            "ACT_PROF_ADD_MEMBER_TO_GROUP ${group.profileName} $mbrHandle ${group.grpHandle}"
+          )
+        }
+      }
+    }
+    return allOutputs
   }
 
   // -- Table entry translation --
@@ -260,6 +302,12 @@ class Bmv2Runner(driverBinary: Path, jsonPath: Path, private val p4Info: P4InfoO
     writer.close()
     if (!process.waitFor(5, TimeUnit.SECONDS)) process.destroyForcibly()
   }
+
+  private data class SelectorGroup(
+    val profileName: String,
+    val grpHandle: Int,
+    val memberHandles: List<Int>,
+  )
 
   companion object {
     private val ARRAY_INDEX_REGEX = Regex("\\$(\\d+)")
