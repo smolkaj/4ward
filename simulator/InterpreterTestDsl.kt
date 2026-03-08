@@ -35,11 +35,11 @@ fun boolLit(v: Boolean): Expr =
     .setType(Type.newBuilder().setBoolean(true))
     .build()
 
-fun nameRef(name: String): Expr =
-  Expr.newBuilder().setNameRef(NameRef.newBuilder().setName(name)).build()
-
-fun nameRef(name: String, type: Type): Expr =
-  Expr.newBuilder().setNameRef(NameRef.newBuilder().setName(name)).setType(type).build()
+fun nameRef(name: String, type: Type? = null): Expr =
+  Expr.newBuilder()
+    .setNameRef(NameRef.newBuilder().setName(name))
+    .apply { if (type != null) setType(type) }
+    .build()
 
 fun bitType(width: Int): Type =
   Type.newBuilder().setBit(BitType.newBuilder().setWidth(width)).build()
@@ -83,7 +83,12 @@ fun assign(varName: String, rhs: Expr): Stmt =
 fun externCall(name: String, vararg args: Expr): Stmt = methodCallStmt(name, "__call__", *args)
 
 /** Statement that calls `target.method(args...)` — for extern method calls. */
-fun methodCallStmt(target: String, method: String, vararg args: Expr): Stmt =
+fun methodCallStmt(
+  target: String,
+  method: String,
+  vararg args: Expr,
+  targetType: Type? = null,
+): Stmt =
   Stmt.newBuilder()
     .setMethodCall(
       MethodCallStmt.newBuilder()
@@ -91,7 +96,7 @@ fun methodCallStmt(target: String, method: String, vararg args: Expr): Stmt =
           Expr.newBuilder()
             .setMethodCall(
               MethodCall.newBuilder()
-                .setTarget(nameRef(target))
+                .setTarget(nameRef(target, targetType))
                 .setMethod(method)
                 .addAllArgs(args.toList())
             )

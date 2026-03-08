@@ -2108,7 +2108,6 @@ class TableStoreTest {
     private const val DIRECT_COUNTER_ID = 800
     private const val DIRECT_METER_ID = 900
     private val ACTION_IDS = listOf(10, 20, 42, 50, 77, 99, 100, 200)
-    private val ACTION_ID_TO_NAME = ACTION_IDS.associateWith { "action$it" }
     private val ACTION_LIST: List<P4InfoOuterClass.Action> =
       ACTION_IDS.map { id ->
         P4InfoOuterClass.Action.newBuilder()

@@ -465,7 +465,6 @@ class SaiP4E2ETest {
     }
   }
 
-  @Suppress("MagicNumber")
   companion object {
     private const val MAC_LEN = 6
     private const val ETHERNET_HEADER_LEN = 14

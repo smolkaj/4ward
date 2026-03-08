@@ -19,10 +19,12 @@ import p4.v1.P4RuntimeOuterClass.GetForwardingPipelineConfigRequest
 import p4.v1.P4RuntimeOuterClass.GetForwardingPipelineConfigResponse
 import p4.v1.P4RuntimeOuterClass.MasterArbitrationUpdate
 import p4.v1.P4RuntimeOuterClass.PacketIn
+import p4.v1.P4RuntimeOuterClass.PacketOutError
 import p4.v1.P4RuntimeOuterClass.ReadRequest
 import p4.v1.P4RuntimeOuterClass.ReadResponse
 import p4.v1.P4RuntimeOuterClass.SetForwardingPipelineConfigRequest
 import p4.v1.P4RuntimeOuterClass.SetForwardingPipelineConfigResponse
+import p4.v1.P4RuntimeOuterClass.StreamError
 import p4.v1.P4RuntimeOuterClass.StreamMessageRequest
 import p4.v1.P4RuntimeOuterClass.StreamMessageResponse
 import p4.v1.P4RuntimeOuterClass.Uint128
@@ -67,11 +69,7 @@ class P4RuntimeService(
   @Volatile private var primaryElectionId: Uint128? = null
 
   private fun requirePipeline(): PipelineState =
-    pipeline
-      ?: throw Status.FAILED_PRECONDITION.withDescription(
-          "No pipeline loaded; call SetForwardingPipelineConfig first"
-        )
-        .asException()
+    pipeline ?: throw Status.FAILED_PRECONDITION.withDescription(NO_PIPELINE_MESSAGE).asException()
 
   // ---------------------------------------------------------------------------
   // SetForwardingPipelineConfig
@@ -222,18 +220,31 @@ class P4RuntimeService(
             )
           }
           msg.hasPacket() -> {
-            val packetIns =
+            val responses =
               lock.withLock {
-                val translator = pipeline?.typeTranslator?.takeIf { it.hasTranslations }
+                val state = pipeline
+                if (state == null) {
+                  // P4Runtime spec §16.6: StreamError reporting is optional and for
+                  // debugging. The spec requires dropping invalid PacketOut messages
+                  // (§16.1) but is silent on the "no pipeline" case specifically.
+                  // We report FAILED_PRECONDITION (matching Write/Read RPC behavior)
+                  // to help clients diagnose misconfigured pipelines.
+                  return@withLock listOf(
+                    StreamMessageResponse.newBuilder()
+                      .setError(
+                        StreamError.newBuilder()
+                          .setCanonicalCode(Status.FAILED_PRECONDITION.code.value())
+                          .setMessage(NO_PIPELINE_MESSAGE)
+                          .setPacketOut(PacketOutError.newBuilder().setPacketOut(msg.packet))
+                      )
+                      .build()
+                  )
+                }
+
+                val translator = state.typeTranslator?.takeIf { it.hasTranslations }
                 val packetOut = translator?.translatePacketOut(msg.packet) ?: msg.packet
                 val ingressPort = extractIngressPort(packetOut.metadataList)
-
-                val response =
-                  try {
-                    simulator.processPacket(ingressPort, packetOut.payload.toByteArray())
-                  } catch (_: IllegalStateException) {
-                    return@withLock null
-                  }
+                val response = simulator.processPacket(ingressPort, packetOut.payload.toByteArray())
 
                 // Convert output packets to PacketIn messages.
                 response.outputPacketsList.map { outputPacket ->
@@ -251,7 +262,7 @@ class P4RuntimeService(
                     .build()
                 }
               }
-            packetIns?.forEach { emit(it) }
+            responses.forEach { emit(it) }
           }
         }
       }
@@ -329,5 +340,8 @@ class P4RuntimeService(
 
     // Matches the p4runtime proto version declared in MODULE.bazel.
     private const val P4RUNTIME_API_VERSION = "1.5.0"
+
+    private const val NO_PIPELINE_MESSAGE =
+      "No pipeline loaded; call SetForwardingPipelineConfig first"
   }
 }

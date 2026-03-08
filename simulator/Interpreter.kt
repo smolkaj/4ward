@@ -611,11 +611,11 @@ class Interpreter(
         UnitVal
       }
       "emit" -> execEmit(call, env)
-      // TODO(meters): dispatch on the target's extern type name instead of arg count
-      // once more externs with a `read` method are added.
-      // register.read(dst, index) has 2 args; direct_meter.read(out color) has 1.
+      // Dispatch on the target's extern type name. Fall back to arg count when
+      // the type is absent (p4c doesn't always populate it on extern instances).
       "read" -> {
-        if (call.argsList.size == 1) {
+        val externType = call.target.type.named.ifEmpty { null }
+        if (externType == "direct_meter" || (externType == null && call.argsList.size == 1)) {
           // direct_meter.read(out color): always GREEN (no real rates in simulator).
           setLValue(call.argsList[0], defaultValue(call.argsList[0].type, types), env)
         } else {

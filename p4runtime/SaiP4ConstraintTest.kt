@@ -300,7 +300,6 @@ class SaiP4ConstraintTest {
     return Entity.newBuilder().setTableEntry(tableEntry).build()
   }
 
-  @Suppress("MagicNumber")
   companion object {
     private const val MAC_LEN = 6
     private val VALIDATOR_BINARY: Path =
