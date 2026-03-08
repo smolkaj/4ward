@@ -201,6 +201,16 @@ git worktree add ../4ward-<branch> -b <branch>
 
 Rebase and squash when merging back to main.
 
+**Clean up worktrees after merging.** Each worktree gets its own Bazel output
+base and server JVM. Stale worktrees accumulate idle JVMs that eat memory.
+After a PR is merged, remove the worktree:
+
+```sh
+cd /path/to/main/tree
+git worktree remove ../4ward-<branch>
+git worktree prune
+```
+
 ## Local development
 
 When running multiple agents in parallel (each in its own worktree), Bazel can
@@ -211,6 +221,10 @@ Add the following to your **`~/.bazelrc`** (not the repo `.bazelrc`) to fix
 this:
 
 ```
+# Kill idle Bazel servers after 15 minutes. Each worktree gets its own server
+# JVM; without this, stale worktrees accumulate idle JVMs that eat memory.
+startup --max_idle_secs=900
+
 # Shared disk cache across worktrees — avoids recompiling p4c/Z3 in every
 # worktree. Grows without bounds; wipe with: rm -rf ~/.cache/bazel-disk
 build --disk_cache=/absolute/path/to/.cache/bazel-disk
