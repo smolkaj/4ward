@@ -226,26 +226,25 @@ class P4RuntimeService(
           msg.hasPacket() -> {
             val responses =
               lock.withLock {
-                val translator = pipeline?.typeTranslator?.takeIf { it.hasTranslations }
+                val state = pipeline
+                if (state == null) {
+                  // No pipeline configured yet — report via StreamError per P4Runtime spec.
+                  return@withLock listOf(
+                    StreamMessageResponse.newBuilder()
+                      .setError(
+                        StreamError.newBuilder()
+                          .setCanonicalCode(Status.FAILED_PRECONDITION.code.value())
+                          .setMessage("No pipeline loaded; call SetForwardingPipelineConfig first")
+                          .setPacketOut(PacketOutError.newBuilder().setPacketOut(msg.packet))
+                      )
+                      .build()
+                  )
+                }
+
+                val translator = state.typeTranslator?.takeIf { it.hasTranslations }
                 val packetOut = translator?.translatePacketOut(msg.packet) ?: msg.packet
                 val ingressPort = extractIngressPort(packetOut.metadataList)
-
-                val response =
-                  try {
-                    simulator.processPacket(ingressPort, packetOut.payload.toByteArray())
-                  } catch (e: IllegalStateException) {
-                    // P4Runtime spec: report PacketOut errors via StreamError.
-                    return@withLock listOf(
-                      StreamMessageResponse.newBuilder()
-                        .setError(
-                          StreamError.newBuilder()
-                            .setCanonicalCode(Status.FAILED_PRECONDITION.code.value())
-                            .setMessage(e.message ?: "PacketOut processing failed")
-                            .setPacketOut(PacketOutError.newBuilder().setPacketOut(msg.packet))
-                        )
-                        .build()
-                    )
-                  }
+                val response = simulator.processPacket(ingressPort, packetOut.payload.toByteArray())
 
                 // Convert output packets to PacketIn messages.
                 response.outputPacketsList.map { outputPacket ->
