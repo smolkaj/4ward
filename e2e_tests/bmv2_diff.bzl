@@ -39,20 +39,15 @@ def bmv2_diff_test_suite(name, tests, local_tests = {}, tags = [], includes = []
         ":bmv2_driver",
     ]
 
-    include_flags = "".join([
-        " -I $$(dirname $(execpath " + inc + "))"
-        for inc in includes
-    ])
-
     for test in tests:
         p4_src = "@p4c//testdata/p4_16_samples:" + test + ".p4"
         stf_src = "@p4c//testdata/p4_16_samples:" + test + ".stf"
-        _add_test_genrules(test, p4_src, stf_src, includes, include_flags, tags, data)
+        _add_test_genrules(test, p4_src, stf_src, includes, tags, data)
 
     for test, pkg in local_tests.items():
         p4_src = pkg + ":" + test + ".p4"
         stf_src = pkg + ":" + test + ".stf"
-        _add_test_genrules(test, p4_src, stf_src, [], "", tags, data)
+        _add_test_genrules(test, p4_src, stf_src, [], tags, data)
 
     kt_jvm_test(
         name = name,
@@ -72,8 +67,12 @@ def bmv2_diff_test_suite(name, tests, local_tests = {}, tags = [], includes = []
         ],
     )
 
-def _add_test_genrules(test, p4_src, stf_src, includes, include_flags, tags, data):
+def _add_test_genrules(test, p4_src, stf_src, includes, tags, data):
     """Creates the BMv2 JSON, 4ward txtpb, and STF copy genrules for one test."""
+    include_flags = "".join([
+        " -I $$(dirname $(execpath " + inc + "))"
+        for inc in includes
+    ])
 
     # Compile to BMv2 JSON.
     native.genrule(
