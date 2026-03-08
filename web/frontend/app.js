@@ -283,6 +283,14 @@ function initEditor() {
         padding: { top: 8, bottom: 8 },
       });
 
+      // Show initial example in dropdown; reset when user edits.
+      document.getElementById('example-select').value = 'basic_table';
+      editor.onDidChangeModelContent(() => {
+        if (!state.loadingExample) {
+          document.getElementById('example-select').value = '';
+        }
+      });
+
       // Ctrl/Cmd+Enter = Compile & Load
       editor.addAction({
         id: 'compile-and-load',
@@ -1180,8 +1188,9 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('example-select').addEventListener('change', (e) => {
     const example = EXAMPLES[e.target.value];
     if (example && state.editor) {
+      state.loadingExample = true;
       state.editor.setValue(example);
-      e.target.value = '';
+      state.loadingExample = false;
     }
   });
 
