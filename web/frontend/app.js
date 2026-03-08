@@ -8,10 +8,12 @@
 // ---------------------------------------------------------------------------
 
 const state = {
-  p4info: null,       // loaded P4Info (JSON)
-  entries: [],        // installed table entries (for display)
-  lastTrace: null,    // last ProcessPacketWithTraceTree response
-  editor: null,       // Monaco editor instance
+  p4info: null,         // loaded P4Info (JSON)
+  entries: [],          // installed table entries (for display)
+  cloneSessions: [],    // installed clone sessions
+  lastTrace: null,      // last ProcessPacketWithTraceTree response
+  editor: null,         // Monaco editor instance
+  loadingExample: false, // guard for example loading
 };
 
 // ---------------------------------------------------------------------------
@@ -450,6 +452,8 @@ async function compileAndLoad() {
     const data = await api.compileAndLoad(source);
     state.p4info = data.p4info;
     state.entries = [];
+    state.cloneSessions = [];
+    renderCloneSessionsList();
     const nTables = (data.p4info.tables || []).length;
     const nActions = (data.p4info.actions || []).length;
     setStatus('loaded', `${nTables} table${nTables !== 1 ? 's' : ''}, ${nActions} action${nActions !== 1 ? 's' : ''}`);
@@ -652,6 +656,86 @@ async function deleteTableEntry(index) {
   } catch (e) {
     log(`Delete failed: ${e.message}`, 'error');
   }
+}
+
+// ---------------------------------------------------------------------------
+// Clone sessions
+// ---------------------------------------------------------------------------
+
+async function addCloneSession() {
+  const sessionId = parseInt(document.getElementById('clone-session-id').value, 10);
+  const egressPort = parseInt(document.getElementById('clone-egress-port').value, 10);
+
+  if (isNaN(sessionId) || isNaN(egressPort)) {
+    log('Enter valid session ID and egress port', 'error');
+    return;
+  }
+
+  try {
+    await api.write({
+      device_id: '1',
+      updates: [{
+        type: 'INSERT',
+        entity: {
+          packet_replication_engine_entry: {
+            clone_session_entry: {
+              session_id: sessionId,
+              replicas: [{ egress_port: egressPort }],
+            },
+          },
+        },
+      }],
+    });
+
+    state.cloneSessions.push({ sessionId, egressPort });
+    renderCloneSessionsList();
+    log(`Clone session ${sessionId} → port ${egressPort}`, 'success');
+  } catch (e) {
+    log(`Clone session failed: ${e.message}`, 'error');
+  }
+}
+
+async function deleteCloneSession(index) {
+  const session = state.cloneSessions[index];
+  if (!session) return;
+
+  try {
+    await api.write({
+      device_id: '1',
+      updates: [{
+        type: 'DELETE',
+        entity: {
+          packet_replication_engine_entry: {
+            clone_session_entry: {
+              session_id: session.sessionId,
+            },
+          },
+        },
+      }],
+    });
+
+    state.cloneSessions.splice(index, 1);
+    renderCloneSessionsList();
+    log(`Clone session ${session.sessionId} deleted`, 'success');
+  } catch (e) {
+    log(`Delete failed: ${e.message}`, 'error');
+  }
+}
+
+function renderCloneSessionsList() {
+  const list = document.getElementById('clone-sessions-list');
+  if (state.cloneSessions.length === 0) {
+    list.innerHTML = '';
+    return;
+  }
+
+  list.innerHTML = state.cloneSessions.map((s, i) =>
+    `<div class="entry-card">
+      <div class="entry-table">Session ${s.sessionId}</div>
+      <div class="entry-action">${'\u2192'} port ${s.egressPort}</div>
+      <button class="btn btn-danger btn-delete" onclick="deleteCloneSession(${i})">&#x2715;</button>
+    </div>`
+  ).join('');
 }
 
 async function sendPacket() {
@@ -1212,6 +1296,7 @@ function log(message, level = '') {
 function updateButtonStates() {
   const hasPipeline = !!state.p4info;
   document.getElementById('btn-add-entry').disabled = !hasPipeline;
+  document.getElementById('btn-add-clone').disabled = !hasPipeline;
   document.getElementById('btn-send-packet').disabled = !hasPipeline;
 }
 
@@ -1310,6 +1395,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Buttons
   document.getElementById('btn-compile').addEventListener('click', compileAndLoad);
   document.getElementById('btn-add-entry').addEventListener('click', addTableEntry);
+  document.getElementById('btn-add-clone').addEventListener('click', addCloneSession);
   document.getElementById('btn-send-packet').addEventListener('click', sendPacket);
 
   // Example selector

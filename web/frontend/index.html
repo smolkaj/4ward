@@ -76,6 +76,21 @@
             <button id="btn-add-entry" class="btn btn-secondary">Insert Entry</button>
           </div>
           <div class="form-section">
+            <h3>Clone Sessions</h3>
+            <div class="form-row-inline">
+              <div class="form-field">
+                <label for="clone-session-id">Session ID</label>
+                <input id="clone-session-id" type="number" value="100" min="0" class="input-full mono">
+              </div>
+              <div class="form-field">
+                <label for="clone-egress-port">Egress Port</label>
+                <input id="clone-egress-port" type="number" value="5" min="0" class="input-full mono">
+              </div>
+              <button id="btn-add-clone" class="btn btn-secondary btn-inline">Add</button>
+            </div>
+            <div id="clone-sessions-list" class="entries-list"></div>
+          </div>
+          <div class="form-section">
             <h3>Installed Entries</h3>
             <div id="entries-list" class="entries-list">
               <p class="empty-hint">No entries installed.</p>

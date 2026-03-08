@@ -344,6 +344,30 @@ input:focus, select:focus, textarea:focus {
   margin-bottom: 3px;
 }
 
+.form-row-inline {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  margin-bottom: 8px;
+}
+
+.form-row-inline .form-field {
+  flex: 1;
+}
+
+.form-row-inline .form-field label {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 3px;
+}
+
+.btn-inline {
+  flex-shrink: 0;
+  margin-bottom: 1px;
+}
+
 /* =========================================================================
    Table entries list
    ========================================================================= */
