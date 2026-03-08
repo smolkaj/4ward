@@ -109,21 +109,37 @@ class TableStore {
   private var meterInfoById: Map<Int, IndexedExternInfo> = emptyMap()
 
   /**
-   * Initialises the ID→name maps for the loaded pipeline and clears all table entries.
+   * Initialises the store for a loaded pipeline and clears all mutable state.
    *
-   * [tableNameById] and [actionNameById] resolve p4info IDs to behavioral IR names (which may
-   * differ from p4info aliases for inlined controls). The remaining entity metadata is extracted
-   * from [p4info] internally.
+   * Resolves p4info IDs to behavioral IR names (which may differ from p4info aliases for inlined
+   * controls — e.g. behavioral "c_t" vs p4info alias "t"). When [behavioralTableNames] or
+   * [behavioralActionNames] are empty, p4info aliases are used directly (convenient for tests).
+   *
+   * Also installs default actions and static table entries from [p4info] and [staticEntries].
    *
    * Must be called before [write] or [lookup]. Calling it again (pipeline reload) resets all state.
    */
   fun loadMappings(
-    tableNameById: Map<Int, String> = emptyMap(),
-    actionNameById: Map<Int, String> = emptyMap(),
     p4info: P4InfoOuterClass.P4Info = P4InfoOuterClass.P4Info.getDefaultInstance(),
+    behavioralTableNames: List<String> = emptyList(),
+    behavioralActionNames: List<String> = emptyList(),
+    staticEntries: List<Update> = emptyList(),
   ) {
-    this.tableNameById = tableNameById
-    this.actionNameById = actionNameById
+    // Resolve p4info aliases to behavioral names. When behavioral names are empty
+    // (e.g. unit tests), resolveName falls through to the alias itself.
+    fun resolveName(alias: String, candidates: List<String>): String =
+      candidates.find { it == alias } ?: candidates.find { it.endsWith("_$alias") } ?: alias
+
+    this.tableNameById =
+      p4info.tablesList.associate { table ->
+        val alias = table.preamble.alias.ifEmpty { table.preamble.name }
+        table.preamble.id to resolveName(alias, behavioralTableNames)
+      }
+    this.actionNameById =
+      p4info.actionsList.associate { action ->
+        val alias = action.preamble.alias.ifEmpty { action.preamble.name }
+        action.preamble.id to resolveName(alias, behavioralActionNames)
+      }
     this.registerInfoById =
       p4info.registersList.associate { reg ->
         val bitwidth = reg.typeSpec.bitstring.bit.bitwidth
@@ -169,6 +185,35 @@ class TableStore {
         val tableName = tableNameById[table.preamble.id] ?: continue
         tableActionProfile[tableName] = table.implementationId
       }
+    }
+
+    // Install default actions from p4info.
+    for (table in tables) {
+      // const_default_action_id: immutable default set in the P4 source with `const`.
+      // initial_default_action: mutable default set in the P4 source without `const`.
+      val defaultActionId =
+        if (table.constDefaultActionId != 0) table.constDefaultActionId
+        else if (table.hasInitialDefaultAction()) table.initialDefaultAction.actionId else 0
+      if (defaultActionId != 0) {
+        val tableName = tableNameById[table.preamble.id] ?: continue
+        val actionName = actionNameById[defaultActionId] ?: "NoAction"
+        // Convert p4info TableActionCall.Argument to P4Runtime Action.Param.
+        val params =
+          if (table.hasInitialDefaultAction())
+            table.initialDefaultAction.argumentsList.map { arg ->
+              p4.v1.P4RuntimeOuterClass.Action.Param.newBuilder()
+                .setParamId(arg.paramId)
+                .setValue(arg.value)
+                .build()
+            }
+          else emptyList()
+        setDefaultAction(tableName, actionName, params)
+      }
+    }
+
+    // Install static table entries declared with `const entries` in the P4 source.
+    for (update in staticEntries) {
+      write(update)
     }
   }
 
