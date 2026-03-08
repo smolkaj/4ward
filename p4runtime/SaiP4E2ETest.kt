@@ -8,6 +8,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import p4.config.v1.P4InfoOuterClass
+import p4.v1.P4RuntimeOuterClass
 import p4.v1.P4RuntimeOuterClass.Entity
 import p4.v1.P4RuntimeOuterClass.FieldMatch
 import p4.v1.P4RuntimeOuterClass.TableEntry
@@ -242,6 +243,221 @@ class SaiP4E2ETest {
   }
 
   // =========================================================================
+  // PacketIO: PacketOut via StreamChannel
+  // =========================================================================
+
+  @Test
+  fun `PacketOut with submit_to_ingress=0 exits on specified port`() {
+    // Look up packet_out metadata IDs from p4info.
+    val packetOutMeta =
+      config.p4Info.controllerPacketMetadataList.find { it.preamble.name == "packet_out" }!!
+    val egressPortId = packetOutMeta.metadataList.find { it.name == "egress_port" }!!.id
+    val submitToIngressId = packetOutMeta.metadataList.find { it.name == "submit_to_ingress" }!!.id
+
+    // Build a simple Ethernet payload.
+    val payload = buildIpv4Packet(dstMac = UNICAST_MAC, srcMac = SRC_MAC, ttl = 64)
+
+    // Build PacketOut with egress_port as a string (port_id_t is sdn_string).
+    val packetOut =
+      p4.v1.P4RuntimeOuterClass.PacketOut.newBuilder()
+        .setPayload(ByteString.copyFrom(payload))
+        .addMetadata(
+          p4.v1.P4RuntimeOuterClass.PacketMetadata.newBuilder()
+            .setMetadataId(egressPortId)
+            .setValue(ByteString.copyFromUtf8("Ethernet1"))
+        )
+        .addMetadata(
+          p4.v1.P4RuntimeOuterClass.PacketMetadata.newBuilder()
+            .setMetadataId(submitToIngressId)
+            .setValue(ByteString.copyFrom(byteArrayOf(0)))
+        )
+        .build()
+
+    // Open stream, arbitrate, and send.
+    harness.openStream().use { session ->
+      session.arbitrate()
+      val response = session.sendPacketOut(packetOut)
+
+      // Should receive a PacketIn with the original payload.
+      assertTrue("expected a PacketIn response", response != null && response.hasPacket())
+      val packetIn = response!!.packet
+
+      // Payload should match the original Ethernet frame (except IPv4 checksum
+      // which the deparser computes). Verify key fields individually.
+      val output = packetIn.payload.toByteArray()
+      assertEquals("payload size should match", payload.size, output.size)
+      // Ethernet header unchanged.
+      assertBytesEqual("dst_mac", UNICAST_MAC, output, 0)
+      assertBytesEqual("src_mac", SRC_MAC, output, MAC_LEN)
+      // TTL unchanged (bypass_ingress skips routing, no decrement).
+      assertEquals("TTL", 64, output[TTL_OFFSET].toInt() and 0xFF)
+
+      // Should have PacketIn metadata (ingress_port + target_egress_port).
+      val packetInMeta =
+        config.p4Info.controllerPacketMetadataList.find { it.preamble.name == "packet_in" }!!
+      val targetEgressPortId =
+        packetInMeta.metadataList.find { it.name == "target_egress_port" }!!.id
+      val egressMeta = packetIn.metadataList.find { it.metadataId == targetEgressPortId }
+      assertTrue("expected target_egress_port metadata", egressMeta != null)
+      // The target_egress_port should reverse-translate to "Ethernet1".
+      assertEquals("Ethernet1", egressMeta!!.value.toStringUtf8())
+    }
+  }
+
+  // =========================================================================
+  // ACL ingress: drop
+  // =========================================================================
+
+  @Test
+  fun `ACL ingress drop prevents packet from being forwarded`() {
+    // Install normal routing so the packet would be forwarded without ACL.
+    installRoutingChain()
+
+    // Install ACL entry matching dst_ip=10.0.0.1 → acl_drop.
+    val aclTable = findTable("acl_ingress_table")
+    val aclDrop = findAction("acl_drop")
+    harness.installEntry(
+      buildAclEntry(
+        aclTable,
+        aclDrop,
+        matches =
+          listOf(
+            optionalMatch(aclTable, "is_ipv4", byteArrayOf(1)),
+            ternaryMatch(aclTable, "dst_ip", DST_IP, byteArrayOf(-1, -1, -1, -1)),
+          ),
+      )
+    )
+
+    // Send packet — should be dropped by ACL.
+    val packet = buildIpv4Packet(dstMac = UNICAST_MAC, srcMac = SRC_MAC, ttl = 64)
+    val outputs = harness.simulatePacket(ingressPort = 0, payload = packet)
+    assertEquals("packet should be dropped by ACL", 0, outputs.size)
+  }
+
+  // =========================================================================
+  // ACL ingress: redirect to nexthop
+  // =========================================================================
+
+  @Test
+  fun `ACL redirect to nexthop overrides normal routing`() {
+    // Install normal routing: dst 10.0.0.0/8 → nhop-1 → rif-1 → Ethernet1.
+    installRoutingChain()
+
+    // Install a second path: nhop-2 → rif-2 → Ethernet2 with a different MAC.
+    harness.installEntry(buildNexthopEntry("nhop-2", "rif-2"))
+    harness.installEntry(buildRouterInterfaceEntry("rif-2", "Ethernet2", ALT_RIF_MAC))
+    harness.installEntry(buildNeighborEntry("rif-2", NEIGHBOR_ID, ALT_NEIGHBOR_MAC))
+
+    // ACL: redirect packets to dst_ip=10.0.0.1 → nhop-2 (overriding the route).
+    val aclTable = findTable("acl_ingress_table")
+    val redirectAction = findAction("redirect_to_nexthop")
+    harness.installEntry(
+      buildAclEntry(
+        aclTable,
+        redirectAction,
+        matches =
+          listOf(
+            optionalMatch(aclTable, "is_ipv4", byteArrayOf(1)),
+            ternaryMatch(aclTable, "dst_ip", DST_IP, byteArrayOf(-1, -1, -1, -1)),
+          ),
+        params = listOf(stringParam(redirectAction, "nexthop_id", "nhop-2")),
+      )
+    )
+
+    val packet = buildIpv4Packet(dstMac = UNICAST_MAC, srcMac = SRC_MAC, ttl = 64)
+    val outputs = harness.simulatePacket(ingressPort = 0, payload = packet)
+
+    assertEquals("expected exactly one output packet", 1, outputs.size)
+    val output = outputs[0].payload.toByteArray()
+    // dst_mac should be ALT_NEIGHBOR_MAC (from nhop-2 path), not NEIGHBOR_MAC.
+    assertBytesEqual("dst_mac from redirect path", ALT_NEIGHBOR_MAC, output, 0)
+    assertBytesEqual("src_mac from redirect path", ALT_RIF_MAC, output, MAC_LEN)
+  }
+
+  // =========================================================================
+  // IPv4 multicast: packet replication
+  // =========================================================================
+
+  @Test
+  @Suppress("MagicNumber")
+  fun `IPv4 multicast replicates packet to multiple ports`() {
+    // Install multicast route via ipv4_multicast_table (EXACT match on ipv4_dst).
+    val mcastTable = findTable("ipv4_multicast_table")
+    val setMcastGroup = findAction("set_multicast_group_id")
+    val mcastDstIp = byteArrayOf(224.toByte(), 0, 0, 1)
+    harness.installEntry(
+      buildEntry(
+        mcastTable,
+        setMcastGroup,
+        matches =
+          listOf(
+            exactStringMatch(mcastTable, "vrf_id", ""),
+            exactBytesMatch(mcastTable, "ipv4_dst", mcastDstIp),
+          ),
+        params = listOf(bytesParam(setMcastGroup, "multicast_group_id", byteArrayOf(0, 1))),
+      )
+    )
+
+    // Install multicast group 1 with two replicas: port 0 and port 1.
+    installMulticastGroup(groupId = 1, ports = listOf(0, 1))
+
+    // Send a multicast-destined packet (224.0.0.1) with IPv4 multicast MAC.
+    // SAI P4 gates ipv4_multicast_table on IS_IPV4_MULTICAST_MAC(dst_addr).
+    val packet =
+      buildIpv4Packet(dstMac = MULTICAST_MAC, srcMac = SRC_MAC, ttl = 64, dstIp = mcastDstIp)
+    val outputs = harness.simulatePacket(ingressPort = 2, payload = packet)
+
+    assertTrue(
+      "expected at least 2 output packets for multicast, got ${outputs.size}",
+      outputs.size >= 2,
+    )
+  }
+
+  // =========================================================================
+  // WCMP: action selector member and group round-trip
+  // =========================================================================
+
+  @Test
+  fun `WCMP action profile members and groups round-trip through SAI P4`() {
+    // Find the WCMP action selector profile ID.
+    val wcmpSelector =
+      config.p4Info.actionProfilesList.find { it.preamble.alias == "wcmp_group_selector" }!!
+    val actionProfileId = wcmpSelector.preamble.id
+
+    // Install two action profile members pointing to different nexthops.
+    val setNexthop = findAction("set_nexthop_id")
+    harness.installEntry(
+      buildActionProfileMember(actionProfileId, memberId = 1, setNexthop, "nhop-a")
+    )
+    harness.installEntry(
+      buildActionProfileMember(actionProfileId, memberId = 2, setNexthop, "nhop-b")
+    )
+
+    // Install a WCMP group with both members.
+    harness.installEntry(buildActionProfileGroup(actionProfileId, groupId = 1, listOf(1, 2)))
+
+    // Read back and verify.
+    val members = harness.readProfileMembers(actionProfileId)
+    assertEquals("expected 2 profile members", 2, members.size)
+
+    val groups = harness.readProfileGroups(actionProfileId)
+    assertEquals("expected 1 profile group", 1, groups.size)
+    assertEquals(2, groups[0].actionProfileGroup.membersCount)
+
+    // Verify members carry the translated nexthop_id params.
+    val nexthopParam = paramId(setNexthop, "nexthop_id")
+    val memberNexthops =
+      members.map { m ->
+        m.actionProfileMember.action.paramsList
+          .find { it.paramId == nexthopParam }
+          ?.value
+          ?.toStringUtf8()
+      }
+    assertTrue("nhop-a should be in members", "nhop-a" in memberNexthops)
+    assertTrue("nhop-b should be in members", "nhop-b" in memberNexthops)
+  }
+
+  // =========================================================================
   // Delete: verify translated entries can be removed
   // =========================================================================
 
@@ -293,6 +509,31 @@ class SaiP4E2ETest {
     FieldMatch.newBuilder()
       .setFieldId(matchFieldId(table, fieldName))
       .setExact(FieldMatch.Exact.newBuilder().setValue(ByteString.copyFrom(value)))
+      .build()
+
+  private fun optionalMatch(
+    table: P4InfoOuterClass.Table,
+    fieldName: String,
+    value: ByteArray,
+  ): FieldMatch =
+    FieldMatch.newBuilder()
+      .setFieldId(matchFieldId(table, fieldName))
+      .setOptional(FieldMatch.Optional.newBuilder().setValue(ByteString.copyFrom(value)))
+      .build()
+
+  private fun ternaryMatch(
+    table: P4InfoOuterClass.Table,
+    fieldName: String,
+    value: ByteArray,
+    mask: ByteArray,
+  ): FieldMatch =
+    FieldMatch.newBuilder()
+      .setFieldId(matchFieldId(table, fieldName))
+      .setTernary(
+        FieldMatch.Ternary.newBuilder()
+          .setValue(ByteString.copyFrom(value))
+          .setMask(ByteString.copyFrom(mask))
+      )
       .build()
 
   @Suppress("SameParameterValue")
@@ -349,6 +590,31 @@ class SaiP4E2ETest {
             p4.v1.P4RuntimeOuterClass.TableAction.newBuilder()
               .setAction(
                 p4.v1.P4RuntimeOuterClass.Action.newBuilder()
+                  .setActionId(action.preamble.id)
+                  .addAllParams(params)
+              )
+          )
+      )
+      .build()
+
+  /** Builds an ACL entry with ternary matches (requires priority). */
+  private fun buildAclEntry(
+    table: P4InfoOuterClass.Table,
+    action: P4InfoOuterClass.Action,
+    matches: List<FieldMatch>,
+    params: List<P4RuntimeOuterClass.Action.Param> = emptyList(),
+    priority: Int = 1,
+  ): Entity =
+    Entity.newBuilder()
+      .setTableEntry(
+        TableEntry.newBuilder()
+          .setTableId(table.preamble.id)
+          .addAllMatch(matches)
+          .setPriority(priority)
+          .setAction(
+            P4RuntimeOuterClass.TableAction.newBuilder()
+              .setAction(
+                P4RuntimeOuterClass.Action.newBuilder()
                   .setActionId(action.preamble.id)
                   .addAllParams(params)
               )
@@ -480,6 +746,78 @@ class SaiP4E2ETest {
     return packet
   }
 
+  /** Installs the standard routing chain: VRF → IPv4 route → nexthop → RIF → neighbor. */
+  private fun installRoutingChain() {
+    harness.installEntry(buildIpv4RouteEntry(vrfId = "", nexthopId = "nhop-1"))
+    harness.installEntry(buildNexthopEntry(nexthopId = "nhop-1", routerInterfaceId = "rif-1"))
+    harness.installEntry(buildRouterInterfaceEntry("rif-1", "Ethernet1", RIF_MAC))
+    harness.installEntry(buildNeighborEntry("rif-1", NEIGHBOR_ID, NEIGHBOR_MAC))
+  }
+
+  /** Installs a PRE multicast group with one replica per port. */
+  @Suppress("MagicNumber")
+  private fun installMulticastGroup(groupId: Int, ports: List<Int>) {
+    val entry =
+      P4RuntimeOuterClass.MulticastGroupEntry.newBuilder()
+        .setMulticastGroupId(groupId)
+        .addAllReplicas(
+          ports.mapIndexed { idx, port ->
+            P4RuntimeOuterClass.Replica.newBuilder().setEgressPort(port).setInstance(idx).build()
+          }
+        )
+        .build()
+    val preEntity =
+      Entity.newBuilder()
+        .setPacketReplicationEngineEntry(
+          P4RuntimeOuterClass.PacketReplicationEngineEntry.newBuilder()
+            .setMulticastGroupEntry(entry)
+        )
+        .build()
+    harness.installEntry(preEntity)
+  }
+
+  /** Builds an action profile member for the WCMP selector. */
+  private fun buildActionProfileMember(
+    actionProfileId: Int,
+    memberId: Int,
+    action: P4InfoOuterClass.Action,
+    nexthopId: String,
+  ): Entity =
+    Entity.newBuilder()
+      .setActionProfileMember(
+        P4RuntimeOuterClass.ActionProfileMember.newBuilder()
+          .setActionProfileId(actionProfileId)
+          .setMemberId(memberId)
+          .setAction(
+            P4RuntimeOuterClass.Action.newBuilder()
+              .setActionId(action.preamble.id)
+              .addParams(stringParam(action, "nexthop_id", nexthopId))
+          )
+      )
+      .build()
+
+  /** Builds an action profile group for the WCMP selector. */
+  private fun buildActionProfileGroup(
+    actionProfileId: Int,
+    groupId: Int,
+    memberIds: List<Int>,
+  ): Entity =
+    Entity.newBuilder()
+      .setActionProfileGroup(
+        P4RuntimeOuterClass.ActionProfileGroup.newBuilder()
+          .setActionProfileId(actionProfileId)
+          .setGroupId(groupId)
+          .addAllMembers(
+            memberIds.map { mid ->
+              P4RuntimeOuterClass.ActionProfileGroup.Member.newBuilder()
+                .setMemberId(mid)
+                .setWeight(1)
+                .build()
+            }
+          )
+      )
+      .build()
+
   /** Asserts that [expected] bytes match [actual] starting at [offset]. */
   private fun assertBytesEqual(label: String, expected: ByteArray, actual: ByteArray, offset: Int) {
     for (i in expected.indices) {
@@ -500,8 +838,15 @@ class SaiP4E2ETest {
 
     private val NEIGHBOR_MAC =
       byteArrayOf(0x00, 0xAA.toByte(), 0xBB.toByte(), 0xCC.toByte(), 0xDD.toByte(), 0xEE.toByte())
+    private val ALT_NEIGHBOR_MAC =
+      byteArrayOf(0x00, 0xBB.toByte(), 0xCC.toByte(), 0xDD.toByte(), 0xEE.toByte(), 0xFF.toByte())
     private val RIF_MAC = byteArrayOf(0x00, 0x11, 0x22, 0x33, 0x44, 0x55)
+    private val ALT_RIF_MAC = byteArrayOf(0x00, 0x22, 0x33, 0x44, 0x55, 0x66)
     private val UNICAST_MAC = byteArrayOf(0x00, 0x01, 0x02, 0x03, 0x04, 0x05)
+
+    // IPv4 multicast MAC for 224.0.0.1: 01:00:5E:00:00:01 (bit 23 = 0).
+    // SAI P4 checks IS_IPV4_MULTICAST_MAC(dst_addr) = addr[47:24]==0x01005E && addr[23:23]==0.
+    private val MULTICAST_MAC = byteArrayOf(0x01, 0x00, 0x5E, 0x00, 0x00, 0x01)
     private val SRC_MAC = byteArrayOf(0x00, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E)
     private val SRC_IP = byteArrayOf(192.toByte(), 168.toByte(), 1, 1)
     private val DST_IP = byteArrayOf(10, 0, 0, 1)
