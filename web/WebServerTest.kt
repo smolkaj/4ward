@@ -37,19 +37,16 @@ class WebServerTest {
 
   @Test
   fun `hexToBytes converts hex string to bytes`() {
-    assertArrayEquals(byteArrayOf(0xFF.toByte(), 0x00, 0xAB.toByte()), WebServer.hexToBytes("ff00ab"))
+    assertArrayEquals(
+      byteArrayOf(0xFF.toByte(), 0x00, 0xAB.toByte()),
+      WebServer.hexToBytes("ff00ab"),
+    )
   }
 
   @Test
   fun `hexToBytes handles spaces and colons`() {
-    assertArrayEquals(
-      byteArrayOf(0xDE.toByte(), 0xAD.toByte()),
-      WebServer.hexToBytes("de ad"),
-    )
-    assertArrayEquals(
-      byteArrayOf(0xBE.toByte(), 0xEF.toByte()),
-      WebServer.hexToBytes("be:ef"),
-    )
+    assertArrayEquals(byteArrayOf(0xDE.toByte(), 0xAD.toByte()), WebServer.hexToBytes("de ad"))
+    assertArrayEquals(byteArrayOf(0xBE.toByte(), 0xEF.toByte()), WebServer.hexToBytes("be:ef"))
   }
 
   @Test

@@ -1,6 +1,5 @@
 package fourward.web
 
-import com.google.protobuf.ByteString
 import com.google.protobuf.TextFormat
 import com.google.protobuf.util.JsonFormat
 import com.sun.net.httpserver.HttpExchange
@@ -11,14 +10,12 @@ import java.net.InetSocketAddress
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.Executors
-import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import p4.v1.P4RuntimeOuterClass.Entity
 import p4.v1.P4RuntimeOuterClass.ForwardingPipelineConfig
 import p4.v1.P4RuntimeOuterClass.ReadRequest
-import p4.v1.P4RuntimeOuterClass.ReadResponse
 import p4.v1.P4RuntimeOuterClass.SetForwardingPipelineConfigRequest
 import p4.v1.P4RuntimeOuterClass.TableEntry
 import p4.v1.P4RuntimeOuterClass.WriteRequest
@@ -127,7 +124,11 @@ class WebServer(
       runBlocking { service.setForwardingPipelineConfig(request) }
       loadedP4Info = config.p4Info
 
-      sendJson(exchange, HTTP_OK, """{"success":true,"p4info":${jsonPrinter.print(config.p4Info)}}""")
+      sendJson(
+        exchange,
+        HTTP_OK,
+        """{"success":true,"p4info":${jsonPrinter.print(config.p4Info)}}""",
+      )
     } finally {
       Files.deleteIfExists(tempP4)
       Files.deleteIfExists(tempOutput)
@@ -188,7 +189,8 @@ class WebServer(
     requirePost(exchange)
     val body = exchange.requestBody.bufferedReader().readText()
     val ingressPort = extractJsonInt(body, "ingress_port") ?: 0
-    val payloadHex = extractJsonString(body, "payload_hex") ?: throw badRequest("Missing payload_hex")
+    val payloadHex =
+      extractJsonString(body, "payload_hex") ?: throw badRequest("Missing payload_hex")
     val payload = hexToBytes(payloadHex)
 
     val response = runBlocking { lock.withLock { simulator.processPacket(ingressPort, payload) } }
