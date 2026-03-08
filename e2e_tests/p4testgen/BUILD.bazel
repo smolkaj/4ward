@@ -257,7 +257,7 @@ p4_testgen_test(
     name = "sai-middleblock",
     defines = ["PLATFORM_BMV2"],
     includes = ["//e2e_tests/sai_p4:sai_p4_srcs"],
-    max_tests = 10,
+    max_tests = 500,
     src_p4 = "//e2e_tests/sai_p4:instantiations/google/middleblock.p4",
     tags = ["manual"],  # feasibility probe
 )

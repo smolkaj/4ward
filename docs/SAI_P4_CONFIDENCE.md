@@ -6,10 +6,14 @@
 
 ## Current state
 
-**Packet coverage: 11 packets.** `SaiP4E2ETest` sends 1 hand-crafted IPv4
-packet through the L3 forwarding path. p4testgen generates 10 additional
-test vectors via symbolic execution (Z3), covering diverse program paths
-through the 27-table middleblock pipeline.
+**Packet coverage: 501 packets.** `SaiP4E2ETest` sends 1 hand-crafted IPv4
+packet through the L3 forwarding path. p4testgen generates 500 test vectors
+via symbolic execution (Z3), covering diverse program paths through the
+27-table middleblock pipeline. All 501 pass.
+
+**Constraint coverage: 10 tests.** `SaiP4ConstraintTest` validates that
+`@entry_restriction` and `@action_restriction` constraints on real SAI P4
+tables are enforced — 5 valid entries accepted, 5 violations rejected.
 
 ## What works (tested E2E)
 
@@ -20,23 +24,22 @@ through the 27-table middleblock pipeline.
 - [x] P4Runtime Read with SDN-to-dataplane translation round-trip
 - [x] P4Runtime Delete
 - [x] L3 IPv4 forwarding: MAC rewrites, TTL decrement (1 packet)
-- [x] p4-constraints JNI integration (tested on constrained_table.p4, not SAI)
+- [x] p4-constraints on SAI P4: entry and action restrictions enforced (10 tests)
 - [x] Write validation (action IDs, params, match fields, priority)
-- [x] p4testgen symbolic execution on SAI P4 middleblock (10 tests, all pass)
+- [x] p4testgen symbolic execution on SAI P4 middleblock (500 tests, all pass)
 
 ## Gaps — ordered by impact
 
-### 1. ~~Packet processing coverage~~ → expand p4testgen (in progress)
+### 1. ~~Packet processing coverage~~ ✅ Done
 
-**Resolved (initial):** p4testgen successfully generates test vectors for the
-SAI P4 middleblock. Uses `-DPLATFORM_BMV2` to strip `@p4runtime_translation`
-annotations; `@entry_restriction`/`@action_restriction` pass through without
-issue. Currently capped at `max_tests = 10`.
+p4testgen generates 500 test vectors for the SAI P4 middleblock in ~4 seconds.
+All pass against the simulator. Uses `-DPLATFORM_BMV2` to strip
+`@p4runtime_translation` annotations; `@entry_restriction`/`@action_restriction`
+pass through without issue.
 
-**Next steps:**
-- Remove `max_tests` cap to see full path exploration
-- Move from `manual` to CI once test budget is understood
-- Investigate which tables/paths the generated tests actually cover
+Currently `manual` tagged (not in CI's default test suite). Uncapped
+exploration was not completed — p4testgen may generate more than 500 tests
+if allowed to run to completion, but exceeds local machine memory.
 
 ### 2. `@p4runtime_translation_mappings` (functional gap)
 
@@ -51,19 +54,22 @@ mappings instead of honoring the explicit ones.
 **Impact:** VRF constraint `vrf_id != ""` can't be enforced correctly because
 the mapping between `""` and the data-plane value isn't known.
 
-### 3. Constraint violation testing (confidence gap)
+**Assessment:** The Kotlin `TypeTranslator` already supports explicit mappings
+via the `TypeTranslation` proto — the infrastructure is in place. The blocker
+is the **p4c backend (C++)**: it doesn't extract `@p4runtime_translation_mappings`
+from P4 source and emit `TranslationEntry` protos in the IR. Only 1 use case
+exists (VRF default `""` → `0`). The annotation is also non-standard (see
+`metadata.p4` TODO). Deferred until DVaaS requires it.
 
-**Problem:** `ConstraintValidator` works (tested on `constrained_table.p4`), but
-we've never tested it on actual SAI P4 entries. SAI P4 middleblock has rich
-constraints:
-- `vrf_id != 0` (default VRF)
-- IPv4 dst must be unicast
-- `src_mac != 0`
-- `multicast_group_id != 0`
-- Conditional: `marked_to_mirror == 1 → mirror_egress_port::mask == -1`
+### 3. ~~Constraint violation testing~~ ✅ Done
 
-**Fix:** Add tests that write violating entries to SAI P4 tables and verify
-`INVALID_ARGUMENT` rejection with actionable error messages.
+`SaiP4ConstraintTest` validates constraints on real SAI P4 tables:
+- `acl_pre_ingress_table`: DSCP-without-IP-type rejected, IPv4+IPv6
+  mutual exclusion rejected, DSCP-with-IPv4 accepted
+- `ipv4_multicast_table`: unicast address rejected, multicast accepted
+- `set_multicast_group_id` action: `group_id == 0` rejected
+- `router_interface_table`: `src_mac == 0` rejected, nonzero accepted
+- `disable_vlan_checks_table`: exact dummy_match rejected, wildcard accepted
 
 ### 4. PacketIO via P4Runtime StreamChannel (integration gap)
 
@@ -89,17 +95,14 @@ test:
 
 These are tested generically via the STF corpus (clone, multicast, action
 selectors all work), but never through SAI P4's specific table structure.
-p4testgen (gap #1) covers many of these.
+p4testgen (gap #1) covers many of these automatically.
 
 ## Strategy
 
-1. **p4testgen first.** ✅ Done (initial). Highest leverage — one
-   infrastructure investment gives us systematic packet-level coverage
-   across all SAI P4 tables. Expand coverage next.
-2. **Translation mappings.** Small, focused feature — needed for correct
-   default VRF handling.
-3. **Constraint violations.** Straightforward test additions once we pick
-   representative SAI P4 constraints.
+1. **p4testgen first.** ✅ Done. 500 test vectors, all passing.
+2. **Translation mappings.** Deferred — requires C++ p4c backend work,
+   only 1 use case, non-standard annotation.
+3. **Constraint violations.** ✅ Done. 10 tests across 4 tables.
 4. **PacketIO.** May be blocked by p4c; defer unless DVaaS needs it.
 5. **Complex features.** p4testgen covers most of this; add targeted hand-
    crafted tests only for gaps p4testgen can't reach.

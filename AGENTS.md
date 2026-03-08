@@ -232,8 +232,8 @@ build --disk_cache=/absolute/path/to/.cache/bazel-disk
 # Cap resources to keep the machine responsive when multiple agents build in
 # parallel. Tune to your machine (these values suit a MacBook Air M-series).
 # Only applied when explicitly opted in via: bazel build --config=throttle
-build:throttle --local_cpu_resources=4
-build:throttle --local_ram_resources=8192
+build:throttle --local_resources=cpu=4
+build:throttle --local_resources=ram=8192
 ```
 
 Notes:

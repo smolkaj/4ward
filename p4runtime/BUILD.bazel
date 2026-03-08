@@ -309,3 +309,28 @@ kt_jvm_test(
         "@maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
     ],
 )
+
+kt_jvm_test(
+    name = "SaiP4ConstraintTest",
+    srcs = [
+        "P4RuntimeTestHarness.kt",
+        "SaiP4ConstraintTest.kt",
+    ],
+    data = [
+        ":constraint_validator",
+        "//e2e_tests/sai_p4:sai_middleblock_pb",
+    ],
+    test_class = "fourward.p4runtime.SaiP4ConstraintTest",
+    deps = [
+        ":p4runtime_lib",
+        "//simulator:ir_java_proto",
+        "//simulator:simulator_java_proto",
+        "//simulator:simulator_kt_grpc",
+        "@grpc-java//api",
+        "@grpc-java//inprocess",
+        "@maven//:com_google_protobuf_protobuf_java",
+        "@maven//:io_grpc_grpc_kotlin_stub",
+        "@maven//:junit_junit",
+        "@maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
+    ],
+)
