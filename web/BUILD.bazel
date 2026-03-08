@@ -1,0 +1,54 @@
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_binary", "kt_jvm_library", "kt_jvm_test")
+
+kt_jvm_library(
+    name = "web_lib",
+    srcs = glob(
+        ["*.kt"],
+        exclude = [
+            "*Test.kt",
+            "PlaygroundServer.kt",
+        ],
+    ),
+    visibility = ["//visibility:public"],
+    deps = [
+        "//p4runtime:p4info_java_proto",
+        "//p4runtime:p4runtime_java_proto",
+        "//p4runtime:p4runtime_lib",
+        "//simulator:ir_java_proto",
+        "//simulator:simulator_java_proto",
+        "//simulator:simulator_lib",
+        "@grpc-java//api",
+        "@maven//:com_google_protobuf_protobuf_java",
+        "@maven//:com_google_protobuf_protobuf_java_util",
+        "@maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
+    ],
+)
+
+kt_jvm_binary(
+    name = "playground",
+    srcs = ["PlaygroundServer.kt"],
+    data = [
+        "//p4c_backend:p4c-4ward",
+        "@p4c//:p4include",
+    ] + glob(["frontend/**"]),
+    main_class = "fourward.web.PlaygroundServerKt",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":web_lib",
+        "//p4runtime:p4runtime_lib",
+        "//simulator:simulator_lib",
+        "@grpc-java//netty",
+        "@maven//:io_grpc_grpc_netty_shaded",
+        "@maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
+    ],
+)
+
+kt_jvm_test(
+    name = "WebServerTest",
+    srcs = ["WebServerTest.kt"],
+    test_class = "fourward.web.WebServerTest",
+    deps = [
+        ":web_lib",
+        "@maven//:junit_junit",
+    ],
+)

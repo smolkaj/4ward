@@ -15,6 +15,10 @@ there?* 4ward is a glass-box P4 simulator that tells you exactly what happened
 to your packet — every parser transition, every table lookup, every action, every
 branch — delivered as a structured trace tree you can actually read.
 
+**Want to try it right now?** `bazel run //web:playground` opens an
+[interactive playground](#web-playground) in your browser — write P4, inject
+packets, explore trace trees. No setup beyond Bazel.
+
 ```
              p4c + 4ward backend
                      │
@@ -50,6 +54,7 @@ plane.
 | `@p4runtime_translation` | no | [**built-in translation engine**](#p4runtime_translation-done-right) | ✅ |
 | Architecture-generic | no | [**by design**](docs/ROADMAP.md#track-6-architecture-expansion-psa-then-pnatna) | 🚧 v1model done, PSA planned |
 | Architecture customization | no | [**by design**](docs/ROADMAP.md#track-5-architecture-customization) | ✅ |
+| Interactive playground | no | [**browser-based IDE**](#web-playground) | ✅ |
 | Easy to extend | ehh | [**if AI can extend it, anyone can**](docs/ROADMAP.md#why-4ward-is-easier-to-extend) | ✅ |
 | Fast, rigorous CI | slow | **[~2 min](https://4ward.buildbuddy.io/trends/)** | ✅ |
 | Development pace | slow | **[AI-fast](docs/AI_WORKFLOW.md)** | ✅ |
@@ -144,6 +149,20 @@ No printf debugging. No Wireshark. No guessing — just read the trace.
 
 For the full walkthrough — compiling, machine-readable output, error handling,
 and more — see the **[tutorial](examples/tutorial.t)**.
+
+## Web playground
+
+Prefer a visual workflow? The web playground lets you edit, compile, and
+simulate P4 programs in an interactive feedback loop — all in one browser tab.
+
+```sh
+bazel run //web:playground    # open http://localhost:8080
+```
+
+Write P4 with syntax highlighting, install table entries and clone sessions
+with a few clicks, inject packets, and explore the resulting trace tree —
+rendered graphically with collapsible stages, source links, and fork
+visualization.
 
 ## Trace trees
 
@@ -258,6 +277,7 @@ requirements.
 │   └── simulator.proto     Simulator service protocol (in-process + gRPC)
 ├── p4c_backend/            p4c backend plugin (C++, emits the proto IR)
 ├── p4runtime/              P4Runtime gRPC server (Kotlin)
+├── web/                    Interactive web playground
 ├── examples/               Ready-to-run P4 programs and STF tests
 ├── e2e_tests/
 │   ├── stf/                STF runner (drives the simulator directly)
