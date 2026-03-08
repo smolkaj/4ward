@@ -53,6 +53,28 @@ class SaiP4E2ETest {
   }
 
   @Test
+  fun `pipeline config has VRF translation mapping from annotation`() {
+    // The SAI P4 source declares @p4runtime_translation_mappings({ {"", 0} }) on vrf_id_t.
+    // The p4c-4ward backend extracts this into DeviceConfig.translations.
+    val translations = config.device.translationsList
+    assertTrue("expected at least one translation", translations.isNotEmpty())
+
+    val vrfTranslation = translations.find { it.uri == "" }
+    assertTrue("expected translation with empty URI (vrf_id_t)", vrfTranslation != null)
+    assertTrue("expected auto_allocate=true", vrfTranslation!!.autoAllocate)
+    assertEquals("expected one explicit entry", 1, vrfTranslation.entriesCount)
+
+    val entry = vrfTranslation.entriesList[0]
+    assertEquals("SDN value should be empty string", "", entry.sdnStr)
+    // Dataplane value is 0 encoded as 2 bytes (VRF_BITWIDTH=10 → 2 bytes).
+    assertEquals("dataplane value should be 2 bytes", 2, entry.dataplaneValue.size())
+    assertTrue(
+      "dataplane value should be all zeros",
+      entry.dataplaneValue.toByteArray().all { it == 0.toByte() },
+    )
+  }
+
+  @Test
   fun `p4info has sdn_string translated types`() {
     val translatedTypes = config.p4Info.typeInfo.newTypesMap
     val stringTypes =
