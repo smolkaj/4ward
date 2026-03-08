@@ -441,7 +441,14 @@ fourward::ir::v1::Stmt FourWardBackend::emitStmt(const IR::StatOrDecl* node) {
   } else {
     LOG1("WARNING: unhandled statement " << node->node_type_name());
   }
-  *out.mutable_source_info() = emitSourceInfo(node);
+  // For if-statements, use the condition as the source fragment (e.g.
+  // "hdr.ipv4.isValid()") — the statement's own toString() is just
+  // "IfStatement" which isn't helpful in trace output.
+  if (const auto* ifst = node->to<IR::IfStatement>()) {
+    *out.mutable_source_info() = emitSourceInfo(ifst->condition);
+  } else {
+    *out.mutable_source_info() = emitSourceInfo(node);
+  }
   return out;
 }
 
