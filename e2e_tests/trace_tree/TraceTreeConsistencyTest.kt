@@ -20,9 +20,8 @@ import org.junit.runners.Parameterized.Parameters
  * Verifies that output packets from [ProcessPacketResponse] are consistent with the leaf outcomes
  * in the trace tree.
  *
- * For non-forking programs (deterministic), the output_packets list should exactly match the
- * packet_outcome leaves. For forking programs (non-deterministic), output_packets is empty (no
- * branch is chosen) but every leaf must carry a packet_outcome.
+ * The output_packets list should exactly match the union of all non-drop packet_outcome leaves,
+ * whether the trace forks (multicast, clone, action selectors) or not.
  */
 @RunWith(Parameterized::class)
 class TraceTreeConsistencyTest(private val testName: String) {
@@ -66,42 +65,18 @@ class TraceTreeConsistencyTest(private val testName: String) {
 
     assertTrue("Trace tree for $testName has no leaf outcomes", leafOutcomes.isNotEmpty())
 
-    val outputsFromResponse = response.outputPacketsList.map { it.egressPort to it.payload }.toSet()
+    val outputsFromResponse = response.outputPacketsList.map { it.egressPort to it.payload }
 
     val outputsFromTree =
-      leafOutcomes
-        .filter { it.hasOutput() }
-        .map { it.output.egressPort to it.output.payload }
-        .toSet()
+      leafOutcomes.filter { it.hasOutput() }.map { it.output.egressPort to it.output.payload }
 
-    val hasDrops = leafOutcomes.any { it.hasDrop() }
-
-    if (trace.hasForkOutcome()) {
-      // Forking: output_packets is empty (no branch chosen).
-      assertEquals(
-        "Forking program $testName should have empty output_packets",
-        emptySet<Any>(),
-        outputsFromResponse,
-      )
-      assertTrue(
-        "Forking program $testName has no leaf outcomes",
-        outputsFromTree.isNotEmpty() || hasDrops,
-      )
-    } else {
-      // Non-forking: output_packets must match trace tree leaves.
-      assertEquals(
-        "Output packets vs trace tree mismatch for $testName.\n" +
-          "Trace:\n${TextFormat.printer().printToString(trace)}",
-        outputsFromResponse,
-        outputsFromTree,
-      )
-      if (hasDrops) {
-        assertTrue(
-          "Drop outcome in $testName but output_packets is non-empty",
-          outputsFromResponse.isEmpty(),
-        )
-      }
-    }
+    // output_packets must match trace tree leaves (both forking and non-forking).
+    assertEquals(
+      "Output packets vs trace tree mismatch for $testName.\n" +
+        "Trace:\n${TextFormat.printer().printToString(trace)}",
+      outputsFromResponse,
+      outputsFromTree,
+    )
   }
 
   /** Recursively collects all leaf [PacketOutcome]s from a trace tree. */
