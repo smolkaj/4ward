@@ -509,6 +509,7 @@ input:focus, select:focus, textarea:focus {
 .trace-event.table-miss { color: var(--warning); }
 .trace-event.action { color: var(--accent); }
 .trace-event.branch { color: #bc8cff; }
+.trace-event.branch code { color: #e2c5ff; font-size: 11px; }
 .trace-event.extern { color: #f0883e; }
 .trace-event.mark-to-drop { color: var(--error); }
 .trace-event.clone { color: #f778ba; }

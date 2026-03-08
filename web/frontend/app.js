@@ -1074,7 +1074,12 @@ function renderTraceEvent(event) {
   if (event.branch) {
     const b = event.branch;
     const dir = b.taken ? 'then' : 'else';
-    return `<div class="trace-event branch">branch ${b.control_name}: ${dir}${src}</div>`;
+    // Show the condition from source_fragment (e.g. "hdr.ipv4.isValid()")
+    // instead of the generic statement type that the pill would show.
+    const frag = event.source_info?.source_fragment || '';
+    const cond = frag.replace(/^if\s*\(/, '').replace(/\)\s*$/, '') || '';
+    const condStr = cond ? `: <code>${escapeHtml(cond)}</code>` : '';
+    return `<div class="trace-event branch">branch ${dir}${condStr}${src}</div>`;
   }
   if (event.extern_call) {
     const ec = event.extern_call;
