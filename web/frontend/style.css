@@ -513,6 +513,8 @@ input:focus, select:focus, textarea:focus {
 .trace-event.extern { color: #f0883e; }
 .trace-event.mark-to-drop { color: var(--error); }
 .trace-event.clone { color: #f778ba; }
+.trace-event.clone-session-hit { color: #f778ba; }
+.trace-event.clone-session-miss { color: var(--error); }
 .trace-event.stage-enter { color: var(--text-muted); font-weight: 600; }
 .trace-event.stage-exit { color: var(--text-muted); }
 .trace-event.ingress { color: var(--text-primary); font-weight: 600; }

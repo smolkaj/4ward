@@ -1,6 +1,5 @@
 events {
   packet_ingress {
-    ingress_port: 0
   }
 }
 events {
@@ -67,6 +66,13 @@ events {
     stage_name: "ingress"
     stage_kind: CONTROL
     direction: EXIT
+  }
+}
+events {
+  clone_session_lookup {
+    session_id: 100
+    session_found: true
+    egress_port: 3
   }
 }
 fork_outcome {

@@ -1088,6 +1088,13 @@ function renderTraceEvent(event) {
   if (event.clone) {
     return `<div class="trace-event clone">clone session ${event.clone.session_id}${src}</div>`;
   }
+  if (event.clone_session_lookup) {
+    const csl = event.clone_session_lookup;
+    if (csl.session_found) {
+      return `<div class="trace-event clone-session-hit">clone session ${csl.session_id} → port ${csl.egress_port}</div>`;
+    }
+    return `<div class="trace-event clone-session-miss">clone session ${csl.session_id}: not configured (clone dropped)</div>`;
+  }
   return '';
 }
 
