@@ -28,7 +28,6 @@ import fourward.ir.v1.TypeDecl
 import fourward.ir.v1.VarDecl
 import fourward.sim.v1.SimulatorProto.DropReason
 import fourward.sim.v1.SimulatorProto.ForkReason
-import fourward.sim.v1.SimulatorProto.OutputPacket
 import fourward.sim.v1.SimulatorProto.PipelineStageEvent.Direction
 import fourward.sim.v1.SimulatorProto.TraceEvent
 import fourward.sim.v1.SimulatorProto.TraceTree
@@ -287,16 +286,6 @@ class V1ModelArchitectureTest {
     )
   }
 
-  /** Collects all [OutputPacket] leaf outcomes from a trace tree (depth-first). */
-  private fun collectOutputs(tree: TraceTree): List<OutputPacket> =
-    if (tree.hasForkOutcome()) {
-      tree.forkOutcome.branchesList.flatMap { collectOutputs(it.subtree) }
-    } else if (tree.hasPacketOutcome() && tree.packetOutcome.hasOutput()) {
-      listOf(tree.packetOutcome.output)
-    } else {
-      emptyList()
-    }
-
   // ---------------------------------------------------------------------------
   // Tests
   // ---------------------------------------------------------------------------
@@ -309,7 +298,7 @@ class V1ModelArchitectureTest {
 
     val payload = byteArrayOf(0xAA.toByte(), 0xBB.toByte())
     val result = V1ModelArchitecture().processPacket(0u, payload, config, tableStore)
-    val outputs = collectOutputs(result.trace)
+    val outputs = collectOutputsFromTrace(result.trace)
 
     assertEquals(2, outputs.size)
     assertEquals(2, outputs[0].egressPort)
@@ -325,7 +314,7 @@ class V1ModelArchitectureTest {
       v1modelConfig(assignField("sm", "egress_spec", 5, V1ModelArchitecture.DEFAULT_PORT_BITS))
     val payload = byteArrayOf(0x01, 0x02, 0x03)
     val result = V1ModelArchitecture().processPacket(0u, payload, config, TableStore())
-    val outputs = collectOutputs(result.trace)
+    val outputs = collectOutputsFromTrace(result.trace)
 
     assertEquals(1, outputs.size)
     assertEquals(5, outputs[0].egressPort)
@@ -364,7 +353,7 @@ class V1ModelArchitectureTest {
           ),
       )
     val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
-    val outputs = collectOutputs(result.trace)
+    val outputs = collectOutputsFromTrace(result.trace)
 
     assertEquals(1, outputs.size)
     assertEquals(5, outputs[0].egressPort)
@@ -404,7 +393,7 @@ class V1ModelArchitectureTest {
     assertEquals("original", branches[0].label)
     assertEquals("clone", branches[1].label)
 
-    val outputs = collectOutputs(result.trace)
+    val outputs = collectOutputsFromTrace(result.trace)
     assertEquals(2, outputs.size)
     // Original branch uses egress_spec set by ingress.
     assertEquals(2, outputs[0].egressPort)
@@ -433,7 +422,7 @@ class V1ModelArchitectureTest {
     assertEquals("original", branches[0].label)
     assertEquals("clone", branches[1].label)
 
-    val outputs = collectOutputs(result.trace)
+    val outputs = collectOutputsFromTrace(result.trace)
     assertEquals(2, outputs.size)
     assertEquals(3, outputs[0].egressPort)
     assertEquals(8, outputs[1].egressPort)
@@ -493,7 +482,7 @@ class V1ModelArchitectureTest {
 
     assertTrue(result.trace.hasForkOutcome())
     assertEquals(ForkReason.CLONE, result.trace.forkOutcome.reason)
-    val outputs = collectOutputs(result.trace)
+    val outputs = collectOutputsFromTrace(result.trace)
     // Only the original branch produces output; the clone branch is dropped.
     assertEquals(1, outputs.size)
     assertEquals(2, outputs[0].egressPort)
@@ -511,7 +500,7 @@ class V1ModelArchitectureTest {
     val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
 
     assertTrue(result.trace.hasForkOutcome())
-    val outputs = collectOutputs(result.trace)
+    val outputs = collectOutputsFromTrace(result.trace)
     // Only the original branch produces output.
     assertEquals(1, outputs.size)
     assertEquals(3, outputs[0].egressPort)
@@ -529,7 +518,7 @@ class V1ModelArchitectureTest {
     val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
 
     // No fork — falls through to unicast path.
-    val outputs = collectOutputs(result.trace)
+    val outputs = collectOutputsFromTrace(result.trace)
     assertEquals(1, outputs.size)
     assertEquals(5, outputs[0].egressPort)
   }
@@ -646,7 +635,7 @@ class V1ModelArchitectureTest {
     val largePort = 1000L // beyond bit<9> range
     val config = widePortConfig(portBits, assignField("sm", "egress_spec", largePort, portBits))
     val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
-    val outputs = collectOutputs(result.trace)
+    val outputs = collectOutputsFromTrace(result.trace)
 
     assertEquals(1, outputs.size)
     assertEquals(largePort.toInt(), outputs[0].egressPort)
@@ -669,7 +658,7 @@ class V1ModelArchitectureTest {
     val portBits = 16
     val config = widePortConfig(portBits, assignField("sm", "egress_spec", 511, portBits))
     val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
-    val outputs = collectOutputs(result.trace)
+    val outputs = collectOutputsFromTrace(result.trace)
 
     assertEquals(1, outputs.size)
     assertEquals(511, outputs[0].egressPort)
@@ -699,7 +688,7 @@ class V1ModelArchitectureTest {
     val largePort = 100_000L
     val config = widePortConfig(portBits, assignField("sm", "egress_spec", largePort, portBits))
     val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
-    val outputs = collectOutputs(result.trace)
+    val outputs = collectOutputsFromTrace(result.trace)
 
     assertEquals(1, outputs.size)
     assertEquals(largePort.toInt(), outputs[0].egressPort)

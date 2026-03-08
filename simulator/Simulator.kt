@@ -1,7 +1,9 @@
 package fourward.simulator
 
 import fourward.ir.v1.PipelineConfig
+import fourward.sim.v1.SimulatorProto.OutputPacket
 import fourward.sim.v1.SimulatorProto.ProcessPacketResponse
+import fourward.sim.v1.SimulatorProto.TraceTree
 
 /**
  * The top-level simulator state machine.
@@ -160,3 +162,12 @@ class Simulator {
       }
     }
 }
+
+/** Recursively collects output packets from trace tree leaves (for forking programs). */
+fun collectOutputsFromTrace(tree: TraceTree): List<OutputPacket> =
+  when {
+    tree.hasForkOutcome() ->
+      tree.forkOutcome.branchesList.flatMap { collectOutputsFromTrace(it.subtree) }
+    tree.hasPacketOutcome() && tree.packetOutcome.hasOutput() -> listOf(tree.packetOutcome.output)
+    else -> emptyList()
+  }
