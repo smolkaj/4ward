@@ -200,6 +200,32 @@ static MatchKeyParam parse_match_field(const std::string& tok) {
                        std::string(val.begin(), val.end()));
 }
 
+// Parse match keys and optional priority from tokens starting at `start`.
+// Stops at "priority" keyword (consuming the next token as the value).
+struct MatchAndPriority {
+  std::vector<MatchKeyParam> keys;
+  int bmv2_priority;  // negated for BMv2's lower-is-higher convention
+};
+
+static MatchAndPriority parse_match_and_priority(
+    const std::vector<std::string>& tokens, size_t start) {
+  std::vector<MatchKeyParam> keys;
+  std::optional<int> priority;
+  for (size_t i = start; i < tokens.size(); i++) {
+    if (tokens[i] == "priority" && i + 1 < tokens.size()) {
+      priority = std::stoi(tokens[i + 1]);
+      break;
+    }
+    keys.push_back(parse_match_field(tokens[i]));
+  }
+  // BMv2 uses lower-value = higher-priority internally
+  // (lookup_structures.cpp picks the matching entry with the minimum
+  // priority field). The STF/P4Runtime convention is higher-value =
+  // higher-priority. Negate to bridge the gap.
+  int bmv2_priority = priority.has_value() ? -*priority : -1;
+  return {std::move(keys), bmv2_priority};
+}
+
 // Parse action data parameters (hex strings after =>).
 static ActionData parse_action_data(const std::vector<std::string>& params) {
   ActionData ad;
@@ -304,12 +330,8 @@ int main(int argc, char* argv[]) {
 
       auto ad = parse_action_data(params);
       bm::entry_handle_t handle;
-      // BMv2 uses lower-value = higher-priority internally
-      // (lookup_structures.cpp picks the matching entry with the minimum
-      // priority field). The STF/P4Runtime convention is higher-value =
-      // higher-priority. Negate to bridge the gap.
-      // Note: simple negation (vs BMv2's own PriorityInverter which uses
-      // INT_MAX - p) is fine here since we only write entries, never read back.
+      // Negate priority for BMv2's lower-is-higher convention; see
+      // parse_match_and_priority for details.
       int bmv2_priority = priority.has_value() ? -*priority : -1;
       auto rc = sw->mt_add_entry(0, table, match_keys, action, std::move(ad),
                                  &handle, bmv2_priority);
@@ -468,19 +490,8 @@ int main(int argc, char* argv[]) {
       }
       auto table = tokens[1];
       auto mbr = static_cast<mbr_hdl_t>(std::stoi(tokens[2]));
-
-      std::vector<MatchKeyParam> match_keys;
-      std::optional<int> priority;
-      for (size_t i = 3; i < tokens.size(); i++) {
-        if (tokens[i] == "priority" && i + 1 < tokens.size()) {
-          priority = std::stoi(tokens[i + 1]);
-          break;
-        }
-        match_keys.push_back(parse_match_field(tokens[i]));
-      }
-
+      auto [match_keys, bmv2_priority] = parse_match_and_priority(tokens, 3);
       bm::entry_handle_t handle;
-      int bmv2_priority = priority.has_value() ? -*priority : -1;
       auto rc = sw->mt_indirect_add_entry(0, table, match_keys, mbr, &handle,
                                           bmv2_priority);
       if (rc != MatchErrorCode::SUCCESS) {
@@ -498,19 +509,8 @@ int main(int argc, char* argv[]) {
       }
       auto table = tokens[1];
       auto grp = static_cast<grp_hdl_t>(std::stoi(tokens[2]));
-
-      std::vector<MatchKeyParam> match_keys;
-      std::optional<int> priority;
-      for (size_t i = 3; i < tokens.size(); i++) {
-        if (tokens[i] == "priority" && i + 1 < tokens.size()) {
-          priority = std::stoi(tokens[i + 1]);
-          break;
-        }
-        match_keys.push_back(parse_match_field(tokens[i]));
-      }
-
+      auto [match_keys, bmv2_priority] = parse_match_and_priority(tokens, 3);
       bm::entry_handle_t handle;
-      int bmv2_priority = priority.has_value() ? -*priority : -1;
       auto rc = sw->mt_indirect_ws_add_entry(0, table, match_keys, grp, &handle,
                                              bmv2_priority);
       if (rc != MatchErrorCode::SUCCESS) {

@@ -69,6 +69,13 @@ class Bmv2Runner(driverBinary: Path, jsonPath: Path, private val p4Info: P4InfoO
     check(resp.lastOrNull()?.startsWith("OK") == true) { "$cmd failed: ${resp.joinToString("\n")}" }
   }
 
+  /** Sends a command that returns a handle on success (e.g. "OK 3"), returns the handle. */
+  private fun sendForHandle(cmd: String): Int {
+    val resp = sendCommand(cmd)
+    check(resp.lastOrNull()?.startsWith("OK") == true) { "$cmd failed: ${resp.joinToString("\n")}" }
+    return resp.last().removePrefix("OK ").trim().toInt()
+  }
+
   /** Install all STF-declared entries (PRE + table entries). Throws on failure. */
   fun installEntries(stf: StfFile) {
     for (mirror in stf.pre.mirroringAdds) {
@@ -87,22 +94,25 @@ class Bmv2Runner(driverBinary: Path, jsonPath: Path, private val p4Info: P4InfoO
     }
 
     // Action profile members and groups must be installed before table entries
-    // that reference them.
+    // that reference them. BMv2 auto-assigns handles sequentially; we track the
+    // mapping from STF IDs to BMv2 handles so references resolve correctly.
+    val memberHandles = mutableMapOf<Int, Int>()
     for (member in stf.memberDirectives) {
-      sendChecked(translateMember(member))
+      memberHandles[member.memberId] = sendForHandle(translateMember(member))
     }
+    val groupHandles = mutableMapOf<Int, Int>()
     for (group in stf.groupDirectives) {
-      val resp = sendCommand(translateCreateGroup(group))
-      check(resp.lastOrNull()?.startsWith("OK") == true) { "create group failed: $resp" }
-      val grpHandle = resp.last().removePrefix("OK ").trim().toInt()
+      val grpHandle = sendForHandle(translateCreateGroup(group))
+      groupHandles[group.groupId] = grpHandle
       val profileName = findActionProfileName(group.profileName)
       for (memberId in group.memberIds) {
-        sendChecked("ACT_PROF_ADD_MEMBER_TO_GROUP $profileName $memberId $grpHandle")
+        val mbrHandle = memberHandles[memberId] ?: error("unknown member: $memberId")
+        sendChecked("ACT_PROF_ADD_MEMBER_TO_GROUP $profileName $mbrHandle $grpHandle")
       }
     }
 
     for (directive in stf.tableEntries) {
-      sendChecked(translateTableEntry(directive))
+      sendChecked(translateTableEntry(directive, groupHandles))
     }
   }
 
@@ -119,14 +129,17 @@ class Bmv2Runner(driverBinary: Path, jsonPath: Path, private val p4Info: P4InfoO
 
   // -- Table entry translation --
 
-  private fun translateTableEntry(directive: StfTableDirective): String =
+  private fun translateTableEntry(
+    directive: StfTableDirective,
+    groupHandles: Map<Int, Int>,
+  ): String =
     when (directive) {
-      is StfAddEntry -> translateAdd(directive)
+      is StfAddEntry -> translateAdd(directive, groupHandles)
       is StfSetDefault -> translateSetDefault(directive)
     }
 
   @Suppress("CyclomaticComplexMethod")
-  private fun translateAdd(entry: StfAddEntry): String {
+  private fun translateAdd(entry: StfAddEntry, groupHandles: Map<Int, Int>): String {
     val table = findTable(entry.tableName, p4Info)
 
     // Encode match fields in P4Info table key order.
@@ -135,8 +148,9 @@ class Bmv2Runner(driverBinary: Path, jsonPath: Path, private val p4Info: P4InfoO
 
     // Indirect table entry pointing to a group (action selector with group=N).
     if (entry.groupId != null) {
+      val grpHandle = groupHandles[entry.groupId] ?: error("unknown group: ${entry.groupId}")
       return buildString {
-        append("TABLE_ADD_GROUP ${table.preamble.name} ${entry.groupId}")
+        append("TABLE_ADD_GROUP ${table.preamble.name} $grpHandle")
         for (m in matchParts) append(" $m")
         if (entry.priority != null) append(" priority ${entry.priority}")
       }
@@ -170,7 +184,7 @@ class Bmv2Runner(driverBinary: Path, jsonPath: Path, private val p4Info: P4InfoO
   private fun translateMember(member: StfMemberDirective): String {
     val profileName = findActionProfileName(member.profileName)
     val action = findAction(member.actionName, p4Info)
-    val paramParts = encodeActionParams(memberParamsToList(member.params, action), action)
+    val paramParts = encodeNamedParams(member.params, action)
     return buildString {
       append("ACT_PROF_ADD_MEMBER $profileName ${action.preamble.name}")
       for (p in paramParts) append(" $p")
@@ -184,12 +198,17 @@ class Bmv2Runner(driverBinary: Path, jsonPath: Path, private val p4Info: P4InfoO
   private fun findActionProfileName(stfName: String): String =
     findActionProfile(stfName, p4Info).preamble.name
 
-  /** Converts named member params (map) to positional list for encodeActionParams. */
-  private fun memberParamsToList(
+  /**
+   * Encodes named params (from member directives) directly, without round-tripping through strings.
+   */
+  private fun encodeNamedParams(
     params: Map<String, String>,
     action: P4InfoOuterClass.Action,
   ): List<String> =
-    action.paramsList.map { "${it.name}=${params[it.name] ?: error("missing ${it.name}")}" }
+    action.paramsList.map { paramInfo ->
+      val raw = params[paramInfo.name] ?: error("missing ${paramInfo.name}")
+      encodeValue(raw, paramInfo.bitwidth).toByteArray().hex()
+    }
 
   private fun encodeActionParams(
     stfParams: List<String>,
