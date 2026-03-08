@@ -65,23 +65,44 @@ Blocked on buf support for proto edition 2024.
 
 ---
 
-## Pass `P4Info` directly to `TableStore.loadMappings`
+## Deduplicate `collectOutputsFromTrace`
 
-**Files**: `simulator/TableStore.kt`, `simulator/Simulator.kt`,
-`simulator/TableStoreTest.kt`
+**Files**: `e2e_tests/stf/Runner.kt`, `simulator/V1ModelArchitectureTest.kt`
 
-**Problem**: `loadMappings` takes a growing list of parameters — one per
-entity type (`tableNameById`, `actionNameById`, `p4infoTables`,
-`p4infoRegisters`). Each new P4Runtime entity (counters, meters, digests)
-will add another parameter.
+**Problem**: `V1ModelArchitectureTest.collectOutputs` is a private copy of the
+public `collectOutputsFromTrace` in `Runner.kt`. Both recursively walk a
+`TraceTree` to collect output packets from leaves.
 
-**Fix**: Accept the `P4Info` proto directly (or a slim wrapper) and let
-`TableStore` extract what it needs internally. The two `Map<Int, String>`
-parameters are already derived from `P4Info` in `Simulator.kt` and could
-move inside `loadMappings`. This keeps the signature stable as entity
-coverage grows.
+**Fix**: Delete the private copy and import `collectOutputsFromTrace` from
+`fourward.e2e`.
 
-**Trigger**: when counters or meters are wired through P4Runtime.
+---
+
+## Deduplicate `allOnesMask` helpers
+
+**Files**: `e2e_tests/stf/Runner.kt`, `e2e_tests/bmv2_diff/Bmv2Runner.kt`
+
+**Problem**: `Runner.allOnesMask` and `Bmv2Runner.allOnesMaskHex` both compute
+an all-ones bitmask for a given bitwidth. They differ only in output format
+(`0x`-prefixed vs bare hex).
+
+**Fix**: Extract a shared utility, or have one call the other with a format
+flag.
+
+---
+
+## `data class` + `ByteArray` on `StfPacket`
+
+**Files**: `e2e_tests/stf/Runner.kt`
+
+**Problem**: `data class StfPacket` contains a `ByteArray` field. Kotlin data
+classes generate `equals`/`hashCode` using reference identity for arrays, so
+two `StfPacket` instances with identical content compare as not equal. Currently
+harmless (instances are only iterated, never compared), but a latent bug if
+anyone adds equality checks or uses them as map/set keys.
+
+**Fix**: Drop the `data` modifier (matching `StfExpectedOutput` and
+`ReceivedPacket`), or add `contentEquals`/`contentHashCode` overrides.
 
 ---
 
