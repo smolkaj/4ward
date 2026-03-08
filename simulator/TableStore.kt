@@ -843,6 +843,7 @@ class TableStore {
     }
 
     // One-shot action selector (P4Runtime spec §9.2.3): the entry embeds actions inline.
+    // Member IDs are synthetic (list indices) since one-shot entries have no real member IDs.
     if (tableAction.hasActionProfileActionSet()) {
       val members =
         tableAction.actionProfileActionSet.actionProfileActionsList.mapIndexed { i, action ->

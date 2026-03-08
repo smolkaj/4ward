@@ -1755,20 +1755,19 @@ class TableStoreTest {
   /** Creates a TableStore with a table that has a direct counter attached. */
   private fun storeWithDirectCounter(): TableStore {
     val store = TableStore()
-    val p4infoTable =
-      P4InfoOuterClass.Table.newBuilder()
-        .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(TABLE_ID))
-        .build()
-    val p4infoDirectCounter =
-      P4InfoOuterClass.DirectCounter.newBuilder()
-        .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(DIRECT_COUNTER_ID))
-        .setDirectTableId(TABLE_ID)
-        .build()
     store.loadMappings(
-      tableNameById = mapOf(TABLE_ID to TABLE_NAME),
-      actionNameById = ACTION_ID_TO_NAME,
       p4info =
-        buildP4Info(tables = listOf(p4infoTable), directCounters = listOf(p4infoDirectCounter)),
+        buildP4Info(
+          tables = listOf(p4infoTable(TABLE_ID, TABLE_NAME)),
+          actions = ACTION_LIST,
+          directCounters =
+            listOf(
+              P4InfoOuterClass.DirectCounter.newBuilder()
+                .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(DIRECT_COUNTER_ID))
+                .setDirectTableId(TABLE_ID)
+                .build()
+            ),
+        )
     )
     return store
   }
@@ -1934,19 +1933,19 @@ class TableStoreTest {
   /** Creates a TableStore with a table that has a direct meter attached. */
   private fun storeWithDirectMeter(): TableStore {
     val store = TableStore()
-    val p4infoTable =
-      P4InfoOuterClass.Table.newBuilder()
-        .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(TABLE_ID))
-        .build()
-    val p4infoDirectMeter =
-      P4InfoOuterClass.DirectMeter.newBuilder()
-        .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(DIRECT_METER_ID))
-        .setDirectTableId(TABLE_ID)
-        .build()
     store.loadMappings(
-      tableNameById = mapOf(TABLE_ID to TABLE_NAME),
-      actionNameById = ACTION_ID_TO_NAME,
-      p4info = buildP4Info(tables = listOf(p4infoTable), directMeters = listOf(p4infoDirectMeter)),
+      p4info =
+        buildP4Info(
+          tables = listOf(p4infoTable(TABLE_ID, TABLE_NAME)),
+          actions = ACTION_LIST,
+          directMeters =
+            listOf(
+              P4InfoOuterClass.DirectMeter.newBuilder()
+                .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(DIRECT_METER_ID))
+                .setDirectTableId(TABLE_ID)
+                .build()
+            ),
+        )
     )
     return store
   }
