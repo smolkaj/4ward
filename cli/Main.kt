@@ -10,13 +10,6 @@ enum class OutputFormat {
   TEXTPROTO,
 }
 
-/** Controls ANSI color output. */
-enum class ColorMode {
-  AUTO,
-  ALWAYS,
-  NEVER,
-}
-
 /** Thrown on invalid CLI arguments. Caught by [main] and reported as a usage error. */
 private class UsageError(message: String) : RuntimeException(message)
 
@@ -30,18 +23,16 @@ Commands:
 
 Options:
   --format=human|textproto   Trace output format (default: human).
-  --color=auto|always|never  Color output (default: auto, enabled on TTY).
   --help                     Show this help message."""
 
 private const val SIM_USAGE =
-  """Usage: 4ward sim [--format=human|textproto] [--color=auto|always|never] <pipeline.txtpb> <test.stf>
+  """Usage: 4ward sim [--format=human|textproto] <pipeline.txtpb> <test.stf>
 
 Loads a compiled pipeline config and runs an STF test against it.
 Prints the trace tree for each packet and reports PASS/FAIL.
 
 Options:
-  --format=human|textproto   Trace output format (default: human).
-  --color=auto|always|never  Color output (default: auto)."""
+  --format=human|textproto   Trace output format (default: human)."""
 
 private const val COMPILE_USAGE =
   """Usage: 4ward compile [options] <program.p4>
@@ -53,13 +44,12 @@ Options:
   -I <dir>             Add include directory for P4 headers."""
 
 private const val RUN_USAGE =
-  """Usage: 4ward run [--format=human|textproto] [--color=auto|always|never] <program.p4> <test.stf>
+  """Usage: 4ward run [--format=human|textproto] <program.p4> <test.stf>
 
 Compiles a P4 program and runs an STF test against it in one step.
 
 Options:
-  --format=human|textproto   Trace output format (default: human).
-  --color=auto|always|never  Color output (default: auto)."""
+  --format=human|textproto   Trace output format (default: human)."""
 
 fun main(args: Array<String>) {
   if (args.isEmpty() || args[0] == "--help" || args[0] == "-h") {
@@ -89,13 +79,11 @@ private fun handleSim(args: List<String>): Int {
   }
 
   var format = OutputFormat.HUMAN
-  var colorMode = ColorMode.AUTO
   val positional = mutableListOf<String>()
 
   for (arg in args) {
     when {
       arg.startsWith("--format=") -> format = parseFormat(arg)
-      arg.startsWith("--color=") -> colorMode = parseColorMode(arg)
       arg.startsWith("-") && arg != "-" -> throw UsageError("unknown option '$arg'")
       else -> positional += arg
     }
@@ -105,12 +93,7 @@ private fun handleSim(args: List<String>): Int {
     throw UsageError("'sim' requires exactly 2 arguments: <pipeline.txtpb> <test.stf>\n$SIM_USAGE")
   }
 
-  return simulate(
-    resolveUserPath(positional[0]),
-    stfPath(positional[1]),
-    format,
-    resolveColor(colorMode),
-  )
+  return simulate(resolveUserPath(positional[0]), stfPath(positional[1]), format)
 }
 
 private fun handleCompile(args: List<String>): Int {
@@ -160,7 +143,6 @@ private fun handleRun(args: List<String>): Int {
   }
 
   var format = OutputFormat.HUMAN
-  var colorMode = ColorMode.AUTO
   val includeDirs = mutableListOf<String>()
   val positional = mutableListOf<String>()
 
@@ -168,7 +150,6 @@ private fun handleRun(args: List<String>): Int {
   while (i < args.size) {
     when {
       args[i].startsWith("--format=") -> format = parseFormat(args[i])
-      args[i].startsWith("--color=") -> colorMode = parseColorMode(args[i])
       args[i] == "-I" -> {
         i++
         if (i >= args.size) throw UsageError("-I requires an argument")
@@ -189,7 +170,6 @@ private fun handleRun(args: List<String>): Int {
     stfPath(positional[1]),
     format,
     includeDirs.map { resolveUserPath(it) },
-    resolveColor(colorMode),
   )
 }
 
@@ -198,22 +178,6 @@ private fun parseFormat(arg: String): OutputFormat =
     "human" -> OutputFormat.HUMAN
     "textproto" -> OutputFormat.TEXTPROTO
     else -> throw UsageError("unknown format '$f'")
-  }
-
-private fun parseColorMode(arg: String): ColorMode =
-  when (val c = arg.removePrefix("--color=")) {
-    "auto" -> ColorMode.AUTO
-    "always" -> ColorMode.ALWAYS
-    "never" -> ColorMode.NEVER
-    else -> throw UsageError("unknown color mode '$c'")
-  }
-
-/** Resolves [ColorMode.AUTO] to a concrete boolean by checking if stdout is a terminal. */
-private fun resolveColor(mode: ColorMode): Boolean =
-  when (mode) {
-    ColorMode.ALWAYS -> true
-    ColorMode.NEVER -> false
-    ColorMode.AUTO -> System.console() != null
   }
 
 /** Resolves an STF argument: `-` reads stdin into a temp file, anything else is a file path. */
