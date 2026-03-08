@@ -23,16 +23,18 @@ Commands:
 
 Options:
   --format=human|textproto   Trace output format (default: human).
+  --color=auto|always|never  Color output (default: auto).
   --help                     Show this help message."""
 
 private const val SIM_USAGE =
-  """Usage: 4ward sim [--format=human|textproto] <pipeline.txtpb> <test.stf>
+  """Usage: 4ward sim [options] <pipeline.txtpb> <test.stf>
 
 Loads a compiled pipeline config and runs an STF test against it.
 Prints the trace tree for each packet and reports PASS/FAIL.
 
 Options:
-  --format=human|textproto   Trace output format (default: human)."""
+  --format=human|textproto   Trace output format (default: human).
+  --color=auto|always|never  Color output (default: auto)."""
 
 private const val COMPILE_USAGE =
   """Usage: 4ward compile [options] <program.p4>
@@ -44,12 +46,13 @@ Options:
   -I <dir>             Add include directory for P4 headers."""
 
 private const val RUN_USAGE =
-  """Usage: 4ward run [--format=human|textproto] <program.p4> <test.stf>
+  """Usage: 4ward run [options] <program.p4> <test.stf>
 
 Compiles a P4 program and runs an STF test against it in one step.
 
 Options:
-  --format=human|textproto   Trace output format (default: human)."""
+  --format=human|textproto   Trace output format (default: human).
+  --color=auto|always|never  Color output (default: auto)."""
 
 fun main(args: Array<String>) {
   if (args.isEmpty() || args[0] == "--help" || args[0] == "-h") {
@@ -79,11 +82,13 @@ private fun handleSim(args: List<String>): Int {
   }
 
   var format = OutputFormat.HUMAN
+  var color: AnsiColor? = null
   val positional = mutableListOf<String>()
 
   for (arg in args) {
     when {
       arg.startsWith("--format=") -> format = parseFormat(arg)
+      arg.startsWith("--color=") -> color = parseColor(arg)
       arg.startsWith("-") && arg != "-" -> throw UsageError("unknown option '$arg'")
       else -> positional += arg
     }
@@ -93,7 +98,12 @@ private fun handleSim(args: List<String>): Int {
     throw UsageError("'sim' requires exactly 2 arguments: <pipeline.txtpb> <test.stf>\n$SIM_USAGE")
   }
 
-  return simulate(resolveUserPath(positional[0]), stfPath(positional[1]), format)
+  return simulate(
+    resolveUserPath(positional[0]),
+    stfPath(positional[1]),
+    format,
+    color ?: AnsiColor.auto(),
+  )
 }
 
 private fun handleCompile(args: List<String>): Int {
@@ -143,6 +153,7 @@ private fun handleRun(args: List<String>): Int {
   }
 
   var format = OutputFormat.HUMAN
+  var color: AnsiColor? = null
   val includeDirs = mutableListOf<String>()
   val positional = mutableListOf<String>()
 
@@ -150,6 +161,7 @@ private fun handleRun(args: List<String>): Int {
   while (i < args.size) {
     when {
       args[i].startsWith("--format=") -> format = parseFormat(args[i])
+      args[i].startsWith("--color=") -> color = parseColor(args[i])
       args[i] == "-I" -> {
         i++
         if (i >= args.size) throw UsageError("-I requires an argument")
@@ -170,6 +182,7 @@ private fun handleRun(args: List<String>): Int {
     stfPath(positional[1]),
     format,
     includeDirs.map { resolveUserPath(it) },
+    color ?: AnsiColor.auto(),
   )
 }
 
@@ -178,6 +191,14 @@ private fun parseFormat(arg: String): OutputFormat =
     "human" -> OutputFormat.HUMAN
     "textproto" -> OutputFormat.TEXTPROTO
     else -> throw UsageError("unknown format '$f'")
+  }
+
+private fun parseColor(arg: String): AnsiColor =
+  when (val c = arg.removePrefix("--color=")) {
+    "auto" -> AnsiColor.auto()
+    "always" -> AnsiColor(enabled = true)
+    "never" -> AnsiColor(enabled = false)
+    else -> throw UsageError("unknown color mode '$c' (expected: auto, always, never)")
   }
 
 /** Resolves an STF argument: `-` reads stdin into a temp file, anything else is a file path. */
