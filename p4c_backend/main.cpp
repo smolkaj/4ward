@@ -100,7 +100,7 @@ static std::vector<fourward::ir::v1::TypeTranslation> extractTypeTranslations(
             tuple->components.at(0)->checkedTo<IR::Constant>();
         int sdnByteWidth = (translatedType.sdn_bitwidth() + 7) / 8;
         std::string sdnBytes(sdnByteWidth, '\0');
-        uint64_t sv = sdnConst->value.convert_to<uint64_t>();
+        auto sv = sdnConst->value.convert_to<uint64_t>();
         for (int i = sdnByteWidth - 1; i >= 0; --i) {
           sdnBytes[i] = static_cast<char>(sv & 0xFF);
           sv >>= 8;
@@ -111,7 +111,7 @@ static std::vector<fourward::ir::v1::TypeTranslation> extractTypeTranslations(
       // Dataplane value (big-endian bytes matching the underlying bit width).
       const auto* dpConst = tuple->components.at(1)->checkedTo<IR::Constant>();
       std::string dpBytes(byteWidth, '\0');
-      uint64_t dv = dpConst->value.convert_to<uint64_t>();
+      auto dv = dpConst->value.convert_to<uint64_t>();
       for (int i = byteWidth - 1; i >= 0; --i) {
         dpBytes[i] = static_cast<char>(dv & 0xFF);
         dv >>= 8;
