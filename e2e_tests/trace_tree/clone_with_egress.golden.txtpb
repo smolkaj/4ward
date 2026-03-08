@@ -69,18 +69,18 @@ events {
     direction: EXIT
   }
 }
+events {
+  clone_session_lookup {
+    session_id: 100
+    session_found: true
+    egress_port: 3
+  }
+}
 fork_outcome {
   reason: CLONE
   branches {
     label: "original"
     subtree {
-      events {
-        pipeline_stage {
-          stage_name: "egress"
-          stage_kind: CONTROL
-          direction: ENTER
-        }
-      }
       events {
         table_lookup {
           table_name: "egress_classify"

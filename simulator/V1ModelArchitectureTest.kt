@@ -32,6 +32,7 @@ import fourward.sim.v1.SimulatorProto.PipelineStageEvent.Direction
 import fourward.sim.v1.SimulatorProto.TraceEvent
 import fourward.sim.v1.SimulatorProto.TraceTree
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import p4.v1.P4RuntimeOuterClass
@@ -339,6 +340,29 @@ class V1ModelArchitectureTest {
   }
 
   @Test
+  fun `traffic manager drop skips egress`() {
+    // When egress_spec is the drop port after ingress, the traffic manager drops the packet
+    // before egress runs. Verify that no egress/compute_checksum stage events appear.
+    val config =
+      v1modelConfig(
+        assignField(
+          "sm",
+          "egress_spec",
+          V1ModelArchitecture.DEFAULT_DROP_PORT.toLong(),
+          V1ModelArchitecture.DEFAULT_PORT_BITS,
+        )
+      )
+    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+
+    val stageNames =
+      result.trace.eventsList.filter { it.hasPipelineStage() }.map { it.pipelineStage.stageName }
+    assertTrue("egress should not appear in trace", "egress" !in stageNames)
+    assertTrue("compute_checksum should not appear in trace", "compute_checksum" !in stageNames)
+    assertTrue(result.trace.hasPacketOutcome())
+    assertTrue(result.trace.packetOutcome.hasDrop())
+  }
+
+  @Test
   fun `execute_meter does not affect forwarding`() {
     // Meters always return GREEN in the simulator (no real packet rates).
     // Verify the pipeline still forwards normally after a meter call.
@@ -470,8 +494,9 @@ class V1ModelArchitectureTest {
   }
 
   @Test
-  fun `I2E clone with missing session drops clone branch`() {
-    // Clone session 99 is never installed — BMv2 drops the clone silently.
+  fun `I2E clone with missing session is silently ignored`() {
+    // Clone session 99 is never installed — BMv2 silently ignores the clone.
+    // No fork appears; the packet outputs normally.
     val config =
       v1modelConfig(
         externCall("clone", enumArg("I2E"), intArg(99, 32)),
@@ -480,16 +505,15 @@ class V1ModelArchitectureTest {
 
     val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
 
-    assertTrue(result.trace.hasForkOutcome())
-    assertEquals(ForkReason.CLONE, result.trace.forkOutcome.reason)
+    assertFalse(result.trace.hasForkOutcome())
     val outputs = collectOutputsFromTrace(result.trace)
-    // Only the original branch produces output; the clone branch is dropped.
     assertEquals(1, outputs.size)
     assertEquals(2, outputs[0].egressPort)
   }
 
   @Test
-  fun `E2E clone with missing session drops clone branch`() {
+  fun `E2E clone with missing session is silently ignored`() {
+    // Clone session 99 is never installed — BMv2 silently ignores the clone.
     val config =
       v1modelConfig(
         ingressStmts =
@@ -499,9 +523,8 @@ class V1ModelArchitectureTest {
 
     val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
 
-    assertTrue(result.trace.hasForkOutcome())
+    assertFalse(result.trace.hasForkOutcome())
     val outputs = collectOutputsFromTrace(result.trace)
-    // Only the original branch produces output.
     assertEquals(1, outputs.size)
     assertEquals(3, outputs[0].egressPort)
   }

@@ -69,6 +69,13 @@ events {
     direction: EXIT
   }
 }
+events {
+  clone_session_lookup {
+    session_id: 100
+    session_found: true
+    egress_port: 3
+  }
+}
 fork_outcome {
   reason: CLONE
   branches {

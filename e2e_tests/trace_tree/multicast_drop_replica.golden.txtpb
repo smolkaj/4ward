@@ -78,8 +78,8 @@ fork_outcome {
         source_info {
           file: "e2e_tests/trace_tree/multicast_drop_replica.p4"
           line: 41
-          column: 8
-          source_fragment: "IfStatement"
+          column: 12
+          source_fragment: "smeta.egress_port == 2"
         }
       }
       events {
@@ -143,8 +143,8 @@ fork_outcome {
         source_info {
           file: "e2e_tests/trace_tree/multicast_drop_replica.p4"
           line: 41
-          column: 8
-          source_fragment: "IfStatement"
+          column: 12
+          source_fragment: "smeta.egress_port == 2"
         }
       }
       events {
@@ -179,24 +179,9 @@ fork_outcome {
           direction: EXIT
         }
       }
-      events {
-        pipeline_stage {
-          stage_name: "deparser"
-          stage_kind: DEPARSER
-          direction: ENTER
-        }
-      }
-      events {
-        pipeline_stage {
-          stage_name: "deparser"
-          stage_kind: DEPARSER
-          direction: EXIT
-        }
-      }
       packet_outcome {
-        output {
-          egress_port: 2
-          payload: "\377\377\377\377\377\377\000\000\000\000\000\001\b\000"
+        drop {
+          reason: MARK_TO_DROP
         }
       }
     }
@@ -219,8 +204,8 @@ fork_outcome {
         source_info {
           file: "e2e_tests/trace_tree/multicast_drop_replica.p4"
           line: 41
-          column: 8
-          source_fragment: "IfStatement"
+          column: 12
+          source_fragment: "smeta.egress_port == 2"
         }
       }
       events {

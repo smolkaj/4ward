@@ -131,6 +131,7 @@ message TraceEvent {
     CloneEvent clone = 7;
     PacketIngressEvent packet_ingress = 8;
     PipelineStageEvent pipeline_stage = 9;
+    CloneSessionLookupEvent clone_session_lookup = 10;
   }
 
   fourward.ir.v1.SourceInfo source_info = 100;
@@ -177,9 +178,19 @@ message MarkToDropEvent {
   DropReason reason = 1;
 }
 
-// Fired when the P4 program requests a packet clone.
+// Fired when the P4 program calls clone().
 message CloneEvent {
   uint32 session_id = 1;
+}
+
+// Fired at the ingress→egress (or post-egress) boundary when the traffic
+// manager resolves a pending clone session.
+message CloneSessionLookupEvent {
+  uint32 session_id = 1;
+  bool session_found =
+      2;  // false = session not configured, clone silently dropped
+  uint32 egress_port =
+      3;  // clone destination; only meaningful when session_found
 }
 
 // Fired when a packet arrives at the pipeline — the very first event in any

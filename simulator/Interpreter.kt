@@ -1243,11 +1243,15 @@ class ActionSelectorFork(
  * [parserEventCount] tracks how many trace events came from the parser (before ingress). The clone
  * branch skips ingress, so its prefix length is shorter.
  */
-class CloneFork(val sessionId: Int, val parserEventCount: Int, eventsBeforeFork: List<TraceEvent>) :
-  ForkException(eventsBeforeFork)
+class CloneFork(
+  val sessionId: Int,
+  val clonePort: Long,
+  val parserEventCount: Int,
+  eventsBeforeFork: List<TraceEvent>,
+) : ForkException(eventsBeforeFork)
 
 /** Fork after egress controls when an E2E clone was requested — "original" and "clone". */
-class EgressCloneFork(val sessionId: Int, eventsBeforeFork: List<TraceEvent>) :
+class EgressCloneFork(val sessionId: Int, val clonePort: Long, eventsBeforeFork: List<TraceEvent>) :
   ForkException(eventsBeforeFork)
 
 /** Fork at the ingress→egress boundary when mcast_grp is set — one branch per replica. */
@@ -1273,10 +1277,10 @@ sealed class BranchMode {
     BranchMode()
 
   /** I2E clone branch: skip ingress, set CLONE_I2E at boundary. */
-  data class I2EClone(val sessionId: Int) : BranchMode()
+  data class I2EClone(val sessionId: Int, val clonePort: Long) : BranchMode()
 
   /** E2E clone branch: re-run egress with CLONE_E2E after original egress completes. */
-  data class E2EClone(val sessionId: Int) : BranchMode()
+  data class E2EClone(val sessionId: Int, val clonePort: Long) : BranchMode()
 
   /** Multicast replica: set REPLICATION metadata at boundary. */
   data class Replica(val rid: Int, val port: Int) : BranchMode()
