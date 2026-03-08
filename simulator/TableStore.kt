@@ -3,6 +3,7 @@ package fourward.simulator
 import com.google.protobuf.ByteString
 import fourward.ir.v1.DeviceConfig
 import java.math.BigInteger
+import java.util.IdentityHashMap
 import p4.config.v1.P4InfoOuterClass
 import p4.v1.P4RuntimeOuterClass
 import p4.v1.P4RuntimeOuterClass.TableEntry
@@ -47,15 +48,14 @@ class TableStore {
   /** Metadata for statically-allocated indexed externs (counters, meters). */
   private data class IndexedExternInfo(val size: Int)
 
-  /** A table entry with co-located direct counter/meter data. */
-  private class StoredEntry(
-    var entry: TableEntry,
-    var counterData: P4RuntimeOuterClass.CounterData? = null,
-    var meterConfig: P4RuntimeOuterClass.MeterConfig? = null,
-  )
-
   // tableName -> list of entries, ordered by insertion (priority is explicit in the entry)
-  private val tables: MutableMap<String, MutableList<StoredEntry>> = mutableMapOf()
+  private val tables: MutableMap<String, MutableList<TableEntry>> = mutableMapOf()
+
+  // Direct counter/meter data, keyed by the exact TableEntry object reference stored in `tables`.
+  // IdentityHashMap avoids the cost of proto equals() and ties data lifetime to the entry object:
+  // removing an entry from `tables` makes its data unreachable.
+  private val directCounterData = IdentityHashMap<TableEntry, P4RuntimeOuterClass.CounterData>()
+  private val directMeterData = IdentityHashMap<TableEntry, P4RuntimeOuterClass.MeterConfig>()
 
   // tableName -> maximum number of entries (from p4info Table.size); absent = unlimited
   private var tableSizeLimit: Map<String, Int> = emptyMap()
@@ -174,6 +174,8 @@ class TableStore {
       p4info.directMetersList.mapNotNull { tableNameById[it.directTableId] }.toSet()
     tables.clear()
     defaultActions.clear()
+    directCounterData.clear()
+    directMeterData.clear()
     forcedHits.clear()
     registers.clear()
     counters.clear()
@@ -433,12 +435,16 @@ class TableStore {
   // Direct counters
   // -------------------------------------------------------------------------
 
-  /** Increments the direct counter for [entry] in [tableName] (called on every table hit). */
+  /**
+   * Increments the direct counter for [entry] in [tableName] (called on every table hit).
+   *
+   * [entry] must be the same object reference returned by [lookup] (i.e. the object stored in
+   * [tables]), since [directCounterData] uses identity-based keying.
+   */
   fun directCounterIncrement(tableName: String, entry: TableEntry, packetLengthBytes: Int) {
     if (tableName !in directCounterTables) return
-    val stored = tables[tableName]?.find { it.entry.sameKey(entry) } ?: return
-    val existing = stored.counterData ?: P4RuntimeOuterClass.CounterData.getDefaultInstance()
-    stored.counterData =
+    val existing = directCounterData[entry] ?: P4RuntimeOuterClass.CounterData.getDefaultInstance()
+    directCounterData[entry] =
       existing
         .toBuilder()
         .setPacketCount(existing.packetCount + 1)
@@ -447,17 +453,16 @@ class TableStore {
   }
 
   /**
-   * Validates and updates the [StoredEntry] for a MODIFY-only direct extern write.
+   * Validates a MODIFY-only direct extern write and calls [update] with the stored entry.
    *
-   * Checks: MODIFY-only, known table ID, table has the direct extern, table entry exists. On
-   * success, calls [update] with the matching entry and returns [WriteResult.Success].
+   * Checks: MODIFY-only, known table ID, table has the direct extern, table entry exists.
    */
   private inline fun writeDirectExtern(
     type: Update.Type,
     entityName: String,
     tableEntry: TableEntry,
     knownTables: Set<String>,
-    update: (StoredEntry) -> Unit,
+    update: (TableEntry) -> Unit,
   ): WriteResult {
     if (type != Update.Type.MODIFY)
       return WriteResult.InvalidArgument("${entityName}s only support MODIFY, not $type")
@@ -469,7 +474,7 @@ class TableStore {
     val entries =
       tables[tableName] ?: return WriteResult.NotFound("no entries in table '$tableName'")
     val stored =
-      entries.find { it.entry.sameKey(tableEntry) }
+      entries.find { it.sameKey(tableEntry) }
         ?: return WriteResult.NotFound("no matching entry in table '$tableName'")
     update(stored)
     return WriteResult.Success
@@ -480,7 +485,7 @@ class TableStore {
     entry: P4RuntimeOuterClass.DirectCounterEntry,
   ): WriteResult =
     writeDirectExtern(type, "direct counter", entry.tableEntry, directCounterTables) {
-      it.counterData = entry.data
+      directCounterData[it] = entry.data
     }
 
   fun readDirectCounterEntries(
@@ -498,15 +503,12 @@ class TableStore {
     val hasMatchFilter = tableEntry.matchCount > 0
     return tablesToRead.flatMap { tableName ->
       val entries = tables[tableName] ?: return@flatMap emptyList()
-      val filtered =
-        if (hasMatchFilter) entries.filter { it.entry.sameKey(tableEntry) } else entries
-      filtered.map { stored ->
-        val data = stored.counterData ?: P4RuntimeOuterClass.CounterData.getDefaultInstance()
+      val filtered = if (hasMatchFilter) entries.filter { it.sameKey(tableEntry) } else entries
+      filtered.map { entry ->
+        val data = directCounterData[entry] ?: P4RuntimeOuterClass.CounterData.getDefaultInstance()
         P4RuntimeOuterClass.Entity.newBuilder()
           .setDirectCounterEntry(
-            P4RuntimeOuterClass.DirectCounterEntry.newBuilder()
-              .setTableEntry(stored.entry)
-              .setData(data)
+            P4RuntimeOuterClass.DirectCounterEntry.newBuilder().setTableEntry(entry).setData(data)
           )
           .build()
       }
@@ -522,7 +524,7 @@ class TableStore {
     entry: P4RuntimeOuterClass.DirectMeterEntry,
   ): WriteResult =
     writeDirectExtern(type, "direct meter", entry.tableEntry, directMeterTables) {
-      it.meterConfig = entry.config
+      directMeterData[it] = entry.config
     }
 
   fun readDirectMeterEntries(
@@ -540,11 +542,10 @@ class TableStore {
     val hasMatchFilter = tableEntry.matchCount > 0
     return tablesToRead.flatMap { tableName ->
       val entries = tables[tableName] ?: return@flatMap emptyList()
-      val filtered =
-        if (hasMatchFilter) entries.filter { it.entry.sameKey(tableEntry) } else entries
-      filtered.map { stored ->
-        val builder = P4RuntimeOuterClass.DirectMeterEntry.newBuilder().setTableEntry(stored.entry)
-        stored.meterConfig?.let { builder.setConfig(it) }
+      val filtered = if (hasMatchFilter) entries.filter { it.sameKey(tableEntry) } else entries
+      filtered.map { entry ->
+        val builder = P4RuntimeOuterClass.DirectMeterEntry.newBuilder().setTableEntry(entry)
+        directMeterData[entry]?.let { builder.setConfig(it) }
         P4RuntimeOuterClass.Entity.newBuilder().setDirectMeterEntry(builder).build()
       }
     }
@@ -580,7 +581,7 @@ class TableStore {
         ?: return WriteResult.NotFound("unknown table ID: ${entry.tableId}")
 
     val entries = tables.getOrPut(tableName) { mutableListOf() }
-    val existingIndex = entries.indexOfFirst { it.entry.sameKey(entry) }
+    val existingIndex = entries.indexOfFirst { it.sameKey(entry) }
 
     // P4Runtime spec §9.1: INSERT requires the entry not to exist, MODIFY and DELETE
     // require it to exist.
@@ -595,7 +596,7 @@ class TableStore {
           if (limit != null && entries.size >= limit) {
             WriteResult.ResourceExhausted("table '$tableName' is full ($limit entries)")
           } else {
-            entries.add(StoredEntry(entry))
+            entries.add(entry)
             WriteResult.Success
           }
         }
@@ -604,8 +605,13 @@ class TableStore {
         if (existingIndex < 0) {
           WriteResult.NotFound("table '$tableName' has no entry with the given match key")
         } else {
-          // Preserve direct counter/meter data across MODIFY.
-          entries[existingIndex].entry = entry
+          // Transfer direct counter/meter data from old entry object to new one.
+          // NOTE: if a third direct extern type is added, add a transfer line here and
+          // a remove in the DELETE branch below.
+          val old = entries[existingIndex]
+          entries[existingIndex] = entry
+          directCounterData.remove(old)?.let { directCounterData[entry] = it }
+          directMeterData.remove(old)?.let { directMeterData[entry] = it }
           WriteResult.Success
         }
       }
@@ -613,8 +619,9 @@ class TableStore {
         if (existingIndex < 0) {
           WriteResult.NotFound("table '$tableName' has no entry with the given match key")
         } else {
-          // Direct counter/meter data is co-located — removed automatically.
-          entries.removeAt(existingIndex)
+          val removed = entries.removeAt(existingIndex)
+          directCounterData.remove(removed)
+          directMeterData.remove(removed)
           WriteResult.Success
         }
       }
@@ -723,9 +730,9 @@ class TableStore {
       .flatMap { entries ->
         // P4Runtime spec §9.1: match key + priority uniquely identify an entry,
         // so at most one entry can match a filter with match fields.
-        if (hasMatchFilter) listOfNotNull(entries.find { it.entry.sameKey(filter) }) else entries
+        if (hasMatchFilter) listOfNotNull(entries.find { it.sameKey(filter) }) else entries
       }
-      .map { P4RuntimeOuterClass.Entity.newBuilder().setTableEntry(it.entry).build() }
+      .map { P4RuntimeOuterClass.Entity.newBuilder().setTableEntry(it).build() }
   }
 
   /**
@@ -795,15 +802,15 @@ class TableStore {
       return LookupResult(true, null, it)
     }
 
-    val storedEntries = tables[tableName] ?: emptyList<StoredEntry>()
+    val entries = tables[tableName] ?: emptyList<TableEntry>()
     val default = defaultActions[tableName] ?: DefaultAction("NoAction")
 
     data class Candidate(val entry: TableEntry, val score: Long)
 
     val candidates =
-      storedEntries.mapNotNull { stored ->
-        val score = scoreEntry(stored.entry, keyValues) ?: return@mapNotNull null
-        Candidate(stored.entry, score)
+      entries.mapNotNull { entry ->
+        val score = scoreEntry(entry, keyValues) ?: return@mapNotNull null
+        Candidate(entry, score)
       }
 
     val best =
