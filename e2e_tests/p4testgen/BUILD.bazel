@@ -250,13 +250,14 @@ p4_testgen_test(
     tags = ["manual"],  # exponential clone/recirculate fork tree exceeds execution budget
 )
 
-# SAI P4 middleblock — full p4testgen symbolic execution.
+# SAI P4 middleblock — p4testgen symbolic execution.
 # Compiled with -DPLATFORM_BMV2 to strip @p4runtime_translation annotations that
-# p4testgen doesn't support. Uncapped: p4testgen explores until all paths are
-# exhausted or Z3 times out.
+# p4testgen doesn't support. Capped at 500 tests to stay within CI resource limits
+# (uncapped runs OOM on macOS runners and times out on Ubuntu).
 p4_testgen_test(
     name = "sai-middleblock",
     defines = ["PLATFORM_BMV2"],
     includes = ["//e2e_tests/sai_p4:sai_p4_srcs"],
+    max_tests = 500,
     src_p4 = "//e2e_tests/sai_p4:instantiations/google/middleblock.p4",
 )

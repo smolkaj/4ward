@@ -426,11 +426,18 @@ class V1ModelArchitecture : Architecture {
       is BranchMode.I2EClone -> {
         s.standardMetadata.setBitField("instance_type", CLONE_I2E_INSTANCE_TYPE)
         s.standardMetadata.setBitField("egress_port", mode.clonePort)
+        // BMv2: clone session sets egress_port; reset egress_spec to match so
+        // the post-egress drop check doesn't trigger on a stale mark_to_drop.
+        s.standardMetadata.setBitField("egress_spec", mode.clonePort)
       }
       is BranchMode.Replica -> {
         s.standardMetadata.setBitField("instance_type", REPLICATION_INSTANCE_TYPE)
         s.standardMetadata.setBitField("egress_port", mode.port.toLong())
         s.standardMetadata.setBitField("egress_rid", mode.rid.toLong())
+        // BMv2: PRE overrides the unicast egress_spec for each replica. Clear the
+        // pre-fork mark_to_drop so the post-egress drop check only catches explicit
+        // mark_to_drop() calls during egress, not the ingress-level drop.
+        s.standardMetadata.setBitField("egress_spec", mode.port.toLong())
       }
       is BranchMode.Normal,
       is BranchMode.E2EClone -> {

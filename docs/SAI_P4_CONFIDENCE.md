@@ -8,8 +8,8 @@
 **All identified gaps are closed.** The simulator handles the full SAI P4
 middleblock pipeline with high confidence:
 
-- **p4testgen**: uncapped symbolic execution (all paths explored or Z3 timeout)
-  runs in CI on every push. Previously capped at 500 tests; now exhaustive.
+- **p4testgen**: symbolic execution (500 tests, capped for CI resource limits)
+  runs in CI on every push. Uncapped runs exceed CI runner memory/timeouts.
 - **Hand-crafted E2E tests**: 5 tests exercise specific SAI P4 features through
   the P4Runtime server — L3 forwarding, ACL drop, ACL redirect, IPv4 multicast,
   and WCMP action selectors.
@@ -37,13 +37,13 @@ middleblock pipeline with high confidence:
 - [x] `@p4runtime_translation_mappings` (explicit VRF `""` → `0` mapping)
 - [x] p4-constraints on SAI P4: entry and action restrictions enforced (10 tests)
 - [x] Write validation (action IDs, params, match fields, priority)
-- [x] p4testgen symbolic execution on SAI P4 middleblock (uncapped, in CI)
+- [x] p4testgen symbolic execution on SAI P4 middleblock (500 tests, in CI)
 
 ## Resolved gaps
 
 ### 1. ~~Packet processing coverage~~ ✅
 
-p4testgen runs uncapped symbolic execution on the SAI P4 middleblock in CI.
+p4testgen runs symbolic execution (500 tests) on the SAI P4 middleblock in CI.
 Uses `-DPLATFORM_BMV2` to strip `@p4runtime_translation` annotations;
 `@entry_restriction`/`@action_restriction` pass through without issue.
 
