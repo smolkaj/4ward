@@ -53,6 +53,43 @@ guilt — just write it down so someone can find it later.
 - **Multicast: basic replication only.** Multicast group replication works
   for the trace tree (forking per replica). PRE entries are installed via
   P4Runtime `PacketReplicationEngineEntry`.
+## Web playground
+
+- **Single-replica clone sessions.** The UI creates clone sessions with one
+  replica. Multi-replica cloning requires the gRPC API.
+- **No multicast group UI.** The backend supports multicast groups, but the
+  web UI only exposes clone sessions.
+- **No MODIFY for table entries.** The UI only supports INSERT and DELETE.
+  To change an entry, delete and re-add it.
+- **No default action changes.** There is no UI to change a table's default
+  action.
+- **RANGE match type not supported.** The match field input falls through to
+  exact-match encoding — range values will be silently misinterpreted.
+- **No counters, meters, registers, or action profile UI.** These P4Runtime
+  entities are supported by the backend but not exposed in the browser.
+- **Read API only returns table entries.** `GET /api/read` hard-codes a
+  `TableEntry` filter. Clone sessions, counters, and other entity types
+  cannot be read back through the REST API.
+- **Forking programs: output packets panel shows "dropped".** When the trace
+  tree forks (clone, multicast), output packets appear only in branch leaves
+  of the trace — the top-level `output_packets` list is empty. The user must
+  inspect the Trace tab.
+- **No `StreamChannel`.** The web UI uses REST APIs, not the P4Runtime
+  bidirectional stream. This means no PacketIO (`packet_in`/`packet_out`),
+  no digest notifications, and no arbitration updates. Packets are injected
+  directly to the simulator; controller-bound packets are silently lost.
+- **No packet history.** Only the most recent packet result is shown. Sending
+  another packet overwrites the previous output.
+- **No persistence.** Pipeline and table state are in-memory. Restarting the
+  server clears everything. Editor content is not saved across page refreshes.
+- **Single shared state.** All browser sessions share one simulator instance.
+  Concurrent users will interfere with each other.
+- **No compilation timeout.** The p4c subprocess has no timeout. A
+  pathological P4 program could hang the server indefinitely.
+- **Monaco editor requires internet.** Loaded from `cdn.jsdelivr.net`.
+  The playground does not work offline.
+- **Three bundled examples only.** `basic_table`, `passthrough`, `mirror`.
+
 ## BMv2 differential testing
 
 - **System libgmp/libpcap dependency.** The BMv2 build links against system

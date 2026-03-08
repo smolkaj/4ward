@@ -13,11 +13,13 @@ load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_binary", "kt_jvm_library", "kt_jvm
 # Java proto messages — needed as a dep for grpc stub generation.
 java_proto_library(
     name = "p4runtime_java_proto",
+    visibility = ["//visibility:public"],
     deps = ["@p4runtime//proto/p4/v1:p4runtime_proto"],
 )
 
 java_proto_library(
     name = "p4info_java_proto",
+    visibility = ["//visibility:public"],
     deps = ["@p4runtime//proto/p4/config/v1:p4info_proto"],
 )
 

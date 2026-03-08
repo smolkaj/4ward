@@ -86,6 +86,7 @@ maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
 maven.install(
     artifacts = [
         "com.google.protobuf:protobuf-java:4.29.3",
+        "com.google.protobuf:protobuf-java-util:4.29.3",
         "com.google.protobuf:protobuf-kotlin:4.29.3",
         "junit:junit:4.13.2",
         "com.facebook:ktfmt:0.61",
