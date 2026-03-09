@@ -317,7 +317,7 @@ class SaiP4E2ETest {
     val aclTable = findTable("acl_ingress_table")
     val aclDrop = findAction("acl_drop")
     harness.installEntry(
-      buildAclEntry(
+      buildEntry(
         aclTable,
         aclDrop,
         matches =
@@ -325,6 +325,7 @@ class SaiP4E2ETest {
             optionalMatch(aclTable, "is_ipv4", byteArrayOf(1)),
             ternaryMatch(aclTable, "dst_ip", DST_IP, byteArrayOf(-1, -1, -1, -1)),
           ),
+        priority = 1,
       )
     )
 
@@ -352,7 +353,7 @@ class SaiP4E2ETest {
     val aclTable = findTable("acl_ingress_table")
     val redirectAction = findAction("redirect_to_nexthop")
     harness.installEntry(
-      buildAclEntry(
+      buildEntry(
         aclTable,
         redirectAction,
         matches =
@@ -361,6 +362,7 @@ class SaiP4E2ETest {
             ternaryMatch(aclTable, "dst_ip", DST_IP, byteArrayOf(-1, -1, -1, -1)),
           ),
         params = listOf(stringParam(redirectAction, "nexthop_id", "nhop-2")),
+        priority = 1,
       )
     )
 
@@ -391,8 +393,8 @@ class SaiP4E2ETest {
         setMcastGroup,
         matches =
           listOf(
-            exactStringMatch(mcastTable, "vrf_id", ""),
-            exactBytesMatch(mcastTable, "ipv4_dst", mcastDstIp),
+            exactMatch(mcastTable, "vrf_id", ""),
+            exactMatch(mcastTable, "ipv4_dst", mcastDstIp),
           ),
         params = listOf(bytesParam(setMcastGroup, "multicast_group_id", byteArrayOf(0, 1))),
       )
@@ -491,17 +493,7 @@ class SaiP4E2ETest {
   // Match field and action param builders
   // =========================================================================
 
-  private fun exactStringMatch(
-    table: P4InfoOuterClass.Table,
-    fieldName: String,
-    value: String,
-  ): FieldMatch =
-    FieldMatch.newBuilder()
-      .setFieldId(matchFieldId(table, fieldName))
-      .setExact(FieldMatch.Exact.newBuilder().setValue(ByteString.copyFromUtf8(value)))
-      .build()
-
-  private fun exactBytesMatch(
+  private fun exactMatch(
     table: P4InfoOuterClass.Table,
     fieldName: String,
     value: ByteArray,
@@ -510,6 +502,12 @@ class SaiP4E2ETest {
       .setFieldId(matchFieldId(table, fieldName))
       .setExact(FieldMatch.Exact.newBuilder().setValue(ByteString.copyFrom(value)))
       .build()
+
+  private fun exactMatch(
+    table: P4InfoOuterClass.Table,
+    fieldName: String,
+    value: String,
+  ): FieldMatch = exactMatch(table, fieldName, value.toByteArray(Charsets.UTF_8))
 
   private fun optionalMatch(
     table: P4InfoOuterClass.Table,
@@ -574,59 +572,35 @@ class SaiP4E2ETest {
   // Table entry builders
   // =========================================================================
 
-  /** Builds a table entry with the given matches and action params. */
+  /** Builds a table entry with the given matches, action params, and optional priority. */
   private fun buildEntry(
     table: P4InfoOuterClass.Table,
     action: P4InfoOuterClass.Action,
     matches: List<FieldMatch>,
     params: List<p4.v1.P4RuntimeOuterClass.Action.Param> = emptyList(),
-  ): Entity =
-    Entity.newBuilder()
-      .setTableEntry(
-        TableEntry.newBuilder()
-          .setTableId(table.preamble.id)
-          .addAllMatch(matches)
-          .setAction(
-            p4.v1.P4RuntimeOuterClass.TableAction.newBuilder()
-              .setAction(
-                p4.v1.P4RuntimeOuterClass.Action.newBuilder()
-                  .setActionId(action.preamble.id)
-                  .addAllParams(params)
-              )
-          )
-      )
-      .build()
-
-  /** Builds an ACL entry with ternary matches (requires priority). */
-  private fun buildAclEntry(
-    table: P4InfoOuterClass.Table,
-    action: P4InfoOuterClass.Action,
-    matches: List<FieldMatch>,
-    params: List<P4RuntimeOuterClass.Action.Param> = emptyList(),
-    priority: Int = 1,
-  ): Entity =
-    Entity.newBuilder()
-      .setTableEntry(
-        TableEntry.newBuilder()
-          .setTableId(table.preamble.id)
-          .addAllMatch(matches)
-          .setPriority(priority)
-          .setAction(
-            P4RuntimeOuterClass.TableAction.newBuilder()
-              .setAction(
-                P4RuntimeOuterClass.Action.newBuilder()
-                  .setActionId(action.preamble.id)
-                  .addAllParams(params)
-              )
-          )
-      )
-      .build()
+    priority: Int = 0,
+  ): Entity {
+    val entry =
+      TableEntry.newBuilder()
+        .setTableId(table.preamble.id)
+        .addAllMatch(matches)
+        .setAction(
+          p4.v1.P4RuntimeOuterClass.TableAction.newBuilder()
+            .setAction(
+              p4.v1.P4RuntimeOuterClass.Action.newBuilder()
+                .setActionId(action.preamble.id)
+                .addAllParams(params)
+            )
+        )
+    if (priority > 0) entry.setPriority(priority)
+    return Entity.newBuilder().setTableEntry(entry).build()
+  }
 
   /** Builds a vrf_table entry: exact match on vrf_id (string) → no_action. */
   private fun buildVrfEntry(vrfId: String): Entity {
     val table = findTable("vrf_table")
     val action = findAction("no_action")
-    return buildEntry(table, action, matches = listOf(exactStringMatch(table, "vrf_id", vrfId)))
+    return buildEntry(table, action, matches = listOf(exactMatch(table, "vrf_id", vrfId)))
   }
 
   /**
@@ -644,7 +618,7 @@ class SaiP4E2ETest {
     return buildEntry(
       table,
       action,
-      matches = listOf(exactStringMatch(table, "router_interface_id", rifId)),
+      matches = listOf(exactMatch(table, "router_interface_id", rifId)),
       params = listOf(stringParam(action, "port", port), bytesParam(action, "src_mac", srcMac)),
     )
   }
@@ -662,7 +636,7 @@ class SaiP4E2ETest {
       action,
       matches =
         listOf(
-          exactStringMatch(table, "vrf_id", vrfId),
+          exactMatch(table, "vrf_id", vrfId),
           lpmMatch(table, "ipv4_dst", byteArrayOf(10, 0, 0, 0), prefixLen = 8),
         ),
       params = listOf(stringParam(action, "nexthop_id", nexthopId)),
@@ -684,7 +658,7 @@ class SaiP4E2ETest {
     return buildEntry(
       table,
       action,
-      matches = listOf(exactStringMatch(table, "nexthop_id", nexthopId)),
+      matches = listOf(exactMatch(table, "nexthop_id", nexthopId)),
       params =
         listOf(
           stringParam(action, "router_interface_id", routerInterfaceId),
@@ -707,8 +681,8 @@ class SaiP4E2ETest {
       action,
       matches =
         listOf(
-          exactStringMatch(table, "router_interface_id", rifId),
-          exactBytesMatch(table, "neighbor_id", neighborId),
+          exactMatch(table, "router_interface_id", rifId),
+          exactMatch(table, "neighbor_id", neighborId),
         ),
       params = listOf(bytesParam(action, "dst_mac", dstMac)),
     )

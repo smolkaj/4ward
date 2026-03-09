@@ -26,7 +26,7 @@ private constructor(
   /** The CPU port for PacketOut packets (v1model convention: 2^portBits - 2). */
   val cpuPort: Int,
 ) {
-  data class FieldDef(val id: Int, val bitWidth: Int)
+  data class FieldDef(val id: Int, val name: String, val bitWidth: Int)
 
   /** Total bytes of the serialized packet_out header. */
   val packetOutHeaderBytes: Int = (packetOutFields.sumOf { it.bitWidth } + 7) / 8
@@ -43,17 +43,16 @@ private constructor(
    * On non-BMv2 platforms, the P4 program does not prepend a packet_in header to CPU-bound packets.
    * Instead, the service constructs metadata from the simulation context.
    */
-  fun buildPacketInMetadata(ingressPort: Int, egressPort: Int): List<PacketMetadata> {
-    val result = mutableListOf<PacketMetadata>()
-    for (field in packetInFields) {
-      // Convention: first field is ingress_port, second is target_egress_port.
-      val value = if (field == packetInFields.firstOrNull()) ingressPort else egressPort
-      result.add(
-        PacketMetadata.newBuilder().setMetadataId(field.id).setValue(encodeMinWidth(value)).build()
-      )
+  fun buildPacketInMetadata(ingressPort: Int, egressPort: Int): List<PacketMetadata> =
+    packetInFields.map { field ->
+      val value =
+        when (field.name) {
+          "ingress_port" -> ingressPort
+          "target_egress_port" -> egressPort
+          else -> 0
+        }
+      PacketMetadata.newBuilder().setMetadataId(field.id).setValue(encodeMinWidth(value)).build()
     }
-    return result
-  }
 
   @Suppress("MagicNumber")
   private fun packFields(fields: List<FieldDef>, metadata: Map<Int, PacketMetadata>): ByteArray {
@@ -103,6 +102,7 @@ private constructor(
         packetOutMeta.metadataList.map { meta ->
           FieldDef(
             id = meta.id,
+            name = meta.name,
             bitWidth =
               if (meta.bitwidth > 0) meta.bitwidth
               else
@@ -112,7 +112,8 @@ private constructor(
         }
 
       // CPU port = 2^portBits - 2 (v1model convention; drop port is 2^W - 1).
-      val portBits = packetOutFields.firstOrNull()?.bitWidth ?: DEFAULT_PORT_BITS
+      val portBits =
+        packetOutFields.find { it.name == "egress_port" }?.bitWidth ?: DEFAULT_PORT_BITS
       val cpuPort = (1 shl portBits) - 2
 
       val packetInMeta =
@@ -122,6 +123,7 @@ private constructor(
         packetInMeta?.metadataList?.map { meta ->
           FieldDef(
             id = meta.id,
+            name = meta.name,
             bitWidth =
               if (meta.bitwidth > 0) meta.bitwidth else packetInType?.get(meta.name) ?: portBits,
           )
