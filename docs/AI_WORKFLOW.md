@@ -9,6 +9,15 @@ I use Claude Code from the terminal.
 claude --dangerously-skip-permissions
 ```
 
+## Learn from the best
+
+I highly recommend [this podcast](https://www.youtube.com/watch?v=YFjfBk8HI5o) featuring
+Peter Steinberg, the creator of OpenClaw. OpenClaw is the most viral open source project
+of all time, going from 0 to 100k GitHub stars in 1 week. It was entirely written by AI.
+
+In the podcast, Peter shares his insights and specifics about his workflow. I highly recommend
+you listen and learn from the best.
+
 ## Principles
 
 **Principle**: Ask, don't tell.
