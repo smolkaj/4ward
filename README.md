@@ -24,11 +24,11 @@ packets, explore trace trees. No setup beyond Bazel.
                      │
                      ▼
               PipelineConfig
-             (proto IR + p4info)
+           (proto IR + p4info)
                      │
                      ▼
             ┌───────────────┐
- packet ──▶ │     4ward     │──▶ output packets
+ packet ──> │     4ward     │──▶ output packets
             │   Simulator   │──▶ trace tree  (the good stuff)
             └───────────────┘
                      ▲
