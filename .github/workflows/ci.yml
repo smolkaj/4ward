@@ -160,10 +160,12 @@ jobs:
         if: always()
         run: echo "DURATION=$(( $(date +%s) - START_TIME ))" >> "$GITHUB_ENV"
 
-      # Remove the repository cache to save ~500 MB before any potential save.
-      - name: Compress cache
-        if: always()
-        run: bazel shutdown && rm -rf $(bazel info repository_cache)
+      # TODO: Re-enable once GitHub download 502s stop. Removing the
+      # repository cache saves ~500 MB but forces re-downloads of external
+      # deps on the next run, which fails when GitHub returns 502s.
+      # - name: Compress cache
+      #   if: always()
+      #   run: bazel shutdown && rm -rf $(bazel info repository_cache)
 
       # Only save cache on main (PR caches are scoped to their branch and
       # evict the shared caches that all jobs depend on) or when the build
@@ -242,9 +244,10 @@ jobs:
         if: always()
         run: echo "DURATION=$(( $(date +%s) - START_TIME ))" >> "$GITHUB_ENV"
 
-      - name: Compress cache
-        if: always()
-        run: bazel shutdown && rm -rf $(bazel info repository_cache)
+      # TODO: Re-enable once GitHub download 502s stop (see build-and-test).
+      # - name: Compress cache
+      #   if: always()
+      #   run: bazel shutdown && rm -rf $(bazel info repository_cache)
 
       # Only save the coverage cache on main pushes. PR coverage runs restore
       # from the main cache but don't save — this prevents PR caches (~625 MB
