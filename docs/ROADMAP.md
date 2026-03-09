@@ -221,16 +221,100 @@ Three concrete goals drive this track:
 **Done when:** SAI P4 works end-to-end with a modified v1model through standard
 P4Runtime.
 
-### Track 6: architecture expansion (PSA, then PNA/TNA)
+### Track 6: multi-architecture support
 
-**Priority: not now**
+**Priority: next | Parallelizable: yes (across phases)**
 
-4ward treats architectures as plugins — the `Architecture` interface is
-designed for modularity from day one. PSA is the next target, with existing
-corpus tests as acceptance criteria. Each architecture is a significant lift
-(pipeline structure, metadata, externs), so v1model should be solid first.
+Supporting multiple P4 architectures isn't primarily about the architectures
+themselves — it's about **proving the architecture boundary is real.** Today,
+`Architecture.kt` defines a clean interface, but v1model-specific code bleeds
+into the interpreter (extern dispatch, fork types, branch modes) and packet
+context (clone/resubmit/recirculate flags). Adding a second architecture means
+confronting every coupling point and fixing it properly — favoring the cleanest
+solution even when it requires disruptive refactoring.
 
-**Done when:** PSA corpus tests pass.
+Three phases, each building on the last:
+
+#### Phase 1: refactor the architecture boundary
+
+Pure refactoring — no new functionality, all 186 v1model tests as safety net.
+
+The interpreter today is 95% architecture-agnostic but has v1model baked into
+three places that need to be cleaned up:
+
+1. **Extern dispatch.** `Interpreter.execExternCall()` hardcodes 12 v1model
+   extern functions (`mark_to_drop`, `clone`, `resubmit`, `verify_checksum`,
+   etc.). Move extern dispatch to architecture-provided handlers. The
+   interpreter becomes a pure IR walker with no architecture knowledge.
+
+2. **Fork types and branch modes.** `ForkException` subclasses (`CloneFork`,
+   `ResubmitFork`, etc.), `BranchMode` variants (`I2EClone`, `E2EClone`,
+   `Replica`), and `ForkDecisions` fields (`instanceTypeOverride`,
+   `branchMode`) are all v1model-specific but defined in `Interpreter.kt`.
+   Move them to `V1ModelArchitecture.kt` where they belong.
+
+3. **Packet context state.** `PacketContext` carries four v1model-specific
+   fields (`pendingCloneSessionId`, `pendingEgressCloneSessionId`,
+   `pendingResubmit`, `pendingRecirculate`). These are the handoff between
+   extern calls and architecture boundary logic. With extern dispatch moving
+   to the architecture, these become internal architecture state.
+
+Shared infrastructure to extract:
+
+- **Trace tree builder.** `buildTraceTree()` in `V1ModelArchitecture` is a
+  generic iterative work-stack algorithm. Extract it as a shared utility
+  parameterized by architecture-specific `runPipeline` and `forkSpecs`
+  callbacks.
+
+**Done when:** the interpreter has zero v1model imports, `PacketContext` has
+zero architecture-specific fields, and all v1model tests still pass.
+
+#### Phase 2: PSA (Portable Switch Architecture)
+
+PSA is the P4.org-standardized successor to v1model. It has a fundamentally
+different pipeline structure (separate ingress/egress parsers and deparsers,
+four metadata structs instead of one) and different clone/multicast/resubmit
+semantics. This is the architecture that makes us honest — if the refactored
+boundary handles PSA cleanly, it handles anything.
+
+Work:
+- Implement `PSAArchitecture.kt` with PSA pipeline orchestration.
+- Update the p4c backend to detect `PSA_Switch` and emit PSA stages.
+- Add PSA extern handlers.
+- Unit tests for PSA pipeline orchestration (like `V1ModelArchitectureTest`).
+
+Testing: **26 corpus tests** (hand-crafted by p4c developers) as acceptance
+criteria. p4testgen does not support PSA, so these are the primary safety net.
+BMv2's `psa_switch` is less mature than `simple_switch`, so differential
+testing may not be reliable.
+
+**Done when:** 26 PSA corpus tests pass.
+
+#### Phase 3: PNA (Portable NIC Architecture)
+
+PNA validates that the architecture boundary is truly clean — adding a third
+architecture should be straightforward. More importantly, PNA is the path to
+deep confidence: **p4testgen supports PNA**, enabling automated symbolic path
+exploration that generates hundreds of test cases.
+
+Work:
+- Implement `PNAArchitecture.kt` (simpler pipeline than PSA).
+- Update p4c backend for PNA detection.
+- Integrate p4testgen for PNA (investigate output format compatibility with
+  our STF runner — p4testgen's PNA support targets DPDK, so format conversion
+  may be needed).
+
+Testing: p4testgen symbolic execution for exhaustive path coverage. This is
+what brings a second architecture to v1model-level confidence.
+
+**Done when:** PNA passes p4testgen-generated tests with full path exploration.
+
+#### Why this ordering
+
+PSA first because it has ready-made tests and forces the hardest design
+decisions. PNA second because it validates the boundary (adding a third
+architecture should be easy) and unlocks p4testgen for deep confidence. The
+refactoring is the most important phase — it's where the design gets better.
 
 ### Track 7: standalone CLI
 
@@ -294,8 +378,8 @@ trace playback.
               │                     │    │              │    │          │
   Track 5     │ arch customization  │    │              │    │          │
               │                     │    │              │    │          │
-  Track 6     │                     │    │              │    │   PSA    │
-              │                     │    │              │    │          │
+  Track 6     │                     │    │ refactor →   │    │   PNA    │
+              │                     │    │ PSA          │    │          │
   Track 7     │ standalone CLI      │    │              │    │          │
               │                     │    │              │    │          │
   Track 8     │ playground v1       │    │ playground   │    │          │
@@ -307,6 +391,7 @@ trace playback.
 - Tracks 1, 3, 4, 5, and 7 are complete.
 - Track 5 subsumes Track 4C and 4E.
 - Track 2 is picked up opportunistically.
-- Track 6 (PSA) depends on v1model being done (shared interpreter, proven
-  patterns).
+- Track 6 phase 1 (refactoring) depends on v1model being solid (proven
+  patterns, 186 tests as safety net). Phase 2 (PSA) depends on phase 1.
+  Phase 3 (PNA) depends on phase 2.
 - Track 8 (interfaces) builds on the CLI (track 7) and trace trees (track 3).
