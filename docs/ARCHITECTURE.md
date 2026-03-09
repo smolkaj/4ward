@@ -19,6 +19,25 @@ This means correctness always wins over convenience, performance, or
 compatibility with non-standard behavior. The simulator is meant to be the
 implementation you trust when you need to know what a P4 program *should* do.
 
+## Design philosophy: do it right
+
+We always favor the cleanest solution, even when it requires disruptive
+refactoring. Expedient hacks accumulate into architectural debt that slows
+everything down. Doing things the right way — clean abstractions, proper
+separation of concerns, no shortcuts — is what gives us an edge over
+codebases that have grown organically over many years.
+
+Concretely:
+- **Clean abstractions over expedient hacks.** If the right solution requires
+  touching 20 files, touch 20 files. Don't add a special case to avoid a
+  refactoring.
+- **Correctness over performance.** Always. This is a reference implementation.
+- **Readability over cleverness.** Code should be obvious to the next person
+  (or agent) who reads it. If it needs a comment explaining *what* it does,
+  it should be rewritten.
+- **Test-driven confidence.** The failing-test list *is* the feature backlog.
+  `bazel test //...` is the definition of done.
+
 The north star is to replace BMv2 as the reference simulator in
 [DVaaS](https://github.com/sonic-net/sonic-pins/tree/main/dvaas). See
 [ROADMAP.md](ROADMAP.md) for the full picture.
@@ -103,15 +122,20 @@ little differently:
 2. **Standard metadata**: the metadata struct passed between stages.
 3. **Extern semantics**: what `clone3()`, `resubmit()`, etc. actually *do*.
 
-4ward handles this cleanly: point 1 is captured structurally in
-`Architecture.stages`. Points 2 and 3 live in per-architecture Kotlin code —
-`Architecture.kt` defines the interface, and each architecture gets its own
-implementation (currently just `V1ModelArchitecture.kt`).
+4ward handles this through the `Architecture` interface in `Architecture.kt`.
+Point 1 is captured structurally in `Architecture.stages` in the IR proto.
+Points 2 and 3 live in per-architecture Kotlin code — each architecture gets
+its own implementation.
 
-Want to add a new one? You need:
-- A new `Architecture.kt` implementation in `simulator/`.
-- Any new externs in the `ExternTypeDecl` list of the `Architecture` proto.
-- A new `--arch` flag value in the p4c backend.
+The interpreter (`Interpreter.kt`) is designed to be a pure IR tree-walker —
+evaluating expressions, walking control flow, performing table lookups, and
+managing variable scopes. Architecture-specific extern dispatch, fork
+semantics, and pipeline orchestration belong in the architecture layer.
+
+**Current status:** v1model is fully implemented. The interpreter still has
+some v1model-specific code (extern dispatch, fork types) that will be
+extracted to the architecture layer as part of multi-architecture support.
+See [ROADMAP.md](ROADMAP.md) Track 6 for the plan.
 
 ## Testing strategy
 
