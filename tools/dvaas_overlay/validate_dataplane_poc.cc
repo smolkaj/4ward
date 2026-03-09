@@ -274,15 +274,21 @@ absl::StatusOr<dvaas::SwitchApi> ConnectSwitch(absl::string_view address,
 
 absl::Status Run(absl::string_view sut_address, absl::string_view control_address,
                  absl::string_view artifact_dir) {
+  LOG(INFO) << "Starting DVaaS PoC helper";
   FakeGnmiEndpoint sut_gnmi(BuildInterfacesJson());
   FakeGnmiEndpoint control_gnmi(BuildInterfacesJson());
 
+  LOG(INFO) << "Connecting to SUT P4Runtime at " << sut_address;
   ASSIGN_OR_RETURN(auto sut, ConnectSwitch(sut_address, sut_gnmi));
+  LOG(INFO) << "Connecting to control-switch P4Runtime at " << control_address;
   ASSIGN_OR_RETURN(auto control, ConnectSwitch(control_address, control_gnmi));
 
+  LOG(INFO) << "Installing SUT forwarding entities";
   RETURN_IF_ERROR(pdpi::InstallIrEntities(*sut.p4rt, BuildForwardingEntities()));
 
+  LOG(INFO) << "Fetching SUT forwarding pipeline config";
   ASSIGN_OR_RETURN(const auto pipeline_config, GetPipelineConfig(*sut.p4rt));
+  LOG(INFO) << "Building PoC packet and expected output";
   ASSIGN_OR_RETURN(const auto packet, BuildPacket());
 
   dvaas::DataplaneValidationParams params;
@@ -296,10 +302,12 @@ absl::Status Run(absl::string_view sut_address, absl::string_view control_addres
   auto validator =
       dvaas::DataplaneValidator(std::make_unique<FourwardDvaasBackend>());
   MemoryTestEnvironment environment{std::string(artifact_dir)};
+  LOG(INFO) << "Calling ValidateDataplaneUsingExistingSwitchApis";
   ASSIGN_OR_RETURN(auto result,
                    validator.ValidateDataplaneUsingExistingSwitchApis(
                        sut, control, environment, params));
 
+  LOG(INFO) << "Checking validation success rate";
   RETURN_IF_ERROR(result.HasSuccessRateOfAtLeast(1.0));
   LOG(INFO) << "DVaaS ValidateDataplaneUsingExistingSwitchApis passed";
   LOG(INFO) << "Success rate: " << result.GetSuccessRate();

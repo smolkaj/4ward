@@ -6,6 +6,7 @@ ARTIFACT_DIR="${ROOT}/.tmp/dvaas_poc_artifacts"
 SONIC_PINS_DIR="$(mktemp -d "${TMPDIR:-/tmp}/sonic-pins.XXXXXX")"
 SONIC_PINS_REF="${SONIC_PINS_REF:-6052c041f299fdf8fad50236caf15483e95b56d4}"
 FOURWARD_BAZEL_CONFIG="${FOURWARD_BAZEL_CONFIG:-}"
+DVAAS_POC_WRAP_GDB="${DVAAS_POC_WRAP_GDB:-0}"
 SUT_PORT=9560
 CONTROL_PORT=9561
 CPU_PORT=510
@@ -77,6 +78,8 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
     "--repo_env=CC=/usr/bin/clang"
     "--macos_minimum_os=10.15"
     "--host_macos_minimum_os=10.15"
+    "--linkopt=-fuse-ld=ld"
+    "--host_linkopt=-fuse-ld=ld"
     # WORKAROUND: The pinned sonic-pins snapshot vendors a zlib version whose
     # macOS preprocessor checks redefine fdopen when TARGET_OS_MAC is present.
     # Modern Apple SDK headers declare fdopen unconditionally, so zlib fails
@@ -86,6 +89,11 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
     "--per_file_copt=external/zlib/.*@-UTARGET_OS_MAC"
     "--host_per_file_copt=external/zlib/.*@-UTARGET_OS_MAC"
   )
+fi
+
+if [[ "${GITHUB_ACTIONS:-}" == "true" && "${DVAAS_POC_WRAP_GDB}" == "0" ]] &&
+  command -v gdb >/dev/null 2>&1; then
+  DVAAS_POC_WRAP_GDB=1
 fi
 
 bazel build "${BAZEL_ARGS[@]}" \
@@ -120,7 +128,19 @@ wait_for_port localhost "${CONTROL_PORT}"
   cd "${SONIC_PINS_DIR}" &&
     bazel "${SONIC_PINS_BAZEL_ARGS[@]}" //fourward_dvaas:validate_dataplane_poc
 )
-(cd "${SONIC_PINS_DIR}" && bazel-bin/fourward_dvaas/validate_dataplane_poc \
-  "localhost:${SUT_PORT}" "localhost:${CONTROL_PORT}" "${ARTIFACT_DIR}")
+if [[ "${DVAAS_POC_WRAP_GDB}" == "1" ]] && command -v gdb >/dev/null 2>&1; then
+  (
+    cd "${SONIC_PINS_DIR}" &&
+      gdb -q -batch -ex run -ex bt --args \
+        bazel-bin/fourward_dvaas/validate_dataplane_poc \
+        "localhost:${SUT_PORT}" "localhost:${CONTROL_PORT}" "${ARTIFACT_DIR}"
+  )
+else
+  (
+    cd "${SONIC_PINS_DIR}" &&
+      bazel-bin/fourward_dvaas/validate_dataplane_poc \
+        "localhost:${SUT_PORT}" "localhost:${CONTROL_PORT}" "${ARTIFACT_DIR}"
+  )
+fi
 
 echo "Artifacts written to ${ARTIFACT_DIR}"
