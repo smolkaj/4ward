@@ -2,21 +2,30 @@
 common --enable_bzlmod
 common --noenable_workspace
 
+# Auto-select build:linux / build:macos / build:windows based on the host OS,
+# so platform-specific flags don't need manual --config= activation.
+common --enable_platform_specific_config
+
 # Use a hermetic remote JDK rather than whatever happens to be installed locally.
 build --java_runtime_version=remotejdk_21
 build --tool_java_runtime_version=remotejdk_21
 
 # Force the use of Clang for all builds, matching p4c upstream.
+# action_env sets CC/CXX for sandboxed build actions.
 build --action_env=CC=clang
 build --action_env=CXX=clang++
 
-# macOS: use Command Line Tools clang (avoids requiring a full Xcode install)
-# and raise the deployment target to 10.15, which is the minimum for
-# std::filesystem support in libc++.
+# Toolchain auto-configuration (cc_configure) needs repo_env, which is
+# platform-specific because macOS needs the absolute CLT path to avoid
+# picking up a Homebrew clang with an incompatible libc++.
+build:macos --repo_env=CC=/usr/bin/clang
+build:linux --repo_env=CC=clang
+
+# macOS: use Command Line Tools clang (avoids requiring a full Xcode install).
+# Deployment target 10.15 is the minimum for std::filesystem in libc++.
 # host_macos_minimum_os covers tool builds (e.g. p4c's ir-generator).
-build --repo_env=CC=/usr/bin/clang
-build --macos_minimum_os=10.15
-build --host_macos_minimum_os=10.15
+build:macos --macos_minimum_os=10.15
+build:macos --host_macos_minimum_os=10.15
 
 # C++20 for the p4c backend.
 build --cxxopt=-std=c++20
