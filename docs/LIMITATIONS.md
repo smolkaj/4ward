@@ -43,6 +43,12 @@ guilt — just write it down so someone can find it later.
   written and read via P4Runtime, but the simulator does not perform
   real rate limiting — `direct_meter.read()` always returns the default
   color (GREEN).
+- **No `@refers_to` referential integrity enforcement.** SAI P4 uses
+  `@refers_to` annotations to declare foreign-key relationships between
+  tables (e.g., `nexthop_id` must exist in `nexthop_table`). These are not
+  validated at write time — entries referencing non-existent entries are
+  silently accepted. Inconsistencies surface at packet simulation time
+  (table miss instead of hit).
 - **No digests, idle timeouts, or atomic write batches.**
 
 ## Simulator
@@ -53,6 +59,7 @@ guilt — just write it down so someone can find it later.
 - **Multicast: basic replication only.** Multicast group replication works
   for the trace tree (forking per replica). PRE entries are installed via
   P4Runtime `PacketReplicationEngineEntry`.
+
 ## Web playground
 
 - **Single-replica clone sessions.** The UI creates clone sessions with one
@@ -100,6 +107,6 @@ guilt — just write it down so someone can find it later.
 
 ## p4c backend
 
-- **No `lookahead` or `advance`.** The backend does not emit IR for parser
-  `lookahead<T>()` or `packet.advance()`. This is a backend limitation, not
-  a simulator one. Blocks 6 corpus tests.
+- **`gauntlet_various_ops-bmv2` compilation timeout.** p4c-4ward takes 10+
+  minutes on this program. Performance issue, not a missing feature. Blocks
+  1 corpus test.
