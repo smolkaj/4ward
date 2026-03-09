@@ -606,7 +606,7 @@ class Interpreter(
       "extract" -> execExtract(call, env)
       "lookahead" -> execLookahead(returnType)
       "advance" -> {
-        val bits = (evalExpr(call.argsList[0], env) as BitVal).bits.value.toInt()
+        val bits = intValue(evalExpr(call.argsList[0], env))
         packet.advanceBits(bits)
         UnitVal
       }
@@ -621,7 +621,7 @@ class Interpreter(
         } else {
           // register.read(out dst, index)
           val regName = call.target.nameRef.name
-          val index = (evalExpr(call.argsList[1], env) as BitVal).bits.value.toInt()
+          val index = intValue(evalExpr(call.argsList[1], env))
           val value =
             tableStore.registerRead(regName, index) ?: defaultValue(call.argsList[0].type, types)
           setLValue(call.argsList[0], value, env)
@@ -636,7 +636,7 @@ class Interpreter(
       // register.write(index, value): stores value at index.
       "write" -> {
         val regName = call.target.nameRef.name
-        val index = (evalExpr(call.argsList[0], env) as BitVal).bits.value.toInt()
+        val index = intValue(evalExpr(call.argsList[0], env))
         val value = evalExpr(call.argsList[1], env)
         tableStore.registerWrite(regName, index, value)
         UnitVal
@@ -834,10 +834,10 @@ class Interpreter(
       "clone3",
       "clone_preserving_field_list" -> {
         val cloneType = (evalExpr(call.argsList[0], env) as EnumVal).member
-        val sessionId = (evalExpr(call.argsList[1], env) as BitVal).bits.value.toInt()
+        val sessionId = intValue(evalExpr(call.argsList[1], env))
         val fieldListId =
           if (funcName == "clone_preserving_field_list") {
-            (evalExpr(call.argsList[2], env) as BitVal).bits.value.toInt()
+            intValue(evalExpr(call.argsList[2], env))
           } else {
             null
           }
@@ -865,8 +865,7 @@ class Interpreter(
       "resubmit_preserving_field_list" -> {
         packetCtx?.pendingResubmit = true
         if (funcName == "resubmit_preserving_field_list") {
-          packetCtx?.pendingResubmitFieldListId =
-            (evalExpr(call.argsList[0], env) as BitVal).bits.value.toInt()
+          packetCtx?.pendingResubmitFieldListId = intValue(evalExpr(call.argsList[0], env))
         }
         UnitVal
       }
@@ -875,8 +874,7 @@ class Interpreter(
       "recirculate_preserving_field_list" -> {
         packetCtx?.pendingRecirculate = true
         if (funcName == "recirculate_preserving_field_list") {
-          packetCtx?.pendingRecirculateFieldListId =
-            (evalExpr(call.argsList[0], env) as BitVal).bits.value.toInt()
+          packetCtx?.pendingRecirculateFieldListId = intValue(evalExpr(call.argsList[0], env))
         }
         UnitVal
       }
@@ -978,8 +976,7 @@ class Interpreter(
 
     // The 2-argument form b.extract(hdr, varbitBits) is used when the header contains a varbit
     // field. The second argument gives the varbit field's runtime length in bits.
-    val varbitBits: Int =
-      if (call.argsCount > 1) (evalExpr(call.argsList[1], env) as BitVal).bits.value.toInt() else 0
+    val varbitBits: Int = if (call.argsCount > 1) intValue(evalExpr(call.argsList[1], env)) else 0
 
     // P4 spec §12.8.1: validate varbit extract constraints.
     if (varbitBits > 0) {
