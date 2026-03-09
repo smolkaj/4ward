@@ -5,20 +5,28 @@
 
 ## Current state
 
-**All identified gaps are closed.** The simulator handles the full SAI P4
-middleblock pipeline with high confidence:
+SAI P4 middleblock works end-to-end through P4Runtime with high confidence
+on the features that are tested. Two gaps remain:
 
-- **p4testgen**: symbolic execution (500 tests, capped for CI resource limits)
-  runs in CI on every push. Uncapped runs exceed CI runner memory/timeouts.
-- **Hand-crafted E2E tests**: 5 tests exercise specific SAI P4 features through
-  the P4Runtime server — L3 forwarding, ACL drop, ACL redirect, IPv4 multicast,
-  and WCMP action selectors.
-- **Constraint coverage**: 10 tests validate `@entry_restriction` and
-  `@action_restriction` on real SAI P4 tables.
-- **PacketIO**: `PacketHeaderCodec` serializes/deserializes `packet_in`/
-  `packet_out` headers per p4info, tested E2E via StreamChannel.
-- **Translation mappings**: `@p4runtime_translation_mappings` extracted by the
-  p4c backend and honored by `TypeTranslator` (VRF default `""` → `0`).
+1. **`@refers_to` referential integrity** is not enforced at write time.
+2. **20 of 30 SAI P4 tables** lack hand-crafted E2E tests exercising the
+   full P4Runtime translation stack. They are covered by p4testgen, but
+   p4testgen compiles with `-DPLATFORM_BMV2` which strips
+   `@p4runtime_translation` — so translation is not exercised on those
+   tables.
+
+### Test coverage summary
+
+- **Hand-crafted E2E tests** (`SaiP4E2ETest`): 15 tests exercise 10/30
+  SAI P4 tables through the full P4Runtime stack (translation, validation,
+  constraints, PacketIO).
+- **Constraint tests** (`SaiP4ConstraintTest`): 10 tests validate
+  `@entry_restriction` and `@action_restriction` on real SAI P4 tables.
+- **p4testgen**: 500 symbolic execution tests on SAI P4 middleblock (in
+  CI). Exercises all reachable paths but without `@p4runtime_translation`.
+- **STF corpus + BMv2 diff**: 186 v1model corpus tests pass, all
+  bit-for-bit identical to BMv2. Validates the simulator engine that SAI
+  P4 runs on.
 
 ## What works (tested E2E)
 
@@ -38,6 +46,64 @@ middleblock pipeline with high confidence:
 - [x] p4-constraints on SAI P4: entry and action restrictions enforced (10 tests)
 - [x] Write validation (action IDs, params, match fields, priority)
 - [x] p4testgen symbolic execution on SAI P4 middleblock (500 tests, in CI)
+
+## Table coverage detail
+
+### Tested through full P4Runtime translation (10/30)
+
+| Table | Test type |
+|-------|-----------|
+| `vrf_table` | E2E round-trip + constraint |
+| `ipv4_table` | E2E round-trip + forwarding |
+| `nexthop_table` | E2E round-trip + forwarding |
+| `router_interface_table` | E2E round-trip + constraint + forwarding |
+| `neighbor_table` | E2E forwarding chain (implicit) |
+| `ipv4_multicast_table` | E2E forwarding + constraint |
+| `wcmp_group_table` | E2E action profile round-trip |
+| `acl_ingress_table` | E2E drop + redirect |
+| `acl_pre_ingress_table` | Constraint tests |
+| `disable_vlan_checks_table` | Constraint test |
+
+### Covered by p4testgen only (no translation exercised) (20/30)
+
+- `ipv6_table`, `ipv6_multicast_table` — IPv6 routing
+- `tunnel_table`, `ipv6_tunnel_termination_table` — tunneling
+- `vlan_table`, `vlan_membership_table`, `disable_ingress_vlan_checks_table`,
+  `disable_egress_vlan_checks_table` — VLAN
+- `l3_admit_table` — L3 admission
+- `mirror_session_table` — mirroring
+- `multicast_router_interface_table` — multicast source MAC rewrites
+- `acl_egress_table`, `acl_egress_dhcp_to_host_table` — egress ACL
+- `acl_ingress_qos_table`, `acl_ingress_counting_table`,
+  `acl_ingress_mirror_and_redirect_table`, `acl_ingress_security_table` — ingress ACL variants
+- `acl_pre_ingress_vlan_table`, `acl_pre_ingress_metadata_table` — pre-ingress ACL variants
+- `ingress_clone_table` — ingress cloning
+
+## Open gaps
+
+### 1. `@refers_to` referential integrity
+
+SAI P4 uses `@refers_to` annotations to declare foreign-key relationships
+between tables (e.g., `nexthop_id` in `ipv4_table` must exist in
+`nexthop_table`). These are not validated at write time — entries
+referencing non-existent entries are silently accepted.
+
+**Impact**: moderate. Inconsistencies surface at simulation time (table
+miss instead of hit). DVaaS sends packets and compares outputs, so it
+would catch the mismatch — but the error message would be confusing
+(wrong output) rather than clear (invalid write).
+
+### 2. Translation coverage gap
+
+p4testgen's 500 tests are compiled with `-DPLATFORM_BMV2`, which strips
+`@p4runtime_translation` annotations. This means the translation
+stack (`TypeTranslator`, `PacketHeaderCodec`) is only exercised on the
+10 tables with hand-crafted E2E tests. The remaining 20 tables have
+never been tested through the full P4Runtime translation path.
+
+**Impact**: low for tables with simple exact-match string IDs (all use
+the same `sdn_string` mechanism). Higher for tables with non-trivial
+match types or composite fields.
 
 ## Resolved gaps
 
@@ -78,16 +144,3 @@ Hand-crafted E2E tests exercise SAI P4's specific table structures:
 - **ACL redirect**: redirect_to_nexthop overrides routing (acl_ingress_table)
 - **Multicast**: IPv4 multicast replication via multicast group (ipv4_multicast_table)
 - **WCMP**: action profile members and groups round-trip (wcmp_group_table)
-
-Features not individually tested (covered by p4testgen's path exploration):
-- Ingress cloning / mirroring
-- L3 admit / pre-ingress ACL
-- Tunneling (GRE encap/decap)
-
-## Remaining notes
-
-- **Tunneling / GRE**: p4testgen explores tunnel paths symbolically, but no
-  hand-crafted test exercises the full GRE encap/decap flow through SAI P4
-  tables. Add if DVaaS tunneling use cases arise.
-- **Ingress cloning**: covered generically by STF corpus clone tests, and by
-  p4testgen's path exploration on SAI P4. No SAI-specific hand-crafted test.
