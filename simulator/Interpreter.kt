@@ -17,8 +17,6 @@ import fourward.ir.v1.Type
 import fourward.ir.v1.UnaryOperator
 import fourward.sim.v1.SimulatorProto.ActionExecutionEvent
 import fourward.sim.v1.SimulatorProto.BranchEvent
-import fourward.sim.v1.SimulatorProto.DropReason
-import fourward.sim.v1.SimulatorProto.MarkToDropEvent
 import fourward.sim.v1.SimulatorProto.ParserTransitionEvent
 import fourward.sim.v1.SimulatorProto.TableLookupEvent
 import fourward.sim.v1.SimulatorProto.TraceEvent
@@ -40,7 +38,7 @@ class Interpreter(
   private val tableStore: TableStore,
   private val packetCtx: PacketContext? = null,
   private val decisions: ForkDecisions = ForkDecisions(),
-  private val onChecksumError: (() -> Unit)? = null,
+  private val externHandler: ExternHandler? = null,
 ) {
   private val parsers: Map<String, ParserDecl> = config.parsersList.associateBy { it.name }
 
@@ -799,136 +797,39 @@ class Interpreter(
   // Extern function calls  (method == "__call__", target is a NameRef)
   // -------------------------------------------------------------------------
 
-  @Suppress("ThrowsCount")
   private fun execExternCall(call: MethodCall, env: Environment): Value {
     val funcName = call.target.nameRef.name
-    return when (funcName) {
-      // mark_to_drop(standard_metadata): sets egress_spec to all-ones (the drop port).
-      "mark_to_drop" -> {
-        packetCtx?.addTraceEvent(
-          traceEventBuilder()
-            .setMarkToDrop(MarkToDropEvent.newBuilder().setReason(DropReason.MARK_TO_DROP))
-            .build()
-        )
-        val smeta = evalExpr(call.argsList[0], env) as StructVal
-        // Derive the drop port (all-ones) from the field's IR-defined width.
-        val portBits = smeta.bitWidth("egress_spec")
-        smeta.fields["egress_spec"] = BitVal((1L shl portBits) - 1, portBits)
-        UnitVal
+
+    // verify() is a P4 core language construct (spec §12.8), not an architecture extern.
+    if (funcName == "verify") {
+      val condition = (evalExpr(call.argsList[0], env) as BoolVal).value
+      if (!condition) {
+        val err = (evalExpr(call.argsList[1], env) as ErrorVal).member
+        throw ParserErrorException(err, "verify failed: $err")
       }
-      // verify(condition, error): P4 spec §12.8 parser assertion.
-      "verify" -> {
-        val condition = (evalExpr(call.argsList[0], env) as BoolVal).value
-        if (!condition) {
-          val err = (evalExpr(call.argsList[1], env) as ErrorVal).member
-          throw ParserErrorException(err, "verify failed: $err")
-        }
-        UnitVal
-      }
-      // clone(type, session) / clone3(type, session, data): P4 v1model I2E/E2E clone.
-      // Records the clone intent; the architecture checks the appropriate pending field
-      // at the boundary and forks there. Multiple calls use last-writer-wins,
-      // matching BMv2 simple_switch semantics.
-      // See https://github.com/p4lang/behavioral-model/blob/main/docs/simple_switch.md
-      "clone",
-      "clone3",
-      "clone_preserving_field_list" -> {
-        val cloneType = (evalExpr(call.argsList[0], env) as EnumVal).member
-        val sessionId = intValue(evalExpr(call.argsList[1], env))
-        val fieldListId =
-          if (funcName == "clone_preserving_field_list") {
-            intValue(evalExpr(call.argsList[2], env))
-          } else {
-            null
-          }
-        packetCtx?.addTraceEvent(
-          traceEventBuilder()
-            .setClone(
-              fourward.sim.v1.SimulatorProto.CloneEvent.newBuilder().setSessionId(sessionId)
-            )
-            .build()
-        )
-        when (cloneType) {
-          "I2E" -> {
-            packetCtx?.pendingCloneSessionId = sessionId
-            packetCtx?.pendingCloneFieldListId = fieldListId
-          }
-          "E2E" -> {
-            packetCtx?.pendingEgressCloneSessionId = sessionId
-            packetCtx?.pendingEgressCloneFieldListId = fieldListId
-          }
-        }
-        UnitVal
-      }
-      // resubmit[_preserving_field_list](data): re-inject into ingress.
-      "resubmit",
-      "resubmit_preserving_field_list" -> {
-        packetCtx?.pendingResubmit = true
-        if (funcName == "resubmit_preserving_field_list") {
-          packetCtx?.pendingResubmitFieldListId = intValue(evalExpr(call.argsList[0], env))
-        }
-        UnitVal
-      }
-      // recirculate[_preserving_field_list](data): feed deparsed packet back into ingress.
-      "recirculate",
-      "recirculate_preserving_field_list" -> {
-        packetCtx?.pendingRecirculate = true
-        if (funcName == "recirculate_preserving_field_list") {
-          packetCtx?.pendingRecirculateFieldListId = intValue(evalExpr(call.argsList[0], env))
-        }
-        UnitVal
-      }
-      // verify_checksum[_with_payload](condition, data, checksum, algo): v1model §14.
-      // Computes hash over data fields (and optionally the unparsed packet body) and
-      // compares with checksum; sets standard_metadata.checksum_error = 1 on mismatch.
-      "verify_checksum",
-      "verify_checksum_with_payload" -> {
-        val condition = (evalExpr(call.argsList[0], env) as BoolVal).value
-        if (condition) {
-          val data = evalExpr(call.argsList[1], env) as StructVal
-          val expected = evalExpr(call.argsList[2], env) as BitVal
-          val algo = (evalExpr(call.argsList[3], env) as EnumVal).member
-          val payload =
-            if (funcName.endsWith("_with_payload")) packet.peekRemainingInput() else ByteArray(0)
-          val computed = computeHashWithPayload(algo, data, payload)
-          if (computed != expected.bits.value) {
-            onChecksumError?.invoke()
-          }
-        }
-        UnitVal
-      }
-      // update_checksum[_with_payload](condition, data, checksum, algo): v1model §14.
-      // Computes hash over data fields (and optionally the unparsed packet body) and
-      // writes result into checksum (out param).
-      "update_checksum",
-      "update_checksum_with_payload" -> {
-        val condition = (evalExpr(call.argsList[0], env) as BoolVal).value
-        if (condition) {
-          val data = evalExpr(call.argsList[1], env) as StructVal
-          val algo = (evalExpr(call.argsList[3], env) as EnumVal).member
-          val payload =
-            if (funcName.endsWith("_with_payload")) packet.peekRemainingInput() else ByteArray(0)
-          val computed = computeHashWithPayload(algo, data, payload)
-          val checksumWidth = call.argsList[2].type.bit.width
-          setLValue(call.argsList[2], BitVal(BitVector(computed, checksumWidth)), env)
-        }
-        UnitVal
-      }
-      // hash(out result, in algo, in base, in data, in max): v1model hash extern.
-      // See https://github.com/p4lang/behavioral-model/blob/main/docs/simple_switch.md
-      "hash" -> {
-        val algo = (evalExpr(call.argsList[1], env) as EnumVal).member
-        val base = (evalExpr(call.argsList[2], env) as BitVal).bits.value
-        val data = evalExpr(call.argsList[3], env) as StructVal
-        val max = (evalExpr(call.argsList[4], env) as BitVal).bits.value
-        val hashVal = computeHash(algo, data)
-        val result = if (max > BigInteger.ZERO) base + hashVal.mod(max) else base
-        val resultWidth = call.argsList[0].type.bit.width
-        setLValue(call.argsList[0], BitVal(BitVector(result, resultWidth)), env)
-        UnitVal
-      }
-      else -> error("unhandled extern call: $funcName")
+      return UnitVal
     }
+
+    // All other externs are architecture-specific — delegate to the handler.
+    val handler = externHandler ?: error("no extern handler for: $funcName")
+    val evaluator =
+      object : ExternEvaluator {
+        override fun evalArg(index: Int): Value = evalExpr(call.argsList[index], env)
+
+        override fun argType(index: Int): Type = call.argsList[index].type
+
+        override fun writeOutArg(index: Int, value: Value) =
+          setLValue(call.argsList[index], value, env)
+
+        override fun traceEventBuilder(): TraceEvent.Builder = this@Interpreter.traceEventBuilder()
+
+        override fun addTraceEvent(event: TraceEvent) {
+          packetCtx?.addTraceEvent(event)
+        }
+
+        override fun peekRemainingInput(): ByteArray = packet.peekRemainingInput()
+      }
+    return handler.call(funcName, evaluator)
   }
 
   /** Whether [expr] is a field access into a header union. */

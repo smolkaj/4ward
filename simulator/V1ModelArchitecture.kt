@@ -4,17 +4,20 @@ import fourward.ir.v1.BehavioralConfig
 import fourward.ir.v1.PipelineStage
 import fourward.ir.v1.StageKind
 import fourward.ir.v1.StructDecl
+import fourward.sim.v1.SimulatorProto.CloneEvent
 import fourward.sim.v1.SimulatorProto.CloneSessionLookupEvent
 import fourward.sim.v1.SimulatorProto.Drop
 import fourward.sim.v1.SimulatorProto.DropReason
 import fourward.sim.v1.SimulatorProto.Fork
 import fourward.sim.v1.SimulatorProto.ForkBranch
 import fourward.sim.v1.SimulatorProto.ForkReason
+import fourward.sim.v1.SimulatorProto.MarkToDropEvent
 import fourward.sim.v1.SimulatorProto.PacketIngressEvent
 import fourward.sim.v1.SimulatorProto.PacketOutcome
 import fourward.sim.v1.SimulatorProto.PipelineStageEvent
 import fourward.sim.v1.SimulatorProto.TraceEvent
 import fourward.sim.v1.SimulatorProto.TraceTree
+import java.math.BigInteger
 
 /**
  * v1model pipeline implementation.
@@ -301,9 +304,13 @@ class V1ModelArchitecture : Architecture {
     }
 
     val interpreter =
-      Interpreter(ctx.config, ctx.tableStore, packetCtx, decisions) {
-        standardMetadata.setBitField("checksum_error", 1L)
-      }
+      Interpreter(
+        ctx.config,
+        ctx.tableStore,
+        packetCtx,
+        decisions,
+        createExternHandler(packetCtx, standardMetadata),
+      )
 
     val metaValue = defaultValue(metaTypeName, typesByName)
 
@@ -647,6 +654,152 @@ class V1ModelArchitecture : Architecture {
           .setDirection(direction)
       )
       .build()
+
+  // -------------------------------------------------------------------------
+  // v1model extern handler
+  // -------------------------------------------------------------------------
+
+  /**
+   * Creates the v1model [ExternHandler] for a single pipeline execution.
+   *
+   * All v1model extern functions (mark_to_drop, clone, resubmit, recirculate, verify_checksum,
+   * update_checksum, hash) are implemented here. The handler captures [packetCtx] for setting
+   * pending fork flags and [standardMetadata] for checksum error reporting.
+   */
+  private fun createExternHandler(
+    packetCtx: PacketContext,
+    standardMetadata: StructVal,
+  ): ExternHandler = ExternHandler { name, eval ->
+    v1modelExternCall(name, eval, packetCtx, standardMetadata)
+  }
+
+  /**
+   * Dispatches a v1model extern function call.
+   *
+   * References:
+   * - v1model.p4: https://github.com/p4lang/p4c/blob/main/p4include/v1model.p4
+   * - BMv2 simple_switch:
+   *   https://github.com/p4lang/behavioral-model/blob/main/docs/simple_switch.md
+   */
+  @Suppress("CyclomaticComplexMethod", "ThrowsCount")
+  private fun v1modelExternCall(
+    name: String,
+    eval: ExternEvaluator,
+    packetCtx: PacketContext,
+    standardMetadata: StructVal,
+  ): Value =
+    when (name) {
+      // mark_to_drop(standard_metadata): sets egress_spec to all-ones (the drop port).
+      "mark_to_drop" -> {
+        eval.addTraceEvent(
+          eval
+            .traceEventBuilder()
+            .setMarkToDrop(MarkToDropEvent.newBuilder().setReason(DropReason.MARK_TO_DROP))
+            .build()
+        )
+        val smeta = eval.evalArg(0) as StructVal
+        val portBits = smeta.bitWidth("egress_spec")
+        smeta.fields["egress_spec"] = BitVal((1L shl portBits) - 1, portBits)
+        UnitVal
+      }
+      // clone(type, session) / clone3(type, session, data): I2E/E2E clone.
+      // Records the clone intent; the architecture checks the appropriate pending field
+      // at the boundary and forks there. Multiple calls use last-writer-wins,
+      // matching BMv2 simple_switch semantics.
+      "clone",
+      "clone3",
+      "clone_preserving_field_list" -> {
+        val cloneType = (eval.evalArg(0) as EnumVal).member
+        val sessionId = (eval.evalArg(1) as BitVal).bits.value.toInt()
+        val fieldListId =
+          if (name == "clone_preserving_field_list") {
+            (eval.evalArg(2) as BitVal).bits.value.toInt()
+          } else {
+            null
+          }
+        eval.addTraceEvent(
+          eval.traceEventBuilder().setClone(CloneEvent.newBuilder().setSessionId(sessionId)).build()
+        )
+        when (cloneType) {
+          "I2E" -> {
+            packetCtx.pendingCloneSessionId = sessionId
+            packetCtx.pendingCloneFieldListId = fieldListId
+          }
+          "E2E" -> {
+            packetCtx.pendingEgressCloneSessionId = sessionId
+            packetCtx.pendingEgressCloneFieldListId = fieldListId
+          }
+        }
+        UnitVal
+      }
+      // resubmit[_preserving_field_list](data): re-inject into ingress.
+      "resubmit",
+      "resubmit_preserving_field_list" -> {
+        packetCtx.pendingResubmit = true
+        if (name == "resubmit_preserving_field_list") {
+          packetCtx.pendingResubmitFieldListId = (eval.evalArg(0) as BitVal).bits.value.toInt()
+        }
+        UnitVal
+      }
+      // recirculate[_preserving_field_list](data): feed deparsed packet back into ingress.
+      "recirculate",
+      "recirculate_preserving_field_list" -> {
+        packetCtx.pendingRecirculate = true
+        if (name == "recirculate_preserving_field_list") {
+          packetCtx.pendingRecirculateFieldListId = (eval.evalArg(0) as BitVal).bits.value.toInt()
+        }
+        UnitVal
+      }
+      // verify_checksum[_with_payload](condition, data, checksum, algo): v1model §14.
+      // Computes hash over data fields (and optionally the unparsed packet body) and
+      // compares with checksum; sets standard_metadata.checksum_error = 1 on mismatch.
+      "verify_checksum",
+      "verify_checksum_with_payload" -> {
+        val condition = (eval.evalArg(0) as BoolVal).value
+        if (condition) {
+          val data = eval.evalArg(1) as StructVal
+          val expected = eval.evalArg(2) as BitVal
+          val algo = (eval.evalArg(3) as EnumVal).member
+          val payload =
+            if (name.endsWith("_with_payload")) eval.peekRemainingInput() else ByteArray(0)
+          val computed = computeHashWithPayload(algo, data, payload)
+          if (computed != expected.bits.value) {
+            standardMetadata.setBitField("checksum_error", 1L)
+          }
+        }
+        UnitVal
+      }
+      // update_checksum[_with_payload](condition, data, checksum, algo): v1model §14.
+      // Computes hash over data fields (and optionally the unparsed packet body) and
+      // writes result into checksum (out param).
+      "update_checksum",
+      "update_checksum_with_payload" -> {
+        val condition = (eval.evalArg(0) as BoolVal).value
+        if (condition) {
+          val data = eval.evalArg(1) as StructVal
+          val algo = (eval.evalArg(3) as EnumVal).member
+          val payload =
+            if (name.endsWith("_with_payload")) eval.peekRemainingInput() else ByteArray(0)
+          val computed = computeHashWithPayload(algo, data, payload)
+          val checksumWidth = eval.argType(2).bit.width
+          eval.writeOutArg(2, BitVal(BitVector(computed, checksumWidth)))
+        }
+        UnitVal
+      }
+      // hash(out result, in algo, in base, in data, in max): v1model hash extern.
+      "hash" -> {
+        val algo = (eval.evalArg(1) as EnumVal).member
+        val base = (eval.evalArg(2) as BitVal).bits.value
+        val data = eval.evalArg(3) as StructVal
+        val max = (eval.evalArg(4) as BitVal).bits.value
+        val hashVal = computeHash(algo, data)
+        val result = if (max > BigInteger.ZERO) base + hashVal.mod(max) else base
+        val resultWidth = eval.argType(0).bit.width
+        eval.writeOutArg(0, BitVal(BitVector(result, resultWidth)))
+        UnitVal
+      }
+      else -> error("unhandled v1model extern: $name")
+    }
 
   companion object {
     // Default v1model port width and drop port. These are the values for standard v1model.p4
