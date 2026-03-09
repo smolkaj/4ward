@@ -867,6 +867,169 @@ class V1ModelArchitectureTest {
   }
 
   @Test
+  fun `E2E clone_preserving_field_list preserves annotated metadata`() {
+    // Ingress: set meta.preserved = 0xABCD, set egress_spec = 3.
+    // Egress (first pass, instance_type == 0): clone E2E with field_list 1.
+    // Egress (clone's second run, instance_type == 2): if meta.preserved == 0 → drop.
+    // With preservation: meta.preserved is 0xABCD, no drop → 2 outputs.
+    // Without preservation: meta.preserved is 0, clone drops → 1 output.
+    val markToDrop =
+      externCall(
+        "mark_to_drop",
+        Expr.newBuilder().setNameRef(NameRef.newBuilder().setName("sm")).build(),
+      )
+    val config =
+      v1modelConfig(
+        ingressStmts =
+          listOf(
+            assignField("meta", "preserved", 0xABCD, 16),
+            assignField("sm", "egress_spec", 3, V1ModelArchitecture.DEFAULT_PORT_BITS),
+          ),
+        egressStmts =
+          listOf(
+            // First pass: clone E2E.
+            ifFieldEquals(
+              "sm",
+              "instance_type",
+              0,
+              32,
+              externCall("clone_preserving_field_list", enumArg("E2E"), intArg(1, 32), intArg(1, 8)),
+            ),
+            // Clone's second egress (instance_type == 2): drop if metadata was reset.
+            ifFieldEquals(
+              "sm",
+              "instance_type",
+              2,
+              32,
+              ifFieldEquals("meta", "preserved", 0, 16, markToDrop),
+            ),
+          ),
+        metaTypeDecl = metaTypeWithFieldList,
+      )
+    val tableStore = TableStore()
+    writeCloneSession(tableStore, sessionId = 1, egressPort = 8)
+
+    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, tableStore)
+
+    assertTrue(result.trace.hasForkOutcome())
+    assertEquals(ForkReason.CLONE, result.trace.forkOutcome.reason)
+    val outputs = collectOutputsFromTrace(result.trace)
+    assertEquals(2, outputs.size)
+    assertEquals(3, outputs[0].egressPort)
+    assertEquals(8, outputs[1].egressPort)
+  }
+
+  @Test
+  fun `resubmit_preserving_field_list preserves annotated metadata`() {
+    // Ingress (first pass, instance_type == 0): set meta.preserved = 0xABCD, then resubmit.
+    // Ingress (resubmit, instance_type == 6): if meta.preserved == 0 → drop.
+    // With preservation: meta.preserved is 0xABCD, no drop → output on port 1.
+    // Without preservation: meta.preserved is 0, drop → no output.
+    val markToDrop =
+      externCall(
+        "mark_to_drop",
+        Expr.newBuilder().setNameRef(NameRef.newBuilder().setName("sm")).build(),
+      )
+    val config =
+      v1modelConfig(
+        ingressStmts =
+          listOf(
+            // First pass: set metadata and resubmit.
+            ifFieldEquals(
+              "sm",
+              "instance_type",
+              0,
+              32,
+              Stmt.newBuilder()
+                .setBlock(
+                  BlockStmt.newBuilder()
+                    .addStmts(assignField("meta", "preserved", 0xABCD, 16))
+                    .addStmts(externCall("resubmit_preserving_field_list", intArg(1, 8)))
+                )
+                .build(),
+            ),
+            // Resubmit pass (instance_type == 6): drop if metadata was reset.
+            ifFieldEquals(
+              "sm",
+              "instance_type",
+              6,
+              32,
+              ifFieldEquals("meta", "preserved", 0, 16, markToDrop),
+            ),
+            // Set egress_spec so the packet outputs (if not dropped).
+            assignField("sm", "egress_spec", 1, V1ModelArchitecture.DEFAULT_PORT_BITS),
+          ),
+        metaTypeDecl = metaTypeWithFieldList,
+      )
+
+    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+
+    assertTrue(result.trace.hasForkOutcome())
+    assertEquals(ForkReason.RESUBMIT, result.trace.forkOutcome.reason)
+    val outputs = collectOutputsFromTrace(result.trace)
+    // Resubmit branch outputs (metadata was preserved, so no drop).
+    assertEquals(1, outputs.size)
+    assertEquals(1, outputs[0].egressPort)
+  }
+
+  @Test
+  fun `recirculate_preserving_field_list preserves annotated metadata`() {
+    // Ingress: set egress_spec = 1, set meta.preserved = 0xABCD on first pass.
+    // Egress (first pass, instance_type == 0): recirculate with field_list 1.
+    // Ingress (recirculate, instance_type == 4): if meta.preserved == 0 → drop.
+    // With preservation: meta.preserved is 0xABCD, no drop → output on port 1.
+    // Without preservation: meta.preserved is 0, drop → no output.
+    val markToDrop =
+      externCall(
+        "mark_to_drop",
+        Expr.newBuilder().setNameRef(NameRef.newBuilder().setName("sm")).build(),
+      )
+    val config =
+      v1modelConfig(
+        ingressStmts =
+          listOf(
+            // First pass: set metadata.
+            ifFieldEquals(
+              "sm",
+              "instance_type",
+              0,
+              32,
+              assignField("meta", "preserved", 0xABCD, 16),
+            ),
+            // Recirculate pass (instance_type == 4): drop if metadata was reset.
+            ifFieldEquals(
+              "sm",
+              "instance_type",
+              4,
+              32,
+              ifFieldEquals("meta", "preserved", 0, 16, markToDrop),
+            ),
+            assignField("sm", "egress_spec", 1, V1ModelArchitecture.DEFAULT_PORT_BITS),
+          ),
+        egressStmts =
+          listOf(
+            ifFieldEquals(
+              "sm",
+              "instance_type",
+              0,
+              32,
+              externCall("recirculate_preserving_field_list", intArg(1, 8)),
+            )
+          ),
+        metaTypeDecl = metaTypeWithFieldList,
+      )
+
+    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+
+    assertTrue(result.trace.hasForkOutcome())
+    assertEquals(ForkReason.RECIRCULATE, result.trace.forkOutcome.reason)
+    val outputs = collectOutputsFromTrace(result.trace)
+    // Recirculate branch outputs (metadata was preserved, so no drop).
+    assertEquals(1, outputs.size)
+    assertEquals(1, outputs[0].egressPort)
+  }
+
+  @Test
   fun `clone_preserving_field_list does not preserve non-annotated fields`() {
     // Same setup, but check that not_preserved (no @field_list annotation) resets to 0.
     // Egress (clone branch): if meta.not_preserved == 0 → set egress_spec to 42 (distinctive).
