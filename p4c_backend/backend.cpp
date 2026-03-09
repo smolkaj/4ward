@@ -496,6 +496,14 @@ void FourWardBackend::setStaticEntries(p4::v1::WriteRequest entries) {
       std::move(entries);
 }
 
+void FourWardBackend::setTypeTranslations(
+    std::vector<fourward::ir::v1::TypeTranslation> translations) {
+  auto* device = pipelineConfig_.mutable_device();
+  for (auto& t : translations) {
+    *device->add_translations() = std::move(t);
+  }
+}
+
 void FourWardBackend::emitTypeDecls(const IR::P4Program* program) {
   for (const auto* decl : *program->getDeclarations()) {
     if (const auto* hdr = decl->to<IR::Type_Header>()) {

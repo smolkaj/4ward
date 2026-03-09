@@ -18,6 +18,7 @@
 #define P4C_BACKEND_BACKEND_H_
 
 #include <string>
+#include <vector>
 
 #include "frontends/common/resolveReferences/referenceMap.h"
 #include "frontends/p4/typeMap.h"
@@ -49,6 +50,11 @@ class FourWardBackend : public Inspector {
 
   // Injects static table entries (const entries) from the P4Runtime serialiser.
   void setStaticEntries(p4::v1::WriteRequest entries);
+
+  // Injects type translation mappings extracted from
+  // @p4runtime_translation_mappings annotations.
+  void setTypeTranslations(
+      std::vector<fourward::ir::v1::TypeTranslation> translations);
 
   // Writes the accumulated PipelineConfig proto to the output file.
   // Returns true on success.

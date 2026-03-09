@@ -355,6 +355,10 @@ class V1ModelArchitecture : Architecture {
     }
 
     // --- Egress controls (egress, compute checksum) ---
+    // BMv2: egress_spec starts matching egress_port for each egress run. This
+    // ensures mark_to_drop() during egress is the only way to set the drop port,
+    // regardless of what ingress or a prior egress run left in egress_spec.
+    resetEgressSpec(s)
     runControlStages(s, s.egressControls)
 
     // --- Post-egress boundary (E2E clone / recirculate) ---
@@ -362,6 +366,7 @@ class V1ModelArchitecture : Architecture {
 
     // E2E clone branch: postEgressBoundary set up clone metadata — run egress again.
     if (decisions.branchMode is BranchMode.E2EClone) {
+      resetEgressSpec(s)
       runControlStages(s, s.egressControls)
     }
 
@@ -499,6 +504,19 @@ class V1ModelArchitecture : Architecture {
    */
   private fun egressPortIsDropPort(s: PipelineState): Boolean =
     (s.standardMetadata.fields["egress_port"] as? BitVal)?.bits?.value?.toLong() == s.dropPort
+
+  /**
+   * Resets egress_spec to match egress_port before each egress run.
+   *
+   * In BMv2, egress_spec carries the ingress-determined output port for unicast, but for multicast
+   * replicas, I2E clones, and E2E clones, egress_port is set independently by the PRE or clone
+   * session. Without this reset, a stale mark_to_drop() from ingress (or a prior egress run) would
+   * cause the post-egress drop check to incorrectly drop packets.
+   */
+  private fun resetEgressSpec(s: PipelineState) {
+    s.standardMetadata.fields["egress_spec"] =
+      s.standardMetadata.fields["egress_port"] ?: BitVal(0, s.portBits)
+  }
 
   /** Post-egress drop check: mark_to_drop() in egress sets egress_spec to drop port. */
   private fun egressSpecIsDropPort(s: PipelineState): Boolean =

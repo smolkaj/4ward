@@ -14,6 +14,11 @@ naming:
   InvalidPackageDeclaration:
     active: false
 
+  # Main.kt has main() + supporting declarations (OutputFormat, UsageError);
+  # forcing the file to match a single declaration name is counterproductive.
+  MatchingDeclarationName:
+    active: false
+
 style:
   MaxLineLength:
     maxLineLength: 100  # Google Kotlin style guide §4.4
@@ -26,6 +31,18 @@ style:
   ReturnCount:
     active: false
 
+  # Multiple continues in a loop is the natural pattern for multi-condition
+  # filtering (e.g. skip if no type name, skip if not in map). Splitting
+  # into helper predicates adds indirection without improving clarity.
+  LoopWithTooManyJumpStatements:
+    active: false
+
+  # Validation functions naturally have multiple throw-on-error paths
+  # (one per validation check). Suppressing this is less readable than
+  # letting each check throw directly.
+  ThrowsCount:
+    active: false
+
   # Numeric literals in tests are self-documenting (e.g. BitVector.ofInt(0xFF, 8)).
   # Extend the default excludes to cover our colocated *Test.kt files.
   # Also add the small integers that frequently appear as byte/hex constants (8, 16)
@@ -33,7 +50,7 @@ style:
   # without clarifying intent (HEX_RADIX = 16 does not explain more than 16 alone).
   MagicNumber:
     excludes: ['**/test/**', '**/*.kts', '**/*Test.kt']
-    ignoreNumbers: ['-1', '0', '1', '2', '3', '4', '7', '8', '16', '100']
+    ignoreNumbers: ['-1', '0', '1', '2', '3', '4', '7', '8', '16', '32', '100', '0xFF', '0xFFFFFFFFL']
 
 complexity:
   # Test builder helpers legitimately need many parameters to fully specify a test
@@ -91,6 +108,8 @@ exceptions:
       - ExitException
       - EOFException
       - PacketTooShortException
+      - FileNotFoundException
+      - NoSuchFileException
 
   # The simulator subprocess writes diagnostics to stderr; e.printStackTrace(System.err)
   # is the right call there. Alternatives (logging frameworks, custom formatters) would

@@ -19,12 +19,10 @@ import p4.v1.P4RuntimeOuterClass.GetForwardingPipelineConfigRequest
 import p4.v1.P4RuntimeOuterClass.GetForwardingPipelineConfigResponse
 import p4.v1.P4RuntimeOuterClass.MasterArbitrationUpdate
 import p4.v1.P4RuntimeOuterClass.PacketIn
-import p4.v1.P4RuntimeOuterClass.PacketOutError
 import p4.v1.P4RuntimeOuterClass.ReadRequest
 import p4.v1.P4RuntimeOuterClass.ReadResponse
 import p4.v1.P4RuntimeOuterClass.SetForwardingPipelineConfigRequest
 import p4.v1.P4RuntimeOuterClass.SetForwardingPipelineConfigResponse
-import p4.v1.P4RuntimeOuterClass.StreamError
 import p4.v1.P4RuntimeOuterClass.StreamMessageRequest
 import p4.v1.P4RuntimeOuterClass.StreamMessageResponse
 import p4.v1.P4RuntimeOuterClass.Uint128
@@ -60,6 +58,7 @@ class P4RuntimeService(
     val typeTranslator: TypeTranslator?,
     val writeValidator: WriteValidator,
     val constraintValidator: ConstraintValidator?,
+    val packetHeaderCodec: PacketHeaderCodec?,
   )
 
   @Volatile private var pipeline: PipelineState? = null
@@ -94,6 +93,7 @@ class P4RuntimeService(
           throw Status.INVALID_ARGUMENT.withDescription(
               "p4_device_config is not a valid DeviceConfig: ${e.message}"
             )
+            .withCause(e)
             .asException()
         }
 
@@ -104,6 +104,7 @@ class P4RuntimeService(
         simulator.loadPipeline(pipelineConfig)
       } catch (e: IllegalArgumentException) {
         throw Status.INTERNAL.withDescription("Simulator rejected pipeline: ${e.message}")
+          .withCause(e)
           .asException()
       }
 
@@ -115,6 +116,7 @@ class P4RuntimeService(
           writeValidator = WriteValidator(pipelineConfig.p4Info),
           constraintValidator =
             constraintValidatorBinary?.let { ConstraintValidator.create(fwdConfig.p4Info, it) },
+          packetHeaderCodec = PacketHeaderCodec.create(fwdConfig.p4Info, deviceConfig.behavioral),
         )
       SetForwardingPipelineConfigResponse.getDefaultInstance()
     }
@@ -220,53 +222,58 @@ class P4RuntimeService(
             )
           }
           msg.hasPacket() -> {
-            val responses =
-              lock.withLock {
-                val state = pipeline
-                if (state == null) {
-                  // P4Runtime spec §16.6: StreamError reporting is optional and for
-                  // debugging. The spec requires dropping invalid PacketOut messages
-                  // (§16.1) but is silent on the "no pipeline" case specifically.
-                  // We report FAILED_PRECONDITION (matching Write/Read RPC behavior)
-                  // to help clients diagnose misconfigured pipelines.
-                  return@withLock listOf(
-                    StreamMessageResponse.newBuilder()
-                      .setError(
-                        StreamError.newBuilder()
-                          .setCanonicalCode(Status.FAILED_PRECONDITION.code.value())
-                          .setMessage(NO_PIPELINE_MESSAGE)
-                          .setPacketOut(PacketOutError.newBuilder().setPacketOut(msg.packet))
-                      )
-                      .build()
-                  )
-                }
-
-                val translator = state.typeTranslator?.takeIf { it.hasTranslations }
-                val packetOut = translator?.translatePacketOut(msg.packet) ?: msg.packet
-                val ingressPort = extractIngressPort(packetOut.metadataList)
-                val response = simulator.processPacket(ingressPort, packetOut.payload.toByteArray())
-
-                // Convert output packets to PacketIn messages.
-                response.outputPacketsList.map { outputPacket ->
-                  val rawPacketIn =
-                    PacketIn.newBuilder()
-                      .setPayload(outputPacket.payload)
-                      .addMetadata(
-                        p4.v1.P4RuntimeOuterClass.PacketMetadata.newBuilder()
-                          .setMetadataId(EGRESS_PORT_METADATA_ID)
-                          .setValue(encodeMinWidth(outputPacket.egressPort))
-                      )
-                      .build()
-                  StreamMessageResponse.newBuilder()
-                    .setPacket(translator?.translatePacketIn(rawPacketIn) ?: rawPacketIn)
-                    .build()
-                }
-              }
-            responses.forEach { emit(it) }
+            val packetIns = lock.withLock { handlePacketOut(msg.packet) }
+            packetIns?.forEach { emit(it) }
           }
         }
       }
     }
+
+  /**
+   * Processes a PacketOut: translates metadata, simulates, and returns PacketIn responses. Must be
+   * called under [lock].
+   */
+  private fun handlePacketOut(
+    packet: p4.v1.P4RuntimeOuterClass.PacketOut
+  ): List<StreamMessageResponse>? {
+    val state = pipeline ?: return null
+    val translator = state.typeTranslator?.takeIf { it.hasTranslations }
+    val codec = state.packetHeaderCodec
+    val packetOut = translator?.translatePacketOut(packet) ?: packet
+
+    // If the pipeline has a packet_out header, serialize metadata into a binary
+    // header and prepend it. The parser expects the packet to arrive on the CPU
+    // port with the header prepended.
+    val (ingressPort, payload) =
+      if (codec != null) {
+        val header = codec.serializePacketOut(packetOut.metadataList)
+        codec.cpuPort to (header + packetOut.payload.toByteArray())
+      } else {
+        extractIngressPort(packetOut.metadataList) to packetOut.payload.toByteArray()
+      }
+
+    val response = simulator.processPacket(ingressPort, payload)
+
+    return response.outputPacketsList.map { outputPacket ->
+      val rawPacketIn =
+        if (codec != null) {
+          val metadata = codec.buildPacketInMetadata(ingressPort, outputPacket.egressPort)
+          PacketIn.newBuilder().setPayload(outputPacket.payload).addAllMetadata(metadata).build()
+        } else {
+          PacketIn.newBuilder()
+            .setPayload(outputPacket.payload)
+            .addMetadata(
+              p4.v1.P4RuntimeOuterClass.PacketMetadata.newBuilder()
+                .setMetadataId(EGRESS_PORT_METADATA_ID)
+                .setValue(encodeMinWidth(outputPacket.egressPort))
+            )
+            .build()
+        }
+      StreamMessageResponse.newBuilder()
+        .setPacket(translator?.translatePacketIn(rawPacketIn) ?: rawPacketIn)
+        .build()
+    }
+  }
 
   /** Extracts ingress port from PacketOut metadata, defaulting to port 0. */
   private fun extractIngressPort(metadata: List<p4.v1.P4RuntimeOuterClass.PacketMetadata>): Int {

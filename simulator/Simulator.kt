@@ -61,13 +61,12 @@ class Simulator {
 
     // Output packets are extracted from trace tree leaves — the tree is the single source
     // of truth for packet outcomes. Non-forking trees have a single leaf; forking trees
-    // (non-deterministic programs) have no output_packets in the response.
+    // (multicast, clone) have multiple leaves whose outputs are collected recursively.
     val trace = result.trace
-    val responseBuilder = ProcessPacketResponse.newBuilder().setTrace(trace)
-    if (trace.hasPacketOutcome() && trace.packetOutcome.hasOutput()) {
-      responseBuilder.addOutputPackets(trace.packetOutcome.output)
-    }
-    return responseBuilder.build()
+    return ProcessPacketResponse.newBuilder()
+      .setTrace(trace)
+      .addAllOutputPackets(collectOutputsFromTrace(trace))
+      .build()
   }
 
   /**

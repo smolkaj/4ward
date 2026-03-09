@@ -289,6 +289,20 @@ kt_jvm_test(
 )
 
 kt_jvm_test(
+    name = "PacketHeaderCodecTest",
+    srcs = ["PacketHeaderCodecTest.kt"],
+    test_class = "fourward.p4runtime.PacketHeaderCodecTest",
+    deps = [
+        ":p4info_java_proto",
+        ":p4runtime_java_proto",
+        ":p4runtime_lib",
+        "//simulator:ir_java_proto",
+        "@maven//:com_google_protobuf_protobuf_java",
+        "@maven//:junit_junit",
+    ],
+)
+
+kt_jvm_test(
     name = "SaiP4E2ETest",
     srcs = [
         "P4RuntimeTestHarness.kt",
