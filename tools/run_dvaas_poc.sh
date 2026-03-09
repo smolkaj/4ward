@@ -5,6 +5,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ARTIFACT_DIR="${ROOT}/.tmp/dvaas_poc_artifacts"
 SONIC_PINS_DIR="$(mktemp -d "${TMPDIR:-/tmp}/sonic-pins.XXXXXX")"
 SONIC_PINS_REF="${SONIC_PINS_REF:-6052c041f299fdf8fad50236caf15483e95b56d4}"
+FOURWARD_BAZEL_CONFIG="${FOURWARD_BAZEL_CONFIG:-}"
 SUT_PORT=9560
 CONTROL_PORT=9561
 CPU_PORT=510
@@ -51,7 +52,12 @@ sys.exit(1)
 PY
 }
 
-bazel build --config=throttle \
+BAZEL_ARGS=()
+if [[ -n "${FOURWARD_BAZEL_CONFIG}" ]]; then
+  BAZEL_ARGS+=("--config=${FOURWARD_BAZEL_CONFIG}")
+fi
+
+bazel build "${BAZEL_ARGS[@]}" \
   //p4runtime:p4runtime_server \
   //e2e_tests/dvaas_poc:dvaas_poc_pb
 
