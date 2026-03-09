@@ -1,0 +1,4 @@
+# clone_preserve_meta.stf — clone_preserving_field_list metadata test.
+
+mirroring_add 100 2
+packet 0 FFFFFFFFFFFF 000000000001 0800
