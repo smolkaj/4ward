@@ -88,6 +88,7 @@ wait_for_port localhost "${CONTROL_PORT}"
 (
   cd "${SONIC_PINS_DIR}" &&
     bazel --bazelrc=/dev/null --nosystem_rc --noworkspace_rc --nohome_rc \
+      --cxxopt=-std=c++17 --host_cxxopt=-std=c++17 \
       build //fourward_dvaas:validate_dataplane_poc
 )
 (cd "${SONIC_PINS_DIR}" && bazel-bin/fourward_dvaas/validate_dataplane_poc \
