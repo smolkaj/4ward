@@ -7,7 +7,6 @@ import fourward.simulator.WriteResult
 import io.grpc.Status
 import java.io.Closeable
 import java.nio.file.Path
-import java.util.logging.Logger
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.sync.Mutex
@@ -253,13 +252,7 @@ class P4RuntimeService(
         extractIngressPort(packetOut.metadataList) to packetOut.payload.toByteArray()
       }
 
-    val response =
-      try {
-        simulator.processPacket(ingressPort, payload)
-      } catch (e: IllegalStateException) {
-        logger.warning { "PacketOut processing failed: ${e.message}" }
-        return null
-      }
+    val response = simulator.processPacket(ingressPort, payload)
 
     return response.outputPacketsList.map { outputPacket ->
       val rawPacketIn =
@@ -348,8 +341,6 @@ class P4RuntimeService(
   }
 
   companion object {
-    private val logger = Logger.getLogger(P4RuntimeService::class.java.name)
-
     // Well-known metadata IDs for v1model packet_in/packet_out headers.
     private const val INGRESS_PORT_METADATA_ID = 1
     private const val EGRESS_PORT_METADATA_ID = 2
