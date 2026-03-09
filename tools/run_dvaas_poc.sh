@@ -85,7 +85,11 @@ CONTROL_PID=$!
 wait_for_port localhost "${SUT_PORT}"
 wait_for_port localhost "${CONTROL_PORT}"
 
-(cd "${SONIC_PINS_DIR}" && bazel --bazelrc=/dev/null build //fourward_dvaas:validate_dataplane_poc)
+(
+  cd "${SONIC_PINS_DIR}" &&
+    bazel --bazelrc=/dev/null --nosystem_rc --noworkspace_rc --nohome_rc \
+      build //fourward_dvaas:validate_dataplane_poc
+)
 (cd "${SONIC_PINS_DIR}" && bazel-bin/fourward_dvaas/validate_dataplane_poc \
   "localhost:${SUT_PORT}" "localhost:${CONTROL_PORT}" "${ARTIFACT_DIR}")
 
