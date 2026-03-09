@@ -14,7 +14,6 @@ import fourward.ir.v1.FieldAccess
 import fourward.ir.v1.FieldDecl
 import fourward.ir.v1.IfStmt
 import fourward.ir.v1.Literal
-import fourward.ir.v1.NameRef
 import fourward.ir.v1.ParamDecl
 import fourward.ir.v1.ParserDecl
 import fourward.ir.v1.ParserState
@@ -141,9 +140,7 @@ class V1ModelArchitectureTest {
           .setLhs(
             Expr.newBuilder()
               .setFieldAccess(
-                FieldAccess.newBuilder()
-                  .setExpr(Expr.newBuilder().setNameRef(NameRef.newBuilder().setName(target)))
-                  .setFieldName(fieldName)
+                FieldAccess.newBuilder().setExpr(nameRef(target)).setFieldName(fieldName)
               )
               .setType(bitType(width))
           )
@@ -174,11 +171,7 @@ class V1ModelArchitectureTest {
                   .setLeft(
                     Expr.newBuilder()
                       .setFieldAccess(
-                        FieldAccess.newBuilder()
-                          .setExpr(
-                            Expr.newBuilder().setNameRef(NameRef.newBuilder().setName(target))
-                          )
-                          .setFieldName(fieldName)
+                        FieldAccess.newBuilder().setExpr(nameRef(target)).setFieldName(fieldName)
                       )
                       .setType(bitType(width))
                   )
@@ -774,11 +767,7 @@ class V1ModelArchitectureTest {
     // egress_spec width independently) and the Architecture's drop detection (which uses
     // PipelineState.dropPort derived from ingress_port width). Both must agree.
     val portBits = 16
-    val markToDrop =
-      externCall(
-        "mark_to_drop",
-        Expr.newBuilder().setNameRef(NameRef.newBuilder().setName("sm")).build(),
-      )
+    val markToDrop = externCall("mark_to_drop", nameRef("sm"))
     val config = widePortConfig(portBits, markToDrop)
     val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
 
