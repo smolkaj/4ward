@@ -17,7 +17,7 @@
 #include "dvaas/dataplane_validation.h"
 #include "dvaas/switch_api.h"
 #include "dvaas/test_vector.pb.h"
-#include "gnmi/gnmi.grpc.pb.h"
+#include "proto/gnmi/gnmi.grpc.pb.h"
 #include "grpcpp/grpcpp.h"
 #include "gutil/gutil/status.h"
 #include "gutil/gutil/testing.h"
