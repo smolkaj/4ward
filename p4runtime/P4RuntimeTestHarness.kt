@@ -140,6 +140,9 @@ class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable 
   fun deleteEntry(entity: Entity, electionId: Uint128? = null): WriteResponse =
     writeEntity(Update.Type.DELETE, entity, electionId)
 
+  /** Sends a raw [WriteRequest] — use for testing request-level fields like atomicity. */
+  fun writeRaw(request: WriteRequest): WriteResponse = runBlocking { stub.write(request) }
+
   private fun writeEntity(type: Update.Type, entity: Entity, electionId: Uint128?): WriteResponse =
     runBlocking {
       stub.write(

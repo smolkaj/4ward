@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import p4.v1.P4RuntimeGrpcKt
+import p4.v1.P4RuntimeOuterClass
 import p4.v1.P4RuntimeOuterClass.CapabilitiesRequest
 import p4.v1.P4RuntimeOuterClass.CapabilitiesResponse
 import p4.v1.P4RuntimeOuterClass.ForwardingPipelineConfig
@@ -131,9 +132,11 @@ class P4RuntimeService(
     lock.withLock {
       val state = requirePipeline()
       requirePrimaryOrNoArbitration(request.electionId)
+      rejectUnsupportedAtomicity(request)
       val translator = state.typeTranslator?.takeIf { it.hasTranslations }
       val validator = state.constraintValidator
       for (rawUpdate in request.updatesList) {
+        rejectUnsupportedEntity(rawUpdate.entity)
         // Validate against p4info before type translation so SDN-visible values
         // are checked at canonical widths (P4Runtime spec §8.3, §9.1).
         if (rawUpdate.entity.hasTableEntry()) {
@@ -235,6 +238,8 @@ class P4RuntimeService(
             val packetIns = lock.withLock { handlePacketOut(msg.packet) }
             packetIns?.forEach { emit(it) }
           }
+          msg.hasDigestAck() ->
+            throw Status.UNIMPLEMENTED.withDescription(DIGEST_NOT_SUPPORTED).asException()
         }
       }
     }
@@ -345,6 +350,28 @@ class P4RuntimeService(
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Unsupported feature guards
+  // ---------------------------------------------------------------------------
+
+  /** P4Runtime spec §7.1: reject non-default write atomicity modes. */
+  private fun rejectUnsupportedAtomicity(request: WriteRequest) {
+    val atomicity = request.atomicity
+    if (atomicity != WriteRequest.Atomicity.CONTINUE_ON_ERROR) {
+      throw Status.UNIMPLEMENTED.withDescription(
+          "write atomicity ${atomicity.name} is not supported; only CONTINUE_ON_ERROR is available"
+        )
+        .asException()
+    }
+  }
+
+  /** Rejects entity types that are documented but not implemented. */
+  private fun rejectUnsupportedEntity(entity: P4RuntimeOuterClass.Entity) {
+    if (entity.hasDigestEntry()) {
+      throw Status.UNIMPLEMENTED.withDescription(DIGEST_NOT_SUPPORTED).asException()
+    }
+  }
+
   override fun close() {
     pipeline?.constraintValidator?.close()
   }
@@ -359,5 +386,7 @@ class P4RuntimeService(
 
     private const val NO_PIPELINE_MESSAGE =
       "No pipeline loaded; call SetForwardingPipelineConfig first"
+
+    private const val DIGEST_NOT_SUPPORTED = "digest is not supported"
   }
 }

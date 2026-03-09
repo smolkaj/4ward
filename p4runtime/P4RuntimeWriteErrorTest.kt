@@ -8,8 +8,10 @@ import io.grpc.Status
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
+import p4.v1.P4RuntimeOuterClass.DigestEntry
 import p4.v1.P4RuntimeOuterClass.Entity
 import p4.v1.P4RuntimeOuterClass.TableEntry
+import p4.v1.P4RuntimeOuterClass.WriteRequest
 
 /**
  * Spec-driven conformance tests for P4Runtime Write RPC error conditions.
@@ -208,5 +210,50 @@ class P4RuntimeWriteErrorTest {
     // No match fields at all — the table requires an exact match.
     val entity = buildInvalidEntry(config) { b -> b.tableEntryBuilder.clearMatch() }
     assertGrpcError(Status.Code.INVALID_ARGUMENT, "missing") { harness.installEntry(entity) }
+  }
+
+  // =========================================================================
+  // Unimplemented feature guards
+  // =========================================================================
+
+  // Digest entities are not supported; clients must get a clear error rather than silent failure.
+  @Test
+  fun `write digest entity returns UNIMPLEMENTED`() {
+    harness.loadPipeline(loadBasicTableConfig())
+    val entity = Entity.newBuilder().setDigestEntry(DigestEntry.newBuilder().setDigestId(1)).build()
+    assertGrpcError(Status.Code.UNIMPLEMENTED, "digest") { harness.installEntry(entity) }
+  }
+
+  // idle_timeout_ns is not supported; must be rejected rather than silently ignored.
+  @Test
+  fun `insert with idle_timeout_ns returns UNIMPLEMENTED`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    val entity = buildInvalidEntry(config) { b -> b.tableEntryBuilder.setIdleTimeoutNs(1_000_000) }
+    assertGrpcError(Status.Code.UNIMPLEMENTED, "idle_timeout_ns") { harness.installEntry(entity) }
+  }
+
+  // ROLLBACK_ON_ERROR atomicity is not supported; must be rejected up front.
+  @Test
+  fun `write with ROLLBACK_ON_ERROR atomicity returns UNIMPLEMENTED`() {
+    harness.loadPipeline(loadBasicTableConfig())
+    val request =
+      WriteRequest.newBuilder()
+        .setDeviceId(1)
+        .setAtomicity(WriteRequest.Atomicity.ROLLBACK_ON_ERROR)
+        .build()
+    assertGrpcError(Status.Code.UNIMPLEMENTED, "atomicity") { harness.writeRaw(request) }
+  }
+
+  // DATAPLANE_ATOMIC atomicity is not supported; must be rejected up front.
+  @Test
+  fun `write with DATAPLANE_ATOMIC atomicity returns UNIMPLEMENTED`() {
+    harness.loadPipeline(loadBasicTableConfig())
+    val request =
+      WriteRequest.newBuilder()
+        .setDeviceId(1)
+        .setAtomicity(WriteRequest.Atomicity.DATAPLANE_ATOMIC)
+        .build()
+    assertGrpcError(Status.Code.UNIMPLEMENTED, "atomicity") { harness.writeRaw(request) }
   }
 }

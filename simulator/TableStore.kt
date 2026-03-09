@@ -570,7 +570,12 @@ class TableStore {
         writePreEntry(entity.packetReplicationEngineEntry)
         WriteResult.Success
       }
-      else -> writeTableEntry(update)
+      entity.hasTableEntry() -> writeTableEntry(update)
+      else ->
+        WriteResult.InvalidArgument(
+          "unsupported entity type; only table entries, action profiles, counters, meters, " +
+            "registers, and PRE entries are supported"
+        )
     }
   }
 
