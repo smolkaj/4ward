@@ -4,6 +4,14 @@
 'use strict';
 
 // ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const V1MODEL_STAGES = [
+  'parser', 'verify_checksum', 'ingress', 'egress', 'compute_checksum', 'deparser'
+];
+
+// ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
 
@@ -14,6 +22,12 @@ const state = {
   lastTrace: null,      // last ProcessPacketWithTraceTree response
   editor: null,         // Monaco editor instance
   loadingExample: false, // guard for example loading
+
+  // Playback state.
+  playbackEvents: [],       // flattened list of {event, stageName, line, eventIdx}
+  playbackPos: -1,          // current position (-1 = before first event)
+  playbackTimer: null,      // setInterval ID for auto-play
+  _playbackDecorations: [], // Monaco editor decoration IDs
 };
 
 // ---------------------------------------------------------------------------
@@ -932,16 +946,408 @@ function formatHexDump(bytes) {
 function renderTraceTree(trace) {
   const emptyEl = document.getElementById('trace-empty');
   const treeEl = document.getElementById('trace-tree');
+  const diagramEl = document.getElementById('pipeline-diagram');
 
   if (!trace) {
     emptyEl.classList.remove('hidden');
     treeEl.classList.add('hidden');
+    diagramEl.classList.add('hidden');
     return;
   }
 
   emptyEl.classList.add('hidden');
   treeEl.classList.remove('hidden');
+  diagramEl.classList.remove('hidden');
+  _eventIdx = 0;
   treeEl.innerHTML = renderTraceNode(trace, true);
+  updatePipelineDiagram(trace);
+  initPlayback(trace);
+}
+
+/**
+ * Analyze the trace to determine which pipeline stages were visited,
+ * where the packet dropped (if it did), and what the outcome was.
+ * Update the pipeline diagram to reflect this.
+ */
+function updatePipelineDiagram(trace) {
+  const stageOrder = V1MODEL_STAGES;
+
+  // Collect visited stages from the top-level trace events.
+  const visited = new Set();
+  for (const event of trace.events || []) {
+    if (event.pipeline_stage && event.pipeline_stage.direction === 'ENTER') {
+      visited.add(event.pipeline_stage.stage_name);
+    }
+  }
+
+  // Determine the outcome and the stage where a drop happened (if any).
+  const outcome = analyzeOutcome(trace);
+
+  // Find the last visited stage — if the packet dropped, mark it.
+  let lastVisitedIdx = -1;
+  for (let i = stageOrder.length - 1; i >= 0; i--) {
+    if (visited.has(stageOrder[i])) {
+      lastVisitedIdx = i;
+      break;
+    }
+  }
+
+  // Update stage elements.
+  const stageEls = document.querySelectorAll('#pipeline-diagram .pipeline-stage');
+  stageEls.forEach(el => {
+    const name = el.dataset.stage;
+    el.classList.remove('visited', 'dropped');
+
+    if (visited.has(name)) {
+      if (outcome.type === 'drop' && name === stageOrder[lastVisitedIdx]) {
+        el.classList.add('dropped');
+      } else {
+        el.classList.add('visited');
+      }
+    }
+  });
+
+  // Update arrows: light up arrows between consecutive visited stages.
+  const arrowEls = document.querySelectorAll('#pipeline-diagram .pipeline-arrow');
+  arrowEls.forEach((arrow, i) => {
+    arrow.classList.remove('active');
+    // Arrow i connects stage i to stage i+1.
+    if (visited.has(stageOrder[i]) && visited.has(stageOrder[i + 1])) {
+      arrow.classList.add('active');
+    }
+  });
+
+  // Update outcome text.
+  const outcomeEl = document.getElementById('pipeline-outcome');
+  outcomeEl.className = 'pipeline-outcome';
+  if (outcome.type === 'output') {
+    outcomeEl.className += ' output';
+    outcomeEl.textContent = `→ output port ${outcome.port}`;
+  } else if (outcome.type === 'drop') {
+    outcomeEl.className += ' drop';
+    outcomeEl.textContent = `✕ dropped`;
+  } else if (outcome.type === 'fork') {
+    outcomeEl.className += ' fork';
+    outcomeEl.textContent = `⑂ ${outcome.reason} → ${outcome.branchCount} branches`;
+  }
+}
+
+/** Walk the trace tree to determine the top-level outcome. */
+function analyzeOutcome(trace) {
+  if (trace.packet_outcome) {
+    if (trace.packet_outcome.output) {
+      return { type: 'output', port: trace.packet_outcome.output.egress_port };
+    }
+    if (trace.packet_outcome.drop) {
+      return { type: 'drop', reason: trace.packet_outcome.drop.reason };
+    }
+  }
+  if (trace.fork_outcome) {
+    const reason = (trace.fork_outcome.reason || 'fork').toLowerCase().replace(/_/g, ' ');
+    return { type: 'fork', reason, branchCount: (trace.fork_outcome.branches || []).length };
+  }
+  return { type: 'unknown' };
+}
+
+// ---------------------------------------------------------------------------
+// Animated trace playback
+// ---------------------------------------------------------------------------
+
+/**
+ * Flatten trace events into a linear list for stepping through.
+ * Returns: [{ event, stageName, line, eventIdx }]
+ *
+ * Walks events the same way renderTraceNode does so eventIdx values match
+ * the data-event-idx attributes in the DOM. Pipeline stage ENTER/EXIT events
+ * are consumed by renderTraceNode's grouping logic and never get a
+ * data-event-idx, so stage ENTER entries have eventIdx: null — the pipeline
+ * diagram provides visual feedback for those instead.
+ */
+function flattenTraceEvents(trace) {
+  const result = [];
+  let currentStage = null;
+  let eventIdx = 0;
+
+  function addEvent(event) {
+    const line = event.source_info?.line || 0;
+    result.push({ event, stageName: currentStage, line, eventIdx });
+    eventIdx++;
+  }
+
+  function walkNode(node) {
+    const events = node.events || [];
+    let i = 0;
+    while (i < events.length) {
+      const event = events[i];
+      if (event.pipeline_stage && event.pipeline_stage.direction === 'ENTER') {
+        // Grouped stage — ENTER is consumed by the renderer (not rendered via
+        // renderTraceEvent), so it has no data-event-idx in the DOM. But we
+        // still want it as a steppable event — the pipeline diagram provides
+        // the visual feedback.
+        const stageName = event.pipeline_stage.stage_name;
+        currentStage = stageName;
+        result.push({ event, stageName, line: 0, eventIdx: null });
+        i++;
+        while (i < events.length) {
+          if (events[i].pipeline_stage && events[i].pipeline_stage.direction === 'EXIT'
+              && events[i].pipeline_stage.stage_name === stageName) {
+            currentStage = null;
+            i++; // EXIT consumed
+            break;
+          }
+          addEvent(events[i]);
+          i++;
+        }
+      } else {
+        addEvent(event);
+        i++;
+      }
+    }
+  }
+
+  walkNode(trace);
+
+  // Add the packet outcome (drop/output) as the final steppable event.
+  if (trace.packet_outcome) {
+    result.push({
+      event: { packet_outcome: trace.packet_outcome },
+      stageName: null, line: 0, eventIdx: null,
+    });
+  }
+
+  return result;
+}
+
+function initPlayback(trace) {
+  stopPlayback();
+  const events = flattenTraceEvents(trace);
+  state.playbackEvents = events;
+  state.playbackPos = -1;
+
+  updatePlaybackUI();
+}
+
+function stepForward() {
+  if (state.playbackPos < state.playbackEvents.length - 1) {
+    state.playbackPos++;
+    applyPlaybackState();
+  }
+}
+
+function stepBack() {
+  if (state.playbackPos >= 0) {
+    state.playbackPos--;
+    applyPlaybackState();
+  }
+}
+
+function togglePlayPause() {
+  if (state.playbackTimer) {
+    stopPlayback();
+  } else {
+    // If at the end, restart from beginning.
+    if (state.playbackPos >= state.playbackEvents.length - 1) {
+      state.playbackPos = -1;
+    }
+    state.playbackTimer = setInterval(() => {
+      if (state.playbackPos >= state.playbackEvents.length - 1) {
+        stopPlayback();
+        return;
+      }
+      stepForward();
+    }, 800);
+    updatePlaybackUI();
+  }
+}
+
+function stopPlayback() {
+  if (state.playbackTimer) {
+    clearInterval(state.playbackTimer);
+    state.playbackTimer = null;
+  }
+  updatePlaybackUI();
+}
+
+function resetPlayback() {
+  stopPlayback();
+  state.playbackPos = -1;
+  applyPlaybackState();
+  // Restore the full pipeline diagram.
+  if (state.lastTrace?.trace) {
+    updatePipelineDiagram(state.lastTrace.trace);
+  }
+}
+
+function applyPlaybackState() {
+  const pos = state.playbackPos;
+  const events = state.playbackEvents;
+
+  // Clear all highlights.
+  document.querySelectorAll('.playback-highlight').forEach(
+    el => el.classList.remove('playback-highlight')
+  );
+
+  // Clear active pipeline stage.
+  document.querySelectorAll('#pipeline-diagram .pipeline-stage.active').forEach(
+    el => el.classList.remove('active')
+  );
+
+  if (pos < 0) {
+    // Before first event — clear everything.
+    clearPlaybackDiagram();
+    clearPlaybackEditorHighlight();
+    updatePlaybackUI();
+    return;
+  }
+
+  const current = events[pos];
+
+  // Highlight the current step in the trace tree. Stage events have no
+  // data-event-idx (they're rendered as stage group headers instead), so
+  // we highlight the .trace-stage element by its data-stage attribute.
+  if (current.eventIdx != null) {
+    const el = document.querySelector(`[data-event-idx="${current.eventIdx}"]`);
+    if (el) {
+      el.classList.add('playback-highlight');
+      el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  } else if (current.event.pipeline_stage) {
+    const el = document.querySelector(`.trace-stage[data-stage="${current.stageName}"]`);
+    if (el) {
+      el.classList.add('playback-highlight');
+      el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  } else if (current.event.packet_outcome) {
+    const el = document.querySelector('[data-outcome]');
+    if (el) {
+      el.classList.add('playback-highlight');
+      el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }
+
+  // Update pipeline diagram: show visited stages up to current position.
+  updateDiagramForPlayback(events, pos);
+
+  // Highlight source line in editor with a visible decoration.
+  if (current.line && state.editor && window.monaco) {
+    state.editor.revealLineInCenter(current.line);
+    state._playbackDecorations = state.editor.deltaDecorations(
+      state._playbackDecorations,
+      [{
+        range: new window.monaco.Range(current.line, 1, current.line, 1),
+        options: {
+          isWholeLine: true,
+          className: 'playback-line-highlight',
+          glyphMarginClassName: 'playback-glyph',
+        },
+      }]
+    );
+  } else {
+    clearPlaybackEditorHighlight();
+  }
+
+  updatePlaybackUI();
+}
+
+/** Update diagram to show stages visited up to the given position. */
+function updateDiagramForPlayback(events, pos) {
+  const stageOrder = V1MODEL_STAGES;
+
+  // Collect stages visited so far using the stageName field from flattening.
+  const visited = new Set();
+  let activeStage = null;
+  for (let i = 0; i <= pos; i++) {
+    if (events[i].stageName) {
+      visited.add(events[i].stageName);
+      activeStage = events[i].stageName;
+    }
+  }
+
+  // When stepping to the outcome event, show the final diagram state
+  // (dropped stage, outcome text) instead of a pulsing active stage.
+  const current = events[pos];
+  const isOutcome = !!(current.event.packet_outcome);
+  const outcome = isOutcome ? analyzeOutcome({ packet_outcome: current.event.packet_outcome }) : null;
+
+  // Find last visited stage index for drop marking.
+  let lastVisitedIdx = -1;
+  if (isOutcome && outcome.type === 'drop') {
+    for (let i = stageOrder.length - 1; i >= 0; i--) {
+      if (visited.has(stageOrder[i])) { lastVisitedIdx = i; break; }
+    }
+  }
+
+  // Update stage elements.
+  document.querySelectorAll('#pipeline-diagram .pipeline-stage').forEach(el => {
+    const name = el.dataset.stage;
+    el.classList.remove('visited', 'dropped', 'active');
+    if (isOutcome && outcome.type === 'drop' && name === stageOrder[lastVisitedIdx]) {
+      el.classList.add('dropped');
+    } else if (name === activeStage && !isOutcome) {
+      el.classList.add('active');
+    } else if (visited.has(name)) {
+      el.classList.add('visited');
+    }
+  });
+
+  // Update arrows.
+  const arrowEls = document.querySelectorAll('#pipeline-diagram .pipeline-arrow');
+  arrowEls.forEach((arrow, i) => {
+    arrow.classList.remove('active');
+    if (visited.has(stageOrder[i]) && visited.has(stageOrder[i + 1])) {
+      arrow.classList.add('active');
+    }
+  });
+
+  // Show outcome in diagram when stepping to the outcome event.
+  const outcomeEl = document.getElementById('pipeline-outcome');
+  outcomeEl.className = 'pipeline-outcome';
+  if (isOutcome && outcome.type === 'output') {
+    outcomeEl.className += ' output';
+    outcomeEl.textContent = `→ output port ${outcome.port}`;
+  } else if (isOutcome && outcome.type === 'drop') {
+    outcomeEl.className += ' drop';
+    outcomeEl.textContent = `✕ dropped`;
+  } else {
+    outcomeEl.textContent = '';
+  }
+}
+
+function clearPlaybackEditorHighlight() {
+  if (state.editor && state._playbackDecorations) {
+    state._playbackDecorations = state.editor.deltaDecorations(
+      state._playbackDecorations, []
+    );
+  }
+}
+
+function clearPlaybackDiagram() {
+  document.querySelectorAll('#pipeline-diagram .pipeline-stage').forEach(el => {
+    el.classList.remove('visited', 'dropped', 'active');
+  });
+  document.querySelectorAll('#pipeline-diagram .pipeline-arrow').forEach(el => {
+    el.classList.remove('active');
+  });
+  const outcomeEl = document.getElementById('pipeline-outcome');
+  outcomeEl.className = 'pipeline-outcome';
+  outcomeEl.textContent = '';
+}
+
+function updatePlaybackUI() {
+  const pos = state.playbackPos;
+  const events = state.playbackEvents;
+  const playing = !!state.playbackTimer;
+
+  document.getElementById('btn-step-back').disabled = pos < 0;
+  document.getElementById('btn-step-forward').disabled = pos >= events.length - 1;
+  document.getElementById('btn-play-pause').textContent = playing ? '⏸' : '▶';
+  document.getElementById('btn-play-pause').title = playing ? 'Pause (Space)' : 'Play (Space)';
+  document.getElementById('btn-reset').disabled = pos < 0 && !playing;
+
+  const posText = document.getElementById('playback-position');
+  posText.textContent = events.length > 0
+    ? `${Math.max(0, pos + 1)} / ${events.length}`
+    : '';
 }
 
 function renderTraceNode(node, isRoot) {
@@ -990,14 +1396,14 @@ function renderStageGroup(name, kind, events) {
   const summarySpan = summary ? `<span class="stage-summary">${summary}</span>` : '';
 
   if (events.length === 0) {
-    return `<div class="trace-stage">
+    return `<div class="trace-stage" data-stage="${name}">
       <div class="trace-collapse empty">
         <span class="stage-name">${name}</span> ${summarySpan}
       </div>
     </div>`;
   }
 
-  return `<div class="trace-stage">
+  return `<div class="trace-stage" data-stage="${name}">
     <div class="trace-collapse" onclick="this.classList.toggle('collapsed')">
       <span class="stage-name">${name}</span> ${summarySpan}
     </div>
@@ -1024,26 +1430,34 @@ function summarizeStageEvents(events) {
   return parts.join(', ');
 }
 
+// Global counter for stamping data-event-idx on rendered trace events.
+let _eventIdx = 0;
+
 function renderTraceEvent(event) {
   const src = formatSourceInfo(event.source_info);
+  const idx = _eventIdx++;
+  const attr = `data-event-idx="${idx}"`;
+
   if (event.packet_ingress) {
-    return `<div class="trace-event ingress">▸ Packet ingress port ${event.packet_ingress.ingress_port}</div>`;
+    return `<div ${attr} class="trace-event ingress">▸ Packet ingress port ${event.packet_ingress.ingress_port}</div>`;
   }
   if (event.pipeline_stage) {
+    // Pipeline stage events are structural — rendered as collapsible headers,
+    // not inline trace events. Don't stamp them (the header handles display).
     const s = event.pipeline_stage;
     const dir = s.direction === 'ENTER' ? '→' : '←';
     const cls = s.direction === 'ENTER' ? 'stage-enter' : 'stage-exit';
-    return `<div class="trace-event ${cls}">${dir} ${s.stage_name}</div>`;
+    return `<div ${attr} class="trace-event ${cls}">${dir} ${s.stage_name}</div>`;
   }
   if (event.parser_transition) {
     const pt = event.parser_transition;
-    return `<div class="trace-event parser">parse: ${pt.from_state} → ${pt.to_state}${src}</div>`;
+    return `<div ${attr} class="trace-event parser">parse: ${pt.from_state} → ${pt.to_state}${src}</div>`;
   }
   if (event.table_lookup) {
     const tl = event.table_lookup;
     const cls = tl.hit ? 'table-hit' : 'table-miss';
     const result = tl.hit ? 'hit' : 'miss';
-    return `<div class="trace-event ${cls}">table ${tl.table_name}: ${result} → ${tl.action_name}${src}</div>`;
+    return `<div ${attr} class="trace-event ${cls}">table ${tl.table_name}: ${result} → ${tl.action_name}${src}</div>`;
   }
   if (event.action_execution) {
     const ae = event.action_execution;
@@ -1051,31 +1465,31 @@ function renderTraceEvent(event) {
       `${k}=${decodeParamValue(v)}`
     ).join(', ');
     const paramsStr = params ? `(${params})` : '';
-    return `<div class="trace-event action">action ${ae.action_name}${paramsStr}${src}</div>`;
+    return `<div ${attr} class="trace-event action">action ${ae.action_name}${paramsStr}${src}</div>`;
   }
   if (event.branch) {
     const b = event.branch;
     const dir = b.taken ? 'then' : 'else';
     const frag = event.source_info?.source_fragment || '';
     const condStr = frag ? `: <code>${escapeHtml(frag)}</code>` : '';
-    return `<div class="trace-event branch">branch ${dir}${condStr}${src}</div>`;
+    return `<div ${attr} class="trace-event branch">branch ${dir}${condStr}${src}</div>`;
   }
   if (event.extern_call) {
     const ec = event.extern_call;
-    return `<div class="trace-event extern">extern ${ec.extern_instance_name}.${ec.method}()${src}</div>`;
+    return `<div ${attr} class="trace-event extern">extern ${ec.extern_instance_name}.${ec.method}()${src}</div>`;
   }
   if (event.mark_to_drop) {
-    return `<div class="trace-event mark-to-drop">mark_to_drop()${src}</div>`;
+    return `<div ${attr} class="trace-event mark-to-drop">mark_to_drop()${src}</div>`;
   }
   if (event.clone) {
-    return `<div class="trace-event clone">clone session ${event.clone.session_id}${src}</div>`;
+    return `<div ${attr} class="trace-event clone">clone session ${event.clone.session_id}${src}</div>`;
   }
   if (event.clone_session_lookup) {
     const csl = event.clone_session_lookup;
     if (csl.session_found) {
-      return `<div class="trace-event clone-session-hit">clone session ${csl.session_id} → port ${csl.egress_port}</div>`;
+      return `<div ${attr} class="trace-event clone-session-hit">clone session ${csl.session_id} → port ${csl.egress_port}</div>`;
     }
-    return `<div class="trace-event clone-session-miss">clone session ${csl.session_id}: not configured (clone dropped)</div>`;
+    return `<div ${attr} class="trace-event clone-session-miss">clone session ${csl.session_id}: not configured (clone dropped)</div>`;
   }
   return '';
 }
@@ -1107,11 +1521,11 @@ function renderPacketOutcome(outcome) {
   if (outcome.output) {
     const o = outcome.output;
     const bytes = o.payload ? base64ToUint8Array(o.payload) : new Uint8Array(0);
-    return `<div class="trace-outcome output">→ output port ${o.egress_port} (${bytes.length} bytes)</div>`;
+    return `<div class="trace-outcome output" data-outcome>→ output port ${o.egress_port} (${bytes.length} bytes)</div>`;
   }
   if (outcome.drop) {
     const reason = formatDropReason(outcome.drop.reason);
-    return `<div class="trace-outcome drop">✕ drop (reason: ${reason})</div>`;
+    return `<div class="trace-outcome drop" data-outcome>✕ drop (reason: ${reason})</div>`;
   }
   return '';
 }
@@ -1387,6 +1801,24 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-add-entry').addEventListener('click', addTableEntry);
   document.getElementById('btn-add-clone').addEventListener('click', addCloneSession);
   document.getElementById('btn-send-packet').addEventListener('click', sendPacket);
+
+  // Playback controls
+  document.getElementById('btn-step-back').addEventListener('click', stepBack);
+  document.getElementById('btn-step-forward').addEventListener('click', stepForward);
+  document.getElementById('btn-play-pause').addEventListener('click', togglePlayPause);
+  document.getElementById('btn-reset').addEventListener('click', resetPlayback);
+
+  // Keyboard shortcuts for playback (when trace tab is active and editor not focused).
+  document.addEventListener('keydown', (e) => {
+    if (!document.getElementById('tab-trace').classList.contains('active')) return;
+    if (state.editor?.hasTextFocus()) return;
+    if (state.playbackEvents.length === 0) return;
+
+    if (e.key === 'ArrowRight' || e.key === 'l') { e.preventDefault(); stepForward(); }
+    else if (e.key === 'ArrowLeft' || e.key === 'h') { e.preventDefault(); stepBack(); }
+    else if (e.key === ' ') { e.preventDefault(); togglePlayPause(); }
+    else if (e.key === 'r' || e.key === '0') { e.preventDefault(); resetPlayback(); }
+  });
 
   // Example selector
   document.getElementById('example-select').addEventListener('change', (e) => {
