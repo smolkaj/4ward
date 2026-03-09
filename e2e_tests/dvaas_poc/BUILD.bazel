@@ -1,7 +1,22 @@
 load("//e2e_tests:p4c.bzl", "p4c_compile")
 
+genrule(
+    name = "dvaas_v1model",
+    srcs = [
+        "@p4c//:p4include",
+        "v1model_port_translation.patch",
+    ],
+    outs = ["v1model.p4"],
+    cmd = """
+cp $$(dirname $(execpath @p4c//:core_p4))/v1model.p4 $@
+patch --silent $@ $(location :v1model_port_translation.patch)
+""",
+    tools = ["@p4c//:core_p4"],
+)
+
 p4c_compile(
     name = "dvaas_poc",
+    includes = [":dvaas_v1model"],
     src_p4 = "dvaas_poc.p4",
     visibility = ["//visibility:public"],
 )

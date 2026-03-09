@@ -25,6 +25,7 @@
 #include "p4_infra/p4_pdpi/ir.h"
 #include "p4_infra/p4_pdpi/ir.pb.h"
 #include "p4_infra/p4_pdpi/p4_runtime_session.h"
+#include "p4_infra/p4_pdpi/p4_runtime_session_extras.h"
 #include "p4_infra/p4_pdpi/packetlib/packetlib.h"
 #include "p4_infra/p4_pdpi/packetlib/packetlib.pb.h"
 #include "thinkit/test_environment.h"
@@ -294,7 +295,7 @@ absl::Status Run(absl::string_view sut_address, absl::string_view control_addres
 
   auto validator =
       dvaas::DataplaneValidator(std::make_unique<FourwardDvaasBackend>());
-  MemoryTestEnvironment environment(std::string(artifact_dir));
+  MemoryTestEnvironment environment{std::string(artifact_dir)};
   ASSIGN_OR_RETURN(auto result,
                    validator.ValidateDataplaneUsingExistingSwitchApis(
                        sut, control, environment, params));

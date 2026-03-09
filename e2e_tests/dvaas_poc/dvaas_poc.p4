@@ -1,17 +1,8 @@
 #include <core.p4>
-#include <v1model.p4>
+#include "v1model.p4"
 
 const bit<9> CPU_PORT = 510;
 const bit<9> DROP_PORT = 511;
-
-@p4runtime_translation("", string)
-@p4runtime_translation_mappings({
-  {"CPU", 510},
-  {"DROP", 511},
-  {"Ethernet1", 1},
-  {"Ethernet2", 2}
-})
-type bit<9> port_id_t;
 
 @controller_header("packet_in")
 header packet_in_header_t {
@@ -46,7 +37,7 @@ parser ParserImpl(
     inout metadata_t meta,
     inout standard_metadata_t standard_metadata) {
   state start {
-    transition select(standard_metadata.ingress_port) {
+    transition select((bit<9>) standard_metadata.ingress_port) {
       CPU_PORT: parse_packet_out;
       default: parse_ethernet;
     }
@@ -72,15 +63,15 @@ control IngressImpl(
     inout metadata_t meta,
     inout standard_metadata_t standard_metadata) {
   action set_output_port(port_id_t port) {
-    standard_metadata.egress_spec = (bit<9>) port;
+    standard_metadata.egress_spec = port;
   }
 
   action punt_to_controller() {
-    standard_metadata.egress_spec = CPU_PORT;
+    standard_metadata.egress_spec = (port_id_t) CPU_PORT;
   }
 
   action drop_packet() {
-    standard_metadata.egress_spec = DROP_PORT;
+    standard_metadata.egress_spec = (port_id_t) DROP_PORT;
   }
 
   table punt_all {
@@ -103,16 +94,16 @@ control IngressImpl(
   }
 
   apply {
-    if (standard_metadata.ingress_port == CPU_PORT && hdr.packet_out.isValid()) {
+    if ((bit<9>) standard_metadata.ingress_port == CPU_PORT && hdr.packet_out.isValid()) {
       if (hdr.packet_out.submit_to_ingress == 0) {
-        standard_metadata.egress_spec = (bit<9>) hdr.packet_out.egress_port;
+        standard_metadata.egress_spec = hdr.packet_out.egress_port;
         return;
       }
       hdr.packet_out.setInvalid();
     }
 
     punt_all.apply();
-    if (standard_metadata.egress_spec == 0) {
+    if ((bit<9>) standard_metadata.egress_spec == 0) {
       fwd_table.apply();
     }
   }
