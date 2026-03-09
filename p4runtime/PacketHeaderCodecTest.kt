@@ -51,6 +51,14 @@ class PacketHeaderCodecTest {
     assertEquals(510, codec.cpuPort)
   }
 
+  @Test
+  fun `create honors configured cpu port override`() {
+    val (p4info, behavioral) = buildSaiLikeConfig()
+    val codec = PacketHeaderCodec.create(p4info, behavioral, cpuPort = 77)
+    assertNotNull(codec)
+    assertEquals(77, codec!!.cpuPort)
+  }
+
   // =========================================================================
   // serializePacketOut
   // =========================================================================

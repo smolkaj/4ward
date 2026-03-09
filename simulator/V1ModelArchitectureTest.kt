@@ -865,7 +865,12 @@ class V1ModelArchitectureTest {
               "instance_type",
               0,
               32,
-              externCall("clone_preserving_field_list", enumArg("E2E"), intArg(1, 32), intArg(1, 8)),
+              externCall(
+                "clone_preserving_field_list",
+                enumArg("E2E"),
+                intArg(1, 32),
+                intArg(1, 8),
+              ),
             ),
             // Clone's second egress (instance_type == 2): drop if metadata was reset.
             ifFieldEquals(

@@ -1,0 +1,33 @@
+name: DVaaS PoC
+
+on:
+  workflow_dispatch:
+
+jobs:
+  validate-dataplane-poc:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Configure remote cache
+        env:
+          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
+        run: |
+          if [[ -n "${BUILDBUDDY_API_KEY}" ]]; then
+            echo "build --config=ci" >> ~/.bazelrc
+            echo "common --remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY}" >> ~/.bazelrc
+          fi
+
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libgmp-dev libpcap-dev
+
+      - name: Run DVaaS PoC
+        run: ./tools/run_dvaas_poc.sh
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dvaas-poc-artifacts
+          path: .tmp/dvaas_poc_artifacts
+          if-no-files-found: warn

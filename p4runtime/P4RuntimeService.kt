@@ -2,6 +2,7 @@ package fourward.p4runtime
 
 import fourward.ir.v1.DeviceConfig
 import fourward.ir.v1.PipelineConfig
+import fourward.sim.v1.SimulatorProto.OutputPacket
 import fourward.simulator.Simulator
 import fourward.simulator.WriteResult
 import io.grpc.Status
@@ -49,8 +50,14 @@ fun compareUint128(a: Uint128, b: Uint128): Int {
 class P4RuntimeService(
   private val simulator: Simulator,
   private val constraintValidatorBinary: Path? = null,
+  private val cpuPort: Int? = null,
+  private val frontPanelTransmitter: FrontPanelTransmitter? = null,
   private val lock: Mutex = Mutex(),
 ) : P4RuntimeGrpcKt.P4RuntimeCoroutineImplBase(), Closeable {
+
+  fun interface FrontPanelTransmitter {
+    suspend fun transmit(egressPort: Int, payload: ByteArray): List<OutputPacket>
+  }
 
   /** Bundled pipeline state — atomically swapped on pipeline load to avoid torn reads. */
   private data class PipelineState(
@@ -61,6 +68,8 @@ class P4RuntimeService(
     val packetHeaderCodec: PacketHeaderCodec?,
   )
 
+  private data class OutputObservation(val ingressPort: Int, val outputPacket: OutputPacket)
+
   @Volatile private var pipeline: PipelineState? = null
 
   // P4Runtime spec §10: highest election_id is the primary controller.
@@ -69,6 +78,10 @@ class P4RuntimeService(
 
   private fun requirePipeline(): PipelineState =
     pipeline ?: throw Status.FAILED_PRECONDITION.withDescription(NO_PIPELINE_MESSAGE).asException()
+
+  suspend fun loadPipelineConfig(config: PipelineConfig) {
+    lock.withLock { installPipeline(config) }
+  }
 
   // ---------------------------------------------------------------------------
   // SetForwardingPipelineConfig
@@ -100,26 +113,36 @@ class P4RuntimeService(
       val pipelineConfig =
         PipelineConfig.newBuilder().setP4Info(fwdConfig.p4Info).setDevice(deviceConfig).build()
 
-      try {
-        simulator.loadPipeline(pipelineConfig)
-      } catch (e: IllegalArgumentException) {
-        throw Status.INTERNAL.withDescription("Simulator rejected pipeline: ${e.message}")
-          .withCause(e)
-          .asException()
-      }
-
-      pipeline?.constraintValidator?.close()
-      pipeline =
-        PipelineState(
-          config = pipelineConfig,
-          typeTranslator = TypeTranslator.create(fwdConfig.p4Info, deviceConfig.translationsList),
-          writeValidator = WriteValidator(pipelineConfig.p4Info),
-          constraintValidator =
-            constraintValidatorBinary?.let { ConstraintValidator.create(fwdConfig.p4Info, it) },
-          packetHeaderCodec = PacketHeaderCodec.create(fwdConfig.p4Info, deviceConfig.behavioral),
-        )
+      installPipeline(pipelineConfig)
       SetForwardingPipelineConfigResponse.getDefaultInstance()
     }
+
+  private fun installPipeline(pipelineConfig: PipelineConfig) {
+    try {
+      simulator.loadPipeline(pipelineConfig)
+    } catch (e: IllegalArgumentException) {
+      throw Status.INTERNAL.withDescription("Simulator rejected pipeline: ${e.message}")
+        .withCause(e)
+        .asException()
+    }
+
+    pipeline?.constraintValidator?.close()
+    pipeline =
+      PipelineState(
+        config = pipelineConfig,
+        typeTranslator =
+          TypeTranslator.create(pipelineConfig.p4Info, pipelineConfig.device.translationsList),
+        writeValidator = WriteValidator(pipelineConfig.p4Info),
+        constraintValidator =
+          constraintValidatorBinary?.let { ConstraintValidator.create(pipelineConfig.p4Info, it) },
+        packetHeaderCodec =
+          PacketHeaderCodec.create(
+            pipelineConfig.p4Info,
+            pipelineConfig.device.behavioral,
+            cpuPort,
+          ),
+      )
+  }
 
   // ---------------------------------------------------------------------------
   // Write
@@ -233,7 +256,7 @@ class P4RuntimeService(
    * Processes a PacketOut: translates metadata, simulates, and returns PacketIn responses. Must be
    * called under [lock].
    */
-  private fun handlePacketOut(
+  private suspend fun handlePacketOut(
     packet: p4.v1.P4RuntimeOuterClass.PacketOut
   ): List<StreamMessageResponse>? {
     val state = pipeline ?: return null
@@ -252,27 +275,71 @@ class P4RuntimeService(
         extractIngressPort(packetOut.metadataList) to packetOut.payload.toByteArray()
       }
 
-    val response = simulator.processPacket(ingressPort, payload)
+    val outputs =
+      simulator.processPacket(ingressPort, payload).outputPacketsList.map {
+        OutputObservation(ingressPort, it)
+      }
+    val expandedOutputs =
+      if (codec != null && frontPanelTransmitter != null) {
+        expandLinkedOutputs(outputs, codec.cpuPort)
+      } else {
+        outputs
+      }
 
-    return response.outputPacketsList.map { outputPacket ->
-      val rawPacketIn =
-        if (codec != null) {
-          val metadata = codec.buildPacketInMetadata(ingressPort, outputPacket.egressPort)
-          PacketIn.newBuilder().setPayload(outputPacket.payload).addAllMetadata(metadata).build()
-        } else {
-          PacketIn.newBuilder()
-            .setPayload(outputPacket.payload)
-            .addMetadata(
-              p4.v1.P4RuntimeOuterClass.PacketMetadata.newBuilder()
-                .setMetadataId(EGRESS_PORT_METADATA_ID)
-                .setValue(encodeMinWidth(outputPacket.egressPort))
-            )
-            .build()
-        }
-      StreamMessageResponse.newBuilder()
-        .setPacket(translator?.translatePacketIn(rawPacketIn) ?: rawPacketIn)
-        .build()
+    return expandedOutputs
+      .filter { codec == null || it.outputPacket.egressPort == codec.cpuPort }
+      .map { observation ->
+        val outputPacket = observation.outputPacket
+        val rawPacketIn =
+          if (codec != null) {
+            val metadata =
+              codec.buildPacketInMetadata(observation.ingressPort, outputPacket.egressPort)
+            PacketIn.newBuilder().setPayload(outputPacket.payload).addAllMetadata(metadata).build()
+          } else {
+            PacketIn.newBuilder()
+              .setPayload(outputPacket.payload)
+              .addMetadata(
+                p4.v1.P4RuntimeOuterClass.PacketMetadata.newBuilder()
+                  .setMetadataId(EGRESS_PORT_METADATA_ID)
+                  .setValue(encodeMinWidth(outputPacket.egressPort))
+              )
+              .build()
+          }
+        StreamMessageResponse.newBuilder()
+          .setPacket(translator?.translatePacketIn(rawPacketIn) ?: rawPacketIn)
+          .build()
+      }
+  }
+
+  /**
+   * Walks one control-switch front-panel hop through the peer SUT and one return hop back to the
+   * local control switch. CPU-port outputs are retained locally and never forwarded.
+   */
+  private suspend fun expandLinkedOutputs(
+    initialOutputs: List<OutputObservation>,
+    cpuPort: Int,
+  ): List<OutputObservation> {
+    val expanded = initialOutputs.toMutableList()
+    val transmitter = frontPanelTransmitter ?: return expanded
+    val returnedToControl = mutableListOf<OutputObservation>()
+    for (output in initialOutputs) {
+      if (output.outputPacket.egressPort == cpuPort) continue
+      val sutOutputs =
+        transmitter.transmit(
+          output.outputPacket.egressPort,
+          output.outputPacket.payload.toByteArray(),
+        )
+      for (sutOutput in sutOutputs) {
+        if (sutOutput.egressPort == cpuPort) continue
+        returnedToControl +=
+          simulator
+            .processPacket(sutOutput.egressPort, sutOutput.payload.toByteArray())
+            .outputPacketsList
+            .map { OutputObservation(sutOutput.egressPort, it) }
+      }
     }
+    expanded += returnedToControl
+    return expanded
   }
 
   /** Extracts ingress port from PacketOut metadata, defaulting to port 0. */
