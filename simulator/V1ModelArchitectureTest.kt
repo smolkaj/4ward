@@ -14,7 +14,6 @@ import fourward.ir.v1.FieldAccess
 import fourward.ir.v1.FieldDecl
 import fourward.ir.v1.IfStmt
 import fourward.ir.v1.Literal
-import fourward.ir.v1.NameRef
 import fourward.ir.v1.ParamDecl
 import fourward.ir.v1.ParserDecl
 import fourward.ir.v1.ParserState
@@ -141,9 +140,7 @@ class V1ModelArchitectureTest {
           .setLhs(
             Expr.newBuilder()
               .setFieldAccess(
-                FieldAccess.newBuilder()
-                  .setExpr(Expr.newBuilder().setNameRef(NameRef.newBuilder().setName(target)))
-                  .setFieldName(fieldName)
+                FieldAccess.newBuilder().setExpr(nameRef(target)).setFieldName(fieldName)
               )
               .setType(bitType(width))
           )
@@ -174,11 +171,7 @@ class V1ModelArchitectureTest {
                   .setLeft(
                     Expr.newBuilder()
                       .setFieldAccess(
-                        FieldAccess.newBuilder()
-                          .setExpr(
-                            Expr.newBuilder().setNameRef(NameRef.newBuilder().setName(target))
-                          )
-                          .setFieldName(fieldName)
+                        FieldAccess.newBuilder().setExpr(nameRef(target)).setFieldName(fieldName)
                       )
                       .setType(bitType(width))
                   )
@@ -553,11 +546,7 @@ class V1ModelArchitectureTest {
   // ---------------------------------------------------------------------------
 
   /** mark_to_drop() call as an ingress statement. */
-  private val markToDrop: Stmt =
-    externCall(
-      "mark_to_drop",
-      Expr.newBuilder().setNameRef(NameRef.newBuilder().setName("sm")).build(),
-    )
+  private val markToDrop: Stmt = externCall("mark_to_drop", nameRef("sm"))
 
   @Test
   fun `multicast replicas survive ingress mark_to_drop`() {
@@ -775,11 +764,7 @@ class V1ModelArchitectureTest {
     // egress_spec width independently) and the Architecture's drop detection (which uses
     // PipelineState.dropPort derived from ingress_port width). Both must agree.
     val portBits = 16
-    val markToDrop =
-      externCall(
-        "mark_to_drop",
-        Expr.newBuilder().setNameRef(NameRef.newBuilder().setName("sm")).build(),
-      )
+    val markToDrop = externCall("mark_to_drop", nameRef("sm"))
     val config = widePortConfig(portBits, markToDrop)
     val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
 
@@ -838,16 +823,7 @@ class V1ModelArchitectureTest {
               "instance_type",
               1,
               32,
-              ifFieldEquals(
-                "meta",
-                "preserved",
-                0,
-                16,
-                externCall(
-                  "mark_to_drop",
-                  Expr.newBuilder().setNameRef(NameRef.newBuilder().setName("sm")).build(),
-                ),
-              ),
+              ifFieldEquals("meta", "preserved", 0, 16, externCall("mark_to_drop", nameRef("sm"))),
             )
           ),
         metaTypeDecl = metaTypeWithFieldList,
@@ -873,11 +849,7 @@ class V1ModelArchitectureTest {
     // Egress (clone's second run, instance_type == 2): if meta.preserved == 0 → drop.
     // With preservation: meta.preserved is 0xABCD, no drop → 2 outputs.
     // Without preservation: meta.preserved is 0, clone drops → 1 output.
-    val markToDrop =
-      externCall(
-        "mark_to_drop",
-        Expr.newBuilder().setNameRef(NameRef.newBuilder().setName("sm")).build(),
-      )
+    val markToDrop = externCall("mark_to_drop", nameRef("sm"))
     val config =
       v1modelConfig(
         ingressStmts =
@@ -925,11 +897,7 @@ class V1ModelArchitectureTest {
     // Ingress (resubmit, instance_type == 6): if meta.preserved == 0 → drop.
     // With preservation: meta.preserved is 0xABCD, no drop → output on port 1.
     // Without preservation: meta.preserved is 0, drop → no output.
-    val markToDrop =
-      externCall(
-        "mark_to_drop",
-        Expr.newBuilder().setNameRef(NameRef.newBuilder().setName("sm")).build(),
-      )
+    val markToDrop = externCall("mark_to_drop", nameRef("sm"))
     val config =
       v1modelConfig(
         ingressStmts =
@@ -979,11 +947,7 @@ class V1ModelArchitectureTest {
     // Ingress (recirculate, instance_type == 4): if meta.preserved == 0 → drop.
     // With preservation: meta.preserved is 0xABCD, no drop → output on port 1.
     // Without preservation: meta.preserved is 0, drop → no output.
-    val markToDrop =
-      externCall(
-        "mark_to_drop",
-        Expr.newBuilder().setNameRef(NameRef.newBuilder().setName("sm")).build(),
-      )
+    val markToDrop = externCall("mark_to_drop", nameRef("sm"))
     val config =
       v1modelConfig(
         ingressStmts =
@@ -1055,10 +1019,7 @@ class V1ModelArchitectureTest {
                 "not_preserved",
                 0x1234,
                 16,
-                externCall(
-                  "mark_to_drop",
-                  Expr.newBuilder().setNameRef(NameRef.newBuilder().setName("sm")).build(),
-                ),
+                externCall("mark_to_drop", nameRef("sm")),
               ),
             )
           ),
