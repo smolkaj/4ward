@@ -253,19 +253,15 @@ trace tree without touching Bazel.
 
 **Priority: next | Depends on: tracks 3, 7**
 
-4ward has a spectrum of interfaces from machine-friendly to human-friendly.
-The machine end (gRPC) and the middle (CLI) exist. This track fills in the
-rest and polishes what's there.
+Three interfaces, from machine-friendly to human-friendly:
 
 ```
-machine-friendly                                          human-friendly
-     ◄──────────────────────────────────────────────────────────────►
-     gRPC services        CLI             TUI              web app
-     (P4Runtime,       (compile,      (rich terminal    (visual trace
-      Dataplane)       sim, run)       trace trees)     explorer)
+machine-friendly                                    human-friendly
+     ◄────────────────────────────────────────────────────────►
+     gRPC services          CLI                    web app
+     (P4Runtime,         (compile,              (visual trace
+      Dataplane)         sim, run)               explorer)
 ```
-
-Four layers, each building on the one before:
 
 1. **gRPC services** (done). P4Runtime + Dataplane RPCs. The integration
    point for DVaaS and programmatic consumers.
@@ -274,20 +270,14 @@ Four layers, each building on the one before:
    works with heredocs for quick experiments. The README quick-start
    experience.
 
-3. **Rich terminal output.** ANSI colors, tree-drawing characters, collapsible
-   trace nodes. Makes CLI traces *readable* — parsers in blue, table hits in
-   green, drops in red, indented tree structure instead of flat text. No
-   dependencies beyond a terminal emulator. A natural evolution of the CLI's
-   `--format=human` output.
+3. **Web app — the "P4 Playground"** (v1 done). Edit P4, compile, install
+   table entries, send packets, explore trace trees — all in one browser tab.
+   See [PLAYGROUND_VISION.md](PLAYGROUND_VISION.md) for the next-level ideas:
+   visual pipeline diagram, animated trace playback, packet dissection, and
+   more.
 
-4. **Web app — the "P4 Playground."** Paste a P4 program, send packets,
-   explore the trace tree interactively. Visual trace tree with clickable
-   nodes, source location highlighting, hex packet inspection. Zero-install
-   "try it now" experience — linked from the README, no clone required. This
-   is where 4ward's glass-box philosophy shines brightest: every decision the
-   simulator makes is visible, navigable, and linked back to the P4 source.
-
-**Done when:** the web app is live and linked from the README.
+**Done when:** the playground has visual pipeline diagrams and animated
+trace playback.
 
 ## Sequencing
 
@@ -308,8 +298,8 @@ Four layers, each building on the one before:
               │                     │    │              │    │          │
   Track 7     │ standalone CLI      │    │              │    │          │
               │                     │    │              │    │          │
-  Track 8     │                     │    │ compelling   │    │          │
-              │                     │    │ interfaces   │    │          │
+  Track 8     │ playground v1       │    │ playground   │    │          │
+              │                     │    │ vision       │    │          │
               └─────────────────────┘    └──────────────┘    └──────────┘
 ```
 
