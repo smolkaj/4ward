@@ -81,9 +81,8 @@ control IngressImpl(
   table punt_all {
     actions = {
       @proto_id(1) punt_to_controller;
-      NoAction;
     }
-    const default_action = NoAction();
+    const default_action = punt_to_controller();
   }
 
   @id(11)

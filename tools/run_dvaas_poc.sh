@@ -77,6 +77,7 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
     "--repo_env=CC=/usr/bin/clang"
     "--macos_minimum_os=10.15"
     "--host_macos_minimum_os=10.15"
+    "--per_file_copt=external/zlib/.*@-UTARGET_OS_MAC"
   )
 fi
 
