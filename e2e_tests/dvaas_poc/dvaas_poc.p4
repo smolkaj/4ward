@@ -62,33 +62,38 @@ control IngressImpl(
     inout headers_t hdr,
     inout metadata_t meta,
     inout standard_metadata_t standard_metadata) {
-  action set_output_port(port_id_t port) {
+  @id(1)
+  action set_output_port(@id(1) port_id_t port) {
     standard_metadata.egress_spec = port;
   }
 
+  @id(2)
   action punt_to_controller() {
     standard_metadata.egress_spec = (port_id_t) CPU_PORT;
   }
 
+  @id(3)
   action drop_packet() {
     standard_metadata.egress_spec = (port_id_t) DROP_PORT;
   }
 
+  @id(10)
   table punt_all {
     actions = {
-      punt_to_controller;
+      @proto_id(1) punt_to_controller;
       NoAction;
     }
     const default_action = NoAction();
   }
 
+  @id(11)
   table fwd_table {
     key = {
-      hdr.ethernet.dst_addr: exact;
+      hdr.ethernet.dst_addr: exact @name("dst_addr") @id(1);
     }
     actions = {
-      set_output_port;
-      drop_packet;
+      @proto_id(1) set_output_port;
+      @proto_id(2) drop_packet;
     }
     const default_action = drop_packet();
   }

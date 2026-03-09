@@ -57,6 +57,29 @@ if [[ -n "${FOURWARD_BAZEL_CONFIG}" ]]; then
   BAZEL_ARGS+=("--config=${FOURWARD_BAZEL_CONFIG}")
 fi
 
+SONIC_PINS_BAZEL_ARGS=(
+  "--bazelrc=/dev/null"
+  "--nosystem_rc"
+  "--noworkspace_rc"
+  "--nohome_rc"
+  "build"
+  "--cxxopt=-std=c++17"
+  "--host_cxxopt=-std=c++17"
+)
+
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  # Mirror p4c's macOS Bazel settings so the temporary sonic-pins workspace can
+  # use the Command Line Tools toolchain without needing a full Xcode setup.
+  SONIC_PINS_BAZEL_ARGS+=(
+    "--repo_env=BAZEL_USE_CPP_ONLY_TOOLCHAIN=1"
+    "--action_env=CC=clang"
+    "--action_env=CXX=clang++"
+    "--repo_env=CC=/usr/bin/clang"
+    "--macos_minimum_os=10.15"
+    "--host_macos_minimum_os=10.15"
+  )
+fi
+
 bazel build "${BAZEL_ARGS[@]}" \
   //p4runtime:p4runtime_server \
   //e2e_tests/dvaas_poc:dvaas_poc_pb
@@ -87,9 +110,7 @@ wait_for_port localhost "${CONTROL_PORT}"
 
 (
   cd "${SONIC_PINS_DIR}" &&
-    bazel --bazelrc=/dev/null --nosystem_rc --noworkspace_rc --nohome_rc \
-      build --cxxopt=-std=c++17 --host_cxxopt=-std=c++17 \
-      //fourward_dvaas:validate_dataplane_poc
+    bazel "${SONIC_PINS_BAZEL_ARGS[@]}" //fourward_dvaas:validate_dataplane_poc
 )
 (cd "${SONIC_PINS_DIR}" && bazel-bin/fourward_dvaas/validate_dataplane_poc \
   "localhost:${SUT_PORT}" "localhost:${CONTROL_PORT}" "${ARTIFACT_DIR}")
