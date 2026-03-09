@@ -69,7 +69,7 @@ the next move. Steer the answer if needed, but let the AI lead.
 ---
 
 ## Before submitting a PR
-- "In hindsight, anything you'd refactor?"
+- "In hindsight, is this the most optimal way of doing things?" / "In hindsight, anything you'd refactor?"
   — *Leverages the context the AI already built during implementation to self-critique.*
 - "Do we need to add unit tests?"
   - *The AI knows better than you, unless you are willing to read all its code!*
