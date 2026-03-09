@@ -77,7 +77,14 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
     "--repo_env=CC=/usr/bin/clang"
     "--macos_minimum_os=10.15"
     "--host_macos_minimum_os=10.15"
+    # WORKAROUND: The pinned sonic-pins snapshot vendors a zlib version whose
+    # macOS preprocessor checks redefine fdopen when TARGET_OS_MAC is present.
+    # Modern Apple SDK headers declare fdopen unconditionally, so zlib fails
+    # to compile unless we undefine TARGET_OS_MAC for zlib in both target and
+    # host/tool configurations. Once sonic-pins updates or patches zlib, drop
+    # both per-file options below.
     "--per_file_copt=external/zlib/.*@-UTARGET_OS_MAC"
+    "--host_per_file_copt=external/zlib/.*@-UTARGET_OS_MAC"
   )
 fi
 

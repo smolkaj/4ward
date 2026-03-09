@@ -182,7 +182,7 @@ pdpi::IrEntities BuildForwardingEntities() {
         table_name: "fwd_table"
         matches {
           name: "dst_addr"
-          exact { mac: "02:00:00:00:00:02" }
+          exact { hex_str: "0x020000000002" }
         }
         action {
           name: "set_output_port"
