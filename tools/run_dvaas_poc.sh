@@ -199,6 +199,7 @@ start_fourward_server() {
     --port="${port}" \
     --pipeline="${ROOT}/bazel-bin/${FOURWARD_DVAAS_PIPELINE_TXTPB}" \
     --cpu_port="${CPU_PORT}" \
+    --strict \
     "$@" >"${log}" 2>&1 &
 }
 

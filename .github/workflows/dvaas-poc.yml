@@ -1,4 +1,4 @@
-name: DVaaS PoC
+name: DVaaS SAI
 
 on:
   workflow_dispatch:
@@ -6,11 +6,11 @@ on:
     branches: [main]
 
 concurrency:
-  group: dvaas-poc-${{ github.event.pull_request.number || github.ref }}
+  group: dvaas-sai-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
-  validate-dataplane-poc:
+  validate-dataplane-sai:
     runs-on: ubuntu-24.04
     env:
       BAZEL_CACHE: ~/.cache/bazel
@@ -41,8 +41,8 @@ jobs:
       - name: Save start time
         run: echo "START_TIME=$(date +%s)" >> "$GITHUB_ENV"
 
-      - name: Run DVaaS PoC
-        run: ./tools/run_dvaas_poc.sh
+      - name: Run DVaaS SAI
+        run: ./tools/run_dvaas_sai.sh
 
       - name: Calculate build duration
         if: always()
@@ -52,7 +52,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: dvaas-poc-artifacts
+          name: dvaas-sai-artifacts
           path: .tmp/dvaas_poc_artifacts
           if-no-files-found: warn
 

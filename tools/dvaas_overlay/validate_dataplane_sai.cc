@@ -240,6 +240,17 @@ int ParamId(const p4::config::v1::Action& action, absl::string_view name) {
   LOG(FATAL) << "action param not found: " << name;
 }
 
+std::string CanonicalP4RuntimeBytes(absl::string_view value) {
+  size_t first_non_zero = 0;
+  while (first_non_zero < value.size() && value[first_non_zero] == '\0') {
+    ++first_non_zero;
+  }
+  if (first_non_zero == value.size()) {
+    return std::string(1, '\0');
+  }
+  return std::string(value.substr(first_non_zero));
+}
+
 p4::v1::FieldMatch ExactMatch(const p4::config::v1::Table& table,
                               absl::string_view field_name,
                               const std::string& value) {
@@ -254,8 +265,8 @@ p4::v1::FieldMatch ExactMatch(const p4::config::v1::Table& table,
                               const std::array<uint8_t, 16>& value) {
   p4::v1::FieldMatch match;
   match.set_field_id(MatchFieldId(table, field_name));
-  match.mutable_exact()->set_value(
-      std::string(reinterpret_cast<const char*>(value.data()), value.size()));
+  match.mutable_exact()->set_value(CanonicalP4RuntimeBytes(std::string_view(
+      reinterpret_cast<const char*>(value.data()), value.size())));
   return match;
 }
 
@@ -285,7 +296,7 @@ p4::v1::Action::Param BytesParam(const p4::config::v1::Action& action,
                                  const std::string& value) {
   p4::v1::Action::Param param;
   param.set_param_id(ParamId(action, param_name));
-  param.set_value(value);
+  param.set_value(CanonicalP4RuntimeBytes(value));
   return param;
 }
 
