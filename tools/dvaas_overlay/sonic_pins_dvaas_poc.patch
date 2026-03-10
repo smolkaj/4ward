@@ -183,3 +183,48 @@ index f1f824f..2061697 100644
    absl::Status status;
    // We sort entities based on their key. Since they were read back from the
    // switch, we know that no two entities can have the same key.
+diff --git a/dvaas/packet_injection.cc b/dvaas/packet_injection.cc
+--- a/dvaas/packet_injection.cc
++++ b/dvaas/packet_injection.cc
+@@ -25,6 +25,7 @@
+ #include "absl/log/log.h"
+ #include "absl/status/status.h"
+ #include "absl/status/statusor.h"
++#include "absl/strings/numbers.h"
+ #include "absl/strings/escaping.h"
+ #include "absl/strings/match.h"
+ #include "absl/strings/str_cat.h"
+@@ -95,6 +96,24 @@
+   });
+ }
+ 
++absl::StatusOr<P4rtPortId> ParseSaiAwareP4rtPortId(
++    absl::string_view p4rt_port_id) {
++  if (absl::StartsWith(p4rt_port_id, "Ethernet")) {
++    absl::string_view suffix = absl::StripPrefix(p4rt_port_id, "Ethernet");
++    uint32_t port_id = 0;
++    if (!absl::SimpleAtoi(suffix, &port_id)) {
++      return absl::InvalidArgumentError(
++          absl::StrCat("unsupported SAI port name: ", p4rt_port_id));
++    }
++    return P4rtPortId::MakeFromOpenConfigEncoding(port_id);
++  }
++  if (p4rt_port_id == "CPU") return P4rtPortId::MakeFromOpenConfigEncoding(510);
++  if (p4rt_port_id == "DROP") {
++    return P4rtPortId::MakeFromOpenConfigEncoding(511);
++  }
++  return P4rtPortId::MakeFromP4rtEncoding(p4rt_port_id);
++}
++
+ }  // namespace
+ 
+ bool DefaultIsExpectedUnsolicitedPacket(const packetlib::Packet& packet) {
+@@ -186,7 +205,7 @@
+                          control_switch_ingress_port_p4rt_encoding));
+   } else {
+     ASSIGN_OR_RETURN(control_switch_ingress_port,
+-                     P4rtPortId::MakeFromP4rtEncoding(
++                     ParseSaiAwareP4rtPortId(
+                          control_switch_ingress_port_p4rt_encoding));
+   }
+   return mirror_testbed_port_map.GetSutPortConnectedToControlSwitchPort(

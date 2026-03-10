@@ -39,7 +39,7 @@ constexpr int kDeviceId = 1;
 constexpr char kIngressInterfaceName[] = "Ethernet1";
 constexpr char kEgressInterfaceName[] = "Ethernet2";
 constexpr char kIngressPortId[] = "1";
-constexpr char kEgressPortId[] = "1";
+constexpr char kExpectedEgressPort[] = "2";
 constexpr uint8_t kIpv4Ttl = 64;
 
 constexpr std::array<uint8_t, 6> kIngressDstMac = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05};
@@ -342,7 +342,7 @@ std::vector<p4::v1::Entity> BuildRoutingEntities(
           router_interface_table, set_port_and_src_mac,
           {ExactMatch(router_interface_table, "router_interface_id",
                       std::string("rif-1"))},
-          {StringParam(set_port_and_src_mac, "port", "Ethernet1"),
+          {StringParam(set_port_and_src_mac, "port", kEgressInterfaceName),
            BytesParam(set_port_and_src_mac, "src_mac",
                       std::string(reinterpret_cast<const char*>(kRifSrcMac.data()),
                                   kRifSrcMac.size()))}),
@@ -418,7 +418,7 @@ dvaas::PacketTestVector BuildPacketTestVector(const packetlib::Packet& input_pac
   *vector.mutable_input()->mutable_packet()->mutable_parsed() = input_packet;
 
   auto* output = vector.add_acceptable_outputs()->add_packets();
-  output->set_port(kEgressPortId);
+  output->set_port(kExpectedEgressPort);
   *output->mutable_parsed() = expected_packet;
   return vector;
 }

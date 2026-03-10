@@ -52,11 +52,26 @@ using namespace P4;
 // The annotations must be parsed (via ParseAnnotations::parseExpressionList)
 // before calling this function.
 //
-// Returns one TypeTranslation per annotated type, with auto_allocate=true
-// (hybrid mode: explicit pins + auto-allocate unknown values).
+static std::string encodeCanonicalUint(
+    const boost::multiprecision::cpp_int& value) {
+  if (value == 0) return std::string(1, '\0');
+  std::string bytes;
+  auto v = value;
+  while (v != 0) {
+    bytes.push_back(static_cast<char>(static_cast<uint8_t>(v & 0xFF)));
+    v >>= 8;
+  }
+  std::reverse(bytes.begin(), bytes.end());
+  return bytes;
+}
+
+// Returns one merged TypeTranslation per URI, with auto_allocate=true (hybrid
+// mode: explicit pins + auto-allocate unknown values). This matters for SAI P4,
+// which reuses the empty URI "" across several string-translated ID types.
 static std::vector<fourward::ir::v1::TypeTranslation> extractTypeTranslations(
     const IR::P4Program* program, const p4::config::v1::P4Info& p4Info) {
-  std::vector<fourward::ir::v1::TypeTranslation> result;
+  std::map<std::string, fourward::ir::v1::TypeTranslation> merged;
+  std::map<std::string, bool> uriUsesStringSdn;
   const auto& newTypes = p4Info.type_info().new_types();
 
   forAllMatching<IR::Type_Newtype>(program, [&](const IR::Type_Newtype* nt) {
@@ -76,12 +91,18 @@ static std::vector<fourward::ir::v1::TypeTranslation> extractTypeTranslations(
     const auto& translatedType = it->second.translated_type();
     bool isSdnString = translatedType.has_sdn_string();
 
-    fourward::ir::v1::TypeTranslation translation;
-    translation.set_uri(translatedType.uri());
+    auto& translation = merged[translatedType.uri()];
+    if (translation.uri().empty()) translation.set_uri(translatedType.uri());
     translation.set_auto_allocate(true);
-
-    int bitWidth = nt->type->width_bits();
-    int byteWidth = (bitWidth + 7) / 8;
+    auto [kindIt, inserted] =
+        uriUsesStringSdn.emplace(translatedType.uri(), isSdnString);
+    if (!inserted && kindIt->second != isSdnString) {
+      ::P4::warning(ErrorType::WARN_INVALID,
+                    "%1%: translated URI '%2%' mixes sdn_string and "
+                    "sdn_bitwidth types; ignoring annotation",
+                    nt, translatedType.uri());
+      return;
+    }
 
     // Annotation body: { {sdnValue, dpValue}, ... }
     const auto& exprs = ann->getExpr();
@@ -98,30 +119,21 @@ static std::vector<fourward::ir::v1::TypeTranslation> extractTypeTranslations(
       } else {
         const auto* sdnConst =
             tuple->components.at(0)->checkedTo<IR::Constant>();
-        int sdnByteWidth = (translatedType.sdn_bitwidth() + 7) / 8;
-        std::string sdnBytes(sdnByteWidth, '\0');
-        auto sv = sdnConst->value.convert_to<uint64_t>();
-        for (int i = sdnByteWidth - 1; i >= 0; --i) {
-          sdnBytes[i] = static_cast<char>(sv & 0xFF);
-          sv >>= 8;
-        }
-        entry->set_sdn_bitstring(sdnBytes);
+        entry->set_sdn_bitstring(encodeCanonicalUint(sdnConst->value));
       }
 
-      // Dataplane value (big-endian bytes matching the underlying bit width).
+      // Dataplane value in canonical min-width big-endian form, matching
+      // P4Runtime strict-mode requirements and PacketIO metadata encoding.
       const auto* dpConst = tuple->components.at(1)->checkedTo<IR::Constant>();
-      std::string dpBytes(byteWidth, '\0');
-      auto dv = dpConst->value.convert_to<uint64_t>();
-      for (int i = byteWidth - 1; i >= 0; --i) {
-        dpBytes[i] = static_cast<char>(dv & 0xFF);
-        dv >>= 8;
-      }
-      entry->set_dataplane_value(dpBytes);
+      entry->set_dataplane_value(encodeCanonicalUint(dpConst->value));
     }
-
-    result.push_back(std::move(translation));
   });
 
+  std::vector<fourward::ir::v1::TypeTranslation> result;
+  result.reserve(merged.size());
+  for (auto& [_, translation] : merged) {
+    result.push_back(std::move(translation));
+  }
   return result;
 }
 

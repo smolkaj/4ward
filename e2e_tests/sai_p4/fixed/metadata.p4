@@ -54,6 +54,13 @@ type bit<ROUTER_INTERFACE_ID_BITWIDTH> router_interface_id_t;
 
 #ifndef PLATFORM_BMV2
 @p4runtime_translation("", string)
+@p4runtime_translation_mappings({
+  {"Ethernet0", 0},
+  {"Ethernet1", 1},
+  {"Ethernet2", 2},
+  {"CPU", SAI_P4_CPU_PORT},
+  {"DROP", SAI_P4_DROP_PORT},
+})
 #endif
 type bit<PORT_BITWIDTH> port_id_t;
 
