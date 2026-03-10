@@ -172,6 +172,10 @@ if [[ ! -d "${SONIC_PINS_DIR}/.git" ]]; then
 fi
 git -C "${SONIC_PINS_DIR}" fetch --depth 1 origin "${SONIC_PINS_REF}"
 git -C "${SONIC_PINS_DIR}" checkout --detach FETCH_HEAD
+git -C "${SONIC_PINS_DIR}" reset --hard FETCH_HEAD
+git -C "${SONIC_PINS_DIR}" clean -fd
+git -C "${SONIC_PINS_DIR}" apply --whitespace=nowarn \
+  "${ROOT}/tools/dvaas_overlay/sonic_pins_dvaas_poc.patch"
 mkdir -p "${SONIC_PINS_DIR}/fourward_dvaas"
 cp "${ROOT}/tools/dvaas_overlay/BUILD.bazel" "${SONIC_PINS_DIR}/fourward_dvaas/BUILD.bazel"
 cp "${ROOT}/tools/dvaas_overlay/validate_dataplane_poc.cc" "${SONIC_PINS_DIR}/fourward_dvaas/validate_dataplane_poc.cc"
@@ -229,6 +233,8 @@ fi
 if [[ "${DVAAS_POC_WRAP_GDB}" == "1" ]] && command -v gdb >/dev/null 2>&1; then
   (
     cd "${SONIC_PINS_DIR}" &&
+      TEST_UNDECLARED_OUTPUTS_DIR="${ARTIFACT_DIR}" \
+      TEST_TMPDIR="${ARTIFACT_DIR}" \
       gdb -q -batch -ex run -ex bt --args \
         bazel-bin/fourward_dvaas/validate_dataplane_poc \
         "localhost:${SUT_PORT}" "localhost:${CONTROL_PORT}" "${ARTIFACT_DIR}"
@@ -236,6 +242,8 @@ if [[ "${DVAAS_POC_WRAP_GDB}" == "1" ]] && command -v gdb >/dev/null 2>&1; then
 else
   (
     cd "${SONIC_PINS_DIR}" &&
+      TEST_UNDECLARED_OUTPUTS_DIR="${ARTIFACT_DIR}" \
+      TEST_TMPDIR="${ARTIFACT_DIR}" \
       bazel-bin/fourward_dvaas/validate_dataplane_poc \
         "localhost:${SUT_PORT}" "localhost:${CONTROL_PORT}" "${ARTIFACT_DIR}"
   )

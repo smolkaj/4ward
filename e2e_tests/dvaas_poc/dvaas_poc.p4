@@ -77,12 +77,16 @@ control IngressImpl(
     standard_metadata.egress_spec = (port_id_t) DROP_PORT;
   }
 
+  @id(4)
+  action do_nothing() {}
+
   @id(10)
   table punt_all {
     actions = {
       @proto_id(1) punt_to_controller;
+      @proto_id(2) do_nothing;
     }
-    const default_action = punt_to_controller();
+    const default_action = do_nothing();
   }
 
   @id(11)

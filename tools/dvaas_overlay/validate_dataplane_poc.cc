@@ -36,8 +36,10 @@ namespace {
 
 constexpr int kDeviceId = 1;
 constexpr char kCpuPortName[] = "CPU";
-constexpr char kIngressPortName[] = "Ethernet1";
-constexpr char kEgressPortName[] = "Ethernet2";
+constexpr char kIngressInterfaceName[] = "Ethernet1";
+constexpr char kEgressInterfaceName[] = "Ethernet2";
+constexpr char kIngressPortId[] = "1";
+constexpr char kEgressPortId[] = "2";
 constexpr char kMatchedDstMac[] = "02:00:00:00:00:02";
 constexpr char kSrcMac[] = "00:00:00:00:00:01";
 
@@ -142,7 +144,6 @@ class FourwardDvaasBackend final : public dvaas::DataplaneValidationBackend {
       entities {
         table_entry {
           table_name: "punt_all"
-          is_default_action: true
           action { name: "punt_to_controller" }
         }
       }
@@ -190,7 +191,7 @@ pdpi::IrEntities BuildForwardingEntities() {
           name: "set_output_port"
           params {
             name: "port"
-            value { str: "Ethernet2" }
+            value { str: "2" }
           }
         }
       }
@@ -213,43 +214,44 @@ absl::StatusOr<packetlib::Packet> BuildPacket() {
 dvaas::PacketTestVector BuildPacketTestVector(const packetlib::Packet& packet) {
   dvaas::PacketTestVector vector;
   vector.mutable_input()->set_type(dvaas::SwitchInput::DATAPLANE);
-  vector.mutable_input()->mutable_packet()->set_port(kIngressPortName);
+  vector.mutable_input()->mutable_packet()->set_port(kIngressPortId);
   *vector.mutable_input()->mutable_packet()->mutable_parsed() = packet;
 
   auto* output = vector.add_acceptable_outputs()->add_packets();
-  output->set_port(kEgressPortName);
+  output->set_port(kEgressPortId);
   *output->mutable_parsed() = packet;
   return vector;
 }
 
 std::string BuildInterfacesJson() {
-  return R"json(
+  return absl::StrFormat(
+      R"json(
 {
   "openconfig-interfaces:interfaces": {
     "interface": [
       {
-        "name": "Ethernet1",
+        "name": "%s",
         "config": {
           "enabled": true,
           "openconfig-p4rt:id": 1
         },
         "state": {
           "enabled": true,
-          "ifname": "Ethernet1",
+          "ifname": "%s",
           "openconfig-p4rt:id": 1,
           "oper-status": "UP",
           "type": "iana-if-type:ethernetCsmacd"
         }
       },
       {
-        "name": "Ethernet2",
+        "name": "%s",
         "config": {
           "enabled": true,
           "openconfig-p4rt:id": 2
         },
         "state": {
           "enabled": true,
-          "ifname": "Ethernet2",
+          "ifname": "%s",
           "openconfig-p4rt:id": 2,
           "oper-status": "UP",
           "type": "iana-if-type:ethernetCsmacd"
@@ -258,7 +260,11 @@ std::string BuildInterfacesJson() {
     ]
   }
 }
-)json";
+)json",
+      kIngressInterfaceName,
+      kIngressInterfaceName,
+      kEgressInterfaceName,
+      kEgressInterfaceName);
 }
 
 absl::StatusOr<dvaas::SwitchApi> ConnectSwitch(absl::string_view address,
@@ -295,6 +301,7 @@ absl::Status Run(absl::string_view sut_address, absl::string_view control_addres
 
   dvaas::DataplaneValidationParams params;
   params.artifact_prefix = "fourward_poc";
+  params.reset_and_collect_counters = false;
   params.specification_override = dvaas::P4Specification{
       .p4_symbolic_config = pipeline_config,
       .bmv2_config = pipeline_config,

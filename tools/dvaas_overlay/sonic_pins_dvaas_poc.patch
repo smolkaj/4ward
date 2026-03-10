@@ -1,0 +1,185 @@
+diff --git a/dvaas/dataplane_validation.cc b/dvaas/dataplane_validation.cc
+index 435e305..2bd2832 100644
+--- a/dvaas/dataplane_validation.cc
++++ b/dvaas/dataplane_validation.cc
+@@ -414,11 +414,15 @@ absl::StatusOr<P4Specification> InferP4Specification(
+   ASSIGN_OR_RETURN(
+       gutil::Version p4_symbolic_config_version,
+       gutil::ParseVersion(
+-          p4_spec.p4_symbolic_config.p4info().pkg_info().version()));
++          p4_spec.p4_symbolic_config.p4info().pkg_info().version().empty()
++              ? "0.0.0"
++              : p4_spec.p4_symbolic_config.p4info().pkg_info().version()));
+   ASSIGN_OR_RETURN(
+       gutil::Version bmv2_config_version,
+       gutil::ParseVersion(
+-          p4_spec.p4_symbolic_config.p4info().pkg_info().version()));
++          p4_spec.p4_symbolic_config.p4info().pkg_info().version().empty()
++              ? "0.0.0"
++              : p4_spec.p4_symbolic_config.p4info().pkg_info().version()));
+   ASSIGN_OR_RETURN(gutil::Version sut_config_version,
+                    pdpi::GetPkgInfoVersion(sut.p4rt.get()));
+   if (p4_symbolic_config_version != bmv2_config_version) {
+@@ -794,21 +798,13 @@ DataplaneValidator::ValidateDataplaneUsingExistingSwitchApis(
+     SwitchApi& sut, SwitchApi& control_switch,
+     thinkit::TestEnvironment& test_environment,
+     const DataplaneValidationParams& params) {
+-  // Read all entities.
++  // WORKAROUND: The pinned sonic-pins snapshot crashes on this toolchain
++  // when unwrapping StatusOr<std::vector<p4::v1::Entity>> from PDPI read helpers.
++  // The PoC pipeline has no meters, so skipping the rate-limit read/restore path
++  // preserves validation behavior while avoiding the broken helper path.
+   gutil::Timer testbed_preparation_timer;
+-  ASSIGN_OR_RETURN(std::vector<p4::v1::Entity> original_entities,
+-                   pdpi::ReadPiEntitiesSorted(*sut.p4rt));
+-
+-  RETURN_IF_ERROR(
+-      IncreasePerEntryRateLimitsToAvoidBogusDrops(original_entities, sut));
+-
+-  absl::Cleanup cleanup = [&original_entities, &sut]() {
+-    if (absl::Status status = ResetRateLimitsToOriginal(original_entities, sut);
+-        !status.ok()) {
+-      LOG(WARNING) << "Failed to reset rate limits to their original values: "
+-                   << status;
+-    }
+-  };
++  std::vector<p4::v1::Entity> original_entities;
++  absl::Cleanup cleanup = [] {};
+ 
+   // Set up custom writer that prefixes artifact names and adds headers.
+   DvaasTestArtifactWriter dvaas_test_artifact_writer(artifact_writer_, params);
+@@ -848,9 +844,11 @@ DataplaneValidator::ValidateDataplaneUsingExistingSwitchApis(
+       params.mirror_testbed_port_map_override.has_value()
+           ? *params.mirror_testbed_port_map_override
+           : MirrorTestbedP4rtPortIdMap::CreateIdentityMap();
++  LOG(INFO) << "DVaaS debug: checking/storing port maps";
+   RETURN_IF_ERROR(CheckAndStoreMappedAndUnmappedPortIds(
+       mirror_testbed_port_map, *sut.gnmi, *control_switch.gnmi,
+       dvaas_test_artifact_writer));
++  LOG(INFO) << "DVaaS debug: port maps ready";
+   LogAndRecordDurationForDvaasComponent(
+       "testbed_preparation", testbed_preparation_timer.GetDuration());
+ 
+@@ -866,24 +864,21 @@ DataplaneValidator::ValidateDataplaneUsingExistingSwitchApis(
+   } else {
+     LOG(INFO) << "Checking user-provided test vectors for well-formedness";
+     ASSIGN_OR_RETURN(pdpi::IrP4Info ir_info, pdpi::GetIrP4Info(*sut.p4rt));
++    LOG(INFO) << "DVaaS debug: legitimizing user-provided test vectors";
+     ASSIGN_OR_RETURN(test_vectors,
+                      LegitimizeUserProvidedTestVectors(
+                          params.packet_test_vector_override, ir_info));
++    LOG(INFO) << "DVaaS debug: test vectors ready count=" << test_vectors.size();
+   }
+ 
+-  // Store the test vectors in ArribaTestVector format as an artifact.
+-  dvaas::ArribaTestVector arriba_test_vector;
+-  ASSIGN_OR_RETURN(pdpi::IrEntities entities,
+-                   pdpi::ReadIrEntitiesSorted(*sut.p4rt));
+-  *arriba_test_vector.mutable_ir_entities() = entities;
+-  for (auto& [id, test_vector] : test_vectors) {
+-    (*arriba_test_vector.mutable_packet_test_vector_by_id())[id] = test_vector;
+-  }
+-  RETURN_IF_ERROR(dvaas_test_artifact_writer.AppendToTestArtifact(
+-      "arriba_test_vector.txtpb", gutil::PrintTextProto(arriba_test_vector)));
+-
++  // WORKAROUND: Skip Arriba artifact generation in the PoC. The pinned
++  // sonic-pins snapshot repeatedly crashes on this toolchain while unwrapping
++  // PDPI read helpers used only for artifact capture. The packet injection and
++  // validation path below is the actual proof-of-concept target.
++  LOG(INFO) << "DVaaS debug: skipping arriba artifact capture";
+   RETURN_IF_ERROR(dvaas_test_artifact_writer.AppendToTestArtifact(
+       "test_vectors.txt", ToString(test_vectors)));
++  LOG(INFO) << "DVaaS debug: artifacts written";
+ 
+   PacketInjectionParams packet_injection_params = {
+       .max_packets_to_send_per_second = params.max_packets_to_send_per_second,
+@@ -893,11 +888,13 @@ DataplaneValidator::ValidateDataplaneUsingExistingSwitchApis(
+ 
+   // Send tests to switch and collect results.
+   gutil::Timer packet_injection_timer;
++  LOG(INFO) << "DVaaS debug: sending test packets";
+   ASSIGN_OR_RETURN(PacketTestRuns test_runs,
+                    SendTestPacketsAndCollectOutputs(
+                        *sut.p4rt.get(), *control_switch.p4rt.get(),
+                        test_vectors, packet_injection_params,
+                        packet_statistics_));
++  LOG(INFO) << "DVaaS debug: packet injection complete runs=" << test_runs.test_runs_size();
+   LogAndRecordDurationForDvaasComponent("packet_injection",
+                                         packet_injection_timer.GetDuration());
+   const absl::Time kTimeLastPacketInjected = absl::Now();
+@@ -905,9 +902,11 @@ DataplaneValidator::ValidateDataplaneUsingExistingSwitchApis(
+       "test_runs.textproto", gutil::PrintTextProto(test_runs)));
+ 
+   // Validate test runs to create test outcomes.
++  LOG(INFO) << "DVaaS debug: validating test runs";
+   ASSIGN_OR_RETURN(dvaas::PacketTestOutcomes test_outcomes,
+                    dvaas::ValidateTestRuns(
+                        test_runs, params.switch_output_diff_params, &sut));
++  LOG(INFO) << "DVaaS debug: validation complete outcomes=" << test_outcomes.outcomes_size();
+ 
+   // Use labelers to add labels to test outcomes.
+   auto status = AugmentTestOutcomesWithLabels(test_outcomes, params.labelers);
+diff --git a/p4_infra/p4_pdpi/p4_runtime_session.cc b/p4_infra/p4_pdpi/p4_runtime_session.cc
+index 9c9c5fa..74a705f 100644
+--- a/p4_infra/p4_pdpi/p4_runtime_session.cc
++++ b/p4_infra/p4_pdpi/p4_runtime_session.cc
+@@ -505,6 +505,7 @@ absl::Status SetMetadataAndSendPiWriteRequests(
+ }
+ 
+ absl::StatusOr<std::vector<Entity>> ReadPiEntities(P4RuntimeSession* session) {
++  LOG(INFO) << "PDPI debug: ReadPiEntities enter";
+   ReadRequest read_request;
+   // Read all table entries and their associated counters and meters.
+   TableEntry& table_entry = *read_request.add_entities()->mutable_table_entry();
+@@ -527,8 +528,12 @@ absl::StatusOr<std::vector<Entity>> ReadPiEntities(P4RuntimeSession* session) {
+ 
+   ASSIGN_OR_RETURN(ReadResponse read_response,
+                    SetMetadataAndSendPiReadRequest(session, read_request));
+-  return std::vector<Entity>{read_response.entities().begin(),
+-                             read_response.entities().end()};
++  LOG(INFO) << "PDPI debug: raw read response entities=" << read_response.entities_size();
++  std::vector<Entity> entities;
++  entities.reserve(read_response.entities_size());
++  for (const auto& entity : read_response.entities()) entities.push_back(entity);
++  LOG(INFO) << "PDPI debug: copied entities vector size=" << entities.size();
++  return absl::StatusOr<std::vector<Entity>>(std::move(entities));
+ }
+ 
+ absl::StatusOr<std::vector<TableEntry>> ReadPiTableEntries(
+@@ -667,7 +672,8 @@ absl::Status ClearEntities(
+   // Get current switch version to determine if we need to mask old errors.
+   ASSIGN_OR_RETURN(
+       gutil::Version current_version,
+-      gutil::ParseVersion(response.config().p4info().pkg_info().version()));
++      gutil::ParseVersion(response.config().p4info().pkg_info().version().empty()
++                              ? "0.0.0" : response.config().p4info().pkg_info().version()));
+   ASSIGN_OR_RETURN(
+       gutil::Version first_version_with_fail_on_first,
+       gutil::ParseVersion(SAI_P4_PKGINFO_VERSION_USES_FAIL_ON_FIRST));
+@@ -866,7 +872,8 @@ GetForwardingPipelineConfig(
+ absl::StatusOr<gutil::Version> GetPkgInfoVersion(P4RuntimeSession* session) {
+   ASSIGN_OR_RETURN(p4::v1::GetForwardingPipelineConfigResponse response,
+                    GetForwardingPipelineConfig(session));
+-  return gutil::ParseVersion(response.config().p4info().pkg_info().version());
++  return gutil::ParseVersion(response.config().p4info().pkg_info().version().empty()
++                                 ? "0.0.0" : response.config().p4info().pkg_info().version());
+ }
+ 
+ namespace {
+diff --git a/p4_infra/p4_pdpi/p4_runtime_session_extras.cc b/p4_infra/p4_pdpi/p4_runtime_session_extras.cc
+index f1f824f..2061697 100644
+--- a/p4_infra/p4_pdpi/p4_runtime_session_extras.cc
++++ b/p4_infra/p4_pdpi/p4_runtime_session_extras.cc
+@@ -161,7 +161,11 @@ absl::Status InstallPiEntities(P4RuntimeSession& p4rt,
+ 
+ absl::StatusOr<std::vector<p4::v1::Entity>> ReadPiEntitiesSorted(
+     P4RuntimeSession& p4rt) {
+-  ASSIGN_OR_RETURN(std::vector<p4::v1::Entity> entities, ReadPiEntities(&p4rt));
++  LOG(INFO) << "PDPI debug: ReadPiEntitiesSorted enter";
++  auto entities_or = ReadPiEntities(&p4rt);
++  if (!entities_or.ok()) return entities_or.status();
++  std::vector<p4::v1::Entity> entities = std::move(entities_or).value();
++  LOG(INFO) << "PDPI debug: ReadPiEntitiesSorted got entities=" << entities.size();
+   absl::Status status;
+   // We sort entities based on their key. Since they were read back from the
+   // switch, we know that no two entities can have the same key.
