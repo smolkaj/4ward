@@ -179,7 +179,7 @@ prepare_sonic_pins_checkout() {
   git -C "${SONIC_PINS_DIR}" apply --whitespace=nowarn \
     "${ROOT}/tools/dvaas_overlay/sonic_pins_dvaas_poc.patch"
   mkdir -p "${SONIC_PINS_DIR}/fourward_dvaas"
-  cp "${ROOT}/tools/dvaas_overlay/BUILD.bazel" "${SONIC_PINS_DIR}/fourward_dvaas/BUILD.bazel"
+  cp "${ROOT}/tools/dvaas_overlay/overlay.BUILD.bazel" "${SONIC_PINS_DIR}/fourward_dvaas/BUILD.bazel"
   cp "${ROOT}/tools/dvaas_overlay/"*.cc "${SONIC_PINS_DIR}/fourward_dvaas/"
   write_sonic_pins_bazelrc
 
