@@ -101,39 +101,6 @@ class PacketContext(payload: ByteArray) {
   fun peekRemainingInput(): ByteArray = buffer.peekAll()
 
   // -------------------------------------------------------------------------
-  // Clone
-  // -------------------------------------------------------------------------
-
-  /**
-   * Session ID from the last I2E clone()/clone3() call, or null if no clone was requested.
-   *
-   * BMv2 last-writer-wins: if multiple clone calls occur during ingress, only the last one takes
-   * effect. The architecture checks this at the ingress→egress boundary.
-   */
-  var pendingCloneSessionId: Int? = null
-
-  /** Field list ID for I2E clone metadata preservation, or null for no preservation. */
-  var pendingCloneFieldListId: Int? = null
-
-  /** Session ID from the last E2E clone()/clone3() call, checked after egress controls. */
-  var pendingEgressCloneSessionId: Int? = null
-
-  /** Field list ID for E2E clone metadata preservation, or null for no preservation. */
-  var pendingEgressCloneFieldListId: Int? = null
-
-  /** True if resubmit() was called during ingress; checked at the ingress→egress boundary. */
-  var pendingResubmit: Boolean = false
-
-  /** Field list ID for resubmit metadata preservation, or null for no preservation. */
-  var pendingResubmitFieldListId: Int? = null
-
-  /** True if recirculate() was called during egress; checked after deparser. */
-  var pendingRecirculate: Boolean = false
-
-  /** Field list ID for recirculate metadata preservation, or null for no preservation. */
-  var pendingRecirculateFieldListId: Int? = null
-
-  // -------------------------------------------------------------------------
   // Trace
   // -------------------------------------------------------------------------
 

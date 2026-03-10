@@ -39,8 +39,45 @@ class InterpreterControlTest {
   // Helpers
   // ---------------------------------------------------------------------------
 
+  /** Creates an extern handler with register/meter/counter method support for unit tests. */
+  private fun testExternHandler(tableStore: TableStore) =
+    object : ExternHandler {
+      override fun call(name: String, eval: ExternEvaluator): Value =
+        error("unexpected extern call: $name")
+
+      override fun callMethod(
+        externType: String,
+        instanceName: String,
+        method: String,
+        eval: ExternEvaluator,
+      ): Value =
+        when (method) {
+          "read" -> {
+            if (externType == "direct_meter" || (externType.isEmpty() && eval.argCount == 1)) {
+              eval.writeOutArg(0, eval.defaultArgValue(0))
+            } else {
+              val index = (eval.evalArg(1) as BitVal).bits.value.toInt()
+              val value = tableStore.registerRead(instanceName, index) ?: eval.defaultArgValue(0)
+              eval.writeOutArg(0, value)
+            }
+            UnitVal
+          }
+          "execute_meter" -> {
+            eval.writeOutArg(1, eval.defaultArgValue(1))
+            UnitVal
+          }
+          "write" -> {
+            val index = (eval.evalArg(0) as BitVal).bits.value.toInt()
+            tableStore.registerWrite(instanceName, index, eval.evalArg(1))
+            UnitVal
+          }
+          "count" -> UnitVal
+          else -> error("unhandled extern method: $externType.$method on $instanceName")
+        }
+    }
+
   private fun interp(config: BehavioralConfig, tableStore: TableStore = TableStore()) =
-    Interpreter(config, tableStore)
+    Interpreter(config, tableStore, externHandler = testExternHandler(tableStore))
 
   /** Builds a `switch (tableName.apply().action_run)` statement. */
   private fun switchOn(

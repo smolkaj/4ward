@@ -165,22 +165,4 @@ class EnvironmentTest {
     assertEquals(first, second)
     assertNotSame(first, second)
   }
-
-  // ---------------------------------------------------------------------------
-  // Clone session (last-writer-wins)
-  // ---------------------------------------------------------------------------
-
-  @Test
-  fun `pendingCloneSessionId is null initially`() {
-    val pktCtx = PacketContext(byteArrayOf())
-    assertNull(pktCtx.pendingCloneSessionId)
-  }
-
-  @Test
-  fun `pendingCloneSessionId uses last-writer-wins`() {
-    val pktCtx = PacketContext(byteArrayOf())
-    pktCtx.pendingCloneSessionId = 1
-    pktCtx.pendingCloneSessionId = 2
-    assertEquals(2, pktCtx.pendingCloneSessionId)
-  }
 }
