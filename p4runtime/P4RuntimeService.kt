@@ -51,6 +51,7 @@ class P4RuntimeService(
   private val simulator: Simulator,
   private val constraintValidatorBinary: Path? = null,
   private val cpuPort: Int? = null,
+  private val strict: Boolean = false,
   private val frontPanelTransmitter: FrontPanelTransmitter? = null,
   private val lock: Mutex = Mutex(),
 ) : P4RuntimeGrpcKt.P4RuntimeCoroutineImplBase(), Closeable {
@@ -132,7 +133,7 @@ class P4RuntimeService(
         config = pipelineConfig,
         typeTranslator =
           TypeTranslator.create(pipelineConfig.p4Info, pipelineConfig.device.translationsList),
-        writeValidator = WriteValidator(pipelineConfig.p4Info),
+        writeValidator = WriteValidator(pipelineConfig.p4Info, strict),
         constraintValidator =
           constraintValidatorBinary?.let { ConstraintValidator.create(pipelineConfig.p4Info, it) },
         packetHeaderCodec =
@@ -279,16 +280,15 @@ class P4RuntimeService(
       simulator.processPacket(ingressPort, payload).outputPacketsList.map {
         OutputObservation(ingressPort, it)
       }
+    val linkedMode = codec != null && frontPanelTransmitter != null
     val expandedOutputs =
-      if (codec != null && frontPanelTransmitter != null) {
+      if (linkedMode) {
         expandLinkedOutputs(outputs, codec.cpuPort)
       } else {
         outputs
       }
 
-    return expandedOutputs
-      .filter { codec == null || it.outputPacket.egressPort == codec.cpuPort }
-      .map { observation ->
+    return expandedOutputs.map { observation ->
         val outputPacket = observation.outputPacket
         val rawPacketIn =
           if (codec != null) {
@@ -319,9 +319,8 @@ class P4RuntimeService(
     initialOutputs: List<OutputObservation>,
     cpuPort: Int,
   ): List<OutputObservation> {
-    val expanded = initialOutputs.toMutableList()
+    val expanded = initialOutputs.filter { it.outputPacket.egressPort == cpuPort }.toMutableList()
     val transmitter = frontPanelTransmitter ?: return expanded
-    val returnedToControl = mutableListOf<OutputObservation>()
     for (output in initialOutputs) {
       if (output.outputPacket.egressPort == cpuPort) continue
       val sutOutputs =
@@ -331,14 +330,13 @@ class P4RuntimeService(
         )
       for (sutOutput in sutOutputs) {
         if (sutOutput.egressPort == cpuPort) continue
-        returnedToControl +=
-          simulator
-            .processPacket(sutOutput.egressPort, sutOutput.payload.toByteArray())
-            .outputPacketsList
-            .map { OutputObservation(sutOutput.egressPort, it) }
+        // WORKAROUND(DVaaS SAI): In linked-mode mirror validation, DVaaS needs an observation of
+        // packets that left the peer SUT on a given front-panel port. Modeling a full return hop
+        // through the local control pipeline makes that observation depend on extra SAI control
+        // programming. Treat the peer's egress as an observable return-wire event instead.
+        expanded += OutputObservation(sutOutput.egressPort, sutOutput)
       }
     }
-    expanded += returnedToControl
     return expanded
   }
 

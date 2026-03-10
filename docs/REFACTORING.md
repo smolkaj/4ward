@@ -107,3 +107,21 @@ point and the shell wrapper shrinks to near-zero or disappears entirely.
 
 **Trigger**: when the PoC graduates toward proper SAI P4 or when the DVaaS
 integration becomes a maintained workflow rather than a one-off proof.
+
+---
+
+## Pin SAI front-panel port translations explicitly
+
+**Files**: `e2e_tests/sai_p4/fixed/metadata.p4`, generated SAI pipeline txtpbs,
+`tools/dvaas_overlay/validate_dataplane_sai.cc`
+
+**Problem**: The SAI PoC currently works with translated `port_id_t`, but some
+front-panel port values still depend on 4ward's auto-allocation order for the
+shared translation URI. That is good enough for the local/CI proof, but it is
+not a stable contract for multi-instance mirror validation.
+
+**Fix**: Add explicit translation mappings for the relevant front-panel ports
+(`Ethernet1`, `Ethernet2`, ...), regenerate the pipeline artifacts, and remove
+the helper-side reliance on today's allocation order.
+
+**Trigger**: before treating the SAI DVaaS path as the maintained default.

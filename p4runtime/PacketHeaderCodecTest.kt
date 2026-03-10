@@ -156,7 +156,7 @@ class PacketHeaderCodecTest {
     // Second field = target_egress_port (metadata_id=4)
     assertEquals(4, metadata[1].metadataId)
     val egressBytes = metadata[1].value.toByteArray()
-    assertEquals(2, egressBytes.size)
+    assertEquals(1, egressBytes.size)
     assertEquals(1, bytesToInt(egressBytes))
   }
 

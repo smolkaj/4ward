@@ -7,6 +7,9 @@ PATCH_DIR="${ROOT}/tools/dvaas_overlay/patches"
 SONIC_PINS_REF="${SONIC_PINS_REF:-6052c041f299fdf8fad50236caf15483e95b56d4}"
 FOURWARD_BAZEL_CONFIG="${FOURWARD_BAZEL_CONFIG:-}"
 DVAAS_POC_WRAP_GDB="${DVAAS_POC_WRAP_GDB:-0}"
+FOURWARD_DVAAS_PIPELINE_TARGET="${FOURWARD_DVAAS_PIPELINE_TARGET:-//e2e_tests/dvaas_poc:dvaas_poc_pb}"
+FOURWARD_DVAAS_PIPELINE_TXTPB="${FOURWARD_DVAAS_PIPELINE_TXTPB:-e2e_tests/dvaas_poc/dvaas_poc.txtpb}"
+FOURWARD_DVAAS_HELPER_BINARY="${FOURWARD_DVAAS_HELPER_BINARY:-validate_dataplane_poc}"
 SUT_PORT=9560
 CONTROL_PORT=9561
 CPU_PORT=510
@@ -161,7 +164,7 @@ fi
 build_fourward_targets() {
   bazel build "${BAZEL_ARGS[@]}" \
     //p4runtime:p4runtime_server \
-    //e2e_tests/dvaas_poc:dvaas_poc_pb
+    "${FOURWARD_DVAAS_PIPELINE_TARGET}"
 }
 
 prepare_sonic_pins_checkout() {
@@ -177,8 +180,7 @@ prepare_sonic_pins_checkout() {
     "${ROOT}/tools/dvaas_overlay/sonic_pins_dvaas_poc.patch"
   mkdir -p "${SONIC_PINS_DIR}/fourward_dvaas"
   cp "${ROOT}/tools/dvaas_overlay/BUILD.bazel" "${SONIC_PINS_DIR}/fourward_dvaas/BUILD.bazel"
-  cp "${ROOT}/tools/dvaas_overlay/validate_dataplane_poc.cc" \
-    "${SONIC_PINS_DIR}/fourward_dvaas/validate_dataplane_poc.cc"
+  cp "${ROOT}/tools/dvaas_overlay/"*.cc "${SONIC_PINS_DIR}/fourward_dvaas/"
   write_sonic_pins_bazelrc
 
   if [[ "${OS_NAME}" == "Darwin" ]]; then
@@ -195,7 +197,7 @@ start_fourward_server() {
   shift 2
   "${ROOT}/bazel-bin/p4runtime/p4runtime_server" \
     --port="${port}" \
-    --pipeline="${ROOT}/bazel-bin/e2e_tests/dvaas_poc/dvaas_poc.txtpb" \
+    --pipeline="${ROOT}/bazel-bin/${FOURWARD_DVAAS_PIPELINE_TXTPB}" \
     --cpu_port="${CPU_PORT}" \
     "$@" >"${log}" 2>&1 &
 }
@@ -217,7 +219,7 @@ apply_darwin_grpc_patch() {
 
   (
     cd "${SONIC_PINS_DIR}" &&
-      run_sonic_pins_bazel build --nobuild //fourward_dvaas:validate_dataplane_poc >/dev/null
+      run_sonic_pins_bazel build --nobuild //fourward_dvaas:${FOURWARD_DVAAS_HELPER_BINARY} >/dev/null
   )
   output_base="$(
     cd "${SONIC_PINS_DIR}" &&
@@ -248,7 +250,7 @@ build_dvaas_helper() {
   fi
   (
     cd "${SONIC_PINS_DIR}" &&
-      run_sonic_pins_bazel build //fourward_dvaas:validate_dataplane_poc
+      run_sonic_pins_bazel build //fourward_dvaas:${FOURWARD_DVAAS_HELPER_BINARY}
   )
 }
 
@@ -257,21 +259,21 @@ run_dvaas_helper() {
     cd "${SONIC_PINS_DIR}" &&
       TEST_UNDECLARED_OUTPUTS_DIR="${ARTIFACT_DIR}" \
       TEST_TMPDIR="${ARTIFACT_DIR}" \
-      bazel-bin/fourward_dvaas/validate_dataplane_poc \
+      "bazel-bin/fourward_dvaas/${FOURWARD_DVAAS_HELPER_BINARY}" \
         "localhost:${SUT_PORT}" "localhost:${CONTROL_PORT}" "${ARTIFACT_DIR}"
   )
 }
 
 run_dvaas_helper_with_gdb() {
-  (
-    cd "${SONIC_PINS_DIR}" &&
-      TEST_UNDECLARED_OUTPUTS_DIR="${ARTIFACT_DIR}" \
-      TEST_TMPDIR="${ARTIFACT_DIR}" \
-      gdb -q -batch -ex run -ex bt --args \
-        bazel-bin/fourward_dvaas/validate_dataplane_poc \
-        "localhost:${SUT_PORT}" "localhost:${CONTROL_PORT}" "${ARTIFACT_DIR}"
-  )
-}
+    (
+      cd "${SONIC_PINS_DIR}" &&
+        TEST_UNDECLARED_OUTPUTS_DIR="${ARTIFACT_DIR}" \
+        TEST_TMPDIR="${ARTIFACT_DIR}" \
+        gdb -q -batch -ex run -ex bt --args \
+          "bazel-bin/fourward_dvaas/${FOURWARD_DVAAS_HELPER_BINARY}" \
+          "localhost:${SUT_PORT}" "localhost:${CONTROL_PORT}" "${ARTIFACT_DIR}"
+    )
+  }
 
 build_fourward_targets
 prepare_sonic_pins_checkout

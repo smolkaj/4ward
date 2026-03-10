@@ -163,18 +163,18 @@ class P4RuntimeWriteErrorTest {
     assertGrpcError(Status.Code.INVALID_ARGUMENT, "priority") { harness.installEntry(entity) }
   }
 
-  // P4Runtime spec §8.3: match field value must have canonical byte width.
+  // P4Runtime spec §8.3: match field value must fit within ceil(bitwidth / 8) bytes.
   @Test
   fun `insert with wrong match value width returns INVALID_ARGUMENT`() {
     val config = loadBasicTableConfig()
     harness.loadPipeline(config)
-    // etherType is 16-bit (2 bytes); send 1 byte.
+    // etherType is 16-bit (2 bytes); send 3 bytes.
     val entity =
       buildInvalidEntry(config) { b ->
         b.tableEntryBuilder
           .getMatchBuilder(0)
           .exactBuilder
-          .setValue(ByteString.copyFrom(byteArrayOf(0x08)))
+          .setValue(ByteString.copyFrom(byteArrayOf(0x00, 0x08, 0x00)))
       }
     assertGrpcError(Status.Code.INVALID_ARGUMENT, "bytes") { harness.installEntry(entity) }
   }

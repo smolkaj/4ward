@@ -54,7 +54,7 @@ private constructor(
         }
       PacketMetadata.newBuilder()
         .setMetadataId(field.id)
-        .setValue(encodeFieldWidth(value, field.bitWidth))
+        .setValue(encodeMinWidth(value))
         .build()
     }
 

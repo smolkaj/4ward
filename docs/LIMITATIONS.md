@@ -59,6 +59,16 @@ guilt — just write it down so someone can find it later.
   enough for end-to-end validation on local macOS and Ubuntu CI, but it is
   still a downstream compatibility harness rather than a native upstream DVaaS
   integration.
+- **SAI mirror validation currently observes the peer return-wire directly.**
+  In linked two-`4ward` mode, returned SUT packets are surfaced to DVaaS as
+  observable `PacketIn`s without depending on the local control-switch SAI
+  pipeline to re-punt them. This is sufficient for `ValidateDataplane`, but it
+  is a mirror-testbed shortcut rather than a full in-band control-switch model.
+- **SAI front-panel port translations are not pinned yet.** The current SAI
+  PoC still relies on the present auto-allocation order for some translated
+  `port_id_t` values. The local proof is wired to a consistent route/output
+  choice, but the final setup should use explicit translation mappings for
+  front-panel ports so `EthernetN` is stable across instances and runs.
 - **Darwin uses transient third-party compatibility patches.** The local macOS
   path applies patch files to the pinned `sonic-pins` checkout and its vendored
   gRPC external to work around Linux-only headers and an Apple-clang template

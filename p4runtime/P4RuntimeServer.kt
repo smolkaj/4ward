@@ -18,6 +18,7 @@ class P4RuntimeServer(
   private val port: Int = DEFAULT_PORT,
   private val pipelinePath: Path? = null,
   private val cpuPort: Int? = null,
+  private val strict: Boolean = false,
   private val peerDataplaneTarget: String? = null,
 ) {
 
@@ -28,9 +29,10 @@ class P4RuntimeServer(
   private val peerDataplaneStub: DataplaneCoroutineStub? =
     peerChannel?.let { DataplaneCoroutineStub(it) }
   private val service =
-    P4RuntimeService(
+      P4RuntimeService(
       simulator = simulator,
       cpuPort = cpuPort,
+      strict = strict,
       frontPanelTransmitter =
         peerDataplaneStub?.let { stub ->
           P4RuntimeService.FrontPanelTransmitter { egressPort, payload ->
@@ -90,8 +92,9 @@ fun main(args: Array<String>) {
   val port = options["--port"]?.toIntOrNull() ?: P4RuntimeServer.DEFAULT_PORT
   val pipelinePath = options["--pipeline"]?.takeIf { it.isNotEmpty() }?.let(Path::of)
   val cpuPort = options["--cpu_port"]?.toIntOrNull()
+  val strict = "--strict" in options
   val peerDataplaneTarget = options["--peer_dataplane"]?.takeIf { it.isNotEmpty() }
-  val server = P4RuntimeServer(port, pipelinePath, cpuPort, peerDataplaneTarget).start()
+  val server = P4RuntimeServer(port, pipelinePath, cpuPort, strict, peerDataplaneTarget).start()
   println("P4Runtime server listening on port ${server.port()}")
   server.blockUntilShutdown()
 }
