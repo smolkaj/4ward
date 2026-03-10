@@ -21,7 +21,7 @@ jobs:
           fi
 
       - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y libgmp-dev libpcap-dev
+        run: sudo apt-get update && sudo apt-get install -y gdb libgmp-dev libpcap-dev
 
       - name: Run DVaaS PoC
         run: ./tools/run_dvaas_poc.sh

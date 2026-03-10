@@ -21,6 +21,8 @@
 #include "grpcpp/grpcpp.h"
 #include "gutil/gutil/status.h"
 #include "gutil/gutil/testing.h"
+#include "lib/gnmi/gnmi_helper.h"
+#include "lib/gnmi/openconfig.pb.h"
 #include "p4/v1/p4runtime.pb.h"
 #include "p4_infra/p4_pdpi/ir.h"
 #include "p4_infra/p4_pdpi/ir.pb.h"
@@ -298,6 +300,34 @@ absl::Status Run(absl::string_view sut_address, absl::string_view control_addres
       .bmv2_config = pipeline_config,
   };
   params.packet_test_vector_override = {BuildPacketTestVector(packet)};
+
+  LOG(INFO) << "Preflight: reading SUT PI entities";
+  ASSIGN_OR_RETURN(auto preflight_entities, pdpi::ReadPiEntitiesSorted(*sut.p4rt));
+  LOG(INFO) << "Preflight: found " << preflight_entities.size()
+            << " SUT PI entities";
+
+  LOG(INFO) << "Preflight: reading control-switch IR P4Info";
+  ASSIGN_OR_RETURN(const auto control_ir_info, pdpi::GetIrP4Info(*control.p4rt));
+  LOG(INFO) << "Preflight: clearing control-switch entities";
+  RETURN_IF_ERROR(pdpi::ClearEntities(*control.p4rt));
+  LOG(INFO) << "Preflight: installing control-switch punt entities";
+  FourwardDvaasBackend backend;
+  ASSIGN_OR_RETURN(const auto punt_entities,
+                   backend.GetEntitiesToPuntAllPackets(control_ir_info));
+  RETURN_IF_ERROR(pdpi::InstallIrEntities(*control.p4rt, punt_entities));
+
+  auto match_all_interfaces =
+      [](const openconfig::Interfaces::Interface&) { return true; };
+  LOG(INFO) << "Preflight: reading SUT gNMI P4RT ports";
+  ASSIGN_OR_RETURN(const auto sut_ports,
+                   pins_test::GetMatchingP4rtPortIds(*sut.gnmi,
+                                                     match_all_interfaces));
+  LOG(INFO) << "Preflight: reading control-switch gNMI P4RT ports";
+  ASSIGN_OR_RETURN(const auto control_ports,
+                   pins_test::GetMatchingP4rtPortIds(*control.gnmi,
+                                                     match_all_interfaces));
+  LOG(INFO) << "Preflight: SUT ports=" << sut_ports.size()
+            << ", control ports=" << control_ports.size();
 
   auto validator =
       dvaas::DataplaneValidator(std::make_unique<FourwardDvaasBackend>());
