@@ -1808,17 +1808,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-play-pause').addEventListener('click', togglePlayPause);
   document.getElementById('btn-reset').addEventListener('click', resetPlayback);
 
-  // Keyboard shortcuts for playback (when trace tab is active and editor not focused).
-  document.addEventListener('keydown', (e) => {
-    if (!document.getElementById('tab-trace').classList.contains('active')) return;
-    if (state.editor?.hasTextFocus()) return;
-    if (state.playbackEvents.length === 0) return;
-
-    if (e.key === 'ArrowRight' || e.key === 'l') { e.preventDefault(); stepForward(); }
-    else if (e.key === 'ArrowLeft' || e.key === 'h') { e.preventDefault(); stepBack(); }
-    else if (e.key === ' ') { e.preventDefault(); togglePlayPause(); }
-    else if (e.key === 'r' || e.key === '0') { e.preventDefault(); resetPlayback(); }
-  });
 
   // Example selector
   document.getElementById('example-select').addEventListener('change', (e) => {
