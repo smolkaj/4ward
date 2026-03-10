@@ -49,9 +49,9 @@ guilt — just write it down so someone can find it later.
   validated at write time — entries referencing non-existent entries are
   silently accepted. Inconsistencies surface at packet simulation time
   (table miss instead of hit).
-- **No digests, idle timeouts, or atomic write batches.** All three are
-  explicitly rejected with gRPC `UNIMPLEMENTED`. No plans to implement —
-  they add complexity without value for a testing/development tool.
+- **No digests or idle timeouts.** Both are explicitly rejected with gRPC
+  `UNIMPLEMENTED`. No plans to implement — they add complexity without value
+  for a testing/development tool.
 
 ## Simulator
 

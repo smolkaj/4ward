@@ -121,6 +121,7 @@ kt_jvm_test(
     ],
     test_class = "fourward.p4runtime.P4RuntimeWriteErrorTest",
     deps = [
+        ":p4runtime_java_proto",
         ":p4runtime_lib",
         "//simulator:ir_java_proto",
         "//simulator:simulator_java_proto",

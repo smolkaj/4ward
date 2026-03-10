@@ -4,13 +4,16 @@ import com.google.protobuf.ByteString
 import fourward.ir.v1.PipelineConfig
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.assertGrpcError
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildExactEntry
+import fourward.p4runtime.P4RuntimeTestHarness.Companion.extractBatchErrors
 import io.grpc.Status
+import io.grpc.StatusException
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import p4.v1.P4RuntimeOuterClass.DigestEntry
 import p4.v1.P4RuntimeOuterClass.Entity
 import p4.v1.P4RuntimeOuterClass.TableEntry
+import p4.v1.P4RuntimeOuterClass.Update
 import p4.v1.P4RuntimeOuterClass.WriteRequest
 
 /**
@@ -233,27 +236,71 @@ class P4RuntimeWriteErrorTest {
     assertGrpcError(Status.Code.UNIMPLEMENTED, "idle_timeout_ns") { harness.installEntry(entity) }
   }
 
-  // ROLLBACK_ON_ERROR atomicity is not supported; must be rejected up front.
+  // =========================================================================
+  // Write atomicity (P4Runtime spec §12.2)
+  // =========================================================================
+
+  // CONTINUE_ON_ERROR: all updates attempted; per-update errors reported via gRPC details.
   @Test
-  fun `write with ROLLBACK_ON_ERROR atomicity returns UNIMPLEMENTED`() {
-    harness.loadPipeline(loadBasicTableConfig())
-    val request =
-      WriteRequest.newBuilder()
-        .setDeviceId(1)
-        .setAtomicity(WriteRequest.Atomicity.ROLLBACK_ON_ERROR)
-        .build()
-    assertGrpcError(Status.Code.UNIMPLEMENTED, "atomicity") { harness.writeRaw(request) }
+  fun `continue on error applies good update and reports bad update`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    val good = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    val bad = Entity.newBuilder().setTableEntry(TableEntry.newBuilder().setTableId(99999)).build()
+    val request = harness.buildBatchRequest(Update.Type.INSERT, listOf(good, bad))
+    try {
+      harness.writeRaw(request)
+      throw AssertionError("expected batch error")
+    } catch (e: StatusException) {
+      assert(e.status.code == Status.Code.UNKNOWN) { "expected UNKNOWN, got ${e.status.code}" }
+      val errors = extractBatchErrors(e)!!
+      assert(errors.size == 2) { "expected 2 per-update errors, got ${errors.size}" }
+      assert(errors[0].getCanonicalCode() == com.google.rpc.Code.OK_VALUE) {
+        "first update should be OK"
+      }
+      assert(errors[1].getCanonicalCode() == com.google.rpc.Code.NOT_FOUND_VALUE) {
+        "second update should be NOT_FOUND"
+      }
+    }
+    // Good update was applied despite bad one failing.
+    val readBack = harness.readAllTableEntries()
+    assert(readBack.isNotEmpty()) { "good entry should have been applied" }
   }
 
-  // DATAPLANE_ATOMIC atomicity is not supported; must be rejected up front.
+  // ROLLBACK_ON_ERROR: failure rolls back all prior updates in the batch.
   @Test
-  fun `write with DATAPLANE_ATOMIC atomicity returns UNIMPLEMENTED`() {
-    harness.loadPipeline(loadBasicTableConfig())
+  fun `rollback on error undoes prior updates`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    val good = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    val bad = Entity.newBuilder().setTableEntry(TableEntry.newBuilder().setTableId(99999)).build()
     val request =
-      WriteRequest.newBuilder()
-        .setDeviceId(1)
+      harness
+        .buildBatchRequest(Update.Type.INSERT, listOf(good, bad))
+        .toBuilder()
+        .setAtomicity(WriteRequest.Atomicity.ROLLBACK_ON_ERROR)
+        .build()
+    assertGrpcError(Status.Code.NOT_FOUND) { harness.writeRaw(request) }
+    // Good update should have been rolled back.
+    val readBack = harness.readAllTableEntries()
+    assert(readBack.isEmpty()) { "rollback should have removed the good entry" }
+  }
+
+  // DATAPLANE_ATOMIC: same all-or-none semantics as ROLLBACK_ON_ERROR.
+  @Test
+  fun `dataplane atomic undoes prior updates`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    val good = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    val bad = Entity.newBuilder().setTableEntry(TableEntry.newBuilder().setTableId(99999)).build()
+    val request =
+      harness
+        .buildBatchRequest(Update.Type.INSERT, listOf(good, bad))
+        .toBuilder()
         .setAtomicity(WriteRequest.Atomicity.DATAPLANE_ATOMIC)
         .build()
-    assertGrpcError(Status.Code.UNIMPLEMENTED, "atomicity") { harness.writeRaw(request) }
+    assertGrpcError(Status.Code.NOT_FOUND) { harness.writeRaw(request) }
+    val readBack = harness.readAllTableEntries()
+    assert(readBack.isEmpty()) { "rollback should have removed the good entry" }
   }
 }
