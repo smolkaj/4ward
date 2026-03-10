@@ -6,10 +6,9 @@
 ## Current state
 
 SAI P4 middleblock works end-to-end through P4Runtime with high confidence
-on the features that are tested. Two gaps remain:
+on the features that are tested. One gap remains:
 
-1. **`@refers_to` referential integrity** is not enforced at write time.
-2. **20 of 30 SAI P4 tables** lack hand-crafted E2E tests exercising the
+1. **20 of 30 SAI P4 tables** lack hand-crafted E2E tests exercising the
    full P4Runtime translation stack. They are covered by p4testgen, but
    p4testgen compiles with `-DPLATFORM_BMV2` which strips
    `@p4runtime_translation` — so translation is not exercised on those
@@ -43,6 +42,7 @@ on the features that are tested. Two gaps remain:
 - [x] WCMP action profile: members and groups round-trip via P4Runtime
 - [x] PacketIO via StreamChannel (packet_out → simulate → packet_in)
 - [x] `@p4runtime_translation_mappings` (explicit VRF `""` → `0` mapping)
+- [x] `@refers_to` referential integrity enforcement (7 E2E tests + 14 unit tests)
 - [x] p4-constraints on SAI P4: entry and action restrictions enforced (10 tests)
 - [x] Write validation (action IDs, params, match fields, priority)
 - [x] p4testgen symbolic execution on SAI P4 middleblock (500 tests, in CI)
@@ -81,19 +81,7 @@ on the features that are tested. Two gaps remain:
 
 ## Open gaps
 
-### 1. `@refers_to` referential integrity
-
-SAI P4 uses `@refers_to` annotations to declare foreign-key relationships
-between tables (e.g., `nexthop_id` in `ipv4_table` must exist in
-`nexthop_table`). These are not validated at write time — entries
-referencing non-existent entries are silently accepted.
-
-**Impact**: moderate. Inconsistencies surface at simulation time (table
-miss instead of hit). DVaaS sends packets and compares outputs, so it
-would catch the mismatch — but the error message would be confusing
-(wrong output) rather than clear (invalid write).
-
-### 2. Translation coverage gap
+### 1. Translation coverage gap
 
 p4testgen's 500 tests are compiled with `-DPLATFORM_BMV2`, which strips
 `@p4runtime_translation` annotations. This means the translation
@@ -144,3 +132,10 @@ Hand-crafted E2E tests exercise SAI P4's specific table structures:
 - **ACL redirect**: redirect_to_nexthop overrides routing (acl_ingress_table)
 - **Multicast**: IPv4 multicast replication via multicast group (ipv4_multicast_table)
 - **WCMP**: action profile members and groups round-trip (wcmp_group_table)
+
+### 6. ~~`@refers_to` referential integrity~~ ✅
+
+`ReferenceValidator` parses `@refers_to` annotations from p4info at pipeline
+load time and validates foreign-key relationships on every INSERT/MODIFY.
+Handles match fields, action parameters, and `builtin::multicast_group_table`
+references. 14 unit tests + 7 E2E tests on SAI P4.

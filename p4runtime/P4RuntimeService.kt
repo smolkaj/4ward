@@ -57,6 +57,7 @@ class P4RuntimeService(
     val config: PipelineConfig,
     val typeTranslator: TypeTranslator?,
     val writeValidator: WriteValidator,
+    val referenceValidator: ReferenceValidator?,
     val constraintValidator: ConstraintValidator?,
     val packetHeaderCodec: PacketHeaderCodec?,
   )
@@ -114,6 +115,7 @@ class P4RuntimeService(
           config = pipelineConfig,
           typeTranslator = TypeTranslator.create(fwdConfig.p4Info, deviceConfig.translationsList),
           writeValidator = WriteValidator(pipelineConfig.p4Info),
+          referenceValidator = ReferenceValidator.create(fwdConfig.p4Info),
           constraintValidator =
             constraintValidatorBinary?.let { ConstraintValidator.create(fwdConfig.p4Info, it) },
           packetHeaderCodec = PacketHeaderCodec.create(fwdConfig.p4Info, deviceConfig.behavioral),
@@ -138,6 +140,16 @@ class P4RuntimeService(
           state.writeValidator.validate(rawUpdate)
         }
         val update = translator?.translateForWrite(rawUpdate) ?: rawUpdate
+
+        // Validate @refers_to referential integrity after translation so values
+        // are in dataplane form (matching what's stored in the simulator).
+        if (update.entity.hasTableEntry()) {
+          state.referenceValidator?.validate(
+            update,
+            simulator::hasTableEntryWithFieldValue,
+            simulator::hasMulticastGroup,
+          )
+        }
 
         // Validate constraints before forwarding to the simulator.
         // Skip DELETE — you can always remove an entry regardless of constraints.

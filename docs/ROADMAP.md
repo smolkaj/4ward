@@ -179,9 +179,9 @@ Five subtracks:
 `SetForwardingPipelineConfig`, `Write` (with p4-constraints and
 `@p4runtime_translation` validation), `Read`, and `StreamChannel` packet I/O.
 
-**Current status:** 4A–4E complete. `@refers_to` referential integrity is
-the remaining gap — see [LIMITATIONS.md](LIMITATIONS.md). See
-[P4RUNTIME_COMPLIANCE.md](P4RUNTIME_COMPLIANCE.md) for the compliance matrix.
+**Current status:** 4A–4E complete, including `@refers_to` referential
+integrity enforcement. See [P4RUNTIME_COMPLIANCE.md](P4RUNTIME_COMPLIANCE.md)
+for the compliance matrix.
 
 ### Track 5: architecture customization
 

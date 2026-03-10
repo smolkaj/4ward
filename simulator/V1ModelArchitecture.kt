@@ -48,6 +48,7 @@ class V1ModelArchitecture : Architecture {
   )
 
   /** Per-execution state created fresh for each pipeline run. */
+  @Suppress("LongParameterList")
   private class PipelineState(
     val packetCtx: PacketContext,
     val interpreter: Interpreter,

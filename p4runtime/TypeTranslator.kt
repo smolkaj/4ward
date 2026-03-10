@@ -483,7 +483,8 @@ internal class TranslationTable(
   private val reverse = mutableMapOf<ByteString, SdnValue>()
 
   // Data-plane values claimed by explicit entries (auto-allocator skips these).
-  private val reservedValues = mutableSetOf<ByteString>()
+  // Stored as integers (not ByteStrings) so width differences don't cause missed collisions.
+  private val reservedValues = mutableSetOf<Int>()
 
   // Counter for sequential auto-allocation.
   private var nextValue = 0
@@ -533,18 +534,22 @@ internal class TranslationTable(
   /** Allocates the next available data-plane value, skipping reserved ones. */
   private fun allocateNext(): ByteString {
     while (true) {
-      val candidate = encodeMinWidth(nextValue++)
-      if (candidate !in reservedValues) return candidate
+      val candidate = nextValue++
+      if (candidate !in reservedValues) return encodeMinWidth(candidate)
     }
   }
 
   companion object {
+    /** Interprets a big-endian ByteString as an unsigned Int. */
+    private fun bytesToInt(bs: ByteString): Int =
+      bs.toByteArray().fold(0) { acc, b -> (acc shl 8) or (b.toInt() and 0xFF) }
+
     /** Builds a TranslationTable from a proto config, pre-populating explicit entries. */
     fun fromProto(proto: TypeTranslation, isStringType: Boolean = false): TranslationTable {
       val table = TranslationTable(autoAllocate = proto.autoAllocate, isStringType = isStringType)
       for (entry in proto.entriesList) {
         val dp = entry.dataplaneValue
-        table.reservedValues.add(dp)
+        table.reservedValues.add(bytesToInt(dp))
         table.reverse[dp] =
           when (entry.sdnValueCase) {
             TranslationEntry.SdnValueCase.SDN_BITSTRING -> {

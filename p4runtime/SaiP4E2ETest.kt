@@ -2,6 +2,7 @@ package fourward.p4runtime
 
 import com.google.protobuf.ByteString
 import fourward.ir.v1.PipelineConfig
+import io.grpc.Status
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -130,8 +131,11 @@ class SaiP4E2ETest {
 
   @Test
   fun `ipv4_table entry with translated vrf_id and nexthop_id round-trips`() {
-    // First install a VRF.
+    // Install prerequisite entries: VRF + full nexthop chain (@refers_to enforcement).
     harness.installEntry(buildVrfEntry("vrf-10"))
+    harness.installEntry(buildRouterInterfaceEntry("rif-1", "Ethernet0"))
+    harness.installEntry(buildNeighborEntry("rif-1", NEIGHBOR_ID, NEIGHBOR_MAC))
+    harness.installEntry(buildNexthopEntry("nhop-1", "rif-1"))
 
     // Install an IPv4 route: vrf_id="vrf-10", ipv4_dst=10.0.0.0/8 → set_nexthop_id("nhop-1").
     val ipv4Entry = buildIpv4RouteEntry("vrf-10", "nhop-1")
@@ -163,6 +167,10 @@ class SaiP4E2ETest {
 
   @Test
   fun `nexthop_table entry with set_ip_nexthop round-trips`() {
+    // Install prerequisites: RIF + neighbor (@refers_to enforcement).
+    harness.installEntry(buildRouterInterfaceEntry("rif-1", "Ethernet0"))
+    harness.installEntry(buildNeighborEntry("rif-1", NEIGHBOR_ID, NEIGHBOR_MAC))
+
     val nexthopEntry = buildNexthopEntry("nhop-1", "rif-1")
     harness.installEntry(nexthopEntry)
 
@@ -212,17 +220,114 @@ class SaiP4E2ETest {
   }
 
   // =========================================================================
+  // @refers_to: referential integrity enforcement
+  // =========================================================================
+
+  @Test
+  fun `ipv4_table insert with missing vrf_id reference is rejected`() {
+    // ipv4_table.vrf_id @refers_to(vrf_table, vrf_id) — no VRF installed.
+    P4RuntimeTestHarness.assertGrpcError(Status.Code.INVALID_ARGUMENT, "@refers_to") {
+      harness.installEntry(buildIpv4RouteEntry(vrfId = "nonexistent-vrf", nexthopId = "nhop-1"))
+    }
+  }
+
+  @Test
+  fun `ipv4_table insert succeeds after referenced vrf and nexthop are installed`() {
+    // Install all prerequisites in dependency order.
+    harness.installEntry(buildVrfEntry("vrf-1"))
+    harness.installEntry(buildRouterInterfaceEntry("rif-1", "Ethernet0"))
+    harness.installEntry(buildNeighborEntry("rif-1", NEIGHBOR_ID, NEIGHBOR_MAC))
+    harness.installEntry(buildNexthopEntry("nhop-1", "rif-1"))
+    // Now the references exist — insert should succeed.
+    harness.installEntry(buildIpv4RouteEntry(vrfId = "vrf-1", nexthopId = "nhop-1"))
+  }
+
+  @Test
+  fun `nexthop set_ip_nexthop with missing router_interface_id is rejected`() {
+    // set_ip_nexthop.router_interface_id @refers_to(router_interface_table, router_interface_id).
+    P4RuntimeTestHarness.assertGrpcError(Status.Code.INVALID_ARGUMENT, "@refers_to") {
+      harness.installEntry(buildNexthopEntry("nhop-1", "nonexistent-rif"))
+    }
+  }
+
+  @Test
+  fun `nexthop set_ip_nexthop succeeds after referenced entries are installed`() {
+    // RIF → neighbor → nexthop (dependency order).
+    harness.installEntry(buildRouterInterfaceEntry("rif-1", "Ethernet0"))
+    harness.installEntry(buildNeighborEntry("rif-1", NEIGHBOR_ID, NEIGHBOR_MAC))
+    harness.installEntry(buildNexthopEntry("nhop-1", "rif-1"))
+  }
+
+  @Test
+  fun `ipv4_multicast set_multicast_group_id with missing group is rejected`() {
+    // Install default VRF (needed for vrf_id match field), but not the multicast group.
+    harness.installEntry(buildVrfEntry(""))
+    val mcastTable = findTable("ipv4_multicast_table")
+    val setMcastGroup = findAction("set_multicast_group_id")
+    P4RuntimeTestHarness.assertGrpcError(Status.Code.INVALID_ARGUMENT, "multicast") {
+      harness.installEntry(
+        buildEntry(
+          mcastTable,
+          setMcastGroup,
+          matches =
+            listOf(
+              exactMatch(mcastTable, "vrf_id", ""),
+              exactMatch(mcastTable, "ipv4_dst", byteArrayOf(224.toByte(), 0, 0, 1)),
+            ),
+          params = listOf(bytesParam(setMcastGroup, "multicast_group_id", byteArrayOf(0, 1))),
+        )
+      )
+    }
+  }
+
+  @Test
+  fun `ipv4_multicast set_multicast_group_id succeeds after group is installed`() {
+    harness.installEntry(buildVrfEntry(""))
+    installMulticastGroup(groupId = 1, ports = listOf(0, 1))
+    val mcastTable = findTable("ipv4_multicast_table")
+    val setMcastGroup = findAction("set_multicast_group_id")
+    harness.installEntry(
+      buildEntry(
+        mcastTable,
+        setMcastGroup,
+        matches =
+          listOf(
+            exactMatch(mcastTable, "vrf_id", ""),
+            exactMatch(mcastTable, "ipv4_dst", byteArrayOf(224.toByte(), 0, 0, 1)),
+          ),
+        params = listOf(bytesParam(setMcastGroup, "multicast_group_id", byteArrayOf(0, 1))),
+      )
+    )
+  }
+
+  @Test
+  fun `delete bypasses refers_to check`() {
+    // Install full chain so insert succeeds.
+    harness.installEntry(buildVrfEntry("vrf-del"))
+    harness.installEntry(buildRouterInterfaceEntry("rif-1", "Ethernet0"))
+    harness.installEntry(buildNeighborEntry("rif-1", NEIGHBOR_ID, NEIGHBOR_MAC))
+    harness.installEntry(buildNexthopEntry("nhop-1", "rif-1"))
+    val ipv4Entry = buildIpv4RouteEntry(vrfId = "vrf-del", nexthopId = "nhop-1")
+    harness.installEntry(ipv4Entry)
+
+    // Delete the VRF first — no reverse-reference check on DELETE.
+    harness.deleteEntry(buildVrfEntry("vrf-del"))
+    // Delete the ipv4 entry — DELETE skips @refers_to.
+    harness.deleteEntry(ipv4Entry)
+  }
+
+  // =========================================================================
   // Packet forwarding
   // =========================================================================
 
   @Test
   fun `IPv4 packet is forwarded with correct MAC rewrites and TTL decrement`() {
-    // Install routing entries via P4Runtime.
-    // Default VRF (vrf_id="") is implicit — no vrf_table entry needed.
-    harness.installEntry(buildIpv4RouteEntry(vrfId = "", nexthopId = "nhop-1"))
-    harness.installEntry(buildNexthopEntry(nexthopId = "nhop-1", routerInterfaceId = "rif-1"))
+    // Install routing entries in dependency order (@refers_to enforcement).
+    harness.installEntry(buildVrfEntry(""))
     harness.installEntry(buildRouterInterfaceEntry("rif-1", "Ethernet1", RIF_MAC))
     harness.installEntry(buildNeighborEntry("rif-1", NEIGHBOR_ID, NEIGHBOR_MAC))
+    harness.installEntry(buildNexthopEntry(nexthopId = "nhop-1", routerInterfaceId = "rif-1"))
+    harness.installEntry(buildIpv4RouteEntry(vrfId = "", nexthopId = "nhop-1"))
 
     // Build and send an IPv4 packet.
     val packet = buildIpv4Packet(dstMac = UNICAST_MAC, srcMac = SRC_MAC, ttl = 64)
@@ -344,10 +449,10 @@ class SaiP4E2ETest {
     // Install normal routing: dst 10.0.0.0/8 → nhop-1 → rif-1 → Ethernet1.
     installRoutingChain()
 
-    // Install a second path: nhop-2 → rif-2 → Ethernet2 with a different MAC.
-    harness.installEntry(buildNexthopEntry("nhop-2", "rif-2"))
+    // Install a second path in dependency order: rif-2 → neighbor → nhop-2.
     harness.installEntry(buildRouterInterfaceEntry("rif-2", "Ethernet2", ALT_RIF_MAC))
     harness.installEntry(buildNeighborEntry("rif-2", NEIGHBOR_ID, ALT_NEIGHBOR_MAC))
+    harness.installEntry(buildNexthopEntry("nhop-2", "rif-2"))
 
     // ACL: redirect packets to dst_ip=10.0.0.1 → nhop-2 (overriding the route).
     val aclTable = findTable("acl_ingress_table")
@@ -383,6 +488,10 @@ class SaiP4E2ETest {
   @Test
   @Suppress("MagicNumber")
   fun `IPv4 multicast replicates packet to multiple ports`() {
+    // Install prerequisites: default VRF + multicast group (@refers_to enforcement).
+    harness.installEntry(buildVrfEntry(""))
+    installMulticastGroup(groupId = 1, ports = listOf(0, 1))
+
     // Install multicast route via ipv4_multicast_table (EXACT match on ipv4_dst).
     val mcastTable = findTable("ipv4_multicast_table")
     val setMcastGroup = findAction("set_multicast_group_id")
@@ -399,9 +508,6 @@ class SaiP4E2ETest {
         params = listOf(bytesParam(setMcastGroup, "multicast_group_id", byteArrayOf(0, 1))),
       )
     )
-
-    // Install multicast group 1 with two replicas: port 0 and port 1.
-    installMulticastGroup(groupId = 1, ports = listOf(0, 1))
 
     // Send a multicast-destined packet (224.0.0.1) with IPv4 multicast MAC.
     // SAI P4 gates ipv4_multicast_table on IS_IPV4_MULTICAST_MAC(dst_addr).
@@ -720,12 +826,13 @@ class SaiP4E2ETest {
     return packet
   }
 
-  /** Installs the standard routing chain: VRF → IPv4 route → nexthop → RIF → neighbor. */
+  /** Installs the standard routing chain in @refers_to dependency order. */
   private fun installRoutingChain() {
-    harness.installEntry(buildIpv4RouteEntry(vrfId = "", nexthopId = "nhop-1"))
-    harness.installEntry(buildNexthopEntry(nexthopId = "nhop-1", routerInterfaceId = "rif-1"))
+    harness.installEntry(buildVrfEntry(""))
     harness.installEntry(buildRouterInterfaceEntry("rif-1", "Ethernet1", RIF_MAC))
     harness.installEntry(buildNeighborEntry("rif-1", NEIGHBOR_ID, NEIGHBOR_MAC))
+    harness.installEntry(buildNexthopEntry(nexthopId = "nhop-1", routerInterfaceId = "rif-1"))
+    harness.installEntry(buildIpv4RouteEntry(vrfId = "", nexthopId = "nhop-1"))
   }
 
   /** Installs a PRE multicast group with one replica per port. */
