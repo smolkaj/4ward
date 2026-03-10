@@ -5,9 +5,15 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: dvaas-poc-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   validate-dataplane-poc:
     runs-on: ubuntu-24.04
+    env:
+      BAZEL_CACHE: ~/.cache/bazel
     steps:
       - uses: actions/checkout@v6
 
@@ -20,11 +26,27 @@ jobs:
             echo "common --remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY}" >> ~/.bazelrc
           fi
 
+      - name: Restore Bazel cache
+        uses: actions/cache/restore@v5
+        with:
+          path: ${{ env.BAZEL_CACHE }}
+          key: bazel-dvaas-ubuntu-24.04-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', 'bazel/*.patch') }}
+          restore-keys: |
+            bazel-dvaas-ubuntu-24.04-
+            bazel-ubuntu-24.04-
+
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y gdb libgmp-dev libpcap-dev
 
+      - name: Save start time
+        run: echo "START_TIME=$(date +%s)" >> "$GITHUB_ENV"
+
       - name: Run DVaaS PoC
         run: ./tools/run_dvaas_poc.sh
+
+      - name: Calculate build duration
+        if: always()
+        run: echo "DURATION=$(( $(date +%s) - START_TIME ))" >> "$GITHUB_ENV"
 
       - name: Upload artifacts
         if: always()
@@ -33,3 +55,10 @@ jobs:
           name: dvaas-poc-artifacts
           path: .tmp/dvaas_poc_artifacts
           if-no-files-found: warn
+
+      - name: Save Bazel cache
+        uses: actions/cache/save@v5
+        if: always() && (github.ref_name == 'main' || env.DURATION > 300)
+        with:
+          path: ${{ env.BAZEL_CACHE }}
+          key: bazel-dvaas-ubuntu-24.04-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', 'bazel/*.patch') }}-${{ github.run_id }}
