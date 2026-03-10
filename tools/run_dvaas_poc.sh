@@ -59,7 +59,12 @@ if [[ -n "${FOURWARD_BAZEL_CONFIG}" ]]; then
   BAZEL_ARGS+=("--config=${FOURWARD_BAZEL_CONFIG}")
 fi
 
-SONIC_PINS_BAZEL_STARTUP_ARGS=("--bazelrc=${SONIC_PINS_BAZELRC}")
+SONIC_PINS_BAZEL_STARTUP_ARGS=(
+  "--bazelrc=${SONIC_PINS_BAZELRC}"
+  "--nosystem_rc"
+  "--noworkspace_rc"
+  "--nohome_rc"
+)
 SONIC_PINS_BAZEL_ARGS=()
 
 if [[ "$(uname -s)" == "Darwin" ]]; then
@@ -72,11 +77,6 @@ fi
 
 write_sonic_pins_bazelrc() {
   cat >"${SONIC_PINS_BAZELRC}" <<EOF
-common --nosystem_rc
-common --noworkspace_rc
-common --nohome_rc
-common --enable_bzlmod
-common --noenable_workspace
 build --cxxopt=-std=c++17
 build --host_cxxopt=-std=c++17
 build --java_runtime_version=remotejdk_21
