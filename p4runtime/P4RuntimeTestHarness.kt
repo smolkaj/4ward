@@ -53,8 +53,7 @@ class P4RuntimeTestHarness(
   constraintValidatorBinary: Path? = null,
   cpuPort: Int? = null,
   strict: Boolean = false,
-) :
-  Closeable {
+) : Closeable {
 
   private val serverName = InProcessServerBuilder.generateName()
   private val simulator = Simulator()

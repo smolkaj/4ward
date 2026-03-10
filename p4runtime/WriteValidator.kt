@@ -16,10 +16,7 @@ import p4.v1.P4RuntimeOuterClass
  * Constructed once per pipeline load; call [validate] for each update before type translation so
  * SDN-visible values are checked for valid P4Runtime byte-string encodings (§8.3).
  */
-class WriteValidator(
-  p4Info: P4InfoOuterClass.P4Info,
-  private val strict: Boolean = false,
-) {
+class WriteValidator(p4Info: P4InfoOuterClass.P4Info, private val strict: Boolean = false) {
 
   private val tableInfoById = p4Info.tablesList.associateBy { it.preamble.id }
   private val actionInfoById = p4Info.actionsList.associateBy { it.preamble.id }

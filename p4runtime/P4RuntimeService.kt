@@ -137,11 +137,7 @@ class P4RuntimeService(
         constraintValidator =
           constraintValidatorBinary?.let { ConstraintValidator.create(pipelineConfig.p4Info, it) },
         packetHeaderCodec =
-          PacketHeaderCodec.create(
-            pipelineConfig.p4Info,
-            pipelineConfig.device.behavioral,
-            cpuPort,
-          ),
+          PacketHeaderCodec.create(pipelineConfig.p4Info, pipelineConfig.device.behavioral, cpuPort),
       )
   }
 
@@ -289,26 +285,26 @@ class P4RuntimeService(
       }
 
     return expandedOutputs.map { observation ->
-        val outputPacket = observation.outputPacket
-        val rawPacketIn =
-          if (codec != null) {
-            val metadata =
-              codec.buildPacketInMetadata(observation.ingressPort, outputPacket.egressPort)
-            PacketIn.newBuilder().setPayload(outputPacket.payload).addAllMetadata(metadata).build()
-          } else {
-            PacketIn.newBuilder()
-              .setPayload(outputPacket.payload)
-              .addMetadata(
-                p4.v1.P4RuntimeOuterClass.PacketMetadata.newBuilder()
-                  .setMetadataId(EGRESS_PORT_METADATA_ID)
-                  .setValue(encodeMinWidth(outputPacket.egressPort))
-              )
-              .build()
-          }
-        StreamMessageResponse.newBuilder()
-          .setPacket(translator?.translatePacketIn(rawPacketIn) ?: rawPacketIn)
-          .build()
-      }
+      val outputPacket = observation.outputPacket
+      val rawPacketIn =
+        if (codec != null) {
+          val metadata =
+            codec.buildPacketInMetadata(observation.ingressPort, outputPacket.egressPort)
+          PacketIn.newBuilder().setPayload(outputPacket.payload).addAllMetadata(metadata).build()
+        } else {
+          PacketIn.newBuilder()
+            .setPayload(outputPacket.payload)
+            .addMetadata(
+              p4.v1.P4RuntimeOuterClass.PacketMetadata.newBuilder()
+                .setMetadataId(EGRESS_PORT_METADATA_ID)
+                .setValue(encodeMinWidth(outputPacket.egressPort))
+            )
+            .build()
+        }
+      StreamMessageResponse.newBuilder()
+        .setPacket(translator?.translatePacketIn(rawPacketIn) ?: rawPacketIn)
+        .build()
+    }
   }
 
   /**

@@ -1,7 +1,9 @@
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+
 cc_binary(
     name = "validate_dataplane_poc",
-    srcs = ["validate_dataplane_poc.cc"],
     testonly = True,
+    srcs = ["validate_dataplane_poc.cc"],
     deps = [
         "//dvaas:dataplane_validation",
         "//dvaas:switch_api",
@@ -19,6 +21,7 @@ cc_binary(
         "//thinkit:test_environment",
         "@com_github_gnmi//proto/gnmi:gnmi_cc_grpc_proto",
         "@com_github_gnmi//proto/gnmi:gnmi_cc_proto",
+        "@com_github_grpc_grpc//:grpc++",
         "@com_github_p4lang_p4runtime//:p4runtime_cc_proto",
         "@com_google_absl//absl/flags:parse",
         "@com_google_absl//absl/log",
@@ -26,14 +29,13 @@ cc_binary(
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:str_format",
-        "@com_github_grpc_grpc//:grpc++",
     ],
 )
 
 cc_binary(
     name = "validate_dataplane_sai",
-    srcs = ["validate_dataplane_sai.cc"],
     testonly = True,
+    srcs = ["validate_dataplane_sai.cc"],
     deps = [
         "//dvaas:dataplane_validation",
         "//dvaas:switch_api",
@@ -51,6 +53,7 @@ cc_binary(
         "//thinkit:test_environment",
         "@com_github_gnmi//proto/gnmi:gnmi_cc_grpc_proto",
         "@com_github_gnmi//proto/gnmi:gnmi_cc_proto",
+        "@com_github_grpc_grpc//:grpc++",
         "@com_github_p4lang_p4runtime//:p4runtime_cc_proto",
         "@com_google_absl//absl/flags:parse",
         "@com_google_absl//absl/log",
@@ -58,6 +61,5 @@ cc_binary(
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:str_format",
-        "@com_github_grpc_grpc//:grpc++",
     ],
 )

@@ -52,10 +52,7 @@ private constructor(
           "target_egress_port" -> egressPort
           else -> 0
         }
-      PacketMetadata.newBuilder()
-        .setMetadataId(field.id)
-        .setValue(encodeMinWidth(value))
-        .build()
+      PacketMetadata.newBuilder().setMetadataId(field.id).setValue(encodeMinWidth(value)).build()
     }
 
   @Suppress("MagicNumber")
@@ -85,8 +82,8 @@ private constructor(
 
   companion object {
     /**
-     * Creates a codec from the pipeline config, or null if no
-     * `controller_packet_metadata` is defined (programs without `@controller_header`).
+     * Creates a codec from the pipeline config, or null if no `controller_packet_metadata` is
+     * defined (programs without `@controller_header`).
      */
     fun create(
       p4info: P4Info,

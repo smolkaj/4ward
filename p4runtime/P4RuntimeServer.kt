@@ -29,7 +29,7 @@ class P4RuntimeServer(
   private val peerDataplaneStub: DataplaneCoroutineStub? =
     peerChannel?.let { DataplaneCoroutineStub(it) }
   private val service =
-      P4RuntimeService(
+    P4RuntimeService(
       simulator = simulator,
       cpuPort = cpuPort,
       strict = strict,
