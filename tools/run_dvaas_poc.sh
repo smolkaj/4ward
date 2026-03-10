@@ -130,6 +130,19 @@ EOF
   fi
 }
 
+apply_darwin_sonic_pins_patches() {
+  local ir_cc="${SONIC_PINS_DIR}/p4_infra/p4_pdpi/utils/ir.cc"
+  if [[ -f "${ir_cc}" ]]; then
+    # WORKAROUND: The pinned sonic-pins snapshot assumes Linux's <endian.h>.
+    # Darwin does not ship that header, but it provides equivalent byte-order
+    # helpers via <libkern/OSByteOrder.h>. Patch the transient checkout only;
+    # the intended steady state is upstream code that includes the right header
+    # per platform instead of us rewriting it here.
+    perl -0pi -e 's|#include <arpa/inet\.h>\n#include <endian\.h>\n|#include <arpa/inet.h>\n#ifdef __APPLE__\n#include <libkern/OSByteOrder.h>\n#define be64toh OSSwapBigToHostInt64\n#else\n#include <endian.h>\n#endif\n|g' \
+      "${ir_cc}"
+  fi
+}
+
 run_sonic_pins_bazel() {
   if (( ${#SONIC_PINS_BAZEL_ARGS[@]} > 0 )); then
     bazel "${SONIC_PINS_BAZEL_STARTUP_ARGS[@]}" "$@" "${SONIC_PINS_BAZEL_ARGS[@]}"
@@ -157,6 +170,9 @@ mkdir -p "${SONIC_PINS_DIR}/fourward_dvaas"
 cp "${ROOT}/tools/dvaas_overlay/BUILD.bazel" "${SONIC_PINS_DIR}/fourward_dvaas/BUILD.bazel"
 cp "${ROOT}/tools/dvaas_overlay/validate_dataplane_poc.cc" "${SONIC_PINS_DIR}/fourward_dvaas/validate_dataplane_poc.cc"
 write_sonic_pins_bazelrc
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  apply_darwin_sonic_pins_patches
+fi
 
 "${ROOT}/bazel-bin/p4runtime/p4runtime_server" \
   --port="${SUT_PORT}" \
