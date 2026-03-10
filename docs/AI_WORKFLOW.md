@@ -97,6 +97,19 @@ the next move. Steer the answer if needed, but let the AI lead.
   — *You're directing attention, not explaining.*
 - "Could we do even better if we did a refactor?"
 
+## My 2c
+
+I don't like planning mode. Instead, I prefer to just have a conversation with the
+agent. To prevent the agent from going into planning mode, you can add the following
+to your `~/.claude/settings.json`:
+```
+  "permissions": {
+    "deny": [
+      "EnterPlanMode"
+    ]
+  }
+```
+
 
 ## Resources
 - Learn from the best! I highly recommend this podcast with Peter Steinberg, the
