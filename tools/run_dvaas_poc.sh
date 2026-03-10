@@ -230,23 +230,25 @@ fi
   cd "${SONIC_PINS_DIR}" &&
     run_sonic_pins_bazel build //fourward_dvaas:validate_dataplane_poc
 )
-if [[ "${DVAAS_POC_WRAP_GDB}" == "1" ]] && command -v gdb >/dev/null 2>&1; then
-  (
-    cd "${SONIC_PINS_DIR}" &&
-      TEST_UNDECLARED_OUTPUTS_DIR="${ARTIFACT_DIR}" \
-      TEST_TMPDIR="${ARTIFACT_DIR}" \
-      gdb -q -batch -ex run -ex bt --args \
-        bazel-bin/fourward_dvaas/validate_dataplane_poc \
-        "localhost:${SUT_PORT}" "localhost:${CONTROL_PORT}" "${ARTIFACT_DIR}"
-  )
-else
-  (
-    cd "${SONIC_PINS_DIR}" &&
-      TEST_UNDECLARED_OUTPUTS_DIR="${ARTIFACT_DIR}" \
-      TEST_TMPDIR="${ARTIFACT_DIR}" \
-      bazel-bin/fourward_dvaas/validate_dataplane_poc \
-        "localhost:${SUT_PORT}" "localhost:${CONTROL_PORT}" "${ARTIFACT_DIR}"
-  )
+if ! (
+  cd "${SONIC_PINS_DIR}" &&
+    TEST_UNDECLARED_OUTPUTS_DIR="${ARTIFACT_DIR}" \
+    TEST_TMPDIR="${ARTIFACT_DIR}" \
+    bazel-bin/fourward_dvaas/validate_dataplane_poc \
+      "localhost:${SUT_PORT}" "localhost:${CONTROL_PORT}" "${ARTIFACT_DIR}"
+); then
+  if [[ "${DVAAS_POC_WRAP_GDB}" == "1" ]] && command -v gdb >/dev/null 2>&1; then
+    (
+      cd "${SONIC_PINS_DIR}" &&
+        TEST_UNDECLARED_OUTPUTS_DIR="${ARTIFACT_DIR}" \
+        TEST_TMPDIR="${ARTIFACT_DIR}" \
+        gdb -q -batch -ex run -ex bt --args \
+          bazel-bin/fourward_dvaas/validate_dataplane_poc \
+          "localhost:${SUT_PORT}" "localhost:${CONTROL_PORT}" "${ARTIFACT_DIR}"
+    )
+  else
+    exit 1
+  fi
 fi
 
 echo "Artifacts written to ${ARTIFACT_DIR}"
