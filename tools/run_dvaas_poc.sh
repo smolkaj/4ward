@@ -140,6 +140,12 @@ apply_darwin_sonic_pins_patches() {
     # per platform instead of us rewriting it here.
     perl -0pi -e 's|#include <arpa/inet\.h>\n#include <endian\.h>\n|#include <arpa/inet.h>\n#ifdef __APPLE__\n#include <libkern/OSByteOrder.h>\n#define be64toh OSSwapBigToHostInt64\n#else\n#include <endian.h>\n#endif\n|g' \
       "${ir_cc}"
+    # WORKAROUND: The same pinned snapshot also includes Linux's
+    # <netinet/ether.h>, which Darwin does not provide. Nothing in this file
+    # uses that header, so drop it in the transient checkout instead of
+    # carrying a fork of sonic-pins just for Apple builds.
+    perl -0pi -e 's|#include <netinet/ether\.h>\n||g' \
+      "${ir_cc}"
   fi
 }
 
