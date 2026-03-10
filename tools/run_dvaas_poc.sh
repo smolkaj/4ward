@@ -3,8 +3,6 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ARTIFACT_DIR="${ROOT}/.tmp/dvaas_poc_artifacts"
-SONIC_PINS_DIR="$(mktemp -d "${TMPDIR:-/tmp}/sonic-pins.XXXXXX")"
-SONIC_PINS_BAZELRC="${SONIC_PINS_DIR}/dvaas-poc.bazelrc"
 SONIC_PINS_REF="${SONIC_PINS_REF:-6052c041f299fdf8fad50236caf15483e95b56d4}"
 FOURWARD_BAZEL_CONFIG="${FOURWARD_BAZEL_CONFIG:-}"
 DVAAS_POC_WRAP_GDB="${DVAAS_POC_WRAP_GDB:-0}"
@@ -13,6 +11,16 @@ CONTROL_PORT=9561
 CPU_PORT=510
 
 mkdir -p "${ARTIFACT_DIR}"
+
+if [[ "${GITHUB_ACTIONS:-}" == "true" ]]; then
+  SONIC_PINS_DIR="$(mktemp -d "${TMPDIR:-/tmp}/sonic-pins.XXXXXX")"
+  SONIC_PINS_EPHEMERAL=1
+else
+  SONIC_PINS_DIR="${ROOT}/.tmp/sonic-pins"
+  mkdir -p "${SONIC_PINS_DIR}"
+  SONIC_PINS_EPHEMERAL=0
+fi
+SONIC_PINS_BAZELRC="${SONIC_PINS_DIR}/dvaas-poc.bazelrc"
 
 dump_logs() {
   for log in "${ARTIFACT_DIR}/sut.log" "${ARTIFACT_DIR}/control.log"; do
@@ -30,7 +38,9 @@ cleanup() {
   fi
   if [[ -n "${CONTROL_PID:-}" ]]; then kill "${CONTROL_PID}" >/dev/null 2>&1 || true; fi
   if [[ -n "${SUT_PID:-}" ]]; then kill "${SUT_PID}" >/dev/null 2>&1 || true; fi
-  rm -rf "${SONIC_PINS_DIR}"
+  if [[ "${SONIC_PINS_EPHEMERAL}" == "1" ]]; then
+    rm -rf "${SONIC_PINS_DIR}"
+  fi
   exit "${status}"
 }
 trap cleanup EXIT
@@ -65,6 +75,11 @@ SONIC_PINS_BAZEL_STARTUP_ARGS=(
   "--noworkspace_rc"
   "--nohome_rc"
 )
+
+if [[ "${SONIC_PINS_EPHEMERAL}" == "0" ]]; then
+  SONIC_PINS_BAZEL_STARTUP_ARGS+=("--output_user_root=${ROOT}/.tmp/bazel-sonic-pins")
+fi
+
 SONIC_PINS_BAZEL_ARGS=()
 
 if [[ "$(uname -s)" == "Darwin" ]]; then
@@ -132,8 +147,10 @@ bazel build "${BAZEL_ARGS[@]}" \
   //p4runtime:p4runtime_server \
   //e2e_tests/dvaas_poc:dvaas_poc_pb
 
-git -C "${SONIC_PINS_DIR}" init -q
-git -C "${SONIC_PINS_DIR}" remote add origin https://github.com/sonic-net/sonic-pins.git
+if [[ ! -d "${SONIC_PINS_DIR}/.git" ]]; then
+  git -C "${SONIC_PINS_DIR}" init -q
+  git -C "${SONIC_PINS_DIR}" remote add origin https://github.com/sonic-net/sonic-pins.git
+fi
 git -C "${SONIC_PINS_DIR}" fetch --depth 1 origin "${SONIC_PINS_REF}"
 git -C "${SONIC_PINS_DIR}" checkout --detach FETCH_HEAD
 mkdir -p "${SONIC_PINS_DIR}/fourward_dvaas"
