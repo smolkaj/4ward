@@ -1,0 +1,12 @@
+--- a/src/core/lib/promise/detail/basic_seq.h
++++ b/src/core/lib/promise/detail/basic_seq.h
+@@ -93,7 +93,7 @@
+           }
+           cur_ = next;
+           state_.~State();
+-          Construct(&state_,
+-                    Traits::template CallSeqFactory(f_, *cur_, std::move(arg)));
++          Construct(
++              &state_, Traits::CallSeqFactory(f_, *cur_, std::move(arg)));
+           return PollNonEmpty();
+         });

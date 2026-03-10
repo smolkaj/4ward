@@ -3,12 +3,14 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ARTIFACT_DIR="${ROOT}/.tmp/dvaas_poc_artifacts"
+PATCH_DIR="${ROOT}/tools/dvaas_overlay/patches"
 SONIC_PINS_REF="${SONIC_PINS_REF:-6052c041f299fdf8fad50236caf15483e95b56d4}"
 FOURWARD_BAZEL_CONFIG="${FOURWARD_BAZEL_CONFIG:-}"
 DVAAS_POC_WRAP_GDB="${DVAAS_POC_WRAP_GDB:-0}"
 SUT_PORT=9560
 CONTROL_PORT=9561
 CPU_PORT=510
+OS_NAME="$(uname -s)"
 
 mkdir -p "${ARTIFACT_DIR}"
 
@@ -82,13 +84,26 @@ fi
 
 SONIC_PINS_BAZEL_ARGS=()
 
-if [[ "$(uname -s)" == "Darwin" ]]; then
+if [[ "${OS_NAME}" == "Darwin" ]]; then
   if command -v ld64.lld >/dev/null 2>&1; then
     DARWIN_LINKER="$(command -v ld64.lld)"
   else
     DARWIN_LINKER="ld"
   fi
 fi
+
+apply_patch_file() {
+  local target_dir="$1"
+  local patch_file="$2"
+  if patch --forward --batch --silent --dry-run -p1 -d "${target_dir}" < "${patch_file}"; then
+    patch --forward --batch --silent -p1 -d "${target_dir}" < "${patch_file}"
+    return
+  fi
+  if patch --reverse --batch --silent --dry-run -p1 -d "${target_dir}" < "${patch_file}"; then
+    return
+  fi
+  patch --forward --batch -p1 -d "${target_dir}" < "${patch_file}"
+}
 
 write_sonic_pins_bazelrc() {
   cat >"${SONIC_PINS_BAZELRC}" <<EOF
@@ -114,7 +129,7 @@ common --remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY}
 EOF
   fi
 
-  if [[ "$(uname -s)" == "Darwin" ]]; then
+  if [[ "${OS_NAME}" == "Darwin" ]]; then
     cat >>"${SONIC_PINS_BAZELRC}" <<EOF
 build --repo_env=BAZEL_USE_CPP_ONLY_TOOLCHAIN=1
 build --action_env=CC=clang
@@ -127,25 +142,6 @@ build --host_linkopt=-fuse-ld=${DARWIN_LINKER}
 build --per_file_copt=external/zlib/.*@-UTARGET_OS_MAC
 build --host_per_file_copt=external/zlib/.*@-UTARGET_OS_MAC
 EOF
-  fi
-}
-
-apply_darwin_sonic_pins_patches() {
-  local ir_cc="${SONIC_PINS_DIR}/p4_infra/p4_pdpi/utils/ir.cc"
-  if [[ -f "${ir_cc}" ]]; then
-    # WORKAROUND: The pinned sonic-pins snapshot assumes Linux's <endian.h>.
-    # Darwin does not ship that header, but it provides equivalent byte-order
-    # helpers via <libkern/OSByteOrder.h>. Patch the transient checkout only;
-    # the intended steady state is upstream code that includes the right header
-    # per platform instead of us rewriting it here.
-    perl -0pi -e 's|#include <arpa/inet\.h>\n#include <endian\.h>\n|#include <arpa/inet.h>\n#ifdef __APPLE__\n#include <libkern/OSByteOrder.h>\n#define be64toh OSSwapBigToHostInt64\n#else\n#include <endian.h>\n#endif\n|g' \
-      "${ir_cc}"
-    # WORKAROUND: The same pinned snapshot also includes Linux's
-    # <netinet/ether.h>, which Darwin does not provide. Nothing in this file
-    # uses that header, so drop it in the transient checkout instead of
-    # carrying a fork of sonic-pins just for Apple builds.
-    perl -0pi -e 's|#include <netinet/ether\.h>\n||g' \
-      "${ir_cc}"
   fi
 }
 
@@ -162,90 +158,128 @@ if [[ "${GITHUB_ACTIONS:-}" == "true" && "${DVAAS_POC_WRAP_GDB}" == "0" ]] &&
   DVAAS_POC_WRAP_GDB=1
 fi
 
-bazel build "${BAZEL_ARGS[@]}" \
-  //p4runtime:p4runtime_server \
-  //e2e_tests/dvaas_poc:dvaas_poc_pb
+build_fourward_targets() {
+  bazel build "${BAZEL_ARGS[@]}" \
+    //p4runtime:p4runtime_server \
+    //e2e_tests/dvaas_poc:dvaas_poc_pb
+}
 
-if [[ ! -d "${SONIC_PINS_DIR}/.git" ]]; then
-  git -C "${SONIC_PINS_DIR}" init -q
-  git -C "${SONIC_PINS_DIR}" remote add origin https://github.com/sonic-net/sonic-pins.git
-fi
-git -C "${SONIC_PINS_DIR}" fetch --depth 1 origin "${SONIC_PINS_REF}"
-git -C "${SONIC_PINS_DIR}" checkout --detach FETCH_HEAD
-git -C "${SONIC_PINS_DIR}" reset --hard FETCH_HEAD
-git -C "${SONIC_PINS_DIR}" clean -fd
-git -C "${SONIC_PINS_DIR}" apply --whitespace=nowarn \
-  "${ROOT}/tools/dvaas_overlay/sonic_pins_dvaas_poc.patch"
-mkdir -p "${SONIC_PINS_DIR}/fourward_dvaas"
-cp "${ROOT}/tools/dvaas_overlay/BUILD.bazel" "${SONIC_PINS_DIR}/fourward_dvaas/BUILD.bazel"
-cp "${ROOT}/tools/dvaas_overlay/validate_dataplane_poc.cc" "${SONIC_PINS_DIR}/fourward_dvaas/validate_dataplane_poc.cc"
-write_sonic_pins_bazelrc
-if [[ "$(uname -s)" == "Darwin" ]]; then
-  apply_darwin_sonic_pins_patches
-fi
+prepare_sonic_pins_checkout() {
+  if [[ ! -d "${SONIC_PINS_DIR}/.git" ]]; then
+    git -C "${SONIC_PINS_DIR}" init -q
+    git -C "${SONIC_PINS_DIR}" remote add origin https://github.com/sonic-net/sonic-pins.git
+  fi
+  git -C "${SONIC_PINS_DIR}" fetch --depth 1 origin "${SONIC_PINS_REF}"
+  git -C "${SONIC_PINS_DIR}" checkout --detach FETCH_HEAD
+  git -C "${SONIC_PINS_DIR}" reset --hard FETCH_HEAD
+  git -C "${SONIC_PINS_DIR}" clean -fd
+  git -C "${SONIC_PINS_DIR}" apply --whitespace=nowarn \
+    "${ROOT}/tools/dvaas_overlay/sonic_pins_dvaas_poc.patch"
+  mkdir -p "${SONIC_PINS_DIR}/fourward_dvaas"
+  cp "${ROOT}/tools/dvaas_overlay/BUILD.bazel" "${SONIC_PINS_DIR}/fourward_dvaas/BUILD.bazel"
+  cp "${ROOT}/tools/dvaas_overlay/validate_dataplane_poc.cc" \
+    "${SONIC_PINS_DIR}/fourward_dvaas/validate_dataplane_poc.cc"
+  write_sonic_pins_bazelrc
 
-"${ROOT}/bazel-bin/p4runtime/p4runtime_server" \
-  --port="${SUT_PORT}" \
-  --pipeline="${ROOT}/bazel-bin/e2e_tests/dvaas_poc/dvaas_poc.txtpb" \
-  --cpu_port="${CPU_PORT}" \
-  >"${ARTIFACT_DIR}/sut.log" 2>&1 &
-SUT_PID=$!
+  if [[ "${OS_NAME}" == "Darwin" ]]; then
+    # WORKAROUND: The pinned sonic-pins snapshot assumes Linux-only headers in
+    # `ir.cc`. Apply a named patch instead of ad hoc source rewrites so the
+    # Darwin-specific delta stays reviewable and easy to drop once upstream is fixed.
+    apply_patch_file "${SONIC_PINS_DIR}" "${PATCH_DIR}/sonic_pins_ir_darwin.patch"
+  fi
+}
 
-"${ROOT}/bazel-bin/p4runtime/p4runtime_server" \
-  --port="${CONTROL_PORT}" \
-  --pipeline="${ROOT}/bazel-bin/e2e_tests/dvaas_poc/dvaas_poc.txtpb" \
-  --cpu_port="${CPU_PORT}" \
-  --peer_dataplane="localhost:${SUT_PORT}" \
-  >"${ARTIFACT_DIR}/control.log" 2>&1 &
-CONTROL_PID=$!
+start_fourward_server() {
+  local port="$1"
+  local log="$2"
+  shift 2
+  "${ROOT}/bazel-bin/p4runtime/p4runtime_server" \
+    --port="${port}" \
+    --pipeline="${ROOT}/bazel-bin/e2e_tests/dvaas_poc/dvaas_poc.txtpb" \
+    --cpu_port="${CPU_PORT}" \
+    "$@" >"${log}" 2>&1 &
+}
 
-wait_for_port localhost "${SUT_PORT}"
-wait_for_port localhost "${CONTROL_PORT}"
+start_testbed() {
+  start_fourward_server "${SUT_PORT}" "${ARTIFACT_DIR}/sut.log"
+  SUT_PID=$!
+  start_fourward_server "${CONTROL_PORT}" "${ARTIFACT_DIR}/control.log" \
+    --peer_dataplane="localhost:${SUT_PORT}"
+  CONTROL_PID=$!
+  wait_for_port localhost "${SUT_PORT}"
+  wait_for_port localhost "${CONTROL_PORT}"
+}
 
-if [[ "$(uname -s)" == "Darwin" ]]; then
+apply_darwin_grpc_patch() {
+  local output_base
+  local grpc_file
+  local grpc_root
+
   (
     cd "${SONIC_PINS_DIR}" &&
       run_sonic_pins_bazel build --nobuild //fourward_dvaas:validate_dataplane_poc >/dev/null
   )
-  SONIC_PINS_OUTPUT_BASE="$(
+  output_base="$(
     cd "${SONIC_PINS_DIR}" &&
       run_sonic_pins_bazel info output_base
   )"
-  SONIC_PINS_GRPC_BASIC_SEQ="$(
-    find "${SONIC_PINS_OUTPUT_BASE}/external" \
+  grpc_file="$(
+    find "${output_base}/external" \
       -path '*com_github_grpc_grpc/src/core/lib/promise/detail/basic_seq.h' \
       -print -quit
   )"
-  if [[ -n "${SONIC_PINS_GRPC_BASIC_SEQ}" ]]; then
-    # WORKAROUND: The pinned sonic-pins snapshot vendors a grpc header that
-    # uses `Traits::template CallSeqFactory(...)` even though CallSeqFactory is
-    # not a template. Apple clang rejects that construct, while Linux CI
-    # accepts it. Patch the transient Bazel external only.
-    perl -0pi -e 's/Traits::template CallSeqFactory/Traits::CallSeqFactory/g' \
-      "${SONIC_PINS_GRPC_BASIC_SEQ}"
+  if [[ -n "${grpc_file}" ]]; then
+    if grep -q 'Traits::CallSeqFactory' "${grpc_file}"; then
+      return
+    fi
+    grpc_root="${grpc_file}"
+    grpc_root="$(dirname "$(dirname "$(dirname "$(dirname "$(dirname "$(dirname "${grpc_root}")")")")")")"
+    # WORKAROUND: The pinned gRPC header uses `Traits::template CallSeqFactory`
+    # even though `CallSeqFactory` is not a template. Apple clang rejects it.
+    # Patch the transient Bazel external with a checked-in diff so the exact
+    # workaround is visible and removable once the vendored dependency updates.
+    apply_patch_file "${grpc_root}" "${PATCH_DIR}/grpc_basic_seq_darwin.patch"
   fi
-fi
+}
 
-(
-  cd "${SONIC_PINS_DIR}" &&
-    run_sonic_pins_bazel build //fourward_dvaas:validate_dataplane_poc
-)
-if ! (
-  cd "${SONIC_PINS_DIR}" &&
-    TEST_UNDECLARED_OUTPUTS_DIR="${ARTIFACT_DIR}" \
-    TEST_TMPDIR="${ARTIFACT_DIR}" \
-    bazel-bin/fourward_dvaas/validate_dataplane_poc \
-      "localhost:${SUT_PORT}" "localhost:${CONTROL_PORT}" "${ARTIFACT_DIR}"
-); then
+build_dvaas_helper() {
+  if [[ "${OS_NAME}" == "Darwin" ]]; then
+    apply_darwin_grpc_patch
+  fi
+  (
+    cd "${SONIC_PINS_DIR}" &&
+      run_sonic_pins_bazel build //fourward_dvaas:validate_dataplane_poc
+  )
+}
+
+run_dvaas_helper() {
+  (
+    cd "${SONIC_PINS_DIR}" &&
+      TEST_UNDECLARED_OUTPUTS_DIR="${ARTIFACT_DIR}" \
+      TEST_TMPDIR="${ARTIFACT_DIR}" \
+      bazel-bin/fourward_dvaas/validate_dataplane_poc \
+        "localhost:${SUT_PORT}" "localhost:${CONTROL_PORT}" "${ARTIFACT_DIR}"
+  )
+}
+
+run_dvaas_helper_with_gdb() {
+  (
+    cd "${SONIC_PINS_DIR}" &&
+      TEST_UNDECLARED_OUTPUTS_DIR="${ARTIFACT_DIR}" \
+      TEST_TMPDIR="${ARTIFACT_DIR}" \
+      gdb -q -batch -ex run -ex bt --args \
+        bazel-bin/fourward_dvaas/validate_dataplane_poc \
+        "localhost:${SUT_PORT}" "localhost:${CONTROL_PORT}" "${ARTIFACT_DIR}"
+  )
+}
+
+build_fourward_targets
+prepare_sonic_pins_checkout
+start_testbed
+build_dvaas_helper
+if ! run_dvaas_helper; then
   if [[ "${DVAAS_POC_WRAP_GDB}" == "1" ]] && command -v gdb >/dev/null 2>&1; then
-    (
-      cd "${SONIC_PINS_DIR}" &&
-        TEST_UNDECLARED_OUTPUTS_DIR="${ARTIFACT_DIR}" \
-        TEST_TMPDIR="${ARTIFACT_DIR}" \
-        gdb -q -batch -ex run -ex bt --args \
-          bazel-bin/fourward_dvaas/validate_dataplane_poc \
-          "localhost:${SUT_PORT}" "localhost:${CONTROL_PORT}" "${ARTIFACT_DIR}"
-    )
+    run_dvaas_helper_with_gdb
   else
     exit 1
   fi
