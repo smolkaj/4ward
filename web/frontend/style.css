@@ -608,16 +608,6 @@ input:focus, select:focus, textarea:focus {
   cursor: not-allowed;
 }
 
-.btn-play {
-  background: var(--accent-bg);
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.btn-play:hover {
-  background: var(--accent);
-  color: #fff;
-}
 
 .playback-position {
   font-family: var(--font-mono);

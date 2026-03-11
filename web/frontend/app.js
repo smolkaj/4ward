@@ -26,7 +26,6 @@ const state = {
   // Playback state.
   playbackEvents: [],       // flattened list of {event, stageName, line, eventIdx}
   playbackPos: -1,          // current position (-1 = before first event)
-  playbackTimer: null,      // setInterval ID for auto-play
   _playbackDecorations: [], // Monaco editor decoration IDs
 };
 
@@ -461,7 +460,8 @@ async function compileAndLoad() {
   btn.disabled = true;
   btn.textContent = 'Compiling…';
   clearEditorDecorations();
-  stopPlayback();
+  state.playbackEvents = [];
+  state.playbackPos = -1;
 
   try {
     const data = await api.compileAndLoad(source);
@@ -1162,16 +1162,19 @@ function flattenTraceEvents(trace) {
 }
 
 function initPlayback(trace) {
-  stopPlayback();
-  const events = flattenTraceEvents(trace);
-  state.playbackEvents = events;
+  state.playbackEvents = flattenTraceEvents(trace);
   state.playbackPos = -1;
-
   updatePlaybackUI();
+}
+
+function ensureTraceVisible() {
+  switchTab('trace');
+  switchTraceView('tree');
 }
 
 function stepForward() {
   if (state.playbackPos < state.playbackEvents.length - 1) {
+    ensureTraceVisible();
     state.playbackPos++;
     applyPlaybackState();
   }
@@ -1179,40 +1182,13 @@ function stepForward() {
 
 function stepBack() {
   if (state.playbackPos >= 0) {
+    ensureTraceVisible();
     state.playbackPos--;
     applyPlaybackState();
   }
 }
 
-function togglePlayPause() {
-  if (state.playbackTimer) {
-    stopPlayback();
-  } else {
-    // If at the end, restart from beginning.
-    if (state.playbackPos >= state.playbackEvents.length - 1) {
-      state.playbackPos = -1;
-    }
-    state.playbackTimer = setInterval(() => {
-      if (state.playbackPos >= state.playbackEvents.length - 1) {
-        stopPlayback();
-        return;
-      }
-      stepForward();
-    }, 800);
-    updatePlaybackUI();
-  }
-}
-
-function stopPlayback() {
-  if (state.playbackTimer) {
-    clearInterval(state.playbackTimer);
-    state.playbackTimer = null;
-  }
-  updatePlaybackUI();
-}
-
 function resetPlayback() {
-  stopPlayback();
   state.playbackPos = -1;
   applyPlaybackState();
   // Restore the full pipeline diagram.
@@ -1318,13 +1294,10 @@ function clearPlaybackEditorHighlight() {
 function updatePlaybackUI() {
   const pos = state.playbackPos;
   const events = state.playbackEvents;
-  const playing = !!state.playbackTimer;
 
   document.getElementById('btn-step-back').disabled = pos < 0;
   document.getElementById('btn-step-forward').disabled = pos >= events.length - 1;
-  document.getElementById('btn-play-pause').textContent = playing ? '⏸' : '▶';
-  document.getElementById('btn-play-pause').title = playing ? 'Pause' : 'Play';
-  document.getElementById('btn-reset').disabled = pos < 0 && !playing;
+  document.getElementById('btn-reset').disabled = pos < 0;
 
   const posText = document.getElementById('playback-position');
   posText.textContent = events.length > 0
@@ -1785,7 +1758,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // Playback controls
   document.getElementById('btn-step-back').addEventListener('click', stepBack);
   document.getElementById('btn-step-forward').addEventListener('click', stepForward);
-  document.getElementById('btn-play-pause').addEventListener('click', togglePlayPause);
   document.getElementById('btn-reset').addEventListener('click', resetPlayback);
 
   // Trace view toggle (Tree / JSON / Proto)
