@@ -42,6 +42,7 @@ class WebServer(
   private val jsonPrinter: JsonFormat.Printer =
     JsonFormat.printer().preservingProtoFieldNames().alwaysPrintFieldsWithNoPresence()
   private val jsonParser: JsonFormat.Parser = JsonFormat.parser().ignoringUnknownFields()
+  private val textPrinter: TextFormat.Printer = TextFormat.printer().escapingNonAscii(false)
 
   @Volatile private var loadedP4Info: p4.config.v1.P4InfoOuterClass.P4Info? = null
 
@@ -197,7 +198,12 @@ class WebServer(
 
     val outputsJson = response.outputPacketsList.joinToString(",") { jsonPrinter.print(it) }
     val traceJson = jsonPrinter.print(response.trace)
-    sendJson(exchange, HTTP_OK, """{"output_packets":[$outputsJson],"trace":$traceJson}""")
+    val traceProto = textPrinter.printToString(response.trace)
+    sendJson(
+      exchange,
+      HTTP_OK,
+      """{"output_packets":[$outputsJson],"trace":$traceJson,"trace_proto":${jsonEscape(traceProto)}}""",
+    )
   }
 
   // ---------------------------------------------------------------------------

@@ -476,6 +476,244 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* =========================================================================
+   Pipeline diagram
+   ========================================================================= */
+
+#pipeline-diagram {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.pipeline-flow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+}
+
+.pipeline-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+}
+
+.pipeline-stage-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--bg-tertiary);
+  border: 2px solid var(--border);
+  transition: all 0.3s ease;
+}
+
+.pipeline-stage.visited .pipeline-stage-dot {
+  background: var(--success);
+  border-color: var(--success);
+  box-shadow: 0 0 6px rgba(63, 185, 80, 0.4);
+}
+
+.pipeline-stage.dropped .pipeline-stage-dot {
+  background: var(--error);
+  border-color: var(--error);
+  box-shadow: 0 0 6px rgba(248, 81, 73, 0.4);
+}
+
+.pipeline-stage-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  text-align: center;
+  transition: color 0.3s ease;
+}
+
+.pipeline-stage.visited .pipeline-stage-label {
+  color: var(--success);
+}
+
+.pipeline-stage.dropped .pipeline-stage-label {
+  color: var(--error);
+}
+
+.pipeline-arrow {
+  width: 24px;
+  height: 2px;
+  background: var(--border);
+  position: relative;
+  margin: 0 2px;
+  margin-bottom: 18px; /* align with dots, not labels */
+  transition: background 0.3s ease;
+}
+
+.pipeline-arrow.active {
+  background: var(--success);
+}
+
+.pipeline-outcome {
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  margin-top: 8px;
+  min-height: 18px;
+}
+
+.pipeline-outcome.output {
+  color: var(--success);
+}
+
+.pipeline-outcome.drop {
+  color: var(--error);
+}
+
+.pipeline-outcome.fork {
+  color: #f778ba;
+}
+
+/* Playback controls */
+
+.playback-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.btn-playback {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition);
+  padding: 0;
+}
+
+.btn-playback:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+}
+
+.btn-playback:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+
+.playback-position {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-left: 6px;
+  min-width: 40px;
+}
+
+/* Active pipeline stage during playback (pulsing outline). */
+.pipeline-stage.active .pipeline-stage-dot {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 8px rgba(88, 166, 255, 0.6);
+  animation: stage-pulse 1s infinite;
+}
+
+.pipeline-stage.active .pipeline-stage-label {
+  color: var(--accent);
+}
+
+@keyframes stage-pulse {
+  0%, 100% { box-shadow: 0 0 6px rgba(88, 166, 255, 0.4); }
+  50% { box-shadow: 0 0 12px rgba(88, 166, 255, 0.8); }
+}
+
+/* Highlighted trace event or stage during playback. */
+.trace-event.playback-highlight {
+  background: rgba(56, 139, 253, 0.25);
+  border-radius: var(--radius-sm);
+  outline: 2px solid rgba(88, 166, 255, 0.5);
+  outline-offset: -1px;
+}
+
+.trace-stage.playback-highlight > .trace-collapse {
+  background: rgba(56, 139, 253, 0.2);
+  outline: 2px solid rgba(88, 166, 255, 0.5);
+  outline-offset: -1px;
+  border-radius: var(--radius-sm);
+}
+
+.trace-outcome.playback-highlight {
+  outline: 2px solid rgba(88, 166, 255, 0.5);
+  outline-offset: 1px;
+}
+
+/* Editor line highlight during playback (injected via Monaco decorations). */
+.playback-line-highlight {
+  background: rgba(56, 139, 253, 0.15) !important;
+}
+
+.playback-glyph {
+  background: var(--accent);
+  width: 3px !important;
+  margin-left: 3px;
+  border-radius: 1px;
+}
+
+/* =========================================================================
+   Trace view toggle (Tree / JSON / Proto)
+   ========================================================================= */
+
+.trace-view-toggle {
+  display: flex;
+  gap: 2px;
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.trace-view-btn {
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.trace-view-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.trace-view-btn.active {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.trace-raw {
+  margin: 0;
+  padding: 12px 16px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  overflow: auto;
+  flex: 1;
+  white-space: pre;
+  tab-size: 2;
+}
+
+/* =========================================================================
    Trace tree
    ========================================================================= */
 
@@ -574,7 +812,13 @@ input:focus, select:focus, textarea:focus {
 }
 
 .trace-stage {
-  margin: 2px 0;
+  margin: 6px 0;
+  padding: 4px 0;
+  border-top: 1px solid var(--border-light);
+}
+
+.trace-stage:first-child {
+  border-top: none;
 }
 
 /* Empty stages use the same .trace-collapse structure but with a hidden arrow
