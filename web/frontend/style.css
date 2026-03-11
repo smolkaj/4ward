@@ -962,6 +962,7 @@ input:focus, select:focus, textarea:focus {
    --------------------------------------------------------------------------- */
 
 #control-graph {
+  flex-shrink: 0;
   border-bottom: 1px solid var(--border);
   padding: 8px;
 }

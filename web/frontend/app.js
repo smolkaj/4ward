@@ -1533,31 +1533,31 @@ function renderControlGraph() {
     return;
   }
 
-  const names = Object.keys(controls);
-  if (names.length === 0) {
+  // Only show controls that have tables or conditions (skip trivial entry→exit).
+  const interesting = Object.keys(controls).filter(name =>
+    controls[name].nodes.some(n => n.type === 'table' || n.type === 'condition')
+  );
+  if (interesting.length === 0) {
     container.classList.add('hidden');
     return;
   }
 
   container.classList.remove('hidden');
 
-  // Render tabs for each control block.
+  // Only show tabs when there are multiple interesting controls.
   const tabsEl = container.querySelector('.control-graph-tabs');
-  tabsEl.innerHTML = names.map(name =>
-    `<button class="control-graph-tab" data-control="${escapeHtml(name)}">${escapeHtml(name)}</button>`
-  ).join('');
+  if (interesting.length > 1) {
+    tabsEl.innerHTML = interesting.map(name =>
+      `<button class="control-graph-tab" data-control="${escapeHtml(name)}">${escapeHtml(name)}</button>`
+    ).join('');
+    tabsEl.querySelectorAll('.control-graph-tab').forEach(btn => {
+      btn.addEventListener('click', () => showControlGraph(btn.dataset.control));
+    });
+  } else {
+    tabsEl.innerHTML = '';
+  }
 
-  // Default to the first control with tables, or just the first.
-  const defaultControl = names.find(n => {
-    const graph = controls[n];
-    return graph.nodes.some(node => node.type === 'table');
-  }) || names[0];
-
-  tabsEl.querySelectorAll('.control-graph-tab').forEach(btn => {
-    btn.addEventListener('click', () => showControlGraph(btn.dataset.control));
-  });
-
-  showControlGraph(defaultControl);
+  showControlGraph(interesting[0]);
 }
 
 function showControlGraph(controlName) {
