@@ -4,7 +4,7 @@ Systematic mapping of [P4Runtime spec](https://p4lang.github.io/p4runtime/spec/m
 requirements to test coverage. Living document — update when tests are added
 or gaps are closed.
 
-Legend: **Y** = tested, **N** = not tested, **—** = not implemented
+Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 
 ## SetForwardingPipelineConfig (§7)
 
@@ -15,8 +15,15 @@ Legend: **Y** = tested, **N** = not tested, **—** = not implemented
 | 7.3 | Empty/invalid config → INVALID_ARGUMENT | Y | ConformanceTest #3 |
 | 7.4 | Invalid p4_device_config bytes → INVALID_ARGUMENT | Y | ConformanceTest #37 |
 | 7.5 | Missing p4_device_config → INVALID_ARGUMENT | Y | ConformanceTest #38 |
+| 7.6 | Requires primary controller when arbitration is active | N | |
+| 7.7 | VERIFY action validates without applying | N | |
+| 7.8 | VERIFY_AND_COMMIT applies atomically | Y | ConformanceTest #1 |
+| 7.9 | VERIFY_AND_SAVE / COMMIT / RECONCILE_AND_COMMIT | N/A | Two-phase commit not meaningful for a reference simulator |
+| 7.10 | Cookie stored and returned | N | |
+| 7.11 | Pipeline reload clears table entries | N | |
+| 7.12 | Const table entries populated at load time | N | |
 
-## Match field encoding (§8.3)
+## General encoding (§8)
 
 | # | Requirement | Status | Test |
 |---|-------------|--------|------|
@@ -26,6 +33,7 @@ Legend: **Y** = tested, **N** = not tested, **—** = not implemented
 | 8.4 | Range low/high byte width matches field bitwidth | Y | WriteValidatorTest |
 | 8.5 | Ternary: masked bits must be zero in value | Y | WriteValidatorTest |
 | 8.6 | LPM: bits beyond prefix_len must be zero | Y | WriteValidatorTest |
+| 8.7 | Read responses zero-pad bytestrings to ceil(bitwidth/8) | N | |
 
 ## Write RPC — table entries (§9.1)
 
@@ -59,6 +67,7 @@ Legend: **Y** = tested, **N** = not tested, **—** = not implemented
 | 9.26 | Default entry: MODIFY semantics | Y | WriteValidatorTest |
 | 9.27 | RESOURCE_EXHAUSTED when table is full | Y | TableStoreTest, ConformanceTest |
 | 9.28 | Write batch: updates applied in order | Y | ConformanceTest #39 |
+| 9.29 | Direct counter/meter data in table entry reads | N | |
 
 ## Write RPC — action profiles (§9.2)
 
@@ -98,8 +107,36 @@ Legend: **Y** = tested, **N** = not tested, **—** = not implemented
 |---|-------------|--------|------|
 | 9.60 | Multicast group CRUD | Y | ConformanceTest (via PRE entries) |
 | 9.61 | Clone session CRUD | Y | ConformanceTest (via PRE entries) |
+| 9.62 | PRE INSERT existing → ALREADY_EXISTS | N | |
+| 9.63 | PRE MODIFY non-existent → NOT_FOUND | N | |
+| 9.64 | PRE DELETE non-existent → NOT_FOUND | N | |
+| 9.65 | PRE entries readable via Read RPC | N | |
 
-## Arbitration (§10)
+## Write RPC — other entity types (§9.6, §9.8, §9.9)
+
+| # | Requirement | Status | Test |
+|---|-------------|--------|------|
+| 9.70 | ValueSetEntry | N/A | No parser value set support in simulator |
+| 9.71 | DigestEntry configuration | N/A | Digests out of scope (no real packet rates) |
+| 9.72 | ExternEntry | N/A | No standard v1model extern entities |
+
+## Write RPC — atomicity (§12)
+
+| # | Requirement | Status | Test |
+|---|-------------|--------|------|
+| 9.80 | CONTINUE_ON_ERROR: process all updates, per-update errors | N | |
+| 9.81 | ROLLBACK_ON_ERROR: undo on failure | N | PR #270 |
+| 9.82 | DATAPLANE_ATOMIC | N/A | Not meaningful for a reference simulator |
+| 9.83 | Per-update error reporting in WriteResponse | N | |
+
+## Write RPC — general (§12)
+
+| # | Requirement | Status | Test |
+|---|-------------|--------|------|
+| 9.90 | device_id validated on Write | N | |
+| 9.91 | Write allowed without prior arbitration | Y | ConformanceTest (implicit) |
+
+## Arbitration (§5)
 
 | # | Requirement | Status | Test |
 |---|-------------|--------|------|
@@ -107,6 +144,10 @@ Legend: **Y** = tested, **N** = not tested, **—** = not implemented
 | 10.2 | Higher election_id becomes primary | Y | ConformanceTest #40-41 |
 | 10.3 | Non-primary writes → PERMISSION_DENIED | Y | ConformanceTest #42-44 |
 | 10.4 | All controllers may read regardless of role | Y | ConformanceTest #45 |
+| 10.5 | Demotion notification to displaced primary | N | |
+| 10.6 | Automatic promotion on primary disconnect | N | |
+| 10.7 | Zero election_id: backup semantics (cannot be primary) | N | |
+| 10.8 | Role-based access control | N/A | Single default role sufficient for reference simulator |
 
 ## Read RPC (§11)
 
@@ -121,6 +162,8 @@ Legend: **Y** = tested, **N** = not tested, **—** = not implemented
 | 11.7 | Wildcard read for action profiles | Y | ConformanceTest #35 |
 | 11.8 | Wildcard read for registers | Y | TableStoreTest |
 | 11.9 | Read unwritten register returns zero | Y | ConformanceTest #33 |
+| 11.10 | Default entry included in wildcard table reads | N | |
+| 11.11 | device_id validated on Read | N | |
 
 ## GetForwardingPipelineConfig (§7)
 
@@ -131,22 +174,26 @@ Legend: **Y** = tested, **N** = not tested, **—** = not implemented
 | 12.3 | P4INFO_AND_COOKIE omits device config | Y | ConformanceTest #18 |
 | 12.4 | DEVICE_CONFIG_AND_COOKIE omits p4info | Y | ConformanceTest #22 |
 | 12.5 | COOKIE_ONLY returns empty config | Y | ConformanceTest #36 |
+| 12.6 | device_id validated | N | |
 
-## Capabilities
+## Capabilities (§17)
 
 | # | Requirement | Status | Test |
 |---|-------------|--------|------|
 | 13.1 | Returns API version | Y | ConformanceTest #19 |
 
-## StreamChannel / PacketIO (§12)
+## StreamChannel (§16)
 
 | # | Requirement | Status | Test |
 |---|-------------|--------|------|
 | 14.1 | PacketOut processed, PacketIn returned | Y | ConformanceTest #13 |
 | 14.2 | PacketOut with table entries forwards correctly | Y | ConformanceTest #14 |
 | 14.3 | Multiple packets preserve ordering | Y | ConformanceTest #15 |
-| 14.4 | Digest delivery | — | |
-| 14.5 | Idle timeout notifications | — | |
+| 14.4 | StreamError on invalid stream message | N | |
+| 14.5 | Digest delivery | N/A | Out of scope — no real packet rates to trigger digests |
+| 14.6 | DigestListAck handling | N/A | Digests out of scope |
+| 14.7 | Idle timeout notifications | N/A | Out of scope — no wall-clock time in a reference simulator |
+| 14.8 | Architecture-specific `other` messages | N/A | No v1model stream extensions |
 
 ## @p4runtime_translation (§8.3)
 
@@ -159,31 +206,46 @@ Legend: **Y** = tested, **N** = not tested, **—** = not implemented
 | 15.5 | End-to-end forwarding with translated ports | Y | TranslationTest |
 | 15.6 | sdn_string write/read round-trip with SAI P4 | Y | SaiP4E2ETest |
 
+## @refers_to
+
+| # | Requirement | Status | Test |
+|---|-------------|--------|------|
+| 17.1 | Match field referential integrity on INSERT/MODIFY | Y | ReferenceValidatorTest |
+| 17.2 | Action param referential integrity | Y | ReferenceValidatorTest |
+| 17.3 | Action profile member referential integrity | Y | ReferenceValidatorTest |
+| 17.4 | One-shot action set referential integrity | Y | ReferenceValidatorTest |
+| 17.5 | builtin::multicast_group_table references | Y | ReferenceValidatorTest |
+| 17.6 | DELETE bypasses referential checks | Y | ReferenceValidatorTest |
+
 ## p4-constraints
 
 | # | Requirement | Status | Test |
 |---|-------------|--------|------|
-| 16.1 | @entry_restriction validated on Write | Y | ConstraintTest |
-| 16.2 | Violation → INVALID_ARGUMENT with constraint text | Y | ConstraintTest |
-| 16.3 | DELETE bypasses constraint validation | Y | ConstraintTest |
-| 16.4 | Pipeline without constraints works normally | Y | ConstraintTest |
+| 18.1 | @entry_restriction validated on Write | Y | ConstraintTest |
+| 18.2 | Violation → INVALID_ARGUMENT with constraint text | Y | ConstraintTest |
+| 18.3 | DELETE bypasses constraint validation | Y | ConstraintTest |
+| 18.4 | Pipeline without constraints works normally | Y | ConstraintTest |
 
 ## Summary
 
-| Category | Tested | Not tested | Not implemented |
-|----------|--------|------------|-----------------|
-| SetForwardingPipelineConfig | 5 | 0 | 0 |
-| Match encoding | 6 | 0 | 0 |
-| Write — tables | 28 | 0 | 0 |
+| Category | Tested | Not tested | N/A |
+|----------|--------|------------|-----|
+| SetForwardingPipelineConfig | 5 | 4 | 1 |
+| General encoding | 6 | 1 | 0 |
+| Write — tables | 28 | 1 | 0 |
 | Write — profiles | 8 | 0 | 0 |
 | Write — registers | 5 | 0 | 0 |
 | Write — counters/meters | 4 | 0 | 0 |
-| Write — PRE | 2 | 0 | 0 |
-| Arbitration | 4 | 0 | 0 |
-| Read | 9 | 0 | 0 |
-| GetForwardingPipelineConfig | 5 | 0 | 0 |
+| Write — PRE | 2 | 4 | 0 |
+| Write — other entities | 0 | 0 | 3 |
+| Write — atomicity | 0 | 3 | 1 |
+| Write — general | 1 | 1 | 0 |
+| Arbitration | 4 | 3 | 1 |
+| Read | 9 | 2 | 0 |
+| GetForwardingPipelineConfig | 5 | 1 | 0 |
 | Capabilities | 1 | 0 | 0 |
-| PacketIO | 3 | 0 | 2 |
+| StreamChannel | 3 | 1 | 4 |
 | Translation | 6 | 0 | 0 |
+| @refers_to | 6 | 0 | 0 |
 | p4-constraints | 4 | 0 | 0 |
-| **Total** | **90** | **0** | **2** |
+| **Total** | **97** | **21** | **10** |

@@ -43,15 +43,10 @@ guilt — just write it down so someone can find it later.
   written and read via P4Runtime, but the simulator does not perform
   real rate limiting — `direct_meter.read()` always returns the default
   color (GREEN).
-- **No `@refers_to` referential integrity enforcement.** SAI P4 uses
-  `@refers_to` annotations to declare foreign-key relationships between
-  tables (e.g., `nexthop_id` must exist in `nexthop_table`). These are not
-  validated at write time — entries referencing non-existent entries are
-  silently accepted. Inconsistencies surface at packet simulation time
-  (table miss instead of hit).
-- **No digests or idle timeouts.** Both are explicitly rejected with gRPC
-  `UNIMPLEMENTED`. No plans to implement — they add complexity without value
-  for a testing/development tool.
+- **No digests or idle timeouts (by design).** Both are inherently
+  time-dependent features that have no meaningful semantics in a reference
+  simulator: there are no real packet rates to trigger digests, and no
+  wall-clock time to expire idle entries. These are explicitly out of scope.
 
 ## Simulator
 
