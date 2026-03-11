@@ -528,4 +528,67 @@ class InterpreterControlTest {
     interp(config).runControl("MyControl", env)
     assertEquals(BitVal(0, 8), env.lookup("color"))
   }
+
+  // ---------------------------------------------------------------------------
+  // Extern dispatch error paths
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `free-function extern without handler throws`() {
+    val stmt = externCall("unknown_extern", bit(0, 8))
+    val config = controlConfig(stmt)
+    val noHandler = Interpreter(config, TableStore())
+    val e =
+      assertThrows(IllegalStateException::class.java) {
+        noHandler.runControl("MyControl", emptyEnv)
+      }
+    assertEquals("no extern handler for: unknown_extern", e.message)
+  }
+
+  @Test
+  fun `extern method without handler throws`() {
+    val stmt = methodCallStmt("obj", "some_method", bit(0, 8), targetType = namedType("my_extern"))
+    val config = controlConfig(stmt)
+    val noHandler = Interpreter(config, TableStore())
+    val e =
+      assertThrows(IllegalStateException::class.java) {
+        noHandler.runControl("MyControl", emptyEnv)
+      }
+    assertEquals(
+      "unhandled method call: some_method on ${nameRef("obj", namedType("my_extern"))}",
+      e.message,
+    )
+  }
+
+  @Test
+  fun `unrecognised extern method throws`() {
+    val stmt =
+      methodCallStmt("obj", "unknown_method", bit(0, 8), targetType = namedType("register"))
+    val config = controlConfig(stmt)
+    val e =
+      assertThrows(IllegalStateException::class.java) {
+        interp(config).runControl("MyControl", emptyEnv)
+      }
+    assertEquals("unhandled extern method: register.unknown_method on obj", e.message)
+  }
+
+  // ---------------------------------------------------------------------------
+  // peekRemainingInput
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `extern handler can peek at remaining packet input`() {
+    val payload = byteArrayOf(0xCA.toByte(), 0xFE.toByte())
+    var captured: ByteArray? = null
+    val handler = ExternHandler { _, eval ->
+      captured = eval.peekRemainingInput()
+      UnitVal
+    }
+    val stmt = externCall("capture_input")
+    val config = controlConfig(stmt)
+    val pktCtx = PacketContext(payload)
+    Interpreter(config, TableStore(), pktCtx, externHandler = handler)
+      .runControl("MyControl", emptyEnv)
+    assertEquals(payload.toList(), captured?.toList())
+  }
 }
