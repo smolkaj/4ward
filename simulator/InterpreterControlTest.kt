@@ -39,8 +39,43 @@ class InterpreterControlTest {
   // Helpers
   // ---------------------------------------------------------------------------
 
+  /** Creates an extern handler with register/meter/counter method support for unit tests. */
+  private fun testExternHandler(tableStore: TableStore) = ExternHandler { call, eval ->
+    when (call) {
+      is ExternCall.FreeFunction -> error("unexpected extern call: ${call.name}")
+      is ExternCall.Method ->
+        when (call.method) {
+          "read" -> {
+            if (call.externType == "direct_meter") {
+              eval.writeOutArg(0, eval.defaultValue(eval.argType(0)))
+            } else {
+              val index = (eval.evalArg(1) as BitVal).bits.value.toInt()
+              val stored = tableStore.registerRead(call.instanceName, index)
+              eval.writeOutArg(0, stored ?: eval.defaultValue(eval.argType(0)))
+            }
+            UnitVal
+          }
+          "execute_meter" -> {
+            eval.writeOutArg(1, eval.defaultValue(eval.argType(1)))
+            UnitVal
+          }
+          "write" -> {
+            val index = (eval.evalArg(0) as BitVal).bits.value.toInt()
+            tableStore.registerWrite(call.instanceName, index, eval.evalArg(1))
+            UnitVal
+          }
+          "count" -> UnitVal
+          else ->
+            error(
+              "unhandled extern method: ${call.externType}.${call.method}" +
+                " on ${call.instanceName}"
+            )
+        }
+    }
+  }
+
   private fun interp(config: BehavioralConfig, tableStore: TableStore = TableStore()) =
-    Interpreter(config, tableStore)
+    Interpreter(config, tableStore, externHandler = testExternHandler(tableStore))
 
   /** Builds a `switch (tableName.apply().action_run)` statement. */
   private fun switchOn(
@@ -492,5 +527,68 @@ class InterpreterControlTest {
     env.define("color", BitVal(0xFF, 8))
     interp(config).runControl("MyControl", env)
     assertEquals(BitVal(0, 8), env.lookup("color"))
+  }
+
+  // ---------------------------------------------------------------------------
+  // Extern dispatch error paths
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `free-function extern without handler throws`() {
+    val stmt = externCall("unknown_extern", bit(0, 8))
+    val config = controlConfig(stmt)
+    val noHandler = Interpreter(config, TableStore())
+    val e =
+      assertThrows(IllegalStateException::class.java) {
+        noHandler.runControl("MyControl", emptyEnv)
+      }
+    assertEquals("no extern handler for: unknown_extern", e.message)
+  }
+
+  @Test
+  fun `extern method without handler throws`() {
+    val stmt = methodCallStmt("obj", "some_method", bit(0, 8), targetType = namedType("my_extern"))
+    val config = controlConfig(stmt)
+    val noHandler = Interpreter(config, TableStore())
+    val e =
+      assertThrows(IllegalStateException::class.java) {
+        noHandler.runControl("MyControl", emptyEnv)
+      }
+    assertEquals(
+      "unhandled method call: some_method on ${nameRef("obj", namedType("my_extern"))}",
+      e.message,
+    )
+  }
+
+  @Test
+  fun `unrecognised extern method throws`() {
+    val stmt =
+      methodCallStmt("obj", "unknown_method", bit(0, 8), targetType = namedType("register"))
+    val config = controlConfig(stmt)
+    val e =
+      assertThrows(IllegalStateException::class.java) {
+        interp(config).runControl("MyControl", emptyEnv)
+      }
+    assertEquals("unhandled extern method: register.unknown_method on obj", e.message)
+  }
+
+  // ---------------------------------------------------------------------------
+  // peekRemainingInput
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `extern handler can peek at remaining packet input`() {
+    val payload = byteArrayOf(0xCA.toByte(), 0xFE.toByte())
+    var captured: ByteArray? = null
+    val handler = ExternHandler { _, eval ->
+      captured = eval.peekRemainingInput()
+      UnitVal
+    }
+    val stmt = externCall("capture_input")
+    val config = controlConfig(stmt)
+    val pktCtx = PacketContext(payload)
+    Interpreter(config, TableStore(), pktCtx, externHandler = handler)
+      .runControl("MyControl", emptyEnv)
+    assertEquals(payload.toList(), captured?.toList())
   }
 }

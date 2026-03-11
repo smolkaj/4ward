@@ -10,6 +10,7 @@ import fourward.ir.v1.SourceInfo
 import fourward.ir.v1.Stmt
 import fourward.ir.v1.Transition
 import fourward.sim.v1.SimulatorProto.DropReason
+import fourward.sim.v1.SimulatorProto.MarkToDropEvent
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -40,6 +41,23 @@ class InterpreterTraceEventTest {
     val builder = Stmt.newBuilder().setMethodCall(MethodCallStmt.newBuilder().setCall(call))
     if (sourceInfo != null) builder.sourceInfo = sourceInfo
     return builder.build()
+  }
+
+  /** Minimal extern handler for mark_to_drop, used by interpreter-level tests. */
+  private val markToDropHandler = ExternHandler { call, eval ->
+    require(call is ExternCall.FreeFunction && call.name == "mark_to_drop") {
+      "unexpected extern: $call"
+    }
+    eval.addTraceEvent(
+      eval
+        .traceEventBuilder()
+        .setMarkToDrop(MarkToDropEvent.newBuilder().setReason(DropReason.MARK_TO_DROP))
+        .build()
+    )
+    val smeta = eval.evalArg(0) as StructVal
+    val portBits = smeta.bitWidth("egress_spec")
+    smeta.fields["egress_spec"] = BitVal((1L shl portBits) - 1, portBits)
+    UnitVal
   }
 
   private fun standardMetadataEnv(): Environment {
@@ -78,7 +96,8 @@ class InterpreterTraceEventTest {
     val config = controlConfig("MyIngress", markToDropStmt())
     val env = standardMetadataEnv()
     val pktCtx = PacketContext(byteArrayOf())
-    Interpreter(config, TableStore(), pktCtx).runControl("MyIngress", env)
+    Interpreter(config, TableStore(), pktCtx, externHandler = markToDropHandler)
+      .runControl("MyIngress", env)
 
     val markToDropEvents = pktCtx.getEvents().filter { it.hasMarkToDrop() }
     assertEquals("expected exactly one MarkToDropEvent", 1, markToDropEvents.size)
@@ -203,7 +222,8 @@ class InterpreterTraceEventTest {
       controlConfig("MyIngress", ifStmt(boolLit(true), sourceInfo = si1), markToDropStmt(si2))
     val env = standardMetadataEnv()
     val pktCtx = PacketContext(byteArrayOf())
-    Interpreter(config, TableStore(), pktCtx).runControl("MyIngress", env)
+    Interpreter(config, TableStore(), pktCtx, externHandler = markToDropHandler)
+      .runControl("MyIngress", env)
 
     val events = pktCtx.getEvents()
     val branchEvent = events.first { it.hasBranch() }

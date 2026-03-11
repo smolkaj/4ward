@@ -17,8 +17,6 @@ import fourward.ir.v1.Type
 import fourward.ir.v1.UnaryOperator
 import fourward.sim.v1.SimulatorProto.ActionExecutionEvent
 import fourward.sim.v1.SimulatorProto.BranchEvent
-import fourward.sim.v1.SimulatorProto.DropReason
-import fourward.sim.v1.SimulatorProto.MarkToDropEvent
 import fourward.sim.v1.SimulatorProto.ParserTransitionEvent
 import fourward.sim.v1.SimulatorProto.TableLookupEvent
 import fourward.sim.v1.SimulatorProto.TraceEvent
@@ -39,8 +37,8 @@ class Interpreter(
   private val config: BehavioralConfig,
   private val tableStore: TableStore,
   private val packetCtx: PacketContext? = null,
-  private val decisions: ForkDecisions = ForkDecisions(),
-  private val onChecksumError: (() -> Unit)? = null,
+  private val selectorOverrides: Map<String, Int> = emptyMap(),
+  private val externHandler: ExternHandler? = null,
 ) {
   private val parsers: Map<String, ParserDecl> = config.parsersList.associateBy { it.name }
 
@@ -611,38 +609,6 @@ class Interpreter(
         UnitVal
       }
       "emit" -> execEmit(call, env)
-      // Dispatch on the target's extern type name. Fall back to arg count when
-      // the type is absent (p4c doesn't always populate it on extern instances).
-      "read" -> {
-        val externType = call.target.type.named.ifEmpty { null }
-        if (externType == "direct_meter" || (externType == null && call.argsList.size == 1)) {
-          // direct_meter.read(out color): always GREEN (no real rates in simulator).
-          setLValue(call.argsList[0], defaultValue(call.argsList[0].type, types), env)
-        } else {
-          // register.read(out dst, index)
-          val regName = call.target.nameRef.name
-          val index = intValue(evalExpr(call.argsList[1], env))
-          val value =
-            tableStore.registerRead(regName, index) ?: defaultValue(call.argsList[0].type, types)
-          setLValue(call.argsList[0], value, env)
-        }
-        UnitVal
-      }
-      // meter.execute_meter(in index, out color): always GREEN.
-      "execute_meter" -> {
-        setLValue(call.argsList[1], defaultValue(call.argsList[1].type, types), env)
-        UnitVal
-      }
-      // register.write(index, value): stores value at index.
-      "write" -> {
-        val regName = call.target.nameRef.name
-        val index = intValue(evalExpr(call.argsList[0], env))
-        val value = evalExpr(call.argsList[1], env)
-        tableStore.registerWrite(regName, index, value)
-        UnitVal
-      }
-      // counter.count(index): fire-and-forget side-effect, invisible to data plane.
-      "count" -> UnitVal
       // "__call__" is used for free functions and direct action calls. Check actions first;
       // fall back to extern handling (mark_to_drop, etc.) for unrecognised names.
       "__call__" -> {
@@ -650,7 +616,18 @@ class Interpreter(
         if (funcName in actions) execInlineActionCall(funcName, call.argsList, env)
         else execExternCall(call, env)
       }
-      else -> error("unhandled method call: ${call.method} on ${call.target}")
+      // Extern object methods (register.read/write, counter.count, meter.execute_meter, etc.)
+      // are architecture-specific — delegate to the handler.
+      else -> {
+        val handler = externHandler
+        if (handler != null && call.target.hasNameRef()) {
+          val externCall =
+            ExternCall.Method(call.target.type.named, call.target.nameRef.name, call.method)
+          handler.handle(externCall, createExternEvaluator(call, env))
+        } else {
+          error("unhandled method call: ${call.method} on ${call.target}")
+        }
+      }
     }
   }
 
@@ -684,7 +661,7 @@ class Interpreter(
     )
 
     if (result.members != null) {
-      val forced = decisions.selectorMembers[tableName]
+      val forced = selectorOverrides[tableName]
       if (forced != null) {
         // Re-execution with a forced member — execute that member's action directly.
         val member =
@@ -796,139 +773,46 @@ class Interpreter(
   }
 
   // -------------------------------------------------------------------------
-  // Extern function calls  (method == "__call__", target is a NameRef)
+  // Extern dispatch
   // -------------------------------------------------------------------------
 
-  @Suppress("ThrowsCount")
+  /** Creates an [ExternEvaluator] bound to [call]'s arguments and the current interpreter state. */
+  private fun createExternEvaluator(call: MethodCall, env: Environment): ExternEvaluator =
+    object : ExternEvaluator {
+      override fun evalArg(index: Int): Value = evalExpr(call.argsList[index], env)
+
+      override fun argType(index: Int): Type = call.argsList[index].type
+
+      override fun writeOutArg(index: Int, value: Value) =
+        setLValue(call.argsList[index], value, env)
+
+      override fun defaultValue(type: Type): Value = defaultValue(type, types)
+
+      override fun traceEventBuilder(): TraceEvent.Builder = this@Interpreter.traceEventBuilder()
+
+      override fun addTraceEvent(event: TraceEvent) {
+        packetCtx?.addTraceEvent(event)
+      }
+
+      override fun peekRemainingInput(): ByteArray = packet.peekRemainingInput()
+    }
+
   private fun execExternCall(call: MethodCall, env: Environment): Value {
     val funcName = call.target.nameRef.name
-    return when (funcName) {
-      // mark_to_drop(standard_metadata): sets egress_spec to all-ones (the drop port).
-      "mark_to_drop" -> {
-        packetCtx?.addTraceEvent(
-          traceEventBuilder()
-            .setMarkToDrop(MarkToDropEvent.newBuilder().setReason(DropReason.MARK_TO_DROP))
-            .build()
-        )
-        val smeta = evalExpr(call.argsList[0], env) as StructVal
-        // Derive the drop port (all-ones) from the field's IR-defined width.
-        val portBits = smeta.bitWidth("egress_spec")
-        smeta.fields["egress_spec"] = BitVal((1L shl portBits) - 1, portBits)
-        UnitVal
+
+    // verify() is a P4 core language construct (spec §12.8), not an architecture extern.
+    if (funcName == "verify") {
+      val condition = (evalExpr(call.argsList[0], env) as BoolVal).value
+      if (!condition) {
+        val err = (evalExpr(call.argsList[1], env) as ErrorVal).member
+        throw ParserErrorException(err, "verify failed: $err")
       }
-      // verify(condition, error): P4 spec §12.8 parser assertion.
-      "verify" -> {
-        val condition = (evalExpr(call.argsList[0], env) as BoolVal).value
-        if (!condition) {
-          val err = (evalExpr(call.argsList[1], env) as ErrorVal).member
-          throw ParserErrorException(err, "verify failed: $err")
-        }
-        UnitVal
-      }
-      // clone(type, session) / clone3(type, session, data): P4 v1model I2E/E2E clone.
-      // Records the clone intent; the architecture checks the appropriate pending field
-      // at the boundary and forks there. Multiple calls use last-writer-wins,
-      // matching BMv2 simple_switch semantics.
-      // See https://github.com/p4lang/behavioral-model/blob/main/docs/simple_switch.md
-      "clone",
-      "clone3",
-      "clone_preserving_field_list" -> {
-        val cloneType = (evalExpr(call.argsList[0], env) as EnumVal).member
-        val sessionId = intValue(evalExpr(call.argsList[1], env))
-        val fieldListId =
-          if (funcName == "clone_preserving_field_list") {
-            intValue(evalExpr(call.argsList[2], env))
-          } else {
-            null
-          }
-        packetCtx?.addTraceEvent(
-          traceEventBuilder()
-            .setClone(
-              fourward.sim.v1.SimulatorProto.CloneEvent.newBuilder().setSessionId(sessionId)
-            )
-            .build()
-        )
-        when (cloneType) {
-          "I2E" -> {
-            packetCtx?.pendingCloneSessionId = sessionId
-            packetCtx?.pendingCloneFieldListId = fieldListId
-          }
-          "E2E" -> {
-            packetCtx?.pendingEgressCloneSessionId = sessionId
-            packetCtx?.pendingEgressCloneFieldListId = fieldListId
-          }
-        }
-        UnitVal
-      }
-      // resubmit[_preserving_field_list](data): re-inject into ingress.
-      "resubmit",
-      "resubmit_preserving_field_list" -> {
-        packetCtx?.pendingResubmit = true
-        if (funcName == "resubmit_preserving_field_list") {
-          packetCtx?.pendingResubmitFieldListId = intValue(evalExpr(call.argsList[0], env))
-        }
-        UnitVal
-      }
-      // recirculate[_preserving_field_list](data): feed deparsed packet back into ingress.
-      "recirculate",
-      "recirculate_preserving_field_list" -> {
-        packetCtx?.pendingRecirculate = true
-        if (funcName == "recirculate_preserving_field_list") {
-          packetCtx?.pendingRecirculateFieldListId = intValue(evalExpr(call.argsList[0], env))
-        }
-        UnitVal
-      }
-      // verify_checksum[_with_payload](condition, data, checksum, algo): v1model §14.
-      // Computes hash over data fields (and optionally the unparsed packet body) and
-      // compares with checksum; sets standard_metadata.checksum_error = 1 on mismatch.
-      "verify_checksum",
-      "verify_checksum_with_payload" -> {
-        val condition = (evalExpr(call.argsList[0], env) as BoolVal).value
-        if (condition) {
-          val data = evalExpr(call.argsList[1], env) as StructVal
-          val expected = evalExpr(call.argsList[2], env) as BitVal
-          val algo = (evalExpr(call.argsList[3], env) as EnumVal).member
-          val payload =
-            if (funcName.endsWith("_with_payload")) packet.peekRemainingInput() else ByteArray(0)
-          val computed = computeHashWithPayload(algo, data, payload)
-          if (computed != expected.bits.value) {
-            onChecksumError?.invoke()
-          }
-        }
-        UnitVal
-      }
-      // update_checksum[_with_payload](condition, data, checksum, algo): v1model §14.
-      // Computes hash over data fields (and optionally the unparsed packet body) and
-      // writes result into checksum (out param).
-      "update_checksum",
-      "update_checksum_with_payload" -> {
-        val condition = (evalExpr(call.argsList[0], env) as BoolVal).value
-        if (condition) {
-          val data = evalExpr(call.argsList[1], env) as StructVal
-          val algo = (evalExpr(call.argsList[3], env) as EnumVal).member
-          val payload =
-            if (funcName.endsWith("_with_payload")) packet.peekRemainingInput() else ByteArray(0)
-          val computed = computeHashWithPayload(algo, data, payload)
-          val checksumWidth = call.argsList[2].type.bit.width
-          setLValue(call.argsList[2], BitVal(BitVector(computed, checksumWidth)), env)
-        }
-        UnitVal
-      }
-      // hash(out result, in algo, in base, in data, in max): v1model hash extern.
-      // See https://github.com/p4lang/behavioral-model/blob/main/docs/simple_switch.md
-      "hash" -> {
-        val algo = (evalExpr(call.argsList[1], env) as EnumVal).member
-        val base = (evalExpr(call.argsList[2], env) as BitVal).bits.value
-        val data = evalExpr(call.argsList[3], env) as StructVal
-        val max = (evalExpr(call.argsList[4], env) as BitVal).bits.value
-        val hashVal = computeHash(algo, data)
-        val result = if (max > BigInteger.ZERO) base + hashVal.mod(max) else base
-        val resultWidth = call.argsList[0].type.bit.width
-        setLValue(call.argsList[0], BitVal(BitVector(result, resultWidth)), env)
-        UnitVal
-      }
-      else -> error("unhandled extern call: $funcName")
+      return UnitVal
     }
+
+    // All other externs are architecture-specific — delegate to the handler.
+    val handler = externHandler ?: error("no extern handler for: $funcName")
+    return handler.handle(ExternCall.FreeFunction(funcName), createExternEvaluator(call, env))
   }
 
   /** Whether [expr] is a field access into a header union. */
@@ -1253,80 +1137,3 @@ class ActionSelectorFork(
   val members: List<TableStore.MemberAction>,
   eventsBeforeFork: List<TraceEvent>,
 ) : ForkException(eventsBeforeFork)
-
-/**
- * Fork at the ingress→egress boundary when an I2E clone was requested — "original" and "clone".
- *
- * [parserEventCount] tracks how many trace events came from the parser (before ingress). The clone
- * branch skips ingress, so its prefix length is shorter.
- */
-class CloneFork(
-  val sessionId: Int,
-  val clonePort: Long,
-  val parserEventCount: Int,
-  eventsBeforeFork: List<TraceEvent>,
-  val preservedMetadata: Map<String, Value>? = null,
-) : ForkException(eventsBeforeFork)
-
-/** Fork after egress controls when an E2E clone was requested — "original" and "clone". */
-class EgressCloneFork(
-  val sessionId: Int,
-  val clonePort: Long,
-  eventsBeforeFork: List<TraceEvent>,
-  val preservedMetadata: Map<String, Value>? = null,
-) : ForkException(eventsBeforeFork)
-
-/** Fork at the ingress→egress boundary when mcast_grp is set — one branch per replica. */
-class MulticastFork(val replicas: List<BranchMode.Replica>, eventsBeforeFork: List<TraceEvent>) :
-  ForkException(eventsBeforeFork)
-
-/** Fork at the ingress→egress boundary when resubmit was requested — single branch re-ingress. */
-class ResubmitFork(
-  eventsBeforeFork: List<TraceEvent>,
-  val preservedMetadata: Map<String, Value>? = null,
-) : ForkException(eventsBeforeFork)
-
-/** Fork after deparser when recirculate was requested — single branch with deparsed bytes. */
-class RecirculateFork(
-  val deparsedBytes: ByteArray,
-  eventsBeforeFork: List<TraceEvent>,
-  val preservedMetadata: Map<String, Value>? = null,
-) : ForkException(eventsBeforeFork)
-
-/**
- * Which mode this pipeline execution is in.
- *
- * BMv2 priority ordering guarantees at most one mode per boundary crossing: ingress (I2E clone >
- * resubmit > multicast > unicast), egress (E2E clone > recirculate > output).
- */
-sealed class BranchMode {
-  /** Normal pipeline — may fork at any choice point. */
-  data class Normal(val suppressI2EClone: Boolean = false, val suppressE2EClone: Boolean = false) :
-    BranchMode()
-
-  /** I2E clone branch: skip ingress, set CLONE_I2E at boundary. */
-  data class I2EClone(val sessionId: Int, val clonePort: Long) : BranchMode()
-
-  /** E2E clone branch: re-run egress with CLONE_E2E after original egress completes. */
-  data class E2EClone(val sessionId: Int, val clonePort: Long) : BranchMode()
-
-  /** Multicast replica: set REPLICATION metadata at boundary. */
-  data class Replica(val rid: Int, val port: Int) : BranchMode()
-}
-
-/**
- * Policies for re-execution of a pipeline branch in the trace tree.
- *
- * @property selectorMembers Forced member selections per table (action selector branches).
- * @property branchMode The execution mode for this branch (normal, clone, or replica).
- * @property instanceTypeOverride If non-null, override instance_type at pipeline init.
- * @property pipelineDepth Tracks resubmit/recirculate nesting to prevent infinite loops.
- */
-data class ForkDecisions(
-  val selectorMembers: Map<String, Int> = emptyMap(),
-  val branchMode: BranchMode = BranchMode.Normal(),
-  val instanceTypeOverride: Long? = null,
-  val pipelineDepth: Int = 0,
-  /** Pre-filtered metadata fields to restore from clone/resubmit/recirculate preservation. */
-  val preservedMetadata: Map<String, Value>? = null,
-)

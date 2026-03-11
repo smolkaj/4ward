@@ -18,6 +18,7 @@ import fourward.ir.v1.Slice
 import fourward.ir.v1.Type
 import fourward.ir.v1.UnaryOp
 import fourward.ir.v1.UnaryOperator
+import java.math.BigInteger
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
@@ -39,6 +40,28 @@ class InterpreterExprTest {
     get() = Environment()
 
   private fun interp() = Interpreter(emptyConfig, TableStore())
+
+  /** Interpreter with v1model hash extern handler, for hash tests. */
+  private fun interpWithHash() =
+    Interpreter(
+      emptyConfig,
+      TableStore(),
+      externHandler =
+        ExternHandler { call, eval ->
+          require(call is ExternCall.FreeFunction && call.name == "hash") {
+            "unexpected extern: $call"
+          }
+          val algo = (eval.evalArg(1) as EnumVal).member
+          val base = (eval.evalArg(2) as BitVal).bits.value
+          val data = eval.evalArg(3) as StructVal
+          val max = (eval.evalArg(4) as BitVal).bits.value
+          val hashVal = computeHash(algo, data)
+          val result = if (max > BigInteger.ZERO) base + hashVal.mod(max) else base
+          val resultWidth = eval.argType(0).bit.width
+          eval.writeOutArg(0, BitVal(BitVector(result, resultWidth)))
+          UnitVal
+        },
+    )
 
   // ---------------------------------------------------------------------------
   // Expr builder helpers
@@ -776,7 +799,7 @@ class InterpreterExprTest {
         .setType(Type.newBuilder().setNamed("data_t"))
         .build()
 
-    interp()
+    interpWithHash()
       .evalExpr(
         hashCall(resultRef, enumLit("crc16", "HashAlgorithm"), bit(0, 10), data, bit(4, 10)),
         env,
@@ -806,7 +829,7 @@ class InterpreterExprTest {
         .setType(Type.newBuilder().setNamed("data_t"))
         .build()
 
-    interp()
+    interpWithHash()
       .evalExpr(
         hashCall(resultRef, enumLit("csum16", "HashAlgorithm"), bit(42, 16), data, bit(0, 16)),
         env,

@@ -4,17 +4,20 @@ import fourward.ir.v1.BehavioralConfig
 import fourward.ir.v1.PipelineStage
 import fourward.ir.v1.StageKind
 import fourward.ir.v1.StructDecl
+import fourward.sim.v1.SimulatorProto.CloneEvent
 import fourward.sim.v1.SimulatorProto.CloneSessionLookupEvent
 import fourward.sim.v1.SimulatorProto.Drop
 import fourward.sim.v1.SimulatorProto.DropReason
 import fourward.sim.v1.SimulatorProto.Fork
 import fourward.sim.v1.SimulatorProto.ForkBranch
 import fourward.sim.v1.SimulatorProto.ForkReason
+import fourward.sim.v1.SimulatorProto.MarkToDropEvent
 import fourward.sim.v1.SimulatorProto.PacketIngressEvent
 import fourward.sim.v1.SimulatorProto.PacketOutcome
 import fourward.sim.v1.SimulatorProto.PipelineStageEvent
 import fourward.sim.v1.SimulatorProto.TraceEvent
 import fourward.sim.v1.SimulatorProto.TraceTree
+import java.math.BigInteger
 
 /**
  * v1model pipeline implementation.
@@ -51,6 +54,7 @@ class V1ModelArchitecture : Architecture {
   @Suppress("LongParameterList")
   private class PipelineState(
     val packetCtx: PacketContext,
+    val pendingOps: V1ModelPendingOps,
     val interpreter: Interpreter,
     val env: Environment,
     val standardMetadata: StructVal,
@@ -81,7 +85,7 @@ class V1ModelArchitecture : Architecture {
     tableStore: TableStore,
   ): PipelineResult {
     val ctx = PipelineContext(ingressPort, payload, config, tableStore)
-    return buildTraceTree(ctx, ForkDecisions(), prefixLength = 0)
+    return buildTraceTree(ctx, V1ModelDecisions(), prefixLength = 0)
   }
 
   /**
@@ -93,7 +97,7 @@ class V1ModelArchitecture : Architecture {
    */
   private fun buildTraceTree(
     ctx: PipelineContext,
-    decisions: ForkDecisions,
+    decisions: V1ModelDecisions,
     prefixLength: Int,
   ): PipelineResult {
     val workStack = ArrayDeque<Frame>()
@@ -148,8 +152,11 @@ class V1ModelArchitecture : Architecture {
 
   /** Work stack frames for iterative [buildTraceTree]. */
   private sealed class Frame {
-    data class Run(val ctx: PipelineContext, val decisions: ForkDecisions, val prefixLength: Int) :
-      Frame()
+    data class Run(
+      val ctx: PipelineContext,
+      val decisions: V1ModelDecisions,
+      val prefixLength: Int,
+    ) : Frame()
 
     data class Assemble(
       val reason: ForkReason,
@@ -162,14 +169,14 @@ class V1ModelArchitecture : Architecture {
   private data class BranchSpec(
     val label: String,
     val ctx: PipelineContext,
-    val decisions: ForkDecisions,
+    val decisions: V1ModelDecisions,
     val prefixLength: Int,
   )
 
   /** Maps a [ForkException] to the fork reason and per-branch execution specs. */
   private fun forkSpecs(
     ctx: PipelineContext,
-    decisions: ForkDecisions,
+    decisions: V1ModelDecisions,
     fork: ForkException,
   ): Pair<ForkReason, List<BranchSpec>> =
     when (fork) {
@@ -239,7 +246,7 @@ class V1ModelArchitecture : Architecture {
       }
       is ResubmitFork -> {
         val d =
-          ForkDecisions(
+          V1ModelDecisions(
             pipelineDepth = decisions.pipelineDepth + 1,
             instanceTypeOverride = RESUBMIT_INSTANCE_TYPE,
             preservedMetadata = fork.preservedMetadata,
@@ -248,7 +255,7 @@ class V1ModelArchitecture : Architecture {
       }
       is RecirculateFork -> {
         val d =
-          ForkDecisions(
+          V1ModelDecisions(
             pipelineDepth = decisions.pipelineDepth + 1,
             instanceTypeOverride = RECIRC_INSTANCE_TYPE,
             preservedMetadata = fork.preservedMetadata,
@@ -264,7 +271,7 @@ class V1ModelArchitecture : Architecture {
    * Resolves type names, initialises standard_metadata, and binds parameter names across all
    * stages. Stage topology (ingress/egress split) is derived by [PipelineState] itself.
    */
-  private fun initPipelineState(ctx: PipelineContext, decisions: ForkDecisions): PipelineState {
+  private fun initPipelineState(ctx: PipelineContext, decisions: V1ModelDecisions): PipelineState {
     require(decisions.pipelineDepth <= MAX_PIPELINE_DEPTH) { "max pipeline depth exceeded" }
     val packetCtx = PacketContext(ctx.payload)
     val env = Environment()
@@ -300,10 +307,15 @@ class V1ModelArchitecture : Architecture {
       standardMetadata.setBitField("instance_type", decisions.instanceTypeOverride)
     }
 
+    val pendingOps = V1ModelPendingOps()
     val interpreter =
-      Interpreter(ctx.config, ctx.tableStore, packetCtx, decisions) {
-        standardMetadata.setBitField("checksum_error", 1L)
-      }
+      Interpreter(
+        ctx.config,
+        ctx.tableStore,
+        packetCtx,
+        decisions.selectorMembers,
+        createExternHandler(standardMetadata, pendingOps, ctx.tableStore),
+      )
 
     val metaValue = defaultValue(metaTypeName, typesByName)
 
@@ -335,6 +347,7 @@ class V1ModelArchitecture : Architecture {
     val metaStructDecl = typesByName[metaTypeName]?.struct
     return PipelineState(
       packetCtx,
+      pendingOps,
       interpreter,
       env,
       standardMetadata,
@@ -346,7 +359,7 @@ class V1ModelArchitecture : Architecture {
 
   /** Executes the full v1model pipeline once, returning a flat trace tree with a leaf outcome. */
   @Suppress("CyclomaticComplexMethod", "ThrowsCount")
-  private fun runPipeline(ctx: PipelineContext, decisions: ForkDecisions): TraceTree {
+  private fun runPipeline(ctx: PipelineContext, decisions: V1ModelDecisions): TraceTree {
     val s = initPipelineState(ctx, decisions)
 
     // --- Packet ingress ---
@@ -422,11 +435,11 @@ class V1ModelArchitecture : Architecture {
     // is transparently forwarded after them.
     val outputBytes = s.packetCtx.outputPayload() + s.packetCtx.drainRemainingInput()
 
-    if (s.packetCtx.pendingRecirculate) {
+    if (s.pendingOps.recirculate) {
       throw RecirculateFork(
         outputBytes,
         s.packetCtx.getEvents(),
-        snapshotPreservedMetadata(s, s.packetCtx.pendingRecirculateFieldListId),
+        snapshotPreservedMetadata(s, s.pendingOps.recirculateFieldListId),
       )
     }
 
@@ -459,7 +472,7 @@ class V1ModelArchitecture : Architecture {
   private fun ingressEgressBoundary(
     ctx: PipelineContext,
     s: PipelineState,
-    decisions: ForkDecisions,
+    decisions: V1ModelDecisions,
     parserEventCount: Int,
   ) {
     when (val mode = decisions.branchMode) {
@@ -476,7 +489,7 @@ class V1ModelArchitecture : Architecture {
       is BranchMode.E2EClone -> {
         // Both Normal and E2EClone run ingress normally and check for I2E clone/resubmit/multicast.
         val suppressI2E = (mode as? BranchMode.Normal)?.suppressI2EClone == true
-        val pendingClone = s.packetCtx.pendingCloneSessionId
+        val pendingClone = s.pendingOps.cloneSessionId
         if (pendingClone != null && !suppressI2E) {
           resolveCloneSession(ctx, s, pendingClone)?.let { clonePort ->
             throw CloneFork(
@@ -484,14 +497,14 @@ class V1ModelArchitecture : Architecture {
               clonePort,
               parserEventCount,
               s.packetCtx.getEvents(),
-              snapshotPreservedMetadata(s, s.packetCtx.pendingCloneFieldListId),
+              snapshotPreservedMetadata(s, s.pendingOps.cloneFieldListId),
             )
           }
         }
-        if (s.packetCtx.pendingResubmit) {
+        if (s.pendingOps.resubmit) {
           throw ResubmitFork(
             s.packetCtx.getEvents(),
-            snapshotPreservedMetadata(s, s.packetCtx.pendingResubmitFieldListId),
+            snapshotPreservedMetadata(s, s.pendingOps.resubmitFieldListId),
           )
         }
         val mcastGrp =
@@ -517,24 +530,28 @@ class V1ModelArchitecture : Architecture {
    *
    * BMv2 priority order after egress: E2E clone > recirculate > output/drop.
    */
-  private fun postEgressBoundary(ctx: PipelineContext, s: PipelineState, decisions: ForkDecisions) {
+  private fun postEgressBoundary(
+    ctx: PipelineContext,
+    s: PipelineState,
+    decisions: V1ModelDecisions,
+  ) {
     when (val mode = decisions.branchMode) {
       is BranchMode.E2EClone -> {
         s.standardMetadata.setBitField("instance_type", CLONE_E2E_INSTANCE_TYPE)
         s.standardMetadata.setBitField("egress_port", mode.clonePort)
         // Suppress chained E2E clones: BMv2 does not re-clone from a clone's egress run.
-        s.packetCtx.pendingEgressCloneSessionId = null
+        s.pendingOps.egressCloneSessionId = null
       }
       else -> {
         val suppressE2E = (mode as? BranchMode.Normal)?.suppressE2EClone == true
-        val pendingE2EClone = s.packetCtx.pendingEgressCloneSessionId
+        val pendingE2EClone = s.pendingOps.egressCloneSessionId
         if (pendingE2EClone != null && !suppressE2E) {
           resolveCloneSession(ctx, s, pendingE2EClone)?.let { clonePort ->
             throw EgressCloneFork(
               pendingE2EClone,
               clonePort,
               s.packetCtx.getEvents(),
-              snapshotPreservedMetadata(s, s.packetCtx.pendingEgressCloneFieldListId),
+              snapshotPreservedMetadata(s, s.pendingOps.egressCloneFieldListId),
             )
           }
         }
@@ -648,6 +665,209 @@ class V1ModelArchitecture : Architecture {
       )
       .build()
 
+  // -------------------------------------------------------------------------
+  // v1model extern handler
+  // -------------------------------------------------------------------------
+
+  /**
+   * Creates the v1model [ExternHandler] for a single pipeline execution.
+   *
+   * All v1model extern functions (mark_to_drop, clone, resubmit, recirculate, verify_checksum,
+   * update_checksum, hash) and extern object methods (register.read/write, counter.count,
+   * meter.execute_meter) are implemented here. The handler captures [pendingOps] for setting
+   * pending fork flags, [standardMetadata] for checksum error reporting, and [tableStore] for
+   * register storage.
+   */
+  private fun createExternHandler(
+    standardMetadata: StructVal,
+    pendingOps: V1ModelPendingOps,
+    tableStore: TableStore,
+  ): ExternHandler = ExternHandler { call, eval ->
+    when (call) {
+      is ExternCall.FreeFunction -> v1modelExternCall(call.name, eval, standardMetadata, pendingOps)
+      is ExternCall.Method -> v1modelExternMethodCall(call, eval, tableStore)
+    }
+  }
+
+  /**
+   * Dispatches a v1model extern function call.
+   *
+   * References:
+   * - v1model.p4: https://github.com/p4lang/p4c/blob/main/p4include/v1model.p4
+   * - BMv2 simple_switch:
+   *   https://github.com/p4lang/behavioral-model/blob/main/docs/simple_switch.md
+   */
+  @Suppress("CyclomaticComplexMethod", "ThrowsCount")
+  private fun v1modelExternCall(
+    name: String,
+    eval: ExternEvaluator,
+    standardMetadata: StructVal,
+    pendingOps: V1ModelPendingOps,
+  ): Value =
+    when (name) {
+      // mark_to_drop(standard_metadata): sets egress_spec to all-ones (the drop port).
+      "mark_to_drop" -> {
+        eval.addTraceEvent(
+          eval
+            .traceEventBuilder()
+            .setMarkToDrop(MarkToDropEvent.newBuilder().setReason(DropReason.MARK_TO_DROP))
+            .build()
+        )
+        val smeta = eval.evalArg(0) as StructVal
+        val portBits = smeta.bitWidth("egress_spec")
+        smeta.fields["egress_spec"] = BitVal((1L shl portBits) - 1, portBits)
+        UnitVal
+      }
+      // clone(type, session) / clone3(type, session, data): I2E/E2E clone.
+      // Records the clone intent; the architecture checks the appropriate pending field
+      // at the boundary and forks there. Multiple calls use last-writer-wins,
+      // matching BMv2 simple_switch semantics.
+      "clone",
+      "clone3",
+      "clone_preserving_field_list" -> {
+        val cloneType = (eval.evalArg(0) as EnumVal).member
+        val sessionId = (eval.evalArg(1) as BitVal).bits.value.toInt()
+        val fieldListId =
+          if (name == "clone_preserving_field_list") {
+            (eval.evalArg(2) as BitVal).bits.value.toInt()
+          } else {
+            null
+          }
+        eval.addTraceEvent(
+          eval.traceEventBuilder().setClone(CloneEvent.newBuilder().setSessionId(sessionId)).build()
+        )
+        when (cloneType) {
+          "I2E" -> {
+            pendingOps.cloneSessionId = sessionId
+            pendingOps.cloneFieldListId = fieldListId
+          }
+          "E2E" -> {
+            pendingOps.egressCloneSessionId = sessionId
+            pendingOps.egressCloneFieldListId = fieldListId
+          }
+        }
+        UnitVal
+      }
+      // resubmit[_preserving_field_list](data): re-inject into ingress.
+      "resubmit",
+      "resubmit_preserving_field_list" -> {
+        pendingOps.resubmit = true
+        if (name == "resubmit_preserving_field_list") {
+          pendingOps.resubmitFieldListId = (eval.evalArg(0) as BitVal).bits.value.toInt()
+        }
+        UnitVal
+      }
+      // recirculate[_preserving_field_list](data): feed deparsed packet back into ingress.
+      "recirculate",
+      "recirculate_preserving_field_list" -> {
+        pendingOps.recirculate = true
+        if (name == "recirculate_preserving_field_list") {
+          pendingOps.recirculateFieldListId = (eval.evalArg(0) as BitVal).bits.value.toInt()
+        }
+        UnitVal
+      }
+      // verify_checksum[_with_payload](condition, data, checksum, algo): v1model §14.
+      // Computes hash over data fields (and optionally the unparsed packet body) and
+      // compares with checksum; sets standard_metadata.checksum_error = 1 on mismatch.
+      "verify_checksum",
+      "verify_checksum_with_payload" -> {
+        val condition = (eval.evalArg(0) as BoolVal).value
+        if (condition) {
+          val data = eval.evalArg(1) as StructVal
+          val expected = eval.evalArg(2) as BitVal
+          val algo = (eval.evalArg(3) as EnumVal).member
+          val payload =
+            if (name.endsWith("_with_payload")) eval.peekRemainingInput() else ByteArray(0)
+          val computed = computeHashWithPayload(algo, data, payload)
+          if (computed != expected.bits.value) {
+            standardMetadata.setBitField("checksum_error", 1L)
+          }
+        }
+        UnitVal
+      }
+      // update_checksum[_with_payload](condition, data, checksum, algo): v1model §14.
+      // Computes hash over data fields (and optionally the unparsed packet body) and
+      // writes result into checksum (out param).
+      "update_checksum",
+      "update_checksum_with_payload" -> {
+        val condition = (eval.evalArg(0) as BoolVal).value
+        if (condition) {
+          val data = eval.evalArg(1) as StructVal
+          val algo = (eval.evalArg(3) as EnumVal).member
+          val payload =
+            if (name.endsWith("_with_payload")) eval.peekRemainingInput() else ByteArray(0)
+          val computed = computeHashWithPayload(algo, data, payload)
+          val checksumWidth = eval.argType(2).bit.width
+          eval.writeOutArg(2, BitVal(BitVector(computed, checksumWidth)))
+        }
+        UnitVal
+      }
+      // hash(out result, in algo, in base, in data, in max): v1model hash extern.
+      "hash" -> {
+        val algo = (eval.evalArg(1) as EnumVal).member
+        val base = (eval.evalArg(2) as BitVal).bits.value
+        val data = eval.evalArg(3) as StructVal
+        val max = (eval.evalArg(4) as BitVal).bits.value
+        val hashVal = computeHash(algo, data)
+        val result = if (max > BigInteger.ZERO) base + hashVal.mod(max) else base
+        val resultWidth = eval.argType(0).bit.width
+        eval.writeOutArg(0, BitVal(BitVector(result, resultWidth)))
+        UnitVal
+      }
+      else -> error("unhandled v1model extern: $name")
+    }
+
+  // -------------------------------------------------------------------------
+  // v1model extern method handler
+  // -------------------------------------------------------------------------
+
+  /**
+   * Dispatches method calls on v1model extern object instances (registers, counters, meters).
+   *
+   * These are distinct from free-function externs: they're called as `instance.method(args)` rather
+   * than `function(args)`. The extern type and instance name come from [call]; storage is resolved
+   * via [tableStore].
+   */
+  @Suppress("ThrowsCount")
+  private fun v1modelExternMethodCall(
+    call: ExternCall.Method,
+    eval: ExternEvaluator,
+    tableStore: TableStore,
+  ): Value =
+    when (call.method) {
+      // register.read(out dst, index) / direct_meter.read(out color)
+      "read" -> {
+        if (call.externType == "direct_meter") {
+          // direct_meter.read(out color): always GREEN (no real rates in simulator).
+          eval.writeOutArg(0, eval.defaultValue(eval.argType(0)))
+        } else {
+          // register.read(out dst, index)
+          val index = (eval.evalArg(1) as BitVal).bits.value.toInt()
+          val stored = tableStore.registerRead(call.instanceName, index)
+          eval.writeOutArg(0, stored ?: eval.defaultValue(eval.argType(0)))
+        }
+        UnitVal
+      }
+      // meter.execute_meter(in index, out color): always GREEN.
+      "execute_meter" -> {
+        eval.writeOutArg(1, eval.defaultValue(eval.argType(1)))
+        UnitVal
+      }
+      // register.write(index, value)
+      "write" -> {
+        val index = (eval.evalArg(0) as BitVal).bits.value.toInt()
+        tableStore.registerWrite(call.instanceName, index, eval.evalArg(1))
+        UnitVal
+      }
+      // counter.count(index): fire-and-forget side-effect, invisible to data plane.
+      "count" -> UnitVal
+      else ->
+        error(
+          "unhandled v1model extern method: ${call.externType}.${call.method}" +
+            " on ${call.instanceName}"
+        )
+    }
+
   companion object {
     // Default v1model port width and drop port. These are the values for standard v1model.p4
     // (bit<9> PortId_t). At runtime, the actual values are derived from the IR — see
@@ -676,3 +896,123 @@ class V1ModelArchitecture : Architecture {
     private const val RESUBMIT_INSTANCE_TYPE = 6L
   }
 }
+
+// =============================================================================
+// v1model-specific fork types and pipeline execution decisions
+// =============================================================================
+
+/**
+ * Which mode this v1model pipeline execution is in.
+ *
+ * BMv2 priority ordering guarantees at most one mode per boundary crossing: ingress (I2E clone >
+ * resubmit > multicast > unicast), egress (E2E clone > recirculate > output).
+ */
+internal sealed class BranchMode {
+  /** Normal pipeline — may fork at any choice point. */
+  data class Normal(val suppressI2EClone: Boolean = false, val suppressE2EClone: Boolean = false) :
+    BranchMode()
+
+  /** I2E clone branch: skip ingress, set CLONE_I2E at boundary. */
+  data class I2EClone(val sessionId: Int, val clonePort: Long) : BranchMode()
+
+  /** E2E clone branch: re-run egress with CLONE_E2E after original egress completes. */
+  data class E2EClone(val sessionId: Int, val clonePort: Long) : BranchMode()
+
+  /** Multicast replica: set REPLICATION metadata at boundary. */
+  data class Replica(val rid: Int, val port: Int) : BranchMode()
+}
+
+/**
+ * v1model-specific policies for re-execution of a pipeline branch in the trace tree.
+ *
+ * @property selectorMembers Forced member selections per table (action selector branches).
+ * @property branchMode The execution mode for this branch (normal, clone, or replica).
+ * @property instanceTypeOverride If non-null, override instance_type at pipeline init.
+ * @property pipelineDepth Tracks resubmit/recirculate nesting to prevent infinite loops.
+ * @property preservedMetadata Pre-filtered metadata fields to restore from
+ *   clone/resubmit/recirculate.
+ */
+internal data class V1ModelDecisions(
+  val selectorMembers: Map<String, Int> = emptyMap(),
+  val branchMode: BranchMode = BranchMode.Normal(),
+  val instanceTypeOverride: Long? = null,
+  val pipelineDepth: Int = 0,
+  val preservedMetadata: Map<String, Value>? = null,
+)
+
+/**
+ * Mutable v1model-specific pending operations set by extern calls and read at pipeline boundaries.
+ *
+ * A fresh instance is created per pipeline execution. This keeps v1model state out of the shared
+ * [PacketContext], which only carries architecture-agnostic concerns (packet I/O, trace events).
+ */
+internal class V1ModelPendingOps {
+  /** Session ID from the last I2E clone() call, or null if no clone was requested. */
+  var cloneSessionId: Int? = null
+
+  /** Field list ID for I2E clone metadata preservation. */
+  var cloneFieldListId: Int? = null
+
+  /** Session ID from the last E2E clone() call, checked after egress controls. */
+  var egressCloneSessionId: Int? = null
+
+  /** Field list ID for E2E clone metadata preservation. */
+  var egressCloneFieldListId: Int? = null
+
+  /** True if resubmit() was called during ingress. */
+  var resubmit: Boolean = false
+
+  /** Field list ID for resubmit metadata preservation. */
+  var resubmitFieldListId: Int? = null
+
+  /** True if recirculate() was called during egress. */
+  var recirculate: Boolean = false
+
+  /** Field list ID for recirculate metadata preservation. */
+  var recirculateFieldListId: Int? = null
+}
+
+// -------------------------------------------------------------------------
+// v1model-specific fork exceptions
+// -------------------------------------------------------------------------
+
+/**
+ * Fork at the ingress→egress boundary when an I2E clone was requested — "original" and "clone".
+ *
+ * [parserEventCount] tracks how many trace events came from the parser (before ingress). The clone
+ * branch skips ingress, so its prefix length is shorter.
+ */
+internal class CloneFork(
+  val sessionId: Int,
+  val clonePort: Long,
+  val parserEventCount: Int,
+  eventsBeforeFork: List<TraceEvent>,
+  val preservedMetadata: Map<String, Value>? = null,
+) : ForkException(eventsBeforeFork)
+
+/** Fork after egress controls when an E2E clone was requested — "original" and "clone". */
+internal class EgressCloneFork(
+  val sessionId: Int,
+  val clonePort: Long,
+  eventsBeforeFork: List<TraceEvent>,
+  val preservedMetadata: Map<String, Value>? = null,
+) : ForkException(eventsBeforeFork)
+
+/** Fork at the ingress→egress boundary when mcast_grp is set — one branch per replica. */
+internal class MulticastFork(
+  val replicas: List<BranchMode.Replica>,
+  eventsBeforeFork: List<TraceEvent>,
+) : ForkException(eventsBeforeFork)
+
+/** Fork at the ingress→egress boundary when resubmit was requested — single branch re-ingress. */
+internal class ResubmitFork(
+  eventsBeforeFork: List<TraceEvent>,
+  val preservedMetadata: Map<String, Value>? = null,
+) : ForkException(eventsBeforeFork)
+
+/** Fork after deparser when recirculate was requested — single branch with deparsed bytes. */
+internal class RecirculateFork(
+  val deparsedBytes: ByteArray,
+  eventsBeforeFork: List<TraceEvent>,
+  val preservedMetadata: Map<String, Value>? = null,
+) : ForkException(eventsBeforeFork)
