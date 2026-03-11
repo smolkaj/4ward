@@ -621,9 +621,9 @@ class Interpreter(
       else -> {
         val handler = externHandler
         if (handler != null && call.target.hasNameRef()) {
-          val externType = call.target.type.named
-          val evaluator = createExternEvaluator(call, env)
-          handler.callMethod(externType, call.target.nameRef.name, call.method, evaluator)
+          val externCall =
+            ExternCall.Method(call.target.type.named, call.target.nameRef.name, call.method)
+          handler.handle(externCall, createExternEvaluator(call, env))
         } else {
           error("unhandled method call: ${call.method} on ${call.target}")
         }
@@ -779,8 +779,6 @@ class Interpreter(
   /** Creates an [ExternEvaluator] bound to [call]'s arguments and the current interpreter state. */
   private fun createExternEvaluator(call: MethodCall, env: Environment): ExternEvaluator =
     object : ExternEvaluator {
-      override val argCount: Int = call.argsCount
-
       override fun evalArg(index: Int): Value = evalExpr(call.argsList[index], env)
 
       override fun argType(index: Int): Type = call.argsList[index].type
@@ -788,8 +786,7 @@ class Interpreter(
       override fun writeOutArg(index: Int, value: Value) =
         setLValue(call.argsList[index], value, env)
 
-      override fun defaultArgValue(index: Int): Value =
-        defaultValue(call.argsList[index].type, types)
+      override fun defaultValue(type: Type): Value = defaultValue(type, types)
 
       override fun traceEventBuilder(): TraceEvent.Builder = this@Interpreter.traceEventBuilder()
 
@@ -815,7 +812,7 @@ class Interpreter(
 
     // All other externs are architecture-specific — delegate to the handler.
     val handler = externHandler ?: error("no extern handler for: $funcName")
-    return handler.call(funcName, createExternEvaluator(call, env))
+    return handler.handle(ExternCall.FreeFunction(funcName), createExternEvaluator(call, env))
   }
 
   /** Whether [expr] is a field access into a header union. */

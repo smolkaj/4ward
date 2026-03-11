@@ -44,8 +44,10 @@ class InterpreterTraceEventTest {
   }
 
   /** Minimal extern handler for mark_to_drop, used by interpreter-level tests. */
-  private val markToDropHandler = ExternHandler { name, eval ->
-    require(name == "mark_to_drop") { "unexpected extern: $name" }
+  private val markToDropHandler = ExternHandler { call, eval ->
+    require(call is ExternCall.FreeFunction && call.name == "mark_to_drop") {
+      "unexpected extern: $call"
+    }
     eval.addTraceEvent(
       eval
         .traceEventBuilder()

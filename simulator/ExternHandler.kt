@@ -1,8 +1,30 @@
 package fourward.simulator
 
-import fourward.ir.v1.SourceInfo
 import fourward.ir.v1.Type
 import fourward.sim.v1.SimulatorProto.TraceEvent
+
+/**
+ * Describes the extern being called — either a free function or an object method.
+ *
+ * P4 externs come in two forms: free functions (`mark_to_drop(sm)`, dispatched via `__call__`) and
+ * object methods (`my_reg.read(dst, idx)`, dispatched via the method name). The interpreter creates
+ * the appropriate variant; the [ExternHandler] pattern-matches on it.
+ */
+sealed class ExternCall {
+  /** A free-function extern call, e.g. `mark_to_drop(sm)` or `hash(...)`. */
+  data class FreeFunction(val name: String) : ExternCall()
+
+  /**
+   * A method call on an extern object instance, e.g. `my_reg.read(dst, idx)`.
+   *
+   * @property externType the declared extern type name (e.g. "register", "counter",
+   *   "direct_meter").
+   * @property instanceName the P4 instance name (e.g. "my_reg").
+   * @property method the method name (e.g. "read", "write", "count").
+   */
+  data class Method(val externType: String, val instanceName: String, val method: String) :
+    ExternCall()
+}
 
 /**
  * Callback interface the interpreter provides to extern handlers for evaluating arguments and
@@ -13,9 +35,6 @@ import fourward.sim.v1.SimulatorProto.TraceEvent
  * back out-params, and emit trace events — without needing direct access to interpreter internals.
  */
 interface ExternEvaluator {
-  /** Number of arguments in this call. */
-  val argCount: Int
-
   /** Evaluates argument [index] and returns its runtime value. */
   fun evalArg(index: Int): Value
 
@@ -25,11 +44,11 @@ interface ExternEvaluator {
   /** Writes [value] back to the lvalue at argument [index] (for out/inout params). */
   fun writeOutArg(index: Int, value: Value)
 
-  /** Returns the default (zero-initialized) value for argument [index]'s type. */
-  fun defaultArgValue(index: Int): Value
+  /** Returns the zero/default value for [type] (e.g. for uninitialized register reads). */
+  fun defaultValue(type: Type): Value
 
   /**
-   * Builds a [TraceEvent.Builder] pre-populated with the current statement's [SourceInfo].
+   * Builds a [TraceEvent.Builder] pre-populated with the current statement's source info.
    *
    * Extern handlers should use this instead of constructing [TraceEvent.newBuilder] directly, so
    * that trace events carry accurate source location information.
@@ -46,42 +65,16 @@ interface ExternEvaluator {
 /**
  * Architecture-provided handler for extern functions and extern object methods.
  *
- * The interpreter delegates extern free-function calls (those not in the action table and not core
- * P4 language constructs like `verify`) and extern object method calls (e.g., `register.read`,
- * `counter.count`) to this handler. Each P4 architecture provides its own implementation covering
- * its extern library.
+ * The interpreter delegates all extern calls — free functions (e.g. `mark_to_drop`) and object
+ * methods (e.g. `register.read`) — to a single [handle] method. Each P4 architecture provides its
+ * own implementation covering its extern library.
  */
-interface ExternHandler {
+fun interface ExternHandler {
   /**
-   * Executes the extern function [name] using [eval] to access arguments.
+   * Executes the extern described by [call] using [eval] to access arguments.
    *
-   * @return the function's result value ([UnitVal] for void externs).
-   * @throws IllegalStateException for unrecognised extern names.
+   * @return the call's result value ([UnitVal] for void externs).
+   * @throws IllegalStateException for unrecognised externs.
    */
-  fun call(name: String, eval: ExternEvaluator): Value
-
-  /**
-   * Executes a method call on an extern object instance.
-   *
-   * @param externType the extern type name (e.g., "register", "counter", "direct_meter").
-   * @param instanceName the extern instance name (e.g., "my_register").
-   * @param method the method being called (e.g., "read", "write", "count").
-   * @param eval evaluator for accessing method arguments.
-   * @return the method's result value ([UnitVal] for void methods).
-   * @throws IllegalStateException for unrecognised extern types or methods.
-   */
-  fun callMethod(
-    externType: String,
-    instanceName: String,
-    method: String,
-    eval: ExternEvaluator,
-  ): Value = error("unhandled extern method: $externType.$method on $instanceName")
-
-  companion object {
-    /** Creates an [ExternHandler] that only handles free-function calls (via [call]). */
-    operator fun invoke(handler: (String, ExternEvaluator) -> Value): ExternHandler =
-      object : ExternHandler {
-        override fun call(name: String, eval: ExternEvaluator) = handler(name, eval)
-      }
-  }
+  fun handle(call: ExternCall, eval: ExternEvaluator): Value
 }

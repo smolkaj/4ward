@@ -682,18 +682,12 @@ class V1ModelArchitecture : Architecture {
     standardMetadata: StructVal,
     pendingOps: V1ModelPendingOps,
     tableStore: TableStore,
-  ): ExternHandler =
-    object : ExternHandler {
-      override fun call(name: String, eval: ExternEvaluator) =
-        v1modelExternCall(name, eval, standardMetadata, pendingOps)
-
-      override fun callMethod(
-        externType: String,
-        instanceName: String,
-        method: String,
-        eval: ExternEvaluator,
-      ) = v1modelExternMethodCall(externType, instanceName, method, eval, tableStore)
+  ): ExternHandler = ExternHandler { call, eval ->
+    when (call) {
+      is ExternCall.FreeFunction -> v1modelExternCall(call.name, eval, standardMetadata, pendingOps)
+      is ExternCall.Method -> v1modelExternMethodCall(call, eval, tableStore)
     }
+  }
 
   /**
    * Dispatches a v1model extern function call.
@@ -831,48 +825,47 @@ class V1ModelArchitecture : Architecture {
    * Dispatches method calls on v1model extern object instances (registers, counters, meters).
    *
    * These are distinct from free-function externs: they're called as `instance.method(args)` rather
-   * than `function(args)`. The [externType] is the declared extern type name, [instanceName] is the
-   * P4 instance name used to resolve storage in [tableStore].
+   * than `function(args)`. The extern type and instance name come from [call]; storage is resolved
+   * via [tableStore].
    */
   @Suppress("ThrowsCount")
   private fun v1modelExternMethodCall(
-    externType: String,
-    instanceName: String,
-    method: String,
+    call: ExternCall.Method,
     eval: ExternEvaluator,
     tableStore: TableStore,
   ): Value =
-    when (method) {
+    when (call.method) {
       // register.read(out dst, index) / direct_meter.read(out color)
-      // Dispatch on extern type name; fall back to arg count when type is absent
-      // (p4c doesn't always populate it on extern instances).
       "read" -> {
-        if (externType == "direct_meter" || (externType.isEmpty() && eval.argCount == 1)) {
+        if (call.externType == "direct_meter") {
           // direct_meter.read(out color): always GREEN (no real rates in simulator).
-          eval.writeOutArg(0, eval.defaultArgValue(0))
+          eval.writeOutArg(0, eval.defaultValue(eval.argType(0)))
         } else {
           // register.read(out dst, index)
           val index = (eval.evalArg(1) as BitVal).bits.value.toInt()
-          val value = tableStore.registerRead(instanceName, index) ?: eval.defaultArgValue(0)
-          eval.writeOutArg(0, value)
+          val stored = tableStore.registerRead(call.instanceName, index)
+          eval.writeOutArg(0, stored ?: eval.defaultValue(eval.argType(0)))
         }
         UnitVal
       }
       // meter.execute_meter(in index, out color): always GREEN.
       "execute_meter" -> {
-        eval.writeOutArg(1, eval.defaultArgValue(1))
+        eval.writeOutArg(1, eval.defaultValue(eval.argType(1)))
         UnitVal
       }
       // register.write(index, value)
       "write" -> {
         val index = (eval.evalArg(0) as BitVal).bits.value.toInt()
-        val value = eval.evalArg(1)
-        tableStore.registerWrite(instanceName, index, value)
+        tableStore.registerWrite(call.instanceName, index, eval.evalArg(1))
         UnitVal
       }
       // counter.count(index): fire-and-forget side-effect, invisible to data plane.
       "count" -> UnitVal
-      else -> error("unhandled v1model extern method: $externType.$method on $instanceName")
+      else ->
+        error(
+          "unhandled v1model extern method: ${call.externType}.${call.method}" +
+            " on ${call.instanceName}"
+        )
     }
 
   companion object {

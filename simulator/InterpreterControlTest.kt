@@ -40,41 +40,39 @@ class InterpreterControlTest {
   // ---------------------------------------------------------------------------
 
   /** Creates an extern handler with register/meter/counter method support for unit tests. */
-  private fun testExternHandler(tableStore: TableStore) =
-    object : ExternHandler {
-      override fun call(name: String, eval: ExternEvaluator): Value =
-        error("unexpected extern call: $name")
-
-      override fun callMethod(
-        externType: String,
-        instanceName: String,
-        method: String,
-        eval: ExternEvaluator,
-      ): Value =
-        when (method) {
+  private fun testExternHandler(tableStore: TableStore) = ExternHandler { call, eval ->
+    when (call) {
+      is ExternCall.FreeFunction -> error("unexpected extern call: ${call.name}")
+      is ExternCall.Method ->
+        when (call.method) {
           "read" -> {
-            if (externType == "direct_meter" || (externType.isEmpty() && eval.argCount == 1)) {
-              eval.writeOutArg(0, eval.defaultArgValue(0))
+            if (call.externType == "direct_meter") {
+              eval.writeOutArg(0, eval.defaultValue(eval.argType(0)))
             } else {
               val index = (eval.evalArg(1) as BitVal).bits.value.toInt()
-              val value = tableStore.registerRead(instanceName, index) ?: eval.defaultArgValue(0)
-              eval.writeOutArg(0, value)
+              val stored = tableStore.registerRead(call.instanceName, index)
+              eval.writeOutArg(0, stored ?: eval.defaultValue(eval.argType(0)))
             }
             UnitVal
           }
           "execute_meter" -> {
-            eval.writeOutArg(1, eval.defaultArgValue(1))
+            eval.writeOutArg(1, eval.defaultValue(eval.argType(1)))
             UnitVal
           }
           "write" -> {
             val index = (eval.evalArg(0) as BitVal).bits.value.toInt()
-            tableStore.registerWrite(instanceName, index, eval.evalArg(1))
+            tableStore.registerWrite(call.instanceName, index, eval.evalArg(1))
             UnitVal
           }
           "count" -> UnitVal
-          else -> error("unhandled extern method: $externType.$method on $instanceName")
+          else ->
+            error(
+              "unhandled extern method: ${call.externType}.${call.method}" +
+                " on ${call.instanceName}"
+            )
         }
     }
+  }
 
   private fun interp(config: BehavioralConfig, tableStore: TableStore = TableStore()) =
     Interpreter(config, tableStore, externHandler = testExternHandler(tableStore))

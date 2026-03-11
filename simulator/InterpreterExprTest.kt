@@ -47,8 +47,10 @@ class InterpreterExprTest {
       emptyConfig,
       TableStore(),
       externHandler =
-        ExternHandler { name, eval ->
-          require(name == "hash") { "unexpected extern: $name" }
+        ExternHandler { call, eval ->
+          require(call is ExternCall.FreeFunction && call.name == "hash") {
+            "unexpected extern: $call"
+          }
           val algo = (eval.evalArg(1) as EnumVal).member
           val base = (eval.evalArg(2) as BitVal).bits.value
           val data = eval.evalArg(3) as StructVal
