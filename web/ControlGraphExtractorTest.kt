@@ -5,7 +5,6 @@ import fourward.ir.v1.BlockStmt
 import fourward.ir.v1.ControlDecl
 import fourward.ir.v1.Expr
 import fourward.ir.v1.IfStmt
-import fourward.ir.v1.Literal
 import fourward.ir.v1.MethodCallStmt
 import fourward.ir.v1.Stmt
 import fourward.ir.v1.SwitchCase
@@ -43,8 +42,7 @@ class ControlGraphExtractorTest {
 
   @Test
   fun `sequential table applies`() {
-    val config =
-      config(control("ingress", tableApplyStmt("acl"), tableApplyStmt("ipv4_lpm")))
+    val config = config(control("ingress", tableApplyStmt("acl"), tableApplyStmt("ipv4_lpm")))
     val g = ControlGraphExtractor.extract(config)[0]
 
     assertNodeNames(g, "entry", "acl", "ipv4_lpm", "exit")
@@ -77,10 +75,7 @@ class ControlGraphExtractorTest {
   fun `if table hit with then and else branches`() {
     val config =
       config(
-        control(
-          "ingress",
-          ifTableHitStmt("acl", thenStmts = listOf(tableApplyStmt("forward"))),
-        )
+        control("ingress", ifTableHitStmt("acl", thenStmts = listOf(tableApplyStmt("forward"))))
       )
     val g = ControlGraphExtractor.extract(config)[0]
 
@@ -96,10 +91,7 @@ class ControlGraphExtractorTest {
       config(
         control(
           "ingress",
-          ifConditionStmt(
-            isValidExpr("ipv4"),
-            thenStmts = listOf(tableApplyStmt("ipv4_lpm")),
-          ),
+          ifConditionStmt(isValidExpr("ipv4"), thenStmts = listOf(tableApplyStmt("ipv4_lpm"))),
         )
       )
     val g = ControlGraphExtractor.extract(config)[0]
@@ -112,10 +104,7 @@ class ControlGraphExtractorTest {
   @Test
   fun `multiple controls produce separate graphs`() {
     val config =
-      config(
-        control("ingress", tableApplyStmt("t1")),
-        control("egress", tableApplyStmt("t2")),
-      )
+      config(control("ingress", tableApplyStmt("t1")), control("egress", tableApplyStmt("t2")))
     val graphs = ControlGraphExtractor.extract(config)
     assertEquals(2, graphs.size)
     assertEquals("ingress", graphs[0].name)
@@ -131,9 +120,7 @@ class ControlGraphExtractorTest {
     ControlDecl.newBuilder().setName(name).addAllApplyBody(stmts.toList()).build()
 
   private fun tableApplyExpr(tableName: String): Expr =
-    Expr.newBuilder()
-      .setTableApply(TableApplyExpr.newBuilder().setTableName(tableName))
-      .build()
+    Expr.newBuilder().setTableApply(TableApplyExpr.newBuilder().setTableName(tableName)).build()
 
   private fun tableApplyStmt(tableName: String): Stmt =
     Stmt.newBuilder()
@@ -200,7 +187,9 @@ class ControlGraphExtractorTest {
             Expr.newBuilder()
               .setFieldAccess(
                 fourward.ir.v1.FieldAccess.newBuilder()
-                  .setExpr(Expr.newBuilder().setNameRef(fourward.ir.v1.NameRef.newBuilder().setName("hdr")))
+                  .setExpr(
+                    Expr.newBuilder().setNameRef(fourward.ir.v1.NameRef.newBuilder().setName("hdr"))
+                  )
                   .setFieldName(headerName)
               )
           )
@@ -223,10 +212,10 @@ class ControlGraphExtractorTest {
     label: String = "",
   ) {
     val match =
-      g.edges.any { e ->
-        e.from == from && e.to == to && (label.isEmpty() || e.label == label)
-      }
-    assertTrue("Expected edge $from -> $to" + if (label.isNotEmpty()) " [$label]" else "" +
-      " in ${g.edges}", match)
+      g.edges.any { e -> e.from == from && e.to == to && (label.isEmpty() || e.label == label) }
+    assertTrue(
+      "Expected edge $from -> $to" + if (label.isNotEmpty()) " [$label]" else "" + " in ${g.edges}",
+      match,
+    )
   }
 }

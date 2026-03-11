@@ -12,13 +12,15 @@ import fourward.ir.v1.TableApplyExpr
 /**
  * Extracts a simplified control-flow graph from a [ControlDecl]'s apply body.
  *
- * Nodes are tables and conditions; edges are the control-flow paths connecting them. The result
- * is a DAG (P4 controls have no loops) suitable for client-side layout with dagre/elkjs.
+ * Nodes are tables and conditions; edges are the control-flow paths connecting them. The result is
+ * a DAG (P4 controls have no loops) suitable for client-side layout with dagre/elkjs.
  */
 object ControlGraphExtractor {
 
   data class Node(val id: String, val type: String, val name: String)
+
   data class Edge(val from: String, val to: String, val label: String = "")
+
   data class ControlGraph(val name: String, val nodes: List<Node>, val edges: List<Edge>)
 
   fun extract(config: BehavioralConfig): List<ControlGraph> =
@@ -34,8 +36,8 @@ object ControlGraphExtractor {
   }
 
   /**
-   * Walk a list of statements, threading the set of "current" node IDs through. Returns the set
-   * of node IDs that are live after the last statement (i.e., the nodes that should connect to
+   * Walk a list of statements, threading the set of "current" node IDs through. Returns the set of
+   * node IDs that are live after the last statement (i.e., the nodes that should connect to
    * whatever comes next). An empty set means all paths exited/returned.
    */
   private fun walkStmts(stmts: List<Stmt>, currentIds: Set<String>, ctx: Context): Set<String> {
@@ -111,8 +113,8 @@ object ControlGraphExtractor {
   }
 
   /**
-   * Walk a branch body, connecting [sourceId] to the first node in the body with [label].
-   * If the body is empty, returns a pending labeled edge from [sourceId].
+   * Walk a branch body, connecting [sourceId] to the first node in the body with [label]. If the
+   * body is empty, returns a pending labeled edge from [sourceId].
    */
   private fun walkBranch(
     stmts: List<Stmt>,
