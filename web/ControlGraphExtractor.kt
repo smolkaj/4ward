@@ -1,0 +1,221 @@
+package fourward.web
+
+import fourward.ir.v1.BehavioralConfig
+import fourward.ir.v1.BinaryOperator
+import fourward.ir.v1.ControlDecl
+import fourward.ir.v1.Expr
+import fourward.ir.v1.IfStmt
+import fourward.ir.v1.Stmt
+import fourward.ir.v1.SwitchStmt
+import fourward.ir.v1.TableApplyExpr
+
+/**
+ * Extracts a simplified control-flow graph from a [ControlDecl]'s apply body.
+ *
+ * Nodes are tables and conditions; edges are the control-flow paths connecting them. The result
+ * is a DAG (P4 controls have no loops) suitable for client-side layout with dagre/elkjs.
+ */
+object ControlGraphExtractor {
+
+  data class Node(val id: String, val type: String, val name: String)
+  data class Edge(val from: String, val to: String, val label: String = "")
+  data class ControlGraph(val name: String, val nodes: List<Node>, val edges: List<Edge>)
+
+  fun extract(config: BehavioralConfig): List<ControlGraph> =
+    config.controlsList.map { extractControl(it) }
+
+  private fun extractControl(control: ControlDecl): ControlGraph {
+    val ctx = Context()
+    val entryId = ctx.addNode("entry", "entry")
+    val exitId = ctx.addNode("exit", "exit")
+    val lastIds = walkStmts(control.applyBodyList, setOf(entryId), ctx)
+    for (id in lastIds) ctx.addEdge(id, exitId)
+    return ControlGraph(control.name, ctx.nodes, ctx.edges)
+  }
+
+  /**
+   * Walk a list of statements, threading the set of "current" node IDs through. Returns the set
+   * of node IDs that are live after the last statement (i.e., the nodes that should connect to
+   * whatever comes next). An empty set means all paths exited/returned.
+   */
+  private fun walkStmts(stmts: List<Stmt>, currentIds: Set<String>, ctx: Context): Set<String> {
+    var live = currentIds
+    for (stmt in stmts) {
+      if (live.isEmpty()) break
+      live = walkStmt(stmt, live, ctx)
+    }
+    return live
+  }
+
+  private fun walkStmt(stmt: Stmt, currentIds: Set<String>, ctx: Context): Set<String> =
+    when {
+      stmt.hasSwitchStmt() -> walkSwitch(stmt.switchStmt, currentIds, ctx)
+      stmt.hasIfStmt() -> walkIf(stmt.ifStmt, currentIds, ctx)
+      stmt.hasBlock() -> walkStmts(stmt.block.stmtsList, currentIds, ctx)
+      stmt.hasMethodCall() -> walkMethodCall(stmt.methodCall.call, currentIds, ctx)
+      stmt.hasExit() || stmt.hasReturnStmt() -> emptySet()
+      else -> currentIds // assignments and other non-branching stmts: invisible
+    }
+
+  private fun walkSwitch(sw: SwitchStmt, currentIds: Set<String>, ctx: Context): Set<String> {
+    val tableName = sw.subject.tableApply.tableName
+    val tableId = ctx.addNode(tableName, "table")
+    for (id in currentIds) ctx.addEdge(id, tableId)
+
+    val exits = mutableSetOf<String>()
+    for (case in sw.casesList) {
+      exits += walkBranch(case.block.stmtsList, tableId, case.actionName, ctx)
+    }
+    if (sw.hasDefaultBlock() && sw.defaultBlock.stmtsList.isNotEmpty()) {
+      exits += walkBranch(sw.defaultBlock.stmtsList, tableId, "default", ctx)
+    }
+    // If no case handles all actions, the table implicitly falls through.
+    exits += tableId
+    return exits
+  }
+
+  private fun walkIf(ifStmt: IfStmt, currentIds: Set<String>, ctx: Context): Set<String> {
+    // Check if the condition is a table apply (e.g., `if (table.apply().hit)`).
+    val tableApply = findTableApply(ifStmt.condition)
+    if (tableApply != null) {
+      val tableName = tableApply.tableName
+      val tableId = ctx.addNode(tableName, "table")
+      for (id in currentIds) ctx.addEdge(id, tableId)
+
+      val hitLabel =
+        when (tableApply.accessKind) {
+          TableApplyExpr.AccessKind.HIT -> "hit"
+          TableApplyExpr.AccessKind.MISS -> "miss"
+          else -> "true"
+        }
+      val missLabel =
+        when (tableApply.accessKind) {
+          TableApplyExpr.AccessKind.HIT -> "miss"
+          TableApplyExpr.AccessKind.MISS -> "hit"
+          else -> "false"
+        }
+
+      val thenExits = walkBranch(ifStmt.thenBlock.stmtsList, tableId, hitLabel, ctx)
+      val elseExits = walkBranch(ifStmt.elseBlock.stmtsList, tableId, missLabel, ctx)
+      return thenExits + elseExits
+    }
+
+    // Non-table condition: create a condition node.
+    val label = conditionLabel(ifStmt.condition)
+    val condId = ctx.addNode(label, "condition")
+    for (id in currentIds) ctx.addEdge(id, condId)
+
+    val thenExits = walkBranch(ifStmt.thenBlock.stmtsList, condId, "T", ctx)
+    val elseExits = walkBranch(ifStmt.elseBlock.stmtsList, condId, "F", ctx)
+    return thenExits + elseExits
+  }
+
+  /**
+   * Walk a branch body, connecting [sourceId] to the first node in the body with [label].
+   * If the body is empty, returns a pending labeled edge from [sourceId].
+   */
+  private fun walkBranch(
+    stmts: List<Stmt>,
+    sourceId: String,
+    label: String,
+    ctx: Context,
+  ): Set<String> {
+    if (stmts.isEmpty()) {
+      // Empty branch: the label will be applied to whatever edge connects
+      // sourceId to the next node. Track it as a pending labeled exit.
+      ctx.addPendingLabel(sourceId, label)
+      return setOf(sourceId)
+    }
+    val exits = walkStmts(stmts, setOf(sourceId), ctx)
+    labelLastEdgeFrom(sourceId, label, ctx)
+    return exits
+  }
+
+  private fun walkMethodCall(expr: Expr, currentIds: Set<String>, ctx: Context): Set<String> {
+    val tableApply = findTableApply(expr) ?: return currentIds
+    val tableId = ctx.addNode(tableApply.tableName, "table")
+    for (id in currentIds) ctx.addEdge(id, tableId)
+    return setOf(tableId)
+  }
+
+  /** Recursively search an expression tree for a TableApplyExpr. */
+  private fun findTableApply(expr: Expr): TableApplyExpr? =
+    when {
+      expr.hasTableApply() -> expr.tableApply
+      expr.hasMethodCall() -> findTableApply(expr.methodCall.target)
+      expr.hasUnaryOp() -> findTableApply(expr.unaryOp.expr)
+      else -> null
+    }
+
+  /** Extract a human-readable label from a condition expression. */
+  private fun conditionLabel(expr: Expr): String =
+    when {
+      expr.hasMethodCall() -> {
+        val target = expr.methodCall.target
+        val method = expr.methodCall.method
+        if (target.hasFieldAccess()) {
+          "${target.fieldAccess.fieldName}.$method()"
+        } else if (target.hasNameRef()) {
+          "${target.nameRef.name}.$method()"
+        } else {
+          "$method()"
+        }
+      }
+      expr.hasFieldAccess() -> expr.fieldAccess.fieldName
+      expr.hasNameRef() -> expr.nameRef.name
+      expr.hasBinaryOp() -> {
+        val left = conditionLabel(expr.binaryOp.left)
+        val right = conditionLabel(expr.binaryOp.right)
+        val op = binaryOpSymbol(expr.binaryOp.op)
+        "$left $op $right"
+      }
+      expr.hasUnaryOp() -> "!${conditionLabel(expr.unaryOp.expr)}"
+      else -> "?"
+    }
+
+  private fun binaryOpSymbol(op: BinaryOperator): String =
+    when (op) {
+      BinaryOperator.EQ -> "=="
+      BinaryOperator.NEQ -> "!="
+      BinaryOperator.AND -> "&&"
+      BinaryOperator.OR -> "||"
+      else -> op.name.lowercase()
+    }
+
+  /** Label the most recently added edge from [fromId]. */
+  private fun labelLastEdgeFrom(fromId: String, label: String, ctx: Context) {
+    for (i in ctx.edges.indices.reversed()) {
+      if (ctx.edges[i].from == fromId && ctx.edges[i].label.isEmpty()) {
+        ctx.edges[i] = ctx.edges[i].copy(label = label)
+        return
+      }
+    }
+  }
+
+  private class Context {
+    val nodes = mutableListOf<Node>()
+    val edges = mutableListOf<Edge>()
+    private val nodeIds = mutableMapOf<String, Int>()
+    private val pendingLabels = mutableMapOf<String, String>()
+
+    fun addNode(name: String, type: String): String {
+      val count = nodeIds.getOrPut(name) { 0 }
+      nodeIds[name] = count + 1
+      val id = if (count == 0) name else "${name}_$count"
+      nodes += Node(id, type, name)
+      return id
+    }
+
+    fun addEdge(from: String, to: String, label: String = "") {
+      // Apply any pending label from an empty branch.
+      val effectiveLabel = pendingLabels.remove(from) ?: label
+      if (edges.none { it.from == from && it.to == to && it.label == effectiveLabel }) {
+        edges += Edge(from, to, effectiveLabel)
+      }
+    }
+
+    fun addPendingLabel(nodeId: String, label: String) {
+      pendingLabels[nodeId] = label
+    }
+  }
+}

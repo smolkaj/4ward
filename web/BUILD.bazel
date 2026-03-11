@@ -52,3 +52,14 @@ kt_jvm_test(
         "@maven//:junit_junit",
     ],
 )
+
+kt_jvm_test(
+    name = "ControlGraphExtractorTest",
+    srcs = ["ControlGraphExtractorTest.kt"],
+    test_class = "fourward.web.ControlGraphExtractorTest",
+    deps = [
+        ":web_lib",
+        "//simulator:ir_java_proto",
+        "@maven//:junit_junit",
+    ],
+)

@@ -180,6 +180,12 @@
             <span id="playback-position" class="playback-position"></span>
           </div>
         </div>
+        <div id="control-graph" class="hidden">
+          <div class="control-graph-tabs"></div>
+          <div class="control-graph-container">
+            <svg id="control-graph-svg"></svg>
+          </div>
+        </div>
         <div id="trace-view-toggle" class="trace-view-toggle hidden">
           <button class="trace-view-btn active" data-view="tree">Visual</button>
           <button class="trace-view-btn" data-view="json">JSON</button>
@@ -198,6 +204,8 @@
 
   <!-- Monaco Editor from CDN -->
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
+  <!-- dagre for control-flow graph layout -->
+  <script src="https://cdn.jsdelivr.net/npm/@dagrejs/dagre@1.1.4/dist/dagre.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

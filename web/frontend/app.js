@@ -23,6 +23,10 @@ const state = {
   editor: null,         // Monaco editor instance
   loadingExample: false, // guard for example loading
 
+  // Control graph state.
+  controlGraph: null,       // {controls: {name: {nodes, edges}}} from /api/control-graph
+  activeGraphControl: null, // which control's graph is currently shown
+
   // Trace view state.
   traceView: 'tree',        // active trace view: 'tree', 'json', or 'proto'
   traceJson: null,           // cached JSON.stringify of trace (computed lazily)
@@ -57,6 +61,11 @@ const api = {
 
   async getPipeline() {
     const resp = await fetch('/api/pipeline');
+    return resp.json();
+  },
+
+  async getControlGraph() {
+    const resp = await fetch('/api/control-graph');
     return resp.json();
   },
 };
@@ -466,6 +475,9 @@ async function compileAndLoad() {
   clearEditorDecorations();
   state.playbackEvents = [];
   state.playbackPos = -1;
+  state.controlGraph = null;
+  state.activeGraphControl = null;
+  document.getElementById('control-graph').classList.add('hidden');
 
   try {
     const data = await api.compileAndLoad(source);
@@ -515,6 +527,15 @@ async function compileAndLoad() {
         }
       }
     } catch (_) { /* static entry read is best-effort */ }
+
+    // Fetch and render the control-flow graph.
+    try {
+      const graphData = await api.getControlGraph();
+      if (graphData.loaded) {
+        state.controlGraph = graphData.controls;
+        renderControlGraph();
+      }
+    } catch (_) { /* control graph is best-effort */ }
   } catch (e) {
     setStatus('error', 'Compilation failed');
     log(e.message, 'error');
@@ -1237,6 +1258,10 @@ function applyPlaybackState() {
   // Update pipeline diagram: show visited stages up to current position.
   updateDiagramForPlayback(events, pos);
 
+  // Highlight the active table in the control graph.
+  const tableName = current.event.table_lookup?.table_name || null;
+  highlightGraphNode(tableName);
+
   // Highlight source line in editor with a visible decoration.
   if (current.line && state.editor && window.monaco) {
     state.editor.revealLineInCenter(current.line);
@@ -1500,6 +1525,152 @@ function formatDropReason(reason) {
     case 'PARSER_REJECT': return 'parser reject';
     case 'PIPELINE_EXECUTION_LIMIT_REACHED': return 'execution limit';
     default: return reason || 'unknown';
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Control-flow graph visualization
+// ---------------------------------------------------------------------------
+
+function renderControlGraph() {
+  const container = document.getElementById('control-graph');
+  const controls = state.controlGraph;
+  if (!controls) {
+    container.classList.add('hidden');
+    return;
+  }
+
+  const names = Object.keys(controls);
+  if (names.length === 0) {
+    container.classList.add('hidden');
+    return;
+  }
+
+  container.classList.remove('hidden');
+
+  // Render tabs for each control block.
+  const tabsEl = container.querySelector('.control-graph-tabs');
+  tabsEl.innerHTML = names.map(name =>
+    `<button class="control-graph-tab" data-control="${escapeHtml(name)}">${escapeHtml(name)}</button>`
+  ).join('');
+
+  // Default to the first control with tables, or just the first.
+  const defaultControl = names.find(n => {
+    const graph = controls[n];
+    return graph.nodes.some(node => node.type === 'table');
+  }) || names[0];
+
+  tabsEl.querySelectorAll('.control-graph-tab').forEach(btn => {
+    btn.addEventListener('click', () => showControlGraph(btn.dataset.control));
+  });
+
+  showControlGraph(defaultControl);
+}
+
+function showControlGraph(controlName) {
+  state.activeGraphControl = controlName;
+  const controls = state.controlGraph;
+  const graph = controls[controlName];
+  if (!graph) return;
+
+  // Update tab active state.
+  document.querySelectorAll('.control-graph-tab').forEach(btn =>
+    btn.classList.toggle('active', btn.dataset.control === controlName)
+  );
+
+  layoutAndRenderGraph(graph);
+}
+
+function layoutAndRenderGraph(graph) {
+  if (typeof dagre === 'undefined') return;
+
+  const g = new dagre.graphlib.Graph();
+  g.setGraph({ rankdir: 'TB', nodesep: 30, ranksep: 40, marginx: 20, marginy: 20 });
+  g.setDefaultEdgeLabel(() => ({}));
+
+  const NODE_W = 120;
+  const NODE_H = 32;
+  const SMALL_H = 20;
+
+  for (const node of graph.nodes) {
+    const isSmall = node.type === 'entry' || node.type === 'exit';
+    g.setNode(node.id, {
+      label: node.name,
+      width: isSmall ? 40 : NODE_W,
+      height: isSmall ? SMALL_H : NODE_H,
+      type: node.type,
+    });
+  }
+
+  for (const edge of graph.edges) {
+    g.setEdge(edge.from, edge.to, { label: edge.label || '' });
+  }
+
+  dagre.layout(g);
+
+  const svgEl = document.getElementById('control-graph-svg');
+  const graphMeta = g.graph();
+  svgEl.setAttribute('width', graphMeta.width);
+  svgEl.setAttribute('height', graphMeta.height);
+
+  let svg = '';
+
+  // Render edges (before nodes so nodes draw on top).
+  g.edges().forEach(e => {
+    const edgeData = g.edge(e);
+    const points = edgeData.points;
+    if (!points || points.length < 2) return;
+
+    const pathD = points.map((p, i) =>
+      i === 0 ? `M${p.x},${p.y}` : `L${p.x},${p.y}`
+    ).join(' ');
+
+    svg += `<path d="${pathD}" class="graph-edge" marker-end="url(#arrowhead)"/>`;
+
+    // Edge label.
+    if (edgeData.label) {
+      const mid = points[Math.floor(points.length / 2)];
+      svg += `<text x="${mid.x + 4}" y="${mid.y - 4}" class="graph-edge-label">${escapeHtml(edgeData.label)}</text>`;
+    }
+  });
+
+  // Render nodes.
+  g.nodes().forEach(nodeId => {
+    const node = g.node(nodeId);
+    const x = node.x - node.width / 2;
+    const y = node.y - node.height / 2;
+
+    if (node.type === 'entry' || node.type === 'exit') {
+      const cx = node.x, cy = node.y, r = node.height / 2;
+      svg += `<circle cx="${cx}" cy="${cy}" r="${r}" class="graph-node-${node.type}" data-node="${nodeId}"/>`;
+    } else if (node.type === 'condition') {
+      // Diamond shape for conditions.
+      const cx = node.x, cy = node.y;
+      const hw = node.width / 2, hh = node.height / 2;
+      const pts = `${cx},${cy - hh} ${cx + hw},${cy} ${cx},${cy + hh} ${cx - hw},${cy}`;
+      svg += `<polygon points="${pts}" class="graph-node-condition" data-node="${nodeId}"/>`;
+      svg += `<text x="${cx}" y="${cy + 4}" class="graph-node-label condition-label">${escapeHtml(node.label)}</text>`;
+    } else {
+      // Rectangle for tables.
+      svg += `<rect x="${x}" y="${y}" width="${node.width}" height="${node.height}" rx="4" class="graph-node-table" data-node="${nodeId}"/>`;
+      svg += `<text x="${node.x}" y="${node.y + 4}" class="graph-node-label">${escapeHtml(node.label)}</text>`;
+    }
+  });
+
+  // Arrow marker definition.
+  svg = `<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--text-dim)"/></marker></defs>` + svg;
+
+  svgEl.innerHTML = svg;
+}
+
+/** Highlight the active table node in the control graph during trace playback. */
+function highlightGraphNode(tableName) {
+  document.querySelectorAll('.graph-node-table, .graph-node-condition').forEach(el => {
+    el.classList.remove('graph-active');
+  });
+  if (tableName) {
+    const el = document.querySelector(`[data-node="${tableName}"]`);
+    if (el) el.classList.add('graph-active');
   }
 }
 
