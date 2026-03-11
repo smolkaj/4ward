@@ -461,6 +461,7 @@ async function compileAndLoad() {
   btn.disabled = true;
   btn.textContent = 'Compiling…';
   clearEditorDecorations();
+  stopPlayback();
 
   try {
     const data = await api.compileAndLoad(source);
@@ -967,9 +968,8 @@ function renderTraceTree(trace) {
   updatePipelineDiagram(trace);
   initPlayback(trace);
 
-  // Store raw formats for the JSON/Proto views.
-  state.traceJson = JSON.stringify(trace, null, 2);
-  state.traceProto = state.lastTrace?.trace_proto || '';
+  // Clear cached JSON (computed lazily in switchTraceView).
+  state.traceJson = null;
 
   // Show the currently selected view.
   switchTraceView(state.traceView || 'tree');
@@ -990,15 +990,18 @@ function switchTraceView(view) {
   } else if (view === 'json') {
     treeEl.classList.add('hidden');
     rawEl.classList.remove('hidden');
+    if (!state.traceJson) {
+      state.traceJson = JSON.stringify(state.lastTrace?.trace, null, 2) || '';
+    }
     rawEl.textContent =
       '// proto-file: simulator/simulator.proto\n// proto-message: fourward.sim.v1.TraceTree\n\n'
-      + (state.traceJson || '');
+      + state.traceJson;
   } else if (view === 'proto') {
     treeEl.classList.add('hidden');
     rawEl.classList.remove('hidden');
     rawEl.textContent =
       '# proto-file: simulator/simulator.proto\n# proto-message: fourward.sim.v1.TraceTree\n\n'
-      + (state.traceProto || '');
+      + (state.lastTrace?.trace_proto || '');
   }
 }
 
@@ -1046,6 +1049,17 @@ function renderDiagram({ visited = new Set(), activeStage = null, droppedStage =
   }
 }
 
+function lastVisitedStage(visited) {
+  for (let i = V1MODEL_STAGES.length - 1; i >= 0; i--) {
+    if (visited.has(V1MODEL_STAGES[i])) return V1MODEL_STAGES[i];
+  }
+  return null;
+}
+
+function formatForkReason(reason) {
+  return (reason || 'fork').toLowerCase().replace(/_/g, ' ');
+}
+
 /** Compute the full-trace diagram state and render it. */
 function updatePipelineDiagram(trace) {
   const visited = new Set();
@@ -1057,14 +1071,7 @@ function updatePipelineDiagram(trace) {
 
   const outcome = analyzeOutcome(trace);
 
-  // On drop, mark the last visited stage red.
-  let droppedStage = null;
-  if (outcome.type === 'drop') {
-    for (let i = V1MODEL_STAGES.length - 1; i >= 0; i--) {
-      if (visited.has(V1MODEL_STAGES[i])) { droppedStage = V1MODEL_STAGES[i]; break; }
-    }
-  }
-
+  const droppedStage = outcome.type === 'drop' ? lastVisitedStage(visited) : null;
   renderDiagram({ visited, droppedStage, outcome });
 }
 
@@ -1079,7 +1086,7 @@ function analyzeOutcome(trace) {
     }
   }
   if (trace.fork_outcome) {
-    const reason = (trace.fork_outcome.reason || 'fork').toLowerCase().replace(/_/g, ' ');
+    const reason = formatForkReason(trace.fork_outcome.reason);
     return { type: 'fork', reason, branchCount: (trace.fork_outcome.branches || []).length };
   }
   return { type: 'unknown' };
@@ -1290,12 +1297,7 @@ function updateDiagramForPlayback(events, pos) {
   const isOutcome = !!(current.event.packet_outcome);
   const outcome = isOutcome ? analyzeOutcome({ packet_outcome: current.event.packet_outcome }) : null;
 
-  let droppedStage = null;
-  if (isOutcome && outcome?.type === 'drop') {
-    for (let i = V1MODEL_STAGES.length - 1; i >= 0; i--) {
-      if (visited.has(V1MODEL_STAGES[i])) { droppedStage = V1MODEL_STAGES[i]; break; }
-    }
-  }
+  const droppedStage = (isOutcome && outcome?.type === 'drop') ? lastVisitedStage(visited) : null;
 
   renderDiagram({
     visited,
@@ -1509,7 +1511,7 @@ function renderPacketOutcome(outcome) {
 }
 
 function renderFork(fork) {
-  const reason = fork.reason?.toLowerCase().replace(/_/g, ' ') || 'fork';
+  const reason = formatForkReason(fork.reason);
   let html = `<div class="trace-fork-label">⑂ fork (${reason})</div>`;
   for (const branch of fork.branches || []) {
     html += `<div class="trace-branch-label">branch: ${branch.label}</div>`;
