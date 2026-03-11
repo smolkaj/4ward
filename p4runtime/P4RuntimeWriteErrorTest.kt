@@ -263,32 +263,22 @@ class P4RuntimeWriteErrorTest {
       }
     }
     // Good update was applied despite bad one failing.
-    val readBack = harness.readAllTableEntries()
+    val readBack = harness.readEntries()
     assert(readBack.isNotEmpty()) { "good entry should have been applied" }
   }
 
   // ROLLBACK_ON_ERROR: failure rolls back all prior updates in the batch.
   @Test
-  fun `rollback on error undoes prior updates`() {
-    val config = loadBasicTableConfig()
-    harness.loadPipeline(config)
-    val good = buildExactEntry(config, matchValue = 0x0800, port = 1)
-    val bad = Entity.newBuilder().setTableEntry(TableEntry.newBuilder().setTableId(99999)).build()
-    val request =
-      harness
-        .buildBatchRequest(Update.Type.INSERT, listOf(good, bad))
-        .toBuilder()
-        .setAtomicity(WriteRequest.Atomicity.ROLLBACK_ON_ERROR)
-        .build()
-    assertGrpcError(Status.Code.NOT_FOUND) { harness.writeRaw(request) }
-    // Good update should have been rolled back.
-    val readBack = harness.readAllTableEntries()
-    assert(readBack.isEmpty()) { "rollback should have removed the good entry" }
-  }
+  fun `rollback on error undoes prior updates`() =
+    assertAtomicRollback(WriteRequest.Atomicity.ROLLBACK_ON_ERROR)
 
   // DATAPLANE_ATOMIC: same all-or-none semantics as ROLLBACK_ON_ERROR.
   @Test
-  fun `dataplane atomic undoes prior updates`() {
+  fun `dataplane atomic undoes prior updates`() =
+    assertAtomicRollback(WriteRequest.Atomicity.DATAPLANE_ATOMIC)
+
+  /** Verifies that [atomicity] mode rolls back all prior updates on failure. */
+  private fun assertAtomicRollback(atomicity: WriteRequest.Atomicity) {
     val config = loadBasicTableConfig()
     harness.loadPipeline(config)
     val good = buildExactEntry(config, matchValue = 0x0800, port = 1)
@@ -297,10 +287,10 @@ class P4RuntimeWriteErrorTest {
       harness
         .buildBatchRequest(Update.Type.INSERT, listOf(good, bad))
         .toBuilder()
-        .setAtomicity(WriteRequest.Atomicity.DATAPLANE_ATOMIC)
+        .setAtomicity(atomicity)
         .build()
     assertGrpcError(Status.Code.NOT_FOUND) { harness.writeRaw(request) }
-    val readBack = harness.readAllTableEntries()
-    assert(readBack.isEmpty()) { "rollback should have removed the good entry" }
+    val readBack = harness.readEntries()
+    assert(readBack.isEmpty()) { "$atomicity should have rolled back the good entry" }
   }
 }

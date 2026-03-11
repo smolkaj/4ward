@@ -151,9 +151,6 @@ class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable 
       .apply { entities.forEach { addUpdates(Update.newBuilder().setType(type).setEntity(it)) } }
       .build()
 
-  /** Reads all table entries back (wildcard read), returns the raw entities. */
-  fun readAllTableEntries(): List<Entity> = readEntries()
-
   private fun writeEntity(type: Update.Type, entity: Entity, electionId: Uint128?): WriteResponse =
     runBlocking {
       stub.write(

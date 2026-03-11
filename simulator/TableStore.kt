@@ -68,19 +68,25 @@ class TableStore {
    * need copying.
    */
   class WriteState internal constructor() {
-    val tables: MutableMap<String, MutableList<TableEntry>> = mutableMapOf()
-    val directCounterData = IdentityHashMap<TableEntry, P4RuntimeOuterClass.CounterData>()
-    val directMeterData = IdentityHashMap<TableEntry, P4RuntimeOuterClass.MeterConfig>()
-    val defaultActions: MutableMap<String, DefaultAction> = mutableMapOf()
-    val profileMembers: MutableMap<Int, MutableMap<Int, P4RuntimeOuterClass.ActionProfileMember>> =
+    internal val tables: MutableMap<String, MutableList<TableEntry>> = mutableMapOf()
+    internal val directCounterData = IdentityHashMap<TableEntry, P4RuntimeOuterClass.CounterData>()
+    internal val directMeterData = IdentityHashMap<TableEntry, P4RuntimeOuterClass.MeterConfig>()
+    internal val defaultActions: MutableMap<String, DefaultAction> = mutableMapOf()
+    internal val profileMembers:
+      MutableMap<Int, MutableMap<Int, P4RuntimeOuterClass.ActionProfileMember>> =
       mutableMapOf()
-    val profileGroups: MutableMap<Int, MutableMap<Int, P4RuntimeOuterClass.ActionProfileGroup>> =
+    internal val profileGroups:
+      MutableMap<Int, MutableMap<Int, P4RuntimeOuterClass.ActionProfileGroup>> =
       mutableMapOf()
-    val registers: MutableMap<String, MutableMap<Int, Value>> = mutableMapOf()
-    val counters: MutableMap<Int, MutableMap<Int, P4RuntimeOuterClass.CounterData>> = mutableMapOf()
-    val meters: MutableMap<Int, MutableMap<Int, P4RuntimeOuterClass.MeterConfig>> = mutableMapOf()
-    val cloneSessions: MutableMap<Int, P4RuntimeOuterClass.CloneSessionEntry> = mutableMapOf()
-    val multicastGroups: MutableMap<Int, P4RuntimeOuterClass.MulticastGroupEntry> = mutableMapOf()
+    internal val registers: MutableMap<String, MutableMap<Int, Value>> = mutableMapOf()
+    internal val counters: MutableMap<Int, MutableMap<Int, P4RuntimeOuterClass.CounterData>> =
+      mutableMapOf()
+    internal val meters: MutableMap<Int, MutableMap<Int, P4RuntimeOuterClass.MeterConfig>> =
+      mutableMapOf()
+    internal val cloneSessions: MutableMap<Int, P4RuntimeOuterClass.CloneSessionEntry> =
+      mutableMapOf()
+    internal val multicastGroups: MutableMap<Int, P4RuntimeOuterClass.MulticastGroupEntry> =
+      mutableMapOf()
 
     /** Creates a deep copy for snapshot/restore (P4Runtime spec §12.2). */
     fun deepCopy(): WriteState =
@@ -750,9 +756,9 @@ class TableStore {
   /** Captures a deep copy of all mutable write-state for later [restore]. */
   fun snapshot(): WriteState = writeState.deepCopy()
 
-  /** Restores write-state to a previously captured snapshot. */
+  /** Restores write-state to a previously captured snapshot, consuming it. */
   fun restore(snapshot: WriteState) {
-    writeState = snapshot.deepCopy()
+    writeState = snapshot
   }
 
   // -------------------------------------------------------------------------

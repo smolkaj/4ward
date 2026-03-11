@@ -2275,7 +2275,7 @@ class TableStoreTest {
 
   /**
    * Verifies that snapshot produces a deep copy: mutating the original after snapshot does not
-   * affect the snapshot, and restoring does not share mutable structures with the original.
+   * affect the snapshot, and restoring recovers the snapshotted state.
    */
   @Test
   fun `snapshot is a deep copy - mutations do not leak`() {
@@ -2284,8 +2284,7 @@ class TableStoreTest {
 
     val snapshot = store.snapshot()
 
-    // Mutate the live store's table list (not via write — directly mutate the list).
-    // After restore, the entry should still be there.
+    // Delete the entry from the live store; after restore it should reappear.
     store.write(
       Update.newBuilder()
         .setType(Update.Type.DELETE)
@@ -2294,20 +2293,16 @@ class TableStoreTest {
     )
     assertTrue(store.readEntities().isEmpty())
 
+    // restore() consumes the snapshot, so take a second one first.
+    val snapshot2 = store.snapshot()
+
     store.restore(snapshot)
     assertEquals(1, store.readEntities().size)
 
-    // Now mutate again — should not affect the already-taken snapshot.
-    store.write(
-      Update.newBuilder()
-        .setType(Update.Type.DELETE)
-        .setEntity(Entity.newBuilder().setTableEntry(entry))
-        .build()
-    )
-
-    // Restore again from the same snapshot — entry should reappear.
-    store.restore(snapshot)
-    assertEquals(1, store.readEntities().size)
+    // Restore to the empty state (snapshot2) to verify the first restore
+    // did not leak mutable structures.
+    store.restore(snapshot2)
+    assertTrue(store.readEntities().isEmpty())
   }
 
   // ---------------------------------------------------------------------------
