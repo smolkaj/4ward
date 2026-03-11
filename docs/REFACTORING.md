@@ -89,3 +89,23 @@ response fields diverge further between the two Dataplane RPCs.
 ## Upstream p4c backend
 
 Land the 4ward backend in the p4c repository. Blocked on upstream review.
+
+---
+
+## Replace the ad hoc DVaaS runner with a Bazel-native harness
+
+**Files**: `tools/run_dvaas_poc.sh`, `tools/dvaas_overlay/*`, `.github/workflows/dvaas-poc.yml`
+
+**Problem**: The DVaaS proof currently needs a shell orchestrator because it
+coordinates two Bazel workspaces, two 4ward processes, and a patched pinned
+`sonic-pins` checkout. Even after cleanup, this leaves process management,
+third-party patching, and policy mixed together in one external script.
+
+**Fix**: Move the orchestration behind a proper Bazel target or a small typed
+launcher with explicit config/state, so CI and local runs call one stable entry
+point and the shell wrapper shrinks to near-zero or disappears entirely.
+
+**Trigger**: when the PoC graduates toward proper SAI P4 or when the DVaaS
+integration becomes a maintained workflow rather than a one-off proof.
+
+---

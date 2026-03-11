@@ -14,9 +14,9 @@ import p4.v1.P4RuntimeOuterClass
  *
  * All lookup maps are pre-computed at construction time so [validate] does zero allocations.
  * Constructed once per pipeline load; call [validate] for each update before type translation so
- * SDN-visible values are checked at canonical widths (§8.3).
+ * SDN-visible values are checked for valid P4Runtime byte-string encodings (§8.3).
  */
-class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
+class WriteValidator(p4Info: P4InfoOuterClass.P4Info, private val strict: Boolean = false) {
 
   private val tableInfoById = p4Info.tablesList.associateBy { it.preamble.id }
   private val actionInfoById = p4Info.actionsList.associateBy { it.preamble.id }
@@ -135,9 +135,7 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
           ?: throw invalidArg(
             "unknown param ID ${param.paramId} for action '${actionInfo.preamble.name}'"
           )
-      // §8.3: canonical byte width. Skip if bitwidth is 0
-      // (e.g. @p4runtime_translation with sdn_string).
-      checkWidth(paramInfo.bitwidth, param.value.size(), "param '${paramInfo.name}'")
+      checkWidth(paramInfo.bitwidth, param.value, "param '${paramInfo.name}'")
     }
   }
 
@@ -208,23 +206,23 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
     val w = fieldInfo.bitwidth
     val f = fieldInfo.name
     when {
-      fm.hasExact() -> checkWidth(w, fm.exact.value.size(), "match field '$f' value")
+      fm.hasExact() -> checkWidth(w, fm.exact.value, "match field '$f' value")
       fm.hasTernary() -> {
-        checkWidth(w, fm.ternary.value.size(), "match field '$f' value")
-        checkWidth(w, fm.ternary.mask.size(), "match field '$f' mask")
+        checkWidth(w, fm.ternary.value, "match field '$f' value")
+        checkWidth(w, fm.ternary.mask, "match field '$f' mask")
         // §8.3: bits where mask is 0 must also be 0 in value.
         checkTernaryMaskedBits(fm.ternary.value, fm.ternary.mask, f)
       }
       fm.hasLpm() -> {
-        checkWidth(w, fm.lpm.value.size(), "match field '$f' value")
+        checkWidth(w, fm.lpm.value, "match field '$f' value")
         // §8.3: bits beyond prefix_len must be zero.
         checkLpmTrailingBits(fm.lpm.value, fm.lpm.prefixLen, f)
       }
       fm.hasRange() -> {
-        checkWidth(w, fm.range.low.size(), "match field '$f' low")
-        checkWidth(w, fm.range.high.size(), "match field '$f' high")
+        checkWidth(w, fm.range.low, "match field '$f' low")
+        checkWidth(w, fm.range.high, "match field '$f' high")
       }
-      fm.hasOptional() -> checkWidth(w, fm.optional.value.size(), "match field '$f' value")
+      fm.hasOptional() -> checkWidth(w, fm.optional.value, "match field '$f' value")
     }
   }
 
@@ -248,6 +246,22 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
     }
   }
 
+  /**
+   * §8.3: values are big-endian byte strings. Leading zero bytes may be omitted, and strict mode
+   * requires that they be omitted.
+   */
+  private fun checkWidth(bitwidth: Int, value: ByteString, label: String) {
+    val expected = (bitwidth + 7) / 8
+    if (expected == 0) return
+    val actual = value.size()
+    if (actual == 0 || actual > expected) {
+      throw invalidArg("$label expects 1..$expected bytes, got $actual")
+    }
+    if (strict && actual > 1 && value.byteAt(0).toInt() == 0) {
+      throw invalidArg("$label must use canonical minimal-width encoding in strict mode")
+    }
+  }
+
   companion object {
     private val PRIORITY_MATCH_TYPES =
       setOf(
@@ -255,14 +269,6 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
         P4InfoOuterClass.MatchField.MatchType.RANGE,
         P4InfoOuterClass.MatchField.MatchType.OPTIONAL,
       )
-
-    /** §8.3: values must be exactly ceil(bitwidth/8) bytes. Skips if bitwidth is 0. */
-    private fun checkWidth(bitwidth: Int, actual: Int, label: String) {
-      val expected = (bitwidth + 7) / 8
-      if (expected > 0 && actual != expected) {
-        throw invalidArg("$label expects $expected bytes, got $actual")
-      }
-    }
 
     /** §8.3: ternary value bits must be zero where the mask is zero. */
     private fun checkTernaryMaskedBits(value: ByteString, mask: ByteString, fieldName: String) {

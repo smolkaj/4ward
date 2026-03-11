@@ -1,0 +1,33 @@
+--- v1model.p4
++++ v1model.p4
+@@ -56,21 +56,21 @@
+ 
+ const bit<32> __v1model_version = V1MODEL_VERSION;
+ 
+-#if V1MODEL_VERSION >= 20200408
+-typedef bit<9>  PortId_t;       // should not be a constant size?
+-#endif
++@p4runtime_translation("", string)
++@p4runtime_translation_mappings({
++    {"CPU", 510},
++    {"DROP", 511},
++    {"1", 1},
++    {"2", 2}
++})
++type bit<9>  port_id_t;
++typedef port_id_t PortId_t;
+ 
+ @metadata @name("standard_metadata")
+ struct standard_metadata_t {
+-#if V1MODEL_VERSION >= 20200408
+     PortId_t    ingress_port;
+     PortId_t    egress_spec;
+     PortId_t    egress_port;
+-#else
+-    bit<9>      ingress_port;
+-    bit<9>      egress_spec;
+-    bit<9>      egress_port;
+-#endif
+     bit<32>     instance_type;
+     bit<32>     packet_length;
+     //

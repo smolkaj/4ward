@@ -126,21 +126,49 @@ class WriteValidatorTest {
   }
 
   @Test
-  fun `wrong param byte width returns INVALID_ARGUMENT`() {
+  fun `minimal-width param passes validation`() {
     val v = validator()
-    // Param is 16-bit (2 bytes); send 1 byte.
+    v.validate(
+      insertUpdate(
+        EXACT_TABLE_ID,
+        exactMatch(MATCH_FIELD_ID, bytes(2)),
+        action(params = listOf(param(value = bytes(1)))),
+      )
+    )
+  }
+
+  @Test
+  fun `oversized param byte width returns INVALID_ARGUMENT`() {
+    val v = validator()
     val e =
       assertThrows(StatusException::class.java) {
         v.validate(
           insertUpdate(
             EXACT_TABLE_ID,
             exactMatch(MATCH_FIELD_ID, bytes(2)),
-            action(params = listOf(param(value = bytes(1)))),
+            action(params = listOf(param(value = bytes(3)))),
           )
         )
       }
     assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code)
     assert(e.status.description!!.contains("bytes"))
+  }
+
+  @Test
+  fun `strict mode rejects non-canonical param encoding`() {
+    val v = strictValidator()
+    val e =
+      assertThrows(StatusException::class.java) {
+        v.validate(
+          insertUpdate(
+            EXACT_TABLE_ID,
+            exactMatch(MATCH_FIELD_ID, bytes(2)),
+            action(params = listOf(param(value = byteArrayOf(0x00, 0x01)))),
+          )
+        )
+      }
+    assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code)
+    assert(e.status.description!!.contains("canonical"))
   }
 
   @Test
@@ -184,15 +212,37 @@ class WriteValidatorTest {
   }
 
   @Test
-  fun `wrong match value width returns INVALID_ARGUMENT`() {
+  fun `minimal-width exact match passes validation`() {
     val v = validator()
-    // Match field is 16-bit (2 bytes); send 1 byte.
+    v.validate(insertUpdate(EXACT_TABLE_ID, exactMatch(MATCH_FIELD_ID, bytes(1)), action()))
+  }
+
+  @Test
+  fun `oversized exact match value returns INVALID_ARGUMENT`() {
+    val v = validator()
     val e =
       assertThrows(StatusException::class.java) {
-        v.validate(insertUpdate(EXACT_TABLE_ID, exactMatch(MATCH_FIELD_ID, bytes(1)), action()))
+        v.validate(insertUpdate(EXACT_TABLE_ID, exactMatch(MATCH_FIELD_ID, bytes(3)), action()))
       }
     assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code)
     assert(e.status.description!!.contains("bytes"))
+  }
+
+  @Test
+  fun `strict mode rejects non-canonical exact match encoding`() {
+    val v = strictValidator()
+    val e =
+      assertThrows(StatusException::class.java) {
+        v.validate(
+          insertUpdate(
+            EXACT_TABLE_ID,
+            exactMatch(MATCH_FIELD_ID, byteArrayOf(0x00, 0x01)),
+            action(),
+          )
+        )
+      }
+    assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code)
+    assert(e.status.description!!.contains("canonical"))
   }
 
   @Test
@@ -215,7 +265,7 @@ class WriteValidatorTest {
         v.validate(
           insertUpdate(
             TERNARY_TABLE_ID,
-            ternaryMatch(TERNARY_FIELD_ID, value = bytes(1), mask = bytes(2)),
+            ternaryMatch(TERNARY_FIELD_ID, value = bytes(3), mask = bytes(2)),
             ternaryAction(),
             priority = 1,
           )
@@ -233,7 +283,7 @@ class WriteValidatorTest {
         v.validate(
           insertUpdate(
             LPM_TABLE_ID,
-            lpmMatch(LPM_FIELD_ID, value = bytes(1), prefixLen = 8),
+            lpmMatch(LPM_FIELD_ID, value = bytes(3), prefixLen = 8),
             ternaryAction(),
           )
         )
@@ -595,6 +645,8 @@ class WriteValidatorTest {
   }
 
   private fun validator(): WriteValidator = WriteValidator(testP4Info())
+
+  private fun strictValidator(): WriteValidator = WriteValidator(testP4Info(), strict = true)
 
   private fun validatorWithZeroBitwidthParam(): WriteValidator =
     WriteValidator(testP4InfoWithZeroBitwidthParam())

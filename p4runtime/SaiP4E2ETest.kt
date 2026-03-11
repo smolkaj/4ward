@@ -55,23 +55,27 @@ class SaiP4E2ETest {
 
   @Test
   fun `pipeline config has VRF translation mapping from annotation`() {
-    // The SAI P4 source declares @p4runtime_translation_mappings({ {"", 0} }) on vrf_id_t.
-    // The p4c-4ward backend extracts this into DeviceConfig.translations.
+    // SAI P4 reuses URI "" across several string-translated types. The backend
+    // merges explicit mappings for the shared URI into one hybrid table.
     val translations = config.device.translationsList
     assertTrue("expected at least one translation", translations.isNotEmpty())
 
     val vrfTranslation = translations.find { it.uri == "" }
     assertTrue("expected translation with empty URI (vrf_id_t)", vrfTranslation != null)
     assertTrue("expected auto_allocate=true", vrfTranslation!!.autoAllocate)
-    assertEquals("expected one explicit entry", 1, vrfTranslation.entriesCount)
-
-    val entry = vrfTranslation.entriesList[0]
-    assertEquals("SDN value should be empty string", "", entry.sdnStr)
-    // Dataplane value is 0 encoded as 2 bytes (VRF_BITWIDTH=10 → 2 bytes).
-    assertEquals("dataplane value should be 2 bytes", 2, entry.dataplaneValue.size())
-    assertTrue(
-      "dataplane value should be all zeros",
-      entry.dataplaneValue.toByteArray().all { it == 0.toByte() },
+    assertTrue("expected merged explicit entries", vrfTranslation.entriesCount >= 5)
+    val entries = vrfTranslation.entriesList.associateBy { it.sdnStr }
+    assertEquals(ByteString.copyFrom(byteArrayOf(0)), entries[""]!!.dataplaneValue)
+    assertEquals(ByteString.copyFrom(byteArrayOf(0)), entries["Ethernet0"]!!.dataplaneValue)
+    assertEquals(ByteString.copyFrom(byteArrayOf(1)), entries["Ethernet1"]!!.dataplaneValue)
+    assertEquals(ByteString.copyFrom(byteArrayOf(2)), entries["Ethernet2"]!!.dataplaneValue)
+    assertEquals(
+      ByteString.copyFrom(byteArrayOf(0x01, 0xFE.toByte())),
+      entries["CPU"]!!.dataplaneValue,
+    )
+    assertEquals(
+      ByteString.copyFrom(byteArrayOf(0x01, 0xFF.toByte())),
+      entries["DROP"]!!.dataplaneValue,
     )
   }
 

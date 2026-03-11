@@ -51,6 +51,25 @@ guilt — just write it down so someone can find it later.
   (table miss instead of hit).
 - **No digests, idle timeouts, or atomic write batches.**
 
+## DVaaS PoC harness
+
+- **Depends on a pinned patched `sonic-pins` checkout.** The current
+  `ValidateDataplane` proof uses a temporary overlay plus a checked-in patch
+  stack in `tools/dvaas_overlay/` against a specific upstream commit. This is
+  enough for end-to-end validation on local macOS and Ubuntu CI, but it is
+  still a downstream compatibility harness rather than a native upstream DVaaS
+  integration.
+- **SAI mirror validation currently observes the peer return-wire directly.**
+  In linked two-`4ward` mode, returned SUT packets are surfaced to DVaaS as
+  observable `PacketIn`s without depending on the local control-switch SAI
+  pipeline to re-punt them. This is sufficient for `ValidateDataplane`, but it
+  is a mirror-testbed shortcut rather than a full in-band control-switch model.
+- **Darwin uses transient third-party compatibility patches.** The local macOS
+  path applies patch files to the pinned `sonic-pins` checkout and its vendored
+  gRPC external to work around Linux-only headers and an Apple-clang template
+  parsing issue. These patches should disappear once upstream dependencies are
+  updated or the DVaaS path runs in a Linux-only environment.
+
 ## Simulator
 
 - **Multicast: basic replication only.** Multicast group replication works

@@ -51,6 +51,14 @@ class PacketHeaderCodecTest {
     assertEquals(510, codec.cpuPort)
   }
 
+  @Test
+  fun `create honors configured cpu port override`() {
+    val (p4info, behavioral) = buildSaiLikeConfig()
+    val codec = PacketHeaderCodec.create(p4info, behavioral, cpuPort = 77)
+    assertNotNull(codec)
+    assertEquals(77, codec!!.cpuPort)
+  }
+
   // =========================================================================
   // serializePacketOut
   // =========================================================================
@@ -142,11 +150,13 @@ class PacketHeaderCodecTest {
     // First field = ingress_port (metadata_id=3 in our test config)
     assertEquals(3, metadata[0].metadataId)
     val ingressBytes = metadata[0].value.toByteArray()
+    assertEquals(2, ingressBytes.size)
     assertEquals(510, bytesToInt(ingressBytes))
 
     // Second field = target_egress_port (metadata_id=4)
     assertEquals(4, metadata[1].metadataId)
     val egressBytes = metadata[1].value.toByteArray()
+    assertEquals(1, egressBytes.size)
     assertEquals(1, bytesToInt(egressBytes))
   }
 

@@ -84,7 +84,11 @@ private constructor(
      * Creates a codec from the pipeline config, or null if no `controller_packet_metadata` is
      * defined (programs without `@controller_header`).
      */
-    fun create(p4info: P4Info, behavioral: BehavioralConfig): PacketHeaderCodec? {
+    fun create(
+      p4info: P4Info,
+      behavioral: BehavioralConfig,
+      cpuPort: Int? = null,
+    ): PacketHeaderCodec? {
       val packetOutMeta =
         p4info.controllerPacketMetadataList.find { it.preamble.name == "packet_out" } ?: return null
 
@@ -114,7 +118,7 @@ private constructor(
       // CPU port = 2^portBits - 2 (v1model convention; drop port is 2^W - 1).
       val portBits =
         packetOutFields.find { it.name == "egress_port" }?.bitWidth ?: DEFAULT_PORT_BITS
-      val cpuPort = (1 shl portBits) - 2
+      val resolvedCpuPort = cpuPort ?: (1 shl portBits) - 2
 
       val packetInMeta =
         p4info.controllerPacketMetadataList.find { it.preamble.name == "packet_in" }
@@ -129,7 +133,7 @@ private constructor(
           )
         } ?: emptyList()
 
-      return PacketHeaderCodec(packetOutFields, packetInFields, cpuPort)
+      return PacketHeaderCodec(packetOutFields, packetInFields, resolvedCpuPort)
     }
 
     private const val DEFAULT_PORT_BITS = 9

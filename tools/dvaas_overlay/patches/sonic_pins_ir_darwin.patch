@@ -1,0 +1,18 @@
+--- a/p4_infra/p4_pdpi/utils/ir.cc
++++ b/p4_infra/p4_pdpi/utils/ir.cc
+@@ -13,10 +13,14 @@
+ #include "p4_infra/p4_pdpi/utils/ir.h"
+ 
+ #include <arpa/inet.h>
+-#include <endian.h>
++#ifdef __APPLE__
++#include <libkern/OSByteOrder.h>
++#define be64toh OSSwapBigToHostInt64
++#else
++#include <endian.h>
++#endif
+ #include <net/ethernet.h>
+-#include <netinet/ether.h>
+ #include <netinet/in.h>
+ #include <string.h>
+ #include <sys/socket.h>

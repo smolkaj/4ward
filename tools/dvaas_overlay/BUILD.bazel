@@ -1,0 +1,6 @@
+exports_files([
+    "overlay.BUILD.bazel",
+    "sonic_pins_dvaas_poc.patch",
+    "validate_dataplane_poc.cc",
+    "validate_dataplane_sai.cc",
+])

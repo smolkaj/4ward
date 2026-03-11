@@ -1,0 +1,12 @@
+diff --git a/configure b/configure
+index 6ebf73d..472bc07 100755
+--- a/configure
++++ b/configure
+@@ -1,6 +1,6 @@
+ #!/bin/sh
+ if test -z $PYTHON; then
+-   PYTHON=python
++   PYTHON=python3
+ fi
+ 
+ if ! which $PYTHON > /dev/null; then

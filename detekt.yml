@@ -58,6 +58,7 @@ complexity:
   # writeIndexedExtern() has 7 params (generic validation: type, name, id, index, info, storage, value).
   LongParameterList:
     functionThreshold: 8
+    constructorThreshold: 8
     excludes: ['**/test/**', '**/*Test.kt']
 
   # The default (150 lines) is unreasonable for tree-walking interpreters whose
