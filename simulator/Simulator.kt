@@ -80,10 +80,10 @@ class Simulator {
   }
 
   /** Captures a snapshot of all mutable write-state for rollback. */
-  fun snapshotWriteState(): TableStore.Snapshot = tableStore.snapshot()
+  fun snapshotWriteState(): TableStore.WriteState = tableStore.snapshot()
 
   /** Restores write-state to a previously captured snapshot. */
-  fun restoreWriteState(snapshot: TableStore.Snapshot) = tableStore.restore(snapshot)
+  fun restoreWriteState(snapshot: TableStore.WriteState) = tableStore.restore(snapshot)
 
   /**
    * Returns true if the table with p4info [tableId] has an entry with match field [fieldId] equal
