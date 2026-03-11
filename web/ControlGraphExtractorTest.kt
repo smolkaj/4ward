@@ -72,6 +72,24 @@ class ControlGraphExtractorTest {
   }
 
   @Test
+  fun `switch with multiple empty cases preserves all labels`() {
+    // switch (dmac.apply()) { action_a: {} action_b: {} }; nexthop.apply();
+    val config =
+      config(
+        control(
+          "ingress",
+          switchStmt("dmac", listOf("action_a" to emptyList(), "action_b" to emptyList())),
+          tableApplyStmt("nexthop"),
+        )
+      )
+    val g = ControlGraphExtractor.extract(config)[0]
+
+    assertNodeNames(g, "entry", "dmac", "nexthop", "exit")
+    assertEdge(g, "dmac", "nexthop", "action_a")
+    assertEdge(g, "dmac", "nexthop", "action_b")
+  }
+
+  @Test
   fun `if table hit with then and else branches`() {
     val config =
       config(

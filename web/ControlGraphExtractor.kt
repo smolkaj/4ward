@@ -198,7 +198,7 @@ object ControlGraphExtractor {
     val nodes = mutableListOf<Node>()
     val edges = mutableListOf<Edge>()
     private val nodeIds = mutableMapOf<String, Int>()
-    private val pendingLabels = mutableMapOf<String, String>()
+    private val pendingLabels = mutableMapOf<String, MutableList<String>>()
 
     fun addNode(name: String, type: String): String {
       val count = nodeIds.getOrPut(name) { 0 }
@@ -209,15 +209,23 @@ object ControlGraphExtractor {
     }
 
     fun addEdge(from: String, to: String, label: String = "") {
-      // Apply any pending label from an empty branch.
-      val effectiveLabel = pendingLabels.remove(from) ?: label
-      if (edges.none { it.from == from && it.to == to && it.label == effectiveLabel }) {
-        edges += Edge(from, to, effectiveLabel)
+      // Drain all pending labels from empty branches, creating one edge per label.
+      val pending = pendingLabels.remove(from)
+      if (pending != null) {
+        for (l in pending) {
+          if (edges.none { it.from == from && it.to == to && it.label == l }) {
+            edges += Edge(from, to, l)
+          }
+        }
+      } else {
+        if (edges.none { it.from == from && it.to == to && it.label == label }) {
+          edges += Edge(from, to, label)
+        }
       }
     }
 
     fun addPendingLabel(nodeId: String, label: String) {
-      pendingLabels[nodeId] = label
+      pendingLabels.getOrPut(nodeId) { mutableListOf() }.add(label)
     }
   }
 }

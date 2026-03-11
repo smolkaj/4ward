@@ -45,7 +45,6 @@ class WebServer(
   private val textPrinter: TextFormat.Printer = TextFormat.printer().escapingNonAscii(false)
 
   @Volatile private var loadedP4Info: p4.config.v1.P4InfoOuterClass.P4Info? = null
-  @Volatile private var loadedBehavioral: fourward.ir.v1.BehavioralConfig? = null
 
   fun start(): WebServer {
     server.createContext("/api/compile-and-load") { cors(it, ::handleCompileAndLoad) }
@@ -53,7 +52,6 @@ class WebServer(
     server.createContext("/api/write") { cors(it, ::handleWrite) }
     server.createContext("/api/read") { cors(it, ::handleRead) }
     server.createContext("/api/packet") { cors(it, ::handlePacket) }
-    server.createContext("/api/control-graph") { cors(it, ::handleControlGraph) }
     server.createContext("/") { handleStatic(it) }
     server.executor = Executors.newFixedThreadPool(THREAD_POOL_SIZE)
     server.start()
@@ -126,12 +124,12 @@ class WebServer(
 
       runBlocking { service.setForwardingPipelineConfig(request) }
       loadedP4Info = config.p4Info
-      loadedBehavioral = config.device.behavioral
 
+      val controlGraphJson = controlGraphJson(config.device.behavioral)
       sendJson(
         exchange,
         HTTP_OK,
-        """{"success":true,"p4info":${jsonPrinter.print(config.p4Info)}}""",
+        """{"success":true,"p4info":${jsonPrinter.print(config.p4Info)},"control_graph":$controlGraphJson}""",
       )
     } finally {
       Files.deleteIfExists(tempP4)
@@ -209,18 +207,9 @@ class WebServer(
     )
   }
 
-  // ---------------------------------------------------------------------------
-  // GET /api/control-graph
-  // ---------------------------------------------------------------------------
-
-  private fun handleControlGraph(exchange: HttpExchange) {
-    val behavioral = loadedBehavioral
-    if (behavioral == null) {
-      sendJson(exchange, HTTP_OK, """{"loaded":false}""")
-      return
-    }
+  private fun controlGraphJson(behavioral: fourward.ir.v1.BehavioralConfig): String {
     val graphs = ControlGraphExtractor.extract(behavioral)
-    val controlsJson =
+    val entries =
       graphs.joinToString(",") { graph ->
         val nodesJson =
           graph.nodes.joinToString(",") { node ->
@@ -234,7 +223,7 @@ class WebServer(
           }
         """${jsonEscape(graph.name)}:{"nodes":[$nodesJson],"edges":[$edgesJson]}"""
       }
-    sendJson(exchange, HTTP_OK, """{"loaded":true,"controls":{$controlsJson}}""")
+    return """{$entries}"""
   }
 
   // ---------------------------------------------------------------------------

@@ -64,10 +64,6 @@ const api = {
     return resp.json();
   },
 
-  async getControlGraph() {
-    const resp = await fetch('/api/control-graph');
-    return resp.json();
-  },
 };
 
 async function post(url, body) {
@@ -528,14 +524,11 @@ async function compileAndLoad() {
       }
     } catch (_) { /* static entry read is best-effort */ }
 
-    // Fetch and render the control-flow graph.
-    try {
-      const graphData = await api.getControlGraph();
-      if (graphData.loaded) {
-        state.controlGraph = graphData.controls;
-        renderControlGraph();
-      }
-    } catch (_) { /* control graph is best-effort */ }
+    // Render the control-flow graph (included in the compile response).
+    if (data.control_graph) {
+      state.controlGraph = data.control_graph;
+      renderControlGraph();
+    }
   } catch (e) {
     setStatus('error', 'Compilation failed');
     log(e.message, 'error');
@@ -1658,7 +1651,7 @@ function layoutAndRenderGraph(graph) {
   });
 
   // Arrow marker definition.
-  svg = `<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--text-dim)"/></marker></defs>` + svg;
+  svg = `<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--text-muted)"/></marker></defs>` + svg;
 
   svgEl.innerHTML = svg;
 }
