@@ -54,7 +54,7 @@ using namespace P4;
 //
 static std::string encodeCanonicalUint(
     const boost::multiprecision::cpp_int& value) {
-  if (value == 0) return std::string(1, '\0');
+  if (value == 0) return {'\0'};
   std::string bytes;
   auto v = value;
   while (v != 0) {

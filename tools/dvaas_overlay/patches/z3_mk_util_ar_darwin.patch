@@ -1,0 +1,16 @@
+diff --git a/scripts/mk_util.py b/scripts/mk_util.py
+index 249a782..98cbe16 100644
+--- a/scripts/mk_util.py
++++ b/scripts/mk_util.py
+@@ -2617,7 +2617,10 @@ else:
+         config.write('C_OUT_FLAG=-o \n')
+         config.write('OBJ_EXT=.o\n')
+         config.write('LIB_EXT=%s\n' % LIB_EXT)
+-        config.write('AR=%s\n' % AR)
++        if os.uname()[0] == 'Darwin' and platform.machine() == 'arm64':
++            config.write('AR=ar\n')
++        else:
++            config.write('AR=%s\n' % AR)
+         config.write('AR_FLAGS=rcs\n')
+         config.write('AR_OUTFLAG=\n')
+         config.write('EXE_EXT=%s\n' % EXE_EXT)

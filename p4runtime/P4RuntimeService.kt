@@ -30,6 +30,8 @@ import p4.v1.P4RuntimeOuterClass.Uint128
 import p4.v1.P4RuntimeOuterClass.WriteRequest
 import p4.v1.P4RuntimeOuterClass.WriteResponse
 
+typealias LinkedOutputObservation = Pair<Int, OutputPacket>
+
 /**
  * Compares two [Uint128] values as unsigned 128-bit integers. Returns negative if [a] < [b], zero
  * if equal, positive if [a] > [b].
@@ -38,6 +40,30 @@ fun compareUint128(a: Uint128, b: Uint128): Int {
   val highCmp = a.high.toULong().compareTo(b.high.toULong())
   if (highCmp != 0) return highCmp
   return a.low.toULong().compareTo(b.low.toULong())
+}
+
+suspend fun expandLinkedOutputs(
+  initialOutputs: List<LinkedOutputObservation>,
+  cpuPort: Int,
+  transmit: suspend (egressPort: Int, payload: ByteArray) -> List<OutputPacket>,
+  processLocalIngress: suspend (ingressPort: Int, payload: ByteArray) -> List<OutputPacket>,
+): List<LinkedOutputObservation> {
+  val expanded =
+    initialOutputs
+      .filter { (_, outputPacket) -> outputPacket.egressPort == cpuPort }
+      .toMutableList()
+  for ((_, outputPacket) in initialOutputs) {
+    if (outputPacket.egressPort == cpuPort) continue
+    val sutOutputs = transmit(outputPacket.egressPort, outputPacket.payload.toByteArray())
+    for (sutOutput in sutOutputs) {
+      if (sutOutput.egressPort == cpuPort) continue
+      expanded +=
+        processLocalIngress(sutOutput.egressPort, sutOutput.payload.toByteArray()).map {
+          sutOutput.egressPort to it
+        }
+    }
+  }
+  return expanded
 }
 
 /**
@@ -68,8 +94,6 @@ class P4RuntimeService(
     val constraintValidator: ConstraintValidator?,
     val packetHeaderCodec: PacketHeaderCodec?,
   )
-
-  private data class OutputObservation(val ingressPort: Int, val outputPacket: OutputPacket)
 
   @Volatile private var pipeline: PipelineState? = null
 
@@ -273,23 +297,29 @@ class P4RuntimeService(
       }
 
     val outputs =
-      simulator.processPacket(ingressPort, payload).outputPacketsList.map {
-        OutputObservation(ingressPort, it)
-      }
+      simulator.processPacket(ingressPort, payload).outputPacketsList.map { ingressPort to it }
     val linkedMode = codec != null && frontPanelTransmitter != null
     val expandedOutputs =
       if (linkedMode) {
-        expandLinkedOutputs(outputs, codec.cpuPort)
+        expandLinkedOutputs(
+          outputs,
+          codec.cpuPort,
+          transmit = { egressPort, linkedPayload ->
+            frontPanelTransmitter!!.transmit(egressPort, linkedPayload)
+          },
+          processLocalIngress = { linkedIngressPort, linkedPayload ->
+            simulator.processPacket(linkedIngressPort, linkedPayload).outputPacketsList
+          },
+        )
       } else {
         outputs
       }
 
-    return expandedOutputs.map { observation ->
-      val outputPacket = observation.outputPacket
+    return expandedOutputs.map { (observationIngressPort, outputPacket) ->
       val rawPacketIn =
         if (codec != null) {
           val metadata =
-            codec.buildPacketInMetadata(observation.ingressPort, outputPacket.egressPort)
+            codec.buildPacketInMetadata(observationIngressPort, outputPacket.egressPort)
           PacketIn.newBuilder().setPayload(outputPacket.payload).addAllMetadata(metadata).build()
         } else {
           PacketIn.newBuilder()
@@ -305,35 +335,6 @@ class P4RuntimeService(
         .setPacket(translator?.translatePacketIn(rawPacketIn) ?: rawPacketIn)
         .build()
     }
-  }
-
-  /**
-   * Walks one control-switch front-panel hop through the peer SUT and one return hop back to the
-   * local control switch. CPU-port outputs are retained locally and never forwarded.
-   */
-  private suspend fun expandLinkedOutputs(
-    initialOutputs: List<OutputObservation>,
-    cpuPort: Int,
-  ): List<OutputObservation> {
-    val expanded = initialOutputs.filter { it.outputPacket.egressPort == cpuPort }.toMutableList()
-    val transmitter = frontPanelTransmitter ?: return expanded
-    for (output in initialOutputs) {
-      if (output.outputPacket.egressPort == cpuPort) continue
-      val sutOutputs =
-        transmitter.transmit(
-          output.outputPacket.egressPort,
-          output.outputPacket.payload.toByteArray(),
-        )
-      for (sutOutput in sutOutputs) {
-        if (sutOutput.egressPort == cpuPort) continue
-        // WORKAROUND(DVaaS SAI): In linked-mode mirror validation, DVaaS needs an observation of
-        // packets that left the peer SUT on a given front-panel port. Modeling a full return hop
-        // through the local control pipeline makes that observation depend on extra SAI control
-        // programming. Treat the peer's egress as an observable return-wire event instead.
-        expanded += OutputObservation(sutOutput.egressPort, sutOutput)
-      }
-    }
-    return expanded
   }
 
   /** Extracts ingress port from PacketOut metadata, defaulting to port 0. */

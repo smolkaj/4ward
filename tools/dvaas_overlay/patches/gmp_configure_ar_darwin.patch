@@ -1,0 +1,16 @@
+diff --git a/configure b/configure
+index ef58dc9..81a0d99 100755
+--- a/configure
++++ b/configure
+@@ -11256,6 +11256,11 @@ else
+ fi
+ fi
+ AR=$ac_cv_prog_AR
++case "${build}" in
++  aarch64-apple-darwin*)
++    test "${AR}" = "/usr/bin/libtool" && AR="/usr/bin/ar"
++    ;;
++esac
+ if test -n "$AR"; then
+   { $as_echo "$as_me:${as_lineno-$LINENO}: result: $AR" >&5
+ $as_echo "$AR" >&6; }

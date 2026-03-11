@@ -1,0 +1,23 @@
+diff --git a/scripts/mk_util.py b/scripts/mk_util.py
+index 6c9bcd7..249a782 100644
+--- a/scripts/mk_util.py
++++ b/scripts/mk_util.py
+@@ -15,6 +15,7 @@ import mk_genfile_common
+ from fnmatch import fnmatch
+ import distutils.sysconfig
+ import compileall
++import platform
+ import subprocess
+ 
+ def getenv(name, default):
+@@ -284,6 +285,10 @@ def test_fpmath(cc):
+     t.commit()
+     # -Werror is needed because some versions of clang warn about unrecognized
+     # -m flags.
++    if os.uname()[0] == 'Darwin' and platform.machine() == 'arm64':
++        FPMATH_FLAGS=""
++        return "ARM64-DARWIN"
++ 
+     if exec_compiler_cmd([cc, CPPFLAGS, '-Werror', 'tstsse.cpp', LDFLAGS, '-mfpmath=sse -msse -msse2']) == 0:
+         FPMATH_FLAGS="-mfpmath=sse -msse -msse2"
+         return "SSE2-GCC"

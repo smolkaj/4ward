@@ -17,6 +17,7 @@
 #include "dvaas/dataplane_validation.h"
 #include "dvaas/switch_api.h"
 #include "dvaas/test_vector.pb.h"
+#include "dvaas/user_provided_packet_test_vector.h"
 #include "proto/gnmi/gnmi.grpc.pb.h"
 #include "grpcpp/grpcpp.h"
 #include "gutil/gutil/status.h"
@@ -31,6 +32,10 @@
 #include "p4_infra/p4_pdpi/p4_runtime_session_extras.h"
 #include "p4_infra/p4_pdpi/packetlib/packetlib.h"
 #include "p4_infra/p4_pdpi/packetlib/packetlib.pb.h"
+#include "p4_symbolic/packet_synthesizer/packet_synthesis_criteria.pb.h"
+#include "p4_symbolic/packet_synthesizer/packet_synthesizer.h"
+#include "p4_symbolic/packet_synthesizer/packet_synthesizer.pb.h"
+#include "p4_symbolic/sai/sai.h"
 #include "thinkit/test_environment.h"
 
 namespace {
@@ -41,6 +46,10 @@ constexpr char kEgressInterfaceName[] = "Ethernet2";
 constexpr char kIngressPortId[] = "1";
 constexpr char kExpectedEgressPort[] = "2";
 constexpr uint8_t kIpv4Ttl = 64;
+constexpr int kIngressPortOpenConfigId = 1;
+constexpr int kExpectedEgressPortOpenConfigId = 2;
+constexpr int kCpuPortOpenConfigId = 510;
+constexpr int kDropPortOpenConfigId = 511;
 
 constexpr std::array<uint8_t, 6> kIngressDstMac = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05};
 constexpr std::array<uint8_t, 6> kIngressSrcMac = {0x00, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E};
@@ -133,18 +142,14 @@ class FourwardSaiDvaasBackend final : public dvaas::DataplaneValidationBackend {
       absl::Span<const pins_test::P4rtPortId>,
       const dvaas::OutputWriterFunctionType&,
       const std::optional<p4_symbolic::packet_synthesizer::CoverageGoals>&,
-      std::optional<absl::Duration>) const override {
-    return absl::UnimplementedError("SAI PoC uses packet_test_vector_override");
-  }
+      std::optional<absl::Duration>) const override;
 
   absl::StatusOr<dvaas::PacketTestVectorById> GeneratePacketTestVectors(
       const pdpi::IrP4Info&, const pdpi::IrEntities&,
       const p4::v1::ForwardingPipelineConfig&,
       absl::Span<const pins_test::P4rtPortId>,
       std::vector<p4_symbolic::packet_synthesizer::SynthesizedPacket>&,
-      const pins_test::P4rtPortId&, bool) const override {
-    return absl::UnimplementedError("SAI PoC uses packet_test_vector_override");
-  }
+      const pins_test::P4rtPortId&, bool) const override;
 
   absl::StatusOr<pdpi::IrEntities> GetEntitiesToPuntAllPackets(
       const pdpi::IrP4Info&) const override {
@@ -200,6 +205,179 @@ class FourwardSaiDvaasBackend final : public dvaas::DataplaneValidationBackend {
     return pdpi::IrEntities();
   }
 };
+
+void AddTranslationMapping(
+    p4_symbolic::packet_synthesizer::TranslationData* translation,
+    absl::string_view name, int value) {
+  auto* mapping = translation->add_static_mapping();
+  mapping->set_string_value(std::string(name));
+  mapping->set_integer_value(value);
+}
+
+absl::StatusOr<p4_symbolic::packet_synthesizer::PacketSynthesisParams>
+BuildPacketSynthesisParams(const pdpi::IrP4Info& ir_p4info,
+                           const pdpi::IrEntities& ir_entities,
+                           const p4::v1::ForwardingPipelineConfig& pipeline_config,
+                           absl::Span<const pins_test::P4rtPortId> ports) {
+  p4_symbolic::packet_synthesizer::PacketSynthesisParams params;
+  *params.mutable_pipeline_config() = pipeline_config;
+  auto* port_translation =
+      &(*params.mutable_translation_per_type())[std::string(
+          p4_symbolic::kPortIdTypeName)];
+  AddTranslationMapping(port_translation, "", 0);
+  AddTranslationMapping(port_translation, "Ethernet0", 0);
+  AddTranslationMapping(port_translation, kIngressInterfaceName,
+                        kIngressPortOpenConfigId);
+  AddTranslationMapping(port_translation, kEgressInterfaceName,
+                        kExpectedEgressPortOpenConfigId);
+  AddTranslationMapping(port_translation, "CPU", kCpuPortOpenConfigId);
+  AddTranslationMapping(port_translation, "DROP", kDropPortOpenConfigId);
+
+  auto* vrf_translation =
+      &(*params.mutable_translation_per_type())[std::string(
+          p4_symbolic::kVrfIdTypeName)];
+  AddTranslationMapping(vrf_translation, "", 0);
+  vrf_translation->set_dynamic_translation(true);
+
+  for (const auto& port : ports) {
+    params.add_physical_port(port.GetOpenConfigEncoding());
+  }
+
+  ASSIGN_OR_RETURN(auto pi_entities, pdpi::IrEntitiesToPi(ir_p4info, ir_entities));
+  for (const auto& entity : pi_entities) {
+    *params.add_pi_entities() = entity;
+  }
+  return params;
+}
+
+p4_symbolic::packet_synthesizer::PacketSynthesisCriteria BuildRoutingCriteria() {
+  p4_symbolic::packet_synthesizer::PacketSynthesisCriteria criteria;
+  criteria.mutable_output_criteria()->set_drop_expected(false);
+  criteria.mutable_table_reachability_criteria()->set_table_name(
+      "ingress.routing_lookup.ipv4_table");
+  criteria.mutable_table_entry_reachability_criteria()->set_table_name(
+      "ingress.routing_lookup.ipv4_table");
+  criteria.mutable_table_entry_reachability_criteria()->set_match_index(0);
+  criteria.mutable_ingress_port_criteria()->set_v1model_port(
+      kIngressPortOpenConfigId);
+  criteria.mutable_payload_criteria()->set_payload(
+      dvaas::MakeTestPacketTagFromUniqueId(1, "4ward DVaaS SAI"));
+  return criteria;
+}
+
+uint16_t ComputeIpv4Checksum(const std::array<uint8_t, 20>& header);
+
+absl::StatusOr<packetlib::Packet> ParseSynthesizedPacket(
+    const p4_symbolic::packet_synthesizer::SynthesizedPacket& synthesized_packet) {
+  packetlib::Packet packet = packetlib::ParsePacket(synthesized_packet.packet());
+  RETURN_IF_ERROR(packetlib::PadPacketToMinimumSize(packet).status());
+  RETURN_IF_ERROR(packetlib::UpdateAllComputedFields(packet).status());
+  return packet;
+}
+
+absl::StatusOr<packetlib::Packet> BuildExpectedOutputPacket(
+    const packetlib::Packet& input_packet) {
+  ASSIGN_OR_RETURN(std::string raw_packet, packetlib::RawSerializePacket(input_packet));
+  if (raw_packet.size() < 34) {
+    return absl::InvalidArgumentError("synthesized packet is too short for IPv4 routing");
+  }
+  std::copy(kNeighborDstMac.begin(), kNeighborDstMac.end(), raw_packet.begin());
+  std::copy(kRifSrcMac.begin(), kRifSrcMac.end(), raw_packet.begin() + 6);
+  uint8_t& ttl = reinterpret_cast<uint8_t&>(raw_packet[22]);
+  if (ttl == 0) {
+    return absl::InvalidArgumentError("synthesized packet has TTL zero");
+  }
+  ttl = static_cast<uint8_t>(ttl - 1);
+  raw_packet[24] = '\0';
+  raw_packet[25] = '\0';
+  std::array<uint8_t, 20> ipv4_header;
+  std::copy(raw_packet.begin() + 14, raw_packet.begin() + 34, ipv4_header.begin());
+  const uint16_t checksum = ComputeIpv4Checksum(ipv4_header);
+  raw_packet[24] = static_cast<char>(checksum >> 8);
+  raw_packet[25] = static_cast<char>(checksum & 0xFF);
+
+  packetlib::Packet packet = packetlib::ParsePacket(raw_packet);
+  RETURN_IF_ERROR(packetlib::UpdateAllComputedFields(packet).status());
+  return packet;
+}
+
+dvaas::PacketTestVector BuildPacketTestVector(
+    const packetlib::Packet& input_packet, const packetlib::Packet& expected_packet) {
+  dvaas::PacketTestVector vector;
+  vector.mutable_input()->set_type(dvaas::SwitchInput::DATAPLANE);
+  vector.mutable_input()->mutable_packet()->set_port(kIngressPortId);
+  *vector.mutable_input()->mutable_packet()->mutable_parsed() = input_packet;
+
+  auto* output = vector.add_acceptable_outputs()->add_packets();
+  output->set_port(kExpectedEgressPort);
+  *output->mutable_parsed() = expected_packet;
+  return vector;
+}
+
+absl::StatusOr<dvaas::PacketTestVectorById> BuildPredictedTestVectors(
+    const pdpi::IrP4Info& ir_p4info,
+    std::vector<p4_symbolic::packet_synthesizer::SynthesizedPacket>& synthesized_packets) {
+  std::vector<dvaas::PacketTestVector> vectors;
+  vectors.reserve(synthesized_packets.size());
+  for (const auto& synthesized_packet : synthesized_packets) {
+    if (synthesized_packet.drop_expected()) {
+      return absl::UnimplementedError(
+          "drop predictions are not supported in the SAI helper yet");
+    }
+    ASSIGN_OR_RETURN(packetlib::Packet input_packet,
+                     ParseSynthesizedPacket(synthesized_packet));
+    ASSIGN_OR_RETURN(packetlib::Packet expected_packet,
+                     BuildExpectedOutputPacket(input_packet));
+    vectors.push_back(BuildPacketTestVector(input_packet, expected_packet));
+  }
+  return dvaas::LegitimizeUserProvidedTestVectors(vectors, ir_p4info);
+}
+
+absl::StatusOr<dvaas::PacketSynthesisResult>
+FourwardSaiDvaasBackend::SynthesizePackets(
+    const pdpi::IrP4Info& ir_p4info, const pdpi::IrEntities& ir_entities,
+    const p4::v1::ForwardingPipelineConfig& p4_symbolic_config,
+    absl::Span<const pins_test::P4rtPortId> ports,
+    const dvaas::OutputWriterFunctionType& write_stats,
+    const std::optional<p4_symbolic::packet_synthesizer::CoverageGoals>&
+        coverage_goals_override,
+    std::optional<absl::Duration>) const {
+  if (coverage_goals_override.has_value()) {
+    return absl::UnimplementedError(
+        "SAI helper only supports its built-in routed packet synthesis criteria");
+  }
+
+  ASSIGN_OR_RETURN(auto params,
+                   BuildPacketSynthesisParams(ir_p4info, ir_entities,
+                                              p4_symbolic_config, ports));
+  ASSIGN_OR_RETURN(auto synthesizer,
+                   p4_symbolic::packet_synthesizer::PacketSynthesizer::Create(
+                       params));
+  ASSIGN_OR_RETURN(
+      auto synthesis_result,
+      synthesizer->SynthesizePacket(BuildRoutingCriteria()));
+  if (!synthesis_result.has_synthesized_packet()) {
+    return absl::NotFoundError("p4-symbolic could not synthesize a routed SAI packet");
+  }
+
+  dvaas::PacketSynthesisResult result;
+  result.synthesized_packets.push_back(synthesis_result.synthesized_packet());
+  RETURN_IF_ERROR(write_stats(absl::StrCat(
+      "synthesized_packets: ", result.synthesized_packets.size(), "\n",
+      synthesis_result.DebugString(), "\n")));
+  return result;
+}
+
+absl::StatusOr<dvaas::PacketTestVectorById>
+FourwardSaiDvaasBackend::GeneratePacketTestVectors(
+    const pdpi::IrP4Info& ir_p4info, const pdpi::IrEntities&,
+    const p4::v1::ForwardingPipelineConfig&,
+    absl::Span<const pins_test::P4rtPortId>,
+    std::vector<p4_symbolic::packet_synthesizer::SynthesizedPacket>&
+        synthesized_packets,
+    const pins_test::P4rtPortId&, bool) const {
+  return BuildPredictedTestVectors(ir_p4info, synthesized_packets);
+}
 
 absl::StatusOr<p4::v1::ForwardingPipelineConfig> GetPipelineConfig(
     pdpi::P4RuntimeSession& session) {
@@ -394,35 +572,6 @@ std::string BuildIpv4TcpFrame(const std::array<uint8_t, 6>& dst_mac,
   return packet;
 }
 
-absl::StatusOr<packetlib::Packet> BuildInputPacket() {
-  packetlib::Packet packet =
-      packetlib::ParsePacket(BuildIpv4TcpFrame(kIngressDstMac, kIngressSrcMac, kIpv4Ttl));
-  packet.set_payload("test packet #1: 4ward DVaaS SAI");
-  RETURN_IF_ERROR(packetlib::UpdateAllComputedFields(packet).status());
-  return packet;
-}
-
-absl::StatusOr<packetlib::Packet> BuildExpectedOutputPacket() {
-  packetlib::Packet packet =
-      packetlib::ParsePacket(BuildIpv4TcpFrame(kNeighborDstMac, kRifSrcMac, kIpv4Ttl - 1));
-  packet.set_payload("test packet #1: 4ward DVaaS SAI");
-  RETURN_IF_ERROR(packetlib::UpdateAllComputedFields(packet).status());
-  return packet;
-}
-
-dvaas::PacketTestVector BuildPacketTestVector(const packetlib::Packet& input_packet,
-                                              const packetlib::Packet& expected_packet) {
-  dvaas::PacketTestVector vector;
-  vector.mutable_input()->set_type(dvaas::SwitchInput::DATAPLANE);
-  vector.mutable_input()->mutable_packet()->set_port(kIngressPortId);
-  *vector.mutable_input()->mutable_packet()->mutable_parsed() = input_packet;
-
-  auto* output = vector.add_acceptable_outputs()->add_packets();
-  output->set_port(kExpectedEgressPort);
-  *output->mutable_parsed() = expected_packet;
-  return vector;
-}
-
 std::string BuildInterfacesJson() {
   return absl::StrFormat(
       R"json(
@@ -494,9 +643,6 @@ absl::Status Run(absl::string_view sut_address, absl::string_view control_addres
   LOG(INFO) << "Installing SUT routing entities";
   RETURN_IF_ERROR(pdpi::InstallPiEntities(*sut.p4rt,
                                           BuildRoutingEntities(pipeline_config.p4info())));
-  LOG(INFO) << "Building SAI packet and expected output";
-  ASSIGN_OR_RETURN(const auto input_packet, BuildInputPacket());
-  ASSIGN_OR_RETURN(const auto expected_output, BuildExpectedOutputPacket());
 
   dvaas::DataplaneValidationParams params;
   params.artifact_prefix = "fourward_sai";
@@ -505,8 +651,6 @@ absl::Status Run(absl::string_view sut_address, absl::string_view control_addres
       .p4_symbolic_config = pipeline_config,
       .bmv2_config = pipeline_config,
   };
-  params.packet_test_vector_override = {
-      BuildPacketTestVector(input_packet, expected_output)};
 
   auto match_all_interfaces =
       [](const pins_test::openconfig::Interfaces::Interface&) { return true; };

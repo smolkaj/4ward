@@ -6,7 +6,6 @@
 
 package fourward.p4runtime
 
-import com.google.protobuf.ByteString
 import fourward.ir.v1.BehavioralConfig
 import fourward.ir.v1.Type
 import p4.config.v1.P4InfoOuterClass.P4Info
@@ -138,18 +137,6 @@ private constructor(
     }
 
     private const val DEFAULT_PORT_BITS = 9
-
-    private fun encodeFieldWidth(value: Int, bitWidth: Int): ByteString {
-      val byteWidth = (bitWidth + 7) / 8
-      if (byteWidth == 0) return ByteString.EMPTY
-      val bytes = ByteArray(byteWidth)
-      var v = value
-      for (i in byteWidth - 1 downTo 0) {
-        bytes[i] = (v and 0xFF).toByte()
-        v = v ushr 8
-      }
-      return ByteString.copyFrom(bytes)
-    }
 
     private fun bitWidth(type: Type): Int =
       when {

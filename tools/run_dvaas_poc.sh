@@ -109,6 +109,10 @@ apply_patch_file() {
 }
 
 write_sonic_pins_bazelrc() {
+  local python_bin
+  local python_dir
+  python_bin="$(command -v python3)"
+  python_dir="${SONIC_PINS_DIR}/bin"
   cat >"${SONIC_PINS_BAZELRC}" <<EOF
 build --cxxopt=-std=c++17
 build --host_cxxopt=-std=c++17
@@ -116,7 +120,15 @@ build --java_runtime_version=remotejdk_21
 build --tool_java_runtime_version=remotejdk_21
 build --action_env=CC=clang
 build --action_env=CXX=clang++
+build --action_env=PATH=${python_dir}:/usr/local/bin:/usr/bin:/bin
+build --action_env=PYTHON=${python_bin}
+build --host_action_env=PATH=${python_dir}:/usr/local/bin:/usr/bin:/bin
+build --host_action_env=PYTHON=${python_bin}
 build --repo_env=CC=/usr/bin/clang
+build --repo_env=PATH=${python_dir}:/usr/local/bin:/usr/bin:/bin
+build --repo_env=PYTHON=${python_bin}
+build --repo_env=PYTHON_BIN_PATH=${python_bin}
+build --sandbox_add_mount_pair=${python_dir}:/usr/local/bin
 EOF
 
   if [[ -n "${BUILDBUDDY_API_KEY:-}" ]]; then
@@ -162,12 +174,19 @@ if [[ "${GITHUB_ACTIONS:-}" == "true" && "${DVAAS_POC_WRAP_GDB}" == "0" ]] &&
 fi
 
 build_fourward_targets() {
-  bazel build "${BAZEL_ARGS[@]}" \
-    //p4runtime:p4runtime_server \
+  local bazel_cmd=(bazel build)
+  if (( ${#BAZEL_ARGS[@]} > 0 )); then
+    bazel_cmd+=("${BAZEL_ARGS[@]}")
+  fi
+  bazel_cmd+=(
+    //p4runtime:p4runtime_server
     "${FOURWARD_DVAAS_PIPELINE_TARGET}"
+  )
+  "${bazel_cmd[@]}"
 }
 
 prepare_sonic_pins_checkout() {
+  local python_bin
   if [[ ! -d "${SONIC_PINS_DIR}/.git" ]]; then
     git -C "${SONIC_PINS_DIR}" init -q
     git -C "${SONIC_PINS_DIR}" remote add origin https://github.com/sonic-net/sonic-pins.git
@@ -179,6 +198,10 @@ prepare_sonic_pins_checkout() {
   git -C "${SONIC_PINS_DIR}" apply --whitespace=nowarn \
     "${ROOT}/tools/dvaas_overlay/sonic_pins_dvaas_poc.patch"
   mkdir -p "${SONIC_PINS_DIR}/fourward_dvaas"
+  mkdir -p "${SONIC_PINS_DIR}/bin"
+  python_bin="$(command -v python3)"
+  ln -sf "${python_bin}" "${SONIC_PINS_DIR}/bin/python"
+  ln -sf "${python_bin}" "${SONIC_PINS_DIR}/python"
   cp "${ROOT}/tools/dvaas_overlay/overlay.BUILD.bazel" "${SONIC_PINS_DIR}/fourward_dvaas/BUILD.bazel"
   cp "${ROOT}/tools/dvaas_overlay/"*.cc "${SONIC_PINS_DIR}/fourward_dvaas/"
   write_sonic_pins_bazelrc
@@ -203,7 +226,26 @@ start_fourward_server() {
     "$@" >"${log}" 2>&1 &
 }
 
+kill_listener_on_port() {
+  local port="$1"
+  local pids=()
+  local pid
+  if ! command -v lsof >/dev/null 2>&1; then
+    return
+  fi
+  while IFS= read -r pid; do
+    [[ -n "${pid}" ]] && pids+=("${pid}")
+  done < <(lsof -ti "tcp:${port}" -sTCP:LISTEN 2>/dev/null || true)
+  if (( ${#pids[@]} == 0 )); then
+    return
+  fi
+  kill "${pids[@]}" >/dev/null 2>&1 || true
+  sleep 1
+}
+
 start_testbed() {
+  kill_listener_on_port "${SUT_PORT}"
+  kill_listener_on_port "${CONTROL_PORT}"
   start_fourward_server "${SUT_PORT}" "${ARTIFACT_DIR}/sut.log"
   SUT_PID=$!
   start_fourward_server "${CONTROL_PORT}" "${ARTIFACT_DIR}/control.log" \
@@ -245,9 +287,76 @@ apply_darwin_grpc_patch() {
   fi
 }
 
+apply_darwin_z3_patch() {
+  local output_base
+  local z3_configure
+  local z3_root
+
+  (
+    cd "${SONIC_PINS_DIR}" &&
+      run_sonic_pins_bazel build --nobuild //fourward_dvaas:${FOURWARD_DVAAS_HELPER_BINARY} >/dev/null
+  )
+  output_base="$(
+    cd "${SONIC_PINS_DIR}" &&
+      run_sonic_pins_bazel info output_base
+  )"
+  z3_configure="$(
+    find "${output_base}/external" \
+      -path '*/com_github_z3prover_z3/configure' \
+      -print -quit
+  )"
+  if [[ -n "${z3_configure}" ]]; then
+    z3_root="$(dirname "${z3_configure}")"
+    # WORKAROUND: The vendored Z3 configure script defaults to `python`, but the
+    # Darwin sandbox only guarantees `python3` in the standard toolchain paths.
+    # Patch the transient Bazel external so the checked-in diff documents the
+    # exact workaround and can be dropped once the dependency stops assuming a
+    # `python` alias.
+    apply_patch_file "${z3_root}" "${PATCH_DIR}/z3_configure_python3_darwin.patch"
+    # WORKAROUND: The vendored Z3 Makefile generator assumes x86 SSE flags on
+    # Darwin. Apple Silicon clang rejects `-msse*`, so patch the transient
+    # external to skip those flags on arm64 Darwin until upstream handles that
+    # host architecture correctly.
+    if ! grep -q 'ARM64-DARWIN' "${z3_root}/scripts/mk_util.py"; then
+      apply_patch_file "${z3_root}" "${PATCH_DIR}/z3_mk_util_arm64_darwin.patch"
+    fi
+    if ! grep -q "config.write('AR=ar" "${z3_root}/scripts/mk_util.py"; then
+      apply_patch_file "${z3_root}" "${PATCH_DIR}/z3_mk_util_ar_darwin.patch"
+    fi
+  fi
+}
+
+apply_darwin_gmp_patch() {
+  local output_base
+  local gmp_configure
+
+  (
+    cd "${SONIC_PINS_DIR}" &&
+      run_sonic_pins_bazel build --nobuild //fourward_dvaas:${FOURWARD_DVAAS_HELPER_BINARY} >/dev/null
+  )
+  output_base="$(
+    cd "${SONIC_PINS_DIR}" &&
+      run_sonic_pins_bazel info output_base
+  )"
+  gmp_configure="$(
+    find "${output_base}/external" \
+      -path '*/com_gnu_gmp/configure' \
+      -print -quit
+  )"
+  if [[ -n "${gmp_configure}" ]]; then
+    # WORKAROUND: The vendored GMP configure script trusts the foreign-cc
+    # wrapper's injected `AR=/usr/bin/libtool`, but GMP's static archive build
+    # path expects GNU `ar` semantics there. Patch the transient external so
+    # Darwin arm64 rewrites that one bad tool choice to `/usr/bin/ar`.
+    apply_patch_file "$(dirname "${gmp_configure}")" "${PATCH_DIR}/gmp_configure_ar_darwin.patch"
+  fi
+}
+
 build_dvaas_helper() {
   if [[ "${OS_NAME}" == "Darwin" ]]; then
     apply_darwin_grpc_patch
+    apply_darwin_z3_patch
+    apply_darwin_gmp_patch
   fi
   (
     cd "${SONIC_PINS_DIR}" &&
