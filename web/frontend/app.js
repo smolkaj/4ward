@@ -965,14 +965,51 @@ function renderTraceTree(trace) {
 }
 
 /**
- * Analyze the trace to determine which pipeline stages were visited,
- * where the packet dropped (if it did), and what the outcome was.
- * Update the pipeline diagram to reflect this.
+ * Render the pipeline diagram with the given state.
+ * @param {Set<string>} visited - stages the packet has passed through
+ * @param {string|null} activeStage - stage to pulse (during playback)
+ * @param {string|null} droppedStage - stage to mark red (on drop)
+ * @param {{type,port?,reason?,branchCount?}|null} outcome - outcome to display
  */
-function updatePipelineDiagram(trace) {
+function renderDiagram({ visited = new Set(), activeStage = null, droppedStage = null, outcome = null } = {}) {
   const stageOrder = V1MODEL_STAGES;
 
-  // Collect visited stages from the top-level trace events.
+  document.querySelectorAll('#pipeline-diagram .pipeline-stage').forEach(el => {
+    const name = el.dataset.stage;
+    el.classList.remove('visited', 'dropped', 'active');
+    if (name === droppedStage) {
+      el.classList.add('dropped');
+    } else if (name === activeStage) {
+      el.classList.add('active');
+    } else if (visited.has(name)) {
+      el.classList.add('visited');
+    }
+  });
+
+  document.querySelectorAll('#pipeline-diagram .pipeline-arrow').forEach((arrow, i) => {
+    arrow.classList.remove('active');
+    if (visited.has(stageOrder[i]) && visited.has(stageOrder[i + 1])) {
+      arrow.classList.add('active');
+    }
+  });
+
+  const outcomeEl = document.getElementById('pipeline-outcome');
+  outcomeEl.className = 'pipeline-outcome';
+  outcomeEl.textContent = '';
+  if (outcome?.type === 'output') {
+    outcomeEl.className += ' output';
+    outcomeEl.textContent = `→ output port ${outcome.port}`;
+  } else if (outcome?.type === 'drop') {
+    outcomeEl.className += ' drop';
+    outcomeEl.textContent = `✕ dropped`;
+  } else if (outcome?.type === 'fork') {
+    outcomeEl.className += ' fork';
+    outcomeEl.textContent = `⑂ ${outcome.reason} → ${outcome.branchCount} branches`;
+  }
+}
+
+/** Compute the full-trace diagram state and render it. */
+function updatePipelineDiagram(trace) {
   const visited = new Set();
   for (const event of trace.events || []) {
     if (event.pipeline_stage && event.pipeline_stage.direction === 'ENTER') {
@@ -980,56 +1017,17 @@ function updatePipelineDiagram(trace) {
     }
   }
 
-  // Determine the outcome and the stage where a drop happened (if any).
   const outcome = analyzeOutcome(trace);
 
-  // Find the last visited stage — if the packet dropped, mark it.
-  let lastVisitedIdx = -1;
-  for (let i = stageOrder.length - 1; i >= 0; i--) {
-    if (visited.has(stageOrder[i])) {
-      lastVisitedIdx = i;
-      break;
+  // On drop, mark the last visited stage red.
+  let droppedStage = null;
+  if (outcome.type === 'drop') {
+    for (let i = V1MODEL_STAGES.length - 1; i >= 0; i--) {
+      if (visited.has(V1MODEL_STAGES[i])) { droppedStage = V1MODEL_STAGES[i]; break; }
     }
   }
 
-  // Update stage elements.
-  const stageEls = document.querySelectorAll('#pipeline-diagram .pipeline-stage');
-  stageEls.forEach(el => {
-    const name = el.dataset.stage;
-    el.classList.remove('visited', 'dropped');
-
-    if (visited.has(name)) {
-      if (outcome.type === 'drop' && name === stageOrder[lastVisitedIdx]) {
-        el.classList.add('dropped');
-      } else {
-        el.classList.add('visited');
-      }
-    }
-  });
-
-  // Update arrows: light up arrows between consecutive visited stages.
-  const arrowEls = document.querySelectorAll('#pipeline-diagram .pipeline-arrow');
-  arrowEls.forEach((arrow, i) => {
-    arrow.classList.remove('active');
-    // Arrow i connects stage i to stage i+1.
-    if (visited.has(stageOrder[i]) && visited.has(stageOrder[i + 1])) {
-      arrow.classList.add('active');
-    }
-  });
-
-  // Update outcome text.
-  const outcomeEl = document.getElementById('pipeline-outcome');
-  outcomeEl.className = 'pipeline-outcome';
-  if (outcome.type === 'output') {
-    outcomeEl.className += ' output';
-    outcomeEl.textContent = `→ output port ${outcome.port}`;
-  } else if (outcome.type === 'drop') {
-    outcomeEl.className += ' drop';
-    outcomeEl.textContent = `✕ dropped`;
-  } else if (outcome.type === 'fork') {
-    outcomeEl.className += ' fork';
-    outcomeEl.textContent = `⑂ ${outcome.reason} → ${outcome.branchCount} branches`;
-  }
+  renderDiagram({ visited, droppedStage, outcome });
 }
 
 /** Walk the trace tree to determine the top-level outcome. */
@@ -1182,19 +1180,14 @@ function applyPlaybackState() {
   const pos = state.playbackPos;
   const events = state.playbackEvents;
 
-  // Clear all highlights.
+  // Clear trace tree highlights (diagram is updated below via renderDiagram).
   document.querySelectorAll('.playback-highlight').forEach(
     el => el.classList.remove('playback-highlight')
   );
 
-  // Clear active pipeline stage.
-  document.querySelectorAll('#pipeline-diagram .pipeline-stage.active').forEach(
-    el => el.classList.remove('active')
-  );
-
   if (pos < 0) {
     // Before first event — clear everything.
-    clearPlaybackDiagram();
+    renderDiagram();
     clearPlaybackEditorHighlight();
     updatePlaybackUI();
     return;
@@ -1202,23 +1195,17 @@ function applyPlaybackState() {
 
   const current = events[pos];
 
-  // Highlight the current step in the trace tree. Stage events have no
-  // data-event-idx (they're rendered as stage group headers instead), so
-  // we highlight the .trace-stage element by its data-stage attribute.
-  if (current.eventIdx != null) {
-    const el = document.querySelector(`[data-event-idx="${current.eventIdx}"]`);
-    if (el) {
-      el.classList.add('playback-highlight');
-      el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    }
-  } else if (current.event.pipeline_stage) {
-    const el = document.querySelector(`.trace-stage[data-stage="${current.stageName}"]`);
-    if (el) {
-      el.classList.add('playback-highlight');
-      el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    }
-  } else if (current.event.packet_outcome) {
-    const el = document.querySelector('[data-outcome]');
+  // Highlight the current step in the trace tree. Regular events have a
+  // data-event-idx; stage headers use data-stage; the outcome uses data-outcome.
+  const selector = current.eventIdx != null
+    ? `[data-event-idx="${current.eventIdx}"]`
+    : current.event.pipeline_stage
+      ? `.trace-stage[data-stage="${current.stageName}"]`
+      : current.event.packet_outcome
+        ? '[data-outcome]'
+        : null;
+  if (selector) {
+    const el = document.querySelector(selector);
     if (el) {
       el.classList.add('playback-highlight');
       el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -1249,11 +1236,8 @@ function applyPlaybackState() {
   updatePlaybackUI();
 }
 
-/** Update diagram to show stages visited up to the given position. */
+/** Update diagram to show stages visited up to the given playback position. */
 function updateDiagramForPlayback(events, pos) {
-  const stageOrder = V1MODEL_STAGES;
-
-  // Collect stages visited so far using the stageName field from flattening.
   const visited = new Set();
   let activeStage = null;
   for (let i = 0; i <= pos; i++) {
@@ -1263,54 +1247,24 @@ function updateDiagramForPlayback(events, pos) {
     }
   }
 
-  // When stepping to the outcome event, show the final diagram state
-  // (dropped stage, outcome text) instead of a pulsing active stage.
+  // On the outcome event, show final state instead of a pulsing active stage.
   const current = events[pos];
   const isOutcome = !!(current.event.packet_outcome);
   const outcome = isOutcome ? analyzeOutcome({ packet_outcome: current.event.packet_outcome }) : null;
 
-  // Find last visited stage index for drop marking.
-  let lastVisitedIdx = -1;
-  if (isOutcome && outcome.type === 'drop') {
-    for (let i = stageOrder.length - 1; i >= 0; i--) {
-      if (visited.has(stageOrder[i])) { lastVisitedIdx = i; break; }
+  let droppedStage = null;
+  if (isOutcome && outcome?.type === 'drop') {
+    for (let i = V1MODEL_STAGES.length - 1; i >= 0; i--) {
+      if (visited.has(V1MODEL_STAGES[i])) { droppedStage = V1MODEL_STAGES[i]; break; }
     }
   }
 
-  // Update stage elements.
-  document.querySelectorAll('#pipeline-diagram .pipeline-stage').forEach(el => {
-    const name = el.dataset.stage;
-    el.classList.remove('visited', 'dropped', 'active');
-    if (isOutcome && outcome.type === 'drop' && name === stageOrder[lastVisitedIdx]) {
-      el.classList.add('dropped');
-    } else if (name === activeStage && !isOutcome) {
-      el.classList.add('active');
-    } else if (visited.has(name)) {
-      el.classList.add('visited');
-    }
+  renderDiagram({
+    visited,
+    activeStage: isOutcome ? null : activeStage,
+    droppedStage,
+    outcome,
   });
-
-  // Update arrows.
-  const arrowEls = document.querySelectorAll('#pipeline-diagram .pipeline-arrow');
-  arrowEls.forEach((arrow, i) => {
-    arrow.classList.remove('active');
-    if (visited.has(stageOrder[i]) && visited.has(stageOrder[i + 1])) {
-      arrow.classList.add('active');
-    }
-  });
-
-  // Show outcome in diagram when stepping to the outcome event.
-  const outcomeEl = document.getElementById('pipeline-outcome');
-  outcomeEl.className = 'pipeline-outcome';
-  if (isOutcome && outcome.type === 'output') {
-    outcomeEl.className += ' output';
-    outcomeEl.textContent = `→ output port ${outcome.port}`;
-  } else if (isOutcome && outcome.type === 'drop') {
-    outcomeEl.className += ' drop';
-    outcomeEl.textContent = `✕ dropped`;
-  } else {
-    outcomeEl.textContent = '';
-  }
 }
 
 function clearPlaybackEditorHighlight() {
@@ -1321,18 +1275,6 @@ function clearPlaybackEditorHighlight() {
   }
 }
 
-function clearPlaybackDiagram() {
-  document.querySelectorAll('#pipeline-diagram .pipeline-stage').forEach(el => {
-    el.classList.remove('visited', 'dropped', 'active');
-  });
-  document.querySelectorAll('#pipeline-diagram .pipeline-arrow').forEach(el => {
-    el.classList.remove('active');
-  });
-  const outcomeEl = document.getElementById('pipeline-outcome');
-  outcomeEl.className = 'pipeline-outcome';
-  outcomeEl.textContent = '';
-}
-
 function updatePlaybackUI() {
   const pos = state.playbackPos;
   const events = state.playbackEvents;
@@ -1341,7 +1283,7 @@ function updatePlaybackUI() {
   document.getElementById('btn-step-back').disabled = pos < 0;
   document.getElementById('btn-step-forward').disabled = pos >= events.length - 1;
   document.getElementById('btn-play-pause').textContent = playing ? '⏸' : '▶';
-  document.getElementById('btn-play-pause').title = playing ? 'Pause (Space)' : 'Play (Space)';
+  document.getElementById('btn-play-pause').title = playing ? 'Pause' : 'Play';
   document.getElementById('btn-reset').disabled = pos < 0 && !playing;
 
   const posText = document.getElementById('playback-position');
@@ -1442,8 +1384,6 @@ function renderTraceEvent(event) {
     return `<div ${attr} class="trace-event ingress">▸ Packet ingress port ${event.packet_ingress.ingress_port}</div>`;
   }
   if (event.pipeline_stage) {
-    // Pipeline stage events are structural — rendered as collapsible headers,
-    // not inline trace events. Don't stamp them (the header handles display).
     const s = event.pipeline_stage;
     const dir = s.direction === 'ENTER' ? '→' : '←';
     const cls = s.direction === 'ENTER' ? 'stage-enter' : 'stage-exit';
@@ -1807,7 +1747,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-step-forward').addEventListener('click', stepForward);
   document.getElementById('btn-play-pause').addEventListener('click', togglePlayPause);
   document.getElementById('btn-reset').addEventListener('click', resetPlayback);
-
 
   // Example selector
   document.getElementById('example-select').addEventListener('change', (e) => {
