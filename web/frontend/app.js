@@ -23,6 +23,10 @@ const state = {
   editor: null,         // Monaco editor instance
   loadingExample: false, // guard for example loading
 
+  // Trace view state.
+  traceView: 'tree',        // active trace view: 'tree', 'json', or 'proto'
+  traceJson: null,           // cached JSON.stringify of trace (computed lazily)
+
   // Playback state.
   playbackEvents: [],       // flattened list of {event, stageName, line, eventIdx}
   playbackPos: -1,          // current position (-1 = before first event)
@@ -984,12 +988,11 @@ function switchTraceView(view) {
     btn.classList.toggle('active', btn.dataset.view === view)
   );
 
-  if (view === 'tree') {
-    treeEl.classList.remove('hidden');
-    rawEl.classList.add('hidden');
-  } else if (view === 'json') {
-    treeEl.classList.add('hidden');
-    rawEl.classList.remove('hidden');
+  const showTree = view === 'tree';
+  treeEl.classList.toggle('hidden', !showTree);
+  rawEl.classList.toggle('hidden', showTree);
+
+  if (view === 'json') {
     if (!state.traceJson) {
       state.traceJson = JSON.stringify(state.lastTrace?.trace, null, 2) || '';
     }
@@ -997,8 +1000,6 @@ function switchTraceView(view) {
       '// proto-file: simulator/simulator.proto\n// proto-message: fourward.sim.v1.TraceTree\n\n'
       + state.traceJson;
   } else if (view === 'proto') {
-    treeEl.classList.add('hidden');
-    rawEl.classList.remove('hidden');
     rawEl.textContent =
       '# proto-file: simulator/simulator.proto\n# proto-message: fourward.sim.v1.TraceTree\n\n'
       + (state.lastTrace?.trace_proto || '');
