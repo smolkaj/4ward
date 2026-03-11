@@ -181,7 +181,13 @@
             <span id="playback-position" class="playback-position"></span>
           </div>
         </div>
+        <div id="trace-view-toggle" class="trace-view-toggle hidden">
+          <button class="trace-view-btn active" data-view="tree">Visual</button>
+          <button class="trace-view-btn" data-view="json">JSON</button>
+          <button class="trace-view-btn" data-view="proto">Proto</button>
+        </div>
         <div id="trace-tree" class="hidden"></div>
+        <pre id="trace-raw" class="trace-raw hidden"></pre>
       </div>
     </div>
   </div>

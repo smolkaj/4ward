@@ -123,6 +123,61 @@ A **guided tour** mode could walk new users through their first table entry and
 packet, step by step — with tooltips pointing at each UI element and explaining
 what it does. Think of it as an interactive version of the tutorial.
 
+## 7. Table graph visualization
+
+**Zoom into control blocks.** The pipeline diagram (item 1) shows the
+six v1model stages. The next level of detail shows what happens *inside*
+each control block: which tables are applied, in what order, and how
+conditionals connect them.
+
+```
+ingress:
+  ┌──────────────┐
+  │ acl_ingress  │
+  └──────┬───────┘
+         │
+    ┌────▼────┐
+    │ if hit  │──── miss ──▶ ...
+    └────┬────┘
+         │ hit
+    ┌────▼──────────┐
+    │ ipv4_lpm      │
+    └──────┬────────┘
+           │
+    ┌──────▼──────────┐
+    │ nexthop_table   │
+    └─────────────────┘
+```
+
+Control blocks in P4 are **DAGs** (no loops — the language forbids them),
+which makes layout tractable. Each table becomes a node; conditionals become
+branch edges with hit/miss or true/false labels.
+
+### Why this matters for SAI P4
+
+SAI P4 middleblock has ~50 tables across ingress and egress. The flat trace
+view works for toy programs, but at SAI scale it's hard to tell which tables
+fired and how they relate. A graph makes the forwarding pipeline structure
+visible — zoom into ingress, see all 30+ tables and how they connect.
+
+### Approach
+
+1. **New API endpoint** (`/api/control-graph`): walk the IR's statement tree
+   for each control block, extract table-apply nodes and branch edges, emit a
+   simplified DAG (JSON adjacency list).
+
+2. **Client-side graph layout**: use a small layout library
+   ([dagre](https://github.com/dagrejs/dagre) or
+   [elkjs](https://github.com/kieler/elkjs), both ~15KB from CDN) to compute
+   node positions. Render with SVG or positioned divs.
+
+3. **Trace integration**: during playback, highlight the active table node.
+   `table_lookup` trace events already carry hit/miss — color the edges to
+   show which path the packet took.
+
+4. **Scope**: start with tables only — omit parser states and deparser emit
+   order for now. Those could be added later as separate graph views.
+
 ## Implementation notes
 
 - Items 1 and 2 (pipeline diagram + animated playback) are tightly coupled —
@@ -137,4 +192,10 @@ what it does. Think of it as an interactive version of the tutorial.
 - Item 6 (examples + tours) is content work — easy to parallelize with
   engineering.
 
-- All of this is pure frontend work. The backend API is sufficient as-is.
+- Item 7 (table graph) requires a new backend endpoint but is otherwise
+  frontend work. The graph layout library adds a small dependency. This
+  naturally follows items 1–2 — it deepens the visualization without changing
+  the architecture.
+
+- All frontend-only items work with the existing backend API. Item 7 needs
+  one new endpoint.

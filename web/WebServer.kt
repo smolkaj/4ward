@@ -197,7 +197,12 @@ class WebServer(
 
     val outputsJson = response.outputPacketsList.joinToString(",") { jsonPrinter.print(it) }
     val traceJson = jsonPrinter.print(response.trace)
-    sendJson(exchange, HTTP_OK, """{"output_packets":[$outputsJson],"trace":$traceJson}""")
+    val traceProto = TextFormat.printer().escapingNonAscii(false).printToString(response.trace)
+    sendJson(
+      exchange,
+      HTTP_OK,
+      """{"output_packets":[$outputsJson],"trace":$traceJson,"trace_proto":${jsonEscape(traceProto)}}""",
+    )
   }
 
   // ---------------------------------------------------------------------------
@@ -403,5 +408,7 @@ class WebServer(
         clean.substring(i * 2, i * 2 + 2).toInt(16).toByte()
       }
     }
+
+
   }
 }

@@ -946,22 +946,60 @@ function formatHexDump(bytes) {
 function renderTraceTree(trace) {
   const emptyEl = document.getElementById('trace-empty');
   const treeEl = document.getElementById('trace-tree');
+  const rawEl = document.getElementById('trace-raw');
   const diagramEl = document.getElementById('pipeline-diagram');
+  const toggleEl = document.getElementById('trace-view-toggle');
 
   if (!trace) {
     emptyEl.classList.remove('hidden');
     treeEl.classList.add('hidden');
+    rawEl.classList.add('hidden');
     diagramEl.classList.add('hidden');
+    toggleEl.classList.add('hidden');
     return;
   }
 
   emptyEl.classList.add('hidden');
-  treeEl.classList.remove('hidden');
   diagramEl.classList.remove('hidden');
+  toggleEl.classList.remove('hidden');
   _eventIdx = 0;
   treeEl.innerHTML = renderTraceNode(trace, true);
   updatePipelineDiagram(trace);
   initPlayback(trace);
+
+  // Store raw formats for the JSON/Proto views.
+  state.traceJson = JSON.stringify(trace, null, 2);
+  state.traceProto = state.lastTrace?.trace_proto || '';
+
+  // Show the currently selected view.
+  switchTraceView(state.traceView || 'tree');
+}
+
+function switchTraceView(view) {
+  state.traceView = view;
+  const treeEl = document.getElementById('trace-tree');
+  const rawEl = document.getElementById('trace-raw');
+
+  document.querySelectorAll('.trace-view-btn').forEach(btn =>
+    btn.classList.toggle('active', btn.dataset.view === view)
+  );
+
+  if (view === 'tree') {
+    treeEl.classList.remove('hidden');
+    rawEl.classList.add('hidden');
+  } else if (view === 'json') {
+    treeEl.classList.add('hidden');
+    rawEl.classList.remove('hidden');
+    rawEl.textContent =
+      '// proto-file: simulator/simulator.proto\n// proto-message: fourward.sim.v1.TraceTree\n\n'
+      + (state.traceJson || '');
+  } else if (view === 'proto') {
+    treeEl.classList.add('hidden');
+    rawEl.classList.remove('hidden');
+    rawEl.textContent =
+      '# proto-file: simulator/simulator.proto\n# proto-message: fourward.sim.v1.TraceTree\n\n'
+      + (state.traceProto || '');
+  }
 }
 
 /**
@@ -1747,6 +1785,11 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-step-forward').addEventListener('click', stepForward);
   document.getElementById('btn-play-pause').addEventListener('click', togglePlayPause);
   document.getElementById('btn-reset').addEventListener('click', resetPlayback);
+
+  // Trace view toggle (Tree / JSON / Proto)
+  document.querySelectorAll('.trace-view-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchTraceView(btn.dataset.view));
+  });
 
   // Example selector
   document.getElementById('example-select').addEventListener('change', (e) => {
