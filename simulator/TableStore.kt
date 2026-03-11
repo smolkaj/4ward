@@ -602,10 +602,8 @@ class TableStore {
       entity.hasDirectCounterEntry() ->
         writeDirectCounterEntry(update.type, entity.directCounterEntry)
       entity.hasDirectMeterEntry() -> writeDirectMeterEntry(update.type, entity.directMeterEntry)
-      entity.hasPacketReplicationEngineEntry() -> {
-        writePreEntry(entity.packetReplicationEngineEntry)
-        WriteResult.Success
-      }
+      entity.hasPacketReplicationEngineEntry() ->
+        writePreEntry(update.type, entity.packetReplicationEngineEntry)
       entity.hasTableEntry() -> writeTableEntry(update)
       else ->
         WriteResult.InvalidArgument(
@@ -734,20 +732,82 @@ class TableStore {
     )
   }
 
-  private fun writePreEntry(pre: P4RuntimeOuterClass.PacketReplicationEngineEntry) {
+  private fun writePreEntry(
+    type: Update.Type,
+    pre: P4RuntimeOuterClass.PacketReplicationEngineEntry,
+  ): WriteResult =
     when {
-      pre.hasCloneSessionEntry() ->
-        cloneSessions[pre.cloneSessionEntry.sessionId] = pre.cloneSessionEntry
-      pre.hasMulticastGroupEntry() ->
-        multicastGroups[pre.multicastGroupEntry.multicastGroupId] = pre.multicastGroupEntry
+      pre.hasCloneSessionEntry() -> {
+        val entry = pre.cloneSessionEntry
+        writeProfileEntity(
+          type,
+          cloneSessions,
+          entry.sessionId,
+          entry,
+          "clone session ${entry.sessionId}",
+        )
+      }
+      pre.hasMulticastGroupEntry() -> {
+        val entry = pre.multicastGroupEntry
+        writeProfileEntity(
+          type,
+          multicastGroups,
+          entry.multicastGroupId,
+          entry,
+          "multicast group ${entry.multicastGroupId}",
+        )
+      }
+      else -> WriteResult.InvalidArgument("PRE entry must have a clone session or multicast group")
     }
-  }
 
   fun getCloneSession(sessionId: Int): P4RuntimeOuterClass.CloneSessionEntry? =
     cloneSessions[sessionId]
 
   fun getMulticastGroup(groupId: Int): P4RuntimeOuterClass.MulticastGroupEntry? =
     multicastGroups[groupId]
+
+  /**
+   * Reads PRE entries matching the filter.
+   *
+   * No oneof set → wildcard (return all clone sessions and multicast groups). One oneof set →
+   * return entries of that type; ID 0 means all of that type, non-zero means that specific entry.
+   */
+  fun readPreEntries(
+    filter: P4RuntimeOuterClass.PacketReplicationEngineEntry =
+      P4RuntimeOuterClass.PacketReplicationEngineEntry.getDefaultInstance()
+  ): List<P4RuntimeOuterClass.Entity> {
+    val includeClone = filter.hasCloneSessionEntry() || !filter.hasMulticastGroupEntry()
+    val includeMulticast = filter.hasMulticastGroupEntry() || !filter.hasCloneSessionEntry()
+    return buildList {
+      if (includeClone) {
+        val id = if (filter.hasCloneSessionEntry()) filter.cloneSessionEntry.sessionId else 0
+        for (entry in readFromMap(cloneSessions, id)) {
+          add(entry.toPreEntity { setCloneSessionEntry(entry) })
+        }
+      }
+      if (includeMulticast) {
+        val id =
+          if (filter.hasMulticastGroupEntry()) filter.multicastGroupEntry.multicastGroupId else 0
+        for (entry in readFromMap(multicastGroups, id)) {
+          add(entry.toPreEntity { setMulticastGroupEntry(entry) })
+        }
+      }
+    }
+  }
+
+  /** Returns all values if [id] is 0 (wildcard), or the single entry matching [id]. */
+  private fun <T> readFromMap(map: MutableMap<Int, T>, id: Int): Collection<T> =
+    if (id != 0) listOfNotNull(map[id]) else map.values
+
+  /** Wraps a PRE sub-entry into an `Entity` proto. */
+  private fun <T> T.toPreEntity(
+    setter: P4RuntimeOuterClass.PacketReplicationEngineEntry.Builder.(T) -> Unit
+  ): P4RuntimeOuterClass.Entity =
+    P4RuntimeOuterClass.Entity.newBuilder()
+      .setPacketReplicationEngineEntry(
+        P4RuntimeOuterClass.PacketReplicationEngineEntry.newBuilder().also { it.setter(this) }
+      )
+      .build()
 
   // -------------------------------------------------------------------------
   // Snapshot / Restore (for ROLLBACK_ON_ERROR / DATAPLANE_ATOMIC)

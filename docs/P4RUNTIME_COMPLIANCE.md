@@ -107,10 +107,10 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 |---|-------------|--------|------|
 | 9.60 | Multicast group CRUD | Y | ConformanceTest (via PRE entries) |
 | 9.61 | Clone session CRUD | Y | ConformanceTest (via PRE entries) |
-| 9.62 | PRE INSERT existing → ALREADY_EXISTS | N | |
-| 9.63 | PRE MODIFY non-existent → NOT_FOUND | N | |
-| 9.64 | PRE DELETE non-existent → NOT_FOUND | N | |
-| 9.65 | PRE entries readable via Read RPC | N | |
+| 9.62 | PRE INSERT existing → ALREADY_EXISTS | Y | TableStoreTest |
+| 9.63 | PRE MODIFY non-existent → NOT_FOUND | Y | TableStoreTest |
+| 9.64 | PRE DELETE non-existent → NOT_FOUND | Y | TableStoreTest |
+| 9.65 | PRE entries readable via Read RPC | Y | TableStoreTest |
 
 ## Write RPC — other entity types (§9.6, §9.8, §9.9)
 
@@ -236,7 +236,7 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 | Write — profiles | 8 | 0 | 0 |
 | Write — registers | 5 | 0 | 0 |
 | Write — counters/meters | 4 | 0 | 0 |
-| Write — PRE | 2 | 4 | 0 |
+| Write — PRE | 6 | 0 | 0 |
 | Write — other entities | 0 | 0 | 3 |
 | Write — atomicity | 0 | 3 | 1 |
 | Write — general | 1 | 1 | 0 |
@@ -248,4 +248,4 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 | Translation | 6 | 0 | 0 |
 | @refers_to | 6 | 0 | 0 |
 | p4-constraints | 4 | 0 | 0 |
-| **Total** | **97** | **21** | **10** |
+| **Total** | **101** | **17** | **10** |
