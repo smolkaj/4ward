@@ -88,6 +88,10 @@ the next move. Steer the answer if needed, but let the AI lead.
 
 
 ## Letting the AI review other's code
+
+DSICLAIMER: I haven't actually used this workflow.
+I stole it from the Peter Steinberg podcast referenced above.
+
 - "Review this PR"
 - "Do you understand the intent of this PR?"
   — *Makes the AI prove it has the right context before you trust its review.*
@@ -109,10 +113,3 @@ to your `~/.claude/settings.json`:
     ]
   }
 ```
-
-
-## Resources
-- Learn from the best! I highly recommend this podcast with Peter Steinberg, the
-  creator of OpenClaw: https://www.youtube.com/watch?v=YFjfBk8HI5o
-    - OpenClaw was created entirely using AI prompting and gained 100,000+
-      GitHub stars in < 1 week -- the fastest growing project ever!
