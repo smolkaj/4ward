@@ -198,6 +198,44 @@ class ReferenceValidatorTest {
   }
 
   // =========================================================================
+  // Action profile member validation
+  // =========================================================================
+
+  @Test
+  fun `action profile member with missing reference is rejected`() {
+    val v = validatorWithActionParamRef()
+    val e =
+      assertThrows(StatusException::class.java) {
+        v.validate(
+          insertProfileMember(REF_ACTION_ID, paramWithValue(REF_PARAM_ID, VALUE_A)),
+          entryExists = { _, _, _ -> false },
+          multicastGroupExists = { false },
+        )
+      }
+    assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code)
+  }
+
+  @Test
+  fun `action profile member with existing reference passes`() {
+    val v = validatorWithActionParamRef()
+    v.validate(
+      insertProfileMember(REF_ACTION_ID, paramWithValue(REF_PARAM_ID, VALUE_A)),
+      entryExists = { _, _, _ -> true },
+      multicastGroupExists = { false },
+    )
+  }
+
+  @Test
+  fun `delete of action profile member skips validation`() {
+    val v = validatorWithActionParamRef()
+    v.validate(
+      deleteProfileMember(REF_ACTION_ID),
+      entryExists = { _, _, _ -> false },
+      multicastGroupExists = { false },
+    )
+  }
+
+  // =========================================================================
   // Unresolvable references (table/field not in p4info)
   // =========================================================================
 
@@ -272,8 +310,10 @@ class ReferenceValidatorTest {
       )
       .addTables(
         table(
-          TARGET_TABLE_ID, "target_table",
-          matchField(TARGET_FIELD_ID, "target_id"), actionRef(NO_ACTION_ID),
+          TARGET_TABLE_ID,
+          "target_table",
+          matchField(TARGET_FIELD_ID, "target_id"),
+          actionRef(NO_ACTION_ID),
         )
       )
       .addActions(action(NO_ACTION_ID, "no_action"))
@@ -297,8 +337,10 @@ class ReferenceValidatorTest {
       )
       .addTables(
         table(
-          TARGET_TABLE_ID, "target_table",
-          matchField(TARGET_FIELD_ID, "target_id"), actionRef(NO_ACTION_ID),
+          TARGET_TABLE_ID,
+          "target_table",
+          matchField(TARGET_FIELD_ID, "target_id"),
+          actionRef(NO_ACTION_ID),
         )
       )
       .addActions(action(NO_ACTION_ID, "no_action"))
@@ -317,8 +359,10 @@ class ReferenceValidatorTest {
       )
       .addTables(
         table(
-          TARGET_TABLE_ID, "target_table",
-          matchField(TARGET_FIELD_ID, "target_id"), actionRef(NO_ACTION_ID),
+          TARGET_TABLE_ID,
+          "target_table",
+          matchField(TARGET_FIELD_ID, "target_id"),
+          actionRef(NO_ACTION_ID),
         )
       )
       .addActions(
@@ -348,7 +392,8 @@ class ReferenceValidatorTest {
           "set_mcast",
           // p4c emits spaces around "::" in annotations.
           param(
-            MCAST_PARAM_ID, "mcast_id",
+            MCAST_PARAM_ID,
+            "mcast_id",
             "@refers_to(builtin : : multicast_group_table , multicast_group_id)",
           ),
         )
@@ -419,8 +464,7 @@ class ReferenceValidatorTest {
     name: String,
     annotation: String? = null,
   ): P4InfoOuterClass.Action.Param {
-    val builder =
-      P4InfoOuterClass.Action.Param.newBuilder().setId(id).setName(name).setBitwidth(16)
+    val builder = P4InfoOuterClass.Action.Param.newBuilder().setId(id).setName(name).setBitwidth(16)
     if (annotation != null) builder.addAnnotations(annotation)
     return builder.build()
   }
@@ -492,9 +536,7 @@ class ReferenceValidatorTest {
               .addMatch(
                 P4RuntimeOuterClass.FieldMatch.newBuilder()
                   .setFieldId(fieldId)
-                  .setOptional(
-                    P4RuntimeOuterClass.FieldMatch.Optional.newBuilder().setValue(value)
-                  )
+                  .setOptional(P4RuntimeOuterClass.FieldMatch.Optional.newBuilder().setValue(value))
               )
           )
       )
@@ -515,20 +557,48 @@ class ReferenceValidatorTest {
               .setAction(
                 P4RuntimeOuterClass.TableAction.newBuilder()
                   .setAction(
-                    P4RuntimeOuterClass.Action.newBuilder()
-                      .setActionId(actionId)
-                      .addParams(param)
+                    P4RuntimeOuterClass.Action.newBuilder().setActionId(actionId).addParams(param)
                   )
               )
           )
       )
       .build()
 
-  private fun paramWithValue(
-    paramId: Int,
-    value: ByteString,
-  ): P4RuntimeOuterClass.Action.Param =
+  private fun paramWithValue(paramId: Int, value: ByteString): P4RuntimeOuterClass.Action.Param =
     P4RuntimeOuterClass.Action.Param.newBuilder().setParamId(paramId).setValue(value).build()
+
+  private fun insertProfileMember(
+    actionId: Int,
+    param: P4RuntimeOuterClass.Action.Param,
+  ): P4RuntimeOuterClass.Update =
+    P4RuntimeOuterClass.Update.newBuilder()
+      .setType(P4RuntimeOuterClass.Update.Type.INSERT)
+      .setEntity(
+        P4RuntimeOuterClass.Entity.newBuilder()
+          .setActionProfileMember(
+            P4RuntimeOuterClass.ActionProfileMember.newBuilder()
+              .setActionProfileId(1)
+              .setMemberId(1)
+              .setAction(
+                P4RuntimeOuterClass.Action.newBuilder().setActionId(actionId).addParams(param)
+              )
+          )
+      )
+      .build()
+
+  private fun deleteProfileMember(actionId: Int): P4RuntimeOuterClass.Update =
+    P4RuntimeOuterClass.Update.newBuilder()
+      .setType(P4RuntimeOuterClass.Update.Type.DELETE)
+      .setEntity(
+        P4RuntimeOuterClass.Entity.newBuilder()
+          .setActionProfileMember(
+            P4RuntimeOuterClass.ActionProfileMember.newBuilder()
+              .setActionProfileId(1)
+              .setMemberId(1)
+              .setAction(P4RuntimeOuterClass.Action.newBuilder().setActionId(actionId))
+          )
+      )
+      .build()
 
   /** Encodes a multicast group ID as a 2-byte big-endian ByteString. */
   @Suppress("MagicNumber")

@@ -532,6 +532,13 @@ class SaiP4E2ETest {
       config.p4Info.actionProfilesList.find { it.preamble.alias == "wcmp_group_selector" }!!
     val actionProfileId = wcmpSelector.preamble.id
 
+    // Install prerequisite entries: nexthops referenced by action profile members.
+    // Dependency chain: router_interface → neighbor → nexthop.
+    harness.installEntry(buildRouterInterfaceEntry("rif-1", "Ethernet1", RIF_MAC))
+    harness.installEntry(buildNeighborEntry("rif-1", NEIGHBOR_ID, NEIGHBOR_MAC))
+    harness.installEntry(buildNexthopEntry(nexthopId = "nhop-a", routerInterfaceId = "rif-1"))
+    harness.installEntry(buildNexthopEntry(nexthopId = "nhop-b", routerInterfaceId = "rif-1"))
+
     // Install two action profile members pointing to different nexthops.
     val setNexthop = findAction("set_nexthop_id")
     harness.installEntry(

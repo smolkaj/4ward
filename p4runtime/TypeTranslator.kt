@@ -11,6 +11,10 @@ import p4.v1.P4RuntimeOuterClass.PacketIn
 import p4.v1.P4RuntimeOuterClass.PacketOut
 import p4.v1.P4RuntimeOuterClass.Update
 
+/** Interprets a [ByteString] as an unsigned big-endian integer. Inverse of [encodeMinWidth]. */
+fun ByteString.toUnsignedInt(): Int =
+  toByteArray().fold(0) { acc, b -> (acc shl 8) or (b.toInt() and 0xFF) }
+
 /**
  * Minimum-width unsigned big-endian encoding of a non-negative integer (P4Runtime canonical form).
  */
@@ -101,18 +105,41 @@ private constructor(
 
   /** Translates a Write update from SDN to data-plane representation. */
   fun translateForWrite(update: Update): Update {
-    if (!update.entity.hasTableEntry()) return update
-    val translated =
-      translateTableEntry(update.entity.tableEntry, toDataplane = true) ?: return update
-    return update.toBuilder().setEntity(update.entity.toBuilder().setTableEntry(translated)).build()
+    val entity = update.entity
+    return when {
+      entity.hasTableEntry() -> {
+        val translated = translateTableEntry(entity.tableEntry, toDataplane = true) ?: return update
+        update.toBuilder().setEntity(entity.toBuilder().setTableEntry(translated)).build()
+      }
+      entity.hasActionProfileMember() -> {
+        val member = entity.actionProfileMember
+        val translated = translateAction(member.action, toDataplane = true) ?: return update
+        update
+          .toBuilder()
+          .setEntity(
+            entity.toBuilder().setActionProfileMember(member.toBuilder().setAction(translated))
+          )
+          .build()
+      }
+      else -> update
+    }
   }
 
   /** Translates a Read entity from data-plane to SDN representation. */
-  fun translateForRead(entity: Entity): Entity {
-    if (!entity.hasTableEntry()) return entity
-    val translated = translateTableEntry(entity.tableEntry, toDataplane = false) ?: return entity
-    return entity.toBuilder().setTableEntry(translated).build()
-  }
+  fun translateForRead(entity: Entity): Entity =
+    when {
+      entity.hasTableEntry() -> {
+        val translated =
+          translateTableEntry(entity.tableEntry, toDataplane = false) ?: return entity
+        entity.toBuilder().setTableEntry(translated).build()
+      }
+      entity.hasActionProfileMember() -> {
+        val member = entity.actionProfileMember
+        val translated = translateAction(member.action, toDataplane = false) ?: return entity
+        entity.toBuilder().setActionProfileMember(member.toBuilder().setAction(translated)).build()
+      }
+      else -> entity
+    }
 
   /**
    * Translates match field values and action parameter values in a table entry. Returns null if
@@ -540,16 +567,12 @@ internal class TranslationTable(
   }
 
   companion object {
-    /** Interprets a big-endian ByteString as an unsigned Int. */
-    private fun bytesToInt(bs: ByteString): Int =
-      bs.toByteArray().fold(0) { acc, b -> (acc shl 8) or (b.toInt() and 0xFF) }
-
     /** Builds a TranslationTable from a proto config, pre-populating explicit entries. */
     fun fromProto(proto: TypeTranslation, isStringType: Boolean = false): TranslationTable {
       val table = TranslationTable(autoAllocate = proto.autoAllocate, isStringType = isStringType)
       for (entry in proto.entriesList) {
         val dp = entry.dataplaneValue
-        table.reservedValues.add(bytesToInt(dp))
+        table.reservedValues.add(dp.toUnsignedInt())
         table.reverse[dp] =
           when (entry.sdnValueCase) {
             TranslationEntry.SdnValueCase.SDN_BITSTRING -> {

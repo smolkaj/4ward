@@ -143,13 +143,11 @@ class P4RuntimeService(
 
         // Validate @refers_to referential integrity after translation so values
         // are in dataplane form (matching what's stored in the simulator).
-        if (update.entity.hasTableEntry()) {
-          state.referenceValidator?.validate(
-            update,
-            simulator::hasTableEntryWithFieldValue,
-            simulator::hasMulticastGroup,
-          )
-        }
+        state.referenceValidator?.validate(
+          update,
+          simulator::hasTableEntryWithFieldValue,
+          simulator::hasMulticastGroup,
+        )
 
         // Validate constraints before forwarding to the simulator.
         // Skip DELETE — you can always remove an entry regardless of constraints.
@@ -290,8 +288,7 @@ class P4RuntimeService(
   /** Extracts ingress port from PacketOut metadata, defaulting to port 0. */
   private fun extractIngressPort(metadata: List<p4.v1.P4RuntimeOuterClass.PacketMetadata>): Int {
     val portMeta = metadata.find { it.metadataId == INGRESS_PORT_METADATA_ID }
-    return portMeta?.value?.toByteArray()?.fold(0) { acc, b -> (acc shl 8) or (b.toInt() and 0xFF) }
-      ?: 0
+    return portMeta?.value?.toUnsignedInt() ?: 0
   }
 
   // ---------------------------------------------------------------------------

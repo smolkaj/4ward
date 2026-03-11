@@ -2,7 +2,6 @@ package fourward.p4runtime
 
 import com.google.protobuf.ByteString
 import io.grpc.Status
-import io.grpc.StatusException
 import p4.config.v1.P4InfoOuterClass
 import p4.v1.P4RuntimeOuterClass
 
@@ -19,7 +18,8 @@ import p4.v1.P4RuntimeOuterClass
  *
  * All annotation parsing is done at construction time; [validate] only does lookups.
  */
-class ReferenceValidator private constructor(
+class ReferenceValidator
+private constructor(
   private val matchFieldRefs: Map<Int, Map<Int, List<Reference>>>,
   private val actionParamRefs: Map<Int, Map<Int, List<Reference>>>,
 ) {
@@ -38,10 +38,10 @@ class ReferenceValidator private constructor(
   )
 
   /**
-   * Checks referential integrity for a table entry update.
+   * Checks referential integrity for an update.
    *
-   * Only validates INSERT and MODIFY — DELETE never fails referential checks (dangling reverse
-   * references are allowed; checking them would require scanning all tables).
+   * Validates table entries (match fields + action params) and action profile members (action
+   * params). Only validates INSERT and MODIFY — DELETE never fails referential checks.
    *
    * @param entryExists returns true if a table (identified by p4info table ID) has an entry with
    *   match [fieldId] equal to [value].
@@ -53,32 +53,46 @@ class ReferenceValidator private constructor(
     multicastGroupExists: (groupId: Int) -> Boolean,
   ) {
     if (update.type == P4RuntimeOuterClass.Update.Type.DELETE) return
-    val entry = update.entity.tableEntry
-    val tableId = entry.tableId
+    val entity = update.entity
 
-    // Check match fields.
-    val fieldRefs = matchFieldRefs[tableId]
-    if (fieldRefs != null) {
-      for (fm in entry.matchList) {
-        val refs = fieldRefs[fm.fieldId] ?: continue
-        val value = extractExactValue(fm) ?: continue
-        for (ref in refs) {
-          checkReference(ref, value, entryExists, multicastGroupExists)
-        }
-      }
-    }
+    when {
+      entity.hasTableEntry() -> {
+        val entry = entity.tableEntry
 
-    // Check action params.
-    if (entry.hasAction() && entry.action.hasAction()) {
-      val action = entry.action.action
-      val paramRefs = actionParamRefs[action.actionId]
-      if (paramRefs != null) {
-        for (param in action.paramsList) {
-          val refs = paramRefs[param.paramId] ?: continue
-          for (ref in refs) {
-            checkReference(ref, param.value, entryExists, multicastGroupExists)
+        // Check match fields.
+        val fieldRefs = matchFieldRefs[entry.tableId]
+        if (fieldRefs != null) {
+          for (fm in entry.matchList) {
+            val refs = fieldRefs[fm.fieldId] ?: continue
+            val value = extractExactValue(fm) ?: continue
+            for (ref in refs) {
+              checkReference(ref, value, entryExists, multicastGroupExists)
+            }
           }
         }
+
+        // Check action params (direct action on the table entry).
+        if (entry.hasAction() && entry.action.hasAction()) {
+          validateActionParams(entry.action.action, entryExists, multicastGroupExists)
+        }
+      }
+
+      entity.hasActionProfileMember() ->
+        validateActionParams(entity.actionProfileMember.action, entryExists, multicastGroupExists)
+    }
+  }
+
+  /** Validates `@refers_to` annotations on action parameters. */
+  private fun validateActionParams(
+    action: P4RuntimeOuterClass.Action,
+    entryExists: (Int, Int, ByteString) -> Boolean,
+    multicastGroupExists: (Int) -> Boolean,
+  ) {
+    val paramRefs = actionParamRefs[action.actionId] ?: return
+    for (param in action.paramsList) {
+      val refs = paramRefs[param.paramId] ?: continue
+      for (ref in refs) {
+        checkReference(ref, param.value, entryExists, multicastGroupExists)
       }
     }
   }
@@ -90,18 +104,16 @@ class ReferenceValidator private constructor(
     multicastGroupExists: (Int) -> Boolean,
   ) {
     if (ref.tableName == BUILTIN_MULTICAST) {
-      val groupId = value.toByteArray().fold(0) { acc, b -> (acc shl 8) or (b.toInt() and 0xFF) }
+      val groupId = value.toUnsignedInt()
       if (!multicastGroupExists(groupId)) {
-        throw Status.INVALID_ARGUMENT
-          .withDescription(
+        throw Status.INVALID_ARGUMENT.withDescription(
             "@refers_to violation: no multicast group with ID $groupId exists"
           )
           .asException()
       }
     } else {
       if (!entryExists(ref.tableId, ref.fieldId, value)) {
-        throw Status.INVALID_ARGUMENT
-          .withDescription(
+        throw Status.INVALID_ARGUMENT.withDescription(
             "@refers_to violation: no entry in '${ref.tableName}' with " +
               "'${ref.fieldName}' matching the given value"
           )
@@ -132,10 +144,7 @@ class ReferenceValidator private constructor(
         p4info.tablesList.associateBy { it.preamble.alias.ifEmpty { it.preamble.name } }
 
       fun resolveFieldId(tableName: String, fieldName: String): Int? =
-        tablesByName[tableName]
-          ?.matchFieldsList
-          ?.find { it.name == fieldName }
-          ?.id
+        tablesByName[tableName]?.matchFieldsList?.find { it.name == fieldName }?.id
 
       val matchFieldRefs = mutableMapOf<Int, MutableMap<Int, MutableList<Reference>>>()
       val actionParamRefs = mutableMapOf<Int, MutableMap<Int, MutableList<Reference>>>()
@@ -144,12 +153,13 @@ class ReferenceValidator private constructor(
       // Scan match fields for @refers_to annotations.
       for (table in p4info.tablesList) {
         for (field in table.matchFieldsList) {
-          val refs = parseRefersTo(field.annotationsList, tablesByName) { tbl, fld ->
-            resolveFieldId(tbl, fld)
-          }
+          val refs =
+            parseRefersTo(field.annotationsList, tablesByName) { tbl, fld ->
+              resolveFieldId(tbl, fld)
+            }
           if (refs.isNotEmpty()) {
-            matchFieldRefs
-              .getOrPut(table.preamble.id) { mutableMapOf() }[field.id] = refs.toMutableList()
+            matchFieldRefs.getOrPut(table.preamble.id) { mutableMapOf() }[field.id] =
+              refs.toMutableList()
             hasAny = true
           }
         }
@@ -158,12 +168,13 @@ class ReferenceValidator private constructor(
       // Scan action params for @refers_to annotations.
       for (action in p4info.actionsList) {
         for (param in action.paramsList) {
-          val refs = parseRefersTo(param.annotationsList, tablesByName) { tbl, fld ->
-            resolveFieldId(tbl, fld)
-          }
+          val refs =
+            parseRefersTo(param.annotationsList, tablesByName) { tbl, fld ->
+              resolveFieldId(tbl, fld)
+            }
           if (refs.isNotEmpty()) {
-            actionParamRefs
-              .getOrPut(action.preamble.id) { mutableMapOf() }[param.id] = refs.toMutableList()
+            actionParamRefs.getOrPut(action.preamble.id) { mutableMapOf() }[param.id] =
+              refs.toMutableList()
             hasAny = true
           }
         }
