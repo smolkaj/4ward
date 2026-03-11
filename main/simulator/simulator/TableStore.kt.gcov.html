@@ -31,18 +31,18 @@
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">96.3&nbsp;%</td>
-            <td class="headerCovTableEntry">486</td>
-            <td class="headerCovTableEntry">468</td>
+            <td class="headerCovTableEntryHi">96.0&nbsp;%</td>
+            <td class="headerCovTableEntry">497</td>
+            <td class="headerCovTableEntry">477</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-11 20:35:38</td>
+            <td class="headerValue">2026-03-11 22:21:34</td>
             <td></td>
             <td class="headerItem">Functions:</td>
-            <td class="headerCovTableEntryHi">95.2&nbsp;%</td>
-            <td class="headerCovTableEntry">84</td>
-            <td class="headerCovTableEntry">80</td>
+            <td class="headerCovTableEntryHi">95.3&nbsp;%</td>
+            <td class="headerCovTableEntry">85</td>
+            <td class="headerCovTableEntry">81</td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
                 </table>
@@ -834,170 +834,190 @@
 <span id="L772"><span class="lineNum">     772</span> <span class="tlaGNC">           1 :       P4RuntimeOuterClass.Entity.newBuilder().setActionProfileGroup(it).build()</span></span>
 <span id="L773"><span class="lineNum">     773</span> <span class="tlaGNC">           1 :     }</span></span>
 <span id="L774"><span class="lineNum">     774</span>              : </span>
-<span id="L775"><span class="lineNum">     775</span>              :   // -------------------------------------------------------------------------</span>
-<span id="L776"><span class="lineNum">     776</span>              :   // Lookup</span>
-<span id="L777"><span class="lineNum">     777</span>              :   // -------------------------------------------------------------------------</span>
-<span id="L778"><span class="lineNum">     778</span>              : </span>
-<span id="L779"><span class="lineNum">     779</span> <span class="tlaGNC">           1 :   data class MemberAction(</span></span>
-<span id="L780"><span class="lineNum">     780</span> <span class="tlaGNC">           1 :     val memberId: Int,</span></span>
-<span id="L781"><span class="lineNum">     781</span> <span class="tlaGNC">           1 :     val actionName: String,</span></span>
-<span id="L782"><span class="lineNum">     782</span> <span class="tlaGNC">           1 :     val params: List&lt;P4RuntimeOuterClass.Action.Param&gt;,</span></span>
-<span id="L783"><span class="lineNum">     783</span>              :   )</span>
-<span id="L784"><span class="lineNum">     784</span>              : </span>
-<span id="L785"><span class="lineNum">     785</span> <span class="tlaGNC">           1 :   data class LookupResult(</span></span>
-<span id="L786"><span class="lineNum">     786</span> <span class="tlaGNC">           1 :     val hit: Boolean,</span></span>
-<span id="L787"><span class="lineNum">     787</span> <span class="tlaGNC">           1 :     val entry: TableEntry?,</span></span>
-<span id="L788"><span class="lineNum">     788</span> <span class="tlaGNC">           1 :     val actionName: String,</span></span>
-<span id="L789"><span class="lineNum">     789</span> <span class="tlaGNC">           1 :     val actionParams: List&lt;p4.v1.P4RuntimeOuterClass.Action.Param&gt; = emptyList(),</span></span>
-<span id="L790"><span class="lineNum">     790</span> <span class="tlaGNC">           1 :     val members: List&lt;MemberAction&gt;? = null,</span></span>
-<span id="L791"><span class="lineNum">     791</span> <span class="tlaGNC">           1 :   )</span></span>
-<span id="L792"><span class="lineNum">     792</span>              : </span>
-<span id="L793"><span class="lineNum">     793</span>              :   /**</span>
-<span id="L794"><span class="lineNum">     794</span>              :    * Looks up [keyValues] in [tableName]. Returns the best-matching entry or, on a miss, the default</span>
-<span id="L795"><span class="lineNum">     795</span>              :    * action.</span>
-<span id="L796"><span class="lineNum">     796</span>              :    *</span>
-<span id="L797"><span class="lineNum">     797</span>              :    * For LPM tables, &quot;best match&quot; means the entry with the longest prefix. For ternary tables, &quot;best</span>
-<span id="L798"><span class="lineNum">     798</span>              :    * match&quot; means the entry with the highest priority.</span>
-<span id="L799"><span class="lineNum">     799</span>              :    */</span>
-<span id="L800"><span class="lineNum">     800</span>              :   fun lookup(tableName: String, keyValues: List&lt;Pair&lt;String, Value&gt;&gt;): LookupResult {</span>
-<span id="L801"><span class="lineNum">     801</span> <span class="tlaGNC">           1 :     forcedHits[tableName]?.let {</span></span>
-<span id="L802"><span class="lineNum">     802</span> <span class="tlaGNC">           1 :       return LookupResult(true, null, it)</span></span>
-<span id="L803"><span class="lineNum">     803</span>              :     }</span>
+<span id="L775"><span class="lineNum">     775</span>              :   /**</span>
+<span id="L776"><span class="lineNum">     776</span>              :    * Returns true if the table with p4info [tableId] has an entry with match field [fieldId] equal</span>
+<span id="L777"><span class="lineNum">     777</span>              :    * to [value].</span>
+<span id="L778"><span class="lineNum">     778</span>              :    *</span>
+<span id="L779"><span class="lineNum">     779</span>              :    * Used by `@refers_to` referential integrity validation. Checks exact and optional match fields.</span>
+<span id="L780"><span class="lineNum">     780</span>              :    */</span>
+<span id="L781"><span class="lineNum">     781</span>              :   fun hasEntryWithFieldValue(tableId: Int, fieldId: Int, value: ByteString): Boolean {</span>
+<span id="L782"><span class="lineNum">     782</span> <span class="tlaGNC">           1 :     val tableName = tableNameById[tableId] ?: return false</span></span>
+<span id="L783"><span class="lineNum">     783</span> <span class="tlaGNC">           1 :     return tables[tableName]?.any { entry -&gt;</span></span>
+<span id="L784"><span class="lineNum">     784</span> <span class="tlaGNC">           1 :       entry.matchList.any { fm -&gt;</span></span>
+<span id="L785"><span class="lineNum">     785</span> <span class="tlaGNC">           1 :         fm.fieldId == fieldId &amp;&amp;</span></span>
+<span id="L786"><span class="lineNum">     786</span> <span class="tlaGNC">           1 :           when {</span></span>
+<span id="L787"><span class="lineNum">     787</span> <span class="tlaGNC">           1 :             fm.hasExact() -&gt; fm.exact.value == value</span></span>
+<span id="L788"><span class="lineNum">     788</span> <span class="tlaUNC tlaBgUNC">           0 :             fm.hasOptional() -&gt; fm.optional.value == value</span></span>
+<span id="L789"><span class="lineNum">     789</span> <span class="tlaUNC">           0 :             else -&gt; false</span></span>
+<span id="L790"><span class="lineNum">     790</span> <span class="tlaGNC tlaBgGNC">           1 :           }</span></span>
+<span id="L791"><span class="lineNum">     791</span> <span class="tlaGNC">           1 :       }</span></span>
+<span id="L792"><span class="lineNum">     792</span> <span class="tlaGNC">           1 :     } ?: false</span></span>
+<span id="L793"><span class="lineNum">     793</span>              :   }</span>
+<span id="L794"><span class="lineNum">     794</span>              : </span>
+<span id="L795"><span class="lineNum">     795</span>              :   // -------------------------------------------------------------------------</span>
+<span id="L796"><span class="lineNum">     796</span>              :   // Lookup</span>
+<span id="L797"><span class="lineNum">     797</span>              :   // -------------------------------------------------------------------------</span>
+<span id="L798"><span class="lineNum">     798</span>              : </span>
+<span id="L799"><span class="lineNum">     799</span> <span class="tlaGNC">           1 :   data class MemberAction(</span></span>
+<span id="L800"><span class="lineNum">     800</span> <span class="tlaGNC">           1 :     val memberId: Int,</span></span>
+<span id="L801"><span class="lineNum">     801</span> <span class="tlaGNC">           1 :     val actionName: String,</span></span>
+<span id="L802"><span class="lineNum">     802</span> <span class="tlaGNC">           1 :     val params: List&lt;P4RuntimeOuterClass.Action.Param&gt;,</span></span>
+<span id="L803"><span class="lineNum">     803</span>              :   )</span>
 <span id="L804"><span class="lineNum">     804</span>              : </span>
-<span id="L805"><span class="lineNum">     805</span> <span class="tlaGNC">           1 :     val entries = tables[tableName] ?: emptyList&lt;TableEntry&gt;()</span></span>
-<span id="L806"><span class="lineNum">     806</span> <span class="tlaGNC">           1 :     val default = defaultActions[tableName] ?: DefaultAction(&quot;NoAction&quot;)</span></span>
-<span id="L807"><span class="lineNum">     807</span>              : </span>
-<span id="L808"><span class="lineNum">     808</span> <span class="tlaGNC">           1 :     data class Candidate(val entry: TableEntry, val score: Long)</span></span>
-<span id="L809"><span class="lineNum">     809</span>              : </span>
-<span id="L810"><span class="lineNum">     810</span> <span class="tlaGNC">           1 :     val candidates =</span></span>
-<span id="L811"><span class="lineNum">     811</span> <span class="tlaGNC">           1 :       entries.mapNotNull { entry -&gt;</span></span>
-<span id="L812"><span class="lineNum">     812</span> <span class="tlaGNC">           1 :         val score = scoreEntry(entry, keyValues) ?: return@mapNotNull null</span></span>
-<span id="L813"><span class="lineNum">     813</span> <span class="tlaGNC">           1 :         Candidate(entry, score)</span></span>
-<span id="L814"><span class="lineNum">     814</span>              :       }</span>
-<span id="L815"><span class="lineNum">     815</span>              : </span>
-<span id="L816"><span class="lineNum">     816</span> <span class="tlaGNC">           1 :     val best =</span></span>
-<span id="L817"><span class="lineNum">     817</span> <span class="tlaGNC">           1 :       candidates.maxByOrNull { it.score }</span></span>
-<span id="L818"><span class="lineNum">     818</span> <span class="tlaGNC">           1 :         ?: return LookupResult(false, null, default.name, default.params)</span></span>
-<span id="L819"><span class="lineNum">     819</span>              : </span>
-<span id="L820"><span class="lineNum">     820</span> <span class="tlaGNC">           1 :     val tableAction = best.entry.action</span></span>
-<span id="L821"><span class="lineNum">     821</span>              : </span>
-<span id="L822"><span class="lineNum">     822</span>              :     // Action profile group: resolve group → members → individual actions.</span>
-<span id="L823"><span class="lineNum">     823</span> <span class="tlaGNC">           1 :     if (tableAction.hasActionProfileGroupId() &amp;&amp; tableAction.actionProfileGroupId != 0) {</span></span>
-<span id="L824"><span class="lineNum">     824</span> <span class="tlaGNC">           1 :       val profileId =</span></span>
-<span id="L825"><span class="lineNum">     825</span> <span class="tlaGNC">           1 :         tableActionProfile[tableName] ?: error(&quot;table $tableName has no action profile&quot;)</span></span>
-<span id="L826"><span class="lineNum">     826</span> <span class="tlaGNC">           1 :       val group =</span></span>
-<span id="L827"><span class="lineNum">     827</span> <span class="tlaGNC">           1 :         profileGroups[profileId]?.get(tableAction.actionProfileGroupId)</span></span>
-<span id="L828"><span class="lineNum">     828</span> <span class="tlaUNC tlaBgUNC">           0 :           ?: error(&quot;unknown group ${tableAction.actionProfileGroupId} in profile $profileId&quot;)</span></span>
-<span id="L829"><span class="lineNum">     829</span> <span class="tlaGNC tlaBgGNC">           1 :       val members =</span></span>
-<span id="L830"><span class="lineNum">     830</span> <span class="tlaGNC">           1 :         group.membersList.map { groupMember -&gt;</span></span>
-<span id="L831"><span class="lineNum">     831</span> <span class="tlaGNC">           1 :           val member =</span></span>
-<span id="L832"><span class="lineNum">     832</span> <span class="tlaGNC">           1 :             profileMembers[profileId]?.get(groupMember.memberId)</span></span>
-<span id="L833"><span class="lineNum">     833</span> <span class="tlaUNC tlaBgUNC">           0 :               ?: error(&quot;unknown member ${groupMember.memberId} in profile $profileId&quot;)</span></span>
-<span id="L834"><span class="lineNum">     834</span> <span class="tlaGNC tlaBgGNC">           1 :           MemberAction(</span></span>
-<span id="L835"><span class="lineNum">     835</span> <span class="tlaGNC">           1 :             groupMember.memberId,</span></span>
-<span id="L836"><span class="lineNum">     836</span> <span class="tlaGNC">           1 :             resolveActionName(member.action.actionId),</span></span>
-<span id="L837"><span class="lineNum">     837</span> <span class="tlaGNC">           1 :             member.action.paramsList,</span></span>
-<span id="L838"><span class="lineNum">     838</span> <span class="tlaGNC">           1 :           )</span></span>
-<span id="L839"><span class="lineNum">     839</span>              :         }</span>
-<span id="L840"><span class="lineNum">     840</span>              :       // Use the first member's action name for the table_lookup event.</span>
-<span id="L841"><span class="lineNum">     841</span> <span class="tlaGNC">           1 :       val actionName = members.firstOrNull()?.actionName ?: &quot;NoAction&quot;</span></span>
-<span id="L842"><span class="lineNum">     842</span> <span class="tlaGNC">           1 :       return LookupResult(true, best.entry, actionName, members = members)</span></span>
-<span id="L843"><span class="lineNum">     843</span>              :     }</span>
-<span id="L844"><span class="lineNum">     844</span>              : </span>
-<span id="L845"><span class="lineNum">     845</span>              :     // One-shot action selector (P4Runtime spec §9.2.3): the entry embeds actions inline.</span>
-<span id="L846"><span class="lineNum">     846</span>              :     // Member IDs are synthetic (list indices) since one-shot entries have no real member IDs.</span>
-<span id="L847"><span class="lineNum">     847</span> <span class="tlaGNC">           1 :     if (tableAction.hasActionProfileActionSet()) {</span></span>
-<span id="L848"><span class="lineNum">     848</span> <span class="tlaGNC">           1 :       val members =</span></span>
-<span id="L849"><span class="lineNum">     849</span> <span class="tlaGNC">           1 :         tableAction.actionProfileActionSet.actionProfileActionsList.mapIndexed { i, action -&gt;</span></span>
-<span id="L850"><span class="lineNum">     850</span> <span class="tlaGNC">           1 :           MemberAction(i, resolveActionName(action.action.actionId), action.action.paramsList)</span></span>
-<span id="L851"><span class="lineNum">     851</span>              :         }</span>
-<span id="L852"><span class="lineNum">     852</span> <span class="tlaGNC">           1 :       val actionName = members.firstOrNull()?.actionName ?: &quot;NoAction&quot;</span></span>
-<span id="L853"><span class="lineNum">     853</span> <span class="tlaGNC">           1 :       return LookupResult(true, best.entry, actionName, members = members)</span></span>
-<span id="L854"><span class="lineNum">     854</span>              :     }</span>
-<span id="L855"><span class="lineNum">     855</span>              : </span>
-<span id="L856"><span class="lineNum">     856</span>              :     // Action profile member (direct, no group): resolve to a single action.</span>
-<span id="L857"><span class="lineNum">     857</span> <span class="tlaGNC">           1 :     if (tableAction.hasActionProfileMemberId() &amp;&amp; tableAction.actionProfileMemberId != 0) {</span></span>
-<span id="L858"><span class="lineNum">     858</span> <span class="tlaGNC">           1 :       val profileId =</span></span>
-<span id="L859"><span class="lineNum">     859</span> <span class="tlaGNC">           1 :         tableActionProfile[tableName] ?: error(&quot;table $tableName has no action profile&quot;)</span></span>
-<span id="L860"><span class="lineNum">     860</span> <span class="tlaGNC">           1 :       val member =</span></span>
-<span id="L861"><span class="lineNum">     861</span> <span class="tlaGNC">           1 :         profileMembers[profileId]?.get(tableAction.actionProfileMemberId)</span></span>
-<span id="L862"><span class="lineNum">     862</span> <span class="tlaUNC tlaBgUNC">           0 :           ?: error(&quot;unknown member ${tableAction.actionProfileMemberId} in profile $profileId&quot;)</span></span>
-<span id="L863"><span class="lineNum">     863</span> <span class="tlaGNC tlaBgGNC">           1 :       return LookupResult(true, best.entry, resolveActionName(member.action.actionId))</span></span>
-<span id="L864"><span class="lineNum">     864</span>              :     }</span>
-<span id="L865"><span class="lineNum">     865</span>              : </span>
-<span id="L866"><span class="lineNum">     866</span> <span class="tlaGNC">           1 :     return LookupResult(true, best.entry, resolveActionName(best.entry.action.action.actionId))</span></span>
-<span id="L867"><span class="lineNum">     867</span>              :   }</span>
-<span id="L868"><span class="lineNum">     868</span>              : </span>
-<span id="L869"><span class="lineNum">     869</span>              :   private fun resolveActionName(actionId: Int): String =</span>
-<span id="L870"><span class="lineNum">     870</span> <span class="tlaGNC">           1 :     actionNameById[actionId] ?: error(&quot;unknown action ID: $actionId&quot;)</span></span>
-<span id="L871"><span class="lineNum">     871</span>              : </span>
-<span id="L872"><span class="lineNum">     872</span>              :   /**</span>
-<span id="L873"><span class="lineNum">     873</span>              :    * Scores an entry against [keyValues]. Returns null if the entry does not match. Returns a</span>
-<span id="L874"><span class="lineNum">     874</span>              :    * non-negative score where a higher value means a better match (used to implement LPM</span>
-<span id="L875"><span class="lineNum">     875</span>              :    * longest-prefix and ternary priority semantics).</span>
-<span id="L876"><span class="lineNum">     876</span>              :    */</span>
-<span id="L877"><span class="lineNum">     877</span>              :   private fun scoreEntry(entry: TableEntry, keyValues: List&lt;Pair&lt;String, Value&gt;&gt;): Long? {</span>
-<span id="L878"><span class="lineNum">     878</span> <span class="tlaGNC">           1 :     var score = 0L</span></span>
-<span id="L879"><span class="lineNum">     879</span> <span class="tlaGNC">           1 :     for (match in entry.matchList) {</span></span>
-<span id="L880"><span class="lineNum">     880</span> <span class="tlaGNC">           1 :       val (_, value) =</span></span>
-<span id="L881"><span class="lineNum">     881</span> <span class="tlaGNC">           1 :         keyValues.find { it.first == match.fieldId.toString() }</span></span>
-<span id="L882"><span class="lineNum">     882</span> <span class="tlaUNC tlaBgUNC">           0 :           ?: return null // no key value for this match field</span></span>
-<span id="L883"><span class="lineNum">     883</span>              : </span>
-<span id="L884"><span class="lineNum">     884</span> <span class="tlaGNC tlaBgGNC">           1 :       val bits =</span></span>
-<span id="L885"><span class="lineNum">     885</span> <span class="tlaGNC">           1 :         when (value) {</span></span>
-<span id="L886"><span class="lineNum">     886</span> <span class="tlaGNC">           1 :           is BitVal -&gt; value.bits</span></span>
-<span id="L887"><span class="lineNum">     887</span> <span class="tlaGNC">           1 :           is BoolVal -&gt; if (value.value) BOOL_TRUE_BITS else BOOL_FALSE_BITS</span></span>
-<span id="L888"><span class="lineNum">     888</span> <span class="tlaUNC tlaBgUNC">           0 :           else -&gt; return null</span></span>
-<span id="L889"><span class="lineNum">     889</span>              :         }</span>
-<span id="L890"><span class="lineNum">     890</span>              : </span>
-<span id="L891"><span class="lineNum">     891</span> <span class="tlaGNC tlaBgGNC">           1 :       when {</span></span>
-<span id="L892"><span class="lineNum">     892</span> <span class="tlaGNC">           1 :         match.hasExact() -&gt; {</span></span>
-<span id="L893"><span class="lineNum">     893</span> <span class="tlaGNC">           1 :           if (bits.value != match.exact.value.toUnsignedBigInteger()) return null</span></span>
-<span id="L894"><span class="lineNum">     894</span>              :           // Exact match doesn't contribute to relative scoring — all exact</span>
-<span id="L895"><span class="lineNum">     895</span>              :           // fields either match or don't.  We add nothing here; the entry's</span>
-<span id="L896"><span class="lineNum">     896</span>              :           // priority (if any) is added once below the when block.</span>
-<span id="L897"><span class="lineNum">     897</span>              :         }</span>
-<span id="L898"><span class="lineNum">     898</span> <span class="tlaGNC">           1 :         match.hasLpm() -&gt; {</span></span>
-<span id="L899"><span class="lineNum">     899</span> <span class="tlaGNC">           1 :           val prefixLen = match.lpm.prefixLen</span></span>
-<span id="L900"><span class="lineNum">     900</span> <span class="tlaGNC">           1 :           val prefix = match.lpm.value.toUnsignedBigInteger()</span></span>
-<span id="L901"><span class="lineNum">     901</span> <span class="tlaGNC">           1 :           val mask =</span></span>
-<span id="L902"><span class="lineNum">     902</span> <span class="tlaGNC">           1 :             if (prefixLen == 0) BigInteger.ZERO</span></span>
-<span id="L903"><span class="lineNum">     903</span>              :             else</span>
-<span id="L904"><span class="lineNum">     904</span> <span class="tlaGNC">           1 :               BigInteger.ONE.shiftLeft(bits.width - prefixLen)</span></span>
-<span id="L905"><span class="lineNum">     905</span> <span class="tlaGNC">           1 :                 .minus(BigInteger.ONE)</span></span>
-<span id="L906"><span class="lineNum">     906</span> <span class="tlaGNC">           1 :                 .not()</span></span>
-<span id="L907"><span class="lineNum">     907</span> <span class="tlaGNC">           1 :                 .and(BigInteger.TWO.pow(bits.width).minus(BigInteger.ONE))</span></span>
-<span id="L908"><span class="lineNum">     908</span> <span class="tlaGNC">           1 :           if (bits.value.and(mask) != prefix.and(mask)) return null</span></span>
-<span id="L909"><span class="lineNum">     909</span> <span class="tlaGNC">           1 :           score += prefixLen.toLong()</span></span>
-<span id="L910"><span class="lineNum">     910</span>              :         }</span>
-<span id="L911"><span class="lineNum">     911</span> <span class="tlaGNC">           1 :         match.hasTernary() -&gt; {</span></span>
-<span id="L912"><span class="lineNum">     912</span> <span class="tlaGNC">           1 :           val want = match.ternary.value.toUnsignedBigInteger()</span></span>
-<span id="L913"><span class="lineNum">     913</span> <span class="tlaGNC">           1 :           val mask = match.ternary.mask.toUnsignedBigInteger()</span></span>
-<span id="L914"><span class="lineNum">     914</span> <span class="tlaGNC">           1 :           if (bits.value.and(mask) != want.and(mask)) return null</span></span>
-<span id="L915"><span class="lineNum">     915</span> <span class="tlaGNC">           1 :           score += entry.priority.toLong()</span></span>
-<span id="L916"><span class="lineNum">     916</span>              :         }</span>
-<span id="L917"><span class="lineNum">     917</span> <span class="tlaGNC">           1 :         match.hasRange() -&gt; {</span></span>
-<span id="L918"><span class="lineNum">     918</span> <span class="tlaGNC">           1 :           val lo = match.range.low.toUnsignedBigInteger()</span></span>
-<span id="L919"><span class="lineNum">     919</span> <span class="tlaGNC">           1 :           val hi = match.range.high.toUnsignedBigInteger()</span></span>
-<span id="L920"><span class="lineNum">     920</span> <span class="tlaGNC">           1 :           if (bits.value &lt; lo || bits.value &gt; hi) return null</span></span>
-<span id="L921"><span class="lineNum">     921</span> <span class="tlaGNC">           1 :           score += entry.priority.toLong()</span></span>
-<span id="L922"><span class="lineNum">     922</span>              :         }</span>
-<span id="L923"><span class="lineNum">     923</span>              :         // P4 spec §14.2.1.3: optional match behaves like exact when present;</span>
-<span id="L924"><span class="lineNum">     924</span>              :         // omitted optional fields are wildcards (the FieldMatch is absent).</span>
-<span id="L925"><span class="lineNum">     925</span> <span class="tlaGNC">           1 :         match.hasOptional() -&gt; {</span></span>
-<span id="L926"><span class="lineNum">     926</span> <span class="tlaGNC">           1 :           if (bits.value != match.optional.value.toUnsignedBigInteger()) return null</span></span>
-<span id="L927"><span class="lineNum">     927</span>              :         }</span>
-<span id="L928"><span class="lineNum">     928</span> <span class="tlaUNC tlaBgUNC">           0 :         else -&gt; return null // unsupported match kind</span></span>
-<span id="L929"><span class="lineNum">     929</span>              :       }</span>
-<span id="L930"><span class="lineNum">     930</span>              :     }</span>
-<span id="L931"><span class="lineNum">     931</span> <span class="tlaGNC tlaBgGNC">           1 :     return score</span></span>
-<span id="L932"><span class="lineNum">     932</span>              :   }</span>
-<span id="L933"><span class="lineNum">     933</span>              : </span>
-<span id="L934"><span class="lineNum">     934</span>              :   companion object {</span>
-<span id="L935"><span class="lineNum">     935</span> <span class="tlaGNC">           1 :     private val BOOL_TRUE_BITS = BitVector.ofInt(1, 1)</span></span>
-<span id="L936"><span class="lineNum">     936</span> <span class="tlaGNC">           1 :     private val BOOL_FALSE_BITS = BitVector.ofInt(0, 1)</span></span>
-<span id="L937"><span class="lineNum">     937</span>              :   }</span>
-<span id="L938"><span class="lineNum">     938</span>              : }</span>
+<span id="L805"><span class="lineNum">     805</span> <span class="tlaGNC">           1 :   data class LookupResult(</span></span>
+<span id="L806"><span class="lineNum">     806</span> <span class="tlaGNC">           1 :     val hit: Boolean,</span></span>
+<span id="L807"><span class="lineNum">     807</span> <span class="tlaGNC">           1 :     val entry: TableEntry?,</span></span>
+<span id="L808"><span class="lineNum">     808</span> <span class="tlaGNC">           1 :     val actionName: String,</span></span>
+<span id="L809"><span class="lineNum">     809</span> <span class="tlaGNC">           1 :     val actionParams: List&lt;p4.v1.P4RuntimeOuterClass.Action.Param&gt; = emptyList(),</span></span>
+<span id="L810"><span class="lineNum">     810</span> <span class="tlaGNC">           1 :     val members: List&lt;MemberAction&gt;? = null,</span></span>
+<span id="L811"><span class="lineNum">     811</span> <span class="tlaGNC">           1 :   )</span></span>
+<span id="L812"><span class="lineNum">     812</span>              : </span>
+<span id="L813"><span class="lineNum">     813</span>              :   /**</span>
+<span id="L814"><span class="lineNum">     814</span>              :    * Looks up [keyValues] in [tableName]. Returns the best-matching entry or, on a miss, the default</span>
+<span id="L815"><span class="lineNum">     815</span>              :    * action.</span>
+<span id="L816"><span class="lineNum">     816</span>              :    *</span>
+<span id="L817"><span class="lineNum">     817</span>              :    * For LPM tables, &quot;best match&quot; means the entry with the longest prefix. For ternary tables, &quot;best</span>
+<span id="L818"><span class="lineNum">     818</span>              :    * match&quot; means the entry with the highest priority.</span>
+<span id="L819"><span class="lineNum">     819</span>              :    */</span>
+<span id="L820"><span class="lineNum">     820</span>              :   fun lookup(tableName: String, keyValues: List&lt;Pair&lt;String, Value&gt;&gt;): LookupResult {</span>
+<span id="L821"><span class="lineNum">     821</span> <span class="tlaGNC">           1 :     forcedHits[tableName]?.let {</span></span>
+<span id="L822"><span class="lineNum">     822</span> <span class="tlaGNC">           1 :       return LookupResult(true, null, it)</span></span>
+<span id="L823"><span class="lineNum">     823</span>              :     }</span>
+<span id="L824"><span class="lineNum">     824</span>              : </span>
+<span id="L825"><span class="lineNum">     825</span> <span class="tlaGNC">           1 :     val entries = tables[tableName] ?: emptyList&lt;TableEntry&gt;()</span></span>
+<span id="L826"><span class="lineNum">     826</span> <span class="tlaGNC">           1 :     val default = defaultActions[tableName] ?: DefaultAction(&quot;NoAction&quot;)</span></span>
+<span id="L827"><span class="lineNum">     827</span>              : </span>
+<span id="L828"><span class="lineNum">     828</span> <span class="tlaGNC">           1 :     data class Candidate(val entry: TableEntry, val score: Long)</span></span>
+<span id="L829"><span class="lineNum">     829</span>              : </span>
+<span id="L830"><span class="lineNum">     830</span> <span class="tlaGNC">           1 :     val candidates =</span></span>
+<span id="L831"><span class="lineNum">     831</span> <span class="tlaGNC">           1 :       entries.mapNotNull { entry -&gt;</span></span>
+<span id="L832"><span class="lineNum">     832</span> <span class="tlaGNC">           1 :         val score = scoreEntry(entry, keyValues) ?: return@mapNotNull null</span></span>
+<span id="L833"><span class="lineNum">     833</span> <span class="tlaGNC">           1 :         Candidate(entry, score)</span></span>
+<span id="L834"><span class="lineNum">     834</span>              :       }</span>
+<span id="L835"><span class="lineNum">     835</span>              : </span>
+<span id="L836"><span class="lineNum">     836</span> <span class="tlaGNC">           1 :     val best =</span></span>
+<span id="L837"><span class="lineNum">     837</span> <span class="tlaGNC">           1 :       candidates.maxByOrNull { it.score }</span></span>
+<span id="L838"><span class="lineNum">     838</span> <span class="tlaGNC">           1 :         ?: return LookupResult(false, null, default.name, default.params)</span></span>
+<span id="L839"><span class="lineNum">     839</span>              : </span>
+<span id="L840"><span class="lineNum">     840</span> <span class="tlaGNC">           1 :     val tableAction = best.entry.action</span></span>
+<span id="L841"><span class="lineNum">     841</span>              : </span>
+<span id="L842"><span class="lineNum">     842</span>              :     // Action profile group: resolve group → members → individual actions.</span>
+<span id="L843"><span class="lineNum">     843</span> <span class="tlaGNC">           1 :     if (tableAction.hasActionProfileGroupId() &amp;&amp; tableAction.actionProfileGroupId != 0) {</span></span>
+<span id="L844"><span class="lineNum">     844</span> <span class="tlaGNC">           1 :       val profileId =</span></span>
+<span id="L845"><span class="lineNum">     845</span> <span class="tlaGNC">           1 :         tableActionProfile[tableName] ?: error(&quot;table $tableName has no action profile&quot;)</span></span>
+<span id="L846"><span class="lineNum">     846</span> <span class="tlaGNC">           1 :       val group =</span></span>
+<span id="L847"><span class="lineNum">     847</span> <span class="tlaGNC">           1 :         profileGroups[profileId]?.get(tableAction.actionProfileGroupId)</span></span>
+<span id="L848"><span class="lineNum">     848</span> <span class="tlaUNC tlaBgUNC">           0 :           ?: error(&quot;unknown group ${tableAction.actionProfileGroupId} in profile $profileId&quot;)</span></span>
+<span id="L849"><span class="lineNum">     849</span> <span class="tlaGNC tlaBgGNC">           1 :       val members =</span></span>
+<span id="L850"><span class="lineNum">     850</span> <span class="tlaGNC">           1 :         group.membersList.map { groupMember -&gt;</span></span>
+<span id="L851"><span class="lineNum">     851</span> <span class="tlaGNC">           1 :           val member =</span></span>
+<span id="L852"><span class="lineNum">     852</span> <span class="tlaGNC">           1 :             profileMembers[profileId]?.get(groupMember.memberId)</span></span>
+<span id="L853"><span class="lineNum">     853</span> <span class="tlaUNC tlaBgUNC">           0 :               ?: error(&quot;unknown member ${groupMember.memberId} in profile $profileId&quot;)</span></span>
+<span id="L854"><span class="lineNum">     854</span> <span class="tlaGNC tlaBgGNC">           1 :           MemberAction(</span></span>
+<span id="L855"><span class="lineNum">     855</span> <span class="tlaGNC">           1 :             groupMember.memberId,</span></span>
+<span id="L856"><span class="lineNum">     856</span> <span class="tlaGNC">           1 :             resolveActionName(member.action.actionId),</span></span>
+<span id="L857"><span class="lineNum">     857</span> <span class="tlaGNC">           1 :             member.action.paramsList,</span></span>
+<span id="L858"><span class="lineNum">     858</span> <span class="tlaGNC">           1 :           )</span></span>
+<span id="L859"><span class="lineNum">     859</span>              :         }</span>
+<span id="L860"><span class="lineNum">     860</span>              :       // Use the first member's action name for the table_lookup event.</span>
+<span id="L861"><span class="lineNum">     861</span> <span class="tlaGNC">           1 :       val actionName = members.firstOrNull()?.actionName ?: &quot;NoAction&quot;</span></span>
+<span id="L862"><span class="lineNum">     862</span> <span class="tlaGNC">           1 :       return LookupResult(true, best.entry, actionName, members = members)</span></span>
+<span id="L863"><span class="lineNum">     863</span>              :     }</span>
+<span id="L864"><span class="lineNum">     864</span>              : </span>
+<span id="L865"><span class="lineNum">     865</span>              :     // One-shot action selector (P4Runtime spec §9.2.3): the entry embeds actions inline.</span>
+<span id="L866"><span class="lineNum">     866</span>              :     // Member IDs are synthetic (list indices) since one-shot entries have no real member IDs.</span>
+<span id="L867"><span class="lineNum">     867</span> <span class="tlaGNC">           1 :     if (tableAction.hasActionProfileActionSet()) {</span></span>
+<span id="L868"><span class="lineNum">     868</span> <span class="tlaGNC">           1 :       val members =</span></span>
+<span id="L869"><span class="lineNum">     869</span> <span class="tlaGNC">           1 :         tableAction.actionProfileActionSet.actionProfileActionsList.mapIndexed { i, action -&gt;</span></span>
+<span id="L870"><span class="lineNum">     870</span> <span class="tlaGNC">           1 :           MemberAction(i, resolveActionName(action.action.actionId), action.action.paramsList)</span></span>
+<span id="L871"><span class="lineNum">     871</span>              :         }</span>
+<span id="L872"><span class="lineNum">     872</span> <span class="tlaGNC">           1 :       val actionName = members.firstOrNull()?.actionName ?: &quot;NoAction&quot;</span></span>
+<span id="L873"><span class="lineNum">     873</span> <span class="tlaGNC">           1 :       return LookupResult(true, best.entry, actionName, members = members)</span></span>
+<span id="L874"><span class="lineNum">     874</span>              :     }</span>
+<span id="L875"><span class="lineNum">     875</span>              : </span>
+<span id="L876"><span class="lineNum">     876</span>              :     // Action profile member (direct, no group): resolve to a single action.</span>
+<span id="L877"><span class="lineNum">     877</span> <span class="tlaGNC">           1 :     if (tableAction.hasActionProfileMemberId() &amp;&amp; tableAction.actionProfileMemberId != 0) {</span></span>
+<span id="L878"><span class="lineNum">     878</span> <span class="tlaGNC">           1 :       val profileId =</span></span>
+<span id="L879"><span class="lineNum">     879</span> <span class="tlaGNC">           1 :         tableActionProfile[tableName] ?: error(&quot;table $tableName has no action profile&quot;)</span></span>
+<span id="L880"><span class="lineNum">     880</span> <span class="tlaGNC">           1 :       val member =</span></span>
+<span id="L881"><span class="lineNum">     881</span> <span class="tlaGNC">           1 :         profileMembers[profileId]?.get(tableAction.actionProfileMemberId)</span></span>
+<span id="L882"><span class="lineNum">     882</span> <span class="tlaUNC tlaBgUNC">           0 :           ?: error(&quot;unknown member ${tableAction.actionProfileMemberId} in profile $profileId&quot;)</span></span>
+<span id="L883"><span class="lineNum">     883</span> <span class="tlaGNC tlaBgGNC">           1 :       return LookupResult(true, best.entry, resolveActionName(member.action.actionId))</span></span>
+<span id="L884"><span class="lineNum">     884</span>              :     }</span>
+<span id="L885"><span class="lineNum">     885</span>              : </span>
+<span id="L886"><span class="lineNum">     886</span> <span class="tlaGNC">           1 :     return LookupResult(true, best.entry, resolveActionName(best.entry.action.action.actionId))</span></span>
+<span id="L887"><span class="lineNum">     887</span>              :   }</span>
+<span id="L888"><span class="lineNum">     888</span>              : </span>
+<span id="L889"><span class="lineNum">     889</span>              :   private fun resolveActionName(actionId: Int): String =</span>
+<span id="L890"><span class="lineNum">     890</span> <span class="tlaGNC">           1 :     actionNameById[actionId] ?: error(&quot;unknown action ID: $actionId&quot;)</span></span>
+<span id="L891"><span class="lineNum">     891</span>              : </span>
+<span id="L892"><span class="lineNum">     892</span>              :   /**</span>
+<span id="L893"><span class="lineNum">     893</span>              :    * Scores an entry against [keyValues]. Returns null if the entry does not match. Returns a</span>
+<span id="L894"><span class="lineNum">     894</span>              :    * non-negative score where a higher value means a better match (used to implement LPM</span>
+<span id="L895"><span class="lineNum">     895</span>              :    * longest-prefix and ternary priority semantics).</span>
+<span id="L896"><span class="lineNum">     896</span>              :    */</span>
+<span id="L897"><span class="lineNum">     897</span>              :   private fun scoreEntry(entry: TableEntry, keyValues: List&lt;Pair&lt;String, Value&gt;&gt;): Long? {</span>
+<span id="L898"><span class="lineNum">     898</span> <span class="tlaGNC">           1 :     var score = 0L</span></span>
+<span id="L899"><span class="lineNum">     899</span> <span class="tlaGNC">           1 :     for (match in entry.matchList) {</span></span>
+<span id="L900"><span class="lineNum">     900</span> <span class="tlaGNC">           1 :       val (_, value) =</span></span>
+<span id="L901"><span class="lineNum">     901</span> <span class="tlaGNC">           1 :         keyValues.find { it.first == match.fieldId.toString() }</span></span>
+<span id="L902"><span class="lineNum">     902</span> <span class="tlaUNC tlaBgUNC">           0 :           ?: return null // no key value for this match field</span></span>
+<span id="L903"><span class="lineNum">     903</span>              : </span>
+<span id="L904"><span class="lineNum">     904</span> <span class="tlaGNC tlaBgGNC">           1 :       val bits =</span></span>
+<span id="L905"><span class="lineNum">     905</span> <span class="tlaGNC">           1 :         when (value) {</span></span>
+<span id="L906"><span class="lineNum">     906</span> <span class="tlaGNC">           1 :           is BitVal -&gt; value.bits</span></span>
+<span id="L907"><span class="lineNum">     907</span> <span class="tlaGNC">           1 :           is BoolVal -&gt; if (value.value) BOOL_TRUE_BITS else BOOL_FALSE_BITS</span></span>
+<span id="L908"><span class="lineNum">     908</span> <span class="tlaUNC tlaBgUNC">           0 :           else -&gt; return null</span></span>
+<span id="L909"><span class="lineNum">     909</span>              :         }</span>
+<span id="L910"><span class="lineNum">     910</span>              : </span>
+<span id="L911"><span class="lineNum">     911</span> <span class="tlaGNC tlaBgGNC">           1 :       when {</span></span>
+<span id="L912"><span class="lineNum">     912</span> <span class="tlaGNC">           1 :         match.hasExact() -&gt; {</span></span>
+<span id="L913"><span class="lineNum">     913</span> <span class="tlaGNC">           1 :           if (bits.value != match.exact.value.toUnsignedBigInteger()) return null</span></span>
+<span id="L914"><span class="lineNum">     914</span>              :           // Exact match doesn't contribute to relative scoring — all exact</span>
+<span id="L915"><span class="lineNum">     915</span>              :           // fields either match or don't.  We add nothing here; the entry's</span>
+<span id="L916"><span class="lineNum">     916</span>              :           // priority (if any) is added once below the when block.</span>
+<span id="L917"><span class="lineNum">     917</span>              :         }</span>
+<span id="L918"><span class="lineNum">     918</span> <span class="tlaGNC">           1 :         match.hasLpm() -&gt; {</span></span>
+<span id="L919"><span class="lineNum">     919</span> <span class="tlaGNC">           1 :           val prefixLen = match.lpm.prefixLen</span></span>
+<span id="L920"><span class="lineNum">     920</span> <span class="tlaGNC">           1 :           val prefix = match.lpm.value.toUnsignedBigInteger()</span></span>
+<span id="L921"><span class="lineNum">     921</span> <span class="tlaGNC">           1 :           val mask =</span></span>
+<span id="L922"><span class="lineNum">     922</span> <span class="tlaGNC">           1 :             if (prefixLen == 0) BigInteger.ZERO</span></span>
+<span id="L923"><span class="lineNum">     923</span>              :             else</span>
+<span id="L924"><span class="lineNum">     924</span> <span class="tlaGNC">           1 :               BigInteger.ONE.shiftLeft(bits.width - prefixLen)</span></span>
+<span id="L925"><span class="lineNum">     925</span> <span class="tlaGNC">           1 :                 .minus(BigInteger.ONE)</span></span>
+<span id="L926"><span class="lineNum">     926</span> <span class="tlaGNC">           1 :                 .not()</span></span>
+<span id="L927"><span class="lineNum">     927</span> <span class="tlaGNC">           1 :                 .and(BigInteger.TWO.pow(bits.width).minus(BigInteger.ONE))</span></span>
+<span id="L928"><span class="lineNum">     928</span> <span class="tlaGNC">           1 :           if (bits.value.and(mask) != prefix.and(mask)) return null</span></span>
+<span id="L929"><span class="lineNum">     929</span> <span class="tlaGNC">           1 :           score += prefixLen.toLong()</span></span>
+<span id="L930"><span class="lineNum">     930</span>              :         }</span>
+<span id="L931"><span class="lineNum">     931</span> <span class="tlaGNC">           1 :         match.hasTernary() -&gt; {</span></span>
+<span id="L932"><span class="lineNum">     932</span> <span class="tlaGNC">           1 :           val want = match.ternary.value.toUnsignedBigInteger()</span></span>
+<span id="L933"><span class="lineNum">     933</span> <span class="tlaGNC">           1 :           val mask = match.ternary.mask.toUnsignedBigInteger()</span></span>
+<span id="L934"><span class="lineNum">     934</span> <span class="tlaGNC">           1 :           if (bits.value.and(mask) != want.and(mask)) return null</span></span>
+<span id="L935"><span class="lineNum">     935</span> <span class="tlaGNC">           1 :           score += entry.priority.toLong()</span></span>
+<span id="L936"><span class="lineNum">     936</span>              :         }</span>
+<span id="L937"><span class="lineNum">     937</span> <span class="tlaGNC">           1 :         match.hasRange() -&gt; {</span></span>
+<span id="L938"><span class="lineNum">     938</span> <span class="tlaGNC">           1 :           val lo = match.range.low.toUnsignedBigInteger()</span></span>
+<span id="L939"><span class="lineNum">     939</span> <span class="tlaGNC">           1 :           val hi = match.range.high.toUnsignedBigInteger()</span></span>
+<span id="L940"><span class="lineNum">     940</span> <span class="tlaGNC">           1 :           if (bits.value &lt; lo || bits.value &gt; hi) return null</span></span>
+<span id="L941"><span class="lineNum">     941</span> <span class="tlaGNC">           1 :           score += entry.priority.toLong()</span></span>
+<span id="L942"><span class="lineNum">     942</span>              :         }</span>
+<span id="L943"><span class="lineNum">     943</span>              :         // P4 spec §14.2.1.3: optional match behaves like exact when present;</span>
+<span id="L944"><span class="lineNum">     944</span>              :         // omitted optional fields are wildcards (the FieldMatch is absent).</span>
+<span id="L945"><span class="lineNum">     945</span> <span class="tlaGNC">           1 :         match.hasOptional() -&gt; {</span></span>
+<span id="L946"><span class="lineNum">     946</span> <span class="tlaGNC">           1 :           if (bits.value != match.optional.value.toUnsignedBigInteger()) return null</span></span>
+<span id="L947"><span class="lineNum">     947</span>              :         }</span>
+<span id="L948"><span class="lineNum">     948</span> <span class="tlaUNC tlaBgUNC">           0 :         else -&gt; return null // unsupported match kind</span></span>
+<span id="L949"><span class="lineNum">     949</span>              :       }</span>
+<span id="L950"><span class="lineNum">     950</span>              :     }</span>
+<span id="L951"><span class="lineNum">     951</span> <span class="tlaGNC tlaBgGNC">           1 :     return score</span></span>
+<span id="L952"><span class="lineNum">     952</span>              :   }</span>
+<span id="L953"><span class="lineNum">     953</span>              : </span>
+<span id="L954"><span class="lineNum">     954</span>              :   companion object {</span>
+<span id="L955"><span class="lineNum">     955</span> <span class="tlaGNC">           1 :     private val BOOL_TRUE_BITS = BitVector.ofInt(1, 1)</span></span>
+<span id="L956"><span class="lineNum">     956</span> <span class="tlaGNC">           1 :     private val BOOL_FALSE_BITS = BitVector.ofInt(0, 1)</span></span>
+<span id="L957"><span class="lineNum">     957</span>              :   }</span>
+<span id="L958"><span class="lineNum">     958</span>              : }</span>
         </pre>
               </td>
             </tr>
