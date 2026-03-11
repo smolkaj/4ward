@@ -57,7 +57,11 @@ class ReferenceValidatorTest {
     val v = validatorWithMatchFieldRef()
     // Referenced entry exists.
     v.validate(
-      insertUpdate(REFERRING_TABLE_ID, exactMatch(REF_FIELD_ID, VALUE_A)),
+      tableEntryUpdate(
+        P4RuntimeOuterClass.Update.Type.INSERT,
+        REFERRING_TABLE_ID,
+        exactMatch(REF_FIELD_ID, VALUE_A),
+      ),
       entryExists = { _, _, value -> value == VALUE_A },
       multicastGroupExists = { false },
     )
@@ -69,7 +73,11 @@ class ReferenceValidatorTest {
     val e =
       assertThrows(StatusException::class.java) {
         v.validate(
-          insertUpdate(REFERRING_TABLE_ID, exactMatch(REF_FIELD_ID, VALUE_A)),
+          tableEntryUpdate(
+            P4RuntimeOuterClass.Update.Type.INSERT,
+            REFERRING_TABLE_ID,
+            exactMatch(REF_FIELD_ID, VALUE_A),
+          ),
           entryExists = { _, _, _ -> false }, // Nothing exists.
           multicastGroupExists = { false },
         )
@@ -83,7 +91,11 @@ class ReferenceValidatorTest {
     val v = validatorWithMatchFieldRef()
     // DELETE should pass even though the reference doesn't exist.
     v.validate(
-      deleteUpdate(REFERRING_TABLE_ID, exactMatch(REF_FIELD_ID, VALUE_A)),
+      tableEntryUpdate(
+        P4RuntimeOuterClass.Update.Type.DELETE,
+        REFERRING_TABLE_ID,
+        exactMatch(REF_FIELD_ID, VALUE_A),
+      ),
       entryExists = { _, _, _ -> false },
       multicastGroupExists = { false },
     )
@@ -95,7 +107,11 @@ class ReferenceValidatorTest {
     val e =
       assertThrows(StatusException::class.java) {
         v.validate(
-          modifyUpdate(REFERRING_TABLE_ID, exactMatch(REF_FIELD_ID, VALUE_A)),
+          tableEntryUpdate(
+            P4RuntimeOuterClass.Update.Type.MODIFY,
+            REFERRING_TABLE_ID,
+            exactMatch(REF_FIELD_ID, VALUE_A),
+          ),
           entryExists = { _, _, _ -> false },
           multicastGroupExists = { false },
         )
@@ -108,7 +124,11 @@ class ReferenceValidatorTest {
     val v = validatorWithMatchFieldRef()
     // Field ID 99 has no @refers_to — should pass regardless.
     v.validate(
-      insertUpdate(REFERRING_TABLE_ID, exactMatch(fieldId = 99, VALUE_A)),
+      tableEntryUpdate(
+        P4RuntimeOuterClass.Update.Type.INSERT,
+        REFERRING_TABLE_ID,
+        exactMatch(fieldId = 99, VALUE_A),
+      ),
       entryExists = { _, _, _ -> false },
       multicastGroupExists = { false },
     )
@@ -231,6 +251,34 @@ class ReferenceValidatorTest {
     v.validate(
       deleteProfileMember(REF_ACTION_ID),
       entryExists = { _, _, _ -> false },
+      multicastGroupExists = { false },
+    )
+  }
+
+  // =========================================================================
+  // One-shot action profile action set validation
+  // =========================================================================
+
+  @Test
+  fun `one-shot action set with missing reference is rejected`() {
+    val v = validatorWithActionParamRef()
+    val e =
+      assertThrows(StatusException::class.java) {
+        v.validate(
+          insertWithOneShotAction(REF_ACTION_ID, paramWithValue(REF_PARAM_ID, VALUE_A)),
+          entryExists = { _, _, _ -> false },
+          multicastGroupExists = { false },
+        )
+      }
+    assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code)
+  }
+
+  @Test
+  fun `one-shot action set with existing reference passes`() {
+    val v = validatorWithActionParamRef()
+    v.validate(
+      insertWithOneShotAction(REF_ACTION_ID, paramWithValue(REF_PARAM_ID, VALUE_A)),
+      entryExists = { _, _, _ -> true },
       multicastGroupExists = { false },
     )
   }
@@ -479,40 +527,13 @@ class ReferenceValidatorTest {
       .setExact(P4RuntimeOuterClass.FieldMatch.Exact.newBuilder().setValue(value))
       .build()
 
-  private fun insertUpdate(
+  private fun tableEntryUpdate(
+    type: P4RuntimeOuterClass.Update.Type,
     tableId: Int,
     match: P4RuntimeOuterClass.FieldMatch,
   ): P4RuntimeOuterClass.Update =
     P4RuntimeOuterClass.Update.newBuilder()
-      .setType(P4RuntimeOuterClass.Update.Type.INSERT)
-      .setEntity(
-        P4RuntimeOuterClass.Entity.newBuilder()
-          .setTableEntry(
-            P4RuntimeOuterClass.TableEntry.newBuilder().setTableId(tableId).addMatch(match)
-          )
-      )
-      .build()
-
-  private fun deleteUpdate(
-    tableId: Int,
-    match: P4RuntimeOuterClass.FieldMatch,
-  ): P4RuntimeOuterClass.Update =
-    P4RuntimeOuterClass.Update.newBuilder()
-      .setType(P4RuntimeOuterClass.Update.Type.DELETE)
-      .setEntity(
-        P4RuntimeOuterClass.Entity.newBuilder()
-          .setTableEntry(
-            P4RuntimeOuterClass.TableEntry.newBuilder().setTableId(tableId).addMatch(match)
-          )
-      )
-      .build()
-
-  private fun modifyUpdate(
-    tableId: Int,
-    match: P4RuntimeOuterClass.FieldMatch,
-  ): P4RuntimeOuterClass.Update =
-    P4RuntimeOuterClass.Update.newBuilder()
-      .setType(P4RuntimeOuterClass.Update.Type.MODIFY)
+      .setType(type)
       .setEntity(
         P4RuntimeOuterClass.Entity.newBuilder()
           .setTableEntry(
@@ -596,6 +617,36 @@ class ReferenceValidatorTest {
               .setActionProfileId(1)
               .setMemberId(1)
               .setAction(P4RuntimeOuterClass.Action.newBuilder().setActionId(actionId))
+          )
+      )
+      .build()
+
+  private fun insertWithOneShotAction(
+    actionId: Int,
+    param: P4RuntimeOuterClass.Action.Param,
+  ): P4RuntimeOuterClass.Update =
+    P4RuntimeOuterClass.Update.newBuilder()
+      .setType(P4RuntimeOuterClass.Update.Type.INSERT)
+      .setEntity(
+        P4RuntimeOuterClass.Entity.newBuilder()
+          .setTableEntry(
+            P4RuntimeOuterClass.TableEntry.newBuilder()
+              .setTableId(REFERRING_TABLE_ID)
+              .addMatch(exactMatch(REF_FIELD_ID, VALUE_A))
+              .setAction(
+                P4RuntimeOuterClass.TableAction.newBuilder()
+                  .setActionProfileActionSet(
+                    P4RuntimeOuterClass.ActionProfileActionSet.newBuilder()
+                      .addActionProfileActions(
+                        P4RuntimeOuterClass.ActionProfileAction.newBuilder()
+                          .setAction(
+                            P4RuntimeOuterClass.Action.newBuilder()
+                              .setActionId(actionId)
+                              .addParams(param)
+                          )
+                      )
+                  )
+              )
           )
       )
       .build()

@@ -8,7 +8,7 @@ import p4.v1.P4RuntimeOuterClass
 /**
  * Validates `@refers_to` referential integrity constraints at write time.
  *
- * SAI P4 uses `@refers_to(table, field)` annotations on match fields and action parameters to
+ * P4 programs use `@refers_to(table, field)` annotations on match fields and action parameters to
  * declare foreign-key relationships between tables (e.g., `nexthop_id` in `ipv4_table` must exist
  * in `nexthop_table`). This validator parses those annotations from p4info and checks that
  * referenced entries exist before accepting an INSERT or MODIFY.
@@ -71,9 +71,17 @@ private constructor(
           }
         }
 
-        // Check action params (direct action on the table entry).
-        if (entry.hasAction() && entry.action.hasAction()) {
-          validateActionParams(entry.action.action, entryExists, multicastGroupExists)
+        // Check action params — direct action or one-shot action profile action set.
+        if (entry.hasAction()) {
+          val tableAction = entry.action
+          when {
+            tableAction.hasAction() ->
+              validateActionParams(tableAction.action, entryExists, multicastGroupExists)
+            tableAction.hasActionProfileActionSet() ->
+              for (profileAction in tableAction.actionProfileActionSet.actionProfileActionsList) {
+                validateActionParams(profileAction.action, entryExists, multicastGroupExists)
+              }
+          }
         }
       }
 
