@@ -80,6 +80,21 @@ class Simulator {
   }
 
   /**
+   * Returns true if the table with p4info [tableId] has an entry with match field [fieldId] equal
+   * to [value].
+   *
+   * Used by `@refers_to` referential integrity validation.
+   */
+  fun hasTableEntryWithFieldValue(
+    tableId: Int,
+    fieldId: Int,
+    value: com.google.protobuf.ByteString,
+  ): Boolean = tableStore.hasEntryWithFieldValue(tableId, fieldId, value)
+
+  /** Returns true if a multicast group with [groupId] exists in the PRE. */
+  fun hasMulticastGroup(groupId: Int): Boolean = tableStore.getMulticastGroup(groupId) != null
+
+  /**
    * Reads entities matching the given filters.
    *
    * P4Runtime spec §11.1: each entity in the list is a filter; the result is the union.

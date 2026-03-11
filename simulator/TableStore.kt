@@ -772,6 +772,26 @@ class TableStore {
       P4RuntimeOuterClass.Entity.newBuilder().setActionProfileGroup(it).build()
     }
 
+  /**
+   * Returns true if the table with p4info [tableId] has an entry with match field [fieldId] equal
+   * to [value].
+   *
+   * Used by `@refers_to` referential integrity validation. Checks exact and optional match fields.
+   */
+  fun hasEntryWithFieldValue(tableId: Int, fieldId: Int, value: ByteString): Boolean {
+    val tableName = tableNameById[tableId] ?: return false
+    return tables[tableName]?.any { entry ->
+      entry.matchList.any { fm ->
+        fm.fieldId == fieldId &&
+          when {
+            fm.hasExact() -> fm.exact.value == value
+            fm.hasOptional() -> fm.optional.value == value
+            else -> false
+          }
+      }
+    } ?: false
+  }
+
   // -------------------------------------------------------------------------
   // Lookup
   // -------------------------------------------------------------------------

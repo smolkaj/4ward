@@ -90,6 +90,8 @@ class SaiP4ConstraintTest {
   @Test
   fun `ipv4_multicast - multicast address is accepted`() {
     // ipv4_dst in 224.0.0.0 - 239.255.255.255 → constraint satisfied.
+    // Uses "vrf-1" (not default VRF "") because @entry_restriction("vrf_id != 0") prevents
+    // programming the default VRF through the control plane.
     val table = findTable(config, "ipv4_multicast_table")
     val action = findAction(config, "set_multicast_group_id")
     val entry =
@@ -98,7 +100,7 @@ class SaiP4ConstraintTest {
         action,
         exactFields =
           mapOf(
-            "vrf_id" to stringValue(""),
+            "vrf_id" to stringValue("vrf-1"),
             "ipv4_dst" to bytesValue(byteArrayOf(224.toByte(), 0, 0, 1)),
           ),
         actionParams = mapOf("multicast_group_id" to bytesValue(longToBytes(1, 2))),
@@ -315,6 +317,59 @@ class SaiP4ConstraintTest {
       harness = P4RuntimeTestHarness(constraintValidatorBinary = VALIDATOR_BINARY)
       config = loadConfig("e2e_tests/sai_p4/sai_middleblock.txtpb")
       harness.loadPipeline(config)
+      installPrerequisites()
+    }
+
+    /**
+     * Installs entries required by `@refers_to` validation in downstream tests. Without these,
+     * tests that reference VRFs or multicast groups would fail on referential integrity before
+     * reaching constraint validation.
+     *
+     * Note: the default VRF (vrf_id="", dataplane value 0) cannot be installed because
+     * `@entry_restriction("vrf_id != 0")` on vrf_table rejects it. This matches real SAI behavior
+     * where the default VRF is implicitly present.
+     */
+    @Suppress("MagicNumber")
+    private fun installPrerequisites() {
+      val vrfTable = findTable(config, "vrf_table")
+      val noAction = findAction(config, "no_action")
+      harness.installEntry(
+        Entity.newBuilder()
+          .setTableEntry(
+            TableEntry.newBuilder()
+              .setTableId(vrfTable.preamble.id)
+              .addMatch(
+                FieldMatch.newBuilder()
+                  .setFieldId(matchFieldId(vrfTable, "vrf_id"))
+                  .setExact(
+                    FieldMatch.Exact.newBuilder().setValue(ByteString.copyFromUtf8("vrf-1"))
+                  )
+              )
+              .setAction(
+                p4.v1.P4RuntimeOuterClass.TableAction.newBuilder()
+                  .setAction(
+                    p4.v1.P4RuntimeOuterClass.Action.newBuilder().setActionId(noAction.preamble.id)
+                  )
+              )
+          )
+          .build()
+      )
+      // Multicast group 1 (used by ipv4_multicast tests).
+      harness.installEntry(
+        Entity.newBuilder()
+          .setPacketReplicationEngineEntry(
+            p4.v1.P4RuntimeOuterClass.PacketReplicationEngineEntry.newBuilder()
+              .setMulticastGroupEntry(
+                p4.v1.P4RuntimeOuterClass.MulticastGroupEntry.newBuilder()
+                  .setMulticastGroupId(1)
+                  .addReplicas(
+                    @Suppress("DEPRECATION")
+                    p4.v1.P4RuntimeOuterClass.Replica.newBuilder().setEgressPort(0).setInstance(0)
+                  )
+              )
+          )
+          .build()
+      )
     }
 
     @JvmStatic

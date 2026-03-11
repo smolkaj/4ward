@@ -149,8 +149,7 @@ class P4RuntimeTranslationTest {
     assertTrue("expected packet_in", responses.size >= 2 && responses[1].hasPacket())
 
     val egressMeta = responses[1].packet.metadataList.find { it.metadataId == 2 }
-    val egressPort =
-      egressMeta?.value?.toByteArray()?.fold(0) { acc, b -> (acc shl 8) or (b.toInt() and 0xFF) }
+    val egressPort = egressMeta?.value?.toUnsignedInt()
     assertEquals("egress port should be auto-allocated dp value", 0, egressPort)
   }
 

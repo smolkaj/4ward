@@ -264,6 +264,25 @@ class TypeTranslatorTest {
     assertArrayEquals(dpBytes(1), dp)
   }
 
+  @Test
+  fun `auto-allocate skips reserved value zero regardless of encoding width`() {
+    // Pin dp value 0 using a 2-byte encoding (\x00\x00). The auto-allocator uses
+    // encodeMinWidth(0) which produces 1-byte \x00. Before the fix (reservedValues as
+    // Set<ByteString>), ByteString comparison missed this collision.
+    val translator =
+      buildTranslator(
+        translation {
+          uri = "test.type"
+          autoAllocate = true
+          addEntries(entry(sdnBytes(100), byteArrayOf(0, 0)))
+        }
+      )
+
+    // Auto-allocate must skip 0 (reserved as integer, regardless of byte width).
+    val dp = translator.sdnToDataplane("test.type", sdnBytes(200))
+    assertArrayEquals(dpBytes(1), dp)
+  }
+
   // ===========================================================================
   // Multiple URIs are independent
   // ===========================================================================
@@ -288,6 +307,48 @@ class TypeTranslatorTest {
     // Both get dataplane value 0 — they're independent.
     assertArrayEquals(dpBytes(0), dpA)
     assertArrayEquals(dpBytes(0), dpB)
+  }
+
+  // ===========================================================================
+  // ActionProfileMember translation via P4Info
+  // ===========================================================================
+
+  @Test
+  fun `action profile member params are translated on write`() {
+    val translator = buildP4InfoTranslator()
+
+    val update = memberUpdate(ACTION_ID, PARAM_ID, sdnBytes(5000))
+    val translated = translator.translateForWrite(update)
+    val param = translated.entity.actionProfileMember.action.paramsList.first()
+    assertEquals(ByteString.copyFrom(dpBytes(0)), param.value)
+  }
+
+  @Test
+  fun `action profile member params round-trip through read`() {
+    val translator = buildP4InfoTranslator()
+
+    // Forward translate to install the mapping.
+    translator.translateForWrite(memberUpdate(ACTION_ID, PARAM_ID, sdnBytes(5000)))
+
+    // Reverse: simulate reading back a data-plane entity.
+    val dpMember =
+      P4RuntimeOuterClass.ActionProfileMember.newBuilder()
+        .setActionProfileId(ACTION_PROFILE_ID)
+        .setMemberId(1)
+        .setAction(
+          P4RuntimeOuterClass.Action.newBuilder()
+            .setActionId(ACTION_ID)
+            .addParams(
+              P4RuntimeOuterClass.Action.Param.newBuilder()
+                .setParamId(PARAM_ID)
+                .setValue(ByteString.copyFrom(dpBytes(0)))
+            )
+        )
+        .build()
+    val dpEntity = P4RuntimeOuterClass.Entity.newBuilder().setActionProfileMember(dpMember).build()
+    val sdnEntity = translator.translateForRead(dpEntity)
+    val param = sdnEntity.actionProfileMember.action.paramsList.first()
+    assertEquals(ByteString.copyFrom(sdnBytes(5000)), param.value)
   }
 
   // ===========================================================================
@@ -647,6 +708,7 @@ class TypeTranslatorTest {
     private const val PARAM_ID = 1
     private const val PACKET_METADATA_ID = 1
     private const val NON_TRANSLATED_METADATA_ID = 2
+    private const val ACTION_PROFILE_ID = 300
     private const val TYPE_NAME = "port_id_t"
     private const val TYPE_URI = "test.port_id"
     private const val BITWIDTH_FIELD_ID = 3
@@ -922,6 +984,32 @@ class TypeTranslatorTest {
       .setType(P4RuntimeOuterClass.Update.Type.INSERT)
       .setEntity(P4RuntimeOuterClass.Entity.newBuilder().setTableEntry(entry))
       .build()
+
+  /** Builds an Update wrapping an ActionProfileMember with a single param. */
+  private fun memberUpdate(
+    actionId: Int,
+    paramId: Int,
+    paramValue: ByteArray,
+  ): P4RuntimeOuterClass.Update {
+    val member =
+      P4RuntimeOuterClass.ActionProfileMember.newBuilder()
+        .setActionProfileId(ACTION_PROFILE_ID)
+        .setMemberId(1)
+        .setAction(
+          P4RuntimeOuterClass.Action.newBuilder()
+            .setActionId(actionId)
+            .addParams(
+              P4RuntimeOuterClass.Action.Param.newBuilder()
+                .setParamId(paramId)
+                .setValue(ByteString.copyFrom(paramValue))
+            )
+        )
+        .build()
+    return P4RuntimeOuterClass.Update.newBuilder()
+      .setType(P4RuntimeOuterClass.Update.Type.INSERT)
+      .setEntity(P4RuntimeOuterClass.Entity.newBuilder().setActionProfileMember(member))
+      .build()
+  }
 
   // ===========================================================================
   // Helpers

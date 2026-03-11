@@ -850,6 +850,8 @@ class V1ModelArchitectureTest {
     // With preservation: meta.preserved is 0xABCD, no drop → 2 outputs.
     // Without preservation: meta.preserved is 0, clone drops → 1 output.
     val markToDrop = externCall("mark_to_drop", nameRef("sm"))
+    val cloneE2E =
+      externCall("clone_preserving_field_list", enumArg("E2E"), intArg(1, 32), intArg(1, 8))
     val config =
       v1modelConfig(
         ingressStmts =
@@ -860,13 +862,7 @@ class V1ModelArchitectureTest {
         egressStmts =
           listOf(
             // First pass: clone E2E.
-            ifFieldEquals(
-              "sm",
-              "instance_type",
-              0,
-              32,
-              externCall("clone_preserving_field_list", enumArg("E2E"), intArg(1, 32), intArg(1, 8)),
-            ),
+            ifFieldEquals("sm", "instance_type", 0, 32, cloneE2E),
             // Clone's second egress (instance_type == 2): drop if metadata was reset.
             ifFieldEquals(
               "sm",
