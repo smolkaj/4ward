@@ -60,9 +60,9 @@ class TableStore {
   /**
    * All mutable write-state (table entries, counters, meters, etc.) lives here.
    *
-   * Bundled into a single class so that [deepCopy] and [restoreFrom] (used for ROLLBACK_ON_ERROR
-   * and DATAPLANE_ATOMIC) are defined right next to the fields they operate on. When adding a new
-   * field, update both methods — they're right here so you can't miss them.
+   * Bundled into a single class so that [deepCopy] (used for ROLLBACK_ON_ERROR and
+   * DATAPLANE_ATOMIC) is defined right next to the fields it operates on. When adding a new field,
+   * update [deepCopy] — it's right here so you can't miss it.
    *
    * Entries themselves are immutable protobuf messages; only the container structures (maps, lists)
    * need copying.
@@ -86,6 +86,10 @@ class TableStore {
     fun deepCopy(): WriteState =
       WriteState().also { copy ->
         tables.forEach { (k, v) -> copy.tables[k] = v.toMutableList() }
+        // directCounterData/directMeterData use IdentityHashMap — their keys must be the
+        // exact same TableEntry references that live in the tables lists. toMutableList()
+        // above copies list structure without cloning elements, so the identity relationship
+        // is preserved. Do NOT deep-copy the TableEntry objects themselves.
         copy.directCounterData.putAll(directCounterData)
         copy.directMeterData.putAll(directMeterData)
         copy.defaultActions.putAll(defaultActions)
@@ -97,35 +101,9 @@ class TableStore {
         copy.cloneSessions.putAll(cloneSessions)
         copy.multicastGroups.putAll(multicastGroups)
       }
-
-    /** Replaces all state with the contents of [other]. */
-    fun restoreFrom(other: WriteState) {
-      tables.clear()
-      other.tables.forEach { (k, v) -> tables[k] = v.toMutableList() }
-      directCounterData.clear()
-      directCounterData.putAll(other.directCounterData)
-      directMeterData.clear()
-      directMeterData.putAll(other.directMeterData)
-      defaultActions.clear()
-      defaultActions.putAll(other.defaultActions)
-      profileMembers.clear()
-      other.profileMembers.forEach { (k, v) -> profileMembers[k] = v.toMutableMap() }
-      profileGroups.clear()
-      other.profileGroups.forEach { (k, v) -> profileGroups[k] = v.toMutableMap() }
-      registers.clear()
-      other.registers.forEach { (k, v) -> registers[k] = v.toMutableMap() }
-      counters.clear()
-      other.counters.forEach { (k, v) -> counters[k] = v.toMutableMap() }
-      meters.clear()
-      other.meters.forEach { (k, v) -> meters[k] = v.toMutableMap() }
-      cloneSessions.clear()
-      cloneSessions.putAll(other.cloneSessions)
-      multicastGroups.clear()
-      multicastGroups.putAll(other.multicastGroups)
-    }
   }
 
-  private val writeState = WriteState()
+  private var writeState = WriteState()
 
   // Delegating properties — all code transparently accesses writeState fields.
   private val tables
@@ -234,19 +212,9 @@ class TableStore {
       p4info.directCountersList.mapNotNull { tableNameById[it.directTableId] }.toSet()
     this.directMeterTables =
       p4info.directMetersList.mapNotNull { tableNameById[it.directTableId] }.toSet()
-    tables.clear()
-    defaultActions.clear()
-    directCounterData.clear()
-    directMeterData.clear()
+    writeState = WriteState()
     forcedHits.clear()
-    registers.clear()
-    counters.clear()
-    meters.clear()
-    profileMembers.clear()
-    profileGroups.clear()
     tableActionProfile.clear()
-    cloneSessions.clear()
-    multicastGroups.clear()
 
     // Cache proto repeated-field accessor (each call creates a defensive copy).
     val p4infoTables = p4info.tablesList
@@ -783,7 +751,9 @@ class TableStore {
   fun snapshot(): WriteState = writeState.deepCopy()
 
   /** Restores write-state to a previously captured snapshot. */
-  fun restore(snapshot: WriteState) = writeState.restoreFrom(snapshot)
+  fun restore(snapshot: WriteState) {
+    writeState = snapshot.deepCopy()
+  }
 
   // -------------------------------------------------------------------------
   // Read
