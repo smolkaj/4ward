@@ -1,10 +1,13 @@
 package fourward.p4runtime
 
+import com.google.protobuf.Any
 import fourward.ir.v1.DeviceConfig
 import fourward.ir.v1.PipelineConfig
 import fourward.simulator.Simulator
 import fourward.simulator.WriteResult
+import io.grpc.Metadata
 import io.grpc.Status
+import io.grpc.StatusException
 import java.io.Closeable
 import java.nio.file.Path
 import kotlinx.coroutines.flow.Flow
@@ -12,6 +15,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import p4.v1.P4RuntimeGrpcKt
+import p4.v1.P4RuntimeOuterClass
 import p4.v1.P4RuntimeOuterClass.CapabilitiesRequest
 import p4.v1.P4RuntimeOuterClass.CapabilitiesResponse
 import p4.v1.P4RuntimeOuterClass.ForwardingPipelineConfig
@@ -26,6 +30,7 @@ import p4.v1.P4RuntimeOuterClass.SetForwardingPipelineConfigResponse
 import p4.v1.P4RuntimeOuterClass.StreamMessageRequest
 import p4.v1.P4RuntimeOuterClass.StreamMessageResponse
 import p4.v1.P4RuntimeOuterClass.Uint128
+import p4.v1.P4RuntimeOuterClass.Update
 import p4.v1.P4RuntimeOuterClass.WriteRequest
 import p4.v1.P4RuntimeOuterClass.WriteResponse
 
@@ -131,51 +136,105 @@ class P4RuntimeService(
     lock.withLock {
       val state = requirePipeline()
       requirePrimaryOrNoArbitration(request.electionId)
-      val translator = state.typeTranslator?.takeIf { it.hasTranslations }
-      val validator = state.constraintValidator
-      for (rawUpdate in request.updatesList) {
-        // Validate against p4info before type translation so SDN-visible values
-        // are checked at canonical widths (P4Runtime spec §8.3, §9.1).
-        if (rawUpdate.entity.hasTableEntry()) {
-          state.writeValidator.validate(rawUpdate)
-        }
-        val update = translator?.translateForWrite(rawUpdate) ?: rawUpdate
-
-        // Validate @refers_to referential integrity after translation so values
-        // are in dataplane form (matching what's stored in the simulator).
-        state.referenceValidator?.validate(
-          update,
-          simulator::hasTableEntryWithFieldValue,
-          simulator::hasMulticastGroup,
-        )
-
-        // Validate constraints before forwarding to the simulator.
-        // Skip DELETE — you can always remove an entry regardless of constraints.
-        if (
-          validator != null &&
-            update.entity.hasTableEntry() &&
-            update.type != p4.v1.P4RuntimeOuterClass.Update.Type.DELETE
-        ) {
-          val violation = validator.validateEntry(update.entity.tableEntry)
-          if (violation != null) {
-            throw Status.INVALID_ARGUMENT.withDescription(violation).asException()
-          }
-        }
-
-        when (val result = simulator.writeEntry(update)) {
-          is WriteResult.Success -> {}
-          is WriteResult.AlreadyExists ->
-            throw Status.ALREADY_EXISTS.withDescription(result.message).asException()
-          is WriteResult.NotFound ->
-            throw Status.NOT_FOUND.withDescription(result.message).asException()
-          is WriteResult.InvalidArgument ->
-            throw Status.INVALID_ARGUMENT.withDescription(result.message).asException()
-          is WriteResult.ResourceExhausted ->
-            throw Status.RESOURCE_EXHAUSTED.withDescription(result.message).asException()
-        }
+      when (request.atomicity) {
+        WriteRequest.Atomicity.CONTINUE_ON_ERROR,
+        WriteRequest.Atomicity.UNRECOGNIZED -> writeContinueOnError(request.updatesList, state)
+        // P4Runtime spec §12.2: ROLLBACK_ON_ERROR and DATAPLANE_ATOMIC both guarantee
+        // all-or-none semantics. DATAPLANE_ATOMIC additionally requires data-plane atomicity,
+        // which we get for free because the write lock serializes all operations.
+        WriteRequest.Atomicity.ROLLBACK_ON_ERROR,
+        WriteRequest.Atomicity.DATAPLANE_ATOMIC -> writeAtomic(request.updatesList, state)
       }
-      WriteResponse.getDefaultInstance()
     }
+
+  /**
+   * CONTINUE_ON_ERROR (P4Runtime spec §12.2): attempt all updates, report per-update status.
+   *
+   * Per §12.3: if any update fails, the gRPC status is UNKNOWN with one [P4RuntimeOuterClass.Error]
+   * per update packed into `google.rpc.Status.details`.
+   */
+  private fun writeContinueOnError(updates: List<Update>, state: PipelineState): WriteResponse {
+    val errors = ArrayList<P4RuntimeOuterClass.Error>(updates.size)
+    var hasError = false
+    for (rawUpdate in updates) {
+      try {
+        processUpdate(rawUpdate, state)
+        errors.add(P4RuntimeOuterClass.Error.newBuilder().setCanonicalCode(OK_CODE).build())
+      } catch (e: StatusException) {
+        hasError = true
+        errors.add(
+          P4RuntimeOuterClass.Error.newBuilder()
+            .setCanonicalCode(e.status.code.value())
+            .setMessage(e.status.description ?: "")
+            .build()
+        )
+      }
+    }
+    if (hasError) {
+      throw buildBatchError(errors)
+    }
+    return WriteResponse.getDefaultInstance()
+  }
+
+  /**
+   * ROLLBACK_ON_ERROR / DATAPLANE_ATOMIC (P4Runtime spec §12.2): all-or-none semantics.
+   *
+   * Snapshots write-state before the batch and restores it if any update fails.
+   */
+  private fun writeAtomic(updates: List<Update>, state: PipelineState): WriteResponse {
+    val snapshot = simulator.snapshotWriteState()
+    try {
+      for (rawUpdate in updates) {
+        processUpdate(rawUpdate, state)
+      }
+    } catch (e: StatusException) {
+      simulator.restoreWriteState(snapshot)
+      throw e
+    }
+    return WriteResponse.getDefaultInstance()
+  }
+
+  /** Validates and applies a single update. Throws [StatusException] on failure. */
+  private fun processUpdate(rawUpdate: Update, state: PipelineState) {
+    rejectUnsupportedEntity(rawUpdate.entity)
+    // Validate against p4info before type translation so SDN-visible values
+    // are checked at canonical widths (P4Runtime spec §8.3, §9.1).
+    if (rawUpdate.entity.hasTableEntry()) {
+      state.writeValidator.validate(rawUpdate)
+    }
+    val translator = state.typeTranslator?.takeIf { it.hasTranslations }
+    val update = translator?.translateForWrite(rawUpdate) ?: rawUpdate
+
+    // Validate @refers_to referential integrity after translation so values
+    // are in dataplane form (matching what's stored in the simulator).
+    state.referenceValidator?.validate(
+      update,
+      simulator::hasTableEntryWithFieldValue,
+      simulator::hasMulticastGroup,
+    )
+
+    // Validate constraints before forwarding to the simulator.
+    // Skip DELETE — you can always remove an entry regardless of constraints.
+    val validator = state.constraintValidator
+    if (validator != null && update.entity.hasTableEntry() && update.type != Update.Type.DELETE) {
+      val violation = validator.validateEntry(update.entity.tableEntry)
+      if (violation != null) {
+        throw Status.INVALID_ARGUMENT.withDescription(violation).asException()
+      }
+    }
+
+    when (val result = simulator.writeEntry(update)) {
+      is WriteResult.Success -> {}
+      is WriteResult.AlreadyExists ->
+        throw Status.ALREADY_EXISTS.withDescription(result.message).asException()
+      is WriteResult.NotFound ->
+        throw Status.NOT_FOUND.withDescription(result.message).asException()
+      is WriteResult.InvalidArgument ->
+        throw Status.INVALID_ARGUMENT.withDescription(result.message).asException()
+      is WriteResult.ResourceExhausted ->
+        throw Status.RESOURCE_EXHAUSTED.withDescription(result.message).asException()
+    }
+  }
 
   // ---------------------------------------------------------------------------
   // Read
@@ -235,6 +294,8 @@ class P4RuntimeService(
             val packetIns = lock.withLock { handlePacketOut(msg.packet) }
             packetIns?.forEach { emit(it) }
           }
+          msg.hasDigestAck() ->
+            throw Status.UNIMPLEMENTED.withDescription(DIGEST_NOT_SUPPORTED).asException()
         }
       }
     }
@@ -345,6 +406,40 @@ class P4RuntimeService(
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Unsupported feature guards
+  // ---------------------------------------------------------------------------
+
+  /** Rejects entity types that are documented but not implemented. */
+  private fun rejectUnsupportedEntity(entity: P4RuntimeOuterClass.Entity) {
+    if (entity.hasDigestEntry()) {
+      throw Status.UNIMPLEMENTED.withDescription(DIGEST_NOT_SUPPORTED).asException()
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Batch error reporting (P4Runtime spec §12.3)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Builds a gRPC UNKNOWN error with per-update [P4RuntimeOuterClass.Error] details.
+   *
+   * The `google.rpc.Status` is attached via the standard `grpc-status-details-bin` trailer so
+   * clients can extract per-update results (P4Runtime spec §10, §12.3).
+   */
+  private fun buildBatchError(errors: List<P4RuntimeOuterClass.Error>): StatusException {
+    val rpcStatus =
+      com.google.rpc.Status.newBuilder()
+        .setCode(com.google.rpc.Code.UNKNOWN_VALUE)
+        .setMessage("Write failure.")
+    for (error in errors) {
+      rpcStatus.addDetails(Any.pack(error))
+    }
+    val metadata = Metadata()
+    metadata.put(STATUS_DETAILS_KEY, rpcStatus.build().toByteArray())
+    return Status.UNKNOWN.withDescription("Write failure.").asException(metadata)
+  }
+
   override fun close() {
     pipeline?.constraintValidator?.close()
   }
@@ -359,5 +454,13 @@ class P4RuntimeService(
 
     private const val NO_PIPELINE_MESSAGE =
       "No pipeline loaded; call SetForwardingPipelineConfig first"
+
+    private const val DIGEST_NOT_SUPPORTED = "digest is not supported"
+
+    private const val OK_CODE = com.google.rpc.Code.OK_VALUE
+
+    // Standard gRPC binary trailer for rich error details (P4Runtime spec §10).
+    private val STATUS_DETAILS_KEY: Metadata.Key<ByteArray> =
+      Metadata.Key.of("grpc-status-details-bin", Metadata.BINARY_BYTE_MARSHALLER)
   }
 }

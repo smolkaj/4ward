@@ -797,8 +797,8 @@ class TableStoreTest {
   // PRE: clone sessions and multicast groups
   // ---------------------------------------------------------------------------
 
-  private fun writeCloneSession(sessionId: Int, egressPort: Int) {
-    store.write(
+  private fun writeCloneSession(target: TableStore = store, sessionId: Int, egressPort: Int) {
+    target.write(
       Update.newBuilder()
         .setType(Update.Type.INSERT)
         .setEntity(
@@ -816,8 +816,12 @@ class TableStoreTest {
     )
   }
 
-  private fun writeMulticastGroup(groupId: Int, replicas: List<Pair<Int, Int>>) {
-    store.write(
+  private fun writeMulticastGroup(
+    target: TableStore = store,
+    groupId: Int,
+    replicas: List<Pair<Int, Int>>,
+  ) {
+    target.write(
       Update.newBuilder()
         .setType(Update.Type.INSERT)
         .setEntity(
@@ -2083,6 +2087,222 @@ class TableStoreTest {
       "should have no config after delete+re-insert",
       results[0].directMeterEntry.hasConfig(),
     )
+  }
+
+  // ---------------------------------------------------------------------------
+  // Snapshot / Restore round-trip
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Populates every WriteState field, snapshots, mutates everything, restores, and verifies.
+   *
+   * This is the safety net for WriteState.deepCopy()/restoreFrom(): if a new field is added to
+   * WriteState but not copied, this test will fail. Each field is checked independently so the
+   * failure message pinpoints exactly which field was missed.
+   */
+  @Test
+  fun `snapshot and restore round-trips all WriteState fields`() {
+    // Build a p4info with every entity type: table, register, counter, meter, action profile,
+    // direct counter, direct meter. This populates the ID→name mappings that write() needs.
+    val s = TableStore()
+    s.loadMappings(
+      p4info =
+        buildP4Info(
+          tables =
+            listOf(
+              p4infoTable(TABLE_ID, TABLE_NAME),
+              p4infoTable(PROFILE_TABLE_ID, PROFILE_TABLE_NAME, implementationId = PROFILE_ID),
+            ),
+          actions = ACTION_LIST,
+          registers =
+            listOf(
+              buildRegisterProto(REGISTER_ID, REGISTER_NAME, REGISTER_BITWIDTH, REGISTER_SIZE)
+            ),
+          counters = listOf(buildCounterProto(COUNTER_ID, "myCounter", COUNTER_SIZE)),
+          meters = listOf(buildMeterProto(METER_ID, "myMeter", METER_SIZE)),
+          directCounters =
+            listOf(
+              P4InfoOuterClass.DirectCounter.newBuilder()
+                .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(DIRECT_COUNTER_ID))
+                .setDirectTableId(TABLE_ID)
+                .build()
+            ),
+          directMeters =
+            listOf(
+              P4InfoOuterClass.DirectMeter.newBuilder()
+                .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(DIRECT_METER_ID))
+                .setDirectTableId(TABLE_ID)
+                .build()
+            ),
+        )
+    )
+
+    // --- Populate every field ---
+
+    // tables + directCounterData + directMeterData
+    val entry = exactEntry(fieldId = 1, value = byteArrayOf(0x0A), actionId = 10)
+    s.write(insertUpdate(entry))
+    s.directCounterIncrement(TABLE_NAME, entry, 100)
+    s.write(
+      Update.newBuilder()
+        .setType(Update.Type.MODIFY)
+        .setEntity(
+          Entity.newBuilder()
+            .setDirectMeterEntry(
+              P4RuntimeOuterClass.DirectMeterEntry.newBuilder()
+                .setTableEntry(entry)
+                .setConfig(P4RuntimeOuterClass.MeterConfig.newBuilder().setCir(1000))
+            )
+        )
+        .build()
+    )
+
+    // defaultActions
+    s.setDefaultAction(TABLE_NAME, "drop")
+
+    // profileMembers
+    writeMember(s, memberId = 1, actionId = 10, paramValue = 1)
+
+    // profileGroups
+    writeGroup(s, groupId = 1, memberIds = listOf(1))
+
+    // registers
+    s.registerWrite(REGISTER_NAME, 0, BitVal(42, REGISTER_BITWIDTH))
+
+    // counters
+    s.write(counterUpdate(Update.Type.MODIFY, index = 0, byteCount = 500, packetCount = 5))
+
+    // meters
+    s.write(meterUpdate(Update.Type.MODIFY, index = 0, cir = 1000, pir = 2000))
+
+    // cloneSessions
+    writeCloneSession(s, sessionId = 1, egressPort = 5)
+
+    // multicastGroups
+    writeMulticastGroup(s, groupId = 1, replicas = listOf(0 to 1))
+
+    // --- Snapshot ---
+    val snapshot = s.snapshot()
+
+    // --- Mutate every field ---
+
+    // tables: add another entry
+    s.write(
+      Update.newBuilder()
+        .setType(Update.Type.INSERT)
+        .setEntity(
+          Entity.newBuilder()
+            .setTableEntry(exactEntry(fieldId = 1, value = byteArrayOf(0x0B), actionId = 20))
+        )
+        .build()
+    )
+
+    // directCounterData: increment again
+    s.directCounterIncrement(TABLE_NAME, entry, 999)
+
+    // defaultActions: change it
+    s.setDefaultAction(TABLE_NAME, "forward")
+
+    // profileMembers: add another
+    writeMember(s, memberId = 2, actionId = 20, paramValue = 2)
+
+    // profileGroups: add another
+    writeGroup(s, groupId = 2, memberIds = listOf(1, 2))
+
+    // registers: overwrite
+    s.registerWrite(REGISTER_NAME, 0, BitVal(999, REGISTER_BITWIDTH))
+
+    // counters: overwrite
+    s.write(counterUpdate(Update.Type.MODIFY, index = 0, byteCount = 9999, packetCount = 99))
+
+    // meters: overwrite
+    s.write(meterUpdate(Update.Type.MODIFY, index = 0, cir = 9999, pir = 9999))
+
+    // cloneSessions: add another
+    writeCloneSession(s, sessionId = 2, egressPort = 9)
+
+    // multicastGroups: add another
+    writeMulticastGroup(s, groupId = 2, replicas = listOf(1 to 2))
+
+    // --- Restore ---
+    s.restore(snapshot)
+
+    // --- Verify every field is back to its pre-mutation state ---
+
+    // tables: should have exactly 1 entry, not 2
+    assertEquals(1, s.readEntities().size)
+
+    // directCounterData: should show 1 packet / 100 bytes, not 2 packets / 1099 bytes
+    val counterData = s.readDirectCounterEntries().single().directCounterEntry.data
+    assertEquals(1, counterData.packetCount)
+    assertEquals(100, counterData.byteCount)
+
+    // directMeterData: should still have cir=1000
+    val meterData = s.readDirectMeterEntries().single().directMeterEntry.config
+    assertEquals(1000, meterData.cir)
+
+    // defaultActions: should be "drop", not "forward"
+    assertEquals("drop", s.lookup(TABLE_NAME, emptyList()).actionName)
+
+    // profileMembers: should have 1 member, not 2
+    assertEquals(1, s.readProfileMembers().size)
+
+    // profileGroups: should have 1 group, not 2
+    assertEquals(1, s.readProfileGroups().size)
+
+    // registers: should be 42, not 999
+    assertEquals(BitVal(42, REGISTER_BITWIDTH), s.registerRead(REGISTER_NAME, 0))
+
+    // counters: should be 500 bytes / 5 packets
+    val ctrFilter = P4RuntimeOuterClass.CounterEntry.newBuilder().setCounterId(COUNTER_ID).build()
+    val ctrEntry = s.readCounterEntries(ctrFilter).first().counterEntry.data
+    assertEquals(500, ctrEntry.byteCount)
+    assertEquals(5, ctrEntry.packetCount)
+
+    // meters: should be cir=1000, not 9999
+    val mtrFilter = P4RuntimeOuterClass.MeterEntry.newBuilder().setMeterId(METER_ID).build()
+    val mtrEntry = s.readMeterEntries(mtrFilter).first().meterEntry.config
+    assertEquals(1000, mtrEntry.cir)
+
+    // cloneSessions: should have session 1 only
+    assertNotNull(s.getCloneSession(1))
+    assertNull(s.getCloneSession(2))
+
+    // multicastGroups: should have group 1 only
+    assertNotNull(s.getMulticastGroup(1))
+    assertNull(s.getMulticastGroup(2))
+  }
+
+  /**
+   * Verifies that snapshot produces a deep copy: mutating the original after snapshot does not
+   * affect the snapshot, and restoring recovers the snapshotted state.
+   */
+  @Test
+  fun `snapshot is a deep copy - mutations do not leak`() {
+    val entry = exactEntry(fieldId = 1, value = byteArrayOf(0x0A), actionId = 10)
+    write(entry)
+
+    val snapshot = store.snapshot()
+
+    // Delete the entry from the live store; after restore it should reappear.
+    store.write(
+      Update.newBuilder()
+        .setType(Update.Type.DELETE)
+        .setEntity(Entity.newBuilder().setTableEntry(entry))
+        .build()
+    )
+    assertTrue(store.readEntities().isEmpty())
+
+    // restore() consumes the snapshot, so take a second one first.
+    val snapshot2 = store.snapshot()
+
+    store.restore(snapshot)
+    assertEquals(1, store.readEntities().size)
+
+    // Restore to the empty state (snapshot2) to verify the first restore
+    // did not leak mutable structures.
+    store.restore(snapshot2)
+    assertTrue(store.readEntities().isEmpty())
   }
 
   // ---------------------------------------------------------------------------

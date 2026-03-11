@@ -24,6 +24,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import p4.v1.P4RuntimeGrpcKt.P4RuntimeCoroutineStub
+import p4.v1.P4RuntimeOuterClass
 import p4.v1.P4RuntimeOuterClass.CapabilitiesRequest
 import p4.v1.P4RuntimeOuterClass.CapabilitiesResponse
 import p4.v1.P4RuntimeOuterClass.Entity
@@ -139,6 +140,16 @@ class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable 
 
   fun deleteEntry(entity: Entity, electionId: Uint128? = null): WriteResponse =
     writeEntity(Update.Type.DELETE, entity, electionId)
+
+  /** Sends a raw [WriteRequest] — use for testing request-level fields like atomicity. */
+  fun writeRaw(request: WriteRequest): WriteResponse = runBlocking { stub.write(request) }
+
+  /** Builds a [WriteRequest] with multiple entities of the same update type. */
+  fun buildBatchRequest(type: Update.Type, entities: List<Entity>): WriteRequest =
+    WriteRequest.newBuilder()
+      .setDeviceId(1)
+      .apply { entities.forEach { addUpdates(Update.newBuilder().setType(type).setEntity(it)) } }
+      .build()
 
   private fun writeEntity(type: Update.Type, entity: Entity, electionId: Uint128?): WriteResponse =
     runBlocking {
@@ -390,19 +401,43 @@ class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable 
         block()
         throw AssertionError("expected gRPC error $code but call succeeded")
       } catch (e: StatusException) {
-        if (code != e.status.code) {
-          throw AssertionError("expected gRPC status $code but got ${e.status.code}", e)
+        // Resolve the actual error code and message. For single-update batches,
+        // unwrap the per-update p4.v1.Error (P4Runtime spec §12.3).
+        val actualCode: Status.Code
+        val actualMessage: String?
+        val batchError =
+          if (e.status.code == Status.Code.UNKNOWN) extractBatchErrors(e)?.singleOrNull() else null
+        if (batchError != null) {
+          actualCode =
+            Status.Code.values().find { it.value() == batchError.canonicalCode } ?: e.status.code
+          actualMessage = batchError.message
+        } else {
+          actualCode = e.status.code
+          actualMessage = e.status.description
+        }
+        if (code != actualCode) {
+          throw AssertionError("expected gRPC status $code but got $actualCode", e)
         }
         if (
           messageContains != null &&
-            e.status.description?.contains(messageContains, ignoreCase = true) != true
+            actualMessage?.contains(messageContains, ignoreCase = true) != true
         ) {
           throw AssertionError(
-            "expected message containing '$messageContains' but got '${e.status.description}'",
+            "expected message containing '$messageContains' but got '$actualMessage'",
             e,
           )
         }
       }
+    }
+
+    /** Extracts per-update [P4RuntimeOuterClass.Error] details from a batch UNKNOWN error. */
+    fun extractBatchErrors(e: StatusException): List<P4RuntimeOuterClass.Error>? {
+      val trailers = e.trailers ?: return null
+      val key =
+        io.grpc.Metadata.Key.of("grpc-status-details-bin", io.grpc.Metadata.BINARY_BYTE_MARSHALLER)
+      val bytes = trailers.get(key) ?: return null
+      val rpcStatus = com.google.rpc.Status.parseFrom(bytes)
+      return rpcStatus.detailsList.map { any -> P4RuntimeOuterClass.Error.parseFrom(any.value) }
     }
 
     /**

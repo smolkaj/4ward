@@ -59,6 +59,11 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
     // P4Runtime spec §9.1: DELETE only needs the match key; skip content validation.
     if (update.type == P4RuntimeOuterClass.Update.Type.DELETE) return
 
+    // Idle timeout is not supported — reject rather than silently ignoring.
+    if (entry.idleTimeoutNs != 0L) {
+      throw unimplemented("idle_timeout_ns is not supported on table '${tableInfo.tableName}'")
+    }
+
     if (entry.hasAction()) {
       val tableAction = entry.action
       when {
@@ -309,5 +314,8 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
 
     private fun notFound(msg: String): StatusException =
       Status.NOT_FOUND.withDescription(msg).asException()
+
+    private fun unimplemented(msg: String): StatusException =
+      Status.UNIMPLEMENTED.withDescription(msg).asException()
   }
 }

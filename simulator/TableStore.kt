@@ -48,66 +48,112 @@ class TableStore {
   /** Metadata for statically-allocated indexed externs (counters, meters). */
   private data class IndexedExternInfo(val size: Int)
 
-  // tableName -> list of entries, ordered by insertion (priority is explicit in the entry)
-  private val tables: MutableMap<String, MutableList<TableEntry>> = mutableMapOf()
-
-  // Direct counter/meter data, keyed by the exact TableEntry object reference stored in `tables`.
-  // IdentityHashMap avoids the cost of proto equals() and ties data lifetime to the entry object:
-  // removing an entry from `tables` makes its data unreachable.
-  private val directCounterData = IdentityHashMap<TableEntry, P4RuntimeOuterClass.CounterData>()
-  private val directMeterData = IdentityHashMap<TableEntry, P4RuntimeOuterClass.MeterConfig>()
-
-  // tableName -> maximum number of entries (from p4info Table.size); absent = unlimited
-  private var tableSizeLimit: Map<String, Int> = emptyMap()
-
-  // action_profile_id -> max_group_size (from p4info ActionProfile.max_group_size); absent =
-  // unlimited
-  private var profileMaxGroupSize: Map<Int, Int> = emptyMap()
-
-  // tableName -> default action name + arguments (from p4info)
-  private data class DefaultAction(
+  data class DefaultAction(
     val name: String,
     val params: List<p4.v1.P4RuntimeOuterClass.Action.Param> = emptyList(),
   )
 
-  private val defaultActions: MutableMap<String, DefaultAction> = mutableMapOf()
+  // -------------------------------------------------------------------------
+  // Write-state
+  // -------------------------------------------------------------------------
 
-  // registerName -> index -> stored value (persists across packets)
-  private val registers: MutableMap<String, MutableMap<Int, Value>> = mutableMapOf()
+  /**
+   * All mutable write-state (table entries, counters, meters, etc.) lives here.
+   *
+   * Bundled into a single class so that [deepCopy] (used for ROLLBACK_ON_ERROR and
+   * DATAPLANE_ATOMIC) is defined right next to the fields it operates on. When adding a new field,
+   * update [deepCopy] — it's right here so you can't miss it.
+   *
+   * Entries themselves are immutable protobuf messages; only the container structures (maps, lists)
+   * need copying.
+   */
+  class WriteState internal constructor() {
+    internal val tables: MutableMap<String, MutableList<TableEntry>> = mutableMapOf()
+    internal val directCounterData = IdentityHashMap<TableEntry, P4RuntimeOuterClass.CounterData>()
+    internal val directMeterData = IdentityHashMap<TableEntry, P4RuntimeOuterClass.MeterConfig>()
+    internal val defaultActions: MutableMap<String, DefaultAction> = mutableMapOf()
+    internal val profileMembers:
+      MutableMap<Int, MutableMap<Int, P4RuntimeOuterClass.ActionProfileMember>> =
+      mutableMapOf()
+    internal val profileGroups:
+      MutableMap<Int, MutableMap<Int, P4RuntimeOuterClass.ActionProfileGroup>> =
+      mutableMapOf()
+    internal val registers: MutableMap<String, MutableMap<Int, Value>> = mutableMapOf()
+    internal val counters: MutableMap<Int, MutableMap<Int, P4RuntimeOuterClass.CounterData>> =
+      mutableMapOf()
+    internal val meters: MutableMap<Int, MutableMap<Int, P4RuntimeOuterClass.MeterConfig>> =
+      mutableMapOf()
+    internal val cloneSessions: MutableMap<Int, P4RuntimeOuterClass.CloneSessionEntry> =
+      mutableMapOf()
+    internal val multicastGroups: MutableMap<Int, P4RuntimeOuterClass.MulticastGroupEntry> =
+      mutableMapOf()
 
-  // counter_id -> index -> CounterData (persists across packets)
-  private val counters: MutableMap<Int, MutableMap<Int, P4RuntimeOuterClass.CounterData>> =
-    mutableMapOf()
+    /** Creates a deep copy for snapshot/restore (P4Runtime spec §12.2). */
+    fun deepCopy(): WriteState =
+      WriteState().also { copy ->
+        tables.forEach { (k, v) -> copy.tables[k] = v.toMutableList() }
+        // directCounterData/directMeterData use IdentityHashMap — their keys must be the
+        // exact same TableEntry references that live in the tables lists. toMutableList()
+        // above copies list structure without cloning elements, so the identity relationship
+        // is preserved. Do NOT deep-copy the TableEntry objects themselves.
+        copy.directCounterData.putAll(directCounterData)
+        copy.directMeterData.putAll(directMeterData)
+        copy.defaultActions.putAll(defaultActions)
+        profileMembers.forEach { (k, v) -> copy.profileMembers[k] = v.toMutableMap() }
+        profileGroups.forEach { (k, v) -> copy.profileGroups[k] = v.toMutableMap() }
+        registers.forEach { (k, v) -> copy.registers[k] = v.toMutableMap() }
+        counters.forEach { (k, v) -> copy.counters[k] = v.toMutableMap() }
+        meters.forEach { (k, v) -> copy.meters[k] = v.toMutableMap() }
+        copy.cloneSessions.putAll(cloneSessions)
+        copy.multicastGroups.putAll(multicastGroups)
+      }
+  }
 
-  // meter_id -> index -> MeterConfig (persists across packets)
-  private val meters: MutableMap<Int, MutableMap<Int, P4RuntimeOuterClass.MeterConfig>> =
-    mutableMapOf()
+  private var writeState = WriteState()
 
-  // For unit tests that cannot easily construct TableEntry protos: makes lookup() return
-  // hit=true with this action rather than searching the entry list.
-  private val forcedHits: MutableMap<String, String> = mutableMapOf()
+  // Delegating properties — all code transparently accesses writeState fields.
+  private val tables
+    get() = writeState.tables
 
-  // Action profile storage: action_profile_id → member_id → ActionProfileMember
-  private val profileMembers:
-    MutableMap<Int, MutableMap<Int, P4RuntimeOuterClass.ActionProfileMember>> =
-    mutableMapOf()
+  private val directCounterData
+    get() = writeState.directCounterData
 
-  // Action profile storage: action_profile_id → group_id → ActionProfileGroup
-  private val profileGroups:
-    MutableMap<Int, MutableMap<Int, P4RuntimeOuterClass.ActionProfileGroup>> =
-    mutableMapOf()
+  private val directMeterData
+    get() = writeState.directMeterData
 
-  // tableName → action_profile_id (populated from p4info at load time)
+  private val defaultActions
+    get() = writeState.defaultActions
+
+  private val profileMembers
+    get() = writeState.profileMembers
+
+  private val profileGroups
+    get() = writeState.profileGroups
+
+  private val registers
+    get() = writeState.registers
+
+  private val counters
+    get() = writeState.counters
+
+  private val meters
+    get() = writeState.meters
+
+  private val cloneSessions
+    get() = writeState.cloneSessions
+
+  private val multicastGroups
+    get() = writeState.multicastGroups
+
+  // Pipeline config (populated by loadMappings, not part of write-state).
+  private var tableSizeLimit: Map<String, Int> = emptyMap()
+  private var profileMaxGroupSize: Map<Int, Int> = emptyMap()
   private val tableActionProfile: MutableMap<String, Int> = mutableMapOf()
-
-  // Tables that have a direct counter/meter attached (populated from p4info).
   private var directCounterTables: Set<String> = emptySet()
   private var directMeterTables: Set<String> = emptySet()
 
-  // PRE (Packet Replication Engine) storage
-  private val cloneSessions: MutableMap<Int, P4RuntimeOuterClass.CloneSessionEntry> = mutableMapOf()
-  private val multicastGroups: MutableMap<Int, P4RuntimeOuterClass.MulticastGroupEntry> =
-    mutableMapOf()
+  // For unit tests: makes lookup() return hit=true with this action rather than searching entries.
+  private val forcedHits: MutableMap<String, String> = mutableMapOf()
 
   fun setForcedHit(tableName: String, actionName: String) {
     forcedHits[tableName] = actionName
@@ -172,19 +218,9 @@ class TableStore {
       p4info.directCountersList.mapNotNull { tableNameById[it.directTableId] }.toSet()
     this.directMeterTables =
       p4info.directMetersList.mapNotNull { tableNameById[it.directTableId] }.toSet()
-    tables.clear()
-    defaultActions.clear()
-    directCounterData.clear()
-    directMeterData.clear()
+    writeState = WriteState()
     forcedHits.clear()
-    registers.clear()
-    counters.clear()
-    meters.clear()
-    profileMembers.clear()
-    profileGroups.clear()
     tableActionProfile.clear()
-    cloneSessions.clear()
-    multicastGroups.clear()
 
     // Cache proto repeated-field accessor (each call creates a defensive copy).
     val p4infoTables = p4info.tablesList
@@ -570,7 +606,12 @@ class TableStore {
         writePreEntry(entity.packetReplicationEngineEntry)
         WriteResult.Success
       }
-      else -> writeTableEntry(update)
+      entity.hasTableEntry() -> writeTableEntry(update)
+      else ->
+        WriteResult.InvalidArgument(
+          "unsupported entity type; only table entries, action profiles, counters, meters, " +
+            "registers, and PRE entries are supported"
+        )
     }
   }
 
@@ -707,6 +748,18 @@ class TableStore {
 
   fun getMulticastGroup(groupId: Int): P4RuntimeOuterClass.MulticastGroupEntry? =
     multicastGroups[groupId]
+
+  // -------------------------------------------------------------------------
+  // Snapshot / Restore (for ROLLBACK_ON_ERROR / DATAPLANE_ATOMIC)
+  // -------------------------------------------------------------------------
+
+  /** Captures a deep copy of all mutable write-state for later [restore]. */
+  fun snapshot(): WriteState = writeState.deepCopy()
+
+  /** Restores write-state to a previously captured snapshot, consuming it. */
+  fun restore(snapshot: WriteState) {
+    writeState = snapshot
+  }
 
   // -------------------------------------------------------------------------
   // Read
