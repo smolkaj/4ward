@@ -92,11 +92,13 @@ class P4RuntimeConformanceTest {
     val config = loadBasicTableConfig()
     harness.loadPipeline(config)
     harness.installEntry(buildExactEntry(config, matchValue = 0x0800, port = 1))
-    assertEquals("entry should exist before reload", 1, harness.readEntries().size)
+    val regularEntries = harness.readRegularEntries()
+    assertEquals("entry should exist before reload", 1, regularEntries.size)
 
     // Reload the same pipeline — entries should be gone.
     harness.loadPipeline(config)
-    assertEquals("entries should be cleared after reload", 0, harness.readEntries().size)
+    val afterReload = harness.readRegularEntries()
+    assertEquals("entries should be cleared after reload", 0, afterReload.size)
   }
 
   /** P4Runtime spec §7.10: cookie set during pipeline load is returned on get. */
@@ -188,10 +190,12 @@ class P4RuntimeConformanceTest {
   }
 
   @Test
-  fun `10 - read empty table returns empty response`() {
+  fun `10 - read empty table returns only default entry`() {
     harness.loadPipeline(loadBasicTableConfig())
     val entities = harness.readEntries()
-    assertTrue("expected empty read", entities.isEmpty())
+    // P4Runtime spec §11.1: wildcard reads include the default entry even when no
+    // regular entries exist.
+    assertTrue("expected only default entries", entities.all { it.tableEntry.isDefaultAction })
   }
 
   @Test
@@ -367,7 +371,8 @@ class P4RuntimeConformanceTest {
     harness.installEntry(buildExactEntry(config, matchValue = 0x0800, port = 1))
 
     val tableId = config.p4Info.tablesList.first().preamble.id
-    assertEquals("matching table ID", 1, harness.readTableEntries(tableId).size)
+    val matching = harness.readTableEntries(tableId)
+    assertEquals("matching table ID (1 regular + 1 default)", 2, matching.size)
     assertTrue("non-matching table ID", harness.readTableEntries(99999).isEmpty())
   }
 
@@ -653,7 +658,7 @@ class P4RuntimeConformanceTest {
     val entry = buildExactEntry(config, matchValue = 0x0800, port = 1)
     harness.installEntry(entry, uint128(low = 5))
     // Verify the entry was written.
-    val results = harness.readEntries()
+    val results = harness.readRegularEntries()
     assertEquals(1, results.size)
   }
 
@@ -665,7 +670,8 @@ class P4RuntimeConformanceTest {
     // No arbitration — write should still work.
     val entry = buildExactEntry(config, matchValue = 0x0800, port = 1)
     harness.installEntry(entry)
-    assertEquals(1, harness.readEntries().size)
+    val regular = harness.readRegularEntries()
+    assertEquals(1, regular.size)
   }
 
   /** P4Runtime spec §10.4: all controllers may read regardless of role. */
@@ -677,7 +683,7 @@ class P4RuntimeConformanceTest {
     val entry = buildExactEntry(config, matchValue = 0x0800, port = 1)
     harness.installEntry(entry, uint128(low = 5))
     // Read with no election_id (any controller) should succeed.
-    val results = harness.readEntries()
+    val results = harness.readRegularEntries()
     assertEquals("read should return the installed entry", 1, results.size)
   }
 
@@ -950,6 +956,38 @@ class P4RuntimeConformanceTest {
   }
 
   // =========================================================================
+  // Bytestring encoding (scenario 63)
+  // =========================================================================
+
+  /** P4Runtime spec §8.7: read responses have bytestrings zero-padded to ceil(bitwidth/8). */
+  @Test
+  fun `63 - read responses have correctly sized bytestrings`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    val matchField = config.p4Info.tablesList.first().matchFieldsList.first()
+    val forwardAction = config.p4Info.actionsList.find { it.preamble.name.contains("forward") }!!
+    val matchBytes = (matchField.bitwidth + 7) / 8
+    val paramBytes = (forwardAction.paramsList.first().bitwidth + 7) / 8
+
+    val entry = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    harness.installEntry(entry)
+
+    val results = harness.readRegularEntries()
+    assertEquals(1, results.size)
+    val readEntry = results[0].tableEntry
+    assertEquals(
+      "match field bytestring should be $matchBytes bytes",
+      matchBytes,
+      readEntry.matchList[0].exact.value.size(),
+    )
+    assertEquals(
+      "action param bytestring should be $paramBytes bytes",
+      paramBytes,
+      readEntry.action.action.paramsList[0].value.size(),
+    )
+  }
+
+  // =========================================================================
   // device_id validation (scenarios 60-62)
   // =========================================================================
 
@@ -1002,6 +1040,42 @@ class P4RuntimeConformanceTest {
         )
       }
     }
+  }
+
+  // =========================================================================
+  // Default entry in wildcard reads (scenario 64)
+  // =========================================================================
+
+  /** P4Runtime spec §11.1: wildcard table reads include the default entry. */
+  @Test
+  fun `64 - wildcard read includes default entry`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+
+    // Install one regular entry so we can verify both are returned.
+    val entry = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    harness.installEntry(entry)
+
+    val results = harness.readEntries()
+    val defaultEntries = results.filter { it.tableEntry.isDefaultAction }
+    val regularEntries = results.filter { !it.tableEntry.isDefaultAction }
+
+    assertEquals("should have 1 regular entry", 1, regularEntries.size)
+    assertTrue("should have at least 1 default entry", defaultEntries.isNotEmpty())
+
+    // The basic_table program has `default_action = drop()`.
+    val defaultEntry = defaultEntries.first().tableEntry
+    val tableId = config.p4Info.tablesList.first().preamble.id
+    assertEquals("default entry should have correct table_id", tableId, defaultEntry.tableId)
+    assertTrue("default entry should have is_default_action set", defaultEntry.isDefaultAction)
+    assertTrue("default entry should have an action", defaultEntry.hasAction())
+
+    val dropAction = config.p4Info.actionsList.find { it.preamble.name.contains("drop") }!!
+    assertEquals(
+      "default action should be drop",
+      dropAction.preamble.id,
+      defaultEntry.action.action.actionId,
+    )
   }
 
   // ---------------------------------------------------------------------------

@@ -162,6 +162,11 @@ class TableStore {
   // Populated by loadMappings; used to resolve IDs to names in write() and lookup().
   private var tableNameById: Map<Int, String> = emptyMap()
   private var actionNameById: Map<Int, String> = emptyMap()
+
+  // Pre-built P4Runtime protos for default entries, keyed by table name.
+  // Built once during loadMappings() so the read path returns them directly.
+  private var defaultEntryByTable: Map<String, P4RuntimeOuterClass.Entity> = emptyMap()
+
   private var registerInfoById: Map<Int, RegisterInfo> = emptyMap()
   private var counterInfoById: Map<Int, IndexedExternInfo> = emptyMap()
   private var meterInfoById: Map<Int, IndexedExternInfo> = emptyMap()
@@ -249,7 +254,8 @@ class TableStore {
       }
     }
 
-    // Install default actions from p4info.
+    // Install default actions from p4info, and pre-build the read-path protos.
+    val defaultProtos = mutableMapOf<String, P4RuntimeOuterClass.Entity>()
     for (table in p4infoTables) {
       // const_default_action_id: immutable default set in the P4 source with `const`.
       // initial_default_action: mutable default set in the P4 source without `const`.
@@ -270,8 +276,25 @@ class TableStore {
             }
           else emptyList()
         setDefaultAction(tableName, actionName, params)
+        defaultProtos[tableName] =
+          P4RuntimeOuterClass.Entity.newBuilder()
+            .setTableEntry(
+              P4RuntimeOuterClass.TableEntry.newBuilder()
+                .setTableId(table.preamble.id)
+                .setIsDefaultAction(true)
+                .setAction(
+                  P4RuntimeOuterClass.TableAction.newBuilder()
+                    .setAction(
+                      P4RuntimeOuterClass.Action.newBuilder()
+                        .setActionId(defaultActionId)
+                        .addAllParams(params)
+                    )
+                )
+            )
+            .build()
       }
     }
+    this.defaultEntryByTable = defaultProtos
 
     // Install static table entries declared with `const entries` in the P4 source.
     for (update in device.staticEntries.updatesList) {
@@ -835,17 +858,25 @@ class TableStore {
   fun readEntities(
     filter: P4RuntimeOuterClass.TableEntry = P4RuntimeOuterClass.TableEntry.getDefaultInstance()
   ): List<P4RuntimeOuterClass.Entity> {
-    val sources =
-      if (filter.tableId == 0) tables.values
-      else listOfNotNull(tables[tableNameById[filter.tableId]])
     val hasMatchFilter = filter.matchCount > 0
-    return sources
-      .flatMap { entries ->
-        // P4Runtime spec §9.1: match key + priority uniquely identify an entry,
-        // so at most one entry can match a filter with match fields.
-        if (hasMatchFilter) listOfNotNull(entries.find { it.sameKey(filter) }) else entries
-      }
-      .map { P4RuntimeOuterClass.Entity.newBuilder().setTableEntry(it).build() }
+    val tableNames =
+      if (filter.tableId != 0) listOfNotNull(tableNameById[filter.tableId])
+      else tableNameById.values.toList()
+
+    val entries =
+      tableNames
+        .mapNotNull { tables[it] }
+        .flatMap { entries ->
+          // P4Runtime spec §9.1: match key + priority uniquely identify an entry,
+          // so at most one entry can match a filter with match fields.
+          if (hasMatchFilter) listOfNotNull(entries.find { it.sameKey(filter) }) else entries
+        }
+        .map { P4RuntimeOuterClass.Entity.newBuilder().setTableEntry(it).build() }
+
+    // P4Runtime spec §11.1: wildcard reads (no match filter) include the default entry.
+    if (hasMatchFilter) return entries
+
+    return entries + tableNames.mapNotNull { defaultEntryByTable[it] }
   }
 
   /**

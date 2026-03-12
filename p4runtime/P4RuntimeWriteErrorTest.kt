@@ -263,7 +263,7 @@ class P4RuntimeWriteErrorTest {
       }
     }
     // Good update was applied despite bad one failing.
-    val readBack = harness.readEntries()
+    val readBack = harness.readRegularEntries()
     assert(readBack.isNotEmpty()) { "good entry should have been applied" }
   }
 
@@ -290,7 +290,7 @@ class P4RuntimeWriteErrorTest {
         .setAtomicity(atomicity)
         .build()
     assertGrpcError(Status.Code.NOT_FOUND) { harness.writeRaw(request) }
-    val readBack = harness.readEntries()
+    val readBack = harness.readRegularEntries()
     assert(readBack.isEmpty()) { "$atomicity should have rolled back the good entry" }
   }
 }
