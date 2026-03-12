@@ -65,6 +65,25 @@ Blocked on buf support for proto edition 2024.
 
 ---
 
+## p4c backend: populate extern type on MethodCall target
+
+**Files**: `p4c_backend/`
+
+**Problem**: The p4c backend emits an empty `type {}` on the `MethodCall`
+target `Expr` for some extern instances (observed with `direct_meter`). The
+simulator expects `type { named: "direct_meter" }` to dispatch extern method
+calls correctly.
+
+**Current workaround**: The simulator disambiguates `read` calls by argument
+count (1 arg = `direct_meter.read`, 2 args = `register.read`). Marked with
+`WORKAROUND` and `TODO(p4c backend)` in `V1ModelArchitecture.kt`.
+
+A related issue: the backend emits unsized integer literals (no type) for
+`*_preserving_field_list` field list ID arguments. The simulator handles both
+`BitVal` and `InfIntVal` via `evalIntArg`.
+
+---
+
 ## Upstream p4c backend
 
 Land the 4ward backend in the p4c repository. Blocked on upstream review.
