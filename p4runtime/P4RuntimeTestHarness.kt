@@ -76,7 +76,10 @@ class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable 
   // Pipeline management
   // ---------------------------------------------------------------------------
 
-  fun loadPipeline(config: PipelineConfig): SetForwardingPipelineConfigResponse = runBlocking {
+  fun loadPipeline(
+    config: PipelineConfig,
+    cookie: ForwardingPipelineConfig.Cookie = ForwardingPipelineConfig.Cookie.getDefaultInstance(),
+  ): SetForwardingPipelineConfigResponse = runBlocking {
     stub.setForwardingPipelineConfig(
       SetForwardingPipelineConfigRequest.newBuilder()
         .setDeviceId(1)
@@ -85,6 +88,7 @@ class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable 
           ForwardingPipelineConfig.newBuilder()
             .setP4Info(config.p4Info)
             .setP4DeviceConfig(config.device.toByteString())
+            .setCookie(cookie)
         )
         .build()
     )

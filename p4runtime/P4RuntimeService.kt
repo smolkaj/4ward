@@ -60,6 +60,7 @@ class P4RuntimeService(
   /** Bundled pipeline state — atomically swapped on pipeline load to avoid torn reads. */
   private data class PipelineState(
     val config: PipelineConfig,
+    val cookie: ForwardingPipelineConfig.Cookie,
     val typeTranslator: TypeTranslator?,
     val writeValidator: WriteValidator,
     val referenceValidator: ReferenceValidator?,
@@ -118,6 +119,7 @@ class P4RuntimeService(
       pipeline =
         PipelineState(
           config = pipelineConfig,
+          cookie = fwdConfig.cookie,
           typeTranslator = TypeTranslator.create(fwdConfig.p4Info, deviceConfig.translationsList),
           writeValidator = WriteValidator(pipelineConfig.p4Info),
           referenceValidator = ReferenceValidator.create(fwdConfig.p4Info),
@@ -359,23 +361,21 @@ class P4RuntimeService(
   override suspend fun getForwardingPipelineConfig(
     request: GetForwardingPipelineConfigRequest
   ): GetForwardingPipelineConfigResponse {
-    val config = requirePipeline().config
+    val state = requirePipeline()
 
-    val fwdConfig = ForwardingPipelineConfig.newBuilder()
+    val fwdConfig = ForwardingPipelineConfig.newBuilder().setCookie(state.cookie)
     when (request.responseType) {
       GetForwardingPipelineConfigRequest.ResponseType.ALL,
       GetForwardingPipelineConfigRequest.ResponseType.UNRECOGNIZED -> {
-        fwdConfig.setP4Info(config.p4Info)
-        fwdConfig.setP4DeviceConfig(config.device.toByteString())
+        fwdConfig.setP4Info(state.config.p4Info)
+        fwdConfig.setP4DeviceConfig(state.config.device.toByteString())
       }
-      GetForwardingPipelineConfigRequest.ResponseType.COOKIE_ONLY -> {
-        // No cookie support — return empty config.
-      }
+      GetForwardingPipelineConfigRequest.ResponseType.COOKIE_ONLY -> {}
       GetForwardingPipelineConfigRequest.ResponseType.P4INFO_AND_COOKIE -> {
-        fwdConfig.setP4Info(config.p4Info)
+        fwdConfig.setP4Info(state.config.p4Info)
       }
       GetForwardingPipelineConfigRequest.ResponseType.DEVICE_CONFIG_AND_COOKIE -> {
-        fwdConfig.setP4DeviceConfig(config.device.toByteString())
+        fwdConfig.setP4DeviceConfig(state.config.device.toByteString())
       }
     }
 

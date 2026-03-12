@@ -83,6 +83,43 @@ class P4RuntimeConformanceTest {
   }
 
   // =========================================================================
+  // SetForwardingPipelineConfig — state clearing & cookie (7.10, 7.11)
+  // =========================================================================
+
+  /** P4Runtime spec §7.11: reloading a pipeline clears all table entries. */
+  @Test
+  fun `58 - pipeline reload clears table entries`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    harness.installEntry(buildExactEntry(config, matchValue = 0x0800, port = 1))
+    assertEquals("entry should exist before reload", 1, harness.readEntries().size)
+
+    // Reload the same pipeline — entries should be gone.
+    harness.loadPipeline(config)
+    assertEquals("entries should be cleared after reload", 0, harness.readEntries().size)
+  }
+
+  /** P4Runtime spec §7.10: cookie set during pipeline load is returned on get. */
+  @Test
+  fun `59 - cookie round-trip through set and get`() {
+    val cookie = ForwardingPipelineConfig.Cookie.newBuilder().setCookie(0xDEADBEEF).build()
+    harness.loadPipeline(loadBasicTableConfig(), cookie)
+
+    // ALL response type should include the cookie.
+    val allResp = harness.getConfig()
+    assertEquals(0xDEADBEEF, allResp.config.cookie.cookie)
+
+    // COOKIE_ONLY should return just the cookie.
+    val cookieResp = harness.getConfig(GetForwardingPipelineConfigRequest.ResponseType.COOKIE_ONLY)
+    assertEquals(0xDEADBEEF, cookieResp.config.cookie.cookie)
+
+    // P4INFO_AND_COOKIE should include the cookie.
+    val p4InfoResp =
+      harness.getConfig(GetForwardingPipelineConfigRequest.ResponseType.P4INFO_AND_COOKIE)
+    assertEquals(0xDEADBEEF, p4InfoResp.config.cookie.cookie)
+  }
+
+  // =========================================================================
   // Write (scenarios 4-8)
   // =========================================================================
 
