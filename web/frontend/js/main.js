@@ -169,11 +169,19 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Global keyboard shortcuts (suppressed when focus is in editor/input/textarea).
+  function isEditing() {
+    const el = document.activeElement;
+    if (!el) return false;
+    const tag = el.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+    if (el.isContentEditable) return true;
+    // Monaco uses a hidden textarea; its own API is the reliable check.
+    if (state.editor?.hasTextFocus()) return true;
+    return false;
+  }
+
   document.addEventListener('keydown', (e) => {
-    const tag = document.activeElement?.tagName;
-    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-    // Monaco's own container catches keys when focused; check explicitly.
-    if (document.activeElement?.closest('#editor-container')) return;
+    if (isEditing()) return;
 
     switch (e.key) {
       case 'ArrowRight': e.preventDefault(); stepForward(); break;
