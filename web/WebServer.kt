@@ -195,11 +195,11 @@ class WebServer(
       extractJsonString(body, "payload_hex") ?: throw badRequest("Missing payload_hex")
     val payload = hexToBytes(payloadHex)
 
-    val response = runBlocking { lock.withLock { simulator.processPacket(ingressPort, payload) } }
+    val result = runBlocking { lock.withLock { simulator.processPacket(ingressPort, payload) } }
 
-    val outputsJson = response.outputPacketsList.joinToString(",") { jsonPrinter.print(it) }
-    val traceJson = jsonPrinter.print(response.trace)
-    val traceProto = textPrinter.printToString(response.trace)
+    val outputsJson = result.outputPackets.joinToString(",") { jsonPrinter.print(it) }
+    val traceJson = jsonPrinter.print(result.trace)
+    val traceProto = textPrinter.printToString(result.trace)
     sendJson(
       exchange,
       HTTP_OK,

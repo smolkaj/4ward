@@ -5,7 +5,6 @@ import com.google.protobuf.TextFormat
 import fourward.ir.v1.PipelineConfig
 import fourward.simulator.Simulator
 import fourward.simulator.WriteResult
-import fourward.simulator.collectOutputsFromTrace
 import java.math.BigInteger
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -63,16 +62,13 @@ class StfRunner(private val pipelineConfigPath: Path) {
     val outputQueue = mutableListOf<ReceivedPacket>()
 
     for (packet in stf.packets) {
-      val resp = sim.processPacket(packet.ingressPort, packet.payload)
+      val result = sim.processPacket(packet.ingressPort, packet.payload)
       if (System.getenv("PRINT_TRACE") != null) {
         println("--- Trace tree (port ${packet.ingressPort}) ---")
-        print(TextFormat.printer().printToString(resp.trace))
+        print(TextFormat.printer().printToString(result.trace))
         println("--- End trace tree ---")
       }
-      // For non-forking programs, output_packets is populated. For forking
-      // programs (multicast, clone, action selector), outputs live only in
-      // trace tree leaves — collect them recursively.
-      val pkts = resp.outputPacketsList.ifEmpty { collectOutputsFromTrace(resp.trace) }
+      val pkts = result.outputPackets
       for (pkt in pkts) {
         outputQueue += ReceivedPacket(pkt.egressPort, pkt.payload.toByteArray())
       }

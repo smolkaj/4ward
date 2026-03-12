@@ -5,8 +5,8 @@ import fourward.e2e.StfFile
 import fourward.e2e.installStfEntries
 import fourward.e2e.loadPipelineConfig
 import fourward.sim.v1.SimulatorProto.PacketOutcome
-import fourward.sim.v1.SimulatorProto.ProcessPacketResponse
 import fourward.sim.v1.SimulatorProto.TraceTree
+import fourward.simulator.ProcessPacketResult
 import fourward.simulator.Simulator
 import java.nio.file.Paths
 import org.junit.Assert.assertEquals
@@ -17,8 +17,8 @@ import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.Parameters
 
 /**
- * Verifies that output packets from [ProcessPacketResponse] are consistent with the leaf outcomes
- * in the trace tree.
+ * Verifies that output packets from [ProcessPacketResult] are consistent with the leaf outcomes in
+ * the trace tree.
  *
  * The output_packets list should exactly match the union of all non-drop packet_outcome leaves,
  * whether the trace forks (multicast, clone, action selectors) or not.
@@ -59,13 +59,13 @@ class TraceTreeConsistencyTest(private val testName: String) {
     }
   }
 
-  private fun verifyConsistency(response: ProcessPacketResponse) {
-    val trace = response.trace
+  private fun verifyConsistency(result: ProcessPacketResult) {
+    val trace = result.trace
     val leafOutcomes = collectLeafOutcomes(trace)
 
     assertTrue("Trace tree for $testName has no leaf outcomes", leafOutcomes.isNotEmpty())
 
-    val outputsFromResponse = response.outputPacketsList.map { it.egressPort to it.payload }
+    val outputsFromResult = result.outputPackets.map { it.egressPort to it.payload }
 
     val outputsFromTree =
       leafOutcomes.filter { it.hasOutput() }.map { it.output.egressPort to it.output.payload }
@@ -74,7 +74,7 @@ class TraceTreeConsistencyTest(private val testName: String) {
     assertEquals(
       "Output packets vs trace tree mismatch for $testName.\n" +
         "Trace:\n${TextFormat.printer().printToString(trace)}",
-      outputsFromResponse,
+      outputsFromResult,
       outputsFromTree,
     )
   }
