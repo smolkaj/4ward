@@ -442,7 +442,9 @@ class WebServer(
 
     fun errorJson(message: String): String = """{"error":${jsonEscape(message)}}"""
 
-    /** Serializes header TypeDecls as JSON: {"type_name": [{"name":"f","bitwidth":N}, ...], ...}. */
+    /**
+     * Serializes header TypeDecls as JSON: {"type_name": [{"name":"f","bitwidth":N}, ...], ...}.
+     */
     fun headerTypesJson(behavioral: fourward.ir.v1.BehavioralConfig): String {
       val entries =
         behavioral.typesList
