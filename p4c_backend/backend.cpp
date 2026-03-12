@@ -795,18 +795,34 @@ void FourWardBackend::emitArchitecture(const IR::ToplevelBlock* toplevel) {
   const auto* main = toplevel->getMain();
   if (!main) return;
 
-  std::string archName;
-  if (main->type->name == "V1Switch") {
-    archName = "v1model";
-    arch->set_name(archName);
+  auto addStage = [&](const std::string& name, const std::string& blockName,
+                      fourward::ir::v1::StageKind kind) {
+    auto* stage = arch->add_stages();
+    stage->set_name(name);
+    stage->set_block_name(blockName);
+    stage->set_kind(kind);
+  };
 
-    auto addStage = [&](const std::string& name, const std::string& blockName,
-                        fourward::ir::v1::StageKind kind) {
-      auto* stage = arch->add_stages();
-      stage->set_name(name);
-      stage->set_block_name(blockName);
-      stage->set_kind(kind);
-    };
+  // Resolves a constructor-call expression to the block name it creates.
+  auto resolveBlockName = [](const IR::Expression* expr) -> std::string {
+    if (const auto* pe = expr->to<IR::PathExpression>()) {
+      return pe->path->name.name.c_str();
+    }
+    if (const auto* cce = expr->to<IR::ConstructorCallExpression>()) {
+      if (const auto* tn = cce->constructedType->to<IR::Type_Name>()) {
+        return tn->path->name.name.c_str();
+      }
+    }
+    if (const auto* mc = expr->to<IR::MethodCallExpression>()) {
+      if (const auto* pe = mc->method->to<IR::PathExpression>()) {
+        return pe->path->name.name.c_str();
+      }
+    }
+    return "";
+  };
+
+  if (main->type->name == "V1Switch") {
+    arch->set_name("v1model");
 
     // V1Switch(parser, verify_checksum, ingress, egress, compute_checksum,
     // deparser)
@@ -824,33 +840,74 @@ void FourWardBackend::emitArchitecture(const IR::ToplevelBlock* toplevel) {
     for (const auto& arg :
          *main->node->to<IR::Declaration_Instance>()->arguments) {
       if (i >= stageSpec.size()) break;
-      std::string blockName;
-      const auto* expr = arg->expression;
-      if (const auto* pe = expr->to<IR::PathExpression>()) {
-        // Already-resolved reference (e.g. after some midend passes).
-        blockName = pe->path->name.name.c_str();
-      } else if (const auto* cce = expr->to<IR::ConstructorCallExpression>()) {
-        // Constructor call: MyParser() — the type name is the block name.
-        if (const auto* tn = cce->constructedType->to<IR::Type_Name>()) {
-          blockName = tn->path->name.name.c_str();
-        }
-      } else if (const auto* mc = expr->to<IR::MethodCallExpression>()) {
-        if (const auto* pe2 = mc->method->to<IR::PathExpression>()) {
-          blockName = pe2->path->name.name.c_str();
-        }
-      }
+      std::string blockName = resolveBlockName(arg->expression);
       if (!blockName.empty()) {
         addStage(stageSpec[i].first, blockName, stageSpec[i].second);
       }
       ++i;
     }
+  } else if (main->type->name == "PSA_Switch") {
+    arch->set_name("psa");
+
+    // PSA_Switch(IngressPipeline ingress, PRE pre, EgressPipeline egress,
+    //            BufferingQueueingEngine bqe)
+    // IngressPipeline(IngressParser ip, Ingress ig, IngressDeparser id)
+    // EgressPipeline(EgressParser ep, Egress eg, EgressDeparser ed)
+    //
+    // Pipeline args are package references. Resolve them via refMap_ to their
+    // Declaration_Instance nodes and extract block names from their constructor
+    // arguments.
+    auto pipelineArgs =
+        [&](const IR::Expression* ref) -> const IR::Vector<IR::Argument>* {
+      const auto* pe = ref->to<IR::PathExpression>();
+      if (!pe) return nullptr;
+      const auto* decl = refMap_.getDeclaration(pe->path, false);
+      if (!decl) return nullptr;
+      const auto* inst = decl->to<IR::Declaration_Instance>();
+      return inst ? inst->arguments : nullptr;
+    };
+
+    const auto* mainArgs =
+        main->node->to<IR::Declaration_Instance>()->arguments;
+    if (mainArgs->size() < 4) {
+      ::P4::error("PSA_Switch: expected 4 constructor arguments, got %1%",
+                  mainArgs->size());
+      return;
+    }
+
+    const auto* ingressArgs = pipelineArgs((*mainArgs)[0]->expression);
+    const auto* egressArgs = pipelineArgs((*mainArgs)[2]->expression);
+    if (!ingressArgs || ingressArgs->size() < 3 || !egressArgs ||
+        egressArgs->size() < 3) {
+      ::P4::error(
+          "PSA_Switch: could not resolve IngressPipeline or EgressPipeline "
+          "constructor arguments");
+      return;
+    }
+
+    // IngressPipeline(IngressParser ip, Ingress ig, IngressDeparser id)
+    addStage("ingress_parser", resolveBlockName((*ingressArgs)[0]->expression),
+             fourward::ir::v1::StageKind::PARSER);
+    addStage("ingress", resolveBlockName((*ingressArgs)[1]->expression),
+             fourward::ir::v1::StageKind::CONTROL);
+    addStage("ingress_deparser",
+             resolveBlockName((*ingressArgs)[2]->expression),
+             fourward::ir::v1::StageKind::DEPARSER);
+
+    // EgressPipeline(EgressParser ep, Egress eg, EgressDeparser ed)
+    addStage("egress_parser", resolveBlockName((*egressArgs)[0]->expression),
+             fourward::ir::v1::StageKind::PARSER);
+    addStage("egress", resolveBlockName((*egressArgs)[1]->expression),
+             fourward::ir::v1::StageKind::CONTROL);
+    addStage("egress_deparser", resolveBlockName((*egressArgs)[2]->expression),
+             fourward::ir::v1::StageKind::DEPARSER);
   } else {
     // Unknown architecture: emit the name and leave stages empty.
     // The simulator will reject it with a clear error.
     arch->set_name(main->type->name.name.c_str());
     ::P4::error(
-        "4ward: unsupported architecture '%1%'. Only v1model is supported "
-        "currently.",
+        "4ward: unsupported architecture '%1%'. Only v1model and PSA are "
+        "supported currently.",
         main->type->name);
   }
 }

@@ -225,39 +225,47 @@ corpus_test_suite(
     ],
 )
 
-# Tests blocked on PSA architecture support. The backend only supports v1model
-# today; these fail with "unsupported architecture 'PSA_Switch'".
-# Run manually: bazel test //e2e_tests/corpus:psa_stf_corpus_test
+# PSA corpus STF tests that pass in CI. Covers basic PSA pipeline: ingress/egress
+# parsing, drop-by-default, send_to_port, counters, metadata, parser errors.
 corpus_test_suite(
     name = "psa_stf_corpus_test",
-    tags = ["manual"],
     tests = [
-        "hash-extern-bmv2",
-        "internet_checksum1-bmv2",
         "psa-basic-counter-bmv2",
         "psa-bool-ternary-const-entry-bmv2",
         "psa-drop-all-bmv2",
         "psa-drop-all-corrected-bmv2",
-        "psa-e2e-cloning-basic-bmv2",
-        "psa-end-of-ingress-test-bmv2",
-        "psa-example-dpdk-varbit-bmv2",
-        "psa-example-register2-bmv2",
         "psa-fwd-bmv2",
-        "psa-i2e-cloning-basic-bmv2",
         "psa-metadata-bmv2",
-        "psa-meter7-bmv2",
-        "psa-multicast-basic-2-bmv2",
-        "psa-multicast-basic-bmv2",
-        "psa-multicast-basic-corrected-bmv2",
         "psa-parser-error-test-bmv2",
-        "psa-recirculate-no-meta-bmv2",
-        "psa-register-complex-bmv2",
-        "psa-register-read-write-2-bmv2",
-        "psa-register-read-write-bmv2",
-        "psa-resubmit-bmv2",
         "psa-top-level-assignments-bmv2",
         "psa-unicast-or-drop-bmv2",
         "psa-unicast-or-drop-corrected-bmv2",
+    ],
+)
+
+# PSA tests blocked on missing features. Each entry has an inline comment
+# explaining the blocker.
+# Run manually: bazel test //e2e_tests/corpus:psa_manual_stf_corpus_test
+corpus_test_suite(
+    name = "psa_manual_stf_corpus_test",
+    tags = ["manual"],
+    tests = [
+        "hash-extern-bmv2",  # Hash extern (get_hash method)
+        "internet_checksum1-bmv2",  # InternetChecksum extern (clear/add/get)
+        "psa-e2e-cloning-basic-bmv2",  # E2E cloning
+        "psa-end-of-ingress-test-bmv2",  # end_of_ingress extern
+        "psa-example-dpdk-varbit-bmv2",  # lookahead type resolution
+        "psa-example-register2-bmv2",  # PSA register.read (returns T directly)
+        "psa-i2e-cloning-basic-bmv2",  # I2E cloning
+        "psa-meter7-bmv2",  # Meter extern (execute method)
+        "psa-multicast-basic-2-bmv2",  # Multicast
+        "psa-multicast-basic-bmv2",  # Multicast
+        "psa-multicast-basic-corrected-bmv2",  # Multicast
+        "psa-recirculate-no-meta-bmv2",  # Recirculate
+        "psa-register-complex-bmv2",  # PSA register.read (returns T directly)
+        "psa-register-read-write-2-bmv2",  # PSA register.read (returns T directly)
+        "psa-register-read-write-bmv2",  # PSA register.read (returns T directly)
+        "psa-resubmit-bmv2",  # Resubmit
     ],
 )
 
