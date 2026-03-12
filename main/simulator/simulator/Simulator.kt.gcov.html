@@ -31,17 +31,17 @@
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">96.6&nbsp;%</td>
-            <td class="headerCovTableEntry">59</td>
+            <td class="headerCovTableEntryHi">95.0&nbsp;%</td>
+            <td class="headerCovTableEntry">60</td>
             <td class="headerCovTableEntry">57</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-12 18:11:29</td>
+            <td class="headerValue">2026-03-12 18:17:28</td>
             <td></td>
             <td class="headerItem">Functions:</td>
-            <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
-            <td class="headerCovTableEntry">18</td>
+            <td class="headerCovTableEntryHi">94.7&nbsp;%</td>
+            <td class="headerCovTableEntry">19</td>
             <td class="headerCovTableEntry">18</td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
@@ -213,16 +213,19 @@
 <span id="L151"><span class="lineNum">     151</span> <span class="tlaGNC tlaBgGNC">           1 :         else -&gt; emptyList()</span></span>
 <span id="L152"><span class="lineNum">     152</span> <span class="tlaGNC">           1 :       }</span></span>
 <span id="L153"><span class="lineNum">     153</span> <span class="tlaGNC">           1 :     }</span></span>
-<span id="L154"><span class="lineNum">     154</span>              : }</span>
-<span id="L155"><span class="lineNum">     155</span>              : </span>
-<span id="L156"><span class="lineNum">     156</span>              : /** Recursively collects output packets from trace tree leaves (for forking programs). */</span>
-<span id="L157"><span class="lineNum">     157</span>              : fun collectOutputsFromTrace(tree: TraceTree): List&lt;OutputPacket&gt; =</span>
-<span id="L158"><span class="lineNum">     158</span> <span class="tlaGNC">           1 :   when {</span></span>
-<span id="L159"><span class="lineNum">     159</span> <span class="tlaGNC">           1 :     tree.hasForkOutcome() -&gt;</span></span>
-<span id="L160"><span class="lineNum">     160</span> <span class="tlaGNC">           1 :       tree.forkOutcome.branchesList.flatMap { collectOutputsFromTrace(it.subtree) }</span></span>
-<span id="L161"><span class="lineNum">     161</span> <span class="tlaGNC">           1 :     tree.hasPacketOutcome() &amp;&amp; tree.packetOutcome.hasOutput() -&gt; listOf(tree.packetOutcome.output)</span></span>
-<span id="L162"><span class="lineNum">     162</span> <span class="tlaGNC">           1 :     else -&gt; emptyList()</span></span>
-<span id="L163"><span class="lineNum">     163</span> <span class="tlaGNC">           1 :   }</span></span>
+<span id="L154"><span class="lineNum">     154</span>              : </span>
+<span id="L155"><span class="lineNum">     155</span>              :   /** Returns the short p4info alias for a behavioral name (table or action), or the name itself. */</span>
+<span id="L156"><span class="lineNum">     156</span> <span class="tlaUNC tlaBgUNC">           0 :   fun displayName(behavioralName: String): String = tableStore.displayName(behavioralName)</span></span>
+<span id="L157"><span class="lineNum">     157</span>              : }</span>
+<span id="L158"><span class="lineNum">     158</span>              : </span>
+<span id="L159"><span class="lineNum">     159</span>              : /** Recursively collects output packets from trace tree leaves (for forking programs). */</span>
+<span id="L160"><span class="lineNum">     160</span>              : fun collectOutputsFromTrace(tree: TraceTree): List&lt;OutputPacket&gt; =</span>
+<span id="L161"><span class="lineNum">     161</span> <span class="tlaGNC tlaBgGNC">           1 :   when {</span></span>
+<span id="L162"><span class="lineNum">     162</span> <span class="tlaGNC">           1 :     tree.hasForkOutcome() -&gt;</span></span>
+<span id="L163"><span class="lineNum">     163</span> <span class="tlaGNC">           1 :       tree.forkOutcome.branchesList.flatMap { collectOutputsFromTrace(it.subtree) }</span></span>
+<span id="L164"><span class="lineNum">     164</span> <span class="tlaGNC">           1 :     tree.hasPacketOutcome() &amp;&amp; tree.packetOutcome.hasOutput() -&gt; listOf(tree.packetOutcome.output)</span></span>
+<span id="L165"><span class="lineNum">     165</span> <span class="tlaGNC">           1 :     else -&gt; emptyList()</span></span>
+<span id="L166"><span class="lineNum">     166</span> <span class="tlaGNC">           1 :   }</span></span>
         </pre>
               </td>
             </tr>
