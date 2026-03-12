@@ -55,6 +55,7 @@ class P4RuntimeService(
   private val simulator: Simulator,
   private val constraintValidatorBinary: Path? = null,
   private val lock: Mutex = Mutex(),
+  private val deviceId: Long = DEFAULT_DEVICE_ID,
 ) : P4RuntimeGrpcKt.P4RuntimeCoroutineImplBase(), Closeable {
 
   /** Bundled pipeline state — atomically swapped on pipeline load to avoid torn reads. */
@@ -85,6 +86,7 @@ class P4RuntimeService(
     request: SetForwardingPipelineConfigRequest
   ): SetForwardingPipelineConfigResponse =
     lock.withLock {
+      requireDeviceId(request.deviceId)
       val fwdConfig = request.config
       if (!fwdConfig.hasP4Info() || fwdConfig.p4DeviceConfig.isEmpty) {
         throw Status.INVALID_ARGUMENT.withDescription(
@@ -136,6 +138,7 @@ class P4RuntimeService(
 
   override suspend fun write(request: WriteRequest): WriteResponse =
     lock.withLock {
+      requireDeviceId(request.deviceId)
       val state = requirePipeline()
       requirePrimaryOrNoArbitration(request.electionId)
       when (request.atomicity) {
@@ -247,6 +250,7 @@ class P4RuntimeService(
     // so the pipeline can't be swapped mid-read.
     val response =
       lock.withLock {
+        requireDeviceId(request.deviceId)
         val state = requirePipeline()
         val entities = simulator.readEntries(request.entitiesList)
         if (entities.isNotEmpty()) {
@@ -361,6 +365,7 @@ class P4RuntimeService(
   override suspend fun getForwardingPipelineConfig(
     request: GetForwardingPipelineConfigRequest
   ): GetForwardingPipelineConfigResponse {
+    requireDeviceId(request.deviceId)
     val state = requirePipeline()
 
     val fwdConfig = ForwardingPipelineConfig.newBuilder().setCookie(state.cookie)
@@ -406,6 +411,16 @@ class P4RuntimeService(
     }
   }
 
+  /** Rejects requests targeting a different device (P4Runtime spec §6.3). */
+  private fun requireDeviceId(requestDeviceId: Long) {
+    if (requestDeviceId != deviceId) {
+      throw Status.NOT_FOUND.withDescription(
+          "unknown device_id $requestDeviceId (this device is $deviceId)"
+        )
+        .asException()
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Unsupported feature guards
   // ---------------------------------------------------------------------------
@@ -445,6 +460,8 @@ class P4RuntimeService(
   }
 
   companion object {
+    private const val DEFAULT_DEVICE_ID = 1L
+
     // Well-known metadata IDs for v1model packet_in/packet_out headers.
     private const val INGRESS_PORT_METADATA_ID = 1
     private const val EGRESS_PORT_METADATA_ID = 2

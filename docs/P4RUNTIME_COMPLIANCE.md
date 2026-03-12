@@ -133,7 +133,7 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 
 | # | Requirement | Status | Test |
 |---|-------------|--------|------|
-| 9.90 | device_id validated on Write | N | |
+| 9.90 | device_id validated on Write | Y | ConformanceTest #60 |
 | 9.91 | Write allowed without prior arbitration | Y | ConformanceTest (implicit) |
 
 ## Arbitration (§5)
@@ -163,7 +163,7 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 | 11.8 | Wildcard read for registers | Y | TableStoreTest |
 | 11.9 | Read unwritten register returns zero | Y | ConformanceTest #33 |
 | 11.10 | Default entry included in wildcard table reads | N | |
-| 11.11 | device_id validated on Read | N | |
+| 11.11 | device_id validated on Read | Y | ConformanceTest #61 |
 
 ## GetForwardingPipelineConfig (§7)
 
@@ -174,7 +174,7 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 | 12.3 | P4INFO_AND_COOKIE omits device config | Y | ConformanceTest #18 |
 | 12.4 | DEVICE_CONFIG_AND_COOKIE omits p4info | Y | ConformanceTest #22 |
 | 12.5 | COOKIE_ONLY returns empty config | Y | ConformanceTest #36 |
-| 12.6 | device_id validated | N | |
+| 12.6 | device_id validated | Y | ConformanceTest #62 |
 
 ## Capabilities (§17)
 
@@ -239,13 +239,13 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 | Write — PRE | 6 | 0 | 0 |
 | Write — other entities | 0 | 0 | 3 |
 | Write — atomicity | 0 | 3 | 1 |
-| Write — general | 1 | 1 | 0 |
+| Write — general | 2 | 0 | 0 |
 | Arbitration | 4 | 3 | 1 |
-| Read | 9 | 2 | 0 |
-| GetForwardingPipelineConfig | 5 | 1 | 0 |
+| Read | 10 | 1 | 0 |
+| GetForwardingPipelineConfig | 6 | 0 | 0 |
 | Capabilities | 1 | 0 | 0 |
 | StreamChannel | 3 | 1 | 4 |
 | Translation | 6 | 0 | 0 |
 | @refers_to | 6 | 0 | 0 |
 | p4-constraints | 4 | 0 | 0 |
-| **Total** | **103** | **15** | **10** |
+| **Total** | **106** | **12** | **10** |
