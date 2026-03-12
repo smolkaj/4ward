@@ -94,6 +94,7 @@ class PSAArchitectureTest {
           .addFields(boolField("clone"))
           .addFields(field("clone_session_id", 16))
           .addFields(boolField("drop"))
+          .addFields(boolField("resubmit"))
           .addFields(field("multicast_group", 32))
           .addFields(field("egress_port", 32))
       )
@@ -958,6 +959,115 @@ class PSAArchitectureTest {
     // No clone session 0 → clone silently ignored, original output normally.
     assertEquals(1, outputs.size)
     assertEquals(2, outputs[0].egressPort)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Resubmit tests
+  // ---------------------------------------------------------------------------
+
+  /** Sets ostd.resubmit = true. */
+  private fun resubmitStmt(): Stmt = assignField("ostd", "resubmit", boolLit(true))
+
+  @Test
+  fun `resubmit loops back to ingress with RESUBMIT packet path`() {
+    // First ingress: set resubmit=true, send_to_port(3) (port is ignored on resubmit).
+    // Second ingress (packet_path==RESUBMIT): send_to_port(7).
+    val isResubmit = eq(fieldAccess("istd", "packet_path"), enumLit("RESUBMIT"))
+    val config =
+      psaConfig(
+        ingressStmts =
+          listOf(
+            ifStmt(
+              condition = isResubmit,
+              thenStmts = listOf(sendToPort(7)),
+              elseStmts = listOf(resubmitStmt(), sendToPort(3)),
+            )
+          )
+      )
+    val result =
+      PSAArchitecture().processPacket(0u, byteArrayOf(0xAA.toByte()), config, TableStore())
+    val outputs = collectOutputsFromTrace(result.trace)
+
+    assertEquals(1, outputs.size)
+    assertEquals(7, outputs[0].egressPort)
+    assertTrue(result.trace.hasForkOutcome())
+    assertEquals(ForkReason.RESUBMIT, result.trace.forkOutcome.reason)
+    assertEquals("resubmit", result.trace.forkOutcome.branchesList[0].label)
+  }
+
+  @Test
+  fun `resubmit uses original pre-ingress bytes`() {
+    // Verify that the resubmitted packet sees the original input bytes, not ingress-modified state.
+    // Both passes send to port 1 — if resubmit used modified bytes, parsing could differ.
+    val isResubmit = eq(fieldAccess("istd", "packet_path"), enumLit("RESUBMIT"))
+    val config =
+      psaConfig(
+        ingressStmts =
+          listOf(
+            ifStmt(
+              condition = isResubmit,
+              thenStmts = listOf(sendToPort(1)),
+              elseStmts = listOf(resubmitStmt(), sendToPort(1)),
+            )
+          )
+      )
+    val result =
+      PSAArchitecture().processPacket(0u, byteArrayOf(0xBB.toByte()), config, TableStore())
+    val outputs = collectOutputsFromTrace(result.trace)
+
+    // Resubmitted packet exits on port 1 with original bytes.
+    assertEquals(1, outputs.size)
+    assertEquals(0xBB.toByte(), outputs[0].payload.byteAt(0))
+  }
+
+  @Test
+  fun `drop overrides resubmit`() {
+    // PSA spec §6.2: drop has highest priority. resubmit=true with drop=true → dropped.
+    val config =
+      psaConfig(ingressStmts = listOf(resubmitStmt())) // drop=true by default, resubmit=true
+    val result = PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+
+    assertTrue(result.trace.hasPacketOutcome())
+    assertTrue(result.trace.packetOutcome.hasDrop())
+  }
+
+  @Test
+  fun `resubmit suppresses I2E clone`() {
+    // PSA spec §6.2: resubmit takes priority over I2E clone.
+    val isResubmit = eq(fieldAccess("istd", "packet_path"), enumLit("RESUBMIT"))
+    val config =
+      psaConfig(
+        ingressStmts =
+          listOf(
+            ifStmt(
+              condition = isResubmit,
+              thenStmts = listOf(sendToPort(5)),
+              elseStmts = cloneStmts(100) + listOf(resubmitStmt(), sendToPort(2)),
+            )
+          )
+      )
+    val store = TableStore()
+    writeCloneSession(store, 100, listOf(0 to 9))
+
+    val result = PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, store)
+    val outputs = collectOutputsFromTrace(result.trace)
+
+    // Resubmit wins: packet loops back, then exits on port 5. No clone on port 9.
+    assertEquals(1, outputs.size)
+    assertEquals(5, outputs[0].egressPort)
+    assertEquals(ForkReason.RESUBMIT, result.trace.forkOutcome.reason)
+  }
+
+  @Test
+  fun `resubmit depth limit is enforced`() {
+    // Unconditional resubmit causes infinite loop — simulator must enforce depth limit.
+    val config = psaConfig(ingressStmts = listOf(resubmitStmt(), sendToPort(1)))
+    try {
+      PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+      fail("expected recirculation depth exception")
+    } catch (e: IllegalStateException) {
+      assertTrue(e.message!!.contains("PSA recirculation depth exceeded"))
+    }
   }
 
   @Test

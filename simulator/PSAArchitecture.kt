@@ -86,18 +86,32 @@ class PSAArchitecture : Architecture {
     // === Ingress pipeline ===
     val ingress = runIngressPipeline(pipeline, payload, ingressPort, packetPath)
 
-    // === I2E clone: uses ORIGINAL input bytes (pre-ingress), independent of drop decision ===
-    val i2eCloneBranches = buildI2ECloneBranches(pipeline, payload, ingress.output)
+    // === End-of-ingress decisions (PSA spec §6.2, Table 4) ===
+    // Priority: drop > resubmit > {I2E clone, multicast/unicast}.
+    // I2E clone is independent of drop but suppressed by resubmit.
 
     if (ingress.dropped) {
+      val i2eCloneBranches = buildI2ECloneBranches(pipeline, payload, ingress.output)
       if (i2eCloneBranches.isNotEmpty()) {
-        // Dropped but cloned: emit only the clone branches.
         return buildForkTree(ingress.events, ForkReason.CLONE, i2eCloneBranches)
       }
       return buildDropTrace(ingress.events, ingress.dropReason)
     }
 
-    // === Traffic Manager: multicast vs. unicast ===
+    // Resubmit: loop original bytes back to ingress. Suppresses I2E clone.
+    val resubmit = (ingress.output?.fields?.get("resubmit") as? BoolVal)?.value == true
+    if (resubmit) {
+      val resubmitTree =
+        processPacketRecursive(pipeline, payload, ingressPort, PACKET_PATH_RESUBMIT, depth + 1)
+      return buildForkTree(
+        ingress.events,
+        ForkReason.RESUBMIT,
+        listOf(ForkBranch.newBuilder().setLabel("resubmit").setSubtree(resubmitTree).build()),
+      )
+    }
+
+    // === Traffic Manager: I2E clone + multicast/unicast ===
+    val i2eCloneBranches = buildI2ECloneBranches(pipeline, payload, ingress.output)
     val originalTree = buildOriginalEgressPath(pipeline, ingress, depth)
 
     if (i2eCloneBranches.isNotEmpty()) {
@@ -849,6 +863,7 @@ class PSAArchitecture : Architecture {
     const val PACKET_PATH_NORMAL_MULTICAST = "NORMAL_MULTICAST"
     const val PACKET_PATH_CLONE_I2E = "CLONE_I2E"
     const val PACKET_PATH_CLONE_E2E = "CLONE_E2E"
+    const val PACKET_PATH_RESUBMIT = "RESUBMIT"
     const val PACKET_PATH_RECIRCULATE = "RECIRCULATE"
 
     /** Architecture-level packet I/O types that are not user-visible parameters. */
