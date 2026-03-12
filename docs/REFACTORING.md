@@ -11,18 +11,26 @@ Blocked on buf support for proto edition 2024.
 
 ---
 
-## Upstream p4c backend
+## Upstream p4c build targets
 
-Land the 4ward backend in the p4c repository. Blocked on upstream review.
-Once merged, switch `MODULE.bazel` from `smolkaj/p4c` fork to `p4lang/p4c`.
+The `smolkaj/p4c` fork adds two targets not in upstream `p4lang/p4c`:
+`//:core_p4` (filegroup anchor for the `p4include/` path in genrules) and
+`//testdata/p4_16_samples:*` (`exports_files` for corpus/BMv2 diff tests).
+Both are only used by `e2e_tests/` — non-test code uses `//:p4include`,
+`//:lib`, etc. which exist in BCR p4c. This is not a BCR blocker for
+downstream consumers, but upstreaming these targets would let us drop the
+`git_override` entirely.
 
 ---
 
 ## Pinned dependencies inventory
 
-Several deps use `git_override` with pinned commits. This is tracked here as
-a reminder to periodically check for upstream updates:
+Three deps use `git_override` with pinned commits. `behavioral_model` and
+`bazel_clang_tidy` are dev-only (`dev_dependency = True`) and invisible to
+BCR consumers.
 
+- **p4c** (`smolkaj/p4c` fork, `f36edeb`): adds `//:core_p4` and testdata
+  `exports_files`. See "Upstream p4c build targets" above.
 - **bazel_clang_tidy** (`9e54bbb`): pinned before a commit (`c4d35e0`) that
   broke `-isystem` include ordering. Upstream bug never fixed — permanent
   workaround. Re-check if upstream ever resolves the issue.

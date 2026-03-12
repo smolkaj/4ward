@@ -27,9 +27,13 @@ bazel_dep(name = "grpc_kotlin", version = "1.5.0")
 bazel_dep(name = "p4runtime", version = "1.5.0.bcr.1")
 
 # p4c provides the compiler frontend and midend that our backend builds on.
-# Point this at your fork during development; remove the override when
-# the 4ward backend has been upstreamed into p4c proper.
-bazel_dep(name = "p4c", version = "head")
+# The git_override adds two targets not yet in upstream p4c:
+#   - //:core_p4 (filegroup anchor for p4include path in genrules)
+#   - //testdata/p4_16_samples:* (exports_files for corpus/BMv2 tests)
+# Both are only used by e2e_tests/. Non-test targets use //:p4include, //:lib,
+# etc. which exist in BCR p4c, so consumers resolve the dep from BCR normally.
+# TODO(upstream): land these two targets in p4lang/p4c, then drop the override.
+bazel_dep(name = "p4c", version = "1.2.5.11")
 git_override(
     module_name = "p4c",
     commit = "f36edeb88709fc6f5e44c3b6c40a666a0af2313a",
@@ -41,7 +45,8 @@ bazel_dep(name = "p4_constraints", version = "20260311.0")
 
 # BMv2 (behavioral-model) — v1model reference simulator for differential testing.
 # Patched to add native Bazel build rules (no Thrift, no nanomsg).
-bazel_dep(name = "behavioral_model", version = "head")
+# Dev-only: not needed by downstream consumers of the 4ward module.
+bazel_dep(name = "behavioral_model", version = "head", dev_dependency = True)
 git_override(
     module_name = "behavioral_model",
     commit = "6c7c93e5484e069c539b5c990bf37c531599894a",
