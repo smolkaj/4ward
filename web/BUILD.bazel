@@ -63,3 +63,14 @@ kt_jvm_test(
         "@maven//:junit_junit",
     ],
 )
+
+kt_jvm_test(
+    name = "ParserGraphExtractorTest",
+    srcs = ["ParserGraphExtractorTest.kt"],
+    test_class = "fourward.web.ParserGraphExtractorTest",
+    deps = [
+        ":web_lib",
+        "//simulator:ir_java_proto",
+        "@maven//:junit_junit",
+    ],
+)

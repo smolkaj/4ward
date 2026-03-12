@@ -105,10 +105,10 @@ class Interpreter(
 
       for (stmt in state.stmtsList) execStmt(stmt, env)
 
-      val nextState =
+      val (nextState, selectValue, selectExpr) =
         when {
-          state.transition.hasSelect() -> evalSelect(state.transition.select, env)
-          else -> state.transition.nextState
+          state.transition.hasSelect() -> evalSelectWithValue(state.transition.select, env)
+          else -> Triple(state.transition.nextState, "", "")
         }
 
       packetCtx?.addTraceEvent(
@@ -118,6 +118,10 @@ class Interpreter(
               .setParserName(parser.name)
               .setFromState(stateName)
               .setToState(nextState)
+              .also {
+                if (selectValue.isNotEmpty()) it.setSelectValue(selectValue)
+                if (selectExpr.isNotEmpty()) it.setSelectExpression(selectExpr)
+              }
           )
           .build()
       )
@@ -126,19 +130,52 @@ class Interpreter(
     }
   }
 
-  private fun evalSelect(select: fourward.ir.v1.SelectTransition, env: Environment): String {
+  /** Evaluates a select expression, returning (nextState, formattedValue, formattedExpression). */
+  private fun evalSelectWithValue(
+    select: fourward.ir.v1.SelectTransition,
+    env: Environment,
+  ): Triple<String, String, String> {
     val keyValues = select.keysList.map { evalExpr(it, env) }
+    val formatted =
+      keyValues.joinToString(", ") {
+        when (it) {
+          is BitVal -> "0x${it.bits.value.toString(16).uppercase()}"
+          is IntVal -> "0x${it.bits.value.toString(16).uppercase()}"
+          is BoolVal -> it.value.toString()
+          else -> it.toString()
+        }
+      }
+    val expression = select.keysList.joinToString(", ") { formatExpr(it) }
     // Keyset expressions in parser select are always compile-time constants; a single
     // empty environment is correct for all of them.
     val constEnv = Environment()
     for (case in select.casesList) {
       if (keyValues.zip(case.keysetsList).all { (v, k) -> matchesKeyset(v, k, constEnv) }) {
-        return case.nextState
+        return Triple(case.nextState, formatted, expression)
       }
     }
     // P4 spec §12.6: if no case matches and there is no default, reject.
-    return select.defaultState.ifEmpty { "reject" }
+    return Triple(select.defaultState.ifEmpty { "reject" }, formatted, expression)
   }
+
+  /** Human-readable rendering of an IR expression (best-effort, for trace display). */
+  private fun formatExpr(expr: fourward.ir.v1.Expr): String =
+    when {
+      expr.hasNameRef() -> expr.nameRef.name
+      expr.hasFieldAccess() -> "${formatExpr(expr.fieldAccess.expr)}.${expr.fieldAccess.fieldName}"
+      expr.hasArrayIndex() ->
+        "${formatExpr(expr.arrayIndex.expr)}[${formatExpr(expr.arrayIndex.index)}]"
+      expr.hasSlice() -> "${formatExpr(expr.slice.expr)}[${expr.slice.hi}:${expr.slice.lo}]"
+      expr.hasLiteral() -> {
+        val lit = expr.literal
+        when {
+          lit.hasInteger() -> "0x${lit.integer.toString(16).uppercase()}"
+          lit.hasBoolean() -> lit.boolean.toString()
+          else -> lit.toString().trim()
+        }
+      }
+      else -> "?"
+    }
 
   private fun matchesKeyset(
     value: Value,
@@ -652,9 +689,9 @@ class Interpreter(
       traceEventBuilder()
         .setTableLookup(
           TableLookupEvent.newBuilder()
-            .setTableName(tableName)
+            .setTableName(tableStore.tableDisplayName(tableName))
             .setHit(result.hit)
-            .setActionName(result.actionName)
+            .setActionName(tableStore.actionDisplayName(result.actionName))
             .also { if (result.entry != null) it.setMatchedEntry(result.entry) }
         )
         .build()
@@ -721,11 +758,14 @@ class Interpreter(
         env.define(paramDecl.name, value)
       }
 
+      // Use the p4info alias (short source-level name) for trace display. The behavioral
+      // IR name may be mangled by the midend (e.g. "acl_pre_ingress_ctrl_set_vrf").
+      val displayName = tableStore.actionDisplayName(actionName)
       packetCtx?.addTraceEvent(
         traceEventBuilder()
           .setActionExecution(
             ActionExecutionEvent.newBuilder()
-              .setActionName(actionName)
+              .setActionName(displayName)
               .putAllParams(paramMap.mapValues { it.value })
           )
           .build()

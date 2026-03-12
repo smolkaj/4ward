@@ -171,6 +171,10 @@ class TableStore : TableDataReader {
   var actionNameById: Map<Int, String> = emptyMap()
     private set
 
+  // Map behavioral (post-midend) names back to p4info aliases (the short names from the
+  // P4 source). Used for human-readable trace output.
+  private var actionAliasByName: Map<String, String> = emptyMap()
+  private var tableAliasByName: Map<String, String> = emptyMap()
   private var registerInfoById: Map<Int, RegisterInfo> = emptyMap()
   private var counterInfoById: Map<Int, IndexedExternInfo> = emptyMap()
   private var meterInfoById: Map<Int, IndexedExternInfo> = emptyMap()
@@ -209,10 +213,20 @@ class TableStore : TableDataReader {
         val alias = table.preamble.alias.ifEmpty { table.preamble.name }
         table.preamble.id to resolveName(alias, behavioralTableNames)
       }
+    this.tableAliasByName =
+      p4info.tablesList.associate { table ->
+        val alias = table.preamble.alias.ifEmpty { table.preamble.name }
+        resolveName(alias, behavioralTableNames) to alias
+      }
     this.actionNameById =
       p4info.actionsList.associate { action ->
         val alias = action.preamble.alias.ifEmpty { action.preamble.name }
         action.preamble.id to resolveName(alias, behavioralActionNames)
+      }
+    this.actionAliasByName =
+      p4info.actionsList.associate { action ->
+        val alias = action.preamble.alias.ifEmpty { action.preamble.name }
+        resolveName(alias, behavioralActionNames) to alias
       }
     this.registerInfoById =
       p4info.registersList.associate { reg ->
@@ -1009,6 +1023,18 @@ class TableStore : TableDataReader {
 
   private fun resolveActionName(actionId: Int): String =
     actionNameById[actionId] ?: error("unknown action ID: $actionId")
+
+  /** Returns the short p4info alias for a behavioral action name, or the name itself if unknown. */
+  fun actionDisplayName(behavioralName: String): String =
+    actionAliasByName[behavioralName] ?: behavioralName
+
+  /** Returns the short p4info alias for a behavioral table name, or the name itself if unknown. */
+  fun tableDisplayName(behavioralName: String): String =
+    tableAliasByName[behavioralName] ?: behavioralName
+
+  /** Returns the short p4info alias for a behavioral name (table or action), or the name itself. */
+  fun displayName(behavioralName: String): String =
+    tableAliasByName[behavioralName] ?: actionAliasByName[behavioralName] ?: behavioralName
 
   /**
    * Scores an entry against [keyValues]. Returns null if the entry does not match. Returns a

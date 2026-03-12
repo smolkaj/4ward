@@ -208,20 +208,36 @@ class WebServer(
   }
 
   private fun controlGraphJson(behavioral: fourward.ir.v1.BehavioralConfig): String {
-    val graphs = ControlGraphExtractor.extract(behavioral)
+    // Use the simulator's display-name maps (built during pipeline load from p4info aliases)
+    // to show human-readable names in the graph.
+    fun displayName(name: String) = simulator.displayName(name)
+
+    // Map block_name → stage_name so graph tabs match pipeline stage events.
+    val stageNameByBlock = behavioral.architecture.stagesList.associate { it.blockName to it.name }
+
+    val controlGraphs = ControlGraphExtractor.extract(behavioral)
+    val parserGraphs = ParserGraphExtractor.extract(behavioral)
+    val allGraphs = parserGraphs + controlGraphs
+
     val entries =
-      graphs.joinToString(",") { graph ->
+      allGraphs.joinToString(",") { graph ->
         val nodesJson =
           graph.nodes.joinToString(",") { node ->
-            """{"id":${jsonEscape(node.id)},"type":"${node.type}","name":${jsonEscape(node.name)}}"""
+            val name = if (node.type == "table") displayName(node.name) else node.name
+            val id = if (node.type == "table") displayName(node.id) else node.id
+            """{"id":${jsonEscape(id)},"type":"${node.type}","name":${jsonEscape(name)}}"""
           }
         val edgesJson =
           graph.edges.joinToString(",") { edge ->
+            val from = displayName(edge.from)
+            val to = displayName(edge.to)
             val labelField =
               if (edge.label.isNotEmpty()) ""","label":${jsonEscape(edge.label)}""" else ""
-            """{"from":${jsonEscape(edge.from)},"to":${jsonEscape(edge.to)}$labelField}"""
+            """{"from":${jsonEscape(from)},"to":${jsonEscape(to)}$labelField}"""
           }
-        """${jsonEscape(graph.name)}:{"nodes":[$nodesJson],"edges":[$edgesJson]}"""
+        // Use the pipeline stage name as the graph key so auto-switching works.
+        val graphKey = stageNameByBlock[graph.name] ?: graph.name
+        """${jsonEscape(graphKey)}:{"nodes":[$nodesJson],"edges":[$edgesJson]}"""
       }
     return """{$entries}"""
   }

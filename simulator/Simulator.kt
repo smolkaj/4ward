@@ -151,6 +151,9 @@ class Simulator : TableDataReader {
         else -> emptyList()
       }
     }
+
+  /** Returns the short p4info alias for a behavioral name (table or action), or the name itself. */
+  fun displayName(behavioralName: String): String = tableStore.displayName(behavioralName)
 }
 
 /** Recursively collects output packets from trace tree leaves (for forking programs). */

@@ -7,10 +7,6 @@
 // Constants
 // ---------------------------------------------------------------------------
 
-const V1MODEL_STAGES = [
-  'parser', 'verify_checksum', 'ingress', 'egress', 'compute_checksum', 'deparser'
-];
-
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
@@ -476,6 +472,7 @@ async function compileAndLoad() {
   state.controlGraph = null;
   state.activeGraphControl = null;
   document.getElementById('control-graph').classList.add('hidden');
+  document.getElementById('graph-resize-handle').classList.add('hidden');
 
   try {
     const data = await api.compileAndLoad(source);
@@ -968,24 +965,21 @@ function renderTraceTree(trace) {
   const emptyEl = document.getElementById('trace-empty');
   const treeEl = document.getElementById('trace-tree');
   const rawEl = document.getElementById('trace-raw');
-  const diagramEl = document.getElementById('pipeline-diagram');
-  const toggleEl = document.getElementById('trace-view-toggle');
+  const toolbarEl = document.getElementById('trace-toolbar');
 
   if (!trace) {
     emptyEl.classList.remove('hidden');
     treeEl.classList.add('hidden');
     rawEl.classList.add('hidden');
-    diagramEl.classList.add('hidden');
-    toggleEl.classList.add('hidden');
+    toolbarEl.classList.add('hidden');
     return;
   }
 
   emptyEl.classList.add('hidden');
-  diagramEl.classList.remove('hidden');
-  toggleEl.classList.remove('hidden');
+  toolbarEl.classList.remove('hidden');
   _eventIdx = 0;
   treeEl.innerHTML = renderTraceNode(trace, true);
-  updatePipelineDiagram(trace);
+
   initPlayback(trace);
 
   // Clear cached JSON (computed lazily in switchTraceView).
@@ -1022,91 +1016,8 @@ function switchTraceView(view) {
   }
 }
 
-/**
- * Render the pipeline diagram with the given state.
- * @param {Set<string>} visited - stages the packet has passed through
- * @param {string|null} activeStage - stage to pulse (during playback)
- * @param {string|null} droppedStage - stage to mark red (on drop)
- * @param {{type,port?,reason?,branchCount?}|null} outcome - outcome to display
- */
-function renderDiagram({ visited = new Set(), activeStage = null, droppedStage = null, outcome = null } = {}) {
-  const stageOrder = V1MODEL_STAGES;
-
-  document.querySelectorAll('#pipeline-diagram .pipeline-stage').forEach(el => {
-    const name = el.dataset.stage;
-    el.classList.remove('visited', 'dropped', 'active');
-    if (name === droppedStage) {
-      el.classList.add('dropped');
-    } else if (name === activeStage) {
-      el.classList.add('active');
-    } else if (visited.has(name)) {
-      el.classList.add('visited');
-    }
-  });
-
-  document.querySelectorAll('#pipeline-diagram .pipeline-arrow').forEach((arrow, i) => {
-    arrow.classList.remove('active');
-    if (visited.has(stageOrder[i]) && visited.has(stageOrder[i + 1])) {
-      arrow.classList.add('active');
-    }
-  });
-
-  const outcomeEl = document.getElementById('pipeline-outcome');
-  outcomeEl.className = 'pipeline-outcome';
-  outcomeEl.textContent = '';
-  if (outcome?.type === 'output') {
-    outcomeEl.className += ' output';
-    outcomeEl.textContent = `→ output port ${outcome.port}`;
-  } else if (outcome?.type === 'drop') {
-    outcomeEl.className += ' drop';
-    outcomeEl.textContent = `✕ dropped`;
-  } else if (outcome?.type === 'fork') {
-    outcomeEl.className += ' fork';
-    outcomeEl.textContent = `⑂ ${outcome.reason} → ${outcome.branchCount} branches`;
-  }
-}
-
-function lastVisitedStage(visited) {
-  for (let i = V1MODEL_STAGES.length - 1; i >= 0; i--) {
-    if (visited.has(V1MODEL_STAGES[i])) return V1MODEL_STAGES[i];
-  }
-  return null;
-}
-
 function formatForkReason(reason) {
   return (reason || 'fork').toLowerCase().replace(/_/g, ' ');
-}
-
-/** Compute the full-trace diagram state and render it. */
-function updatePipelineDiagram(trace) {
-  const visited = new Set();
-  for (const event of trace.events || []) {
-    if (event.pipeline_stage && event.pipeline_stage.direction === 'ENTER') {
-      visited.add(event.pipeline_stage.stage_name);
-    }
-  }
-
-  const outcome = analyzeOutcome(trace);
-
-  const droppedStage = outcome.type === 'drop' ? lastVisitedStage(visited) : null;
-  renderDiagram({ visited, droppedStage, outcome });
-}
-
-/** Walk the trace tree to determine the top-level outcome. */
-function analyzeOutcome(trace) {
-  if (trace.packet_outcome) {
-    if (trace.packet_outcome.output) {
-      return { type: 'output', port: trace.packet_outcome.output.egress_port };
-    }
-    if (trace.packet_outcome.drop) {
-      return { type: 'drop', reason: trace.packet_outcome.drop.reason };
-    }
-  }
-  if (trace.fork_outcome) {
-    const reason = formatForkReason(trace.fork_outcome.reason);
-    return { type: 'fork', reason, branchCount: (trace.fork_outcome.branches || []).length };
-  }
-  return { type: 'unknown' };
 }
 
 // ---------------------------------------------------------------------------
@@ -1225,7 +1136,6 @@ function applyPlaybackState() {
 
   if (pos < 0) {
     // Before first event — clear everything.
-    renderDiagram();
     clearPlaybackEditorHighlight();
     updatePlaybackUI();
     return;
@@ -1245,25 +1155,77 @@ function applyPlaybackState() {
   if (selector) {
     const el = document.querySelector(selector);
     if (el) {
+      // Expand any collapsed ancestors so the element is visible.
+      let parent = el.parentElement;
+      while (parent) {
+        if (parent.classList.contains('trace-stage-body')) {
+          const toggle = parent.previousElementSibling;
+          if (toggle && toggle.classList.contains('collapsed')) {
+            toggle.classList.remove('collapsed');
+          }
+        }
+        parent = parent.parentElement;
+      }
       el.classList.add('playback-highlight');
       el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
   }
 
-  // Update pipeline diagram: show visited stages up to current position.
-  updateDiagramForPlayback(events, pos);
+  // Switch graph tab to match the current pipeline stage.
+  if (current.stageName && current.stageName !== state.activeGraphControl
+      && state.controlGraph && state.controlGraph[current.stageName]) {
+    showControlGraph(current.stageName);
+  }
 
-  // Highlight the active table in the control graph.
-  const tableName = current.event.table_lookup?.table_name || null;
-  highlightGraphNode(tableName);
+  // Highlight the active node in the control graph.
+  if (current.event.parser_transition) {
+    const pt = current.event.parser_transition;
+    highlightGraphNode(pt.from_state, pt.to_state);
+  } else if (current.event.table_lookup) {
+    highlightGraphNode(current.event.table_lookup.table_name);
+  } else if (current.event.action_execution) {
+    // Highlight the table that triggered this action by searching backward.
+    let found = false;
+    for (let i = pos - 1; i >= 0; i--) {
+      if (events[i].event.table_lookup) {
+        highlightGraphNode(events[i].event.table_lookup.table_name);
+        found = true;
+        break;
+      }
+    }
+    if (!found) highlightGraphNode(null);
+  } else if (current.event.branch) {
+    const frag = current.event.source_info?.source_fragment || '';
+    highlightGraphCondition(frag);
+  } else {
+    highlightGraphNode(null);
+  }
 
   // Highlight source line in editor with a visible decoration.
-  if (current.line && state.editor && window.monaco) {
-    state.editor.revealLineInCenter(current.line);
+  // For action executions, find the action definition rather than the call site.
+  let line = current.line;
+  if (current.event.action_execution && state.editor) {
+    const actionName = current.event.action_execution.action_name;
+    if (actionName && actionName !== 'NoAction') {
+      const model = state.editor.getModel();
+      if (model) {
+        // The action name from the trace may be qualified (e.g. "ctrl.set_vrf")
+        // or renamed by the midend (e.g. "set_nexthop_id_0" for a duplicate).
+        // Try progressively looser matches to find the definition in P4 source.
+        const shortName = actionName.includes('.') ? actionName.split('.').pop() : actionName;
+        const baseName = shortName.replace(/_\d+$/, ''); // strip midend rename suffix
+        const escaped = baseName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const match = model.findMatches(`\\baction\\s+${escaped}\\s*\\(`, false, true, true, null, false);
+        if (match.length > 0) line = match[0].range.startLineNumber;
+      }
+    }
+  }
+  if (line && state.editor && window.monaco) {
+    state.editor.revealLineInCenter(line);
     state._playbackDecorations = state.editor.deltaDecorations(
       state._playbackDecorations,
       [{
-        range: new window.monaco.Range(current.line, 1, current.line, 1),
+        range: new window.monaco.Range(line, 1, line, 1),
         options: {
           isWholeLine: true,
           className: 'playback-line-highlight',
@@ -1276,32 +1238,6 @@ function applyPlaybackState() {
   }
 
   updatePlaybackUI();
-}
-
-/** Update diagram to show stages visited up to the given playback position. */
-function updateDiagramForPlayback(events, pos) {
-  const visited = new Set();
-  let activeStage = null;
-  for (let i = 0; i <= pos; i++) {
-    if (events[i].stageName) {
-      visited.add(events[i].stageName);
-      activeStage = events[i].stageName;
-    }
-  }
-
-  // On the outcome event, show final state instead of a pulsing active stage.
-  const current = events[pos];
-  const isOutcome = !!(current.event.packet_outcome);
-  const outcome = isOutcome ? analyzeOutcome({ packet_outcome: current.event.packet_outcome }) : null;
-
-  const droppedStage = (isOutcome && outcome?.type === 'drop') ? lastVisitedStage(visited) : null;
-
-  renderDiagram({
-    visited,
-    activeStage: isOutcome ? null : activeStage,
-    droppedStage,
-    outcome,
-  });
 }
 
 function clearPlaybackEditorHighlight() {
@@ -1333,10 +1269,20 @@ function renderTraceNode(node, isRoot) {
   // Group events by pipeline stage for collapsible sections.
   const events = node.events || [];
   let i = 0;
+
+  // Render top-level events before the first stage (e.g., packet_ingress).
+  while (i < events.length && !(events[i].pipeline_stage && events[i].pipeline_stage.direction === 'ENTER')) {
+    html += renderTraceEvent(events[i]);
+    i++;
+  }
+
+  // Render stages in an indented container.
+  let hasStages = false;
+  let stagesHtml = '';
   while (i < events.length) {
     const event = events[i];
     if (event.pipeline_stage && event.pipeline_stage.direction === 'ENTER') {
-      // Collect events until the matching EXIT.
+      hasStages = true;
       const stageName = event.pipeline_stage.stage_name;
       const stageEvents = [];
       i++;
@@ -1349,11 +1295,14 @@ function renderTraceNode(node, isRoot) {
         stageEvents.push(events[i]);
         i++;
       }
-      html += renderStageGroup(stageName, event.pipeline_stage.stage_kind, stageEvents);
+      stagesHtml += renderStageGroup(stageName, event.pipeline_stage.stage_kind, stageEvents);
     } else {
-      html += renderTraceEvent(event);
+      stagesHtml += renderTraceEvent(events[i]);
       i++;
     }
+  }
+  if (hasStages) {
+    html += `<div class="trace-stages">${stagesHtml}</div>`;
   }
 
   // Outcome
@@ -1368,116 +1317,186 @@ function renderTraceNode(node, isRoot) {
 }
 
 function renderStageGroup(name, kind, events) {
-  const summary = summarizeStageEvents(events);
-  const summarySpan = summary ? `<span class="stage-summary">${summary}</span>` : '';
-
   if (events.length === 0) {
     return `<div class="trace-stage" data-stage="${name}">
       <div class="trace-collapse empty">
-        <span class="stage-name">${name}</span> ${summarySpan}
+        <span class="stage-name">${name}</span>
       </div>
     </div>`;
   }
 
   return `<div class="trace-stage" data-stage="${name}">
     <div class="trace-collapse" onclick="this.classList.toggle('collapsed')">
-      <span class="stage-name">${name}</span> ${summarySpan}
+      <span class="stage-name">${name}</span>
     </div>
     <div class="trace-stage-body">
-      ${events.map(e => renderTraceEvent(e)).join('')}
+      ${renderStageEvents(events)}
     </div>
   </div>`;
 }
 
-function summarizeStageEvents(events) {
-  const parts = [];
-  for (const e of events) {
-    if (e.table_lookup) {
-      const tl = e.table_lookup;
-      parts.push(`${tl.table_name}: ${tl.hit ? 'hit' : 'miss'}`);
-    } else if (e.parser_transition && e.parser_transition.to_state === 'accept') {
-      parts.push('accept');
-    } else if (e.parser_transition && e.parser_transition.to_state === 'reject') {
-      parts.push('reject');
-    } else if (e.mark_to_drop) {
-      parts.push('drop');
+/** Returns true if this event is an effect of a preceding action (not a top-level event). */
+function isActionEffect(event) {
+  return event.mark_to_drop || event.extern_call || event.clone || event.clone_session_lookup;
+}
+
+/**
+ * Render stage events, grouping action effects as collapsible children
+ * of their preceding action_execution.
+ */
+function renderStageEvents(events) {
+  let html = '';
+  let i = 0;
+  while (i < events.length) {
+    if (events[i].action_execution) {
+      const actionEvent = events[i];
+      i++;
+      const effects = [];
+      while (i < events.length && isActionEffect(events[i])) {
+        effects.push(events[i]);
+        i++;
+      }
+      html += renderActionWithEffects(actionEvent, effects);
+    } else {
+      html += renderTraceEvent(events[i]);
+      i++;
     }
   }
-  return parts.join(', ');
+  return html;
+}
+
+function renderActionWithEffects(event, effects) {
+  const ae = event.action_execution;
+  const idx = _eventIdx++;
+  const line = event.source_info?.line || 0;
+  const attr = `data-event-idx="${idx}"${line ? ` data-line="${line}"` : ''}`;
+  const params = Object.entries(ae.params || {}).map(([k, v]) =>
+    `${k}=${decodeParamValue(v)}`
+  ).join(', ');
+  const paramsStr = params ? `(${params})` : '()';
+
+  let detail = '';
+  if (effects.length > 0) {
+    const effectsHtml = effects.map(e => renderTraceEvent(e)).join('');
+    detail = `<div class="trace-entry-detail" onclick="event.stopPropagation(); this.classList.toggle('expanded')">${effectsHtml}</div>`;
+  }
+
+  return `<div ${attr} class="trace-event action">Executed ${ae.action_name}${paramsStr}${detail}</div>`;
 }
 
 // Global counter for stamping data-event-idx on rendered trace events.
 let _eventIdx = 0;
 
 function renderTraceEvent(event) {
-  const src = formatSourceInfo(event.source_info);
   const idx = _eventIdx++;
-  const attr = `data-event-idx="${idx}"`;
+  const line = event.source_info?.line || 0;
+  const attr = `data-event-idx="${idx}"${line ? ` data-line="${line}"` : ''}`;
+  let text = '';
 
   if (event.packet_ingress) {
-    return `<div ${attr} class="trace-event ingress">▸ Packet ingress port ${event.packet_ingress.ingress_port}</div>`;
+    return `<div data-event-idx="${idx}" class="trace-event ingress">Received packet on port ${event.packet_ingress.ingress_port}</div>`;
   }
   if (event.pipeline_stage) {
     const s = event.pipeline_stage;
     const dir = s.direction === 'ENTER' ? '→' : '←';
     const cls = s.direction === 'ENTER' ? 'stage-enter' : 'stage-exit';
-    return `<div ${attr} class="trace-event ${cls}">${dir} ${s.stage_name}</div>`;
+    return `<div data-event-idx="${idx}" class="trace-event ${cls}">${dir} ${s.stage_name}</div>`;
   }
   if (event.parser_transition) {
     const pt = event.parser_transition;
-    return `<div ${attr} class="trace-event parser">parse: ${pt.from_state} → ${pt.to_state}${src}</div>`;
-  }
-  if (event.table_lookup) {
+    const condition = pt.select_value
+      ? `${pt.select_expression ? escapeHtml(pt.select_expression) + ' = ' : ''}${escapeHtml(pt.select_value)}`
+      : '';
+    text = condition
+      ? `Parsed ${pt.from_state} → ${pt.to_state} on ${condition}`
+      : `Parsed ${pt.from_state} → ${pt.to_state}`;
+  } else if (event.table_lookup) {
     const tl = event.table_lookup;
     const cls = tl.hit ? 'table-hit' : 'table-miss';
     const result = tl.hit ? 'hit' : 'miss';
-    return `<div ${attr} class="trace-event ${cls}">table ${tl.table_name}: ${result} → ${tl.action_name}${src}</div>`;
-  }
-  if (event.action_execution) {
+    const detail = tl.hit && tl.matched_entry ? formatMatchedEntry(tl) : '';
+    return `<div ${attr} class="trace-event ${cls}">Applied ${tl.table_name}: ${result} → ${tl.action_name}${detail}</div>`;
+  } else if (event.action_execution) {
+    // Handled by renderActionWithEffects when inside a stage; fallback for stray events.
     const ae = event.action_execution;
     const params = Object.entries(ae.params || {}).map(([k, v]) =>
       `${k}=${decodeParamValue(v)}`
     ).join(', ');
-    const paramsStr = params ? `(${params})` : '';
-    return `<div ${attr} class="trace-event action">action ${ae.action_name}${paramsStr}${src}</div>`;
-  }
-  if (event.branch) {
-    const b = event.branch;
-    const dir = b.taken ? 'then' : 'else';
+    text = `Executed ${ae.action_name}${params ? `(${params})` : '()'}`;
+  } else if (event.branch) {
+    const result = event.branch.taken ? 'true' : 'false';
     const frag = event.source_info?.source_fragment || '';
-    const condStr = frag ? `: <code>${escapeHtml(frag)}</code>` : '';
-    return `<div ${attr} class="trace-event branch">branch ${dir}${condStr}${src}</div>`;
-  }
-  if (event.extern_call) {
+    text = frag ? `Branched on ${escapeHtml(frag)} → ${result}` : `Branched → ${result}`;
+  } else if (event.extern_call) {
     const ec = event.extern_call;
-    return `<div ${attr} class="trace-event extern">extern ${ec.extern_instance_name}.${ec.method}()${src}</div>`;
-  }
-  if (event.mark_to_drop) {
-    return `<div ${attr} class="trace-event mark-to-drop">mark_to_drop()${src}</div>`;
-  }
-  if (event.clone) {
-    return `<div ${attr} class="trace-event clone">clone session ${event.clone.session_id}${src}</div>`;
-  }
-  if (event.clone_session_lookup) {
+    text = `Called ${ec.extern_instance_name}.${ec.method}()`;
+  } else if (event.mark_to_drop) {
+    text = 'Marked to drop';
+  } else if (event.clone) {
+    text = `Cloned to session ${event.clone.session_id}`;
+  } else if (event.clone_session_lookup) {
     const csl = event.clone_session_lookup;
-    if (csl.session_found) {
-      return `<div ${attr} class="trace-event clone-session-hit">clone session ${csl.session_id} → port ${csl.egress_port}</div>`;
-    }
-    return `<div ${attr} class="trace-event clone-session-miss">clone session ${csl.session_id}: not configured (clone dropped)</div>`;
+    text = csl.session_found
+      ? `Resolved clone session ${csl.session_id} → port ${csl.egress_port}`
+      : `Clone session ${csl.session_id} not found (dropped)`;
+    const cls = csl.session_found ? 'clone-session-hit' : 'clone-session-miss';
+    return `<div ${attr} class="trace-event ${cls}">${text}</div>`;
+  } else {
+    return '';
   }
-  return '';
+
+  const cls = event.parser_transition ? 'parser'
+    : event.action_execution ? 'action'
+    : event.branch ? 'branch'
+    : event.extern_call ? 'extern'
+    : event.mark_to_drop ? 'mark-to-drop'
+    : event.clone ? 'clone' : '';
+  return `<div ${attr} class="trace-event ${cls}">${text}</div>`;
 }
 
-function formatSourceInfo(si) {
-  if (!si) return '';
-  const fragment = si.source_fragment || '';
-  const line = si.line || 0;
-  if (!fragment && !line) return '';
-  const linePrefix = line ? `L${line}` : '';
-  const text = fragment
-    ? (linePrefix ? `${linePrefix}: ${escapeHtml(fragment)}` : escapeHtml(fragment))
-    : linePrefix;
-  return ` <span class="trace-source" onclick="jumpToLine(${line})" title="Jump to line ${line} in editor">${text}</span>`;
+/** Format a matched table entry as a collapsible detail block. */
+function formatMatchedEntry(tl) {
+  const entry = tl.matched_entry;
+  if (!entry) return '';
+
+  // Resolve names from p4info.
+  const table = state.p4info?.tables?.find(t => t.preamble.id === entry.table_id);
+  const action = entry.action?.action;
+  const actionInfo = action ? state.p4info?.actions?.find(a => a.preamble.id === action.action_id) : null;
+
+  const parts = [];
+
+  // Match fields.
+  for (const m of entry.match || []) {
+    const mfInfo = table?.match_fields?.find(f => f.id === m.field_id);
+    const name = mfInfo?.name || `field_${m.field_id}`;
+    if (m.exact) {
+      parts.push(`${name} = ${base64ToHex(m.exact.value)}`);
+    } else if (m.lpm) {
+      parts.push(`${name} = ${base64ToHex(m.lpm.value)}/${m.lpm.prefix_len}`);
+    } else if (m.ternary) {
+      parts.push(`${name} = ${base64ToHex(m.ternary.value)} & ${base64ToHex(m.ternary.mask)}`);
+    } else if (m.optional) {
+      parts.push(`${name} = ${base64ToHex(m.optional.value)}`);
+    }
+  }
+
+  // Action params.
+  if (action?.params?.length) {
+    const paramStrs = action.params.map(p => {
+      const pInfo = actionInfo?.params?.find(pp => pp.id === p.param_id);
+      return `${pInfo?.name || `param_${p.param_id}`} = ${decodeParamValue(p.value)}`;
+    });
+    parts.push(...paramStrs);
+  }
+
+  if (entry.priority) {
+    parts.push(`priority = ${entry.priority}`);
+  }
+
+  if (parts.length === 0) return '';
+  const detail = parts.map(p => escapeHtml(p)).join('\n');
+  return `<div class="trace-entry-detail" onclick="event.stopPropagation(); this.classList.toggle('expanded')">${detail}</div>`;
 }
 
 function jumpToLine(line) {
@@ -1529,22 +1548,26 @@ function formatDropReason(reason) {
 
 function renderControlGraph() {
   const container = document.getElementById('control-graph');
+  const handle = document.getElementById('graph-resize-handle');
   const controls = state.controlGraph;
   if (!controls) {
     container.classList.add('hidden');
+    handle.classList.add('hidden');
     return;
   }
 
-  // Only show controls that have tables or conditions (skip trivial entry→exit).
+  // Only show graphs that have meaningful nodes (skip trivial entry→exit).
   const interesting = Object.keys(controls).filter(name =>
-    controls[name].nodes.some(n => n.type === 'table' || n.type === 'condition')
+    controls[name].nodes.some(n => n.type === 'table' || n.type === 'condition' || n.type === 'state')
   );
   if (interesting.length === 0) {
     container.classList.add('hidden');
+    handle.classList.add('hidden');
     return;
   }
 
   container.classList.remove('hidden');
+  handle.classList.remove('hidden');
 
   // Only show tabs when there are multiple interesting controls.
   const tabsEl = container.querySelector('.control-graph-tabs');
@@ -1586,21 +1609,25 @@ function layoutAndRenderGraph(graph) {
   const NODE_H = 32;
   const SMALL_H = 20;
   const CHAR_W = 7; // approximate width per character in 11px monospace
-  const COND_CHAR_W = 6; // smaller font for conditions
+  const COND_CHAR_W = 7; // same size as table labels
   const PAD_W = 20; // horizontal padding inside node
   const LINE_H = 13; // line height for multiline condition labels
 
   for (const node of graph.nodes) {
-    const isSmall = node.type === 'entry' || node.type === 'exit';
-    if (isSmall) {
-      g.setNode(node.id, { label: node.name, width: 40, height: SMALL_H, type: node.type });
+    if (node.type === 'entry') {
+      g.setNode(node.id, { label: node.name, width: SMALL_H, height: SMALL_H, type: node.type });
+    } else if (node.type === 'exit') {
+      // Accept/reject get a labeled circle; control-graph "exit" stays small.
+      const isTerminal = node.name === 'accept' || node.name === 'reject';
+      const d = isTerminal ? 50 : SMALL_H;
+      g.setNode(node.id, { label: node.name, width: d, height: d, type: node.type });
     } else if (node.type === 'condition') {
       // Split condition text on operators for multiline display.
       const lines = node.name.split(/(?= &&| \|\|)/).map(s => s.trim());
       const maxLineLen = Math.max(...lines.map(l => l.length));
       const w = maxLineLen * COND_CHAR_W + PAD_W;
       const h = Math.max(NODE_H, lines.length * LINE_H + 12);
-      g.setNode(node.id, { label: node.name, lines, width: w * 1.4, height: h, type: node.type });
+      g.setNode(node.id, { label: node.name, lines, width: Math.max(80, w), height: h, type: node.type });
     } else {
       const textW = node.name.length * CHAR_W + PAD_W;
       g.setNode(node.id, { label: node.name, width: Math.max(80, textW), height: NODE_H, type: node.type });
@@ -1608,7 +1635,12 @@ function layoutAndRenderGraph(graph) {
   }
 
   for (const edge of graph.edges) {
-    g.setEdge(edge.from, edge.to, { label: edge.label || '' });
+    const edgeOpts = { label: edge.label || '' };
+    if (edge.label) {
+      edgeOpts.width = edge.label.length * CHAR_W + 8;
+      edgeOpts.height = 14;
+    }
+    g.setEdge(edge.from, edge.to, edgeOpts);
   }
 
   dagre.layout(g);
@@ -1623,12 +1655,19 @@ function layoutAndRenderGraph(graph) {
     maxY = Math.max(maxY, n.y + n.height / 2);
   });
   g.edges().forEach(e => {
-    const pts = g.edge(e).points || [];
+    const edgeData = g.edge(e);
+    const pts = edgeData.points || [];
     for (const p of pts) {
       minX = Math.min(minX, p.x);
       minY = Math.min(minY, p.y);
       maxX = Math.max(maxX, p.x);
       maxY = Math.max(maxY, p.y);
+    }
+    // Account for edge label text extending beyond the edge points.
+    if (edgeData.label && pts.length > 0) {
+      const mid = pts[Math.floor(pts.length / 2)];
+      const labelW = edgeData.label.length * CHAR_W + 8;
+      maxX = Math.max(maxX, mid.x + labelW);
     }
   });
   const pad = 16;
@@ -1643,11 +1682,32 @@ function layoutAndRenderGraph(graph) {
 
   let svg = '';
 
+  // Clip a point to the perimeter of a circle centered at (cx, cy) with radius r.
+  // Returns the intersection of the line from prev→pt with the circle.
+  function clipToCircle(pt, prev, cx, cy, r) {
+    const dx = pt.x - prev.x, dy = pt.y - prev.y;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len === 0) return pt;
+    return { x: cx - (dx / len) * r, y: cy - (dy / len) * r };
+  }
+
   // Render edges (before nodes so nodes draw on top).
   g.edges().forEach(e => {
     const edgeData = g.edge(e);
-    const points = edgeData.points;
-    if (!points || points.length < 2) return;
+    const points = [...(edgeData.points || [])];
+    if (points.length < 2) return;
+
+    // Clip edge endpoints to circle perimeters for entry/exit nodes.
+    const srcNode = g.node(e.v), tgtNode = g.node(e.w);
+    if (srcNode && (srcNode.type === 'entry' || srcNode.type === 'exit')) {
+      const r = srcNode.height / 2;
+      points[0] = clipToCircle(points[0], points[1], srcNode.x, srcNode.y, r);
+    }
+    if (tgtNode && (tgtNode.type === 'entry' || tgtNode.type === 'exit')) {
+      const r = tgtNode.height / 2;
+      const last = points.length - 1;
+      points[last] = clipToCircle(points[last], points[last - 1], tgtNode.x, tgtNode.y, r);
+    }
 
     const pathD = points.map((p, i) =>
       i === 0 ? `M${p.x},${p.y}` : `L${p.x},${p.y}`
@@ -1657,10 +1717,10 @@ function layoutAndRenderGraph(graph) {
     const edgeClass = isFalse ? 'graph-edge graph-edge-false' : 'graph-edge';
     svg += `<path d="${pathD}" class="${edgeClass}" marker-end="url(#arrowhead)"/>`;
 
-    // Edge label.
+    // Edge label — centered along the edge.
     if (edgeData.label) {
       const mid = points[Math.floor(points.length / 2)];
-      svg += `<text x="${mid.x + 4}" y="${mid.y - 4}" class="graph-edge-label">${escapeHtml(edgeData.label)}</text>`;
+      svg += `<text x="${mid.x}" y="${mid.y - 6}" text-anchor="middle" class="graph-edge-label">${escapeHtml(edgeData.label)}</text>`;
     }
   });
 
@@ -1670,24 +1730,32 @@ function layoutAndRenderGraph(graph) {
     const x = node.x - node.width / 2;
     const y = node.y - node.height / 2;
 
-    if (node.type === 'entry' || node.type === 'exit') {
+    if (node.type === 'entry') {
       const cx = node.x, cy = node.y, r = node.height / 2;
-      svg += `<circle cx="${cx}" cy="${cy}" r="${r}" class="graph-node-${node.type}" data-node="${nodeId}"/>`;
-    } else if (node.type === 'condition') {
-      // Diamond shape for conditions.
-      const cx = node.x, cy = node.y;
-      const hw = node.width / 2, hh = node.height / 2;
-      const pts = `${cx},${cy - hh} ${cx + hw},${cy} ${cx},${cy + hh} ${cx - hw},${cy}`;
-      svg += `<polygon points="${pts}" class="graph-node-condition" data-node="${nodeId}"/>`;
-      if (node.lines && node.lines.length > 1) {
-        const startY = cy - (node.lines.length - 1) * LINE_H / 2;
-        const tspans = node.lines.map((line, i) =>
-          `<tspan x="${cx}" dy="${i === 0 ? 0 : LINE_H}">${escapeHtml(line)}</tspan>`
-        ).join('');
-        svg += `<text x="${cx}" y="${startY}" class="graph-node-label condition-label">${tspans}</text>`;
-      } else {
-        svg += `<text x="${cx}" y="${cy}" class="graph-node-label condition-label">${escapeHtml(node.label)}</text>`;
+      svg += `<circle cx="${cx}" cy="${cy}" r="${r}" class="graph-node-entry" data-node="${nodeId}"/>`;
+    } else if (node.type === 'exit') {
+      const cx = node.x, cy = node.y, r = node.height / 2;
+      const cls = node.label === 'reject' ? 'graph-node-reject' : node.label === 'accept' ? 'graph-node-accept' : 'graph-node-exit';
+      svg += `<circle cx="${cx}" cy="${cy}" r="${r}" class="${cls}" data-node="${nodeId}"/>`;
+      if (node.label === 'accept' || node.label === 'reject') {
+        svg += `<text x="${cx}" y="${cy}" class="graph-node-label graph-terminal-label">${escapeHtml(node.label)}</text>`;
       }
+    } else if (node.type === 'condition') {
+      // Rounded rectangle with dashed border for conditions.
+      svg += `<rect x="${x}" y="${y}" width="${node.width}" height="${node.height}" rx="4" class="graph-node-condition" data-node="${nodeId}"/>`;
+      if (node.lines && node.lines.length > 1) {
+        const startY = node.y - (node.lines.length - 1) * LINE_H / 2;
+        const tspans = node.lines.map((line, i) =>
+          `<tspan x="${node.x}" dy="${i === 0 ? 0 : LINE_H}">${escapeHtml(line)}</tspan>`
+        ).join('');
+        svg += `<text x="${node.x}" y="${startY}" class="graph-node-label condition-label">${tspans}</text>`;
+      } else {
+        svg += `<text x="${node.x}" y="${node.y}" class="graph-node-label condition-label">${escapeHtml(node.label)}</text>`;
+      }
+    } else if (node.type === 'state') {
+      // Rounded rectangle for parser states.
+      svg += `<rect x="${x}" y="${y}" width="${node.width}" height="${node.height}" rx="12" class="graph-node-state" data-node="${nodeId}"/>`;
+      svg += `<text x="${node.x}" y="${node.y}" class="graph-node-label">${escapeHtml(node.label)}</text>`;
     } else {
       // Rectangle for tables.
       svg += `<rect x="${x}" y="${y}" width="${node.width}" height="${node.height}" rx="4" class="graph-node-table" data-node="${nodeId}"/>`;
@@ -1701,14 +1769,83 @@ function layoutAndRenderGraph(graph) {
   svgEl.innerHTML = svg;
 }
 
-/** Highlight the active table node in the control graph during trace playback. */
-function highlightGraphNode(tableName) {
-  document.querySelectorAll('.graph-node-table, .graph-node-condition').forEach(el => {
+/** Scroll the graph panel so that a highlighted SVG element is fully visible with padding. */
+function scrollGraphToNode(el) {
+  if (!el) return;
+  const outer = document.getElementById('control-graph');
+  const inner = document.querySelector('.control-graph-container');
+  if (!outer || !inner) return;
+  const svg = el.closest('svg');
+  if (!svg) return;
+  // Get the element's bounding box in screen coordinates.
+  const bbox = el.getBBox();
+  const ctm = el.getScreenCTM();
+  if (!ctm) return;
+  const pad = 20;
+  const tl = svg.createSVGPoint();
+  tl.x = bbox.x; tl.y = bbox.y;
+  const br = svg.createSVGPoint();
+  br.x = bbox.x + bbox.width; br.y = bbox.y + bbox.height;
+  const screenTL = tl.matrixTransform(ctm);
+  const screenBR = br.matrixTransform(ctm);
+  // Horizontal: inner container scrolls.
+  const ir = inner.getBoundingClientRect();
+  if (screenTL.x - pad < ir.left) {
+    inner.scrollLeft -= ir.left - screenTL.x + pad;
+  } else if (screenBR.x + pad > ir.right) {
+    inner.scrollLeft += screenBR.x + pad - ir.right;
+  }
+  // Vertical: outer container scrolls.
+  const or_ = outer.getBoundingClientRect();
+  if (screenTL.y - pad < or_.top) {
+    outer.scrollTop -= or_.top - screenTL.y + pad;
+  } else if (screenBR.y + pad > or_.bottom) {
+    outer.scrollTop += screenBR.y + pad - or_.bottom;
+  }
+}
+
+function clearGraphHighlights() {
+  document.querySelectorAll('.graph-node-table, .graph-node-condition, .graph-node-state, .graph-node-accept, .graph-node-reject').forEach(el => {
     el.classList.remove('graph-active');
   });
-  if (tableName) {
-    const el = document.querySelector(`[data-node="${tableName}"]`);
-    if (el) el.classList.add('graph-active');
+}
+
+/** Highlight one or more nodes in the control graph by data-node ID. */
+function highlightGraphNode(...names) {
+  clearGraphHighlights();
+  let scrollTarget = null;
+  for (const name of names) {
+    if (!name) continue;
+    const el = document.querySelector(`[data-node="${CSS.escape(name)}"]`);
+    if (el) {
+      el.classList.add('graph-active');
+      if (!scrollTarget) scrollTarget = el;
+    }
+  }
+  if (scrollTarget) scrollGraphToNode(scrollTarget);
+}
+
+/** Highlight a condition node by matching a source fragment against node labels. */
+function highlightGraphCondition(fragment) {
+  clearGraphHighlights();
+  if (!fragment) return;
+  const nodes = document.querySelectorAll('.graph-node-condition');
+  // The graph extractor uses only innermost field names (hdr.ipv4 → ipv4,
+  // meta.x → x), but the trace source_fragment keeps the full P4 source text.
+  // Normalize by stripping common struct prefixes so they match.
+  const norm = fragment.replace(/\b(hdr|meta|std_meta|local_metadata)\./g, '');
+  let best = null, bestLen = -1;
+  for (const node of nodes) {
+    const label = node.dataset.node;
+    if (label === norm) { best = node; break; } // exact match wins
+    if ((norm.includes(label) || label.includes(norm)) && label.length > bestLen) {
+      best = node;
+      bestLen = label.length;
+    }
+  }
+  if (best) {
+    best.classList.add('graph-active');
+    scrollGraphToNode(best);
   }
 }
 
@@ -1922,6 +2059,37 @@ function initResize() {
   });
 }
 
+function initGraphResize() {
+  const handle = document.getElementById('graph-resize-handle');
+  const graph = document.getElementById('control-graph');
+  let startY, startHeight;
+
+  handle.addEventListener('mousedown', (e) => {
+    startY = e.clientY;
+    startHeight = graph.getBoundingClientRect().height;
+    handle.classList.add('active');
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
+
+    const onMouseMove = (e) => {
+      const delta = startY - e.clientY;
+      const newHeight = Math.max(60, startHeight + delta);
+      graph.style.maxHeight = newHeight + 'px';
+    };
+
+    const onMouseUp = () => {
+      handle.classList.remove('active');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Packet presets
 // ---------------------------------------------------------------------------
@@ -1991,18 +2159,31 @@ document.addEventListener('DOMContentLoaded', () => {
     state.loadingExample = false;
   });
 
-  // Graph fullscreen toggle.
+  // Graph fullscreen toggle (browser Fullscreen API).
+  const graphEl = document.getElementById('control-graph');
   document.getElementById('btn-graph-fullscreen').addEventListener('click', () => {
-    document.getElementById('control-graph').classList.toggle('fullscreen');
-  });
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      document.getElementById('control-graph').classList.remove('fullscreen');
+    if (document.fullscreenElement === graphEl) {
+      document.exitFullscreen();
+    } else {
+      graphEl.requestFullscreen();
     }
   });
 
   // Resize
   initResize();
+  initGraphResize();
+
+  // Click trace events to navigate playback to that step.
+  document.getElementById('trace-tree').addEventListener('click', (e) => {
+    const el = e.target.closest('.trace-event[data-event-idx]');
+    if (!el || !state.playbackEvents.length) return;
+    const clickedIdx = parseInt(el.dataset.eventIdx, 10);
+    const pos = state.playbackEvents.findIndex(pe => pe.eventIdx === clickedIdx);
+    if (pos >= 0) {
+      state.playbackPos = pos;
+      applyPlaybackState();
+    }
+  });
 
   // Ctrl/Cmd+Enter on payload sends packet
   document.getElementById('pkt-payload').addEventListener('keydown', (e) => {
@@ -2019,12 +2200,7 @@ document.addEventListener('DOMContentLoaded', () => {
     log(`Editor ready — ${mod}+Enter to compile & load`, 'info');
   });
 
-  // Check if pipeline is already loaded (e.g. page refresh)
-  api.getPipeline().then(data => {
-    if (data.loaded) {
-      state.p4info = data.p4info;
-      setStatus('loaded', 'Pipeline loaded');
-      renderTablesPanel();
-    }
-  }).catch(() => {});
+  // Don't restore "pipeline loaded" on page refresh — the frontend has lost
+  // all client-side state (graph, entries, trace), so claiming the pipeline is
+  // loaded would be misleading. The user can re-compile to start fresh.
 });

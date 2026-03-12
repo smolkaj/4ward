@@ -141,50 +141,18 @@
           <p>No trace yet.</p>
           <p class="empty-hint">Send a packet to see the execution trace.</p>
         </div>
-        <div id="pipeline-diagram" class="hidden">
-          <div class="pipeline-flow">
-            <div class="pipeline-stage" data-stage="parser">
-              <div class="pipeline-stage-dot"></div>
-              <div class="pipeline-stage-label">parser</div>
-            </div>
-            <div class="pipeline-arrow"></div>
-            <div class="pipeline-stage" data-stage="verify_checksum">
-              <div class="pipeline-stage-dot"></div>
-              <div class="pipeline-stage-label">verify</div>
-            </div>
-            <div class="pipeline-arrow"></div>
-            <div class="pipeline-stage" data-stage="ingress">
-              <div class="pipeline-stage-dot"></div>
-              <div class="pipeline-stage-label">ingress</div>
-            </div>
-            <div class="pipeline-arrow"></div>
-            <div class="pipeline-stage" data-stage="egress">
-              <div class="pipeline-stage-dot"></div>
-              <div class="pipeline-stage-label">egress</div>
-            </div>
-            <div class="pipeline-arrow"></div>
-            <div class="pipeline-stage" data-stage="compute_checksum">
-              <div class="pipeline-stage-dot"></div>
-              <div class="pipeline-stage-label">checksum</div>
-            </div>
-            <div class="pipeline-arrow"></div>
-            <div class="pipeline-stage" data-stage="deparser">
-              <div class="pipeline-stage-dot"></div>
-              <div class="pipeline-stage-label">deparser</div>
-            </div>
-          </div>
-          <div id="pipeline-outcome" class="pipeline-outcome"></div>
+        <div id="trace-toolbar" class="hidden">
           <div class="playback-controls">
             <button id="btn-step-back" class="btn-playback" title="Step back">←</button>
             <button id="btn-step-forward" class="btn-playback" title="Step forward">→</button>
             <button id="btn-reset" class="btn-playback" title="Reset">↺</button>
             <span id="playback-position" class="playback-position"></span>
           </div>
-        </div>
-        <div id="trace-view-toggle" class="trace-view-toggle hidden">
-          <button class="trace-view-btn active" data-view="tree">Visual</button>
-          <button class="trace-view-btn" data-view="json">JSON</button>
-          <button class="trace-view-btn" data-view="proto">Proto</button>
+          <div class="trace-view-toggle">
+            <button class="trace-view-btn active" data-view="tree">Visual</button>
+            <button class="trace-view-btn" data-view="json">JSON</button>
+            <button class="trace-view-btn" data-view="proto">Proto</button>
+          </div>
         </div>
         <div id="trace-tree" class="hidden"></div>
         <pre id="trace-raw" class="trace-raw hidden"></pre>
@@ -193,6 +161,7 @@
   </div>
 
   <!-- Control-flow graph (full width, visible once a pipeline is loaded) -->
+  <div id="graph-resize-handle" class="resize-handle-h hidden"></div>
   <div id="control-graph" class="hidden">
     <div class="control-graph-header">
       <div class="control-graph-tabs"></div>

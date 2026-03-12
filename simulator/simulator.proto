@@ -143,6 +143,12 @@ message ParserTransitionEvent {
   string parser_name = 1;
   string from_state = 2;
   string to_state = 3;
+  // For select transitions: the evaluated key values (e.g. "0x0800").
+  // Empty for direct transitions.
+  string select_value = 4;
+  // For select transitions: the human-readable key expression
+  // (e.g. "hdr.ethernet.etherType"). Empty for direct transitions.
+  string select_expression = 5;
 }
 
 // Fired on every table.apply(). Records hit/miss, matched entry, and selected
