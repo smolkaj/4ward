@@ -1,6 +1,5 @@
 events {
   packet_ingress {
-    ingress_port: 0
   }
 }
 events {
@@ -140,6 +139,12 @@ fork_outcome {
               }
             }
             events {
+              deparser_emit {
+                header_type: "ethernet_t"
+                byte_length: 14
+              }
+            }
+            events {
               pipeline_stage {
                 stage_name: "deparser"
                 stage_kind: DEPARSER
@@ -194,6 +199,12 @@ fork_outcome {
                 stage_name: "deparser"
                 stage_kind: DEPARSER
                 direction: ENTER
+              }
+            }
+            events {
+              deparser_emit {
+                header_type: "ethernet_t"
+                byte_length: 14
               }
             }
             events {
@@ -294,6 +305,12 @@ fork_outcome {
               }
             }
             events {
+              deparser_emit {
+                header_type: "ethernet_t"
+                byte_length: 14
+              }
+            }
+            events {
               pipeline_stage {
                 stage_name: "deparser"
                 stage_kind: DEPARSER
@@ -348,6 +365,12 @@ fork_outcome {
                 stage_name: "deparser"
                 stage_kind: DEPARSER
                 direction: ENTER
+              }
+            }
+            events {
+              deparser_emit {
+                header_type: "ethernet_t"
+                byte_length: 14
               }
             }
             events {

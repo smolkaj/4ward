@@ -2,6 +2,7 @@
 
 export const state = {
   p4info: null,         // loaded P4Info (JSON)
+  headerTypes: null,    // {typeName: [{name, bitwidth}]} from compile response
   entries: [],          // installed table entries (for display)
   cloneSessions: [],    // installed clone sessions
   lastTrace: null,      // last ProcessPacketWithTraceTree response

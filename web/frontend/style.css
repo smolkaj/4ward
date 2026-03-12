@@ -444,42 +444,64 @@ input:focus, select:focus, textarea:focus {
    ========================================================================= */
 
 .output-area {
-  background: var(--bg-primary);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius);
-  padding: 8px 10px;
-  max-height: 200px;
-  overflow-y: auto;
-  white-space: pre-wrap;
-  word-break: break-all;
   font-size: 11px;
   line-height: 1.5;
 }
 
 .output-packet {
-  padding: 6px 0;
-  border-bottom: 1px solid var(--border-light);
+  border-left: 3px solid var(--accent);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  margin-bottom: 10px;
 }
 
-.output-packet:last-child { border-bottom: none; }
+.output-packet:last-child { margin-bottom: 0; }
+
+.output-packet-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+}
 
 .output-port {
   color: var(--accent);
   font-weight: 600;
+  font-size: 12px;
 }
 
 .output-bytes {
   color: var(--text-muted);
   font-size: 10px;
-  margin-left: 6px;
+}
+
+.output-section {
+  padding: 6px 10px;
+  background: var(--bg-primary);
+  border-top: 1px solid var(--border);
+}
+
+.output-section-label {
+  display: inline-block;
+  background: var(--bg-primary);
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  padding: 0 6px 0 0;
+  margin-top: -9px;
+  margin-bottom: 4px;
+  line-height: 1.4;
 }
 
 .output-hex {
   color: var(--text-secondary);
-  margin-top: 4px;
   font-family: var(--font-mono);
   white-space: pre;
   line-height: 1.4;
+  font-size: 11px;
 }
 
 .hex-offset {
@@ -490,6 +512,42 @@ input:focus, select:focus, textarea:focus {
 .output-drop {
   color: var(--error);
   font-style: italic;
+  padding: 6px 10px;
+}
+
+.output-decoded {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.dissect-header {
+  margin-bottom: 4px;
+}
+
+.dissect-header:last-child { margin-bottom: 0; }
+
+.dissect-header-name {
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.dissect-field {
+  padding-left: 16px;
+}
+
+.dissect-field-name {
+  color: var(--text-secondary);
+}
+
+.dissect-field-name::after {
+  content: ' = ';
+  color: var(--text-muted);
+}
+
+.dissect-field-value {
+  color: var(--text-primary);
 }
 
 /* =========================================================================
@@ -705,7 +763,6 @@ input:focus, select:focus, textarea:focus {
 .trace-outcome {
   padding: 2px 6px;
   border-radius: var(--radius-sm);
-  display: inline-block;
   margin: 2px 0;
   font-weight: 600;
 }
@@ -718,6 +775,31 @@ input:focus, select:focus, textarea:focus {
 .trace-outcome.drop {
   background: var(--error-bg);
   color: var(--error);
+}
+
+.trace-outcome-header {
+  cursor: pointer;
+  user-select: none;
+}
+
+.trace-outcome.collapsed .trace-outcome-detail {
+  display: none;
+}
+
+.trace-outcome-detail {
+  margin-top: 6px;
+  border-left: 3px solid var(--success);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  font-weight: normal;
+}
+
+.trace-outcome-detail .output-section {
+  background: var(--bg-primary);
+}
+
+.trace-outcome-detail .output-section:first-child {
+  border-top: none;
 }
 
 .trace-fork-label {

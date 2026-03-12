@@ -3,6 +3,7 @@
 
 import { state } from './state.js';
 import { escapeHtml, base64ToHex, base64ToUint8Array, decodeParamValue } from './encoding.js';
+import { renderPacketSections } from './dissect.js';
 
 // Global counter for stamping data-event-idx on rendered trace events.
 let _eventIdx = 0;
@@ -73,7 +74,7 @@ export function renderTraceNode(node, isRoot) {
 
   // Outcome
   if (node.packet_outcome) {
-    html += renderPacketOutcome(node.packet_outcome);
+    html += renderPacketOutcome(node.packet_outcome, node);
   } else if (node.fork_outcome) {
     html += renderFork(node.fork_outcome);
   }
@@ -83,17 +84,18 @@ export function renderTraceNode(node, isRoot) {
 }
 
 function renderStageGroup(name, events) {
+  const esc = escapeHtml(name);
   if (events.length === 0) {
-    return `<div class="trace-stage" data-stage="${name}">
+    return `<div class="trace-stage" data-stage="${esc}">
       <div class="trace-collapse empty">
-        <span class="stage-name">${name}</span>
+        <span class="stage-name">${esc}</span>
       </div>
     </div>`;
   }
 
-  return `<div class="trace-stage" data-stage="${name}">
+  return `<div class="trace-stage" data-stage="${esc}">
     <div class="trace-collapse" onclick="this.classList.toggle('collapsed')">
-      <span class="stage-name">${name}</span>
+      <span class="stage-name">${esc}</span>
     </div>
     <div class="trace-stage-body">
       ${renderStageEvents(events)}
@@ -258,11 +260,15 @@ function formatMatchedEntry(tl) {
   return `<div class="trace-entry-detail" onclick="event.stopPropagation(); this.classList.toggle('expanded')">${detail}</div>`;
 }
 
-function renderPacketOutcome(outcome) {
+function renderPacketOutcome(outcome, traceNode) {
   if (outcome.output) {
     const o = outcome.output;
     const bytes = o.payload ? base64ToUint8Array(o.payload) : new Uint8Array(0);
-    return `<div class="trace-outcome output" data-outcome>\u2192 output port ${o.egress_port} (${bytes.length} bytes)</div>`;
+    let detail = '';
+    if (traceNode && bytes.length > 0) {
+      detail = `<div class="trace-outcome-detail">${renderPacketSections(bytes, traceNode)}</div>`;
+    }
+    return `<div class="trace-outcome output" data-outcome><div class="trace-outcome-header" onclick="this.parentElement.classList.toggle('collapsed')">\u2192 output port ${o.egress_port} (${bytes.length} bytes)</div>${detail}</div>`;
   }
   if (outcome.drop) {
     const reason = formatDropReason(outcome.drop.reason);

@@ -1,6 +1,5 @@
 events {
   packet_ingress {
-    ingress_port: 0
   }
 }
 events {
@@ -73,7 +72,6 @@ fork_outcome {
       events {
         branch {
           control_name: "MyEgress"
-          taken: false
         }
         source_info {
           file: "e2e_tests/trace_tree/multicast_drop_replica.p4"
@@ -108,6 +106,12 @@ fork_outcome {
           stage_name: "deparser"
           stage_kind: DEPARSER
           direction: ENTER
+        }
+      }
+      events {
+        deparser_emit {
+          header_type: "ethernet_t"
+          byte_length: 14
         }
       }
       events {
@@ -199,7 +203,6 @@ fork_outcome {
       events {
         branch {
           control_name: "MyEgress"
-          taken: false
         }
         source_info {
           file: "e2e_tests/trace_tree/multicast_drop_replica.p4"
@@ -234,6 +237,12 @@ fork_outcome {
           stage_name: "deparser"
           stage_kind: DEPARSER
           direction: ENTER
+        }
+      }
+      events {
+        deparser_emit {
+          header_type: "ethernet_t"
+          byte_length: 14
         }
       }
       events {

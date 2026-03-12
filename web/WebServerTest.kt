@@ -1,5 +1,13 @@
 package fourward.web
 
+import fourward.ir.v1.BehavioralConfig
+import fourward.ir.v1.BitType
+import fourward.ir.v1.FieldDecl
+import fourward.ir.v1.HeaderDecl
+import fourward.ir.v1.IntType
+import fourward.ir.v1.Type
+import fourward.ir.v1.TypeDecl
+import fourward.ir.v1.VarbitType
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -72,4 +80,109 @@ class WebServerTest {
     assertEquals("""{"error":"oops"}""", WebServer.errorJson("oops"))
     assertEquals("""{"error":"a\"b"}""", WebServer.errorJson("a\"b"))
   }
+
+  // ---------------------------------------------------------------------------
+  // headerTypesJson
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `headerTypesJson serializes header fields with bitwidths`() {
+    val config =
+      BehavioralConfig.newBuilder()
+        .addTypes(
+          TypeDecl.newBuilder()
+            .setName("ethernet_t")
+            .setHeader(
+              HeaderDecl.newBuilder()
+                .addFields(field("dstAddr", bitType(48)))
+                .addFields(field("srcAddr", bitType(48)))
+                .addFields(field("etherType", bitType(16)))
+            )
+        )
+        .build()
+    assertEquals(
+      """{"ethernet_t":[{"name":"dstAddr","bitwidth":48},{"name":"srcAddr","bitwidth":48},{"name":"etherType","bitwidth":16}]}""",
+      WebServer.headerTypesJson(config),
+    )
+  }
+
+  @Test
+  fun `headerTypesJson handles multiple header types`() {
+    val config =
+      BehavioralConfig.newBuilder()
+        .addTypes(
+          TypeDecl.newBuilder()
+            .setName("h1_t")
+            .setHeader(HeaderDecl.newBuilder().addFields(field("f", bitType(8))))
+        )
+        .addTypes(
+          TypeDecl.newBuilder()
+            .setName("h2_t")
+            .setHeader(HeaderDecl.newBuilder().addFields(field("g", bitType(32))))
+        )
+        .build()
+    assertEquals(
+      """{"h1_t":[{"name":"f","bitwidth":8}],"h2_t":[{"name":"g","bitwidth":32}]}""",
+      WebServer.headerTypesJson(config),
+    )
+  }
+
+  @Test
+  fun `headerTypesJson skips non-header types`() {
+    val config =
+      BehavioralConfig.newBuilder()
+        .addTypes(
+          TypeDecl.newBuilder()
+            .setName("ethernet_t")
+            .setHeader(HeaderDecl.newBuilder().addFields(field("f", bitType(8))))
+        )
+        .addTypes(
+          TypeDecl.newBuilder()
+            .setName("meta_t")
+            .setStruct(fourward.ir.v1.StructDecl.newBuilder().addFields(field("x", bitType(16))))
+        )
+        .build()
+    assertEquals(
+      """{"ethernet_t":[{"name":"f","bitwidth":8}]}""",
+      WebServer.headerTypesJson(config),
+    )
+  }
+
+  @Test
+  fun `headerTypesJson handles signed int and varbit types`() {
+    val config =
+      BehavioralConfig.newBuilder()
+        .addTypes(
+          TypeDecl.newBuilder()
+            .setName("special_t")
+            .setHeader(
+              HeaderDecl.newBuilder()
+                .addFields(field("signed_f", signedIntType(16)))
+                .addFields(field("var_f", varbitType(320)))
+            )
+        )
+        .build()
+    assertEquals(
+      """{"special_t":[{"name":"signed_f","bitwidth":16},{"name":"var_f","bitwidth":320}]}""",
+      WebServer.headerTypesJson(config),
+    )
+  }
+
+  @Test
+  fun `headerTypesJson returns empty object for no headers`() {
+    val config = BehavioralConfig.getDefaultInstance()
+    assertEquals("{}", WebServer.headerTypesJson(config))
+  }
+
+  private fun field(name: String, type: Type): FieldDecl =
+    FieldDecl.newBuilder().setName(name).setType(type).build()
+
+  private fun bitType(width: Int): Type =
+    Type.newBuilder().setBit(BitType.newBuilder().setWidth(width)).build()
+
+  private fun signedIntType(width: Int): Type =
+    Type.newBuilder().setSignedInt(IntType.newBuilder().setWidth(width)).build()
+
+  private fun varbitType(maxWidth: Int): Type =
+    Type.newBuilder().setVarbit(VarbitType.newBuilder().setMaxWidth(maxWidth)).build()
 }
