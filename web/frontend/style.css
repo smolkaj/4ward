@@ -962,15 +962,73 @@ input:focus, select:focus, textarea:focus {
    --------------------------------------------------------------------------- */
 
 #control-graph {
-  flex-shrink: 0;
-  border-bottom: 1px solid var(--border);
-  padding: 8px;
+  border-top: 1px solid var(--border);
+  padding: 6px 8px;
+  overflow: auto;
+  max-height: 30vh;
+}
+
+#control-graph::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+#control-graph::-webkit-scrollbar-thumb {
+  background: var(--text-muted);
+  border-radius: 4px;
+}
+
+#control-graph::-webkit-scrollbar-track {
+  background: var(--bg-tertiary);
+}
+
+.control-graph-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg-primary);
 }
 
 .control-graph-tabs {
   display: flex;
   gap: 4px;
-  margin-bottom: 8px;
+}
+
+#control-graph.fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  max-height: none;
+  background: var(--bg-primary);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+#control-graph.fullscreen .control-graph-container {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+#control-graph.fullscreen .control-graph-container::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+#control-graph.fullscreen .control-graph-container::-webkit-scrollbar-thumb {
+  background: var(--text-muted);
+  border-radius: 4px;
+}
+
+#control-graph.fullscreen .control-graph-container::-webkit-scrollbar-track {
+  background: var(--bg-tertiary);
 }
 
 .control-graph-tab {
@@ -991,18 +1049,22 @@ input:focus, select:focus, textarea:focus {
 
 .control-graph-container {
   overflow-x: auto;
-  display: flex;
-  justify-content: center;
 }
 
 #control-graph-svg {
   display: block;
+  margin: 0 auto;
+  flex-shrink: 0;
 }
 
 .graph-edge {
   stroke: var(--text-muted);
   stroke-width: 1.5;
   fill: none;
+}
+
+.graph-edge-false {
+  stroke-dasharray: 5 3;
 }
 
 .graph-edge-label {
@@ -1047,6 +1109,7 @@ input:focus, select:focus, textarea:focus {
   font-family: var(--font-mono);
   text-anchor: middle;
   dominant-baseline: central;
+  alignment-baseline: central;
 }
 
 .graph-node-label.condition-label {

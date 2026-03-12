@@ -308,6 +308,8 @@ control MyDeparser(packet_out pkt, in headers_t hdr) {
 V1Switch(MyParser(), MyVerifyChecksum(), MyIngress(),
          MyEgress(), MyComputeChecksum(), MyDeparser()) main;
 `,
+
+  sai_middleblock: '/examples/sai_middleblock.p4',
 };
 
 // ---------------------------------------------------------------------------
@@ -1578,21 +1580,31 @@ function layoutAndRenderGraph(graph) {
   if (typeof dagre === 'undefined') return;
 
   const g = new dagre.graphlib.Graph();
-  g.setGraph({ rankdir: 'TB', nodesep: 30, ranksep: 40, marginx: 20, marginy: 20 });
+  g.setGraph({ rankdir: 'LR', nodesep: 20, ranksep: 40, marginx: 16, marginy: 8 });
   g.setDefaultEdgeLabel(() => ({}));
 
-  const NODE_W = 120;
   const NODE_H = 32;
   const SMALL_H = 20;
+  const CHAR_W = 7; // approximate width per character in 11px monospace
+  const COND_CHAR_W = 6; // smaller font for conditions
+  const PAD_W = 20; // horizontal padding inside node
+  const LINE_H = 13; // line height for multiline condition labels
 
   for (const node of graph.nodes) {
     const isSmall = node.type === 'entry' || node.type === 'exit';
-    g.setNode(node.id, {
-      label: node.name,
-      width: isSmall ? 40 : NODE_W,
-      height: isSmall ? SMALL_H : NODE_H,
-      type: node.type,
-    });
+    if (isSmall) {
+      g.setNode(node.id, { label: node.name, width: 40, height: SMALL_H, type: node.type });
+    } else if (node.type === 'condition') {
+      // Split condition text on operators for multiline display.
+      const lines = node.name.split(/(?= &&| \|\|)/).map(s => s.trim());
+      const maxLineLen = Math.max(...lines.map(l => l.length));
+      const w = maxLineLen * COND_CHAR_W + PAD_W;
+      const h = Math.max(NODE_H, lines.length * LINE_H + 12);
+      g.setNode(node.id, { label: node.name, lines, width: w * 1.4, height: h, type: node.type });
+    } else {
+      const textW = node.name.length * CHAR_W + PAD_W;
+      g.setNode(node.id, { label: node.name, width: Math.max(80, textW), height: NODE_H, type: node.type });
+    }
   }
 
   for (const edge of graph.edges) {
@@ -1601,10 +1613,33 @@ function layoutAndRenderGraph(graph) {
 
   dagre.layout(g);
 
+  // Compute actual bounding box from all nodes and edge points.
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  g.nodes().forEach(id => {
+    const n = g.node(id);
+    minX = Math.min(minX, n.x - n.width / 2);
+    minY = Math.min(minY, n.y - n.height / 2);
+    maxX = Math.max(maxX, n.x + n.width / 2);
+    maxY = Math.max(maxY, n.y + n.height / 2);
+  });
+  g.edges().forEach(e => {
+    const pts = g.edge(e).points || [];
+    for (const p of pts) {
+      minX = Math.min(minX, p.x);
+      minY = Math.min(minY, p.y);
+      maxX = Math.max(maxX, p.x);
+      maxY = Math.max(maxY, p.y);
+    }
+  });
+  const pad = 16;
+  const svgW = maxX - minX + pad * 2;
+  const svgH = maxY - minY + pad * 2;
+
   const svgEl = document.getElementById('control-graph-svg');
-  const graphMeta = g.graph();
-  svgEl.setAttribute('width', graphMeta.width);
-  svgEl.setAttribute('height', graphMeta.height);
+  svgEl.setAttribute('viewBox', `${minX - pad} ${minY - pad} ${svgW} ${svgH}`);
+  svgEl.setAttribute('width', svgW);
+  svgEl.setAttribute('height', svgH);
+  svgEl.style.minWidth = svgW + 'px';
 
   let svg = '';
 
@@ -1618,7 +1653,9 @@ function layoutAndRenderGraph(graph) {
       i === 0 ? `M${p.x},${p.y}` : `L${p.x},${p.y}`
     ).join(' ');
 
-    svg += `<path d="${pathD}" class="graph-edge" marker-end="url(#arrowhead)"/>`;
+    const isFalse = edgeData.label === 'F' || edgeData.label === 'miss' || edgeData.label === 'false';
+    const edgeClass = isFalse ? 'graph-edge graph-edge-false' : 'graph-edge';
+    svg += `<path d="${pathD}" class="${edgeClass}" marker-end="url(#arrowhead)"/>`;
 
     // Edge label.
     if (edgeData.label) {
@@ -1642,11 +1679,19 @@ function layoutAndRenderGraph(graph) {
       const hw = node.width / 2, hh = node.height / 2;
       const pts = `${cx},${cy - hh} ${cx + hw},${cy} ${cx},${cy + hh} ${cx - hw},${cy}`;
       svg += `<polygon points="${pts}" class="graph-node-condition" data-node="${nodeId}"/>`;
-      svg += `<text x="${cx}" y="${cy + 4}" class="graph-node-label condition-label">${escapeHtml(node.label)}</text>`;
+      if (node.lines && node.lines.length > 1) {
+        const startY = cy - (node.lines.length - 1) * LINE_H / 2;
+        const tspans = node.lines.map((line, i) =>
+          `<tspan x="${cx}" dy="${i === 0 ? 0 : LINE_H}">${escapeHtml(line)}</tspan>`
+        ).join('');
+        svg += `<text x="${cx}" y="${startY}" class="graph-node-label condition-label">${tspans}</text>`;
+      } else {
+        svg += `<text x="${cx}" y="${cy}" class="graph-node-label condition-label">${escapeHtml(node.label)}</text>`;
+      }
     } else {
       // Rectangle for tables.
       svg += `<rect x="${x}" y="${y}" width="${node.width}" height="${node.height}" rx="4" class="graph-node-table" data-node="${nodeId}"/>`;
-      svg += `<text x="${node.x}" y="${node.y + 4}" class="graph-node-label">${escapeHtml(node.label)}</text>`;
+      svg += `<text x="${node.x}" y="${node.y}" class="graph-node-label">${escapeHtml(node.label)}</text>`;
     }
   });
 
@@ -1930,13 +1975,29 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.addEventListener('click', () => switchTraceView(btn.dataset.view));
   });
 
-  // Example selector
-  document.getElementById('example-select').addEventListener('change', (e) => {
+  // Example selector (inline strings or file paths for larger examples).
+  document.getElementById('example-select').addEventListener('change', async (e) => {
     const example = EXAMPLES[e.target.value];
-    if (example && state.editor) {
-      state.loadingExample = true;
+    if (!example || !state.editor) return;
+    state.loadingExample = true;
+    if (example.startsWith('/')) {
+      try {
+        const resp = await fetch(example);
+        state.editor.setValue(await resp.text());
+      } catch (_) { /* ignore fetch errors */ }
+    } else {
       state.editor.setValue(example);
-      state.loadingExample = false;
+    }
+    state.loadingExample = false;
+  });
+
+  // Graph fullscreen toggle.
+  document.getElementById('btn-graph-fullscreen').addEventListener('click', () => {
+    document.getElementById('control-graph').classList.toggle('fullscreen');
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      document.getElementById('control-graph').classList.remove('fullscreen');
     }
   });
 
