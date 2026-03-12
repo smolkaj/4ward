@@ -81,6 +81,25 @@ export function decodeParamValue(b64) {
   return n.toString();
 }
 
+// Field name patterns for contextual value formatting.
+const MAC_PATTERN = /addr|mac/i;
+const IPV4_PATTERN = /\b(ip|sip|dip|src_?addr|dst_?addr)/i;
+
+/**
+ * Format a field value for display based on field name and bitwidth.
+ * Inverse of encodeValue: bytes → human-readable string.
+ */
+export function formatFieldValue(bytes, bitwidth, fieldName) {
+  if (bytes.length === 0) return '0x0';
+  if (bitwidth === 48 && MAC_PATTERN.test(fieldName)) {
+    return bytesToHex(bytes, ':');
+  }
+  if (bitwidth === 32 && IPV4_PATTERN.test(fieldName)) {
+    return Array.from(bytes).join('.');
+  }
+  return '0x' + bytesToHex(bytes, '');
+}
+
 /** Format bytes as a hex dump with offset markers every 16 bytes. */
 export function formatHexDump(bytes) {
   if (bytes.length <= 16) return bytesToHex(bytes);

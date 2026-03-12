@@ -84,17 +84,18 @@ export function renderTraceNode(node, isRoot) {
 }
 
 function renderStageGroup(name, events) {
+  const esc = escapeHtml(name);
   if (events.length === 0) {
-    return `<div class="trace-stage" data-stage="${name}">
+    return `<div class="trace-stage" data-stage="${esc}">
       <div class="trace-collapse empty">
-        <span class="stage-name">${name}</span>
+        <span class="stage-name">${esc}</span>
       </div>
     </div>`;
   }
 
-  return `<div class="trace-stage" data-stage="${name}">
+  return `<div class="trace-stage" data-stage="${esc}">
     <div class="trace-collapse" onclick="this.classList.toggle('collapsed')">
-      <span class="stage-name">${name}</span>
+      <span class="stage-name">${esc}</span>
     </div>
     <div class="trace-stage-body">
       ${renderStageEvents(events)}

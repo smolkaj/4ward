@@ -2,7 +2,7 @@
 // using deparser emit trace events and header type definitions from the IR.
 
 import { state } from './state.js';
-import { escapeHtml, formatHexDump, bytesToHex } from './encoding.js';
+import { escapeHtml, formatHexDump, bytesToHex, formatFieldValue } from './encoding.js';
 
 /**
  * Collect deparser_emit events from a trace tree for a specific output packet.
@@ -38,25 +38,6 @@ function collectEmitEvents(trace, targetPayload) {
   // No match found — fall back to first branch.
   const fallback = collectEmitEvents(trace.fork_outcome.branches[0].subtree, null);
   return { emits: [...emits, ...fallback.emits], match: false };
-}
-
-// Field name patterns that suggest specific formatting.
-const MAC_PATTERN = /addr|mac/i;
-const IPV4_PATTERN = /\b(ip|sip|dip|src_?addr|dst_?addr)/i;
-
-/**
- * Format a field value contextually based on field name and bitwidth.
- * Uses field name heuristics rather than bitwidth alone.
- */
-function formatFieldValue(bytes, bitwidth, fieldName) {
-  if (bytes.length === 0) return '0x0';
-  if (bitwidth === 48 && MAC_PATTERN.test(fieldName)) {
-    return bytesToHex(bytes, ':');
-  }
-  if (bitwidth === 32 && IPV4_PATTERN.test(fieldName)) {
-    return Array.from(bytes).join('.');
-  }
-  return '0x' + bytesToHex(bytes, '');
 }
 
 /**
