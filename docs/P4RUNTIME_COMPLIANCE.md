@@ -19,8 +19,8 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 | 7.7 | VERIFY action validates without applying | N | |
 | 7.8 | VERIFY_AND_COMMIT applies atomically | Y | ConformanceTest #1 |
 | 7.9 | VERIFY_AND_SAVE / COMMIT / RECONCILE_AND_COMMIT | N/A | Two-phase commit not meaningful for a reference simulator |
-| 7.10 | Cookie stored and returned | N | |
-| 7.11 | Pipeline reload clears table entries | N | |
+| 7.10 | Cookie stored and returned | Y | ConformanceTest #59 |
+| 7.11 | Pipeline reload clears table entries | Y | ConformanceTest #58 |
 | 7.12 | Const table entries populated at load time | N | |
 
 ## General encoding (§8)
@@ -230,7 +230,7 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 
 | Category | Tested | Not tested | N/A |
 |----------|--------|------------|-----|
-| SetForwardingPipelineConfig | 5 | 4 | 1 |
+| SetForwardingPipelineConfig | 7 | 2 | 1 |
 | General encoding | 6 | 1 | 0 |
 | Write — tables | 28 | 1 | 0 |
 | Write — profiles | 8 | 0 | 0 |
@@ -248,4 +248,4 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 | Translation | 6 | 0 | 0 |
 | @refers_to | 6 | 0 | 0 |
 | p4-constraints | 4 | 0 | 0 |
-| **Total** | **101** | **17** | **10** |
+| **Total** | **103** | **15** | **10** |
