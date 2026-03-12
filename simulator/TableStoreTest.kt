@@ -1447,50 +1447,27 @@ class TableStoreTest {
   // ---------------------------------------------------------------------------
 
   @Test
-  fun `readEntities with match filter returns only matching entry`() {
+  fun `getTableEntries returns inserted entries`() {
     val entry1 = exactEntry(fieldId = 1, value = byteArrayOf(100), actionId = 10)
     val entry2 = exactEntry(fieldId = 1, value = byteArrayOf(200.toByte()), actionId = 20)
     store.write(insertUpdate(entry1))
     store.write(insertUpdate(entry2))
 
-    val filter = TableEntry.newBuilder().setTableId(TABLE_ID).addMatch(entry1.getMatch(0)).build()
-    val results = store.readEntities(filter)
-    assertEquals("should return exactly one entry", 1, results.size)
-    assertEquals(entry1.matchList, results[0].tableEntry.matchList)
+    val entries = store.getTableEntries(TABLE_NAME)
+    assertEquals(2, entries.size)
+    assertEquals(entry1.matchList, entries[0].matchList)
+    assertEquals(entry2.matchList, entries[1].matchList)
   }
 
   @Test
-  fun `readEntities with non-matching filter returns empty`() {
+  fun `getTableEntries returns empty for unknown table`() {
     val entry = exactEntry(fieldId = 1, value = byteArrayOf(100), actionId = 10)
     store.write(insertUpdate(entry))
-
-    val noMatchFilter =
-      TableEntry.newBuilder()
-        .setTableId(TABLE_ID)
-        .addMatch(
-          FieldMatch.newBuilder()
-            .setFieldId(1)
-            .setExact(FieldMatch.Exact.newBuilder().setValue(ByteString.copyFrom(byteArrayOf(99))))
-        )
-        .build()
-    assertTrue(store.readEntities(noMatchFilter).isEmpty())
+    assertTrue(store.getTableEntries("nonexistent").isEmpty())
   }
 
   @Test
-  fun `readEntities with table-only filter returns all entries in table`() {
-    val entry1 = exactEntry(fieldId = 1, value = byteArrayOf(100), actionId = 10)
-    val entry2 = exactEntry(fieldId = 1, value = byteArrayOf(200.toByte()), actionId = 20)
-    store.write(insertUpdate(entry1))
-    store.write(insertUpdate(entry2))
-
-    // Filter with table_id only, no match fields → returns all entries in the table.
-    val tableOnlyFilter = TableEntry.newBuilder().setTableId(TABLE_ID).build()
-    assertEquals(2, store.readEntities(tableOnlyFilter).size)
-  }
-
-  @Test
-  fun `readEntities distinguishes ternary entries by priority`() {
-    // Two ternary entries with the same match key but different priorities are distinct.
+  fun `getTableEntries stores ternary entries with different priorities`() {
     val entry1 =
       ternaryEntry(
         fieldId = 1,
@@ -1510,20 +1487,13 @@ class TableStoreTest {
     store.write(insertUpdate(entry1))
     store.write(insertUpdate(entry2))
 
-    // Filter for priority=10 should return only entry1.
-    val filter =
-      TableEntry.newBuilder()
-        .setTableId(TABLE_ID)
-        .addMatch(entry1.getMatch(0))
-        .setPriority(10)
-        .build()
-    val results = store.readEntities(filter)
-    assertEquals("should return exactly one entry", 1, results.size)
-    assertEquals(10, results[0].tableEntry.priority)
+    val entries = store.getTableEntries(TABLE_NAME)
+    assertEquals(2, entries.size)
+    assertEquals(setOf(10, 20), entries.map { it.priority }.toSet())
   }
 
   @Test
-  fun `readEntities wildcard returns all entries across tables`() {
+  fun `getTableEntries returns entries per table`() {
     store.loadMappings(
       p4info =
         buildP4Info(
@@ -1546,144 +1516,8 @@ class TableStoreTest {
     store.write(insertUpdate(entry1))
     store.write(insertUpdate(entry2))
 
-    // Default filter (table_id=0, no match fields) → wildcard.
-    // No default actions configured, so only regular entries.
-    assertEquals(2, store.readEntities().size)
-  }
-
-  // =========================================================================
-  // Default entries in reads (P4Runtime spec §11.1)
-  // =========================================================================
-
-  @Test
-  fun `readEntities wildcard includes default entry`() {
-    store.loadMappings(
-      p4info =
-        buildP4Info(
-          tables = listOf(p4infoTable(TABLE_ID, TABLE_NAME, constDefaultActionId = 10)),
-          actions = ACTION_LIST,
-        )
-    )
-
-    // No regular entries installed — wildcard should still return the default.
-    val results = store.readEntities()
-    assertEquals("should return default entry only", 1, results.size)
-    val entry = results[0].tableEntry
-    assertTrue("should be marked as default", entry.isDefaultAction)
-    assertEquals(TABLE_ID, entry.tableId)
-    assertEquals(10, entry.action.action.actionId)
-  }
-
-  @Test
-  fun `readEntities wildcard returns defaults for multiple tables`() {
-    store.loadMappings(
-      p4info =
-        buildP4Info(
-          tables =
-            listOf(
-              p4infoTable(TABLE_ID, TABLE_NAME, constDefaultActionId = 10),
-              p4infoTable(3, "otherTable", constDefaultActionId = 20),
-            ),
-          actions = ACTION_LIST,
-        )
-    )
-
-    val defaults = store.readEntities().filter { it.tableEntry.isDefaultAction }
-    assertEquals("each table should have a default entry", 2, defaults.size)
-    val actionIds = defaults.map { it.tableEntry.action.action.actionId }.toSet()
-    assertEquals(setOf(10, 20), actionIds)
-  }
-
-  @Test
-  fun `readEntities omits default for table without default action`() {
-    store.loadMappings(
-      p4info =
-        buildP4Info(
-          tables =
-            listOf(
-              p4infoTable(TABLE_ID, TABLE_NAME, constDefaultActionId = 10),
-              p4infoTable(3, "otherTable"), // no default action
-            ),
-          actions = ACTION_LIST,
-        )
-    )
-
-    val defaults = store.readEntities().filter { it.tableEntry.isDefaultAction }
-    assertEquals("only one table has a default action", 1, defaults.size)
-    assertEquals(TABLE_ID, defaults[0].tableEntry.tableId)
-  }
-
-  @Test
-  fun `readEntities per-table filter includes default entry`() {
-    store.loadMappings(
-      p4info =
-        buildP4Info(
-          tables = listOf(p4infoTable(TABLE_ID, TABLE_NAME, constDefaultActionId = 10)),
-          actions = ACTION_LIST,
-        )
-    )
-
-    val entry = exactEntry(fieldId = 1, value = byteArrayOf(1), actionId = 10)
-    store.write(insertUpdate(entry))
-
-    val filter = TableEntry.newBuilder().setTableId(TABLE_ID).build()
-    val results = store.readEntities(filter)
-    assertEquals("1 regular + 1 default", 2, results.size)
-
-    val regular = results.filter { !it.tableEntry.isDefaultAction }
-    val defaults = results.filter { it.tableEntry.isDefaultAction }
-    assertEquals(1, regular.size)
-    assertEquals(1, defaults.size)
-  }
-
-  @Test
-  fun `readEntities with match filter excludes default entry`() {
-    store.loadMappings(
-      p4info =
-        buildP4Info(
-          tables = listOf(p4infoTable(TABLE_ID, TABLE_NAME, constDefaultActionId = 10)),
-          actions = ACTION_LIST,
-        )
-    )
-
-    val entry = exactEntry(fieldId = 1, value = byteArrayOf(1), actionId = 10)
-    store.write(insertUpdate(entry))
-
-    // Match filter → specific entry lookup, no default entry.
-    val filter = TableEntry.newBuilder().setTableId(TABLE_ID).addMatch(entry.getMatch(0)).build()
-    val results = store.readEntities(filter)
-    assertEquals(1, results.size)
-    assertFalse("match filter should not return default", results[0].tableEntry.isDefaultAction)
-  }
-
-  @Test
-  fun `readEntities default entry has initial_default_action params`() {
-    val paramValue = ByteString.copyFrom(byteArrayOf(42))
-    val tableWithParams =
-      P4InfoOuterClass.Table.newBuilder()
-        .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(TABLE_ID).setAlias(TABLE_NAME))
-        .setInitialDefaultAction(
-          P4InfoOuterClass.TableActionCall.newBuilder()
-            .setActionId(10)
-            .addArguments(
-              P4InfoOuterClass.TableActionCall.Argument.newBuilder()
-                .setParamId(1)
-                .setValue(paramValue)
-            )
-        )
-        .build()
-
-    store.loadMappings(
-      p4info = buildP4Info(tables = listOf(tableWithParams), actions = ACTION_LIST)
-    )
-
-    val defaults = store.readEntities().filter { it.tableEntry.isDefaultAction }
-    assertEquals(1, defaults.size)
-    val action = defaults[0].tableEntry.action.action
-    assertEquals(10, action.actionId)
-    assertEquals(1, action.paramsCount)
-    assertEquals(1, action.getParams(0).paramId)
-    assertEquals(paramValue, action.getParams(0).value)
+    assertEquals(1, store.getTableEntries(TABLE_NAME).size)
+    assertEquals(1, store.getTableEntries("otherTable").size)
   }
 
   private fun insertUpdate(entry: TableEntry): Update =
@@ -2503,7 +2337,7 @@ class TableStoreTest {
     // --- Verify every field is back to its pre-mutation state ---
 
     // tables: should have exactly 1 entry, not 2
-    assertEquals(1, s.readEntities().size)
+    assertEquals(1, s.getTableEntries(TABLE_NAME).size)
 
     // directCounterData: should show 1 packet / 100 bytes, not 2 packets / 1099 bytes
     val counterData = s.readDirectCounterEntries().single().directCounterEntry.data
@@ -2564,18 +2398,18 @@ class TableStoreTest {
         .setEntity(Entity.newBuilder().setTableEntry(entry))
         .build()
     )
-    assertTrue(store.readEntities().isEmpty())
+    assertTrue(store.getTableEntries(TABLE_NAME).isEmpty())
 
     // restore() consumes the snapshot, so take a second one first.
     val snapshot2 = store.snapshot()
 
     store.restore(snapshot)
-    assertEquals(1, store.readEntities().size)
+    assertEquals(1, store.getTableEntries(TABLE_NAME).size)
 
     // Restore to the empty state (snapshot2) to verify the first restore
     // did not leak mutable structures.
     store.restore(snapshot2)
-    assertTrue(store.readEntities().isEmpty())
+    assertTrue(store.getTableEntries(TABLE_NAME).isEmpty())
   }
 
   // ---------------------------------------------------------------------------
