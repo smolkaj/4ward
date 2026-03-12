@@ -144,16 +144,51 @@ dependency. Methodology documented here so it can be built in Track 4B+.*
 P4Runtime spec requirement to its test status. This answers the first open
 question below — and makes the remaining gaps visible at a glance.
 
+### Confidence assessment
+
+The [compliance matrix](P4RUNTIME_COMPLIANCE.md) shows 118/118 applicable
+requirements tested — but the matrix is self-authored. We wrote the
+requirements, wrote the tests, and checked our own boxes. Four blind spots:
+
+1. **Spec coverage is hand-distilled.** The matrix was not systematically
+   extracted from every MUST/SHALL in the P4Runtime spec. Entire requirement
+   areas could be missing — e.g. bytestring canonicalization on reads (§9.1.2),
+   ordering guarantees across batched updates (§12.4), role config interaction
+   with arbitration (§15).
+
+2. **Tests are shallow.** Many tests check the happy path plus one error case.
+   The arbitration tests cover 7 scenarios, but the state machine has many more
+   edge cases: same election_id on two streams, re-arbitration on the same
+   stream, races between arbitration and writes, rapid connect/disconnect. Write
+   validation tests cover one bad value per field type, not boundary cases.
+
+3. **N/A judgments deserve scrutiny.** 10 requirements are marked N/A. Most are
+   defensible (digests, idle timeouts, two-phase commit), but should be
+   re-evaluated as scope grows — particularly DATAPLANE_ATOMIC (§12) and
+   role-based access control (§15) if DVaaS compatibility requires them.
+
+4. **No independent oracle.** The biggest gap. The data plane has BMv2
+   differential testing (186 programs, bit-for-bit). The P4Runtime server has
+   nothing equivalent — our tests encode our *interpretation* of the spec. If we
+   misread a requirement, the test happily passes our wrong implementation.
+   Layer 3 (p4-fuzzer) directly addresses this, but is not yet integrated.
+
+| Area | Confidence | Why |
+|------|-----------|-----|
+| Write validation (fields, actions, params) | High | Thorough unit tests, multiple P4 schemas |
+| Read/wildcard semantics | High | Well-covered by conformance tests |
+| Pipeline config lifecycle | High | Good coverage of load/reload/clear |
+| Translation (@p4runtime_translation) | High | Dedicated test suite + SAI P4 E2E |
+| Arbitration state machine | Medium | Core cases covered, edge cases not |
+| Error code compliance (exact gRPC status) | Medium | Tested but not independently verified |
+| Batch/atomicity semantics | Medium | Simple scenarios only |
+| Spec completeness (did we miss requirements?) | Low | Hand-distilled, no systematic extraction |
+
 ### Open questions
 
-- ~~What's the P4Runtime equivalent of the STF corpus?~~ →
-  [P4RUNTIME_COMPLIANCE.md](P4RUNTIME_COMPLIANCE.md). Systematic checklist
-  derived from the spec's normative requirements (§7–§12).
-- What's the equivalent of p4testgen? The p4_fuzzer (Layer 3) explores the
-  Write surface. Is there an analog for Read, StreamChannel, or pipeline
-  config lifecycle?
+- What's the P4Runtime equivalent of p4testgen? The p4_fuzzer (Layer 3)
+  explores the Write surface. Is there an analog for Read, StreamChannel, or
+  pipeline config lifecycle?
 - What's the equivalent of BMv2 diff testing? Run the same P4Runtime session
   against BMv2's gRPC server and 4ward, compare responses. This would catch
   compatibility bugs that spec-reading alone misses.
-- Are the existing tests covering the right things, or just the things that
-  were convenient when they were written?
