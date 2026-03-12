@@ -4,13 +4,10 @@ import fourward.ir.v1.BehavioralConfig
 import fourward.ir.v1.ExternInstanceDecl
 import fourward.ir.v1.PipelineStage
 import fourward.ir.v1.TypeDecl
-import fourward.sim.v1.SimulatorProto.Drop
 import fourward.sim.v1.SimulatorProto.DropReason
 import fourward.sim.v1.SimulatorProto.Fork
 import fourward.sim.v1.SimulatorProto.ForkBranch
 import fourward.sim.v1.SimulatorProto.ForkReason
-import fourward.sim.v1.SimulatorProto.PacketIngressEvent
-import fourward.sim.v1.SimulatorProto.PacketOutcome
 import fourward.sim.v1.SimulatorProto.PipelineStageEvent
 import fourward.sim.v1.SimulatorProto.TraceEvent
 import fourward.sim.v1.SimulatorProto.TraceTree
@@ -820,41 +817,8 @@ class PSAArchitecture : Architecture {
       .setForkOutcome(Fork.newBuilder().setReason(reason).addAllBranches(branches))
       .build()
 
-  private fun buildDropTrace(
-    events: List<TraceEvent>,
-    reason: DropReason = DropReason.MARK_TO_DROP,
-  ): TraceTree {
-    val outcome = PacketOutcome.newBuilder().setDrop(Drop.newBuilder().setReason(reason)).build()
-    return TraceTree.newBuilder().addAllEvents(events).setPacketOutcome(outcome).build()
-  }
-
-  private fun buildOutputTrace(events: List<TraceEvent>, port: Int, payload: ByteArray): TraceTree {
-    val output =
-      fourward.sim.v1.SimulatorProto.OutputPacket.newBuilder()
-        .setEgressPort(port)
-        .setPayload(com.google.protobuf.ByteString.copyFrom(payload))
-        .build()
-    val outcome = PacketOutcome.newBuilder().setOutput(output).build()
-    return TraceTree.newBuilder().addAllEvents(events).setPacketOutcome(outcome).build()
-  }
-
-  private fun packetIngressEvent(ingressPort: UInt): TraceEvent =
-    TraceEvent.newBuilder()
-      .setPacketIngress(PacketIngressEvent.newBuilder().setIngressPort(ingressPort.toInt()))
-      .build()
-
-  private fun stageEvent(
-    stage: PipelineStage,
-    direction: PipelineStageEvent.Direction,
-  ): TraceEvent =
-    TraceEvent.newBuilder()
-      .setPipelineStage(
-        PipelineStageEvent.newBuilder()
-          .setStageName(stage.name)
-          .setStageKind(stage.kind)
-          .setDirection(direction)
-      )
-      .build()
+  // Shared trace helpers (buildDropTrace, buildOutputTrace, packetIngressEvent, stageEvent)
+  // live in TraceHelpers.kt.
 
   private companion object {
     // PSA_PacketPath_t enum values (PSA spec §6.1).
