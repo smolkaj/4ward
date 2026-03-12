@@ -2456,6 +2456,8 @@ LH:2
 LF:2
 end_of_record
 SF:simulator/Hash.kt
+FN:13,fourward/simulator/HashKt::getCSUM_MASK ()Ljava/math/BigInteger;
+FNDA:1,fourward/simulator/HashKt::getCSUM_MASK ()Ljava/math/BigInteger;
 FN:22,fourward/simulator/HashKt::concatFields (Lfourward/simulator/StructVal;)Lfourward/simulator/BitVector;
 FNDA:1,fourward/simulator/HashKt::concatFields (Lfourward/simulator/StructVal;)Lfourward/simulator/BitVector;
 FN:31,fourward/simulator/HashKt::onesComplementChecksumBits (Lfourward/simulator/BitVector;)Ljava/math/BigInteger;
@@ -4050,23 +4052,29 @@ FN:370,fourward/simulator/PSAArchitecture::buildBlockParamsMap (Lfourward/ir/v1/
 FNDA:1,fourward/simulator/PSAArchitecture::buildBlockParamsMap (Lfourward/ir/v1/BehavioralConfig;)Ljava/util/Map;
 FN:397,fourward/simulator/PSAArchitecture::createDefaultValues (Lfourward/ir/v1/BehavioralConfig;Ljava/util/Map;)Ljava/util/Map;
 FNDA:1,fourward/simulator/PSAArchitecture::createDefaultValues (Lfourward/ir/v1/BehavioralConfig;Ljava/util/Map;)Ljava/util/Map;
-FN:421,fourward/simulator/PSAArchitecture::createPsaExternHandler (Lfourward/simulator/PSAArchitecture$PipelineConfig;)Lfourward/simulator/ExternHandler;
+FN:423,fourward/simulator/PSAArchitecture::createPsaExternHandler (Lfourward/simulator/PSAArchitecture$PipelineConfig;)Lfourward/simulator/ExternHandler;
 FNDA:1,fourward/simulator/PSAArchitecture::createPsaExternHandler (Lfourward/simulator/PSAArchitecture$PipelineConfig;)Lfourward/simulator/ExternHandler;
-FN:486,fourward/simulator/PSAArchitecture::evalGetHash (Lfourward/simulator/ExternCall$Method;Lfourward/simulator/ExternEvaluator;Ljava/util/Map;)Lfourward/simulator/Value;
+FN:521,fourward/simulator/PSAArchitecture::evalGetHash (Lfourward/simulator/ExternCall$Method;Lfourward/simulator/ExternEvaluator;Ljava/util/Map;)Lfourward/simulator/Value;
 FNDA:1,fourward/simulator/PSAArchitecture::evalGetHash (Lfourward/simulator/ExternCall$Method;Lfourward/simulator/ExternEvaluator;Ljava/util/Map;)Lfourward/simulator/Value;
-FN:513,fourward/simulator/PSAArchitecture::buildExternInstancesMap (Lfourward/ir/v1/BehavioralConfig;)Ljava/util/Map;
+FN:552,fourward/simulator/PSAArchitecture::sumWords (Lfourward/simulator/StructVal;)Ljava/math/BigInteger;
+FNDA:1,fourward/simulator/PSAArchitecture::sumWords (Lfourward/simulator/StructVal;)Ljava/math/BigInteger;
+FN:566,fourward/simulator/PSAArchitecture::foldCarries (Ljava/math/BigInteger;)Ljava/math/BigInteger;
+FNDA:1,fourward/simulator/PSAArchitecture::foldCarries (Ljava/math/BigInteger;)Ljava/math/BigInteger;
+FN:574,fourward/simulator/PSAArchitecture::onesComplementAdd (Ljava/math/BigInteger;Ljava/math/BigInteger;)Ljava/math/BigInteger;
+FNDA:1,fourward/simulator/PSAArchitecture::onesComplementAdd (Ljava/math/BigInteger;Ljava/math/BigInteger;)Ljava/math/BigInteger;
+FN:578,fourward/simulator/PSAArchitecture::buildExternInstancesMap (Lfourward/ir/v1/BehavioralConfig;)Ljava/util/Map;
 FNDA:1,fourward/simulator/PSAArchitecture::buildExternInstancesMap (Lfourward/ir/v1/BehavioralConfig;)Ljava/util/Map;
-FN:520,fourward/simulator/PSAArchitecture::buildDropResult (Ljava/util/List;)Lfourward/simulator/PipelineResult;
+FN:587,fourward/simulator/PSAArchitecture::buildDropResult (Ljava/util/List;)Lfourward/simulator/PipelineResult;
 FNDA:1,fourward/simulator/PSAArchitecture::buildDropResult (Ljava/util/List;)Lfourward/simulator/PipelineResult;
-FN:523,fourward/simulator/PSAArchitecture::buildDropTrace (Ljava/util/List;)Lfourward/sim/v1/SimulatorProto$TraceTree;
+FN:590,fourward/simulator/PSAArchitecture::buildDropTrace (Ljava/util/List;)Lfourward/sim/v1/SimulatorProto$TraceTree;
 FNDA:1,fourward/simulator/PSAArchitecture::buildDropTrace (Ljava/util/List;)Lfourward/sim/v1/SimulatorProto$TraceTree;
-FN:531,fourward/simulator/PSAArchitecture::buildOutputTrace (Ljava/util/List;I[B)Lfourward/sim/v1/SimulatorProto$TraceTree;
+FN:598,fourward/simulator/PSAArchitecture::buildOutputTrace (Ljava/util/List;I[B)Lfourward/sim/v1/SimulatorProto$TraceTree;
 FNDA:1,fourward/simulator/PSAArchitecture::buildOutputTrace (Ljava/util/List;I[B)Lfourward/sim/v1/SimulatorProto$TraceTree;
-FN:541,fourward/simulator/PSAArchitecture::packetIngressEvent-WZ4Q5Ns (I)Lfourward/sim/v1/SimulatorProto$TraceEvent;
+FN:608,fourward/simulator/PSAArchitecture::packetIngressEvent-WZ4Q5Ns (I)Lfourward/sim/v1/SimulatorProto$TraceEvent;
 FNDA:1,fourward/simulator/PSAArchitecture::packetIngressEvent-WZ4Q5Ns (I)Lfourward/sim/v1/SimulatorProto$TraceEvent;
-FN:549,fourward/simulator/PSAArchitecture::stageEvent (Lfourward/ir/v1/PipelineStage;Lfourward/sim/v1/SimulatorProto$PipelineStageEvent$Direction;)Lfourward/sim/v1/SimulatorProto$TraceEvent;
+FN:616,fourward/simulator/PSAArchitecture::stageEvent (Lfourward/ir/v1/PipelineStage;Lfourward/sim/v1/SimulatorProto$PipelineStageEvent$Direction;)Lfourward/sim/v1/SimulatorProto$TraceEvent;
 FNDA:1,fourward/simulator/PSAArchitecture::stageEvent (Lfourward/ir/v1/PipelineStage;Lfourward/sim/v1/SimulatorProto$PipelineStageEvent$Direction;)Lfourward/sim/v1/SimulatorProto$TraceEvent;
-FN:560,fourward/simulator/PSAArchitecture::<clinit> ()V
+FN:627,fourward/simulator/PSAArchitecture::<clinit> ()V
 FNDA:1,fourward/simulator/PSAArchitecture::<clinit> ()V
 FN:366,fourward/simulator/PSAArchitecture$BlockParam::<init> (Ljava/lang/String;Ljava/lang/String;)V
 FNDA:1,fourward/simulator/PSAArchitecture$BlockParam::<init> (Ljava/lang/String;Ljava/lang/String;)V
@@ -4074,9 +4082,9 @@ FN:366,fourward/simulator/PSAArchitecture$BlockParam::getName ()Ljava/lang/Strin
 FNDA:1,fourward/simulator/PSAArchitecture$BlockParam::getName ()Ljava/lang/String;
 FN:366,fourward/simulator/PSAArchitecture$BlockParam::getTypeName ()Ljava/lang/String;
 FNDA:1,fourward/simulator/PSAArchitecture$BlockParam::getTypeName ()Ljava/lang/String;
-FN:560,fourward/simulator/PSAArchitecture$Companion::getIO_TYPES ()Ljava/util/Set;
+FN:627,fourward/simulator/PSAArchitecture$Companion::getIO_TYPES ()Ljava/util/Set;
 FNDA:0,fourward/simulator/PSAArchitecture$Companion::getIO_TYPES ()Ljava/util/Set;
-FN:563,fourward/simulator/PSAArchitecture$Companion::getPSA_HASH_ALGORITHMS ()Ljava/util/Map;
+FN:630,fourward/simulator/PSAArchitecture$Companion::getPSA_HASH_ALGORITHMS ()Ljava/util/Map;
 FNDA:0,fourward/simulator/PSAArchitecture$Companion::getPSA_HASH_ALGORITHMS ()Ljava/util/Map;
 FN:200,fourward/simulator/PSAArchitecture$EgressState::<init> (Lfourward/simulator/PSAArchitecture$PipelineConfig;Lfourward/simulator/StructVal;)V
 FNDA:1,fourward/simulator/PSAArchitecture$EgressState::<init> (Lfourward/simulator/PSAArchitecture$PipelineConfig;Lfourward/simulator/StructVal;)V
@@ -4108,7 +4116,7 @@ FN:47,fourward/simulator/PSAArchitecture$PipelineConfig::getTypesByName ()Ljava/
 FNDA:1,fourward/simulator/PSAArchitecture$PipelineConfig::getTypesByName ()Ljava/util/Map;
 FN:48,fourward/simulator/PSAArchitecture$PipelineConfig::getExternInstances ()Ljava/util/Map;
 FNDA:1,fourward/simulator/PSAArchitecture$PipelineConfig::getExternInstances ()Ljava/util/Map;
-FN:422,fourward/simulator/PSAArchitecture$createPsaExternHandler$1::handle (Lfourward/simulator/ExternCall;Lfourward/simulator/ExternEvaluator;)Lfourward/simulator/Value;
+FN:425,fourward/simulator/PSAArchitecture$createPsaExternHandler$1::handle (Lfourward/simulator/ExternCall;Lfourward/simulator/ExternEvaluator;)Lfourward/simulator/Value;
 FNDA:1,fourward/simulator/PSAArchitecture$createPsaExternHandler$1::handle (Lfourward/simulator/ExternCall;Lfourward/simulator/ExternEvaluator;)Lfourward/simulator/Value;
 FN:231,fourward/simulator/PSAArchitecture$runEgressPipeline$1::invoke (Lfourward/simulator/ParserErrorException;)V
 FNDA:1,fourward/simulator/PSAArchitecture$runEgressPipeline$1::invoke (Lfourward/simulator/ParserErrorException;)V
@@ -4252,34 +4260,46 @@ BRDA:407,0,0,1
 BRDA:407,0,1,0
 BRDA:407,0,2,1
 BRDA:407,0,3,1
-BRDA:487,0,0,0
-BRDA:487,0,1,1
-BRDA:489,0,0,1
-BRDA:489,0,1,0
-BRDA:489,0,2,1
-BRDA:489,0,3,0
-BRDA:489,0,4,0
-BRDA:489,0,5,1
-BRDA:492,0,0,0
-BRDA:492,0,1,1
-BRDA:495,0,0,1
-BRDA:495,0,1,1
-BRDA:506,0,0,1
-BRDA:506,0,1,0
-BRDA:423,0,0,1
-BRDA:423,0,1,1
-BRDA:424,0,0,0
-BRDA:424,0,1,0
-BRDA:424,0,2,1
-BRDA:424,0,3,1
-BRDA:452,0,0,0
-BRDA:452,0,1,1
-BRDA:452,0,2,1
-BRDA:452,0,3,1
-BRDA:452,0,4,1
-BRDA:452,0,5,1
-BRDA:456,0,0,1
-BRDA:456,0,1,1
+BRDA:522,0,0,0
+BRDA:522,0,1,1
+BRDA:524,0,0,1
+BRDA:524,0,1,0
+BRDA:524,0,2,1
+BRDA:524,0,3,0
+BRDA:524,0,4,0
+BRDA:524,0,5,1
+BRDA:527,0,0,0
+BRDA:527,0,1,1
+BRDA:530,0,0,1
+BRDA:530,0,1,1
+BRDA:541,0,0,1
+BRDA:541,0,1,0
+BRDA:552,0,0,0
+BRDA:552,0,1,1
+BRDA:557,0,0,1
+BRDA:557,0,1,1
+BRDA:567,0,0,1
+BRDA:567,0,1,1
+BRDA:426,0,0,1
+BRDA:426,0,1,1
+BRDA:427,0,0,0
+BRDA:427,0,1,0
+BRDA:427,0,2,1
+BRDA:427,0,3,1
+BRDA:455,0,0,0
+BRDA:455,0,1,1
+BRDA:455,0,2,0
+BRDA:455,0,3,1
+BRDA:455,0,4,1
+BRDA:455,0,5,1
+BRDA:455,0,6,1
+BRDA:455,0,7,1
+BRDA:455,0,8,1
+BRDA:455,0,9,1
+BRDA:455,0,10,1
+BRDA:455,0,11,1
+BRDA:459,0,0,1
+BRDA:459,0,1,1
 BRDA:231,0,0,1
 BRDA:231,0,1,0
 BRDA:231,0,2,1
@@ -4475,91 +4495,124 @@ DA:406,1
 DA:407,1
 DA:408,1
 DA:412,1
-DA:421,1
-DA:422,1
 DA:423,1
 DA:424,1
-DA:428,1
-DA:429,1
-DA:430,1
+DA:425,1
+DA:426,1
+DA:427,1
 DA:431,1
 DA:432,1
-DA:437,1
-DA:438,1
-DA:439,1
+DA:433,1
+DA:434,1
+DA:435,1
 DA:440,1
 DA:441,1
-DA:445,0
-DA:446,0
-DA:447,0
-DA:449,1
-DA:451,1
+DA:442,1
+DA:443,1
+DA:444,1
+DA:448,0
+DA:449,0
+DA:450,0
 DA:452,1
+DA:454,1
 DA:455,1
-DA:456,1
-DA:457,1
+DA:458,1
+DA:459,1
 DA:460,1
-DA:461,1
-DA:462,1
+DA:463,1
 DA:464,1
+DA:465,1
 DA:467,1
 DA:470,1
-DA:472,0
-DA:473,0
-DA:474,0
+DA:473,1
+DA:476,1
 DA:477,1
-DA:478,1
-DA:486,1
+DA:480,1
+DA:481,1
+DA:482,1
+DA:483,1
 DA:487,1
 DA:488,1
 DA:489,1
-DA:490,0
+DA:490,1
 DA:491,1
-DA:492,1
-DA:493,1
+DA:494,1
 DA:495,1
-DA:497,1
-DA:498,1
-DA:499,1
+DA:498,0
+DA:499,0
 DA:502,1
 DA:503,1
-DA:504,1
-DA:505,1
-DA:506,1
-DA:507,1
-DA:513,1
-DA:520,1
+DA:506,0
+DA:507,0
+DA:508,0
+DA:511,1
+DA:521,1
+DA:522,1
 DA:523,1
 DA:524,1
-DA:525,1
+DA:525,0
 DA:526,1
 DA:527,1
-DA:531,1
+DA:528,1
+DA:530,1
 DA:532,1
 DA:533,1
 DA:534,1
-DA:535,1
-DA:536,1
 DA:537,1
+DA:538,1
+DA:539,1
+DA:540,1
 DA:541,1
 DA:542,1
-DA:543,1
-DA:549,1
-DA:550,1
-DA:551,1
 DA:552,1
 DA:553,1
 DA:554,1
+DA:555,1
 DA:556,1
-DA:560,1
-DA:563,0
-DA:564,1
-DA:565,1
+DA:557,1
+DA:558,1
+DA:559,1
+DA:561,1
 DA:566,1
 DA:567,1
 DA:568,1
-LH:260
-LF:270
+DA:570,1
+DA:574,1
+DA:578,1
+DA:579,1
+DA:580,1
+DA:587,1
+DA:590,1
+DA:591,1
+DA:592,1
+DA:593,1
+DA:594,1
+DA:598,1
+DA:599,1
+DA:600,1
+DA:601,1
+DA:602,1
+DA:603,1
+DA:604,1
+DA:608,1
+DA:609,1
+DA:610,1
+DA:616,1
+DA:617,1
+DA:618,1
+DA:619,1
+DA:620,1
+DA:621,1
+DA:623,1
+DA:627,1
+DA:630,0
+DA:631,1
+DA:632,1
+DA:633,1
+DA:634,1
+DA:635,1
+LH:291
+LF:303
 end_of_record
 SF:simulator/Simulator.kt
 FN:13,fourward/simulator/ProcessPacketResult::<init> (Ljava/util/List;Lfourward/sim/v1/SimulatorProto$TraceTree;)V

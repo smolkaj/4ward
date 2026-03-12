@@ -31,18 +31,18 @@
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">96.3&nbsp;%</td>
-            <td class="headerCovTableEntry">270</td>
-            <td class="headerCovTableEntry">260</td>
+            <td class="headerCovTableEntryHi">96.0&nbsp;%</td>
+            <td class="headerCovTableEntry">303</td>
+            <td class="headerCovTableEntry">291</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-12 18:22:02</td>
+            <td class="headerValue">2026-03-12 18:28:03</td>
             <td></td>
             <td class="headerItem">Functions:</td>
-            <td class="headerCovTableEntryHi">95.5&nbsp;%</td>
-            <td class="headerCovTableEntry">44</td>
-            <td class="headerCovTableEntry">42</td>
+            <td class="headerCovTableEntryHi">95.7&nbsp;%</td>
+            <td class="headerCovTableEntry">47</td>
+            <td class="headerCovTableEntry">45</td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
                 </table>
@@ -479,158 +479,225 @@
 <span id="L417"><span class="lineNum">     417</span>              :   // ---------------------------------------------------------------------------</span>
 <span id="L418"><span class="lineNum">     418</span>              : </span>
 <span id="L419"><span class="lineNum">     419</span>              :   /** PSA extern handler: free functions and extern object methods. */</span>
-<span id="L420"><span class="lineNum">     420</span>              :   private fun createPsaExternHandler(pipeline: PipelineConfig): ExternHandler =</span>
-<span id="L421"><span class="lineNum">     421</span> <span class="tlaGNC">           1 :     ExternHandler { call, eval -&gt;</span></span>
-<span id="L422"><span class="lineNum">     422</span> <span class="tlaGNC">           1 :       when (call) {</span></span>
-<span id="L423"><span class="lineNum">     423</span> <span class="tlaGNC">           1 :         is ExternCall.FreeFunction -&gt;</span></span>
-<span id="L424"><span class="lineNum">     424</span> <span class="tlaGNC">           1 :           when (call.name) {</span></span>
-<span id="L425"><span class="lineNum">     425</span>              :             // send_to_port(inout ostd, in PortId_t port)</span>
-<span id="L426"><span class="lineNum">     426</span>              :             // After midend, becomes: send_to_port(ostd, port) where ostd is the output metadata.</span>
-<span id="L427"><span class="lineNum">     427</span>              :             &quot;send_to_port&quot; -&gt; {</span>
-<span id="L428"><span class="lineNum">     428</span> <span class="tlaGNC">           1 :               val ostd = eval.evalArg(0) as StructVal</span></span>
-<span id="L429"><span class="lineNum">     429</span> <span class="tlaGNC">           1 :               val port = eval.evalArg(1) as BitVal</span></span>
-<span id="L430"><span class="lineNum">     430</span> <span class="tlaGNC">           1 :               ostd.fields[&quot;drop&quot;] = BoolVal(false)</span></span>
-<span id="L431"><span class="lineNum">     431</span> <span class="tlaGNC">           1 :               ostd.fields[&quot;egress_port&quot;] = port</span></span>
-<span id="L432"><span class="lineNum">     432</span> <span class="tlaGNC">           1 :               UnitVal</span></span>
-<span id="L433"><span class="lineNum">     433</span>              :             }</span>
-<span id="L434"><span class="lineNum">     434</span>              :             // multicast(inout ostd, in MulticastGroup_t group)</span>
-<span id="L435"><span class="lineNum">     435</span>              :             // PSA spec §6.2: marks the packet for multicast replication.</span>
-<span id="L436"><span class="lineNum">     436</span>              :             &quot;multicast&quot; -&gt; {</span>
-<span id="L437"><span class="lineNum">     437</span> <span class="tlaGNC">           1 :               val ostd = eval.evalArg(0) as StructVal</span></span>
-<span id="L438"><span class="lineNum">     438</span> <span class="tlaGNC">           1 :               val group = eval.evalArg(1) as BitVal</span></span>
-<span id="L439"><span class="lineNum">     439</span> <span class="tlaGNC">           1 :               ostd.fields[&quot;drop&quot;] = BoolVal(false)</span></span>
-<span id="L440"><span class="lineNum">     440</span> <span class="tlaGNC">           1 :               ostd.fields[&quot;multicast_group&quot;] = group</span></span>
-<span id="L441"><span class="lineNum">     441</span> <span class="tlaGNC">           1 :               UnitVal</span></span>
-<span id="L442"><span class="lineNum">     442</span>              :             }</span>
-<span id="L443"><span class="lineNum">     443</span>              :             &quot;ingress_drop&quot;,</span>
-<span id="L444"><span class="lineNum">     444</span>              :             &quot;egress_drop&quot; -&gt; {</span>
-<span id="L445"><span class="lineNum">     445</span> <span class="tlaUNC tlaBgUNC">           0 :               val ostd = eval.evalArg(0) as StructVal</span></span>
-<span id="L446"><span class="lineNum">     446</span> <span class="tlaUNC">           0 :               ostd.fields[&quot;drop&quot;] = BoolVal(true)</span></span>
-<span id="L447"><span class="lineNum">     447</span> <span class="tlaUNC">           0 :               UnitVal</span></span>
-<span id="L448"><span class="lineNum">     448</span>              :             }</span>
-<span id="L449"><span class="lineNum">     449</span> <span class="tlaGNC tlaBgGNC">           1 :             else -&gt; error(&quot;unhandled PSA extern: ${call.name}&quot;)</span></span>
-<span id="L450"><span class="lineNum">     450</span>              :           }</span>
-<span id="L451"><span class="lineNum">     451</span> <span class="tlaGNC">           1 :         is ExternCall.Method -&gt;</span></span>
-<span id="L452"><span class="lineNum">     452</span> <span class="tlaGNC">           1 :           when (call.method) {</span></span>
-<span id="L453"><span class="lineNum">     453</span>              :             // PSA register.read(index) returns T directly (unlike v1model's void + out param).</span>
-<span id="L454"><span class="lineNum">     454</span>              :             &quot;read&quot; -&gt; {</span>
-<span id="L455"><span class="lineNum">     455</span> <span class="tlaGNC">           1 :               val index = (eval.evalArg(0) as BitVal).bits.value.toInt()</span></span>
-<span id="L456"><span class="lineNum">     456</span> <span class="tlaGNC">           1 :               pipeline.tableStore.registerRead(call.instanceName, index)</span></span>
-<span id="L457"><span class="lineNum">     457</span> <span class="tlaGNC">           1 :                 ?: eval.defaultValue(eval.returnType())</span></span>
-<span id="L458"><span class="lineNum">     458</span>              :             }</span>
-<span id="L459"><span class="lineNum">     459</span>              :             &quot;write&quot; -&gt; {</span>
-<span id="L460"><span class="lineNum">     460</span> <span class="tlaGNC">           1 :               val index = (eval.evalArg(0) as BitVal).bits.value.toInt()</span></span>
-<span id="L461"><span class="lineNum">     461</span> <span class="tlaGNC">           1 :               pipeline.tableStore.registerWrite(call.instanceName, index, eval.evalArg(1))</span></span>
-<span id="L462"><span class="lineNum">     462</span> <span class="tlaGNC">           1 :               UnitVal</span></span>
-<span id="L463"><span class="lineNum">     463</span>              :             }</span>
-<span id="L464"><span class="lineNum">     464</span> <span class="tlaGNC">           1 :             &quot;count&quot; -&gt; UnitVal</span></span>
-<span id="L465"><span class="lineNum">     465</span>              :             // PSA Hash.get_hash: 1-arg form returns hash(data), 3-arg form returns</span>
-<span id="L466"><span class="lineNum">     466</span>              :             // (base + hash(data)) mod max. Algorithm comes from constructor args.</span>
-<span id="L467"><span class="lineNum">     467</span> <span class="tlaGNC">           1 :             &quot;get_hash&quot; -&gt; evalGetHash(call, eval, pipeline.externInstances)</span></span>
-<span id="L468"><span class="lineNum">     468</span>              :             // PSA Meter.execute(index): returns PSA_MeterColor_t. Always GREEN — no real</span>
-<span id="L469"><span class="lineNum">     469</span>              :             // packet rates in simulator (same as v1model).</span>
-<span id="L470"><span class="lineNum">     470</span> <span class="tlaGNC">           1 :             &quot;execute&quot; -&gt; EnumVal(&quot;GREEN&quot;)</span></span>
-<span id="L471"><span class="lineNum">     471</span>              :             else -&gt;</span>
-<span id="L472"><span class="lineNum">     472</span> <span class="tlaUNC tlaBgUNC">           0 :               error(</span></span>
-<span id="L473"><span class="lineNum">     473</span> <span class="tlaUNC">           0 :                 &quot;unhandled PSA extern method: ${call.externType}.${call.method}&quot; +</span></span>
-<span id="L474"><span class="lineNum">     474</span> <span class="tlaUNC">           0 :                   &quot; on ${call.instanceName}&quot;</span></span>
-<span id="L475"><span class="lineNum">     475</span>              :               )</span>
-<span id="L476"><span class="lineNum">     476</span>              :           }</span>
-<span id="L477"><span class="lineNum">     477</span> <span class="tlaGNC tlaBgGNC">           1 :       }</span></span>
-<span id="L478"><span class="lineNum">     478</span> <span class="tlaGNC">           1 :     }</span></span>
-<span id="L479"><span class="lineNum">     479</span>              : </span>
-<span id="L480"><span class="lineNum">     480</span>              :   /** Evaluates PSA Hash.get_hash (1-arg or 3-arg form). */</span>
-<span id="L481"><span class="lineNum">     481</span>              :   private fun evalGetHash(</span>
-<span id="L482"><span class="lineNum">     482</span>              :     call: ExternCall.Method,</span>
-<span id="L483"><span class="lineNum">     483</span>              :     eval: ExternEvaluator,</span>
-<span id="L484"><span class="lineNum">     484</span>              :     externInstances: Map&lt;String, ExternInstanceDecl&gt;,</span>
-<span id="L485"><span class="lineNum">     485</span>              :   ): Value {</span>
-<span id="L486"><span class="lineNum">     486</span> <span class="tlaGNC">           1 :     val instance =</span></span>
-<span id="L487"><span class="lineNum">     487</span> <span class="tlaGNC">           1 :       externInstances[call.instanceName] ?: error(&quot;unknown Hash instance: ${call.instanceName}&quot;)</span></span>
-<span id="L488"><span class="lineNum">     488</span> <span class="tlaGNC">           1 :     val psaAlgorithm =</span></span>
-<span id="L489"><span class="lineNum">     489</span> <span class="tlaGNC">           1 :       instance.constructorArgsList.firstOrNull()?.literal?.enumMember</span></span>
-<span id="L490"><span class="lineNum">     490</span> <span class="tlaUNC tlaBgUNC">           0 :         ?: error(&quot;Hash instance ${call.instanceName} missing algorithm constructor arg&quot;)</span></span>
-<span id="L491"><span class="lineNum">     491</span> <span class="tlaGNC tlaBgGNC">           1 :     val algorithm =</span></span>
-<span id="L492"><span class="lineNum">     492</span> <span class="tlaGNC">           1 :       PSA_HASH_ALGORITHMS[psaAlgorithm] ?: error(&quot;unsupported PSA hash algorithm: $psaAlgorithm&quot;)</span></span>
-<span id="L493"><span class="lineNum">     493</span> <span class="tlaGNC">           1 :     val resultWidth = eval.returnType().bit.width</span></span>
-<span id="L494"><span class="lineNum">     494</span>              : </span>
-<span id="L495"><span class="lineNum">     495</span> <span class="tlaGNC">           1 :     return if (eval.argCount() == 1) {</span></span>
-<span id="L496"><span class="lineNum">     496</span>              :       // 1-arg form: get_hash(data) → hash(data) truncated to result width</span>
-<span id="L497"><span class="lineNum">     497</span> <span class="tlaGNC">           1 :       val data = eval.evalArg(0) as StructVal</span></span>
-<span id="L498"><span class="lineNum">     498</span> <span class="tlaGNC">           1 :       val hash = computeHash(algorithm, data)</span></span>
-<span id="L499"><span class="lineNum">     499</span> <span class="tlaGNC">           1 :       BitVal(BitVector(hash, resultWidth))</span></span>
-<span id="L500"><span class="lineNum">     500</span>              :     } else {</span>
-<span id="L501"><span class="lineNum">     501</span>              :       // 3-arg form: get_hash(base, data, max) → (base + hash(data)) mod max</span>
-<span id="L502"><span class="lineNum">     502</span> <span class="tlaGNC">           1 :       val base = (eval.evalArg(0) as BitVal).bits.value</span></span>
-<span id="L503"><span class="lineNum">     503</span> <span class="tlaGNC">           1 :       val data = eval.evalArg(1) as StructVal</span></span>
-<span id="L504"><span class="lineNum">     504</span> <span class="tlaGNC">           1 :       val max = (eval.evalArg(2) as BitVal).bits.value</span></span>
-<span id="L505"><span class="lineNum">     505</span> <span class="tlaGNC">           1 :       val hash = computeHash(algorithm, data)</span></span>
-<span id="L506"><span class="lineNum">     506</span> <span class="tlaGNC">           1 :       val result = if (max &gt; BigInteger.ZERO) base + hash.mod(max) else base</span></span>
-<span id="L507"><span class="lineNum">     507</span> <span class="tlaGNC">           1 :       BitVal(BitVector(result, resultWidth))</span></span>
-<span id="L508"><span class="lineNum">     508</span>              :     }</span>
-<span id="L509"><span class="lineNum">     509</span>              :   }</span>
-<span id="L510"><span class="lineNum">     510</span>              : </span>
-<span id="L511"><span class="lineNum">     511</span>              :   /** Builds a flat map from extern instance name → declaration across all controls. */</span>
-<span id="L512"><span class="lineNum">     512</span>              :   private fun buildExternInstancesMap(config: BehavioralConfig): Map&lt;String, ExternInstanceDecl&gt; =</span>
-<span id="L513"><span class="lineNum">     513</span> <span class="tlaGNC">           1 :     config.controlsList.flatMap { it.externInstancesList }.associateBy { it.name }</span></span>
+<span id="L420"><span class="lineNum">     420</span>              :   private fun createPsaExternHandler(pipeline: PipelineConfig): ExternHandler {</span>
+<span id="L421"><span class="lineNum">     421</span>              :     // Per-pipeline InternetChecksum state: instance name → running ones' complement sum.</span>
+<span id="L422"><span class="lineNum">     422</span>              :     // Fresh for each pipeline execution (ingress or egress).</span>
+<span id="L423"><span class="lineNum">     423</span> <span class="tlaGNC">           1 :     val checksumState = mutableMapOf&lt;String, BigInteger&gt;()</span></span>
+<span id="L424"><span class="lineNum">     424</span> <span class="tlaGNC">           1 :     return ExternHandler { call, eval -&gt;</span></span>
+<span id="L425"><span class="lineNum">     425</span> <span class="tlaGNC">           1 :       when (call) {</span></span>
+<span id="L426"><span class="lineNum">     426</span> <span class="tlaGNC">           1 :         is ExternCall.FreeFunction -&gt;</span></span>
+<span id="L427"><span class="lineNum">     427</span> <span class="tlaGNC">           1 :           when (call.name) {</span></span>
+<span id="L428"><span class="lineNum">     428</span>              :             // send_to_port(inout ostd, in PortId_t port)</span>
+<span id="L429"><span class="lineNum">     429</span>              :             // After midend, becomes: send_to_port(ostd, port) where ostd is the output metadata.</span>
+<span id="L430"><span class="lineNum">     430</span>              :             &quot;send_to_port&quot; -&gt; {</span>
+<span id="L431"><span class="lineNum">     431</span> <span class="tlaGNC">           1 :               val ostd = eval.evalArg(0) as StructVal</span></span>
+<span id="L432"><span class="lineNum">     432</span> <span class="tlaGNC">           1 :               val port = eval.evalArg(1) as BitVal</span></span>
+<span id="L433"><span class="lineNum">     433</span> <span class="tlaGNC">           1 :               ostd.fields[&quot;drop&quot;] = BoolVal(false)</span></span>
+<span id="L434"><span class="lineNum">     434</span> <span class="tlaGNC">           1 :               ostd.fields[&quot;egress_port&quot;] = port</span></span>
+<span id="L435"><span class="lineNum">     435</span> <span class="tlaGNC">           1 :               UnitVal</span></span>
+<span id="L436"><span class="lineNum">     436</span>              :             }</span>
+<span id="L437"><span class="lineNum">     437</span>              :             // multicast(inout ostd, in MulticastGroup_t group)</span>
+<span id="L438"><span class="lineNum">     438</span>              :             // PSA spec §6.2: marks the packet for multicast replication.</span>
+<span id="L439"><span class="lineNum">     439</span>              :             &quot;multicast&quot; -&gt; {</span>
+<span id="L440"><span class="lineNum">     440</span> <span class="tlaGNC">           1 :               val ostd = eval.evalArg(0) as StructVal</span></span>
+<span id="L441"><span class="lineNum">     441</span> <span class="tlaGNC">           1 :               val group = eval.evalArg(1) as BitVal</span></span>
+<span id="L442"><span class="lineNum">     442</span> <span class="tlaGNC">           1 :               ostd.fields[&quot;drop&quot;] = BoolVal(false)</span></span>
+<span id="L443"><span class="lineNum">     443</span> <span class="tlaGNC">           1 :               ostd.fields[&quot;multicast_group&quot;] = group</span></span>
+<span id="L444"><span class="lineNum">     444</span> <span class="tlaGNC">           1 :               UnitVal</span></span>
+<span id="L445"><span class="lineNum">     445</span>              :             }</span>
+<span id="L446"><span class="lineNum">     446</span>              :             &quot;ingress_drop&quot;,</span>
+<span id="L447"><span class="lineNum">     447</span>              :             &quot;egress_drop&quot; -&gt; {</span>
+<span id="L448"><span class="lineNum">     448</span> <span class="tlaUNC tlaBgUNC">           0 :               val ostd = eval.evalArg(0) as StructVal</span></span>
+<span id="L449"><span class="lineNum">     449</span> <span class="tlaUNC">           0 :               ostd.fields[&quot;drop&quot;] = BoolVal(true)</span></span>
+<span id="L450"><span class="lineNum">     450</span> <span class="tlaUNC">           0 :               UnitVal</span></span>
+<span id="L451"><span class="lineNum">     451</span>              :             }</span>
+<span id="L452"><span class="lineNum">     452</span> <span class="tlaGNC tlaBgGNC">           1 :             else -&gt; error(&quot;unhandled PSA extern: ${call.name}&quot;)</span></span>
+<span id="L453"><span class="lineNum">     453</span>              :           }</span>
+<span id="L454"><span class="lineNum">     454</span> <span class="tlaGNC">           1 :         is ExternCall.Method -&gt;</span></span>
+<span id="L455"><span class="lineNum">     455</span> <span class="tlaGNC">           1 :           when (call.method) {</span></span>
+<span id="L456"><span class="lineNum">     456</span>              :             // PSA register.read(index) returns T directly (unlike v1model's void + out param).</span>
+<span id="L457"><span class="lineNum">     457</span>              :             &quot;read&quot; -&gt; {</span>
+<span id="L458"><span class="lineNum">     458</span> <span class="tlaGNC">           1 :               val index = (eval.evalArg(0) as BitVal).bits.value.toInt()</span></span>
+<span id="L459"><span class="lineNum">     459</span> <span class="tlaGNC">           1 :               pipeline.tableStore.registerRead(call.instanceName, index)</span></span>
+<span id="L460"><span class="lineNum">     460</span> <span class="tlaGNC">           1 :                 ?: eval.defaultValue(eval.returnType())</span></span>
+<span id="L461"><span class="lineNum">     461</span>              :             }</span>
+<span id="L462"><span class="lineNum">     462</span>              :             &quot;write&quot; -&gt; {</span>
+<span id="L463"><span class="lineNum">     463</span> <span class="tlaGNC">           1 :               val index = (eval.evalArg(0) as BitVal).bits.value.toInt()</span></span>
+<span id="L464"><span class="lineNum">     464</span> <span class="tlaGNC">           1 :               pipeline.tableStore.registerWrite(call.instanceName, index, eval.evalArg(1))</span></span>
+<span id="L465"><span class="lineNum">     465</span> <span class="tlaGNC">           1 :               UnitVal</span></span>
+<span id="L466"><span class="lineNum">     466</span>              :             }</span>
+<span id="L467"><span class="lineNum">     467</span> <span class="tlaGNC">           1 :             &quot;count&quot; -&gt; UnitVal</span></span>
+<span id="L468"><span class="lineNum">     468</span>              :             // PSA Hash.get_hash: 1-arg form returns hash(data), 3-arg form returns</span>
+<span id="L469"><span class="lineNum">     469</span>              :             // (base + hash(data)) mod max. Algorithm comes from constructor args.</span>
+<span id="L470"><span class="lineNum">     470</span> <span class="tlaGNC">           1 :             &quot;get_hash&quot; -&gt; evalGetHash(call, eval, pipeline.externInstances)</span></span>
+<span id="L471"><span class="lineNum">     471</span>              :             // PSA Meter.execute(index): returns PSA_MeterColor_t. Always GREEN — no real</span>
+<span id="L472"><span class="lineNum">     472</span>              :             // packet rates in simulator (same as v1model).</span>
+<span id="L473"><span class="lineNum">     473</span> <span class="tlaGNC">           1 :             &quot;execute&quot; -&gt; EnumVal(&quot;GREEN&quot;)</span></span>
+<span id="L474"><span class="lineNum">     474</span>              :             // --- InternetChecksum extern (PSA spec §7.7) ---</span>
+<span id="L475"><span class="lineNum">     475</span>              :             &quot;clear&quot; -&gt; {</span>
+<span id="L476"><span class="lineNum">     476</span> <span class="tlaGNC">           1 :               checksumState[call.instanceName] = BigInteger.ZERO</span></span>
+<span id="L477"><span class="lineNum">     477</span> <span class="tlaGNC">           1 :               UnitVal</span></span>
+<span id="L478"><span class="lineNum">     478</span>              :             }</span>
+<span id="L479"><span class="lineNum">     479</span>              :             &quot;add&quot; -&gt; {</span>
+<span id="L480"><span class="lineNum">     480</span> <span class="tlaGNC">           1 :               val data = eval.evalArg(0) as StructVal</span></span>
+<span id="L481"><span class="lineNum">     481</span> <span class="tlaGNC">           1 :               val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)</span></span>
+<span id="L482"><span class="lineNum">     482</span> <span class="tlaGNC">           1 :               checksumState[call.instanceName] = onesComplementAdd(sum, sumWords(data))</span></span>
+<span id="L483"><span class="lineNum">     483</span> <span class="tlaGNC">           1 :               UnitVal</span></span>
+<span id="L484"><span class="lineNum">     484</span>              :             }</span>
+<span id="L485"><span class="lineNum">     485</span>              :             &quot;subtract&quot; -&gt; {</span>
+<span id="L486"><span class="lineNum">     486</span>              :               // RFC 1624: subtract by adding the ones' complement of the data's word sum.</span>
+<span id="L487"><span class="lineNum">     487</span> <span class="tlaGNC">           1 :               val data = eval.evalArg(0) as StructVal</span></span>
+<span id="L488"><span class="lineNum">     488</span> <span class="tlaGNC">           1 :               val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)</span></span>
+<span id="L489"><span class="lineNum">     489</span> <span class="tlaGNC">           1 :               val dataSumComplement = CSUM_MASK.subtract(sumWords(data))</span></span>
+<span id="L490"><span class="lineNum">     490</span> <span class="tlaGNC">           1 :               checksumState[call.instanceName] = onesComplementAdd(sum, dataSumComplement)</span></span>
+<span id="L491"><span class="lineNum">     491</span> <span class="tlaGNC">           1 :               UnitVal</span></span>
+<span id="L492"><span class="lineNum">     492</span>              :             }</span>
+<span id="L493"><span class="lineNum">     493</span>              :             &quot;get&quot; -&gt; {</span>
+<span id="L494"><span class="lineNum">     494</span> <span class="tlaGNC">           1 :               val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)</span></span>
+<span id="L495"><span class="lineNum">     495</span> <span class="tlaGNC">           1 :               BitVal(BitVector(CSUM_MASK.subtract(sum), CSUM_WORD_BITS))</span></span>
+<span id="L496"><span class="lineNum">     496</span>              :             }</span>
+<span id="L497"><span class="lineNum">     497</span>              :             &quot;get_state&quot; -&gt; {</span>
+<span id="L498"><span class="lineNum">     498</span> <span class="tlaUNC tlaBgUNC">           0 :               val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)</span></span>
+<span id="L499"><span class="lineNum">     499</span> <span class="tlaUNC">           0 :               BitVal(BitVector(sum, CSUM_WORD_BITS))</span></span>
+<span id="L500"><span class="lineNum">     500</span>              :             }</span>
+<span id="L501"><span class="lineNum">     501</span>              :             &quot;set_state&quot; -&gt; {</span>
+<span id="L502"><span class="lineNum">     502</span> <span class="tlaGNC tlaBgGNC">           1 :               checksumState[call.instanceName] = (eval.evalArg(0) as BitVal).bits.value</span></span>
+<span id="L503"><span class="lineNum">     503</span> <span class="tlaGNC">           1 :               UnitVal</span></span>
+<span id="L504"><span class="lineNum">     504</span>              :             }</span>
+<span id="L505"><span class="lineNum">     505</span>              :             else -&gt;</span>
+<span id="L506"><span class="lineNum">     506</span> <span class="tlaUNC tlaBgUNC">           0 :               error(</span></span>
+<span id="L507"><span class="lineNum">     507</span> <span class="tlaUNC">           0 :                 &quot;unhandled PSA extern method: ${call.externType}.${call.method}&quot; +</span></span>
+<span id="L508"><span class="lineNum">     508</span> <span class="tlaUNC">           0 :                   &quot; on ${call.instanceName}&quot;</span></span>
+<span id="L509"><span class="lineNum">     509</span>              :               )</span>
+<span id="L510"><span class="lineNum">     510</span>              :           }</span>
+<span id="L511"><span class="lineNum">     511</span> <span class="tlaGNC tlaBgGNC">           1 :       }</span></span>
+<span id="L512"><span class="lineNum">     512</span>              :     }</span>
+<span id="L513"><span class="lineNum">     513</span>              :   }</span>
 <span id="L514"><span class="lineNum">     514</span>              : </span>
-<span id="L515"><span class="lineNum">     515</span>              :   // ---------------------------------------------------------------------------</span>
-<span id="L516"><span class="lineNum">     516</span>              :   // Trace helpers</span>
-<span id="L517"><span class="lineNum">     517</span>              :   // ---------------------------------------------------------------------------</span>
-<span id="L518"><span class="lineNum">     518</span>              : </span>
-<span id="L519"><span class="lineNum">     519</span>              :   private fun buildDropResult(events: List&lt;TraceEvent&gt;): PipelineResult =</span>
-<span id="L520"><span class="lineNum">     520</span> <span class="tlaGNC">           1 :     PipelineResult(buildDropTrace(events))</span></span>
-<span id="L521"><span class="lineNum">     521</span>              : </span>
-<span id="L522"><span class="lineNum">     522</span>              :   private fun buildDropTrace(events: List&lt;TraceEvent&gt;): TraceTree {</span>
-<span id="L523"><span class="lineNum">     523</span> <span class="tlaGNC">           1 :     val outcome =</span></span>
-<span id="L524"><span class="lineNum">     524</span> <span class="tlaGNC">           1 :       PacketOutcome.newBuilder()</span></span>
-<span id="L525"><span class="lineNum">     525</span> <span class="tlaGNC">           1 :         .setDrop(Drop.newBuilder().setReason(DropReason.MARK_TO_DROP))</span></span>
-<span id="L526"><span class="lineNum">     526</span> <span class="tlaGNC">           1 :         .build()</span></span>
-<span id="L527"><span class="lineNum">     527</span> <span class="tlaGNC">           1 :     return TraceTree.newBuilder().addAllEvents(events).setPacketOutcome(outcome).build()</span></span>
-<span id="L528"><span class="lineNum">     528</span>              :   }</span>
+<span id="L515"><span class="lineNum">     515</span>              :   /** Evaluates PSA Hash.get_hash (1-arg or 3-arg form). */</span>
+<span id="L516"><span class="lineNum">     516</span>              :   private fun evalGetHash(</span>
+<span id="L517"><span class="lineNum">     517</span>              :     call: ExternCall.Method,</span>
+<span id="L518"><span class="lineNum">     518</span>              :     eval: ExternEvaluator,</span>
+<span id="L519"><span class="lineNum">     519</span>              :     externInstances: Map&lt;String, ExternInstanceDecl&gt;,</span>
+<span id="L520"><span class="lineNum">     520</span>              :   ): Value {</span>
+<span id="L521"><span class="lineNum">     521</span> <span class="tlaGNC">           1 :     val instance =</span></span>
+<span id="L522"><span class="lineNum">     522</span> <span class="tlaGNC">           1 :       externInstances[call.instanceName] ?: error(&quot;unknown Hash instance: ${call.instanceName}&quot;)</span></span>
+<span id="L523"><span class="lineNum">     523</span> <span class="tlaGNC">           1 :     val psaAlgorithm =</span></span>
+<span id="L524"><span class="lineNum">     524</span> <span class="tlaGNC">           1 :       instance.constructorArgsList.firstOrNull()?.literal?.enumMember</span></span>
+<span id="L525"><span class="lineNum">     525</span> <span class="tlaUNC tlaBgUNC">           0 :         ?: error(&quot;Hash instance ${call.instanceName} missing algorithm constructor arg&quot;)</span></span>
+<span id="L526"><span class="lineNum">     526</span> <span class="tlaGNC tlaBgGNC">           1 :     val algorithm =</span></span>
+<span id="L527"><span class="lineNum">     527</span> <span class="tlaGNC">           1 :       PSA_HASH_ALGORITHMS[psaAlgorithm] ?: error(&quot;unsupported PSA hash algorithm: $psaAlgorithm&quot;)</span></span>
+<span id="L528"><span class="lineNum">     528</span> <span class="tlaGNC">           1 :     val resultWidth = eval.returnType().bit.width</span></span>
 <span id="L529"><span class="lineNum">     529</span>              : </span>
-<span id="L530"><span class="lineNum">     530</span>              :   private fun buildOutputTrace(events: List&lt;TraceEvent&gt;, port: Int, payload: ByteArray): TraceTree {</span>
-<span id="L531"><span class="lineNum">     531</span> <span class="tlaGNC">           1 :     val output =</span></span>
-<span id="L532"><span class="lineNum">     532</span> <span class="tlaGNC">           1 :       fourward.sim.v1.SimulatorProto.OutputPacket.newBuilder()</span></span>
-<span id="L533"><span class="lineNum">     533</span> <span class="tlaGNC">           1 :         .setEgressPort(port)</span></span>
-<span id="L534"><span class="lineNum">     534</span> <span class="tlaGNC">           1 :         .setPayload(com.google.protobuf.ByteString.copyFrom(payload))</span></span>
-<span id="L535"><span class="lineNum">     535</span> <span class="tlaGNC">           1 :         .build()</span></span>
-<span id="L536"><span class="lineNum">     536</span> <span class="tlaGNC">           1 :     val outcome = PacketOutcome.newBuilder().setOutput(output).build()</span></span>
-<span id="L537"><span class="lineNum">     537</span> <span class="tlaGNC">           1 :     return TraceTree.newBuilder().addAllEvents(events).setPacketOutcome(outcome).build()</span></span>
-<span id="L538"><span class="lineNum">     538</span>              :   }</span>
-<span id="L539"><span class="lineNum">     539</span>              : </span>
-<span id="L540"><span class="lineNum">     540</span>              :   private fun packetIngressEvent(ingressPort: UInt): TraceEvent =</span>
-<span id="L541"><span class="lineNum">     541</span> <span class="tlaGNC">           1 :     TraceEvent.newBuilder()</span></span>
-<span id="L542"><span class="lineNum">     542</span> <span class="tlaGNC">           1 :       .setPacketIngress(PacketIngressEvent.newBuilder().setIngressPort(ingressPort.toInt()))</span></span>
-<span id="L543"><span class="lineNum">     543</span> <span class="tlaGNC">           1 :       .build()</span></span>
-<span id="L544"><span class="lineNum">     544</span>              : </span>
-<span id="L545"><span class="lineNum">     545</span>              :   private fun stageEvent(</span>
-<span id="L546"><span class="lineNum">     546</span>              :     stage: PipelineStage,</span>
-<span id="L547"><span class="lineNum">     547</span>              :     direction: PipelineStageEvent.Direction,</span>
-<span id="L548"><span class="lineNum">     548</span>              :   ): TraceEvent =</span>
-<span id="L549"><span class="lineNum">     549</span> <span class="tlaGNC">           1 :     TraceEvent.newBuilder()</span></span>
-<span id="L550"><span class="lineNum">     550</span> <span class="tlaGNC">           1 :       .setPipelineStage(</span></span>
-<span id="L551"><span class="lineNum">     551</span> <span class="tlaGNC">           1 :         PipelineStageEvent.newBuilder()</span></span>
-<span id="L552"><span class="lineNum">     552</span> <span class="tlaGNC">           1 :           .setStageName(stage.name)</span></span>
-<span id="L553"><span class="lineNum">     553</span> <span class="tlaGNC">           1 :           .setStageKind(stage.kind)</span></span>
-<span id="L554"><span class="lineNum">     554</span> <span class="tlaGNC">           1 :           .setDirection(direction)</span></span>
-<span id="L555"><span class="lineNum">     555</span>              :       )</span>
-<span id="L556"><span class="lineNum">     556</span> <span class="tlaGNC">           1 :       .build()</span></span>
-<span id="L557"><span class="lineNum">     557</span>              : </span>
-<span id="L558"><span class="lineNum">     558</span>              :   private companion object {</span>
-<span id="L559"><span class="lineNum">     559</span>              :     /** Architecture-level packet I/O types that are not user-visible parameters. */</span>
-<span id="L560"><span class="lineNum">     560</span> <span class="tlaGNC">           1 :     val IO_TYPES = setOf(&quot;packet_in&quot;, &quot;packet_out&quot;)</span></span>
-<span id="L561"><span class="lineNum">     561</span>              : </span>
-<span id="L562"><span class="lineNum">     562</span>              :     /** Maps PSA_HashAlgorithm_t enum members to the internal algorithm names used by Hash.kt. */</span>
-<span id="L563"><span class="lineNum">     563</span> <span class="tlaUNC tlaBgUNC">           0 :     val PSA_HASH_ALGORITHMS =</span></span>
-<span id="L564"><span class="lineNum">     564</span> <span class="tlaGNC tlaBgGNC">           1 :       mapOf(</span></span>
-<span id="L565"><span class="lineNum">     565</span> <span class="tlaGNC">           1 :         &quot;IDENTITY&quot; to &quot;identity&quot;,</span></span>
-<span id="L566"><span class="lineNum">     566</span> <span class="tlaGNC">           1 :         &quot;CRC16&quot; to &quot;crc16&quot;,</span></span>
-<span id="L567"><span class="lineNum">     567</span> <span class="tlaGNC">           1 :         &quot;CRC32&quot; to &quot;crc32&quot;,</span></span>
-<span id="L568"><span class="lineNum">     568</span> <span class="tlaGNC">           1 :         &quot;ONES_COMPLEMENT16&quot; to &quot;csum16&quot;,</span></span>
-<span id="L569"><span class="lineNum">     569</span>              :       )</span>
-<span id="L570"><span class="lineNum">     570</span>              :   }</span>
-<span id="L571"><span class="lineNum">     571</span>              : }</span>
+<span id="L530"><span class="lineNum">     530</span> <span class="tlaGNC">           1 :     return if (eval.argCount() == 1) {</span></span>
+<span id="L531"><span class="lineNum">     531</span>              :       // 1-arg form: get_hash(data) → hash(data) truncated to result width</span>
+<span id="L532"><span class="lineNum">     532</span> <span class="tlaGNC">           1 :       val data = eval.evalArg(0) as StructVal</span></span>
+<span id="L533"><span class="lineNum">     533</span> <span class="tlaGNC">           1 :       val hash = computeHash(algorithm, data)</span></span>
+<span id="L534"><span class="lineNum">     534</span> <span class="tlaGNC">           1 :       BitVal(BitVector(hash, resultWidth))</span></span>
+<span id="L535"><span class="lineNum">     535</span>              :     } else {</span>
+<span id="L536"><span class="lineNum">     536</span>              :       // 3-arg form: get_hash(base, data, max) → (base + hash(data)) mod max</span>
+<span id="L537"><span class="lineNum">     537</span> <span class="tlaGNC">           1 :       val base = (eval.evalArg(0) as BitVal).bits.value</span></span>
+<span id="L538"><span class="lineNum">     538</span> <span class="tlaGNC">           1 :       val data = eval.evalArg(1) as StructVal</span></span>
+<span id="L539"><span class="lineNum">     539</span> <span class="tlaGNC">           1 :       val max = (eval.evalArg(2) as BitVal).bits.value</span></span>
+<span id="L540"><span class="lineNum">     540</span> <span class="tlaGNC">           1 :       val hash = computeHash(algorithm, data)</span></span>
+<span id="L541"><span class="lineNum">     541</span> <span class="tlaGNC">           1 :       val result = if (max &gt; BigInteger.ZERO) base + hash.mod(max) else base</span></span>
+<span id="L542"><span class="lineNum">     542</span> <span class="tlaGNC">           1 :       BitVal(BitVector(result, resultWidth))</span></span>
+<span id="L543"><span class="lineNum">     543</span>              :     }</span>
+<span id="L544"><span class="lineNum">     544</span>              :   }</span>
+<span id="L545"><span class="lineNum">     545</span>              : </span>
+<span id="L546"><span class="lineNum">     546</span>              :   /**</span>
+<span id="L547"><span class="lineNum">     547</span>              :    * Sums all 16-bit words in [data]'s concatenated fields using ones' complement addition.</span>
+<span id="L548"><span class="lineNum">     548</span>              :    *</span>
+<span id="L549"><span class="lineNum">     549</span>              :    * Pads to a 16-bit boundary. Returns the raw sum (not complemented).</span>
+<span id="L550"><span class="lineNum">     550</span>              :    */</span>
+<span id="L551"><span class="lineNum">     551</span>              :   private fun sumWords(data: StructVal): BigInteger {</span>
+<span id="L552"><span class="lineNum">     552</span> <span class="tlaGNC">           1 :     val combined = concatFields(data) ?: return BigInteger.ZERO</span></span>
+<span id="L553"><span class="lineNum">     553</span> <span class="tlaGNC">           1 :     val totalWidth = combined.width</span></span>
+<span id="L554"><span class="lineNum">     554</span> <span class="tlaGNC">           1 :     val padded = ((totalWidth + CSUM_WORD_BITS - 1) / CSUM_WORD_BITS) * CSUM_WORD_BITS</span></span>
+<span id="L555"><span class="lineNum">     555</span> <span class="tlaGNC">           1 :     var bits = combined.value.shiftLeft(padded - totalWidth)</span></span>
+<span id="L556"><span class="lineNum">     556</span> <span class="tlaGNC">           1 :     var sum = BigInteger.ZERO</span></span>
+<span id="L557"><span class="lineNum">     557</span> <span class="tlaGNC">           1 :     for (i in 0 until padded / CSUM_WORD_BITS) {</span></span>
+<span id="L558"><span class="lineNum">     558</span> <span class="tlaGNC">           1 :       val word = bits.shiftRight(padded - (i + 1) * CSUM_WORD_BITS).and(CSUM_MASK)</span></span>
+<span id="L559"><span class="lineNum">     559</span> <span class="tlaGNC">           1 :       sum = sum.add(word)</span></span>
+<span id="L560"><span class="lineNum">     560</span>              :     }</span>
+<span id="L561"><span class="lineNum">     561</span> <span class="tlaGNC">           1 :     return foldCarries(sum)</span></span>
+<span id="L562"><span class="lineNum">     562</span>              :   }</span>
+<span id="L563"><span class="lineNum">     563</span>              : </span>
+<span id="L564"><span class="lineNum">     564</span>              :   /** Folds carries back into a 16-bit ones' complement value. */</span>
+<span id="L565"><span class="lineNum">     565</span>              :   private fun foldCarries(value: BigInteger): BigInteger {</span>
+<span id="L566"><span class="lineNum">     566</span> <span class="tlaGNC">           1 :     var sum = value</span></span>
+<span id="L567"><span class="lineNum">     567</span> <span class="tlaGNC">           1 :     while (sum &gt; CSUM_MASK) {</span></span>
+<span id="L568"><span class="lineNum">     568</span> <span class="tlaGNC">           1 :       sum = sum.and(CSUM_MASK).add(sum.shiftRight(CSUM_WORD_BITS))</span></span>
+<span id="L569"><span class="lineNum">     569</span>              :     }</span>
+<span id="L570"><span class="lineNum">     570</span> <span class="tlaGNC">           1 :     return sum</span></span>
+<span id="L571"><span class="lineNum">     571</span>              :   }</span>
+<span id="L572"><span class="lineNum">     572</span>              : </span>
+<span id="L573"><span class="lineNum">     573</span>              :   /** Ones' complement addition of two 16-bit values with carry folding. */</span>
+<span id="L574"><span class="lineNum">     574</span> <span class="tlaGNC">           1 :   private fun onesComplementAdd(a: BigInteger, b: BigInteger): BigInteger = foldCarries(a.add(b))</span></span>
+<span id="L575"><span class="lineNum">     575</span>              : </span>
+<span id="L576"><span class="lineNum">     576</span>              :   /** Builds a flat map from extern instance name → declaration across all parsers and controls. */</span>
+<span id="L577"><span class="lineNum">     577</span>              :   private fun buildExternInstancesMap(config: BehavioralConfig): Map&lt;String, ExternInstanceDecl&gt; =</span>
+<span id="L578"><span class="lineNum">     578</span> <span class="tlaGNC">           1 :     (config.parsersList.flatMap { it.externInstancesList } +</span></span>
+<span id="L579"><span class="lineNum">     579</span> <span class="tlaGNC">           1 :         config.controlsList.flatMap { it.externInstancesList })</span></span>
+<span id="L580"><span class="lineNum">     580</span> <span class="tlaGNC">           1 :       .associateBy { it.name }</span></span>
+<span id="L581"><span class="lineNum">     581</span>              : </span>
+<span id="L582"><span class="lineNum">     582</span>              :   // ---------------------------------------------------------------------------</span>
+<span id="L583"><span class="lineNum">     583</span>              :   // Trace helpers</span>
+<span id="L584"><span class="lineNum">     584</span>              :   // ---------------------------------------------------------------------------</span>
+<span id="L585"><span class="lineNum">     585</span>              : </span>
+<span id="L586"><span class="lineNum">     586</span>              :   private fun buildDropResult(events: List&lt;TraceEvent&gt;): PipelineResult =</span>
+<span id="L587"><span class="lineNum">     587</span> <span class="tlaGNC">           1 :     PipelineResult(buildDropTrace(events))</span></span>
+<span id="L588"><span class="lineNum">     588</span>              : </span>
+<span id="L589"><span class="lineNum">     589</span>              :   private fun buildDropTrace(events: List&lt;TraceEvent&gt;): TraceTree {</span>
+<span id="L590"><span class="lineNum">     590</span> <span class="tlaGNC">           1 :     val outcome =</span></span>
+<span id="L591"><span class="lineNum">     591</span> <span class="tlaGNC">           1 :       PacketOutcome.newBuilder()</span></span>
+<span id="L592"><span class="lineNum">     592</span> <span class="tlaGNC">           1 :         .setDrop(Drop.newBuilder().setReason(DropReason.MARK_TO_DROP))</span></span>
+<span id="L593"><span class="lineNum">     593</span> <span class="tlaGNC">           1 :         .build()</span></span>
+<span id="L594"><span class="lineNum">     594</span> <span class="tlaGNC">           1 :     return TraceTree.newBuilder().addAllEvents(events).setPacketOutcome(outcome).build()</span></span>
+<span id="L595"><span class="lineNum">     595</span>              :   }</span>
+<span id="L596"><span class="lineNum">     596</span>              : </span>
+<span id="L597"><span class="lineNum">     597</span>              :   private fun buildOutputTrace(events: List&lt;TraceEvent&gt;, port: Int, payload: ByteArray): TraceTree {</span>
+<span id="L598"><span class="lineNum">     598</span> <span class="tlaGNC">           1 :     val output =</span></span>
+<span id="L599"><span class="lineNum">     599</span> <span class="tlaGNC">           1 :       fourward.sim.v1.SimulatorProto.OutputPacket.newBuilder()</span></span>
+<span id="L600"><span class="lineNum">     600</span> <span class="tlaGNC">           1 :         .setEgressPort(port)</span></span>
+<span id="L601"><span class="lineNum">     601</span> <span class="tlaGNC">           1 :         .setPayload(com.google.protobuf.ByteString.copyFrom(payload))</span></span>
+<span id="L602"><span class="lineNum">     602</span> <span class="tlaGNC">           1 :         .build()</span></span>
+<span id="L603"><span class="lineNum">     603</span> <span class="tlaGNC">           1 :     val outcome = PacketOutcome.newBuilder().setOutput(output).build()</span></span>
+<span id="L604"><span class="lineNum">     604</span> <span class="tlaGNC">           1 :     return TraceTree.newBuilder().addAllEvents(events).setPacketOutcome(outcome).build()</span></span>
+<span id="L605"><span class="lineNum">     605</span>              :   }</span>
+<span id="L606"><span class="lineNum">     606</span>              : </span>
+<span id="L607"><span class="lineNum">     607</span>              :   private fun packetIngressEvent(ingressPort: UInt): TraceEvent =</span>
+<span id="L608"><span class="lineNum">     608</span> <span class="tlaGNC">           1 :     TraceEvent.newBuilder()</span></span>
+<span id="L609"><span class="lineNum">     609</span> <span class="tlaGNC">           1 :       .setPacketIngress(PacketIngressEvent.newBuilder().setIngressPort(ingressPort.toInt()))</span></span>
+<span id="L610"><span class="lineNum">     610</span> <span class="tlaGNC">           1 :       .build()</span></span>
+<span id="L611"><span class="lineNum">     611</span>              : </span>
+<span id="L612"><span class="lineNum">     612</span>              :   private fun stageEvent(</span>
+<span id="L613"><span class="lineNum">     613</span>              :     stage: PipelineStage,</span>
+<span id="L614"><span class="lineNum">     614</span>              :     direction: PipelineStageEvent.Direction,</span>
+<span id="L615"><span class="lineNum">     615</span>              :   ): TraceEvent =</span>
+<span id="L616"><span class="lineNum">     616</span> <span class="tlaGNC">           1 :     TraceEvent.newBuilder()</span></span>
+<span id="L617"><span class="lineNum">     617</span> <span class="tlaGNC">           1 :       .setPipelineStage(</span></span>
+<span id="L618"><span class="lineNum">     618</span> <span class="tlaGNC">           1 :         PipelineStageEvent.newBuilder()</span></span>
+<span id="L619"><span class="lineNum">     619</span> <span class="tlaGNC">           1 :           .setStageName(stage.name)</span></span>
+<span id="L620"><span class="lineNum">     620</span> <span class="tlaGNC">           1 :           .setStageKind(stage.kind)</span></span>
+<span id="L621"><span class="lineNum">     621</span> <span class="tlaGNC">           1 :           .setDirection(direction)</span></span>
+<span id="L622"><span class="lineNum">     622</span>              :       )</span>
+<span id="L623"><span class="lineNum">     623</span> <span class="tlaGNC">           1 :       .build()</span></span>
+<span id="L624"><span class="lineNum">     624</span>              : </span>
+<span id="L625"><span class="lineNum">     625</span>              :   private companion object {</span>
+<span id="L626"><span class="lineNum">     626</span>              :     /** Architecture-level packet I/O types that are not user-visible parameters. */</span>
+<span id="L627"><span class="lineNum">     627</span> <span class="tlaGNC">           1 :     val IO_TYPES = setOf(&quot;packet_in&quot;, &quot;packet_out&quot;)</span></span>
+<span id="L628"><span class="lineNum">     628</span>              : </span>
+<span id="L629"><span class="lineNum">     629</span>              :     /** Maps PSA_HashAlgorithm_t enum members to the internal algorithm names used by Hash.kt. */</span>
+<span id="L630"><span class="lineNum">     630</span> <span class="tlaUNC tlaBgUNC">           0 :     val PSA_HASH_ALGORITHMS =</span></span>
+<span id="L631"><span class="lineNum">     631</span> <span class="tlaGNC tlaBgGNC">           1 :       mapOf(</span></span>
+<span id="L632"><span class="lineNum">     632</span> <span class="tlaGNC">           1 :         &quot;IDENTITY&quot; to &quot;identity&quot;,</span></span>
+<span id="L633"><span class="lineNum">     633</span> <span class="tlaGNC">           1 :         &quot;CRC16&quot; to &quot;crc16&quot;,</span></span>
+<span id="L634"><span class="lineNum">     634</span> <span class="tlaGNC">           1 :         &quot;CRC32&quot; to &quot;crc32&quot;,</span></span>
+<span id="L635"><span class="lineNum">     635</span> <span class="tlaGNC">           1 :         &quot;ONES_COMPLEMENT16&quot; to &quot;csum16&quot;,</span></span>
+<span id="L636"><span class="lineNum">     636</span>              :       )</span>
+<span id="L637"><span class="lineNum">     637</span>              :   }</span>
+<span id="L638"><span class="lineNum">     638</span>              : }</span>
         </pre>
               </td>
             </tr>
