@@ -142,6 +142,13 @@ fun installStfEntries(sim: Simulator, stf: StfFile, p4Info: P4InfoOuterClass.P4I
       "multicast",
     )
   }
+  // mirroring_add_mc resolves mc group → replicas from parsed STF data, so install order is fine.
+  for (mirror in stf.pre.mirroringAddMcs) {
+    write(
+      resolveStfMirroringAddMc(mirror, stf.pre.mcNodeCreates, stf.pre.mcNodeAssociates),
+      "mirroring_mc",
+    )
+  }
   for (member in stf.memberDirectives) {
     write(resolveStfMember(member, p4Info), "member")
   }
@@ -186,6 +193,7 @@ fun runStf(configPath: Path, stfPath: Path): TestResult = StfRunner(configPath).
 /** Packet Replication Engine configuration parsed from STF directives. */
 data class StfPreConfig(
   val mirroringAdds: List<StfMirroringAdd> = emptyList(),
+  val mirroringAddMcs: List<StfMirroringAddMc> = emptyList(),
   val mcGroupCreates: List<StfMcGroupCreate> = emptyList(),
   val mcNodeCreates: List<StfMcNodeCreate> = emptyList(),
   val mcNodeAssociates: List<StfMcNodeAssociate> = emptyList(),
@@ -210,7 +218,9 @@ data class StfFile(
      * - `setdefault <table> <action(params)>` — override a table's default action
      * - `member <profile> <member_id> <action(params)>` — action profile member
      * - `group <profile> <group_id> <member_id>...` — action profile group
-     * - `mirroring_add <session_id> <egress_port>` — clone session
+     * - `mirroring_add <session_id> <egress_port>` — clone session (single port)
+     * - `mirroring_add_mc <session_id> <mc_group_id>` — clone session → multicast group (PSA)
+     * - `mirroring_get <session_id>` — informational query (ignored)
      * - `mc_mgrp_create <group_id>` — multicast group
      * - `mc_node_create <rid> <port> [<port> ...]` — multicast node
      * - `mc_node_associate <group_id> <node_handle>` — associate node with group
@@ -229,6 +239,7 @@ data class StfFile(
       val memberDirectives = mutableListOf<StfMemberDirective>()
       val groupDirectives = mutableListOf<StfGroupDirective>()
       val mirroringAdds = mutableListOf<StfMirroringAdd>()
+      val mirroringAddMcs = mutableListOf<StfMirroringAddMc>()
       val mcGroupCreates = mutableListOf<StfMcGroupCreate>()
       val mcNodeCreates = mutableListOf<StfMcNodeCreate>()
       val mcNodeAssociates = mutableListOf<StfMcNodeAssociate>()
@@ -258,6 +269,8 @@ data class StfFile(
           "member" -> memberDirectives += parseMember(tokens.drop(1))
           "group" -> groupDirectives += parseGroup(tokens.drop(1))
           "mirroring_add" -> mirroringAdds += parseMirroringAdd(tokens.drop(1))
+          "mirroring_add_mc" -> mirroringAddMcs += parseMirroringAddMc(tokens.drop(1))
+          "mirroring_get" -> {} // Informational only — not needed for simulation.
           "mc_mgrp_create" -> mcGroupCreates += parseMcGroupCreate(tokens.drop(1))
           "mc_node_create" -> mcNodeCreates += parseMcNodeCreate(tokens.drop(1))
           "mc_node_associate" -> mcNodeAssociates += parseMcNodeAssociate(tokens.drop(1))
@@ -268,7 +281,13 @@ data class StfFile(
         tableEntries,
         memberDirectives,
         groupDirectives,
-        StfPreConfig(mirroringAdds, mcGroupCreates, mcNodeCreates, mcNodeAssociates),
+        StfPreConfig(
+          mirroringAdds,
+          mirroringAddMcs,
+          mcGroupCreates,
+          mcNodeCreates,
+          mcNodeAssociates,
+        ),
         packets,
         expects,
       )
@@ -415,6 +434,12 @@ data class StfFile(
     private fun parseMirroringAdd(tokens: List<String>): StfMirroringAdd {
       require(tokens.size >= 2) { "mirroring_add needs session_id and egress_port" }
       return StfMirroringAdd(tokens[0].toInt(), tokens[1].toInt())
+    }
+
+    /** Parses: `mirroring_add_mc <session_id> <mc_group_id>` (PSA clone → multicast group). */
+    private fun parseMirroringAddMc(tokens: List<String>): StfMirroringAddMc {
+      require(tokens.size >= 2) { "mirroring_add_mc needs session_id and mc_group_id" }
+      return StfMirroringAddMc(tokens[0].toInt(), tokens[1].toInt())
     }
 
     /** Parses: `mc_mgrp_create <group_id>` */
@@ -578,6 +603,33 @@ fun resolveStfMirroringAdd(directive: StfMirroringAdd): P4RuntimeOuterClass.Upda
 }
 
 /**
+ * Resolves a mirroring_add_mc directive (PSA: clone session → multicast group) into a P4Runtime
+ * [Update]. Looks up the multicast group's replicas from the parsed STF data and creates a
+ * [P4RuntimeOuterClass.CloneSessionEntry] with those replicas.
+ */
+fun resolveStfMirroringAddMc(
+  directive: StfMirroringAddMc,
+  nodes: List<StfMcNodeCreate>,
+  associations: List<StfMcNodeAssociate>,
+): P4RuntimeOuterClass.Update {
+  val replicas = resolveReplicas(directive.mcGroupId, nodes, associations)
+
+  val session =
+    P4RuntimeOuterClass.CloneSessionEntry.newBuilder()
+      .setSessionId(directive.sessionId)
+      .addAllReplicas(replicas)
+      .build()
+
+  return update(
+    P4RuntimeOuterClass.Entity.newBuilder()
+      .setPacketReplicationEngineEntry(
+        P4RuntimeOuterClass.PacketReplicationEngineEntry.newBuilder().setCloneSessionEntry(session)
+      )
+      .build()
+  )
+}
+
+/**
  * Resolves multicast STF directives into a P4Runtime [Update].
  *
  * BMv2 STF uses three directives to configure multicast: mc_mgrp_create, mc_node_create, and
@@ -591,16 +643,7 @@ fun resolveStfMulticastGroup(
   nodes: List<StfMcNodeCreate>,
   associations: List<StfMcNodeAssociate>,
 ): P4RuntimeOuterClass.Update {
-  val replicas =
-    associations
-      .filter { it.groupId == groupId }
-      .flatMap { assoc ->
-        val node =
-          nodes.getOrNull(assoc.nodeHandle) ?: error("unknown mc node handle: ${assoc.nodeHandle}")
-        node.ports.map { port ->
-          P4RuntimeOuterClass.Replica.newBuilder().setEgressPort(port).setInstance(node.rid).build()
-        }
-      }
+  val replicas = resolveReplicas(groupId, nodes, associations)
 
   val group =
     P4RuntimeOuterClass.MulticastGroupEntry.newBuilder()
@@ -616,6 +659,25 @@ fun resolveStfMulticastGroup(
       .build()
   )
 }
+
+/**
+ * Resolves a multicast group's replicas from parsed STF mc_node_create and mc_node_associate
+ * directives. Node handles are sequential indices into [nodes] (BMv2 convention).
+ */
+private fun resolveReplicas(
+  groupId: Int,
+  nodes: List<StfMcNodeCreate>,
+  associations: List<StfMcNodeAssociate>,
+): List<P4RuntimeOuterClass.Replica> =
+  associations
+    .filter { it.groupId == groupId }
+    .flatMap { assoc ->
+      val node =
+        nodes.getOrNull(assoc.nodeHandle) ?: error("unknown mc node handle: ${assoc.nodeHandle}")
+      node.ports.map { port ->
+        P4RuntimeOuterClass.Replica.newBuilder().setEgressPort(port).setInstance(node.rid).build()
+      }
+    }
 
 /** Wraps a P4Runtime Entity in an [Update] with the given update type. */
 private fun update(
@@ -803,6 +865,8 @@ data class StfMemberDirective(
 data class StfGroupDirective(val profileName: String, val groupId: Int, val memberIds: List<Int>)
 
 data class StfMirroringAdd(val sessionId: Int, val egressPort: Int)
+
+data class StfMirroringAddMc(val sessionId: Int, val mcGroupId: Int)
 
 data class StfMcGroupCreate(val groupId: Int)
 

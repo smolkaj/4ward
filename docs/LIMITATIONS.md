@@ -12,14 +12,15 @@ guilt — just write it down so someone can find it later.
 
 ## Architecture support
 
-- **PSA: pipeline, registers, multicast, Hash, Meter, InternetChecksum.** The
-  PSA two-pipeline architecture (ingress + egress) is implemented with support
-  for `send_to_port`, `ingress_drop`, `egress_drop`, `multicast`, registers,
-  `Hash.get_hash`, `Meter.execute` (stub GREEN), `InternetChecksum`
+- **PSA: pipeline, registers, multicast, cloning, recirculate, Hash, Meter,
+  InternetChecksum.** The PSA two-pipeline architecture (ingress + egress) is
+  implemented with support for `send_to_port`, `ingress_drop`, `egress_drop`,
+  `multicast`, I2E/E2E cloning (via `ostd.clone` + `clone_session_id`),
+  recirculate (`PSA_PORT_RECIRCULATE`), registers, `Hash.get_hash`,
+  `Meter.execute` (stub GREEN), `InternetChecksum`
   (clear/add/subtract/get/get_state/set_state), basic counters, and top-level
-  assignments. 20 of 26 PSA corpus tests pass. Missing: I2E/E2E cloning,
-  resubmit, recirculate, `lookahead` type resolution. PNA and TNA are not
-  implemented.
+  assignments. 23 of 26 PSA corpus tests pass. Missing: resubmit,
+  `lookahead` type resolution. PNA and TNA are not implemented.
 
 ## Externs
 
