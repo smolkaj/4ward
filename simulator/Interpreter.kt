@@ -18,6 +18,7 @@ import fourward.ir.v1.UnaryOperator
 import fourward.sim.v1.SimulatorProto.ActionExecutionEvent
 import fourward.sim.v1.SimulatorProto.AssertionEvent
 import fourward.sim.v1.SimulatorProto.BranchEvent
+import fourward.sim.v1.SimulatorProto.DeparserEmitEvent
 import fourward.sim.v1.SimulatorProto.ParserTransitionEvent
 import fourward.sim.v1.SimulatorProto.TableLookupEvent
 import fourward.sim.v1.SimulatorProto.TraceEvent
@@ -1118,7 +1119,17 @@ class Interpreter(
       }
       bitOffset += width
     }
-    if (totalBits > 0) packet.emitBytes(BitVector(packedBits, totalBits).toByteArray())
+    if (totalBits > 0) {
+      val bytes = BitVector(packedBits, totalBits).toByteArray()
+      packet.emitBytes(bytes)
+      packetCtx?.addTraceEvent(
+        TraceEvent.newBuilder()
+          .setDeparserEmit(
+            DeparserEmitEvent.newBuilder().setHeaderType(header.typeName).setByteLength(bytes.size)
+          )
+          .build()
+      )
+    }
   }
 
   // -------------------------------------------------------------------------

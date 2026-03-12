@@ -126,10 +126,11 @@ class WebServer(
       loadedP4Info = config.p4Info
 
       val controlGraphJson = controlGraphJson(config.device.behavioral)
+      val headerTypesJson = headerTypesJson(config.device.behavioral)
       sendJson(
         exchange,
         HTTP_OK,
-        """{"success":true,"p4info":${jsonPrinter.print(config.p4Info)},"control_graph":$controlGraphJson}""",
+        """{"success":true,"p4info":${jsonPrinter.print(config.p4Info)},"control_graph":$controlGraphJson,"header_types":$headerTypesJson}""",
       )
     } finally {
       Files.deleteIfExists(tempP4)
@@ -240,6 +241,29 @@ class WebServer(
         """${jsonEscape(graphKey)}:{"nodes":[$nodesJson],"edges":[$edgesJson]}"""
       }
     return """{$entries}"""
+  }
+
+  /** Serializes header TypeDecls as JSON: {"type_name": [{"name":"f","bitwidth":N}, ...], ...}. */
+  private fun headerTypesJson(behavioral: fourward.ir.v1.BehavioralConfig): String {
+    val entries =
+      behavioral.typesList
+        .filter { it.hasHeader() }
+        .joinToString(",") { typeDecl ->
+          val fields =
+            typeDecl.header.fieldsList.joinToString(",") { field ->
+              val bitwidth =
+                when {
+                  field.type.hasBit() -> field.type.bit.width
+                  field.type.hasSignedInt() -> field.type.signedInt.width
+                  field.type.boolean -> 1
+                  field.type.hasVarbit() -> field.type.varbit.maxWidth
+                  else -> 0
+                }
+              """{"name":${jsonEscape(field.name)},"bitwidth":$bitwidth}"""
+            }
+          "${jsonEscape(typeDecl.name)}:[$fields]"
+        }
+    return "{$entries}"
   }
 
   // ---------------------------------------------------------------------------

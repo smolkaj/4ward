@@ -492,6 +492,39 @@ input:focus, select:focus, textarea:focus {
   font-style: italic;
 }
 
+.output-decoded {
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.dissect-header {
+  margin-bottom: 2px;
+}
+
+.dissect-header-name {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.dissect-field {
+  padding-left: 16px;
+}
+
+.dissect-field-name {
+  color: var(--text-secondary);
+}
+
+.dissect-field-name::after {
+  content: ' = ';
+  color: var(--text-muted);
+}
+
+.dissect-field-value {
+  color: var(--text-primary);
+}
+
 /* =========================================================================
    Trace toolbar (playback controls + outcome + view toggle)
    ========================================================================= */

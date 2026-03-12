@@ -1,6 +1,5 @@
 events {
   packet_ingress {
-    ingress_port: 0
   }
 }
 events {
@@ -54,7 +53,6 @@ events {
 events {
   table_lookup {
     table_name: "ecmp"
-    hit: false
     action_name: "drop"
   }
   source_info {

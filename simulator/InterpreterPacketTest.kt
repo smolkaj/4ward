@@ -237,6 +237,48 @@ class InterpreterPacketTest {
   }
 
   // ---------------------------------------------------------------------------
+  // DeparserEmitEvent trace events
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `emit produces DeparserEmitEvent with header type and byte length`() {
+    val type = headerType("ethernet_t", "dstAddr" to 48, "srcAddr" to 48, "etherType" to 16)
+    val pktCtx = PacketContext(byteArrayOf())
+    val env = Environment()
+    val header =
+      HeaderVal(
+        typeName = "ethernet_t",
+        fields =
+          mutableMapOf(
+            "dstAddr" to BitVal(0, 48),
+            "srcAddr" to BitVal(0, 48),
+            "etherType" to BitVal(0x0800, 16),
+          ),
+        valid = true,
+      )
+    env.define("hdr", header)
+
+    interp(pktCtx, type).evalExpr(packetCall("emit", "hdr"), env)
+
+    val emitEvents = pktCtx.getEvents().filter { it.hasDeparserEmit() }
+    assertEquals(1, emitEvents.size)
+    assertEquals("ethernet_t", emitEvents[0].deparserEmit.headerType)
+    assertEquals(14, emitEvents[0].deparserEmit.byteLength)
+  }
+
+  @Test
+  fun `emit invalid header produces no DeparserEmitEvent`() {
+    val type = headerType("h_t", "f" to 16)
+    val pktCtx = PacketContext(byteArrayOf())
+    val env = Environment()
+    env.define("hdr", HeaderVal(typeName = "h_t", valid = false))
+
+    interp(pktCtx, type).evalExpr(packetCall("emit", "hdr"), env)
+
+    assertTrue(pktCtx.getEvents().none { it.hasDeparserEmit() })
+  }
+
+  // ---------------------------------------------------------------------------
   // extract into header union members (P4 §8.20)
   // ---------------------------------------------------------------------------
 

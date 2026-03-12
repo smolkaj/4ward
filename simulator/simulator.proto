@@ -134,6 +134,7 @@ message TraceEvent {
     CloneSessionLookupEvent clone_session_lookup = 10;
     LogMessageEvent log_message = 11;
     AssertionEvent assertion = 12;
+    DeparserEmitEvent deparser_emit = 13;
   }
 
   fourward.ir.v1.SourceInfo source_info = 100;
@@ -220,6 +221,7 @@ message PipelineStageEvent {
   Direction direction = 3;
 }
 
+<<<<<<< HEAD
 // Fired when the P4 program calls log_msg().
 message LogMessageEvent {
   string message = 1;
@@ -228,6 +230,12 @@ message LogMessageEvent {
 // Fired when the P4 program calls assert() or assume(). P4 spec §12.9.
 message AssertionEvent {
   bool passed = 1;  // true = condition held; false = assertion failed
+=======
+// Fired when the deparser emits a header to the output packet buffer.
+message DeparserEmitEvent {
+  string header_type = 1;  // TypeDecl name (e.g. "ethernet_t")
+  uint32 byte_length = 2;  // number of bytes emitted for this header
+>>>>>>> 4eb4ef80 (Decode output packets into named header fields in playground)
 }
 
 enum DropReason {

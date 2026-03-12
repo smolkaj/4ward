@@ -34,6 +34,7 @@ async function compileAndLoad() {
   try {
     const data = await api.compileAndLoad(source);
     state.p4info = data.p4info;
+    state.headerTypes = data.header_types || null;
     state.entries = [];
     state.cloneSessions = [];
     renderCloneSessionsList();
