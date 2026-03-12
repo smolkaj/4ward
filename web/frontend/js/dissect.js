@@ -2,7 +2,7 @@
 // using deparser emit trace events and header type definitions from the IR.
 
 import { state } from './state.js';
-import { escapeHtml } from './encoding.js';
+import { escapeHtml, formatHexDump } from './encoding.js';
 
 /**
  * Collect deparser_emit events from a trace tree for a specific output packet.
@@ -131,8 +131,8 @@ function extractBits(bytes, bitOffset, bitCount) {
 }
 
 /**
- * Render a dissected packet as HTML. Shows each header as a collapsible
- * block with field names and values.
+ * Render a dissected packet as HTML. Shows each header with field names
+ * and values.
  */
 export function renderDissectedPacket(dissection) {
   if (!dissection) return null;
@@ -151,4 +151,18 @@ export function renderDissectedPacket(dissection) {
   }
 
   return html;
+}
+
+/**
+ * Render decoded + raw hex sections for an output packet.
+ * Shared by the Packets tab and the trace outcome view.
+ */
+export function renderPacketSections(bytes, trace, targetPayload) {
+  const dissection = dissectPacket(bytes, trace, targetPayload);
+  const decoded = renderDissectedPacket(dissection);
+  const hex = formatHexDump(bytes);
+  const decodedSection = decoded
+    ? `<div class="output-section"><div class="output-section-label">Decoded</div><div class="output-decoded">${decoded}</div></div>`
+    : '';
+  return `${decodedSection}<div class="output-section"><div class="output-section-label">Raw</div><div class="output-hex">${hex}</div></div>`;
 }

@@ -2,8 +2,8 @@
 // No cross-module side effects — only reads state.p4info for name resolution.
 
 import { state } from './state.js';
-import { escapeHtml, base64ToHex, base64ToUint8Array, decodeParamValue, formatHexDump } from './encoding.js';
-import { dissectPacket, renderDissectedPacket } from './dissect.js';
+import { escapeHtml, base64ToHex, base64ToUint8Array, decodeParamValue } from './encoding.js';
+import { renderPacketSections } from './dissect.js';
 
 // Global counter for stamping data-event-idx on rendered trace events.
 let _eventIdx = 0;
@@ -265,13 +265,7 @@ function renderPacketOutcome(outcome, traceNode) {
     const bytes = o.payload ? base64ToUint8Array(o.payload) : new Uint8Array(0);
     let detail = '';
     if (traceNode && bytes.length > 0) {
-      const dissection = dissectPacket(bytes, traceNode);
-      const decoded = renderDissectedPacket(dissection);
-      const hex = formatHexDump(bytes);
-      const decodedSection = decoded
-        ? `<div class="output-section"><div class="output-section-label">Decoded</div><div class="output-decoded">${decoded}</div></div>`
-        : '';
-      detail = `<div class="trace-outcome-detail">${decodedSection}<div class="output-section"><div class="output-section-label">Raw</div><div class="output-hex">${hex}</div></div></div>`;
+      detail = `<div class="trace-outcome-detail">${renderPacketSections(bytes, traceNode)}</div>`;
     }
     return `<div class="trace-outcome output" data-outcome><div class="trace-outcome-header" onclick="this.parentElement.classList.toggle('collapsed')">\u2192 output port ${o.egress_port} (${bytes.length} bytes)</div>${detail}</div>`;
   }

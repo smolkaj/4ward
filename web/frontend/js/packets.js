@@ -2,10 +2,10 @@
 
 import { state } from './state.js';
 import { api } from './api.js';
-import { base64ToUint8Array, formatHexDump } from './encoding.js';
+import { base64ToUint8Array } from './encoding.js';
 import { log, switchTab, updateTabBadges } from './ui.js';
 import { renderTraceTree } from './trace.js';
-import { dissectPacket, renderDissectedPacket } from './dissect.js';
+import { renderPacketSections } from './dissect.js';
 
 export const PACKET_PRESETS = {
   // Ethernet: dst=broadcast src=00:00:00:00:00:01
@@ -72,13 +72,7 @@ export function renderPacketResults(outputPackets, trace) {
   container.classList.remove('hidden');
   div.innerHTML = outputPackets.map(pkt => {
     const bytes = pkt.payload ? base64ToUint8Array(pkt.payload) : new Uint8Array(0);
-    const hex = formatHexDump(bytes);
-    const dissection = dissectPacket(bytes, trace, pkt.payload);
-    const decoded = renderDissectedPacket(dissection);
-    const decodedSection = decoded
-      ? `<div class="output-section"><div class="output-section-label">Decoded</div><div class="output-decoded">${decoded}</div></div>`
-      : '';
-    const hexSection = `<div class="output-section"><div class="output-section-label">Raw</div><div class="output-hex">${hex}</div></div>`;
-    return `<div class="output-packet"><div class="output-packet-header"><span class="output-port">Port ${pkt.egress_port}</span><span class="output-bytes">${bytes.length} bytes</span></div>${decodedSection}${hexSection}</div>`;
+    const sections = renderPacketSections(bytes, trace, pkt.payload);
+    return `<div class="output-packet"><div class="output-packet-header"><span class="output-port">Port ${pkt.egress_port}</span><span class="output-bytes">${bytes.length} bytes</span></div>${sections}</div>`;
   }).join('');
 }
