@@ -797,10 +797,15 @@ class TableStoreTest {
   // PRE: clone sessions and multicast groups
   // ---------------------------------------------------------------------------
 
-  private fun writeCloneSession(target: TableStore = store, sessionId: Int, egressPort: Int) {
+  private fun writeCloneSession(
+    target: TableStore = store,
+    sessionId: Int,
+    egressPort: Int,
+    type: Update.Type = Update.Type.INSERT,
+  ): WriteResult =
     target.write(
       Update.newBuilder()
-        .setType(Update.Type.INSERT)
+        .setType(type)
         .setEntity(
           Entity.newBuilder()
             .setPacketReplicationEngineEntry(
@@ -814,16 +819,16 @@ class TableStoreTest {
         )
         .build()
     )
-  }
 
   private fun writeMulticastGroup(
     target: TableStore = store,
     groupId: Int,
     replicas: List<Pair<Int, Int>>,
-  ) {
+    type: Update.Type = Update.Type.INSERT,
+  ): WriteResult =
     target.write(
       Update.newBuilder()
-        .setType(Update.Type.INSERT)
+        .setType(type)
         .setEntity(
           Entity.newBuilder()
             .setPacketReplicationEngineEntry(
@@ -844,7 +849,6 @@ class TableStoreTest {
         )
         .build()
     )
-  }
 
   @Test
   fun `clone session round-trip`() {
@@ -875,6 +879,138 @@ class TableStoreTest {
   @Test
   fun `multicast group miss returns null`() {
     assertNull(store.getMulticastGroup(999))
+  }
+
+  @Test
+  fun `clone session INSERT duplicate fails`() {
+    assertEquals(WriteResult.Success, writeCloneSession(sessionId = 1, egressPort = 5))
+    assertTrue(writeCloneSession(sessionId = 1, egressPort = 6) is WriteResult.AlreadyExists)
+  }
+
+  @Test
+  fun `clone session MODIFY existing succeeds`() {
+    writeCloneSession(sessionId = 1, egressPort = 5)
+    assertEquals(
+      WriteResult.Success,
+      writeCloneSession(sessionId = 1, egressPort = 9, type = Update.Type.MODIFY),
+    )
+    assertEquals(9, store.getCloneSession(1)!!.replicasList[0].egressPort)
+  }
+
+  @Test
+  fun `clone session MODIFY non-existent fails`() {
+    assertTrue(
+      writeCloneSession(sessionId = 1, egressPort = 5, type = Update.Type.MODIFY)
+        is WriteResult.NotFound
+    )
+  }
+
+  @Test
+  fun `clone session DELETE existing succeeds`() {
+    writeCloneSession(sessionId = 1, egressPort = 5)
+    assertEquals(
+      WriteResult.Success,
+      writeCloneSession(sessionId = 1, egressPort = 0, type = Update.Type.DELETE),
+    )
+    assertNull(store.getCloneSession(1))
+  }
+
+  @Test
+  fun `clone session DELETE non-existent fails`() {
+    assertTrue(
+      writeCloneSession(sessionId = 1, egressPort = 0, type = Update.Type.DELETE)
+        is WriteResult.NotFound
+    )
+  }
+
+  @Test
+  fun `multicast group INSERT duplicate fails`() {
+    assertEquals(WriteResult.Success, writeMulticastGroup(groupId = 1, replicas = listOf(0 to 1)))
+    assertTrue(
+      writeMulticastGroup(groupId = 1, replicas = listOf(0 to 2)) is WriteResult.AlreadyExists
+    )
+  }
+
+  @Test
+  fun `multicast group MODIFY existing succeeds`() {
+    writeMulticastGroup(groupId = 1, replicas = listOf(0 to 1))
+    assertEquals(
+      WriteResult.Success,
+      writeMulticastGroup(groupId = 1, replicas = listOf(0 to 5, 0 to 6), type = Update.Type.MODIFY),
+    )
+    assertEquals(2, store.getMulticastGroup(1)!!.replicasCount)
+  }
+
+  @Test
+  fun `multicast group MODIFY non-existent fails`() {
+    assertTrue(
+      writeMulticastGroup(groupId = 1, replicas = listOf(0 to 1), type = Update.Type.MODIFY)
+        is WriteResult.NotFound
+    )
+  }
+
+  @Test
+  fun `multicast group DELETE existing succeeds`() {
+    writeMulticastGroup(groupId = 1, replicas = listOf(0 to 1))
+    assertEquals(
+      WriteResult.Success,
+      writeMulticastGroup(groupId = 1, replicas = emptyList(), type = Update.Type.DELETE),
+    )
+    assertNull(store.getMulticastGroup(1))
+  }
+
+  @Test
+  fun `multicast group DELETE non-existent fails`() {
+    assertTrue(
+      writeMulticastGroup(groupId = 1, replicas = emptyList(), type = Update.Type.DELETE)
+        is WriteResult.NotFound
+    )
+  }
+
+  @Test
+  fun `PRE wildcard read returns all entries`() {
+    writeCloneSession(sessionId = 1, egressPort = 5)
+    writeCloneSession(sessionId = 2, egressPort = 6)
+    writeMulticastGroup(groupId = 10, replicas = listOf(0 to 1))
+    val results = store.readPreEntries()
+    assertEquals(3, results.size)
+  }
+
+  @Test
+  fun `PRE read by clone session ID`() {
+    writeCloneSession(sessionId = 1, egressPort = 5)
+    writeCloneSession(sessionId = 2, egressPort = 6)
+    val filter =
+      P4RuntimeOuterClass.PacketReplicationEngineEntry.newBuilder()
+        .setCloneSessionEntry(P4RuntimeOuterClass.CloneSessionEntry.newBuilder().setSessionId(1))
+        .build()
+    val results = store.readPreEntries(filter)
+    assertEquals(1, results.size)
+    assertEquals(1, results[0].packetReplicationEngineEntry.cloneSessionEntry.sessionId)
+  }
+
+  @Test
+  fun `PRE read by multicast group ID`() {
+    writeMulticastGroup(groupId = 1, replicas = listOf(0 to 1))
+    writeMulticastGroup(groupId = 2, replicas = listOf(0 to 2))
+    val filter =
+      P4RuntimeOuterClass.PacketReplicationEngineEntry.newBuilder()
+        .setMulticastGroupEntry(
+          P4RuntimeOuterClass.MulticastGroupEntry.newBuilder().setMulticastGroupId(2)
+        )
+        .build()
+    val results = store.readPreEntries(filter)
+    assertEquals(1, results.size)
+    assertEquals(2, results[0].packetReplicationEngineEntry.multicastGroupEntry.multicastGroupId)
+  }
+
+  @Test
+  fun `PRE read non-existent returns empty`() {
+    val filter =
+      P4RuntimeOuterClass.PacketReplicationEngineEntry.newBuilder()
+        .setCloneSessionEntry(P4RuntimeOuterClass.CloneSessionEntry.newBuilder().setSessionId(999))
+        .build()
+    assertEquals(0, store.readPreEntries(filter).size)
   }
 
   @Test

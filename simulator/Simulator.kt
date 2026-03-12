@@ -119,6 +119,8 @@ class Simulator {
         entity.hasDirectCounterEntry() ->
           tableStore.readDirectCounterEntries(entity.directCounterEntry)
         entity.hasDirectMeterEntry() -> tableStore.readDirectMeterEntries(entity.directMeterEntry)
+        entity.hasPacketReplicationEngineEntry() ->
+          tableStore.readPreEntries(entity.packetReplicationEngineEntry)
         else -> emptyList()
       }
     }
