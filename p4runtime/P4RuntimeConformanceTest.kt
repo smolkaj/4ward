@@ -9,6 +9,7 @@ import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildMemberEntity
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.loadConfig
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.uint128
 import io.grpc.Status
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -1390,6 +1391,74 @@ class P4RuntimeConformanceTest {
   fun `80 - RECONCILE_AND_COMMIT returns UNIMPLEMENTED`() {
     assertGrpcError(Status.Code.UNIMPLEMENTED) {
       sendPipelineAction(SetForwardingPipelineConfigRequest.Action.RECONCILE_AND_COMMIT)
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Unsupported entity types (P4Runtime spec §9.6, §9.8, §15)
+  // ---------------------------------------------------------------------------
+
+  /** P4Runtime spec §9.6: reading a ValueSetEntry should fail with UNIMPLEMENTED. */
+  @Test
+  fun `81 - read ValueSetEntry rejected as UNIMPLEMENTED`() {
+    harness.loadPipeline(loadBasicTableConfig())
+    val request =
+      ReadRequest.newBuilder()
+        .setDeviceId(1)
+        .addEntities(
+          Entity.newBuilder()
+            .setValueSetEntry(P4RuntimeOuterClass.ValueSetEntry.newBuilder().setValueSetId(1))
+        )
+        .build()
+    assertGrpcError(Status.Code.UNIMPLEMENTED) { harness.readEntries(request) }
+  }
+
+  /** P4Runtime spec §9.9: reading an ExternEntry should fail with UNIMPLEMENTED. */
+  @Test
+  fun `82 - read ExternEntry rejected as UNIMPLEMENTED`() {
+    harness.loadPipeline(loadBasicTableConfig())
+    val request =
+      ReadRequest.newBuilder()
+        .setDeviceId(1)
+        .addEntities(
+          Entity.newBuilder()
+            .setExternEntry(P4RuntimeOuterClass.ExternEntry.newBuilder().setExternTypeId(1))
+        )
+        .build()
+    assertGrpcError(Status.Code.UNIMPLEMENTED) { harness.readEntries(request) }
+  }
+
+  /** P4Runtime spec §9.8: reading a DigestEntry should fail with UNIMPLEMENTED. */
+  @Test
+  fun `83 - read DigestEntry rejected as UNIMPLEMENTED`() {
+    harness.loadPipeline(loadBasicTableConfig())
+    val request =
+      ReadRequest.newBuilder()
+        .setDeviceId(1)
+        .addEntities(
+          Entity.newBuilder()
+            .setDigestEntry(P4RuntimeOuterClass.DigestEntry.newBuilder().setDigestId(1))
+        )
+        .build()
+    assertGrpcError(Status.Code.UNIMPLEMENTED) { harness.readEntries(request) }
+  }
+
+  /** P4Runtime spec §15: non-default role on arbitration → UNIMPLEMENTED. */
+  @Test
+  fun `84 - arbitration with non-default role rejected as UNIMPLEMENTED`() {
+    assertGrpcError(Status.Code.UNIMPLEMENTED) {
+      runBlocking {
+        val request =
+          StreamMessageRequest.newBuilder()
+            .setArbitration(
+              P4RuntimeOuterClass.MasterArbitrationUpdate.newBuilder()
+                .setDeviceId(1)
+                .setElectionId(Uint128.newBuilder().setHigh(0).setLow(1))
+                .setRole(P4RuntimeOuterClass.Role.newBuilder().setName("custom_role"))
+            )
+            .build()
+        harness.stub.streamChannel(flowOf(request)).collect {}
+      }
     }
   }
 

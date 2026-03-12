@@ -326,6 +326,7 @@ class P4RuntimeService(
         // all other entity types are read directly from the simulator.
         val entities =
           request.entitiesList.flatMap { entity ->
+            rejectUnsupportedEntity(entity)
             if (entity.hasTableEntry()) {
               state.entityReader.readTableEntities(entity.tableEntry, simulator)
             } else {
@@ -511,6 +512,11 @@ class P4RuntimeService(
     arbitration: MasterArbitrationUpdate,
     notifications: SendChannel<StreamMessageResponse>,
   ): StreamMessageResponse {
+    // P4Runtime spec §15: role-based access control. We only support the default role.
+    val role = arbitration.role
+    if (role.name.isNotEmpty() || role.hasConfig()) {
+      throw Status.UNIMPLEMENTED.withDescription(ROLE_NOT_SUPPORTED).asException()
+    }
     val incomingId = arbitration.electionId
 
     return arbitrationMutex.withLock {
@@ -614,8 +620,13 @@ class P4RuntimeService(
 
   /** Rejects entity types that are documented but not implemented. */
   private fun rejectUnsupportedEntity(entity: P4RuntimeOuterClass.Entity) {
-    if (entity.hasDigestEntry()) {
-      throw Status.UNIMPLEMENTED.withDescription(DIGEST_NOT_SUPPORTED).asException()
+    when {
+      entity.hasDigestEntry() ->
+        throw Status.UNIMPLEMENTED.withDescription(DIGEST_NOT_SUPPORTED).asException()
+      entity.hasValueSetEntry() ->
+        throw Status.UNIMPLEMENTED.withDescription(VALUE_SET_NOT_SUPPORTED).asException()
+      entity.hasExternEntry() ->
+        throw Status.UNIMPLEMENTED.withDescription(EXTERN_ENTRY_NOT_SUPPORTED).asException()
     }
   }
 
@@ -661,6 +672,10 @@ class P4RuntimeService(
       "No pipeline loaded; call SetForwardingPipelineConfig first"
 
     private const val DIGEST_NOT_SUPPORTED = "digest is not supported"
+    private const val VALUE_SET_NOT_SUPPORTED = "ValueSetEntry is not supported"
+    private const val EXTERN_ENTRY_NOT_SUPPORTED = "ExternEntry is not supported"
+    private const val ROLE_NOT_SUPPORTED =
+      "role-based access control is not supported; omit the role field or use the default role"
 
     private const val OK_CODE = com.google.rpc.Code.OK_VALUE
 

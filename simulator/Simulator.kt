@@ -152,7 +152,7 @@ class Simulator : TableDataReader {
         entity.hasDirectMeterEntry() -> tableStore.readDirectMeterEntries(entity.directMeterEntry)
         entity.hasPacketReplicationEngineEntry() ->
           tableStore.readPreEntries(entity.packetReplicationEngineEntry)
-        else -> emptyList()
+        else -> error("unsupported entity type for read: ${entity.entityCase}")
       }
     }
 
