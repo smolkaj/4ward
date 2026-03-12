@@ -4,6 +4,8 @@ import com.google.protobuf.ByteString
 import fourward.ir.v1.Architecture
 import fourward.ir.v1.AssignmentStmt
 import fourward.ir.v1.BehavioralConfig
+import fourward.ir.v1.BinaryOp
+import fourward.ir.v1.BinaryOperator
 import fourward.ir.v1.ControlDecl
 import fourward.ir.v1.EnumDecl
 import fourward.ir.v1.Expr
@@ -875,6 +877,87 @@ class PSAArchitectureTest {
     } catch (e: IllegalStateException) {
       assertTrue(e.message!!.contains("PSA recirculation depth exceeded"))
     }
+  }
+
+  /** Field access expression: `varName.fieldName`. */
+  private fun fieldAccess(varName: String, fieldName: String): Expr =
+    Expr.newBuilder()
+      .setFieldAccess(FieldAccess.newBuilder().setExpr(nameRef(varName)).setFieldName(fieldName))
+      .build()
+
+  /** Enum literal expression. */
+  private fun enumLit(member: String): Expr =
+    Expr.newBuilder().setLiteral(Literal.newBuilder().setEnumMember(member)).build()
+
+  /** Binary EQ expression with boolean result type. */
+  private fun eq(left: Expr, right: Expr): Expr =
+    Expr.newBuilder()
+      .setBinaryOp(BinaryOp.newBuilder().setOp(BinaryOperator.EQ).setLeft(left).setRight(right))
+      .setType(Type.newBuilder().setBoolean(true))
+      .build()
+
+  @Test
+  fun `recirculate single pass forwards on second ingress`() {
+    // First ingress: send to PSA_PORT_RECIRCULATE.
+    // Second ingress (packet_path == RECIRCULATE): send to port 5.
+    val isRecirculate = eq(fieldAccess("istd", "packet_path"), enumLit("RECIRCULATE"))
+    val config =
+      psaConfig(
+        ingressStmts =
+          listOf(
+            ifStmt(
+              condition = isRecirculate,
+              thenStmts = listOf(sendToPort(5)),
+              elseStmts = listOf(sendToPort(0xFFFFFFFAL)),
+            )
+          )
+      )
+    val result =
+      PSAArchitecture().processPacket(0u, byteArrayOf(0xAA.toByte()), config, TableStore())
+    val outputs = collectOutputsFromTrace(result.trace)
+
+    // Packet recirculates once, then forwards on port 5.
+    assertEquals(1, outputs.size)
+    assertEquals(5, outputs[0].egressPort)
+    // Trace should show a RECIRCULATE fork.
+    assertTrue(result.trace.hasForkOutcome())
+    assertEquals(ForkReason.RECIRCULATE, result.trace.forkOutcome.reason)
+    assertEquals("recirculate", result.trace.forkOutcome.branchesList[0].label)
+  }
+
+  @Test
+  fun `egress drop without clone produces drop trace`() {
+    // Egress drops the original packet, no clone — pure egress drop path.
+    val config = psaConfig(ingressStmts = listOf(sendToPort(2)), egressStmts = listOf(egressDrop()))
+    val result = PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+
+    assertTrue(result.trace.hasPacketOutcome())
+    assertTrue(result.trace.packetOutcome.hasDrop())
+    assertEquals(DropReason.MARK_TO_DROP, result.trace.packetOutcome.drop.reason)
+  }
+
+  @Test
+  fun `ingress_drop overrides send_to_port`() {
+    // send_to_port sets drop=false, then ingress_drop sets drop=true — last writer wins.
+    val config =
+      psaConfig(ingressStmts = listOf(sendToPort(2), externCall("ingress_drop", nameRef("ostd"))))
+    val result = PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+
+    assertTrue(result.trace.hasPacketOutcome())
+    assertTrue(result.trace.packetOutcome.hasDrop())
+  }
+
+  @Test
+  fun `clone flag true with default session ID produces no clone`() {
+    // Set clone=true but leave clone_session_id at default (0). No session 0 exists.
+    val config =
+      psaConfig(ingressStmts = listOf(assignField("ostd", "clone", boolLit(true)), sendToPort(2)))
+    val result = PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val outputs = collectOutputsFromTrace(result.trace)
+
+    // No clone session 0 → clone silently ignored, original output normally.
+    assertEquals(1, outputs.size)
+    assertEquals(2, outputs[0].egressPort)
   }
 
   @Test

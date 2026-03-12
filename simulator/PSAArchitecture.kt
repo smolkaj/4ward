@@ -366,19 +366,12 @@ class PSAArchitecture : Architecture {
       }
     }
 
+    // An assert()/assume() failure anywhere in egress drops the packet.
     try {
       // --- Egress Control ---
       val egressStage = p.stages.first { it.name == "egress" }
       bindStageParams(egressEnv, egressStage.blockName, p.blockParams, egressValues)
       runControlStage(egressInterpreter, egressCtx, egressEnv, egressStage)
-
-      // --- Egress drop check (PSA: egress does NOT drop by default) ---
-      val dropped = (egressOutput?.fields?.get("drop") as? BoolVal)?.value == true
-
-      // --- Egress Deparser (always runs — E2E clone uses deparsed bytes even for dropped pkts) ---
-      val egressDeparserStage = p.stages.first { it.name == "egress_deparser" }
-      bindStageParams(egressEnv, egressDeparserStage.blockName, p.blockParams, egressValues)
-      runControlStage(egressInterpreter, egressCtx, egressEnv, egressDeparserStage)
     } catch (_: AssertionFailureException) {
       return EgressCoreResult(
         egressCtx.getEvents(),
@@ -388,6 +381,15 @@ class PSAArchitecture : Architecture {
         dropReason = DropReason.ASSERTION_FAILURE,
       )
     }
+
+    // --- Egress drop check (PSA: egress does NOT drop by default) ---
+    val dropped = (egressOutput?.fields?.get("drop") as? BoolVal)?.value == true
+
+    // --- Egress Deparser (always runs — E2E clone uses deparsed bytes even for dropped pkts) ---
+    val egressDeparserStage = p.stages.first { it.name == "egress_deparser" }
+    bindStageParams(egressEnv, egressDeparserStage.blockName, p.blockParams, egressValues)
+    runControlStage(egressInterpreter, egressCtx, egressEnv, egressDeparserStage)
+
     val outputBytes = egressCtx.outputPayload() + egressCtx.drainRemainingInput()
     return EgressCoreResult(egressCtx.getEvents(), dropped, outputBytes, egressOutput)
   }
