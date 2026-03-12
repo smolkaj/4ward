@@ -31,18 +31,18 @@
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">95.5&nbsp;%</td>
-            <td class="headerCovTableEntry">179</td>
-            <td class="headerCovTableEntry">171</td>
+            <td class="headerCovTableEntryHi">96.6&nbsp;%</td>
+            <td class="headerCovTableEntry">238</td>
+            <td class="headerCovTableEntry">230</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-12 16:06:04</td>
+            <td class="headerValue">2026-03-12 16:35:47</td>
             <td></td>
             <td class="headerItem">Functions:</td>
-            <td class="headerCovTableEntryHi">95.5&nbsp;%</td>
-            <td class="headerCovTableEntry">22</td>
-            <td class="headerCovTableEntry">21</td>
+            <td class="headerCovTableEntryHi">97.4&nbsp;%</td>
+            <td class="headerCovTableEntry">38</td>
+            <td class="headerCovTableEntry">37</td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
                 </table>
@@ -67,394 +67,514 @@
 <span id="L5"><span class="lineNum">       5</span>              : import fourward.ir.v1.TypeDecl</span>
 <span id="L6"><span class="lineNum">       6</span>              : import fourward.sim.v1.SimulatorProto.Drop</span>
 <span id="L7"><span class="lineNum">       7</span>              : import fourward.sim.v1.SimulatorProto.DropReason</span>
-<span id="L8"><span class="lineNum">       8</span>              : import fourward.sim.v1.SimulatorProto.PacketIngressEvent</span>
-<span id="L9"><span class="lineNum">       9</span>              : import fourward.sim.v1.SimulatorProto.PacketOutcome</span>
-<span id="L10"><span class="lineNum">      10</span>              : import fourward.sim.v1.SimulatorProto.PipelineStageEvent</span>
-<span id="L11"><span class="lineNum">      11</span>              : import fourward.sim.v1.SimulatorProto.TraceEvent</span>
-<span id="L12"><span class="lineNum">      12</span>              : import fourward.sim.v1.SimulatorProto.TraceTree</span>
-<span id="L13"><span class="lineNum">      13</span>              : </span>
-<span id="L14"><span class="lineNum">      14</span>              : /**</span>
-<span id="L15"><span class="lineNum">      15</span>              :  * PSA (Portable Switch Architecture) pipeline implementation.</span>
-<span id="L16"><span class="lineNum">      16</span>              :  *</span>
-<span id="L17"><span class="lineNum">      17</span>              :  * PSA is a two-pipeline architecture with separate ingress and egress stages. The egress pipeline</span>
-<span id="L18"><span class="lineNum">      18</span>              :  * re-parses the deparsed packet, so header and metadata state is NOT shared between ingress and</span>
-<span id="L19"><span class="lineNum">      19</span>              :  * egress — only the raw bytes cross the boundary.</span>
-<span id="L20"><span class="lineNum">      20</span>              :  *</span>
-<span id="L21"><span class="lineNum">      21</span>              :  * Pipeline structure: IngressParser → Ingress → IngressDeparser → (traffic manager) → EgressParser</span>
-<span id="L22"><span class="lineNum">      22</span>              :  * → Egress → EgressDeparser</span>
+<span id="L8"><span class="lineNum">       8</span>              : import fourward.sim.v1.SimulatorProto.Fork</span>
+<span id="L9"><span class="lineNum">       9</span>              : import fourward.sim.v1.SimulatorProto.ForkBranch</span>
+<span id="L10"><span class="lineNum">      10</span>              : import fourward.sim.v1.SimulatorProto.ForkReason</span>
+<span id="L11"><span class="lineNum">      11</span>              : import fourward.sim.v1.SimulatorProto.PacketIngressEvent</span>
+<span id="L12"><span class="lineNum">      12</span>              : import fourward.sim.v1.SimulatorProto.PacketOutcome</span>
+<span id="L13"><span class="lineNum">      13</span>              : import fourward.sim.v1.SimulatorProto.PipelineStageEvent</span>
+<span id="L14"><span class="lineNum">      14</span>              : import fourward.sim.v1.SimulatorProto.TraceEvent</span>
+<span id="L15"><span class="lineNum">      15</span>              : import fourward.sim.v1.SimulatorProto.TraceTree</span>
+<span id="L16"><span class="lineNum">      16</span>              : </span>
+<span id="L17"><span class="lineNum">      17</span>              : /**</span>
+<span id="L18"><span class="lineNum">      18</span>              :  * PSA (Portable Switch Architecture) pipeline implementation.</span>
+<span id="L19"><span class="lineNum">      19</span>              :  *</span>
+<span id="L20"><span class="lineNum">      20</span>              :  * PSA is a two-pipeline architecture with separate ingress and egress stages. The egress pipeline</span>
+<span id="L21"><span class="lineNum">      21</span>              :  * re-parses the deparsed packet, so header and metadata state is NOT shared between ingress and</span>
+<span id="L22"><span class="lineNum">      22</span>              :  * egress — only the raw bytes cross the boundary.</span>
 <span id="L23"><span class="lineNum">      23</span>              :  *</span>
-<span id="L24"><span class="lineNum">      24</span>              :  * Key differences from v1model:</span>
-<span id="L25"><span class="lineNum">      25</span>              :  * - Ingress drops by default (`ostd.drop` starts `true`). To forward, call `send_to_port()`.</span>
-<span id="L26"><span class="lineNum">      26</span>              :  * - Egress does NOT drop by default (`ostd.drop` starts `false`).</span>
-<span id="L27"><span class="lineNum">      27</span>              :  * - Port width is `bit&lt;32&gt;` (not `bit&lt;9&gt;`).</span>
-<span id="L28"><span class="lineNum">      28</span>              :  * - Each stage has distinct metadata structs (no shared `standard_metadata`).</span>
-<span id="L29"><span class="lineNum">      29</span>              :  *</span>
-<span id="L30"><span class="lineNum">      30</span>              :  * References:</span>
-<span id="L31"><span class="lineNum">      31</span>              :  * - PSA spec: https://p4.org/p4-spec/docs/PSA.html</span>
-<span id="L32"><span class="lineNum">      32</span>              :  * - BMv2 psa.p4: https://github.com/p4lang/p4c/blob/main/p4include/bmv2/psa.p4</span>
-<span id="L33"><span class="lineNum">      33</span>              :  */</span>
-<span id="L34"><span class="lineNum">      34</span> <span class="tlaGNC tlaBgGNC">           1 : class PSAArchitecture : Architecture {</span></span>
-<span id="L35"><span class="lineNum">      35</span>              : </span>
-<span id="L36"><span class="lineNum">      36</span>              :   override fun processPacket(</span>
-<span id="L37"><span class="lineNum">      37</span>              :     ingressPort: UInt,</span>
-<span id="L38"><span class="lineNum">      38</span>              :     payload: ByteArray,</span>
-<span id="L39"><span class="lineNum">      39</span>              :     config: BehavioralConfig,</span>
-<span id="L40"><span class="lineNum">      40</span>              :     tableStore: TableStore,</span>
-<span id="L41"><span class="lineNum">      41</span>              :   ): PipelineResult {</span>
-<span id="L42"><span class="lineNum">      42</span> <span class="tlaGNC">           1 :     val typesByName = config.typesList.associateBy { it.name }</span></span>
-<span id="L43"><span class="lineNum">      43</span> <span class="tlaGNC">           1 :     val stages = config.architecture.stagesList</span></span>
-<span id="L44"><span class="lineNum">      44</span>              : </span>
-<span id="L45"><span class="lineNum">      45</span>              :     // Build a lookup from block name → params for per-stage parameter binding.</span>
-<span id="L46"><span class="lineNum">      46</span> <span class="tlaGNC">           1 :     val blockParams = buildBlockParamsMap(config)</span></span>
-<span id="L47"><span class="lineNum">      47</span>              : </span>
-<span id="L48"><span class="lineNum">      48</span>              :     // === Ingress pipeline ===</span>
-<span id="L49"><span class="lineNum">      49</span> <span class="tlaGNC">           1 :     val ingressCtx = PacketContext(payload)</span></span>
-<span id="L50"><span class="lineNum">      50</span> <span class="tlaGNC">           1 :     val ingressEnv = Environment()</span></span>
-<span id="L51"><span class="lineNum">      51</span> <span class="tlaGNC">           1 :     val ingressValues = createDefaultValues(config, typesByName)</span></span>
-<span id="L52"><span class="lineNum">      52</span>              : </span>
-<span id="L53"><span class="lineNum">      53</span> <span class="tlaGNC">           1 :     initIngressMetadata(ingressValues, ingressPort)</span></span>
-<span id="L54"><span class="lineNum">      54</span> <span class="tlaGNC">           1 :     val ingressOutput = ingressValues[&quot;psa_ingress_output_metadata_t&quot;] as? StructVal</span></span>
-<span id="L55"><span class="lineNum">      55</span>              : </span>
-<span id="L56"><span class="lineNum">      56</span> <span class="tlaGNC">           1 :     val ingressInterpreter =</span></span>
-<span id="L57"><span class="lineNum">      57</span> <span class="tlaGNC">           1 :       Interpreter(config, tableStore, ingressCtx, emptyMap(), createPsaExternHandler(tableStore))</span></span>
-<span id="L58"><span class="lineNum">      58</span>              : </span>
-<span id="L59"><span class="lineNum">      59</span> <span class="tlaGNC">           1 :     ingressCtx.addTraceEvent(packetIngressEvent(ingressPort))</span></span>
-<span id="L60"><span class="lineNum">      60</span>              : </span>
-<span id="L61"><span class="lineNum">      61</span>              :     // --- Ingress Parser ---</span>
-<span id="L62"><span class="lineNum">      62</span> <span class="tlaGNC">           1 :     val ingressParserStage = stages.first { it.name == &quot;ingress_parser&quot; }</span></span>
-<span id="L63"><span class="lineNum">      63</span> <span class="tlaGNC">           1 :     bindStageParams(ingressEnv, ingressParserStage.blockName, blockParams, ingressValues)</span></span>
-<span id="L64"><span class="lineNum">      64</span> <span class="tlaGNC">           1 :     runParserStage(ingressInterpreter, ingressCtx, ingressEnv, ingressParserStage) { e -&gt;</span></span>
-<span id="L65"><span class="lineNum">      65</span> <span class="tlaGNC">           1 :       (ingressValues[&quot;psa_ingress_input_metadata_t&quot;] as? StructVal)?.let {</span></span>
-<span id="L66"><span class="lineNum">      66</span> <span class="tlaGNC">           1 :         it.fields[&quot;parser_error&quot;] = ErrorVal(e.errorName)</span></span>
-<span id="L67"><span class="lineNum">      67</span> <span class="tlaGNC">           1 :       }</span></span>
-<span id="L68"><span class="lineNum">      68</span> <span class="tlaGNC">           1 :     }</span></span>
-<span id="L69"><span class="lineNum">      69</span>              : </span>
-<span id="L70"><span class="lineNum">      70</span>              :     // --- Ingress Control ---</span>
-<span id="L71"><span class="lineNum">      71</span> <span class="tlaGNC">           1 :     val ingressStage = stages.first { it.name == &quot;ingress&quot; }</span></span>
-<span id="L72"><span class="lineNum">      72</span> <span class="tlaGNC">           1 :     bindStageParams(ingressEnv, ingressStage.blockName, blockParams, ingressValues)</span></span>
-<span id="L73"><span class="lineNum">      73</span> <span class="tlaGNC">           1 :     runControlStage(ingressInterpreter, ingressCtx, ingressEnv, ingressStage)</span></span>
-<span id="L74"><span class="lineNum">      74</span>              : </span>
-<span id="L75"><span class="lineNum">      75</span>              :     // --- Ingress drop check (PSA: drop=true by default) ---</span>
-<span id="L76"><span class="lineNum">      76</span> <span class="tlaGNC">           1 :     if ((ingressOutput?.fields?.get(&quot;drop&quot;) as? BoolVal)?.value != false) {</span></span>
-<span id="L77"><span class="lineNum">      77</span> <span class="tlaGNC">           1 :       return buildDropResult(ingressCtx.getEvents())</span></span>
-<span id="L78"><span class="lineNum">      78</span>              :     }</span>
-<span id="L79"><span class="lineNum">      79</span>              : </span>
-<span id="L80"><span class="lineNum">      80</span> <span class="tlaGNC">           1 :     val egressPort =</span></span>
-<span id="L81"><span class="lineNum">      81</span> <span class="tlaGNC">           1 :       (ingressOutput?.fields?.get(&quot;egress_port&quot;) as? BitVal)?.bits?.value?.toInt() ?: 0</span></span>
-<span id="L82"><span class="lineNum">      82</span>              : </span>
-<span id="L83"><span class="lineNum">      83</span>              :     // --- Ingress Deparser ---</span>
-<span id="L84"><span class="lineNum">      84</span> <span class="tlaGNC">           1 :     val ingressDeparserStage = stages.first { it.name == &quot;ingress_deparser&quot; }</span></span>
-<span id="L85"><span class="lineNum">      85</span> <span class="tlaGNC">           1 :     bindStageParams(ingressEnv, ingressDeparserStage.blockName, blockParams, ingressValues)</span></span>
-<span id="L86"><span class="lineNum">      86</span> <span class="tlaGNC">           1 :     runControlStage(ingressInterpreter, ingressCtx, ingressEnv, ingressDeparserStage)</span></span>
-<span id="L87"><span class="lineNum">      87</span>              : </span>
-<span id="L88"><span class="lineNum">      88</span> <span class="tlaGNC">           1 :     val deparsedBytes = ingressCtx.outputPayload() + ingressCtx.drainRemainingInput()</span></span>
-<span id="L89"><span class="lineNum">      89</span> <span class="tlaGNC">           1 :     val ingressEvents = ingressCtx.getEvents()</span></span>
-<span id="L90"><span class="lineNum">      90</span>              : </span>
-<span id="L91"><span class="lineNum">      91</span>              :     // === Egress pipeline (re-parses the deparsed packet) ===</span>
-<span id="L92"><span class="lineNum">      92</span> <span class="tlaGNC">           1 :     val egressCtx = PacketContext(deparsedBytes)</span></span>
-<span id="L93"><span class="lineNum">      93</span> <span class="tlaGNC">           1 :     val egressEnv = Environment()</span></span>
-<span id="L94"><span class="lineNum">      94</span> <span class="tlaGNC">           1 :     val egressValues = createDefaultValues(config, typesByName)</span></span>
-<span id="L95"><span class="lineNum">      95</span>              : </span>
-<span id="L96"><span class="lineNum">      96</span> <span class="tlaGNC">           1 :     initEgressMetadata(egressValues, egressPort, ingressOutput)</span></span>
-<span id="L97"><span class="lineNum">      97</span> <span class="tlaGNC">           1 :     val egressOutput = egressValues[&quot;psa_egress_output_metadata_t&quot;] as? StructVal</span></span>
-<span id="L98"><span class="lineNum">      98</span>              : </span>
-<span id="L99"><span class="lineNum">      99</span> <span class="tlaGNC">           1 :     val egressInterpreter =</span></span>
-<span id="L100"><span class="lineNum">     100</span> <span class="tlaGNC">           1 :       Interpreter(config, tableStore, egressCtx, emptyMap(), createPsaExternHandler(tableStore))</span></span>
-<span id="L101"><span class="lineNum">     101</span>              : </span>
-<span id="L102"><span class="lineNum">     102</span>              :     // Carry ingress trace events into the egress context.</span>
-<span id="L103"><span class="lineNum">     103</span> <span class="tlaGNC">           1 :     for (event in ingressEvents) egressCtx.addTraceEvent(event)</span></span>
-<span id="L104"><span class="lineNum">     104</span>              : </span>
-<span id="L105"><span class="lineNum">     105</span>              :     // --- Egress Parser ---</span>
-<span id="L106"><span class="lineNum">     106</span> <span class="tlaGNC">           1 :     val egressParserStage = stages.first { it.name == &quot;egress_parser&quot; }</span></span>
-<span id="L107"><span class="lineNum">     107</span> <span class="tlaGNC">           1 :     bindStageParams(egressEnv, egressParserStage.blockName, blockParams, egressValues)</span></span>
-<span id="L108"><span class="lineNum">     108</span> <span class="tlaGNC">           1 :     runParserStage(egressInterpreter, egressCtx, egressEnv, egressParserStage) { e -&gt;</span></span>
-<span id="L109"><span class="lineNum">     109</span> <span class="tlaGNC">           1 :       (egressValues[&quot;psa_egress_input_metadata_t&quot;] as? StructVal)?.let {</span></span>
-<span id="L110"><span class="lineNum">     110</span> <span class="tlaGNC">           1 :         it.fields[&quot;parser_error&quot;] = ErrorVal(e.errorName)</span></span>
-<span id="L111"><span class="lineNum">     111</span> <span class="tlaGNC">           1 :       }</span></span>
-<span id="L112"><span class="lineNum">     112</span> <span class="tlaGNC">           1 :     }</span></span>
-<span id="L113"><span class="lineNum">     113</span>              : </span>
-<span id="L114"><span class="lineNum">     114</span>              :     // --- Egress Control ---</span>
-<span id="L115"><span class="lineNum">     115</span> <span class="tlaGNC">           1 :     val egressStage = stages.first { it.name == &quot;egress&quot; }</span></span>
-<span id="L116"><span class="lineNum">     116</span> <span class="tlaGNC">           1 :     bindStageParams(egressEnv, egressStage.blockName, blockParams, egressValues)</span></span>
-<span id="L117"><span class="lineNum">     117</span> <span class="tlaGNC">           1 :     runControlStage(egressInterpreter, egressCtx, egressEnv, egressStage)</span></span>
-<span id="L118"><span class="lineNum">     118</span>              : </span>
-<span id="L119"><span class="lineNum">     119</span>              :     // --- Egress drop check (PSA: egress does NOT drop by default) ---</span>
-<span id="L120"><span class="lineNum">     120</span> <span class="tlaGNC">           1 :     if ((egressOutput?.fields?.get(&quot;drop&quot;) as? BoolVal)?.value == true) {</span></span>
-<span id="L121"><span class="lineNum">     121</span> <span class="tlaUNC tlaBgUNC">           0 :       return buildDropResult(egressCtx.getEvents())</span></span>
-<span id="L122"><span class="lineNum">     122</span>              :     }</span>
-<span id="L123"><span class="lineNum">     123</span>              : </span>
-<span id="L124"><span class="lineNum">     124</span>              :     // --- Egress Deparser ---</span>
-<span id="L125"><span class="lineNum">     125</span> <span class="tlaGNC tlaBgGNC">           1 :     val egressDeparserStage = stages.first { it.name == &quot;egress_deparser&quot; }</span></span>
-<span id="L126"><span class="lineNum">     126</span> <span class="tlaGNC">           1 :     bindStageParams(egressEnv, egressDeparserStage.blockName, blockParams, egressValues)</span></span>
-<span id="L127"><span class="lineNum">     127</span> <span class="tlaGNC">           1 :     runControlStage(egressInterpreter, egressCtx, egressEnv, egressDeparserStage)</span></span>
-<span id="L128"><span class="lineNum">     128</span>              : </span>
-<span id="L129"><span class="lineNum">     129</span> <span class="tlaGNC">           1 :     val outputBytes = egressCtx.outputPayload() + egressCtx.drainRemainingInput()</span></span>
-<span id="L130"><span class="lineNum">     130</span> <span class="tlaGNC">           1 :     return buildOutputResult(egressCtx.getEvents(), egressPort, outputBytes)</span></span>
-<span id="L131"><span class="lineNum">     131</span>              :   }</span>
-<span id="L132"><span class="lineNum">     132</span>              : </span>
-<span id="L133"><span class="lineNum">     133</span>              :   // ---------------------------------------------------------------------------</span>
-<span id="L134"><span class="lineNum">     134</span>              :   // Metadata initialisation</span>
-<span id="L135"><span class="lineNum">     135</span>              :   // ---------------------------------------------------------------------------</span>
-<span id="L136"><span class="lineNum">     136</span>              : </span>
-<span id="L137"><span class="lineNum">     137</span>              :   private fun initIngressMetadata(values: Map&lt;String, Value&gt;, ingressPort: UInt) {</span>
-<span id="L138"><span class="lineNum">     138</span> <span class="tlaGNC">           1 :     (values[&quot;psa_ingress_parser_input_metadata_t&quot;] as? StructVal)?.let {</span></span>
-<span id="L139"><span class="lineNum">     139</span> <span class="tlaGNC">           1 :       it.setBitField(&quot;ingress_port&quot;, ingressPort.toLong())</span></span>
-<span id="L140"><span class="lineNum">     140</span> <span class="tlaGNC">           1 :       it.fields[&quot;packet_path&quot;] = EnumVal(&quot;NORMAL&quot;)</span></span>
-<span id="L141"><span class="lineNum">     141</span> <span class="tlaGNC">           1 :     }</span></span>
-<span id="L142"><span class="lineNum">     142</span> <span class="tlaGNC">           1 :     (values[&quot;psa_ingress_input_metadata_t&quot;] as? StructVal)?.let {</span></span>
-<span id="L143"><span class="lineNum">     143</span> <span class="tlaGNC">           1 :       it.setBitField(&quot;ingress_port&quot;, ingressPort.toLong())</span></span>
-<span id="L144"><span class="lineNum">     144</span> <span class="tlaGNC">           1 :       it.fields[&quot;packet_path&quot;] = EnumVal(&quot;NORMAL&quot;)</span></span>
-<span id="L145"><span class="lineNum">     145</span> <span class="tlaGNC">           1 :       it.fields[&quot;parser_error&quot;] = ErrorVal(&quot;NoError&quot;)</span></span>
-<span id="L146"><span class="lineNum">     146</span> <span class="tlaGNC">           1 :     }</span></span>
-<span id="L147"><span class="lineNum">     147</span>              :     // PSA spec: ingress output metadata defaults to drop=true.</span>
-<span id="L148"><span class="lineNum">     148</span> <span class="tlaGNC">           1 :     (values[&quot;psa_ingress_output_metadata_t&quot;] as? StructVal)?.let {</span></span>
-<span id="L149"><span class="lineNum">     149</span> <span class="tlaGNC">           1 :       it.fields[&quot;drop&quot;] = BoolVal(true)</span></span>
-<span id="L150"><span class="lineNum">     150</span> <span class="tlaGNC">           1 :     }</span></span>
-<span id="L151"><span class="lineNum">     151</span> <span class="tlaGNC">           1 :   }</span></span>
-<span id="L152"><span class="lineNum">     152</span>              : </span>
-<span id="L153"><span class="lineNum">     153</span>              :   private fun initEgressMetadata(</span>
-<span id="L154"><span class="lineNum">     154</span>              :     values: Map&lt;String, Value&gt;,</span>
-<span id="L155"><span class="lineNum">     155</span>              :     egressPort: Int,</span>
-<span id="L156"><span class="lineNum">     156</span>              :     ingressOutput: StructVal?,</span>
-<span id="L157"><span class="lineNum">     157</span>              :   ) {</span>
-<span id="L158"><span class="lineNum">     158</span> <span class="tlaGNC">           1 :     val cos =</span></span>
-<span id="L159"><span class="lineNum">     159</span> <span class="tlaGNC">           1 :       (ingressOutput?.fields?.get(&quot;class_of_service&quot;) as? BitVal)?.bits?.value?.toLong() ?: 0</span></span>
-<span id="L160"><span class="lineNum">     160</span> <span class="tlaGNC">           1 :     (values[&quot;psa_egress_parser_input_metadata_t&quot;] as? StructVal)?.let {</span></span>
-<span id="L161"><span class="lineNum">     161</span> <span class="tlaGNC">           1 :       it.setBitField(&quot;egress_port&quot;, egressPort.toLong())</span></span>
-<span id="L162"><span class="lineNum">     162</span> <span class="tlaGNC">           1 :       it.fields[&quot;packet_path&quot;] = EnumVal(&quot;NORMAL_UNICAST&quot;)</span></span>
-<span id="L163"><span class="lineNum">     163</span> <span class="tlaGNC">           1 :     }</span></span>
-<span id="L164"><span class="lineNum">     164</span> <span class="tlaGNC">           1 :     (values[&quot;psa_egress_input_metadata_t&quot;] as? StructVal)?.let {</span></span>
-<span id="L165"><span class="lineNum">     165</span> <span class="tlaGNC">           1 :       it.setBitField(&quot;class_of_service&quot;, cos)</span></span>
-<span id="L166"><span class="lineNum">     166</span> <span class="tlaGNC">           1 :       it.setBitField(&quot;egress_port&quot;, egressPort.toLong())</span></span>
-<span id="L167"><span class="lineNum">     167</span> <span class="tlaGNC">           1 :       it.fields[&quot;packet_path&quot;] = EnumVal(&quot;NORMAL_UNICAST&quot;)</span></span>
-<span id="L168"><span class="lineNum">     168</span> <span class="tlaGNC">           1 :       it.fields[&quot;parser_error&quot;] = ErrorVal(&quot;NoError&quot;)</span></span>
-<span id="L169"><span class="lineNum">     169</span> <span class="tlaGNC">           1 :     }</span></span>
-<span id="L170"><span class="lineNum">     170</span>              :     // PSA spec: egress output metadata defaults to drop=false.</span>
-<span id="L171"><span class="lineNum">     171</span> <span class="tlaGNC">           1 :     (values[&quot;psa_egress_output_metadata_t&quot;] as? StructVal)?.let {</span></span>
-<span id="L172"><span class="lineNum">     172</span> <span class="tlaGNC">           1 :       it.fields[&quot;drop&quot;] = BoolVal(false)</span></span>
-<span id="L173"><span class="lineNum">     173</span> <span class="tlaGNC">           1 :     }</span></span>
-<span id="L174"><span class="lineNum">     174</span> <span class="tlaGNC">           1 :     (values[&quot;psa_egress_deparser_input_metadata_t&quot;] as? StructVal)?.let {</span></span>
-<span id="L175"><span class="lineNum">     175</span> <span class="tlaGNC">           1 :       it.setBitField(&quot;egress_port&quot;, egressPort.toLong())</span></span>
-<span id="L176"><span class="lineNum">     176</span> <span class="tlaGNC">           1 :     }</span></span>
-<span id="L177"><span class="lineNum">     177</span> <span class="tlaGNC">           1 :   }</span></span>
-<span id="L178"><span class="lineNum">     178</span>              : </span>
+<span id="L24"><span class="lineNum">      24</span>              :  * Pipeline structure: IngressParser → Ingress → IngressDeparser → (traffic manager) → EgressParser</span>
+<span id="L25"><span class="lineNum">      25</span>              :  * → Egress → EgressDeparser</span>
+<span id="L26"><span class="lineNum">      26</span>              :  *</span>
+<span id="L27"><span class="lineNum">      27</span>              :  * Key differences from v1model:</span>
+<span id="L28"><span class="lineNum">      28</span>              :  * - Ingress drops by default (`ostd.drop` starts `true`). To forward, call `send_to_port()`.</span>
+<span id="L29"><span class="lineNum">      29</span>              :  * - Egress does NOT drop by default (`ostd.drop` starts `false`).</span>
+<span id="L30"><span class="lineNum">      30</span>              :  * - Port width is `bit&lt;32&gt;` (not `bit&lt;9&gt;`).</span>
+<span id="L31"><span class="lineNum">      31</span>              :  * - Each stage has distinct metadata structs (no shared `standard_metadata`).</span>
+<span id="L32"><span class="lineNum">      32</span>              :  *</span>
+<span id="L33"><span class="lineNum">      33</span>              :  * References:</span>
+<span id="L34"><span class="lineNum">      34</span>              :  * - PSA spec: https://p4.org/p4-spec/docs/PSA.html</span>
+<span id="L35"><span class="lineNum">      35</span>              :  * - BMv2 psa.p4: https://github.com/p4lang/p4c/blob/main/p4include/bmv2/psa.p4</span>
+<span id="L36"><span class="lineNum">      36</span>              :  */</span>
+<span id="L37"><span class="lineNum">      37</span> <span class="tlaGNC tlaBgGNC">           1 : class PSAArchitecture : Architecture {</span></span>
+<span id="L38"><span class="lineNum">      38</span>              : </span>
+<span id="L39"><span class="lineNum">      39</span>              :   override fun processPacket(</span>
+<span id="L40"><span class="lineNum">      40</span>              :     ingressPort: UInt,</span>
+<span id="L41"><span class="lineNum">      41</span>              :     payload: ByteArray,</span>
+<span id="L42"><span class="lineNum">      42</span>              :     config: BehavioralConfig,</span>
+<span id="L43"><span class="lineNum">      43</span>              :     tableStore: TableStore,</span>
+<span id="L44"><span class="lineNum">      44</span>              :   ): PipelineResult {</span>
+<span id="L45"><span class="lineNum">      45</span> <span class="tlaGNC">           1 :     val typesByName = config.typesList.associateBy { it.name }</span></span>
+<span id="L46"><span class="lineNum">      46</span> <span class="tlaGNC">           1 :     val stages = config.architecture.stagesList</span></span>
+<span id="L47"><span class="lineNum">      47</span> <span class="tlaGNC">           1 :     val blockParams = buildBlockParamsMap(config)</span></span>
+<span id="L48"><span class="lineNum">      48</span>              : </span>
+<span id="L49"><span class="lineNum">      49</span>              :     // === Ingress pipeline ===</span>
+<span id="L50"><span class="lineNum">      50</span> <span class="tlaGNC">           1 :     val ingress =</span></span>
+<span id="L51"><span class="lineNum">      51</span> <span class="tlaGNC">           1 :       runIngressPipeline(config, tableStore, stages, blockParams, typesByName, payload, ingressPort)</span></span>
+<span id="L52"><span class="lineNum">      52</span> <span class="tlaGNC">           1 :     if (ingress.dropped) return buildDropResult(ingress.events)</span></span>
+<span id="L53"><span class="lineNum">      53</span>              : </span>
+<span id="L54"><span class="lineNum">      54</span>              :     // === Traffic Manager: multicast vs. unicast ===</span>
+<span id="L55"><span class="lineNum">      55</span> <span class="tlaGNC">           1 :     val egressState =</span></span>
+<span id="L56"><span class="lineNum">      56</span> <span class="tlaGNC">           1 :       EgressState(config, typesByName, stages, blockParams, tableStore, ingress.output)</span></span>
+<span id="L57"><span class="lineNum">      57</span> <span class="tlaGNC">           1 :     val multicastGroup =</span></span>
+<span id="L58"><span class="lineNum">      58</span> <span class="tlaGNC">           1 :       (ingress.output?.fields?.get(&quot;multicast_group&quot;) as? BitVal)?.bits?.value?.toInt() ?: 0</span></span>
+<span id="L59"><span class="lineNum">      59</span>              : </span>
+<span id="L60"><span class="lineNum">      60</span> <span class="tlaGNC">           1 :     if (multicastGroup != 0) {</span></span>
+<span id="L61"><span class="lineNum">      61</span> <span class="tlaGNC">           1 :       return multicastFork(egressState, ingress, multicastGroup)</span></span>
+<span id="L62"><span class="lineNum">      62</span>              :     }</span>
+<span id="L63"><span class="lineNum">      63</span>              : </span>
+<span id="L64"><span class="lineNum">      64</span> <span class="tlaGNC">           1 :     val egressPort =</span></span>
+<span id="L65"><span class="lineNum">      65</span> <span class="tlaGNC">           1 :       (ingress.output?.fields?.get(&quot;egress_port&quot;) as? BitVal)?.bits?.value?.toInt() ?: 0</span></span>
+<span id="L66"><span class="lineNum">      66</span>              : </span>
+<span id="L67"><span class="lineNum">      67</span>              :     // === Unicast egress ===</span>
+<span id="L68"><span class="lineNum">      68</span> <span class="tlaGNC">           1 :     val egressTrace =</span></span>
+<span id="L69"><span class="lineNum">      69</span> <span class="tlaGNC">           1 :       runEgressPipeline(egressState, ingress.deparsedBytes, egressPort, 0, &quot;NORMAL_UNICAST&quot;)</span></span>
+<span id="L70"><span class="lineNum">      70</span>              : </span>
+<span id="L71"><span class="lineNum">      71</span>              :     // Flatten ingress + egress events into a single trace.</span>
+<span id="L72"><span class="lineNum">      72</span> <span class="tlaGNC">           1 :     val tree =</span></span>
+<span id="L73"><span class="lineNum">      73</span> <span class="tlaGNC">           1 :       TraceTree.newBuilder().addAllEvents(ingress.events).addAllEvents(egressTrace.eventsList)</span></span>
+<span id="L74"><span class="lineNum">      74</span> <span class="tlaGNC">           1 :     if (egressTrace.hasPacketOutcome()) tree.setPacketOutcome(egressTrace.packetOutcome)</span></span>
+<span id="L75"><span class="lineNum">      75</span> <span class="tlaGNC">           1 :     return PipelineResult(tree.build())</span></span>
+<span id="L76"><span class="lineNum">      76</span>              :   }</span>
+<span id="L77"><span class="lineNum">      77</span>              : </span>
+<span id="L78"><span class="lineNum">      78</span>              :   // ---------------------------------------------------------------------------</span>
+<span id="L79"><span class="lineNum">      79</span>              :   // Ingress pipeline</span>
+<span id="L80"><span class="lineNum">      80</span>              :   // ---------------------------------------------------------------------------</span>
+<span id="L81"><span class="lineNum">      81</span>              : </span>
+<span id="L82"><span class="lineNum">      82</span>              :   /** Result of running the ingress pipeline (parser → control → drop check → deparser). */</span>
+<span id="L83"><span class="lineNum">      83</span> <span class="tlaGNC">           1 :   private class IngressResult(</span></span>
+<span id="L84"><span class="lineNum">      84</span> <span class="tlaGNC">           1 :     val events: List&lt;TraceEvent&gt;,</span></span>
+<span id="L85"><span class="lineNum">      85</span> <span class="tlaGNC">           1 :     val output: StructVal?,</span></span>
+<span id="L86"><span class="lineNum">      86</span> <span class="tlaGNC">           1 :     val deparsedBytes: ByteArray,</span></span>
+<span id="L87"><span class="lineNum">      87</span> <span class="tlaGNC">           1 :     val dropped: Boolean,</span></span>
+<span id="L88"><span class="lineNum">      88</span>              :   )</span>
+<span id="L89"><span class="lineNum">      89</span>              : </span>
+<span id="L90"><span class="lineNum">      90</span>              :   private fun runIngressPipeline(</span>
+<span id="L91"><span class="lineNum">      91</span>              :     config: BehavioralConfig,</span>
+<span id="L92"><span class="lineNum">      92</span>              :     tableStore: TableStore,</span>
+<span id="L93"><span class="lineNum">      93</span>              :     stages: List&lt;PipelineStage&gt;,</span>
+<span id="L94"><span class="lineNum">      94</span>              :     blockParams: Map&lt;String, List&lt;BlockParam&gt;&gt;,</span>
+<span id="L95"><span class="lineNum">      95</span>              :     typesByName: Map&lt;String, TypeDecl&gt;,</span>
+<span id="L96"><span class="lineNum">      96</span>              :     payload: ByteArray,</span>
+<span id="L97"><span class="lineNum">      97</span>              :     ingressPort: UInt,</span>
+<span id="L98"><span class="lineNum">      98</span>              :   ): IngressResult {</span>
+<span id="L99"><span class="lineNum">      99</span> <span class="tlaGNC">           1 :     val ctx = PacketContext(payload)</span></span>
+<span id="L100"><span class="lineNum">     100</span> <span class="tlaGNC">           1 :     val env = Environment()</span></span>
+<span id="L101"><span class="lineNum">     101</span> <span class="tlaGNC">           1 :     val values = createDefaultValues(config, typesByName)</span></span>
+<span id="L102"><span class="lineNum">     102</span>              : </span>
+<span id="L103"><span class="lineNum">     103</span> <span class="tlaGNC">           1 :     initIngressMetadata(values, ingressPort)</span></span>
+<span id="L104"><span class="lineNum">     104</span> <span class="tlaGNC">           1 :     val output = values[&quot;psa_ingress_output_metadata_t&quot;] as? StructVal</span></span>
+<span id="L105"><span class="lineNum">     105</span>              : </span>
+<span id="L106"><span class="lineNum">     106</span> <span class="tlaGNC">           1 :     val interpreter =</span></span>
+<span id="L107"><span class="lineNum">     107</span> <span class="tlaGNC">           1 :       Interpreter(config, tableStore, ctx, emptyMap(), createPsaExternHandler(tableStore))</span></span>
+<span id="L108"><span class="lineNum">     108</span>              : </span>
+<span id="L109"><span class="lineNum">     109</span> <span class="tlaGNC">           1 :     ctx.addTraceEvent(packetIngressEvent(ingressPort))</span></span>
+<span id="L110"><span class="lineNum">     110</span>              : </span>
+<span id="L111"><span class="lineNum">     111</span>              :     // --- Ingress Parser ---</span>
+<span id="L112"><span class="lineNum">     112</span> <span class="tlaGNC">           1 :     val parserStage = stages.first { it.name == &quot;ingress_parser&quot; }</span></span>
+<span id="L113"><span class="lineNum">     113</span> <span class="tlaGNC">           1 :     bindStageParams(env, parserStage.blockName, blockParams, values)</span></span>
+<span id="L114"><span class="lineNum">     114</span> <span class="tlaGNC">           1 :     runParserStage(interpreter, ctx, env, parserStage) { e -&gt;</span></span>
+<span id="L115"><span class="lineNum">     115</span> <span class="tlaGNC">           1 :       (values[&quot;psa_ingress_input_metadata_t&quot;] as? StructVal)?.let {</span></span>
+<span id="L116"><span class="lineNum">     116</span> <span class="tlaGNC">           1 :         it.fields[&quot;parser_error&quot;] = ErrorVal(e.errorName)</span></span>
+<span id="L117"><span class="lineNum">     117</span> <span class="tlaGNC">           1 :       }</span></span>
+<span id="L118"><span class="lineNum">     118</span> <span class="tlaGNC">           1 :     }</span></span>
+<span id="L119"><span class="lineNum">     119</span>              : </span>
+<span id="L120"><span class="lineNum">     120</span>              :     // --- Ingress Control ---</span>
+<span id="L121"><span class="lineNum">     121</span> <span class="tlaGNC">           1 :     val controlStage = stages.first { it.name == &quot;ingress&quot; }</span></span>
+<span id="L122"><span class="lineNum">     122</span> <span class="tlaGNC">           1 :     bindStageParams(env, controlStage.blockName, blockParams, values)</span></span>
+<span id="L123"><span class="lineNum">     123</span> <span class="tlaGNC">           1 :     runControlStage(interpreter, ctx, env, controlStage)</span></span>
+<span id="L124"><span class="lineNum">     124</span>              : </span>
+<span id="L125"><span class="lineNum">     125</span>              :     // --- Ingress drop check (PSA: drop=true by default) ---</span>
+<span id="L126"><span class="lineNum">     126</span> <span class="tlaGNC">           1 :     val dropped = (output?.fields?.get(&quot;drop&quot;) as? BoolVal)?.value != false</span></span>
+<span id="L127"><span class="lineNum">     127</span> <span class="tlaGNC">           1 :     if (dropped) {</span></span>
+<span id="L128"><span class="lineNum">     128</span> <span class="tlaGNC">           1 :       return IngressResult(ctx.getEvents(), output, byteArrayOf(), dropped = true)</span></span>
+<span id="L129"><span class="lineNum">     129</span>              :     }</span>
+<span id="L130"><span class="lineNum">     130</span>              : </span>
+<span id="L131"><span class="lineNum">     131</span>              :     // --- Ingress Deparser ---</span>
+<span id="L132"><span class="lineNum">     132</span> <span class="tlaGNC">           1 :     val deparserStage = stages.first { it.name == &quot;ingress_deparser&quot; }</span></span>
+<span id="L133"><span class="lineNum">     133</span> <span class="tlaGNC">           1 :     bindStageParams(env, deparserStage.blockName, blockParams, values)</span></span>
+<span id="L134"><span class="lineNum">     134</span> <span class="tlaGNC">           1 :     runControlStage(interpreter, ctx, env, deparserStage)</span></span>
+<span id="L135"><span class="lineNum">     135</span>              : </span>
+<span id="L136"><span class="lineNum">     136</span> <span class="tlaGNC">           1 :     val deparsedBytes = ctx.outputPayload() + ctx.drainRemainingInput()</span></span>
+<span id="L137"><span class="lineNum">     137</span> <span class="tlaGNC">           1 :     return IngressResult(ctx.getEvents(), output, deparsedBytes, dropped = false)</span></span>
+<span id="L138"><span class="lineNum">     138</span>              :   }</span>
+<span id="L139"><span class="lineNum">     139</span>              : </span>
+<span id="L140"><span class="lineNum">     140</span>              :   // ---------------------------------------------------------------------------</span>
+<span id="L141"><span class="lineNum">     141</span>              :   // Traffic Manager: multicast</span>
+<span id="L142"><span class="lineNum">     142</span>              :   // ---------------------------------------------------------------------------</span>
+<span id="L143"><span class="lineNum">     143</span>              : </span>
+<span id="L144"><span class="lineNum">     144</span>              :   private fun multicastFork(</span>
+<span id="L145"><span class="lineNum">     145</span>              :     egressState: EgressState,</span>
+<span id="L146"><span class="lineNum">     146</span>              :     ingress: IngressResult,</span>
+<span id="L147"><span class="lineNum">     147</span>              :     multicastGroup: Int,</span>
+<span id="L148"><span class="lineNum">     148</span>              :   ): PipelineResult {</span>
+<span id="L149"><span class="lineNum">     149</span> <span class="tlaGNC">           1 :     val group =</span></span>
+<span id="L150"><span class="lineNum">     150</span> <span class="tlaGNC">           1 :       egressState.tableStore.getMulticastGroup(multicastGroup)</span></span>
+<span id="L151"><span class="lineNum">     151</span>              :         ?: // BMv2 psa_switch: unknown multicast group → silently drop.</span>
+<span id="L152"><span class="lineNum">     152</span> <span class="tlaGNC">           1 :         return buildDropResult(ingress.events)</span></span>
+<span id="L153"><span class="lineNum">     153</span>              : </span>
+<span id="L154"><span class="lineNum">     154</span> <span class="tlaGNC">           1 :     val branches =</span></span>
+<span id="L155"><span class="lineNum">     155</span> <span class="tlaGNC">           1 :       group.replicasList.map { replica -&gt;</span></span>
+<span id="L156"><span class="lineNum">     156</span> <span class="tlaGNC">           1 :         val subtree =</span></span>
+<span id="L157"><span class="lineNum">     157</span> <span class="tlaGNC">           1 :           runEgressPipeline(</span></span>
+<span id="L158"><span class="lineNum">     158</span> <span class="tlaGNC">           1 :             egressState,</span></span>
+<span id="L159"><span class="lineNum">     159</span> <span class="tlaGNC">           1 :             ingress.deparsedBytes,</span></span>
+<span id="L160"><span class="lineNum">     160</span> <span class="tlaGNC">           1 :             replica.egressPort,</span></span>
+<span id="L161"><span class="lineNum">     161</span> <span class="tlaGNC">           1 :             replica.instance,</span></span>
+<span id="L162"><span class="lineNum">     162</span> <span class="tlaGNC">           1 :             &quot;NORMAL_MULTICAST&quot;,</span></span>
+<span id="L163"><span class="lineNum">     163</span>              :           )</span>
+<span id="L164"><span class="lineNum">     164</span> <span class="tlaGNC">           1 :         ForkBranch.newBuilder()</span></span>
+<span id="L165"><span class="lineNum">     165</span> <span class="tlaGNC">           1 :           .setLabel(&quot;replica_${replica.instance}_port_${replica.egressPort}&quot;)</span></span>
+<span id="L166"><span class="lineNum">     166</span> <span class="tlaGNC">           1 :           .setSubtree(subtree)</span></span>
+<span id="L167"><span class="lineNum">     167</span> <span class="tlaGNC">           1 :           .build()</span></span>
+<span id="L168"><span class="lineNum">     168</span>              :       }</span>
+<span id="L169"><span class="lineNum">     169</span> <span class="tlaGNC">           1 :     val tree =</span></span>
+<span id="L170"><span class="lineNum">     170</span> <span class="tlaGNC">           1 :       TraceTree.newBuilder()</span></span>
+<span id="L171"><span class="lineNum">     171</span> <span class="tlaGNC">           1 :         .addAllEvents(ingress.events)</span></span>
+<span id="L172"><span class="lineNum">     172</span> <span class="tlaGNC">           1 :         .setForkOutcome(Fork.newBuilder().setReason(ForkReason.MULTICAST).addAllBranches(branches))</span></span>
+<span id="L173"><span class="lineNum">     173</span> <span class="tlaGNC">           1 :         .build()</span></span>
+<span id="L174"><span class="lineNum">     174</span> <span class="tlaGNC">           1 :     return PipelineResult(tree)</span></span>
+<span id="L175"><span class="lineNum">     175</span>              :   }</span>
+<span id="L176"><span class="lineNum">     176</span>              : </span>
+<span id="L177"><span class="lineNum">     177</span>              :   // ---------------------------------------------------------------------------</span>
+<span id="L178"><span class="lineNum">     178</span>              :   // Egress pipeline (runs once per unicast, once per multicast replica)</span>
 <span id="L179"><span class="lineNum">     179</span>              :   // ---------------------------------------------------------------------------</span>
-<span id="L180"><span class="lineNum">     180</span>              :   // Stage execution helpers</span>
-<span id="L181"><span class="lineNum">     181</span>              :   // ---------------------------------------------------------------------------</span>
-<span id="L182"><span class="lineNum">     182</span>              : </span>
-<span id="L183"><span class="lineNum">     183</span>              :   private fun runParserStage(</span>
-<span id="L184"><span class="lineNum">     184</span>              :     interpreter: Interpreter,</span>
-<span id="L185"><span class="lineNum">     185</span>              :     ctx: PacketContext,</span>
-<span id="L186"><span class="lineNum">     186</span>              :     env: Environment,</span>
-<span id="L187"><span class="lineNum">     187</span>              :     stage: PipelineStage,</span>
-<span id="L188"><span class="lineNum">     188</span>              :     onParserError: (ParserErrorException) -&gt; Unit,</span>
-<span id="L189"><span class="lineNum">     189</span>              :   ) {</span>
-<span id="L190"><span class="lineNum">     190</span> <span class="tlaGNC">           1 :     ctx.addTraceEvent(stageEvent(stage, PipelineStageEvent.Direction.ENTER))</span></span>
-<span id="L191"><span class="lineNum">     191</span> <span class="tlaGNC">           1 :     try {</span></span>
-<span id="L192"><span class="lineNum">     192</span> <span class="tlaGNC">           1 :       interpreter.runParser(stage.blockName, env)</span></span>
-<span id="L193"><span class="lineNum">     193</span> <span class="tlaGNC">           1 :     } catch (e: ParserErrorException) {</span></span>
-<span id="L194"><span class="lineNum">     194</span> <span class="tlaGNC">           1 :       onParserError(e)</span></span>
-<span id="L195"><span class="lineNum">     195</span>              :     } finally {</span>
-<span id="L196"><span class="lineNum">     196</span> <span class="tlaGNC">           1 :       ctx.addTraceEvent(stageEvent(stage, PipelineStageEvent.Direction.EXIT))</span></span>
-<span id="L197"><span class="lineNum">     197</span>              :     }</span>
-<span id="L198"><span class="lineNum">     198</span> <span class="tlaGNC">           1 :   }</span></span>
-<span id="L199"><span class="lineNum">     199</span>              : </span>
-<span id="L200"><span class="lineNum">     200</span>              :   private fun runControlStage(</span>
-<span id="L201"><span class="lineNum">     201</span>              :     interpreter: Interpreter,</span>
-<span id="L202"><span class="lineNum">     202</span>              :     ctx: PacketContext,</span>
-<span id="L203"><span class="lineNum">     203</span>              :     env: Environment,</span>
-<span id="L204"><span class="lineNum">     204</span>              :     stage: PipelineStage,</span>
-<span id="L205"><span class="lineNum">     205</span>              :   ) {</span>
-<span id="L206"><span class="lineNum">     206</span> <span class="tlaGNC">           1 :     ctx.addTraceEvent(stageEvent(stage, PipelineStageEvent.Direction.ENTER))</span></span>
-<span id="L207"><span class="lineNum">     207</span> <span class="tlaGNC">           1 :     try {</span></span>
-<span id="L208"><span class="lineNum">     208</span> <span class="tlaGNC">           1 :       interpreter.runControl(stage.blockName, env)</span></span>
-<span id="L209"><span class="lineNum">     209</span> <span class="tlaUNC tlaBgUNC">           0 :     } catch (_: ExitException) {</span></span>
-<span id="L210"><span class="lineNum">     210</span>              :       // PSA: exit terminates the current control, but the pipeline continues.</span>
-<span id="L211"><span class="lineNum">     211</span>              :     } finally {</span>
-<span id="L212"><span class="lineNum">     212</span> <span class="tlaGNC tlaBgGNC">           1 :       ctx.addTraceEvent(stageEvent(stage, PipelineStageEvent.Direction.EXIT))</span></span>
-<span id="L213"><span class="lineNum">     213</span>              :     }</span>
-<span id="L214"><span class="lineNum">     214</span> <span class="tlaGNC">           1 :   }</span></span>
-<span id="L215"><span class="lineNum">     215</span>              : </span>
-<span id="L216"><span class="lineNum">     216</span>              :   // ---------------------------------------------------------------------------</span>
-<span id="L217"><span class="lineNum">     217</span>              :   // Parameter binding</span>
-<span id="L218"><span class="lineNum">     218</span>              :   // ---------------------------------------------------------------------------</span>
-<span id="L219"><span class="lineNum">     219</span>              : </span>
-<span id="L220"><span class="lineNum">     220</span>              :   /**</span>
-<span id="L221"><span class="lineNum">     221</span>              :    * Binds a stage's parameters in the environment, mapping each param name to the shared value for</span>
-<span id="L222"><span class="lineNum">     222</span>              :    * its type.</span>
-<span id="L223"><span class="lineNum">     223</span>              :    *</span>
-<span id="L224"><span class="lineNum">     224</span>              :    * PSA stages reuse parameter names (e.g. `istd`) with different types, so parameters must be</span>
-<span id="L225"><span class="lineNum">     225</span>              :    * re-bound before each stage — unlike v1model where all params can be bound once upfront.</span>
-<span id="L226"><span class="lineNum">     226</span>              :    */</span>
-<span id="L227"><span class="lineNum">     227</span>              :   private fun bindStageParams(</span>
-<span id="L228"><span class="lineNum">     228</span>              :     env: Environment,</span>
-<span id="L229"><span class="lineNum">     229</span>              :     blockName: String,</span>
-<span id="L230"><span class="lineNum">     230</span>              :     blockParams: Map&lt;String, List&lt;BlockParam&gt;&gt;,</span>
-<span id="L231"><span class="lineNum">     231</span>              :     valueByType: Map&lt;String, Value&gt;,</span>
-<span id="L232"><span class="lineNum">     232</span>              :   ) {</span>
-<span id="L233"><span class="lineNum">     233</span> <span class="tlaGNC">           1 :     for (param in blockParams[blockName] ?: emptyList()) {</span></span>
-<span id="L234"><span class="lineNum">     234</span> <span class="tlaGNC">           1 :       valueByType[param.typeName]?.let { env.define(param.name, it) }</span></span>
-<span id="L235"><span class="lineNum">     235</span>              :     }</span>
-<span id="L236"><span class="lineNum">     236</span> <span class="tlaGNC">           1 :   }</span></span>
-<span id="L237"><span class="lineNum">     237</span>              : </span>
-<span id="L238"><span class="lineNum">     238</span>              :   /** Simplified parameter descriptor: just name and type. */</span>
-<span id="L239"><span class="lineNum">     239</span> <span class="tlaGNC">           1 :   private data class BlockParam(val name: String, val typeName: String)</span></span>
-<span id="L240"><span class="lineNum">     240</span>              : </span>
-<span id="L241"><span class="lineNum">     241</span>              :   /** Builds a map from block name to parameter list across all parsers and controls. */</span>
-<span id="L242"><span class="lineNum">     242</span>              :   private fun buildBlockParamsMap(config: BehavioralConfig): Map&lt;String, List&lt;BlockParam&gt;&gt; {</span>
-<span id="L243"><span class="lineNum">     243</span> <span class="tlaGNC">           1 :     val result = mutableMapOf&lt;String, List&lt;BlockParam&gt;&gt;()</span></span>
-<span id="L244"><span class="lineNum">     244</span> <span class="tlaGNC">           1 :     for (parser in config.parsersList) {</span></span>
-<span id="L245"><span class="lineNum">     245</span> <span class="tlaGNC">           1 :       result[parser.name] =</span></span>
-<span id="L246"><span class="lineNum">     246</span> <span class="tlaGNC">           1 :         parser.paramsList</span></span>
-<span id="L247"><span class="lineNum">     247</span> <span class="tlaGNC">           1 :           .filter { it.type.hasNamed() &amp;&amp; it.type.named !in IO_TYPES }</span></span>
-<span id="L248"><span class="lineNum">     248</span> <span class="tlaGNC">           1 :           .map { BlockParam(it.name, it.type.named) }</span></span>
-<span id="L249"><span class="lineNum">     249</span>              :     }</span>
-<span id="L250"><span class="lineNum">     250</span> <span class="tlaGNC">           1 :     for (control in config.controlsList) {</span></span>
-<span id="L251"><span class="lineNum">     251</span> <span class="tlaGNC">           1 :       result[control.name] =</span></span>
-<span id="L252"><span class="lineNum">     252</span> <span class="tlaGNC">           1 :         control.paramsList</span></span>
-<span id="L253"><span class="lineNum">     253</span> <span class="tlaGNC">           1 :           .filter { it.type.hasNamed() &amp;&amp; it.type.named !in IO_TYPES }</span></span>
-<span id="L254"><span class="lineNum">     254</span> <span class="tlaGNC">           1 :           .map { BlockParam(it.name, it.type.named) }</span></span>
-<span id="L255"><span class="lineNum">     255</span>              :     }</span>
-<span id="L256"><span class="lineNum">     256</span> <span class="tlaGNC">           1 :     return result</span></span>
-<span id="L257"><span class="lineNum">     257</span>              :   }</span>
-<span id="L258"><span class="lineNum">     258</span>              : </span>
-<span id="L259"><span class="lineNum">     259</span>              :   /**</span>
-<span id="L260"><span class="lineNum">     260</span>              :    * Creates default values for all named types referenced by parser/control parameters.</span>
-<span id="L261"><span class="lineNum">     261</span>              :    *</span>
-<span id="L262"><span class="lineNum">     262</span>              :    * Returns a mutable map keyed by type name. The same value instance is shared across all</span>
-<span id="L263"><span class="lineNum">     263</span>              :    * parameters of that type (e.g., `headers` is shared between parser `parsed_hdr` and control</span>
-<span id="L264"><span class="lineNum">     264</span>              :    * `hdr`), so mutations in one stage are visible to subsequent stages.</span>
-<span id="L265"><span class="lineNum">     265</span>              :    */</span>
-<span id="L266"><span class="lineNum">     266</span>              :   private fun createDefaultValues(</span>
-<span id="L267"><span class="lineNum">     267</span>              :     config: BehavioralConfig,</span>
-<span id="L268"><span class="lineNum">     268</span>              :     typesByName: Map&lt;String, TypeDecl&gt;,</span>
-<span id="L269"><span class="lineNum">     269</span>              :   ): MutableMap&lt;String, Value&gt; {</span>
-<span id="L270"><span class="lineNum">     270</span> <span class="tlaGNC">           1 :     val values = mutableMapOf&lt;String, Value&gt;()</span></span>
-<span id="L271"><span class="lineNum">     271</span> <span class="tlaGNC">           1 :     for (parser in config.parsersList) {</span></span>
-<span id="L272"><span class="lineNum">     272</span> <span class="tlaGNC">           1 :       for (param in parser.paramsList) {</span></span>
-<span id="L273"><span class="lineNum">     273</span> <span class="tlaGNC">           1 :         if (param.type.hasNamed() &amp;&amp; param.type.named !in IO_TYPES) {</span></span>
-<span id="L274"><span class="lineNum">     274</span> <span class="tlaGNC">           1 :           values.getOrPut(param.type.named) { defaultValue(param.type.named, typesByName) }</span></span>
-<span id="L275"><span class="lineNum">     275</span>              :         }</span>
-<span id="L276"><span class="lineNum">     276</span>              :       }</span>
-<span id="L277"><span class="lineNum">     277</span>              :     }</span>
-<span id="L278"><span class="lineNum">     278</span> <span class="tlaGNC">           1 :     for (control in config.controlsList) {</span></span>
-<span id="L279"><span class="lineNum">     279</span> <span class="tlaGNC">           1 :       for (param in control.paramsList) {</span></span>
-<span id="L280"><span class="lineNum">     280</span> <span class="tlaGNC">           1 :         if (param.type.hasNamed() &amp;&amp; param.type.named !in IO_TYPES) {</span></span>
-<span id="L281"><span class="lineNum">     281</span> <span class="tlaGNC">           1 :           values.getOrPut(param.type.named) { defaultValue(param.type.named, typesByName) }</span></span>
-<span id="L282"><span class="lineNum">     282</span>              :         }</span>
-<span id="L283"><span class="lineNum">     283</span>              :       }</span>
-<span id="L284"><span class="lineNum">     284</span>              :     }</span>
-<span id="L285"><span class="lineNum">     285</span> <span class="tlaGNC">           1 :     return values</span></span>
-<span id="L286"><span class="lineNum">     286</span>              :   }</span>
-<span id="L287"><span class="lineNum">     287</span>              : </span>
-<span id="L288"><span class="lineNum">     288</span>              :   // ---------------------------------------------------------------------------</span>
-<span id="L289"><span class="lineNum">     289</span>              :   // PSA extern handler</span>
-<span id="L290"><span class="lineNum">     290</span>              :   // ---------------------------------------------------------------------------</span>
-<span id="L291"><span class="lineNum">     291</span>              : </span>
-<span id="L292"><span class="lineNum">     292</span>              :   /**</span>
-<span id="L293"><span class="lineNum">     293</span>              :    * Creates a minimal PSA extern handler.</span>
-<span id="L294"><span class="lineNum">     294</span>              :    *</span>
-<span id="L295"><span class="lineNum">     295</span>              :    * Currently handles `send_to_port` (sets egress_port and drop=false on the ingress output</span>
-<span id="L296"><span class="lineNum">     296</span>              :    * metadata). Additional PSA externs will be added as tests require them.</span>
-<span id="L297"><span class="lineNum">     297</span>              :    */</span>
-<span id="L298"><span class="lineNum">     298</span>              :   private fun createPsaExternHandler(tableStore: TableStore): ExternHandler =</span>
-<span id="L299"><span class="lineNum">     299</span> <span class="tlaGNC">           1 :     ExternHandler { call, eval -&gt;</span></span>
-<span id="L300"><span class="lineNum">     300</span> <span class="tlaGNC">           1 :       when (call) {</span></span>
-<span id="L301"><span class="lineNum">     301</span> <span class="tlaGNC">           1 :         is ExternCall.FreeFunction -&gt;</span></span>
-<span id="L302"><span class="lineNum">     302</span> <span class="tlaGNC">           1 :           when (call.name) {</span></span>
-<span id="L303"><span class="lineNum">     303</span>              :             // send_to_port(inout ostd, in PortId_t port)</span>
-<span id="L304"><span class="lineNum">     304</span>              :             // After midend, becomes: send_to_port(ostd, port) where ostd is the output metadata.</span>
-<span id="L305"><span class="lineNum">     305</span>              :             &quot;send_to_port&quot; -&gt; {</span>
-<span id="L306"><span class="lineNum">     306</span> <span class="tlaGNC">           1 :               val ostd = eval.evalArg(0) as StructVal</span></span>
-<span id="L307"><span class="lineNum">     307</span> <span class="tlaGNC">           1 :               val port = eval.evalArg(1) as BitVal</span></span>
-<span id="L308"><span class="lineNum">     308</span> <span class="tlaGNC">           1 :               ostd.fields[&quot;drop&quot;] = BoolVal(false)</span></span>
-<span id="L309"><span class="lineNum">     309</span> <span class="tlaGNC">           1 :               ostd.fields[&quot;egress_port&quot;] = port</span></span>
-<span id="L310"><span class="lineNum">     310</span> <span class="tlaGNC">           1 :               UnitVal</span></span>
-<span id="L311"><span class="lineNum">     311</span>              :             }</span>
-<span id="L312"><span class="lineNum">     312</span>              :             &quot;ingress_drop&quot;,</span>
-<span id="L313"><span class="lineNum">     313</span>              :             &quot;egress_drop&quot; -&gt; {</span>
-<span id="L314"><span class="lineNum">     314</span> <span class="tlaUNC tlaBgUNC">           0 :               val ostd = eval.evalArg(0) as StructVal</span></span>
-<span id="L315"><span class="lineNum">     315</span> <span class="tlaUNC">           0 :               ostd.fields[&quot;drop&quot;] = BoolVal(true)</span></span>
-<span id="L316"><span class="lineNum">     316</span> <span class="tlaUNC">           0 :               UnitVal</span></span>
-<span id="L317"><span class="lineNum">     317</span>              :             }</span>
-<span id="L318"><span class="lineNum">     318</span> <span class="tlaGNC tlaBgGNC">           1 :             else -&gt; error(&quot;unhandled PSA extern: ${call.name}&quot;)</span></span>
-<span id="L319"><span class="lineNum">     319</span>              :           }</span>
-<span id="L320"><span class="lineNum">     320</span> <span class="tlaGNC">           1 :         is ExternCall.Method -&gt;</span></span>
-<span id="L321"><span class="lineNum">     321</span> <span class="tlaGNC">           1 :           when (call.method) {</span></span>
-<span id="L322"><span class="lineNum">     322</span>              :             // PSA register.read(index) returns T directly (unlike v1model's void + out param).</span>
-<span id="L323"><span class="lineNum">     323</span>              :             &quot;read&quot; -&gt; {</span>
-<span id="L324"><span class="lineNum">     324</span> <span class="tlaGNC">           1 :               val index = (eval.evalArg(0) as BitVal).bits.value.toInt()</span></span>
-<span id="L325"><span class="lineNum">     325</span> <span class="tlaGNC">           1 :               tableStore.registerRead(call.instanceName, index)</span></span>
-<span id="L326"><span class="lineNum">     326</span> <span class="tlaGNC">           1 :                 ?: eval.defaultValue(eval.returnType())</span></span>
-<span id="L327"><span class="lineNum">     327</span>              :             }</span>
-<span id="L328"><span class="lineNum">     328</span>              :             &quot;write&quot; -&gt; {</span>
-<span id="L329"><span class="lineNum">     329</span> <span class="tlaGNC">           1 :               val index = (eval.evalArg(0) as BitVal).bits.value.toInt()</span></span>
-<span id="L330"><span class="lineNum">     330</span> <span class="tlaGNC">           1 :               tableStore.registerWrite(call.instanceName, index, eval.evalArg(1))</span></span>
-<span id="L331"><span class="lineNum">     331</span> <span class="tlaGNC">           1 :               UnitVal</span></span>
-<span id="L332"><span class="lineNum">     332</span>              :             }</span>
-<span id="L333"><span class="lineNum">     333</span> <span class="tlaGNC">           1 :             &quot;count&quot; -&gt; UnitVal</span></span>
-<span id="L334"><span class="lineNum">     334</span>              :             else -&gt;</span>
-<span id="L335"><span class="lineNum">     335</span> <span class="tlaUNC tlaBgUNC">           0 :               error(</span></span>
-<span id="L336"><span class="lineNum">     336</span> <span class="tlaUNC">           0 :                 &quot;unhandled PSA extern method: ${call.externType}.${call.method}&quot; +</span></span>
-<span id="L337"><span class="lineNum">     337</span> <span class="tlaUNC">           0 :                   &quot; on ${call.instanceName}&quot;</span></span>
-<span id="L338"><span class="lineNum">     338</span>              :               )</span>
-<span id="L339"><span class="lineNum">     339</span>              :           }</span>
-<span id="L340"><span class="lineNum">     340</span> <span class="tlaGNC tlaBgGNC">           1 :       }</span></span>
-<span id="L341"><span class="lineNum">     341</span> <span class="tlaGNC">           1 :     }</span></span>
-<span id="L342"><span class="lineNum">     342</span>              : </span>
-<span id="L343"><span class="lineNum">     343</span>              :   // ---------------------------------------------------------------------------</span>
-<span id="L344"><span class="lineNum">     344</span>              :   // Trace helpers</span>
-<span id="L345"><span class="lineNum">     345</span>              :   // ---------------------------------------------------------------------------</span>
-<span id="L346"><span class="lineNum">     346</span>              : </span>
-<span id="L347"><span class="lineNum">     347</span>              :   private fun buildDropResult(events: List&lt;TraceEvent&gt;): PipelineResult {</span>
-<span id="L348"><span class="lineNum">     348</span> <span class="tlaGNC">           1 :     val outcome =</span></span>
-<span id="L349"><span class="lineNum">     349</span> <span class="tlaGNC">           1 :       PacketOutcome.newBuilder()</span></span>
-<span id="L350"><span class="lineNum">     350</span> <span class="tlaGNC">           1 :         .setDrop(Drop.newBuilder().setReason(DropReason.MARK_TO_DROP))</span></span>
-<span id="L351"><span class="lineNum">     351</span> <span class="tlaGNC">           1 :         .build()</span></span>
-<span id="L352"><span class="lineNum">     352</span> <span class="tlaGNC">           1 :     return PipelineResult(</span></span>
-<span id="L353"><span class="lineNum">     353</span> <span class="tlaGNC">           1 :       TraceTree.newBuilder().addAllEvents(events).setPacketOutcome(outcome).build()</span></span>
-<span id="L354"><span class="lineNum">     354</span>              :     )</span>
-<span id="L355"><span class="lineNum">     355</span>              :   }</span>
-<span id="L356"><span class="lineNum">     356</span>              : </span>
-<span id="L357"><span class="lineNum">     357</span>              :   private fun buildOutputResult(</span>
-<span id="L358"><span class="lineNum">     358</span>              :     events: List&lt;TraceEvent&gt;,</span>
-<span id="L359"><span class="lineNum">     359</span>              :     port: Int,</span>
-<span id="L360"><span class="lineNum">     360</span>              :     payload: ByteArray,</span>
-<span id="L361"><span class="lineNum">     361</span>              :   ): PipelineResult {</span>
-<span id="L362"><span class="lineNum">     362</span> <span class="tlaGNC">           1 :     val output =</span></span>
-<span id="L363"><span class="lineNum">     363</span> <span class="tlaGNC">           1 :       fourward.sim.v1.SimulatorProto.OutputPacket.newBuilder()</span></span>
-<span id="L364"><span class="lineNum">     364</span> <span class="tlaGNC">           1 :         .setEgressPort(port)</span></span>
-<span id="L365"><span class="lineNum">     365</span> <span class="tlaGNC">           1 :         .setPayload(com.google.protobuf.ByteString.copyFrom(payload))</span></span>
-<span id="L366"><span class="lineNum">     366</span> <span class="tlaGNC">           1 :         .build()</span></span>
-<span id="L367"><span class="lineNum">     367</span> <span class="tlaGNC">           1 :     val outcome = PacketOutcome.newBuilder().setOutput(output).build()</span></span>
-<span id="L368"><span class="lineNum">     368</span> <span class="tlaGNC">           1 :     return PipelineResult(</span></span>
-<span id="L369"><span class="lineNum">     369</span> <span class="tlaGNC">           1 :       TraceTree.newBuilder().addAllEvents(events).setPacketOutcome(outcome).build()</span></span>
-<span id="L370"><span class="lineNum">     370</span>              :     )</span>
-<span id="L371"><span class="lineNum">     371</span>              :   }</span>
-<span id="L372"><span class="lineNum">     372</span>              : </span>
-<span id="L373"><span class="lineNum">     373</span>              :   private fun packetIngressEvent(ingressPort: UInt): TraceEvent =</span>
-<span id="L374"><span class="lineNum">     374</span> <span class="tlaGNC">           1 :     TraceEvent.newBuilder()</span></span>
-<span id="L375"><span class="lineNum">     375</span> <span class="tlaGNC">           1 :       .setPacketIngress(PacketIngressEvent.newBuilder().setIngressPort(ingressPort.toInt()))</span></span>
-<span id="L376"><span class="lineNum">     376</span> <span class="tlaGNC">           1 :       .build()</span></span>
-<span id="L377"><span class="lineNum">     377</span>              : </span>
-<span id="L378"><span class="lineNum">     378</span>              :   private fun stageEvent(</span>
-<span id="L379"><span class="lineNum">     379</span>              :     stage: PipelineStage,</span>
-<span id="L380"><span class="lineNum">     380</span>              :     direction: PipelineStageEvent.Direction,</span>
-<span id="L381"><span class="lineNum">     381</span>              :   ): TraceEvent =</span>
-<span id="L382"><span class="lineNum">     382</span> <span class="tlaGNC">           1 :     TraceEvent.newBuilder()</span></span>
-<span id="L383"><span class="lineNum">     383</span> <span class="tlaGNC">           1 :       .setPipelineStage(</span></span>
-<span id="L384"><span class="lineNum">     384</span> <span class="tlaGNC">           1 :         PipelineStageEvent.newBuilder()</span></span>
-<span id="L385"><span class="lineNum">     385</span> <span class="tlaGNC">           1 :           .setStageName(stage.name)</span></span>
-<span id="L386"><span class="lineNum">     386</span> <span class="tlaGNC">           1 :           .setStageKind(stage.kind)</span></span>
-<span id="L387"><span class="lineNum">     387</span> <span class="tlaGNC">           1 :           .setDirection(direction)</span></span>
-<span id="L388"><span class="lineNum">     388</span>              :       )</span>
-<span id="L389"><span class="lineNum">     389</span> <span class="tlaGNC">           1 :       .build()</span></span>
-<span id="L390"><span class="lineNum">     390</span>              : </span>
-<span id="L391"><span class="lineNum">     391</span>              :   private companion object {</span>
-<span id="L392"><span class="lineNum">     392</span>              :     /** Architecture-level packet I/O types that are not user-visible parameters. */</span>
-<span id="L393"><span class="lineNum">     393</span> <span class="tlaGNC">           1 :     val IO_TYPES = setOf(&quot;packet_in&quot;, &quot;packet_out&quot;)</span></span>
-<span id="L394"><span class="lineNum">     394</span>              :   }</span>
-<span id="L395"><span class="lineNum">     395</span>              : }</span>
+<span id="L180"><span class="lineNum">     180</span>              : </span>
+<span id="L181"><span class="lineNum">     181</span>              :   /** Shared state needed to run the egress pipeline. Avoids long parameter lists. */</span>
+<span id="L182"><span class="lineNum">     182</span> <span class="tlaGNC">           1 :   private class EgressState(</span></span>
+<span id="L183"><span class="lineNum">     183</span> <span class="tlaGNC">           1 :     val config: BehavioralConfig,</span></span>
+<span id="L184"><span class="lineNum">     184</span> <span class="tlaGNC">           1 :     val typesByName: Map&lt;String, TypeDecl&gt;,</span></span>
+<span id="L185"><span class="lineNum">     185</span> <span class="tlaGNC">           1 :     val stages: List&lt;PipelineStage&gt;,</span></span>
+<span id="L186"><span class="lineNum">     186</span> <span class="tlaGNC">           1 :     val blockParams: Map&lt;String, List&lt;BlockParam&gt;&gt;,</span></span>
+<span id="L187"><span class="lineNum">     187</span> <span class="tlaGNC">           1 :     val tableStore: TableStore,</span></span>
+<span id="L188"><span class="lineNum">     188</span> <span class="tlaGNC">           1 :     val ingressOutput: StructVal?,</span></span>
+<span id="L189"><span class="lineNum">     189</span>              :   )</span>
+<span id="L190"><span class="lineNum">     190</span>              : </span>
+<span id="L191"><span class="lineNum">     191</span>              :   /**</span>
+<span id="L192"><span class="lineNum">     192</span>              :    * Runs the full egress pipeline (parser → control → deparser) and returns its TraceTree.</span>
+<span id="L193"><span class="lineNum">     193</span>              :    *</span>
+<span id="L194"><span class="lineNum">     194</span>              :    * For multicast, this is called once per replica. For unicast, called once. The returned trace</span>
+<span id="L195"><span class="lineNum">     195</span>              :    * contains only egress events — the caller composes the full trace (unicast: flat merge,</span>
+<span id="L196"><span class="lineNum">     196</span>              :    * multicast: fork branches).</span>
+<span id="L197"><span class="lineNum">     197</span>              :    */</span>
+<span id="L198"><span class="lineNum">     198</span>              :   private fun runEgressPipeline(</span>
+<span id="L199"><span class="lineNum">     199</span>              :     state: EgressState,</span>
+<span id="L200"><span class="lineNum">     200</span>              :     deparsedBytes: ByteArray,</span>
+<span id="L201"><span class="lineNum">     201</span>              :     egressPort: Int,</span>
+<span id="L202"><span class="lineNum">     202</span>              :     instance: Int,</span>
+<span id="L203"><span class="lineNum">     203</span>              :     packetPath: String,</span>
+<span id="L204"><span class="lineNum">     204</span>              :   ): TraceTree {</span>
+<span id="L205"><span class="lineNum">     205</span> <span class="tlaGNC">           1 :     val egressCtx = PacketContext(deparsedBytes)</span></span>
+<span id="L206"><span class="lineNum">     206</span> <span class="tlaGNC">           1 :     val egressEnv = Environment()</span></span>
+<span id="L207"><span class="lineNum">     207</span> <span class="tlaGNC">           1 :     val egressValues = createDefaultValues(state.config, state.typesByName)</span></span>
+<span id="L208"><span class="lineNum">     208</span>              : </span>
+<span id="L209"><span class="lineNum">     209</span> <span class="tlaGNC">           1 :     initEgressMetadata(egressValues, egressPort, instance, packetPath, state.ingressOutput)</span></span>
+<span id="L210"><span class="lineNum">     210</span> <span class="tlaGNC">           1 :     val egressOutput = egressValues[&quot;psa_egress_output_metadata_t&quot;] as? StructVal</span></span>
+<span id="L211"><span class="lineNum">     211</span>              : </span>
+<span id="L212"><span class="lineNum">     212</span> <span class="tlaGNC">           1 :     val egressInterpreter =</span></span>
+<span id="L213"><span class="lineNum">     213</span> <span class="tlaGNC">           1 :       Interpreter(</span></span>
+<span id="L214"><span class="lineNum">     214</span> <span class="tlaGNC">           1 :         state.config,</span></span>
+<span id="L215"><span class="lineNum">     215</span> <span class="tlaGNC">           1 :         state.tableStore,</span></span>
+<span id="L216"><span class="lineNum">     216</span> <span class="tlaGNC">           1 :         egressCtx,</span></span>
+<span id="L217"><span class="lineNum">     217</span> <span class="tlaGNC">           1 :         emptyMap(),</span></span>
+<span id="L218"><span class="lineNum">     218</span> <span class="tlaGNC">           1 :         createPsaExternHandler(state.tableStore),</span></span>
+<span id="L219"><span class="lineNum">     219</span>              :       )</span>
+<span id="L220"><span class="lineNum">     220</span>              : </span>
+<span id="L221"><span class="lineNum">     221</span>              :     // --- Egress Parser ---</span>
+<span id="L222"><span class="lineNum">     222</span> <span class="tlaGNC">           1 :     val egressParserStage = state.stages.first { it.name == &quot;egress_parser&quot; }</span></span>
+<span id="L223"><span class="lineNum">     223</span> <span class="tlaGNC">           1 :     bindStageParams(egressEnv, egressParserStage.blockName, state.blockParams, egressValues)</span></span>
+<span id="L224"><span class="lineNum">     224</span> <span class="tlaGNC">           1 :     runParserStage(egressInterpreter, egressCtx, egressEnv, egressParserStage) { e -&gt;</span></span>
+<span id="L225"><span class="lineNum">     225</span> <span class="tlaGNC">           1 :       (egressValues[&quot;psa_egress_input_metadata_t&quot;] as? StructVal)?.let {</span></span>
+<span id="L226"><span class="lineNum">     226</span> <span class="tlaGNC">           1 :         it.fields[&quot;parser_error&quot;] = ErrorVal(e.errorName)</span></span>
+<span id="L227"><span class="lineNum">     227</span> <span class="tlaGNC">           1 :       }</span></span>
+<span id="L228"><span class="lineNum">     228</span> <span class="tlaGNC">           1 :     }</span></span>
+<span id="L229"><span class="lineNum">     229</span>              : </span>
+<span id="L230"><span class="lineNum">     230</span>              :     // --- Egress Control ---</span>
+<span id="L231"><span class="lineNum">     231</span> <span class="tlaGNC">           1 :     val egressStage = state.stages.first { it.name == &quot;egress&quot; }</span></span>
+<span id="L232"><span class="lineNum">     232</span> <span class="tlaGNC">           1 :     bindStageParams(egressEnv, egressStage.blockName, state.blockParams, egressValues)</span></span>
+<span id="L233"><span class="lineNum">     233</span> <span class="tlaGNC">           1 :     runControlStage(egressInterpreter, egressCtx, egressEnv, egressStage)</span></span>
+<span id="L234"><span class="lineNum">     234</span>              : </span>
+<span id="L235"><span class="lineNum">     235</span>              :     // --- Egress drop check (PSA: egress does NOT drop by default) ---</span>
+<span id="L236"><span class="lineNum">     236</span> <span class="tlaGNC">           1 :     if ((egressOutput?.fields?.get(&quot;drop&quot;) as? BoolVal)?.value == true) {</span></span>
+<span id="L237"><span class="lineNum">     237</span> <span class="tlaUNC tlaBgUNC">           0 :       return buildDropTrace(egressCtx.getEvents())</span></span>
+<span id="L238"><span class="lineNum">     238</span>              :     }</span>
+<span id="L239"><span class="lineNum">     239</span>              : </span>
+<span id="L240"><span class="lineNum">     240</span>              :     // --- Egress Deparser ---</span>
+<span id="L241"><span class="lineNum">     241</span> <span class="tlaGNC tlaBgGNC">           1 :     val egressDeparserStage = state.stages.first { it.name == &quot;egress_deparser&quot; }</span></span>
+<span id="L242"><span class="lineNum">     242</span> <span class="tlaGNC">           1 :     bindStageParams(egressEnv, egressDeparserStage.blockName, state.blockParams, egressValues)</span></span>
+<span id="L243"><span class="lineNum">     243</span> <span class="tlaGNC">           1 :     runControlStage(egressInterpreter, egressCtx, egressEnv, egressDeparserStage)</span></span>
+<span id="L244"><span class="lineNum">     244</span>              : </span>
+<span id="L245"><span class="lineNum">     245</span> <span class="tlaGNC">           1 :     val outputBytes = egressCtx.outputPayload() + egressCtx.drainRemainingInput()</span></span>
+<span id="L246"><span class="lineNum">     246</span> <span class="tlaGNC">           1 :     return buildOutputTrace(egressCtx.getEvents(), egressPort, outputBytes)</span></span>
+<span id="L247"><span class="lineNum">     247</span>              :   }</span>
+<span id="L248"><span class="lineNum">     248</span>              : </span>
+<span id="L249"><span class="lineNum">     249</span>              :   // ---------------------------------------------------------------------------</span>
+<span id="L250"><span class="lineNum">     250</span>              :   // Metadata initialisation</span>
+<span id="L251"><span class="lineNum">     251</span>              :   // ---------------------------------------------------------------------------</span>
+<span id="L252"><span class="lineNum">     252</span>              : </span>
+<span id="L253"><span class="lineNum">     253</span>              :   private fun initIngressMetadata(values: Map&lt;String, Value&gt;, ingressPort: UInt) {</span>
+<span id="L254"><span class="lineNum">     254</span> <span class="tlaGNC">           1 :     (values[&quot;psa_ingress_parser_input_metadata_t&quot;] as? StructVal)?.let {</span></span>
+<span id="L255"><span class="lineNum">     255</span> <span class="tlaGNC">           1 :       it.setBitField(&quot;ingress_port&quot;, ingressPort.toLong())</span></span>
+<span id="L256"><span class="lineNum">     256</span> <span class="tlaGNC">           1 :       it.fields[&quot;packet_path&quot;] = EnumVal(&quot;NORMAL&quot;)</span></span>
+<span id="L257"><span class="lineNum">     257</span> <span class="tlaGNC">           1 :     }</span></span>
+<span id="L258"><span class="lineNum">     258</span> <span class="tlaGNC">           1 :     (values[&quot;psa_ingress_input_metadata_t&quot;] as? StructVal)?.let {</span></span>
+<span id="L259"><span class="lineNum">     259</span> <span class="tlaGNC">           1 :       it.setBitField(&quot;ingress_port&quot;, ingressPort.toLong())</span></span>
+<span id="L260"><span class="lineNum">     260</span> <span class="tlaGNC">           1 :       it.fields[&quot;packet_path&quot;] = EnumVal(&quot;NORMAL&quot;)</span></span>
+<span id="L261"><span class="lineNum">     261</span> <span class="tlaGNC">           1 :       it.fields[&quot;parser_error&quot;] = ErrorVal(&quot;NoError&quot;)</span></span>
+<span id="L262"><span class="lineNum">     262</span> <span class="tlaGNC">           1 :     }</span></span>
+<span id="L263"><span class="lineNum">     263</span>              :     // PSA spec: ingress output metadata defaults to drop=true.</span>
+<span id="L264"><span class="lineNum">     264</span> <span class="tlaGNC">           1 :     (values[&quot;psa_ingress_output_metadata_t&quot;] as? StructVal)?.let {</span></span>
+<span id="L265"><span class="lineNum">     265</span> <span class="tlaGNC">           1 :       it.fields[&quot;drop&quot;] = BoolVal(true)</span></span>
+<span id="L266"><span class="lineNum">     266</span> <span class="tlaGNC">           1 :     }</span></span>
+<span id="L267"><span class="lineNum">     267</span> <span class="tlaGNC">           1 :   }</span></span>
+<span id="L268"><span class="lineNum">     268</span>              : </span>
+<span id="L269"><span class="lineNum">     269</span>              :   private fun initEgressMetadata(</span>
+<span id="L270"><span class="lineNum">     270</span>              :     values: Map&lt;String, Value&gt;,</span>
+<span id="L271"><span class="lineNum">     271</span>              :     egressPort: Int,</span>
+<span id="L272"><span class="lineNum">     272</span>              :     instance: Int,</span>
+<span id="L273"><span class="lineNum">     273</span>              :     packetPath: String,</span>
+<span id="L274"><span class="lineNum">     274</span>              :     ingressOutput: StructVal?,</span>
+<span id="L275"><span class="lineNum">     275</span>              :   ) {</span>
+<span id="L276"><span class="lineNum">     276</span> <span class="tlaGNC">           1 :     val cos =</span></span>
+<span id="L277"><span class="lineNum">     277</span> <span class="tlaGNC">           1 :       (ingressOutput?.fields?.get(&quot;class_of_service&quot;) as? BitVal)?.bits?.value?.toLong() ?: 0</span></span>
+<span id="L278"><span class="lineNum">     278</span> <span class="tlaGNC">           1 :     (values[&quot;psa_egress_parser_input_metadata_t&quot;] as? StructVal)?.let {</span></span>
+<span id="L279"><span class="lineNum">     279</span> <span class="tlaGNC">           1 :       it.setBitField(&quot;egress_port&quot;, egressPort.toLong())</span></span>
+<span id="L280"><span class="lineNum">     280</span> <span class="tlaGNC">           1 :       it.fields[&quot;packet_path&quot;] = EnumVal(packetPath)</span></span>
+<span id="L281"><span class="lineNum">     281</span> <span class="tlaGNC">           1 :     }</span></span>
+<span id="L282"><span class="lineNum">     282</span> <span class="tlaGNC">           1 :     (values[&quot;psa_egress_input_metadata_t&quot;] as? StructVal)?.let {</span></span>
+<span id="L283"><span class="lineNum">     283</span> <span class="tlaGNC">           1 :       it.setBitField(&quot;class_of_service&quot;, cos)</span></span>
+<span id="L284"><span class="lineNum">     284</span> <span class="tlaGNC">           1 :       it.setBitField(&quot;egress_port&quot;, egressPort.toLong())</span></span>
+<span id="L285"><span class="lineNum">     285</span> <span class="tlaGNC">           1 :       it.fields[&quot;packet_path&quot;] = EnumVal(packetPath)</span></span>
+<span id="L286"><span class="lineNum">     286</span>              :       // PSA spec §6.5: instance identifies the replica within a multicast group.</span>
+<span id="L287"><span class="lineNum">     287</span>              :       // Only set if the program declares the field (not all PSA programs use it).</span>
+<span id="L288"><span class="lineNum">     288</span> <span class="tlaGNC">           1 :       if (it.fields.containsKey(&quot;instance&quot;)) it.setBitField(&quot;instance&quot;, instance.toLong())</span></span>
+<span id="L289"><span class="lineNum">     289</span> <span class="tlaGNC">           1 :       it.fields[&quot;parser_error&quot;] = ErrorVal(&quot;NoError&quot;)</span></span>
+<span id="L290"><span class="lineNum">     290</span> <span class="tlaGNC">           1 :     }</span></span>
+<span id="L291"><span class="lineNum">     291</span>              :     // PSA spec: egress output metadata defaults to drop=false.</span>
+<span id="L292"><span class="lineNum">     292</span> <span class="tlaGNC">           1 :     (values[&quot;psa_egress_output_metadata_t&quot;] as? StructVal)?.let {</span></span>
+<span id="L293"><span class="lineNum">     293</span> <span class="tlaGNC">           1 :       it.fields[&quot;drop&quot;] = BoolVal(false)</span></span>
+<span id="L294"><span class="lineNum">     294</span> <span class="tlaGNC">           1 :     }</span></span>
+<span id="L295"><span class="lineNum">     295</span> <span class="tlaGNC">           1 :     (values[&quot;psa_egress_deparser_input_metadata_t&quot;] as? StructVal)?.let {</span></span>
+<span id="L296"><span class="lineNum">     296</span> <span class="tlaGNC">           1 :       it.setBitField(&quot;egress_port&quot;, egressPort.toLong())</span></span>
+<span id="L297"><span class="lineNum">     297</span> <span class="tlaGNC">           1 :     }</span></span>
+<span id="L298"><span class="lineNum">     298</span> <span class="tlaGNC">           1 :   }</span></span>
+<span id="L299"><span class="lineNum">     299</span>              : </span>
+<span id="L300"><span class="lineNum">     300</span>              :   // ---------------------------------------------------------------------------</span>
+<span id="L301"><span class="lineNum">     301</span>              :   // Stage execution helpers</span>
+<span id="L302"><span class="lineNum">     302</span>              :   // ---------------------------------------------------------------------------</span>
+<span id="L303"><span class="lineNum">     303</span>              : </span>
+<span id="L304"><span class="lineNum">     304</span>              :   private fun runParserStage(</span>
+<span id="L305"><span class="lineNum">     305</span>              :     interpreter: Interpreter,</span>
+<span id="L306"><span class="lineNum">     306</span>              :     ctx: PacketContext,</span>
+<span id="L307"><span class="lineNum">     307</span>              :     env: Environment,</span>
+<span id="L308"><span class="lineNum">     308</span>              :     stage: PipelineStage,</span>
+<span id="L309"><span class="lineNum">     309</span>              :     onParserError: (ParserErrorException) -&gt; Unit,</span>
+<span id="L310"><span class="lineNum">     310</span>              :   ) {</span>
+<span id="L311"><span class="lineNum">     311</span> <span class="tlaGNC">           1 :     ctx.addTraceEvent(stageEvent(stage, PipelineStageEvent.Direction.ENTER))</span></span>
+<span id="L312"><span class="lineNum">     312</span> <span class="tlaGNC">           1 :     try {</span></span>
+<span id="L313"><span class="lineNum">     313</span> <span class="tlaGNC">           1 :       interpreter.runParser(stage.blockName, env)</span></span>
+<span id="L314"><span class="lineNum">     314</span> <span class="tlaGNC">           1 :     } catch (e: ParserErrorException) {</span></span>
+<span id="L315"><span class="lineNum">     315</span> <span class="tlaGNC">           1 :       onParserError(e)</span></span>
+<span id="L316"><span class="lineNum">     316</span>              :     } finally {</span>
+<span id="L317"><span class="lineNum">     317</span> <span class="tlaGNC">           1 :       ctx.addTraceEvent(stageEvent(stage, PipelineStageEvent.Direction.EXIT))</span></span>
+<span id="L318"><span class="lineNum">     318</span>              :     }</span>
+<span id="L319"><span class="lineNum">     319</span> <span class="tlaGNC">           1 :   }</span></span>
+<span id="L320"><span class="lineNum">     320</span>              : </span>
+<span id="L321"><span class="lineNum">     321</span>              :   private fun runControlStage(</span>
+<span id="L322"><span class="lineNum">     322</span>              :     interpreter: Interpreter,</span>
+<span id="L323"><span class="lineNum">     323</span>              :     ctx: PacketContext,</span>
+<span id="L324"><span class="lineNum">     324</span>              :     env: Environment,</span>
+<span id="L325"><span class="lineNum">     325</span>              :     stage: PipelineStage,</span>
+<span id="L326"><span class="lineNum">     326</span>              :   ) {</span>
+<span id="L327"><span class="lineNum">     327</span> <span class="tlaGNC">           1 :     ctx.addTraceEvent(stageEvent(stage, PipelineStageEvent.Direction.ENTER))</span></span>
+<span id="L328"><span class="lineNum">     328</span> <span class="tlaGNC">           1 :     try {</span></span>
+<span id="L329"><span class="lineNum">     329</span> <span class="tlaGNC">           1 :       interpreter.runControl(stage.blockName, env)</span></span>
+<span id="L330"><span class="lineNum">     330</span> <span class="tlaUNC tlaBgUNC">           0 :     } catch (_: ExitException) {</span></span>
+<span id="L331"><span class="lineNum">     331</span>              :       // PSA: exit terminates the current control, but the pipeline continues.</span>
+<span id="L332"><span class="lineNum">     332</span>              :     } finally {</span>
+<span id="L333"><span class="lineNum">     333</span> <span class="tlaGNC tlaBgGNC">           1 :       ctx.addTraceEvent(stageEvent(stage, PipelineStageEvent.Direction.EXIT))</span></span>
+<span id="L334"><span class="lineNum">     334</span>              :     }</span>
+<span id="L335"><span class="lineNum">     335</span> <span class="tlaGNC">           1 :   }</span></span>
+<span id="L336"><span class="lineNum">     336</span>              : </span>
+<span id="L337"><span class="lineNum">     337</span>              :   // ---------------------------------------------------------------------------</span>
+<span id="L338"><span class="lineNum">     338</span>              :   // Parameter binding</span>
+<span id="L339"><span class="lineNum">     339</span>              :   // ---------------------------------------------------------------------------</span>
+<span id="L340"><span class="lineNum">     340</span>              : </span>
+<span id="L341"><span class="lineNum">     341</span>              :   /**</span>
+<span id="L342"><span class="lineNum">     342</span>              :    * Binds a stage's parameters in the environment, mapping each param name to the shared value for</span>
+<span id="L343"><span class="lineNum">     343</span>              :    * its type.</span>
+<span id="L344"><span class="lineNum">     344</span>              :    *</span>
+<span id="L345"><span class="lineNum">     345</span>              :    * PSA stages reuse parameter names (e.g. `istd`) with different types, so parameters must be</span>
+<span id="L346"><span class="lineNum">     346</span>              :    * re-bound before each stage — unlike v1model where all params can be bound once upfront.</span>
+<span id="L347"><span class="lineNum">     347</span>              :    */</span>
+<span id="L348"><span class="lineNum">     348</span>              :   private fun bindStageParams(</span>
+<span id="L349"><span class="lineNum">     349</span>              :     env: Environment,</span>
+<span id="L350"><span class="lineNum">     350</span>              :     blockName: String,</span>
+<span id="L351"><span class="lineNum">     351</span>              :     blockParams: Map&lt;String, List&lt;BlockParam&gt;&gt;,</span>
+<span id="L352"><span class="lineNum">     352</span>              :     valueByType: Map&lt;String, Value&gt;,</span>
+<span id="L353"><span class="lineNum">     353</span>              :   ) {</span>
+<span id="L354"><span class="lineNum">     354</span> <span class="tlaGNC">           1 :     for (param in blockParams[blockName] ?: emptyList()) {</span></span>
+<span id="L355"><span class="lineNum">     355</span> <span class="tlaGNC">           1 :       valueByType[param.typeName]?.let { env.define(param.name, it) }</span></span>
+<span id="L356"><span class="lineNum">     356</span>              :     }</span>
+<span id="L357"><span class="lineNum">     357</span> <span class="tlaGNC">           1 :   }</span></span>
+<span id="L358"><span class="lineNum">     358</span>              : </span>
+<span id="L359"><span class="lineNum">     359</span>              :   /** Simplified parameter descriptor: just name and type. */</span>
+<span id="L360"><span class="lineNum">     360</span> <span class="tlaGNC">           1 :   private data class BlockParam(val name: String, val typeName: String)</span></span>
+<span id="L361"><span class="lineNum">     361</span>              : </span>
+<span id="L362"><span class="lineNum">     362</span>              :   /** Builds a map from block name to parameter list across all parsers and controls. */</span>
+<span id="L363"><span class="lineNum">     363</span>              :   private fun buildBlockParamsMap(config: BehavioralConfig): Map&lt;String, List&lt;BlockParam&gt;&gt; {</span>
+<span id="L364"><span class="lineNum">     364</span> <span class="tlaGNC">           1 :     val result = mutableMapOf&lt;String, List&lt;BlockParam&gt;&gt;()</span></span>
+<span id="L365"><span class="lineNum">     365</span> <span class="tlaGNC">           1 :     for (parser in config.parsersList) {</span></span>
+<span id="L366"><span class="lineNum">     366</span> <span class="tlaGNC">           1 :       result[parser.name] =</span></span>
+<span id="L367"><span class="lineNum">     367</span> <span class="tlaGNC">           1 :         parser.paramsList</span></span>
+<span id="L368"><span class="lineNum">     368</span> <span class="tlaGNC">           1 :           .filter { it.type.hasNamed() &amp;&amp; it.type.named !in IO_TYPES }</span></span>
+<span id="L369"><span class="lineNum">     369</span> <span class="tlaGNC">           1 :           .map { BlockParam(it.name, it.type.named) }</span></span>
+<span id="L370"><span class="lineNum">     370</span>              :     }</span>
+<span id="L371"><span class="lineNum">     371</span> <span class="tlaGNC">           1 :     for (control in config.controlsList) {</span></span>
+<span id="L372"><span class="lineNum">     372</span> <span class="tlaGNC">           1 :       result[control.name] =</span></span>
+<span id="L373"><span class="lineNum">     373</span> <span class="tlaGNC">           1 :         control.paramsList</span></span>
+<span id="L374"><span class="lineNum">     374</span> <span class="tlaGNC">           1 :           .filter { it.type.hasNamed() &amp;&amp; it.type.named !in IO_TYPES }</span></span>
+<span id="L375"><span class="lineNum">     375</span> <span class="tlaGNC">           1 :           .map { BlockParam(it.name, it.type.named) }</span></span>
+<span id="L376"><span class="lineNum">     376</span>              :     }</span>
+<span id="L377"><span class="lineNum">     377</span> <span class="tlaGNC">           1 :     return result</span></span>
+<span id="L378"><span class="lineNum">     378</span>              :   }</span>
+<span id="L379"><span class="lineNum">     379</span>              : </span>
+<span id="L380"><span class="lineNum">     380</span>              :   /**</span>
+<span id="L381"><span class="lineNum">     381</span>              :    * Creates default values for all named types referenced by parser/control parameters.</span>
+<span id="L382"><span class="lineNum">     382</span>              :    *</span>
+<span id="L383"><span class="lineNum">     383</span>              :    * Returns a mutable map keyed by type name. The same value instance is shared across all</span>
+<span id="L384"><span class="lineNum">     384</span>              :    * parameters of that type (e.g., `headers` is shared between parser `parsed_hdr` and control</span>
+<span id="L385"><span class="lineNum">     385</span>              :    * `hdr`), so mutations in one stage are visible to subsequent stages.</span>
+<span id="L386"><span class="lineNum">     386</span>              :    */</span>
+<span id="L387"><span class="lineNum">     387</span>              :   private fun createDefaultValues(</span>
+<span id="L388"><span class="lineNum">     388</span>              :     config: BehavioralConfig,</span>
+<span id="L389"><span class="lineNum">     389</span>              :     typesByName: Map&lt;String, TypeDecl&gt;,</span>
+<span id="L390"><span class="lineNum">     390</span>              :   ): MutableMap&lt;String, Value&gt; {</span>
+<span id="L391"><span class="lineNum">     391</span> <span class="tlaGNC">           1 :     val values = mutableMapOf&lt;String, Value&gt;()</span></span>
+<span id="L392"><span class="lineNum">     392</span> <span class="tlaGNC">           1 :     for (parser in config.parsersList) {</span></span>
+<span id="L393"><span class="lineNum">     393</span> <span class="tlaGNC">           1 :       for (param in parser.paramsList) {</span></span>
+<span id="L394"><span class="lineNum">     394</span> <span class="tlaGNC">           1 :         if (param.type.hasNamed() &amp;&amp; param.type.named !in IO_TYPES) {</span></span>
+<span id="L395"><span class="lineNum">     395</span> <span class="tlaGNC">           1 :           values.getOrPut(param.type.named) { defaultValue(param.type.named, typesByName) }</span></span>
+<span id="L396"><span class="lineNum">     396</span>              :         }</span>
+<span id="L397"><span class="lineNum">     397</span>              :       }</span>
+<span id="L398"><span class="lineNum">     398</span>              :     }</span>
+<span id="L399"><span class="lineNum">     399</span> <span class="tlaGNC">           1 :     for (control in config.controlsList) {</span></span>
+<span id="L400"><span class="lineNum">     400</span> <span class="tlaGNC">           1 :       for (param in control.paramsList) {</span></span>
+<span id="L401"><span class="lineNum">     401</span> <span class="tlaGNC">           1 :         if (param.type.hasNamed() &amp;&amp; param.type.named !in IO_TYPES) {</span></span>
+<span id="L402"><span class="lineNum">     402</span> <span class="tlaGNC">           1 :           values.getOrPut(param.type.named) { defaultValue(param.type.named, typesByName) }</span></span>
+<span id="L403"><span class="lineNum">     403</span>              :         }</span>
+<span id="L404"><span class="lineNum">     404</span>              :       }</span>
+<span id="L405"><span class="lineNum">     405</span>              :     }</span>
+<span id="L406"><span class="lineNum">     406</span> <span class="tlaGNC">           1 :     return values</span></span>
+<span id="L407"><span class="lineNum">     407</span>              :   }</span>
+<span id="L408"><span class="lineNum">     408</span>              : </span>
+<span id="L409"><span class="lineNum">     409</span>              :   // ---------------------------------------------------------------------------</span>
+<span id="L410"><span class="lineNum">     410</span>              :   // PSA extern handler</span>
+<span id="L411"><span class="lineNum">     411</span>              :   // ---------------------------------------------------------------------------</span>
+<span id="L412"><span class="lineNum">     412</span>              : </span>
+<span id="L413"><span class="lineNum">     413</span>              :   /** PSA extern handler: `send_to_port`, `multicast`, `ingress_drop`/`egress_drop`, registers. */</span>
+<span id="L414"><span class="lineNum">     414</span>              :   private fun createPsaExternHandler(tableStore: TableStore): ExternHandler =</span>
+<span id="L415"><span class="lineNum">     415</span> <span class="tlaGNC">           1 :     ExternHandler { call, eval -&gt;</span></span>
+<span id="L416"><span class="lineNum">     416</span> <span class="tlaGNC">           1 :       when (call) {</span></span>
+<span id="L417"><span class="lineNum">     417</span> <span class="tlaGNC">           1 :         is ExternCall.FreeFunction -&gt;</span></span>
+<span id="L418"><span class="lineNum">     418</span> <span class="tlaGNC">           1 :           when (call.name) {</span></span>
+<span id="L419"><span class="lineNum">     419</span>              :             // send_to_port(inout ostd, in PortId_t port)</span>
+<span id="L420"><span class="lineNum">     420</span>              :             // After midend, becomes: send_to_port(ostd, port) where ostd is the output metadata.</span>
+<span id="L421"><span class="lineNum">     421</span>              :             &quot;send_to_port&quot; -&gt; {</span>
+<span id="L422"><span class="lineNum">     422</span> <span class="tlaGNC">           1 :               val ostd = eval.evalArg(0) as StructVal</span></span>
+<span id="L423"><span class="lineNum">     423</span> <span class="tlaGNC">           1 :               val port = eval.evalArg(1) as BitVal</span></span>
+<span id="L424"><span class="lineNum">     424</span> <span class="tlaGNC">           1 :               ostd.fields[&quot;drop&quot;] = BoolVal(false)</span></span>
+<span id="L425"><span class="lineNum">     425</span> <span class="tlaGNC">           1 :               ostd.fields[&quot;egress_port&quot;] = port</span></span>
+<span id="L426"><span class="lineNum">     426</span> <span class="tlaGNC">           1 :               UnitVal</span></span>
+<span id="L427"><span class="lineNum">     427</span>              :             }</span>
+<span id="L428"><span class="lineNum">     428</span>              :             // multicast(inout ostd, in MulticastGroup_t group)</span>
+<span id="L429"><span class="lineNum">     429</span>              :             // PSA spec §6.2: marks the packet for multicast replication.</span>
+<span id="L430"><span class="lineNum">     430</span>              :             &quot;multicast&quot; -&gt; {</span>
+<span id="L431"><span class="lineNum">     431</span> <span class="tlaGNC">           1 :               val ostd = eval.evalArg(0) as StructVal</span></span>
+<span id="L432"><span class="lineNum">     432</span> <span class="tlaGNC">           1 :               val group = eval.evalArg(1) as BitVal</span></span>
+<span id="L433"><span class="lineNum">     433</span> <span class="tlaGNC">           1 :               ostd.fields[&quot;drop&quot;] = BoolVal(false)</span></span>
+<span id="L434"><span class="lineNum">     434</span> <span class="tlaGNC">           1 :               ostd.fields[&quot;multicast_group&quot;] = group</span></span>
+<span id="L435"><span class="lineNum">     435</span> <span class="tlaGNC">           1 :               UnitVal</span></span>
+<span id="L436"><span class="lineNum">     436</span>              :             }</span>
+<span id="L437"><span class="lineNum">     437</span>              :             &quot;ingress_drop&quot;,</span>
+<span id="L438"><span class="lineNum">     438</span>              :             &quot;egress_drop&quot; -&gt; {</span>
+<span id="L439"><span class="lineNum">     439</span> <span class="tlaUNC tlaBgUNC">           0 :               val ostd = eval.evalArg(0) as StructVal</span></span>
+<span id="L440"><span class="lineNum">     440</span> <span class="tlaUNC">           0 :               ostd.fields[&quot;drop&quot;] = BoolVal(true)</span></span>
+<span id="L441"><span class="lineNum">     441</span> <span class="tlaUNC">           0 :               UnitVal</span></span>
+<span id="L442"><span class="lineNum">     442</span>              :             }</span>
+<span id="L443"><span class="lineNum">     443</span> <span class="tlaGNC tlaBgGNC">           1 :             else -&gt; error(&quot;unhandled PSA extern: ${call.name}&quot;)</span></span>
+<span id="L444"><span class="lineNum">     444</span>              :           }</span>
+<span id="L445"><span class="lineNum">     445</span> <span class="tlaGNC">           1 :         is ExternCall.Method -&gt;</span></span>
+<span id="L446"><span class="lineNum">     446</span> <span class="tlaGNC">           1 :           when (call.method) {</span></span>
+<span id="L447"><span class="lineNum">     447</span>              :             // PSA register.read(index) returns T directly (unlike v1model's void + out param).</span>
+<span id="L448"><span class="lineNum">     448</span>              :             &quot;read&quot; -&gt; {</span>
+<span id="L449"><span class="lineNum">     449</span> <span class="tlaGNC">           1 :               val index = (eval.evalArg(0) as BitVal).bits.value.toInt()</span></span>
+<span id="L450"><span class="lineNum">     450</span> <span class="tlaGNC">           1 :               tableStore.registerRead(call.instanceName, index)</span></span>
+<span id="L451"><span class="lineNum">     451</span> <span class="tlaGNC">           1 :                 ?: eval.defaultValue(eval.returnType())</span></span>
+<span id="L452"><span class="lineNum">     452</span>              :             }</span>
+<span id="L453"><span class="lineNum">     453</span>              :             &quot;write&quot; -&gt; {</span>
+<span id="L454"><span class="lineNum">     454</span> <span class="tlaGNC">           1 :               val index = (eval.evalArg(0) as BitVal).bits.value.toInt()</span></span>
+<span id="L455"><span class="lineNum">     455</span> <span class="tlaGNC">           1 :               tableStore.registerWrite(call.instanceName, index, eval.evalArg(1))</span></span>
+<span id="L456"><span class="lineNum">     456</span> <span class="tlaGNC">           1 :               UnitVal</span></span>
+<span id="L457"><span class="lineNum">     457</span>              :             }</span>
+<span id="L458"><span class="lineNum">     458</span> <span class="tlaGNC">           1 :             &quot;count&quot; -&gt; UnitVal</span></span>
+<span id="L459"><span class="lineNum">     459</span>              :             else -&gt;</span>
+<span id="L460"><span class="lineNum">     460</span> <span class="tlaUNC tlaBgUNC">           0 :               error(</span></span>
+<span id="L461"><span class="lineNum">     461</span> <span class="tlaUNC">           0 :                 &quot;unhandled PSA extern method: ${call.externType}.${call.method}&quot; +</span></span>
+<span id="L462"><span class="lineNum">     462</span> <span class="tlaUNC">           0 :                   &quot; on ${call.instanceName}&quot;</span></span>
+<span id="L463"><span class="lineNum">     463</span>              :               )</span>
+<span id="L464"><span class="lineNum">     464</span>              :           }</span>
+<span id="L465"><span class="lineNum">     465</span> <span class="tlaGNC tlaBgGNC">           1 :       }</span></span>
+<span id="L466"><span class="lineNum">     466</span> <span class="tlaGNC">           1 :     }</span></span>
+<span id="L467"><span class="lineNum">     467</span>              : </span>
+<span id="L468"><span class="lineNum">     468</span>              :   // ---------------------------------------------------------------------------</span>
+<span id="L469"><span class="lineNum">     469</span>              :   // Trace helpers</span>
+<span id="L470"><span class="lineNum">     470</span>              :   // ---------------------------------------------------------------------------</span>
+<span id="L471"><span class="lineNum">     471</span>              : </span>
+<span id="L472"><span class="lineNum">     472</span>              :   private fun buildDropResult(events: List&lt;TraceEvent&gt;): PipelineResult =</span>
+<span id="L473"><span class="lineNum">     473</span> <span class="tlaGNC">           1 :     PipelineResult(buildDropTrace(events))</span></span>
+<span id="L474"><span class="lineNum">     474</span>              : </span>
+<span id="L475"><span class="lineNum">     475</span>              :   private fun buildDropTrace(events: List&lt;TraceEvent&gt;): TraceTree {</span>
+<span id="L476"><span class="lineNum">     476</span> <span class="tlaGNC">           1 :     val outcome =</span></span>
+<span id="L477"><span class="lineNum">     477</span> <span class="tlaGNC">           1 :       PacketOutcome.newBuilder()</span></span>
+<span id="L478"><span class="lineNum">     478</span> <span class="tlaGNC">           1 :         .setDrop(Drop.newBuilder().setReason(DropReason.MARK_TO_DROP))</span></span>
+<span id="L479"><span class="lineNum">     479</span> <span class="tlaGNC">           1 :         .build()</span></span>
+<span id="L480"><span class="lineNum">     480</span> <span class="tlaGNC">           1 :     return TraceTree.newBuilder().addAllEvents(events).setPacketOutcome(outcome).build()</span></span>
+<span id="L481"><span class="lineNum">     481</span>              :   }</span>
+<span id="L482"><span class="lineNum">     482</span>              : </span>
+<span id="L483"><span class="lineNum">     483</span>              :   private fun buildOutputTrace(events: List&lt;TraceEvent&gt;, port: Int, payload: ByteArray): TraceTree {</span>
+<span id="L484"><span class="lineNum">     484</span> <span class="tlaGNC">           1 :     val output =</span></span>
+<span id="L485"><span class="lineNum">     485</span> <span class="tlaGNC">           1 :       fourward.sim.v1.SimulatorProto.OutputPacket.newBuilder()</span></span>
+<span id="L486"><span class="lineNum">     486</span> <span class="tlaGNC">           1 :         .setEgressPort(port)</span></span>
+<span id="L487"><span class="lineNum">     487</span> <span class="tlaGNC">           1 :         .setPayload(com.google.protobuf.ByteString.copyFrom(payload))</span></span>
+<span id="L488"><span class="lineNum">     488</span> <span class="tlaGNC">           1 :         .build()</span></span>
+<span id="L489"><span class="lineNum">     489</span> <span class="tlaGNC">           1 :     val outcome = PacketOutcome.newBuilder().setOutput(output).build()</span></span>
+<span id="L490"><span class="lineNum">     490</span> <span class="tlaGNC">           1 :     return TraceTree.newBuilder().addAllEvents(events).setPacketOutcome(outcome).build()</span></span>
+<span id="L491"><span class="lineNum">     491</span>              :   }</span>
+<span id="L492"><span class="lineNum">     492</span>              : </span>
+<span id="L493"><span class="lineNum">     493</span>              :   private fun packetIngressEvent(ingressPort: UInt): TraceEvent =</span>
+<span id="L494"><span class="lineNum">     494</span> <span class="tlaGNC">           1 :     TraceEvent.newBuilder()</span></span>
+<span id="L495"><span class="lineNum">     495</span> <span class="tlaGNC">           1 :       .setPacketIngress(PacketIngressEvent.newBuilder().setIngressPort(ingressPort.toInt()))</span></span>
+<span id="L496"><span class="lineNum">     496</span> <span class="tlaGNC">           1 :       .build()</span></span>
+<span id="L497"><span class="lineNum">     497</span>              : </span>
+<span id="L498"><span class="lineNum">     498</span>              :   private fun stageEvent(</span>
+<span id="L499"><span class="lineNum">     499</span>              :     stage: PipelineStage,</span>
+<span id="L500"><span class="lineNum">     500</span>              :     direction: PipelineStageEvent.Direction,</span>
+<span id="L501"><span class="lineNum">     501</span>              :   ): TraceEvent =</span>
+<span id="L502"><span class="lineNum">     502</span> <span class="tlaGNC">           1 :     TraceEvent.newBuilder()</span></span>
+<span id="L503"><span class="lineNum">     503</span> <span class="tlaGNC">           1 :       .setPipelineStage(</span></span>
+<span id="L504"><span class="lineNum">     504</span> <span class="tlaGNC">           1 :         PipelineStageEvent.newBuilder()</span></span>
+<span id="L505"><span class="lineNum">     505</span> <span class="tlaGNC">           1 :           .setStageName(stage.name)</span></span>
+<span id="L506"><span class="lineNum">     506</span> <span class="tlaGNC">           1 :           .setStageKind(stage.kind)</span></span>
+<span id="L507"><span class="lineNum">     507</span> <span class="tlaGNC">           1 :           .setDirection(direction)</span></span>
+<span id="L508"><span class="lineNum">     508</span>              :       )</span>
+<span id="L509"><span class="lineNum">     509</span> <span class="tlaGNC">           1 :       .build()</span></span>
+<span id="L510"><span class="lineNum">     510</span>              : </span>
+<span id="L511"><span class="lineNum">     511</span>              :   private companion object {</span>
+<span id="L512"><span class="lineNum">     512</span>              :     /** Architecture-level packet I/O types that are not user-visible parameters. */</span>
+<span id="L513"><span class="lineNum">     513</span> <span class="tlaGNC">           1 :     val IO_TYPES = setOf(&quot;packet_in&quot;, &quot;packet_out&quot;)</span></span>
+<span id="L514"><span class="lineNum">     514</span>              :   }</span>
+<span id="L515"><span class="lineNum">     515</span>              : }</span>
         </pre>
               </td>
             </tr>
