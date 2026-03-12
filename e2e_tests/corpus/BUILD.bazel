@@ -234,9 +234,13 @@ corpus_test_suite(
         "psa-bool-ternary-const-entry-bmv2",
         "psa-drop-all-bmv2",
         "psa-drop-all-corrected-bmv2",
+        "psa-example-register2-bmv2",
         "psa-fwd-bmv2",
         "psa-metadata-bmv2",
         "psa-parser-error-test-bmv2",
+        "psa-register-complex-bmv2",
+        "psa-register-read-write-2-bmv2",
+        "psa-register-read-write-bmv2",
         "psa-top-level-assignments-bmv2",
         "psa-unicast-or-drop-bmv2",
         "psa-unicast-or-drop-corrected-bmv2",
@@ -255,16 +259,12 @@ corpus_test_suite(
         "psa-e2e-cloning-basic-bmv2",  # E2E cloning
         "psa-end-of-ingress-test-bmv2",  # end_of_ingress extern
         "psa-example-dpdk-varbit-bmv2",  # lookahead type resolution
-        "psa-example-register2-bmv2",  # PSA register.read (returns T directly)
         "psa-i2e-cloning-basic-bmv2",  # I2E cloning
         "psa-meter7-bmv2",  # Meter extern (execute method)
         "psa-multicast-basic-2-bmv2",  # Multicast
         "psa-multicast-basic-bmv2",  # Multicast
         "psa-multicast-basic-corrected-bmv2",  # Multicast
         "psa-recirculate-no-meta-bmv2",  # Recirculate
-        "psa-register-complex-bmv2",  # PSA register.read (returns T directly)
-        "psa-register-read-write-2-bmv2",  # PSA register.read (returns T directly)
-        "psa-register-read-write-bmv2",  # PSA register.read (returns T directly)
         "psa-resubmit-bmv2",  # Resubmit
     ],
 )

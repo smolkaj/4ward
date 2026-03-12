@@ -623,7 +623,7 @@ class Interpreter(
         if (handler != null && call.target.hasNameRef()) {
           val externCall =
             ExternCall.Method(call.target.type.named, call.target.nameRef.name, call.method)
-          handler.handle(externCall, createExternEvaluator(call, env))
+          handler.handle(externCall, createExternEvaluator(call, env, returnType))
         } else {
           error("unhandled method call: ${call.method} on ${call.target}")
         }
@@ -777,8 +777,14 @@ class Interpreter(
   // -------------------------------------------------------------------------
 
   /** Creates an [ExternEvaluator] bound to [call]'s arguments and the current interpreter state. */
-  private fun createExternEvaluator(call: MethodCall, env: Environment): ExternEvaluator =
+  private fun createExternEvaluator(
+    call: MethodCall,
+    env: Environment,
+    returnType: Type = Type.getDefaultInstance(),
+  ): ExternEvaluator =
     object : ExternEvaluator {
+      override fun returnType(): Type = returnType
+
       override fun evalArg(index: Int): Value = evalExpr(call.argsList[index], env)
 
       override fun argType(index: Int): Type = call.argsList[index].type

@@ -54,7 +54,7 @@ class PSAArchitecture : Architecture {
     val ingressOutput = ingressValues["psa_ingress_output_metadata_t"] as? StructVal
 
     val ingressInterpreter =
-      Interpreter(config, tableStore, ingressCtx, emptyMap(), createPsaExternHandler())
+      Interpreter(config, tableStore, ingressCtx, emptyMap(), createPsaExternHandler(tableStore))
 
     ingressCtx.addTraceEvent(packetIngressEvent(ingressPort))
 
@@ -97,7 +97,7 @@ class PSAArchitecture : Architecture {
     val egressOutput = egressValues["psa_egress_output_metadata_t"] as? StructVal
 
     val egressInterpreter =
-      Interpreter(config, tableStore, egressCtx, emptyMap(), createPsaExternHandler())
+      Interpreter(config, tableStore, egressCtx, emptyMap(), createPsaExternHandler(tableStore))
 
     // Carry ingress trace events into the egress context.
     for (event in ingressEvents) egressCtx.addTraceEvent(event)
@@ -295,44 +295,50 @@ class PSAArchitecture : Architecture {
    * Currently handles `send_to_port` (sets egress_port and drop=false on the ingress output
    * metadata). Additional PSA externs will be added as tests require them.
    */
-  private fun createPsaExternHandler(): ExternHandler = ExternHandler { call, eval ->
-    when (call) {
-      is ExternCall.FreeFunction ->
-        when (call.name) {
-          // send_to_port(inout ostd, in PortId_t port)
-          // After midend, becomes: send_to_port(ostd, port) where ostd is the output metadata.
-          "send_to_port" -> {
-            val ostd = eval.evalArg(0) as StructVal
-            val port = eval.evalArg(1) as BitVal
-            ostd.fields["drop"] = BoolVal(false)
-            ostd.fields["egress_port"] = port
-            UnitVal
+  private fun createPsaExternHandler(tableStore: TableStore): ExternHandler =
+    ExternHandler { call, eval ->
+      when (call) {
+        is ExternCall.FreeFunction ->
+          when (call.name) {
+            // send_to_port(inout ostd, in PortId_t port)
+            // After midend, becomes: send_to_port(ostd, port) where ostd is the output metadata.
+            "send_to_port" -> {
+              val ostd = eval.evalArg(0) as StructVal
+              val port = eval.evalArg(1) as BitVal
+              ostd.fields["drop"] = BoolVal(false)
+              ostd.fields["egress_port"] = port
+              UnitVal
+            }
+            "ingress_drop",
+            "egress_drop" -> {
+              val ostd = eval.evalArg(0) as StructVal
+              ostd.fields["drop"] = BoolVal(true)
+              UnitVal
+            }
+            else -> error("unhandled PSA extern: ${call.name}")
           }
-          "ingress_drop",
-          "egress_drop" -> {
-            val ostd = eval.evalArg(0) as StructVal
-            ostd.fields["drop"] = BoolVal(true)
-            UnitVal
+        is ExternCall.Method ->
+          when (call.method) {
+            // PSA register.read(index) returns T directly (unlike v1model's void + out param).
+            "read" -> {
+              val index = (eval.evalArg(0) as BitVal).bits.value.toInt()
+              tableStore.registerRead(call.instanceName, index)
+                ?: eval.defaultValue(eval.returnType())
+            }
+            "write" -> {
+              val index = (eval.evalArg(0) as BitVal).bits.value.toInt()
+              tableStore.registerWrite(call.instanceName, index, eval.evalArg(1))
+              UnitVal
+            }
+            "count" -> UnitVal
+            else ->
+              error(
+                "unhandled PSA extern method: ${call.externType}.${call.method}" +
+                  " on ${call.instanceName}"
+              )
           }
-          else -> error("unhandled PSA extern: ${call.name}")
-        }
-      is ExternCall.Method ->
-        when (call.method) {
-          "read" -> {
-            // TODO(PSA): register.read returns T directly in PSA (not void with out param).
-            eval.writeOutArg(0, eval.defaultValue(eval.argType(0)))
-            UnitVal
-          }
-          "write" -> UnitVal // TODO(PSA): register/counter writes
-          "count" -> UnitVal
-          else ->
-            error(
-              "unhandled PSA extern method: ${call.externType}.${call.method}" +
-                " on ${call.instanceName}"
-            )
-        }
+      }
     }
-  }
 
   // ---------------------------------------------------------------------------
   // Trace helpers
