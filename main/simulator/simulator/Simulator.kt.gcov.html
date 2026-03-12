@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-12 19:05:03</td>
+            <td class="headerValue">2026-03-12 19:19:55</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">95.5&nbsp;%</td>
@@ -214,7 +214,7 @@
 <span id="L152"><span class="lineNum">     152</span> <span class="tlaGNC">           1 :         entity.hasDirectMeterEntry() -&gt; tableStore.readDirectMeterEntries(entity.directMeterEntry)</span></span>
 <span id="L153"><span class="lineNum">     153</span> <span class="tlaUNC tlaBgUNC">           0 :         entity.hasPacketReplicationEngineEntry() -&gt;</span></span>
 <span id="L154"><span class="lineNum">     154</span> <span class="tlaUNC">           0 :           tableStore.readPreEntries(entity.packetReplicationEngineEntry)</span></span>
-<span id="L155"><span class="lineNum">     155</span> <span class="tlaGNC tlaBgGNC">           1 :         else -&gt; emptyList()</span></span>
+<span id="L155"><span class="lineNum">     155</span> <span class="tlaGNC tlaBgGNC">           1 :         else -&gt; error(&quot;unsupported entity type for read: ${entity.entityCase}&quot;)</span></span>
 <span id="L156"><span class="lineNum">     156</span> <span class="tlaGNC">           1 :       }</span></span>
 <span id="L157"><span class="lineNum">     157</span> <span class="tlaGNC">           1 :     }</span></span>
 <span id="L158"><span class="lineNum">     158</span>              : </span>
