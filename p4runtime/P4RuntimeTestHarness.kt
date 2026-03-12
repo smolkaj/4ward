@@ -166,8 +166,15 @@ class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable 
       )
     }
 
-  /** Wildcard read: returns all table entries (table_id=0 is the P4Runtime wildcard). */
+  /** Wildcard read: returns all table entries including defaults (table_id=0). */
   fun readEntries(): List<Entity> = readTableEntries(0)
+
+  /** Like [readEntries] but excludes default entries (convenience for tests checking counts). */
+  fun readRegularEntries(): List<Entity> = readEntries().filter { !it.tableEntry.isDefaultAction }
+
+  /** Like [readTableEntries] but excludes default entries. */
+  fun readRegularTableEntries(tableId: Int): List<Entity> =
+    readTableEntries(tableId).filter { !it.tableEntry.isDefaultAction }
 
   /** Per-table read: returns entries from a single table (or all tables if tableId is 0). */
   fun readTableEntries(tableId: Int): List<Entity> =

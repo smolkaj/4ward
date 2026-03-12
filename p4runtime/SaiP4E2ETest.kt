@@ -103,7 +103,7 @@ class SaiP4E2ETest {
     harness.installEntry(vrfEntry)
 
     val vrfTable = findTable("vrf_table")
-    val entities = harness.readTableEntries(vrfTable.preamble.id)
+    val entities = harness.readRegularTableEntries(vrfTable.preamble.id)
     assertEquals("expected one vrf_table entry", 1, entities.size)
 
     // The match field (vrf_id) should round-trip as a UTF-8 string.
@@ -118,7 +118,7 @@ class SaiP4E2ETest {
     harness.installEntry(buildVrfEntry("vrf-3"))
 
     val vrfTable = findTable("vrf_table")
-    val entities = harness.readTableEntries(vrfTable.preamble.id)
+    val entities = harness.readRegularTableEntries(vrfTable.preamble.id)
     assertEquals("expected three vrf_table entries", 3, entities.size)
 
     val vrfIds = entities.map { it.tableEntry.matchList.first().exact.value.toStringUtf8() }.toSet()
@@ -142,7 +142,7 @@ class SaiP4E2ETest {
     harness.installEntry(ipv4Entry)
 
     val ipv4Table = findTable("ipv4_table")
-    val entities = harness.readTableEntries(ipv4Table.preamble.id)
+    val entities = harness.readRegularTableEntries(ipv4Table.preamble.id)
     assertEquals("expected one ipv4_table entry", 1, entities.size)
 
     val entry = entities[0].tableEntry
@@ -175,7 +175,7 @@ class SaiP4E2ETest {
     harness.installEntry(nexthopEntry)
 
     val nexthopTable = findTable("nexthop_table")
-    val entities = harness.readTableEntries(nexthopTable.preamble.id)
+    val entities = harness.readRegularTableEntries(nexthopTable.preamble.id)
     assertEquals("expected one nexthop_table entry", 1, entities.size)
 
     val entry = entities[0].tableEntry
@@ -202,7 +202,7 @@ class SaiP4E2ETest {
     harness.installEntry(rifEntry)
 
     val rifTable = findTable("router_interface_table")
-    val entities = harness.readTableEntries(rifTable.preamble.id)
+    val entities = harness.readRegularTableEntries(rifTable.preamble.id)
     assertEquals("expected one router_interface_table entry", 1, entities.size)
 
     val entry = entities[0].tableEntry
@@ -582,10 +582,10 @@ class SaiP4E2ETest {
     harness.installEntry(vrfEntry)
 
     val vrfTable = findTable("vrf_table")
-    assertEquals(1, harness.readTableEntries(vrfTable.preamble.id).size)
+    assertEquals(1, harness.readRegularTableEntries(vrfTable.preamble.id).size)
 
     harness.deleteEntry(vrfEntry)
-    assertEquals(0, harness.readTableEntries(vrfTable.preamble.id).size)
+    assertEquals(0, harness.readRegularTableEntries(vrfTable.preamble.id).size)
   }
 
   // =========================================================================

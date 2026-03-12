@@ -59,11 +59,13 @@ class TableStoreTest {
     name: String,
     size: Long = 0,
     implementationId: Int = 0,
+    constDefaultActionId: Int = 0,
   ): P4InfoOuterClass.Table =
     P4InfoOuterClass.Table.newBuilder()
       .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(id).setAlias(name))
       .setSize(size)
       .setImplementationId(implementationId)
+      .setConstDefaultActionId(constDefaultActionId)
       .build()
 
   // ---------------------------------------------------------------------------
@@ -934,10 +936,9 @@ class TableStoreTest {
   @Test
   fun `multicast group MODIFY existing succeeds`() {
     writeMulticastGroup(groupId = 1, replicas = listOf(0 to 1))
-    assertEquals(
-      WriteResult.Success,
-      writeMulticastGroup(groupId = 1, replicas = listOf(0 to 5, 0 to 6), type = Update.Type.MODIFY),
-    )
+    val result =
+      writeMulticastGroup(groupId = 1, replicas = listOf(0 to 5, 0 to 6), type = Update.Type.MODIFY)
+    assertEquals(WriteResult.Success, result)
     assertEquals(2, store.getMulticastGroup(1)!!.replicasCount)
   }
 
@@ -1546,7 +1547,143 @@ class TableStoreTest {
     store.write(insertUpdate(entry2))
 
     // Default filter (table_id=0, no match fields) → wildcard.
+    // No default actions configured, so only regular entries.
     assertEquals(2, store.readEntities().size)
+  }
+
+  // =========================================================================
+  // Default entries in reads (P4Runtime spec §11.1)
+  // =========================================================================
+
+  @Test
+  fun `readEntities wildcard includes default entry`() {
+    store.loadMappings(
+      p4info =
+        buildP4Info(
+          tables = listOf(p4infoTable(TABLE_ID, TABLE_NAME, constDefaultActionId = 10)),
+          actions = ACTION_LIST,
+        )
+    )
+
+    // No regular entries installed — wildcard should still return the default.
+    val results = store.readEntities()
+    assertEquals("should return default entry only", 1, results.size)
+    val entry = results[0].tableEntry
+    assertTrue("should be marked as default", entry.isDefaultAction)
+    assertEquals(TABLE_ID, entry.tableId)
+    assertEquals(10, entry.action.action.actionId)
+  }
+
+  @Test
+  fun `readEntities wildcard returns defaults for multiple tables`() {
+    store.loadMappings(
+      p4info =
+        buildP4Info(
+          tables =
+            listOf(
+              p4infoTable(TABLE_ID, TABLE_NAME, constDefaultActionId = 10),
+              p4infoTable(3, "otherTable", constDefaultActionId = 20),
+            ),
+          actions = ACTION_LIST,
+        )
+    )
+
+    val defaults = store.readEntities().filter { it.tableEntry.isDefaultAction }
+    assertEquals("each table should have a default entry", 2, defaults.size)
+    val actionIds = defaults.map { it.tableEntry.action.action.actionId }.toSet()
+    assertEquals(setOf(10, 20), actionIds)
+  }
+
+  @Test
+  fun `readEntities omits default for table without default action`() {
+    store.loadMappings(
+      p4info =
+        buildP4Info(
+          tables =
+            listOf(
+              p4infoTable(TABLE_ID, TABLE_NAME, constDefaultActionId = 10),
+              p4infoTable(3, "otherTable"), // no default action
+            ),
+          actions = ACTION_LIST,
+        )
+    )
+
+    val defaults = store.readEntities().filter { it.tableEntry.isDefaultAction }
+    assertEquals("only one table has a default action", 1, defaults.size)
+    assertEquals(TABLE_ID, defaults[0].tableEntry.tableId)
+  }
+
+  @Test
+  fun `readEntities per-table filter includes default entry`() {
+    store.loadMappings(
+      p4info =
+        buildP4Info(
+          tables = listOf(p4infoTable(TABLE_ID, TABLE_NAME, constDefaultActionId = 10)),
+          actions = ACTION_LIST,
+        )
+    )
+
+    val entry = exactEntry(fieldId = 1, value = byteArrayOf(1), actionId = 10)
+    store.write(insertUpdate(entry))
+
+    val filter = TableEntry.newBuilder().setTableId(TABLE_ID).build()
+    val results = store.readEntities(filter)
+    assertEquals("1 regular + 1 default", 2, results.size)
+
+    val regular = results.filter { !it.tableEntry.isDefaultAction }
+    val defaults = results.filter { it.tableEntry.isDefaultAction }
+    assertEquals(1, regular.size)
+    assertEquals(1, defaults.size)
+  }
+
+  @Test
+  fun `readEntities with match filter excludes default entry`() {
+    store.loadMappings(
+      p4info =
+        buildP4Info(
+          tables = listOf(p4infoTable(TABLE_ID, TABLE_NAME, constDefaultActionId = 10)),
+          actions = ACTION_LIST,
+        )
+    )
+
+    val entry = exactEntry(fieldId = 1, value = byteArrayOf(1), actionId = 10)
+    store.write(insertUpdate(entry))
+
+    // Match filter → specific entry lookup, no default entry.
+    val filter = TableEntry.newBuilder().setTableId(TABLE_ID).addMatch(entry.getMatch(0)).build()
+    val results = store.readEntities(filter)
+    assertEquals(1, results.size)
+    assertFalse("match filter should not return default", results[0].tableEntry.isDefaultAction)
+  }
+
+  @Test
+  fun `readEntities default entry has initial_default_action params`() {
+    val paramValue = ByteString.copyFrom(byteArrayOf(42))
+    val tableWithParams =
+      P4InfoOuterClass.Table.newBuilder()
+        .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(TABLE_ID).setAlias(TABLE_NAME))
+        .setInitialDefaultAction(
+          P4InfoOuterClass.TableActionCall.newBuilder()
+            .setActionId(10)
+            .addArguments(
+              P4InfoOuterClass.TableActionCall.Argument.newBuilder()
+                .setParamId(1)
+                .setValue(paramValue)
+            )
+        )
+        .build()
+
+    store.loadMappings(
+      p4info = buildP4Info(tables = listOf(tableWithParams), actions = ACTION_LIST)
+    )
+
+    val defaults = store.readEntities().filter { it.tableEntry.isDefaultAction }
+    assertEquals(1, defaults.size)
+    val action = defaults[0].tableEntry.action.action
+    assertEquals(10, action.actionId)
+    assertEquals(1, action.paramsCount)
+    assertEquals(1, action.getParams(0).paramId)
+    assertEquals(paramValue, action.getParams(0).value)
   }
 
   private fun insertUpdate(entry: TableEntry): Update =

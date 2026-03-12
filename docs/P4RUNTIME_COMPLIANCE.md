@@ -33,7 +33,7 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 | 8.4 | Range low/high byte width matches field bitwidth | Y | WriteValidatorTest |
 | 8.5 | Ternary: masked bits must be zero in value | Y | WriteValidatorTest |
 | 8.6 | LPM: bits beyond prefix_len must be zero | Y | WriteValidatorTest |
-| 8.7 | Read responses zero-pad bytestrings to ceil(bitwidth/8) | N | |
+| 8.7 | Read responses zero-pad bytestrings to ceil(bitwidth/8) | Y | ConformanceTest #63 |
 
 ## Write RPC — table entries (§9.1)
 
@@ -124,10 +124,10 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 
 | # | Requirement | Status | Test |
 |---|-------------|--------|------|
-| 9.80 | CONTINUE_ON_ERROR: process all updates, per-update errors | N | |
-| 9.81 | ROLLBACK_ON_ERROR: undo on failure | N | PR #270 |
+| 9.80 | CONTINUE_ON_ERROR: process all updates, per-update errors | Y | WriteErrorTest |
+| 9.81 | ROLLBACK_ON_ERROR: undo on failure | Y | WriteErrorTest |
 | 9.82 | DATAPLANE_ATOMIC | N/A | Not meaningful for a reference simulator |
-| 9.83 | Per-update error reporting in WriteResponse | N | |
+| 9.83 | Per-update error reporting in WriteResponse | Y | WriteErrorTest |
 
 ## Write RPC — general (§12)
 
@@ -162,7 +162,7 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 | 11.7 | Wildcard read for action profiles | Y | ConformanceTest #35 |
 | 11.8 | Wildcard read for registers | Y | TableStoreTest |
 | 11.9 | Read unwritten register returns zero | Y | ConformanceTest #33 |
-| 11.10 | Default entry included in wildcard table reads | N | |
+| 11.10 | Default entry included in wildcard table reads | Y | ConformanceTest #64 |
 | 11.11 | device_id validated on Read | Y | ConformanceTest #61 |
 
 ## GetForwardingPipelineConfig (§7)
@@ -231,21 +231,21 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 | Category | Tested | Not tested | N/A |
 |----------|--------|------------|-----|
 | SetForwardingPipelineConfig | 7 | 2 | 1 |
-| General encoding | 6 | 1 | 0 |
+| General encoding | 7 | 0 | 0 |
 | Write — tables | 28 | 1 | 0 |
 | Write — profiles | 8 | 0 | 0 |
 | Write — registers | 5 | 0 | 0 |
 | Write — counters/meters | 4 | 0 | 0 |
 | Write — PRE | 6 | 0 | 0 |
 | Write — other entities | 0 | 0 | 3 |
-| Write — atomicity | 0 | 3 | 1 |
+| Write — atomicity | 3 | 0 | 1 |
 | Write — general | 2 | 0 | 0 |
 | Arbitration | 4 | 3 | 1 |
-| Read | 10 | 1 | 0 |
+| Read | 11 | 0 | 0 |
 | GetForwardingPipelineConfig | 6 | 0 | 0 |
 | Capabilities | 1 | 0 | 0 |
 | StreamChannel | 3 | 1 | 4 |
 | Translation | 6 | 0 | 0 |
 | @refers_to | 6 | 0 | 0 |
 | p4-constraints | 4 | 0 | 0 |
-| **Total** | **106** | **12** | **10** |
+| **Total** | **111** | **7** | **10** |

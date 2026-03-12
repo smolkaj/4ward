@@ -53,7 +53,7 @@ class P4RuntimeTranslationTest {
 
     // Read it back — the simulator should have stored it in dataplane width,
     // and the read path should widen it back to SDN width (32-bit).
-    val entities = harness.readEntries()
+    val entities = harness.readRegularEntries()
     assertEquals("expected one entity", 1, entities.size)
 
     val readAction = entities[0].tableEntry.action.action
@@ -74,7 +74,7 @@ class P4RuntimeTranslationTest {
     val entry = buildEntry(portValue = byteArrayOf(0, 0, 1, 0))
     harness.installEntry(entry)
 
-    val entities = harness.readEntries()
+    val entities = harness.readRegularEntries()
     assertEquals(1, entities.size)
 
     val portParam = entities[0].tableEntry.action.action.paramsList.find { it.paramId == 1 }!!
@@ -167,7 +167,7 @@ class P4RuntimeTranslationTest {
 
     val portForwardTable =
       config.p4Info.tablesList.find { it.preamble.name.contains("port_forward") }!!
-    val entities = harness.readTableEntries(portForwardTable.preamble.id)
+    val entities = harness.readRegularTableEntries(portForwardTable.preamble.id)
     assertEquals("expected one entity in port_forward", 1, entities.size)
 
     val matchField = entities[0].tableEntry.matchList.first()
