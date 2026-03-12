@@ -75,11 +75,10 @@ export function renderPacketResults(outputPackets, trace) {
     const hex = formatHexDump(bytes);
     const dissection = dissectPacket(bytes, trace);
     const decoded = renderDissectedPacket(dissection);
-    return `<div class="output-packet">
-      <span class="output-port">Port ${pkt.egress_port}</span>
-      <span class="output-bytes">(${bytes.length} bytes)</span>
-      ${decoded ? `<div class="output-decoded">${decoded}</div>` : ''}
-      <div class="output-hex">${hex}</div>
-    </div>`;
+    const decodedSection = decoded
+      ? `<div class="output-section"><div class="output-section-label">Decoded</div><div class="output-decoded">${decoded}</div></div>`
+      : '';
+    const hexSection = `<div class="output-section"><div class="output-section-label">Raw</div><div class="output-hex">${hex}</div></div>`;
+    return `<div class="output-packet"><div class="output-packet-header"><span class="output-port">Port ${pkt.egress_port}</span><span class="output-bytes">${bytes.length} bytes</span></div>${decodedSection}${hexSection}</div>`;
   }).join('');
 }
