@@ -81,6 +81,10 @@ fourward::ir::v1::Type FourWardBackend::emitType(const IR::Type* type) {
     // Extern object types (Hash, Meter, Register, etc.) — emit as named so the
     // simulator can identify the extern type in method call targets.
     out.set_named(ext->name.name.c_str());
+  } else if (const auto* spec = type->to<IR::Type_SpecializedCanonical>()) {
+    // Specialized generic extern (e.g. register<bit<8>>, direct_meter<bit<2>>).
+    // Emit the base type name so the simulator can identify the extern.
+    return emitType(spec->baseType);
   } else {
     LOG1("WARNING: unhandled type " << type->node_type_name()
                                     << "; emitting as unnamed");
