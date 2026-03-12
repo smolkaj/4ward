@@ -6,6 +6,105 @@
 > Reverse-chronological log. Add new entries at the top (below this header).
 > See [ROADMAP.md](ROADMAP.md) for the big picture.
 
+## 2026-03-12
+
+|                | Delta     | Total    |
+|----------------|-----------|----------|
+| PRs merged     | 44        | 279      |
+| Kotlin prod    | +3.3k     | 8.6k     |
+| Kotlin test    | +3.0k     | 15.7k    |
+| C++ prod       | +0.2k     | 1.5k     |
+| C++ test       | +0.2k     | 1.3k     |
+| Proto          | +0.1k     | 0.9k     |
+| Web frontend   | +3.5k     | 3.5k     |
+| **Total**      | **+10.2k**| **31.4k**|
+
+**4ward becomes a multi-architecture simulator.** PSA goes from zero to 20/26
+corpus tests, the architecture boundary refactoring pays off, and an
+interactive web playground gives 4ward its first visual interface. P4Runtime
+compliance hits 119/120 spec requirements.
+
+### Track 6: PSA architecture — 20/26 corpus tests
+
+PSA didn't exist five days ago. Now it's the second fully functional
+architecture, covering the core PSA pipeline: separate ingress/egress parsers,
+controls, and deparsers; `send_to_port` and drop semantics; multicast group
+replication with per-replica instance IDs; registers, counters, `Hash.get_hash`,
+`Meter.execute` (stub GREEN), and `InternetChecksum` (clear/add/subtract/get).
+
+The implementation (#282, #286, #289, #290, #295) follows the pattern
+established by the Phase 1 refactoring: `PSAArchitecture.kt` plugs into the
+shared interpreter via architecture-provided extern handlers, with a
+`PipelineConfig` (#292) keeping ingress/egress state cleanly separated. The
+extern dispatch extraction (#272) that made this possible was a pure refactoring
+— zero new functionality, 186 v1model tests as safety net.
+
+Six tests remain blocked on I2E/E2E cloning, resubmit, recirculate, and one
+lookahead type resolution edge case.
+
+### Track 8: interactive P4 playground
+
+A browser-based P4 IDE (#263, #271, #279, #297) that makes 4ward tangible.
+Monaco editor with syntax highlighting, real-time compilation, P4Runtime table
+management, packet injection, and visual trace tree playback — all in one
+browser tab.
+
+The playground server (#263) runs HTTP (REST) and gRPC (P4Runtime + Dataplane)
+in one process, so the same simulator can be driven from both the browser and
+external controllers. Visual pipeline diagrams (#271, #279) use dagre-based
+graph layout to show control-flow and parser graphs with interactive zoom, pan,
+and full-screen mode. Keyboard shortcuts (#297) for compile, send, clear, and
+reset.
+
+### P4Runtime: 119/120 spec compliance
+
+From 85 tested requirements to 119 — 34 gaps closed in a systematic push:
+
+- **Full arbitration state machine** (#291) — election_id-based primary
+  selection, backup notification, stream lifecycle per §5
+- **Write atomicity** (#270) — batch rollback on errors, explicit
+  `UNIMPLEMENTED` for unknown entity types
+- **`@refers_to` referential integrity** (#278) — cross-table reference
+  validation at write time
+- **PRE entry semantics** (#281) — proper INSERT/MODIFY/DELETE for
+  `PacketReplicationEngineEntry`
+- **Spec audit** (#280) — established the 120-requirement matrix from a fresh
+  read of the spec; 4 gaps closed immediately (#288)
+- Also: device_id validation (#284), cookie support (#283), default entries in
+  wildcard reads (#285)
+
+One gap remains: `VERIFY` action for pipeline config (§7.7). A confidence
+assessment (#293) documents the remaining blind spots honestly.
+
+### SAI P4: production-grade confidence
+
+500 p4testgen tests (#260) + 10 constraint violation tests + metadata
+preservation for clone/resubmit/recirculate (#266) close the remaining fidelity
+gaps. BMv2 action profile support in the diff-testing driver (#264) rounds out
+the testing infrastructure. Full assessment in
+[P4RUNTIME_CONFIDENCE.md](P4RUNTIME_CONFIDENCE.md).
+
+### Simulator: clean architecture boundary
+
+Three refactorings prepare the simulator for its multi-architecture future:
+
+- **Extern dispatch extraction** (#272) — architecture-specific extern
+  handling moves out of the interpreter into pluggable handlers. The
+  interpreter becomes a pure IR walker.
+- **ProcessPacket decoupled from gRPC** (#294) — the simulator's packet
+  processing API no longer depends on proto wire types, enabling embedding
+  in contexts beyond gRPC.
+- **EntityReader extraction** (#287) — proto assembly for Read responses
+  factored out of monolithic code into a `TableDataReader` interface.
+
+### What's next
+
+- **PSA: 6 remaining tests** — cloning (I2E, E2E), resubmit, recirculate
+- **DVaaS integration** — all building blocks are in place (P4Runtime,
+  Dataplane gRPC, trace trees, SAI P4, multi-architecture support)
+- **Track 6 Phase 3: PNA** — validates that a third architecture is easy to
+  add; unlocks p4testgen for deep symbolic path coverage
+
 ## 2026-03-07
 
 |                | Delta   | Total  |

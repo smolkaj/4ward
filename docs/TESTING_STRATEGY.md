@@ -146,7 +146,7 @@ question below — and makes the remaining gaps visible at a glance.
 
 ### Confidence assessment
 
-The [compliance matrix](P4RUNTIME_COMPLIANCE.md) shows 118/118 applicable
+The [compliance matrix](P4RUNTIME_COMPLIANCE.md) shows 119/120 applicable
 requirements tested — but the matrix is self-authored. We wrote the
 requirements, wrote the tests, and checked our own boxes. Four blind spots:
 

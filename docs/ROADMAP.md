@@ -289,6 +289,11 @@ testing may not be reliable.
 
 **Done when:** 26 PSA corpus tests pass.
 
+**Current status:** 20/26 corpus tests pass. Implemented: two-pipeline
+orchestration, multicast replication, registers, counters, Hash, Meter (stub),
+InternetChecksum. Remaining 6 tests blocked on I2E/E2E cloning, resubmit,
+recirculate, and one lookahead edge case.
+
 #### Phase 3: PNA (Portable NIC Architecture)
 
 PNA validates that the architecture boundary is truly clean — adding a third
@@ -362,35 +367,39 @@ machine-friendly                                    human-friendly
 **Done when:** the playground has visual pipeline diagrams and animated
 trace playback.
 
+**Current status:** complete. Visual pipeline diagrams (#271, #279) with
+dagre-based graph layout, interactive zoom/pan, and full-screen mode. Animated
+trace playback in the Trace tab. Keyboard shortcuts (#297) for common
+operations.
+
 ## Sequencing
 
 ```
                      done                         next             later
-              ┌─────────────────────┐    ┌──────────────┐    ┌──────────┐
-  Track 1     │ v1model complete    │    │              │    │          │
-              │                     │    │              │    │          │
-  Track 2     │        · · · · · · nice to have · · · · · · · · · · · │
-              │                     │    │              │    │          │
-  Track 3     │ trace trees         │    │              │    │          │
-              │                     │    │              │    │          │
-  Track 4     │ P4Runtime server    │    │              │    │          │
-              │                     │    │              │    │          │
-  Track 5     │ arch customization  │    │              │    │          │
-              │                     │    │              │    │          │
-  Track 6     │                     │    │ refactor →   │    │   PNA    │
-              │                     │    │ PSA          │    │          │
-  Track 7     │ standalone CLI      │    │              │    │          │
-              │                     │    │              │    │          │
-  Track 8     │ playground v1       │    │ playground   │    │          │
-              │                     │    │ vision       │    │          │
-              └─────────────────────┘    └──────────────┘    └──────────┘
+              ┌───────────────────────────┐    ┌──────────┐    ┌──────────┐
+  Track 1     │ v1model complete          │    │          │    │          │
+              │                           │    │          │    │          │
+  Track 2     │        · · · · · · · nice to have · · · · · · · · · · · │
+              │                           │    │          │    │          │
+  Track 3     │ trace trees               │    │          │    │          │
+              │                           │    │          │    │          │
+  Track 4     │ P4Runtime server          │    │          │    │          │
+              │                           │    │          │    │          │
+  Track 5     │ arch customization        │    │          │    │          │
+              │                           │    │          │    │          │
+  Track 6     │ refactor, PSA 20/26       │    │ PSA 6/6  │    │   PNA    │
+              │                           │    │          │    │          │
+  Track 7     │ standalone CLI            │    │          │    │          │
+              │                           │    │          │    │          │
+  Track 8     │ playground + vision       │    │          │    │          │
+              └───────────────────────────┘    └──────────┘    └──────────┘
 ```
 
 **Key dependencies:**
-- Tracks 1, 3, 4, 5, and 7 are complete.
+- Tracks 1, 3, 4, 5, 7, and 8 are complete.
 - Track 5 subsumes Track 4C and 4E.
 - Track 2 is picked up opportunistically.
-- Track 6 phase 1 (refactoring) depends on v1model being solid (proven
-  patterns, 186 tests as safety net). Phase 2 (PSA) depends on phase 1.
-  Phase 3 (PNA) depends on phase 2.
-- Track 8 (interfaces) builds on the CLI (track 7) and trace trees (track 3).
+- Track 6 phase 1 (refactoring) is complete. Phase 2 (PSA) is 20/26 — six
+  tests remain. Phase 3 (PNA) depends on phase 2.
+- Track 8 (interfaces) is complete: gRPC services, CLI, and playground with
+  visual pipeline diagrams and animated trace playback.

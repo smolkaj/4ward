@@ -108,6 +108,8 @@ Values.kt                Runtime value types (BitVector, BoolVal, HeaderVal, ...
 BitVector.kt             Bit-precise integer arithmetic (backed by BigInteger)
 Architecture.kt          Interface for architecture-specific behavior
 V1ModelArchitecture.kt   v1model specifics: recirculate, clone, resubmit, drop
+PSAArchitecture.kt       PSA specifics: two-pipeline orchestration, PSA externs
+ExternHandler.kt         Pluggable extern dispatch (architecture-provided)
 ```
 
 We use `BigInteger` for all `bit<N>` arithmetic because life is too short for
@@ -132,10 +134,11 @@ evaluating expressions, walking control flow, performing table lookups, and
 managing variable scopes. Architecture-specific extern dispatch, fork
 semantics, and pipeline orchestration belong in the architecture layer.
 
-**Current status:** v1model is fully implemented. The interpreter still has
-some v1model-specific code (extern dispatch, fork types) that will be
-extracted to the architecture layer as part of multi-architecture support.
-See [ROADMAP.md](ROADMAP.md) Track 6 for the plan.
+**Current status:** v1model and PSA are both implemented. The interpreter is
+a pure IR tree-walker with no architecture-specific code — extern dispatch,
+fork semantics, and pipeline orchestration all live in the architecture layer
+(`V1ModelArchitecture.kt`, `PSAArchitecture.kt`). See [ROADMAP.md](ROADMAP.md)
+Track 6 for the multi-architecture plan.
 
 ## Testing strategy
 
@@ -184,7 +187,7 @@ Controller ──gRPC──▶ P4RuntimeService ──▶ Simulator
 |-----|--------|
 | `SetForwardingPipelineConfig` | Working — parses `DeviceConfig` from `p4_device_config` bytes |
 | `Write` | Working — forwards `Update` protos directly to the simulator |
-| `Read` | Working — returns all table entries (wildcard read; filtering is TODO) |
+| `Read` | Working — wildcard, per-table, and per-entry reads |
 | `StreamChannel` | Working — arbitration + PacketOut→PacketIn via the simulator |
 | `GetForwardingPipelineConfig` | Working — returns p4info and/or device config per response type |
 | `Capabilities` | Working — returns P4Runtime API version |
@@ -199,8 +202,9 @@ Controller ──gRPC──▶ P4RuntimeService ──▶ Simulator
   single-threaded; the gRPC server serializes concurrent requests with a
   `kotlinx.coroutines.sync.Mutex` shared between P4RuntimeService and
   DataplaneService.
-- **Single controller.** First connection is master. No multi-controller
-  arbitration, no election ID tracking.
+- **Full arbitration state machine (§5).** Election ID-based primary
+  selection with backup notification. The highest `election_id` becomes
+  primary and may write; all controllers may read.
 
 ## Why these languages?
 

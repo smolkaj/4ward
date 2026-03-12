@@ -48,11 +48,11 @@ plane.
 
 | | BMv2 | 4ward goal | Status |
 |---|---|---|---|
-| P4Runtime support | outdated | [**100% spec-compliant**](docs/ROADMAP.md#track-4-p4runtime-reference-implementation) | 🚧 [106/118 requirements](docs/P4RUNTIME_COMPLIANCE.md) |
+| P4Runtime support | outdated | [**100% spec-compliant**](docs/ROADMAP.md#track-4-p4runtime-reference-implementation) | 🚧 [119/120 requirements](docs/P4RUNTIME_COMPLIANCE.md) |
 | Trace format | text | [**proto/JSON**](e2e_tests/trace_tree/clone_with_egress.golden.txtpb) | ✅ |
 | All possible traces | not natively | [**trace trees!**](docs/ROADMAP.md#track-3-trace-trees) | ✅ |
 | `@p4runtime_translation` | no | [**built-in translation engine**](#p4runtime_translation-done-right) | ✅ |
-| Architecture-generic | no | [**by design**](docs/ROADMAP.md#track-6-architecture-expansion-psa-then-pnatna) | 🚧 v1model done, PSA planned |
+| Architecture-generic | no | [**by design**](docs/ROADMAP.md#track-6-multi-architecture-support) | 🚧 v1model done, PSA 20/26 |
 | Architecture customization | no | [**by design**](docs/ROADMAP.md#track-5-architecture-customization) | ✅ |
 | Interactive playground | no | [**browser-based IDE**](#web-playground) | ✅ |
 | Easy to extend | ehh | [**if AI can extend it, anyone can**](docs/ROADMAP.md#why-4ward-is-easier-to-extend) | ✅ |
@@ -313,6 +313,7 @@ report in about 5. No flakes, no "works on my machine." See for yourself on the
 | [AI_WORKFLOW.md](docs/AI_WORKFLOW.md) | How to develop with AI agents |
 | [TESTING_STRATEGY.md](docs/TESTING_STRATEGY.md) | Why three test oracles, and what that enables |
 | [P4RUNTIME_COMPLIANCE.md](docs/P4RUNTIME_COMPLIANCE.md) | P4Runtime spec compliance matrix |
+| [P4RUNTIME_CONFIDENCE.md](docs/P4RUNTIME_CONFIDENCE.md) | P4Runtime server confidence assessment |
 | [SAI_P4_CONFIDENCE.md](docs/SAI_P4_CONFIDENCE.md) | SAI P4 confidence gaps and action plan |
 | [LIMITATIONS.md](docs/LIMITATIONS.md) | Known shortcuts and gaps |
 | [REFACTORING.md](docs/REFACTORING.md) | Tech debt and cleanup backlog |
