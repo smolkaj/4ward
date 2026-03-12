@@ -486,6 +486,40 @@ class InterpreterPacketTest {
   }
 
   @Test
+  fun `lookahead with bit type returns BitVal`() {
+    val pktCtx = PacketContext(byteArrayOf(0xAB.toByte(), 0xCD.toByte()))
+    val env = Environment()
+    // lookahead<bit<16>>() — return type is bit<16>, not a named type.
+    val call =
+      Expr.newBuilder()
+        .setMethodCall(MethodCall.newBuilder().setTarget(nameRef("pkt")).setMethod("lookahead"))
+        .setType(bitType(16))
+        .build()
+    val result = interp(pktCtx).evalExpr(call, env)
+
+    assertEquals(BitVal(0xABCD, 16), result)
+  }
+
+  @Test
+  fun `lookahead with bit type does not consume bytes`() {
+    val pktCtx = PacketContext(byteArrayOf(0x42, 0xFF.toByte()))
+    val env = Environment()
+    val call =
+      Expr.newBuilder()
+        .setMethodCall(MethodCall.newBuilder().setTarget(nameRef("pkt")).setMethod("lookahead"))
+        .setType(bitType(8))
+        .build()
+    val interp = interp(pktCtx)
+
+    val peek = interp.evalExpr(call, env)
+    assertEquals(BitVal(0x42, 8), peek)
+
+    // Second lookahead should return the same value — bytes not consumed.
+    val peek2 = interp.evalExpr(call, env)
+    assertEquals(BitVal(0x42, 8), peek2)
+  }
+
+  @Test
   fun `lookahead throws PacketTooShort when not enough bytes`() {
     val type = structType("big", "f" to 32)
     val pktCtx = PacketContext(byteArrayOf(0x01, 0x02)) // only 2 bytes, need 4

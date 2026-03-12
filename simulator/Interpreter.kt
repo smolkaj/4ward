@@ -953,6 +953,15 @@ class Interpreter(
 
   /** P4 spec §12.8.2: peek at packet bits and construct a value of type T without consuming. */
   private fun execLookahead(returnType: Type): Value {
+    // Primitive bit<N> lookahead: peek N bits and return a BitVal.
+    if (returnType.hasBit()) {
+      val width = returnType.bit.width
+      val raw = BigInteger(1, packet.peekBytes((width + 7) / 8))
+      // Mask to exactly N bits (peekBytes may return extra high bits from byte alignment).
+      val mask = BigInteger.ONE.shiftLeft(width).subtract(BigInteger.ONE)
+      return BitVal(BitVector(raw.and(mask), width))
+    }
+
     val typeName = returnType.named
     val typeDecl = types[typeName] ?: error("type not found for lookahead: $typeName")
     val fields =
