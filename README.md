@@ -54,7 +54,7 @@ plane.
 | `@p4runtime_translation` | no | [**built-in translation engine**](#p4runtime_translation-done-right) | ✅ |
 | Architecture-generic | no | [**by design**](docs/ROADMAP.md#track-6-multi-architecture-support) | 🚧 v1model done, PSA 20/26 |
 | Architecture customization | no | [**by design**](docs/ROADMAP.md#track-5-architecture-customization) | ✅ |
-| Interactive playground | no | [**browser-based IDE**](#web-playground) | ✅ |
+| Interactive playground | no | [**browser-based IDE with trace playback & packet decoding**](#web-playground) | ✅ |
 | Easy to extend | ehh | [**if AI can extend it, anyone can**](docs/ROADMAP.md#why-4ward-is-easier-to-extend) | ✅ |
 | Fast, rigorous CI | slow | **[~2 min](https://4ward.buildbuddy.io/trends/)** | ✅ |
 | Development pace | slow | **[AI-fast](docs/AI_WORKFLOW.md)** | ✅ |
@@ -152,17 +152,26 @@ and more — see the **[tutorial](examples/tutorial.t)**.
 
 ## Web playground
 
-Prefer a visual workflow? The web playground lets you edit, compile, and
-simulate P4 programs in an interactive feedback loop — all in one browser tab.
+The web playground is a browser-based IDE for P4 — edit, compile, and simulate
+in a single feedback loop. No separate tools, no context switching.
 
 ```sh
 bazel run //web:playground    # open http://localhost:8080
 ```
 
-Write P4 with syntax highlighting, install table entries and clone sessions
-with a few clicks, inject packets, and explore the resulting trace tree —
-rendered graphically with collapsible stages, source links, and fork
-visualization.
+<!-- TODO: add screenshot -->
+
+**Write** P4 with syntax highlighting, **install** table entries and clone
+sessions with a few clicks, **inject** packets, and **explore** what happened:
+
+- **Trace tree** — collapsible pipeline stages, source-line links, fork
+  visualization. Step through events one at a time with animated playback
+  (keyboard shortcuts: `j`/`k` to step, `r` to reset).
+- **Packet decoding** — output packets are decoded into named header fields
+  (MAC addresses, IPv4, EtherType) using the program's own deparser, not a
+  hardcoded dissector. Like Wireshark, but aware of your P4 headers.
+- **Control-flow graph** — visual pipeline diagram showing tables, conditions,
+  and control flow. Auto-highlights the active stage during trace playback.
 
 ## Trace trees
 
