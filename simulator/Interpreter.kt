@@ -785,6 +785,8 @@ class Interpreter(
     object : ExternEvaluator {
       override fun returnType(): Type = returnType
 
+      override fun argCount(): Int = call.argsList.size
+
       override fun evalArg(index: Int): Value = evalExpr(call.argsList[index], env)
 
       override fun argType(index: Int): Type = call.argsList[index].type

@@ -227,10 +227,11 @@ corpus_test_suite(
 
 # PSA corpus STF tests that pass in CI. Covers basic PSA pipeline: ingress/egress
 # parsing, drop-by-default, send_to_port, counters, metadata, parser errors,
-# registers, and multicast.
+# registers, multicast, Hash, and Meter externs.
 corpus_test_suite(
     name = "psa_stf_corpus_test",
     tests = [
+        "hash-extern-bmv2",
         "psa-basic-counter-bmv2",
         "psa-bool-ternary-const-entry-bmv2",
         "psa-drop-all-bmv2",
@@ -238,6 +239,7 @@ corpus_test_suite(
         "psa-example-register2-bmv2",
         "psa-fwd-bmv2",
         "psa-metadata-bmv2",
+        "psa-meter7-bmv2",
         "psa-multicast-basic-2-bmv2",
         "psa-multicast-basic-bmv2",
         "psa-multicast-basic-corrected-bmv2",
@@ -258,13 +260,11 @@ corpus_test_suite(
     name = "psa_manual_stf_corpus_test",
     tags = ["manual"],
     tests = [
-        "hash-extern-bmv2",  # Hash extern (get_hash method)
         "internet_checksum1-bmv2",  # InternetChecksum extern (clear/add/get)
         "psa-e2e-cloning-basic-bmv2",  # E2E cloning
-        "psa-end-of-ingress-test-bmv2",  # end_of_ingress extern
+        "psa-end-of-ingress-test-bmv2",  # Resubmit (packet_path=RESUBMIT)
         "psa-example-dpdk-varbit-bmv2",  # lookahead type resolution
         "psa-i2e-cloning-basic-bmv2",  # I2E cloning
-        "psa-meter7-bmv2",  # Meter extern (execute method)
         "psa-recirculate-no-meta-bmv2",  # Recirculate
         "psa-resubmit-bmv2",  # Resubmit
     ],
