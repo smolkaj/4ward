@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-12 07:01:53</td>
+            <td class="headerValue">2026-03-12 07:06:45</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">93.8&nbsp;%</td>
@@ -621,93 +621,93 @@
 <span id="L559"><span class="lineNum">     559</span>              :     }</span>
 <span id="L560"><span class="lineNum">     560</span> <span class="tlaGNC">           1 :   }</span></span>
 <span id="L561"><span class="lineNum">     561</span>              : </span>
-<span id="L562"><span class="lineNum">     562</span>              :   private fun buildDropTrace(events: List&lt;TraceEvent&gt;, reason: DropReason): TraceTree {</span>
-<span id="L563"><span class="lineNum">     563</span> <span class="tlaGNC">           1 :     val outcome = PacketOutcome.newBuilder().setDrop(Drop.newBuilder().setReason(reason)).build()</span></span>
-<span id="L564"><span class="lineNum">     564</span> <span class="tlaGNC">           1 :     return TraceTree.newBuilder().addAllEvents(events).setPacketOutcome(outcome).build()</span></span>
-<span id="L565"><span class="lineNum">     565</span>              :   }</span>
-<span id="L566"><span class="lineNum">     566</span>              : </span>
-<span id="L567"><span class="lineNum">     567</span>              :   /**</span>
-<span id="L568"><span class="lineNum">     568</span>              :    * Traffic manager drop check: egress_port == drop port (set by boundary from egress_spec or clone</span>
-<span id="L569"><span class="lineNum">     569</span>              :    * session).</span>
-<span id="L570"><span class="lineNum">     570</span>              :    */</span>
-<span id="L571"><span class="lineNum">     571</span>              :   private fun egressPortIsDropPort(s: PipelineState): Boolean =</span>
-<span id="L572"><span class="lineNum">     572</span> <span class="tlaGNC">           1 :     (s.standardMetadata.fields[&quot;egress_port&quot;] as? BitVal)?.bits?.value?.toLong() == s.dropPort</span></span>
-<span id="L573"><span class="lineNum">     573</span>              : </span>
-<span id="L574"><span class="lineNum">     574</span>              :   /**</span>
-<span id="L575"><span class="lineNum">     575</span>              :    * Resets egress_spec to match egress_port before each egress run.</span>
-<span id="L576"><span class="lineNum">     576</span>              :    *</span>
-<span id="L577"><span class="lineNum">     577</span>              :    * In BMv2, egress_spec carries the ingress-determined output port for unicast, but for multicast</span>
-<span id="L578"><span class="lineNum">     578</span>              :    * replicas, I2E clones, and E2E clones, egress_port is set independently by the PRE or clone</span>
-<span id="L579"><span class="lineNum">     579</span>              :    * session. Without this reset, a stale mark_to_drop() from ingress (or a prior egress run) would</span>
-<span id="L580"><span class="lineNum">     580</span>              :    * cause the post-egress drop check to incorrectly drop packets.</span>
-<span id="L581"><span class="lineNum">     581</span>              :    */</span>
-<span id="L582"><span class="lineNum">     582</span>              :   private fun resetEgressSpec(s: PipelineState) {</span>
-<span id="L583"><span class="lineNum">     583</span> <span class="tlaGNC">           1 :     s.standardMetadata.fields[&quot;egress_spec&quot;] =</span></span>
-<span id="L584"><span class="lineNum">     584</span> <span class="tlaGNC">           1 :       s.standardMetadata.fields[&quot;egress_port&quot;] ?: BitVal(0, s.portBits)</span></span>
-<span id="L585"><span class="lineNum">     585</span> <span class="tlaGNC">           1 :   }</span></span>
-<span id="L586"><span class="lineNum">     586</span>              : </span>
-<span id="L587"><span class="lineNum">     587</span>              :   /**</span>
-<span id="L588"><span class="lineNum">     588</span>              :    * Snapshots user metadata fields matching [fieldListId] for preservation across a fork.</span>
-<span id="L589"><span class="lineNum">     589</span>              :    *</span>
-<span id="L590"><span class="lineNum">     590</span>              :    * Returns only the fields annotated with `@field_list(fieldListId)` in the IR, or null if there's</span>
-<span id="L591"><span class="lineNum">     591</span>              :    * nothing to preserve.</span>
-<span id="L592"><span class="lineNum">     592</span>              :    */</span>
-<span id="L593"><span class="lineNum">     593</span>              :   private fun snapshotPreservedMetadata(s: PipelineState, fieldListId: Int?): Map&lt;String, Value&gt;? {</span>
-<span id="L594"><span class="lineNum">     594</span> <span class="tlaGNC">           1 :     if (fieldListId == null || s.metaStructDecl == null) return null</span></span>
-<span id="L595"><span class="lineNum">     595</span> <span class="tlaGNC">           1 :     val allFields = (s.env.lookup(s.metaParamName) as? StructVal)?.fields ?: return null</span></span>
-<span id="L596"><span class="lineNum">     596</span> <span class="tlaGNC">           1 :     val preserved =</span></span>
-<span id="L597"><span class="lineNum">     597</span> <span class="tlaGNC">           1 :       s.metaStructDecl.fieldsList</span></span>
-<span id="L598"><span class="lineNum">     598</span> <span class="tlaGNC">           1 :         .filter { fieldListId in it.fieldListIdsList }</span></span>
-<span id="L599"><span class="lineNum">     599</span> <span class="tlaGNC">           1 :         .mapNotNull { decl -&gt; allFields[decl.name]?.let { decl.name to it } }</span></span>
-<span id="L600"><span class="lineNum">     600</span> <span class="tlaGNC">           1 :         .toMap()</span></span>
-<span id="L601"><span class="lineNum">     601</span> <span class="tlaGNC">           1 :     return preserved.ifEmpty { null }</span></span>
-<span id="L602"><span class="lineNum">     602</span>              :   }</span>
-<span id="L603"><span class="lineNum">     603</span>              : </span>
-<span id="L604"><span class="lineNum">     604</span>              :   /** Post-egress drop check: mark_to_drop() in egress sets egress_spec to drop port. */</span>
-<span id="L605"><span class="lineNum">     605</span>              :   private fun egressSpecIsDropPort(s: PipelineState): Boolean =</span>
-<span id="L606"><span class="lineNum">     606</span> <span class="tlaGNC">           1 :     (s.standardMetadata.fields[&quot;egress_spec&quot;] as? BitVal)?.bits?.value?.toLong() == s.dropPort</span></span>
-<span id="L607"><span class="lineNum">     607</span>              : </span>
-<span id="L608"><span class="lineNum">     608</span>              :   private fun buildOutputTrace(events: List&lt;TraceEvent&gt;, port: Int, payload: ByteArray): TraceTree {</span>
-<span id="L609"><span class="lineNum">     609</span> <span class="tlaGNC">           1 :     val output =</span></span>
-<span id="L610"><span class="lineNum">     610</span> <span class="tlaGNC">           1 :       fourward.sim.v1.SimulatorProto.OutputPacket.newBuilder()</span></span>
-<span id="L611"><span class="lineNum">     611</span> <span class="tlaGNC">           1 :         .setEgressPort(port)</span></span>
-<span id="L612"><span class="lineNum">     612</span> <span class="tlaGNC">           1 :         .setPayload(com.google.protobuf.ByteString.copyFrom(payload))</span></span>
-<span id="L613"><span class="lineNum">     613</span> <span class="tlaGNC">           1 :         .build()</span></span>
-<span id="L614"><span class="lineNum">     614</span> <span class="tlaGNC">           1 :     val outcome = PacketOutcome.newBuilder().setOutput(output).build()</span></span>
-<span id="L615"><span class="lineNum">     615</span> <span class="tlaGNC">           1 :     return TraceTree.newBuilder().addAllEvents(events).setPacketOutcome(outcome).build()</span></span>
+<span id="L562"><span class="lineNum">     562</span>              :   /**</span>
+<span id="L563"><span class="lineNum">     563</span>              :    * Traffic manager drop check: egress_port == drop port (set by boundary from egress_spec or clone</span>
+<span id="L564"><span class="lineNum">     564</span>              :    * session).</span>
+<span id="L565"><span class="lineNum">     565</span>              :    */</span>
+<span id="L566"><span class="lineNum">     566</span>              :   private fun egressPortIsDropPort(s: PipelineState): Boolean =</span>
+<span id="L567"><span class="lineNum">     567</span> <span class="tlaGNC">           1 :     (s.standardMetadata.fields[&quot;egress_port&quot;] as? BitVal)?.bits?.value?.toLong() == s.dropPort</span></span>
+<span id="L568"><span class="lineNum">     568</span>              : </span>
+<span id="L569"><span class="lineNum">     569</span>              :   /**</span>
+<span id="L570"><span class="lineNum">     570</span>              :    * Resets egress_spec to match egress_port before each egress run.</span>
+<span id="L571"><span class="lineNum">     571</span>              :    *</span>
+<span id="L572"><span class="lineNum">     572</span>              :    * In BMv2, egress_spec carries the ingress-determined output port for unicast, but for multicast</span>
+<span id="L573"><span class="lineNum">     573</span>              :    * replicas, I2E clones, and E2E clones, egress_port is set independently by the PRE or clone</span>
+<span id="L574"><span class="lineNum">     574</span>              :    * session. Without this reset, a stale mark_to_drop() from ingress (or a prior egress run) would</span>
+<span id="L575"><span class="lineNum">     575</span>              :    * cause the post-egress drop check to incorrectly drop packets.</span>
+<span id="L576"><span class="lineNum">     576</span>              :    */</span>
+<span id="L577"><span class="lineNum">     577</span>              :   private fun resetEgressSpec(s: PipelineState) {</span>
+<span id="L578"><span class="lineNum">     578</span> <span class="tlaGNC">           1 :     s.standardMetadata.fields[&quot;egress_spec&quot;] =</span></span>
+<span id="L579"><span class="lineNum">     579</span> <span class="tlaGNC">           1 :       s.standardMetadata.fields[&quot;egress_port&quot;] ?: BitVal(0, s.portBits)</span></span>
+<span id="L580"><span class="lineNum">     580</span> <span class="tlaGNC">           1 :   }</span></span>
+<span id="L581"><span class="lineNum">     581</span>              : </span>
+<span id="L582"><span class="lineNum">     582</span>              :   /**</span>
+<span id="L583"><span class="lineNum">     583</span>              :    * Snapshots user metadata fields matching [fieldListId] for preservation across a fork.</span>
+<span id="L584"><span class="lineNum">     584</span>              :    *</span>
+<span id="L585"><span class="lineNum">     585</span>              :    * Returns only the fields annotated with `@field_list(fieldListId)` in the IR, or null if there's</span>
+<span id="L586"><span class="lineNum">     586</span>              :    * nothing to preserve.</span>
+<span id="L587"><span class="lineNum">     587</span>              :    */</span>
+<span id="L588"><span class="lineNum">     588</span>              :   private fun snapshotPreservedMetadata(s: PipelineState, fieldListId: Int?): Map&lt;String, Value&gt;? {</span>
+<span id="L589"><span class="lineNum">     589</span> <span class="tlaGNC">           1 :     if (fieldListId == null || s.metaStructDecl == null) return null</span></span>
+<span id="L590"><span class="lineNum">     590</span> <span class="tlaGNC">           1 :     val allFields = (s.env.lookup(s.metaParamName) as? StructVal)?.fields ?: return null</span></span>
+<span id="L591"><span class="lineNum">     591</span> <span class="tlaGNC">           1 :     val preserved =</span></span>
+<span id="L592"><span class="lineNum">     592</span> <span class="tlaGNC">           1 :       s.metaStructDecl.fieldsList</span></span>
+<span id="L593"><span class="lineNum">     593</span> <span class="tlaGNC">           1 :         .filter { fieldListId in it.fieldListIdsList }</span></span>
+<span id="L594"><span class="lineNum">     594</span> <span class="tlaGNC">           1 :         .mapNotNull { decl -&gt; allFields[decl.name]?.let { decl.name to it } }</span></span>
+<span id="L595"><span class="lineNum">     595</span> <span class="tlaGNC">           1 :         .toMap()</span></span>
+<span id="L596"><span class="lineNum">     596</span> <span class="tlaGNC">           1 :     return preserved.ifEmpty { null }</span></span>
+<span id="L597"><span class="lineNum">     597</span>              :   }</span>
+<span id="L598"><span class="lineNum">     598</span>              : </span>
+<span id="L599"><span class="lineNum">     599</span>              :   /** Post-egress drop check: mark_to_drop() in egress sets egress_spec to drop port. */</span>
+<span id="L600"><span class="lineNum">     600</span>              :   private fun egressSpecIsDropPort(s: PipelineState): Boolean =</span>
+<span id="L601"><span class="lineNum">     601</span> <span class="tlaGNC">           1 :     (s.standardMetadata.fields[&quot;egress_spec&quot;] as? BitVal)?.bits?.value?.toLong() == s.dropPort</span></span>
+<span id="L602"><span class="lineNum">     602</span>              : </span>
+<span id="L603"><span class="lineNum">     603</span>              :   /**</span>
+<span id="L604"><span class="lineNum">     604</span>              :    * Resolves a pending clone session: emits a [CloneSessionLookupEvent] and returns the clone port,</span>
+<span id="L605"><span class="lineNum">     605</span>              :    * or emits a miss event and returns null if the session doesn't exist.</span>
+<span id="L606"><span class="lineNum">     606</span>              :    */</span>
+<span id="L607"><span class="lineNum">     607</span>              :   private fun resolveCloneSession(ctx: PipelineContext, s: PipelineState, sessionId: Int): Long? {</span>
+<span id="L608"><span class="lineNum">     608</span> <span class="tlaGNC">           1 :     val session = ctx.tableStore.getCloneSession(sessionId)</span></span>
+<span id="L609"><span class="lineNum">     609</span> <span class="tlaGNC">           1 :     if (session != null) {</span></span>
+<span id="L610"><span class="lineNum">     610</span> <span class="tlaGNC">           1 :       val egressPort = session.replicasList.first().egressPort</span></span>
+<span id="L611"><span class="lineNum">     611</span> <span class="tlaGNC">           1 :       s.packetCtx.addTraceEvent(cloneSessionLookupEvent(sessionId, egressPort))</span></span>
+<span id="L612"><span class="lineNum">     612</span> <span class="tlaGNC">           1 :       return egressPort.toLong()</span></span>
+<span id="L613"><span class="lineNum">     613</span>              :     }</span>
+<span id="L614"><span class="lineNum">     614</span> <span class="tlaGNC">           1 :     s.packetCtx.addTraceEvent(cloneSessionMissEvent(sessionId))</span></span>
+<span id="L615"><span class="lineNum">     615</span> <span class="tlaGNC">           1 :     return null</span></span>
 <span id="L616"><span class="lineNum">     616</span>              :   }</span>
 <span id="L617"><span class="lineNum">     617</span>              : </span>
-<span id="L618"><span class="lineNum">     618</span>              :   /**</span>
-<span id="L619"><span class="lineNum">     619</span>              :    * Resolves a pending clone session: emits a [CloneSessionLookupEvent] and returns the clone port,</span>
-<span id="L620"><span class="lineNum">     620</span>              :    * or emits a miss event and returns null if the session doesn't exist.</span>
-<span id="L621"><span class="lineNum">     621</span>              :    */</span>
-<span id="L622"><span class="lineNum">     622</span>              :   private fun resolveCloneSession(ctx: PipelineContext, s: PipelineState, sessionId: Int): Long? {</span>
-<span id="L623"><span class="lineNum">     623</span> <span class="tlaGNC">           1 :     val session = ctx.tableStore.getCloneSession(sessionId)</span></span>
-<span id="L624"><span class="lineNum">     624</span> <span class="tlaGNC">           1 :     if (session != null) {</span></span>
-<span id="L625"><span class="lineNum">     625</span> <span class="tlaGNC">           1 :       val egressPort = session.replicasList.first().egressPort</span></span>
-<span id="L626"><span class="lineNum">     626</span> <span class="tlaGNC">           1 :       s.packetCtx.addTraceEvent(cloneSessionLookupEvent(sessionId, egressPort))</span></span>
-<span id="L627"><span class="lineNum">     627</span> <span class="tlaGNC">           1 :       return egressPort.toLong()</span></span>
-<span id="L628"><span class="lineNum">     628</span>              :     }</span>
-<span id="L629"><span class="lineNum">     629</span> <span class="tlaGNC">           1 :     s.packetCtx.addTraceEvent(cloneSessionMissEvent(sessionId))</span></span>
-<span id="L630"><span class="lineNum">     630</span> <span class="tlaGNC">           1 :     return null</span></span>
-<span id="L631"><span class="lineNum">     631</span>              :   }</span>
-<span id="L632"><span class="lineNum">     632</span>              : </span>
-<span id="L633"><span class="lineNum">     633</span>              :   private fun cloneSessionLookupEvent(sessionId: Int, egressPort: Int): TraceEvent =</span>
-<span id="L634"><span class="lineNum">     634</span> <span class="tlaGNC">           1 :     TraceEvent.newBuilder()</span></span>
-<span id="L635"><span class="lineNum">     635</span> <span class="tlaGNC">           1 :       .setCloneSessionLookup(</span></span>
-<span id="L636"><span class="lineNum">     636</span> <span class="tlaGNC">           1 :         CloneSessionLookupEvent.newBuilder()</span></span>
-<span id="L637"><span class="lineNum">     637</span> <span class="tlaGNC">           1 :           .setSessionId(sessionId)</span></span>
-<span id="L638"><span class="lineNum">     638</span> <span class="tlaGNC">           1 :           .setSessionFound(true)</span></span>
-<span id="L639"><span class="lineNum">     639</span> <span class="tlaGNC">           1 :           .setEgressPort(egressPort)</span></span>
-<span id="L640"><span class="lineNum">     640</span>              :       )</span>
-<span id="L641"><span class="lineNum">     641</span> <span class="tlaGNC">           1 :       .build()</span></span>
-<span id="L642"><span class="lineNum">     642</span>              : </span>
-<span id="L643"><span class="lineNum">     643</span>              :   private fun cloneSessionMissEvent(sessionId: Int): TraceEvent =</span>
-<span id="L644"><span class="lineNum">     644</span> <span class="tlaGNC">           1 :     TraceEvent.newBuilder()</span></span>
-<span id="L645"><span class="lineNum">     645</span> <span class="tlaGNC">           1 :       .setCloneSessionLookup(</span></span>
-<span id="L646"><span class="lineNum">     646</span> <span class="tlaGNC">           1 :         CloneSessionLookupEvent.newBuilder().setSessionId(sessionId).setSessionFound(false)</span></span>
-<span id="L647"><span class="lineNum">     647</span>              :       )</span>
-<span id="L648"><span class="lineNum">     648</span> <span class="tlaGNC">           1 :       .build()</span></span>
+<span id="L618"><span class="lineNum">     618</span>              :   private fun cloneSessionLookupEvent(sessionId: Int, egressPort: Int): TraceEvent =</span>
+<span id="L619"><span class="lineNum">     619</span> <span class="tlaGNC">           1 :     TraceEvent.newBuilder()</span></span>
+<span id="L620"><span class="lineNum">     620</span> <span class="tlaGNC">           1 :       .setCloneSessionLookup(</span></span>
+<span id="L621"><span class="lineNum">     621</span> <span class="tlaGNC">           1 :         CloneSessionLookupEvent.newBuilder()</span></span>
+<span id="L622"><span class="lineNum">     622</span> <span class="tlaGNC">           1 :           .setSessionId(sessionId)</span></span>
+<span id="L623"><span class="lineNum">     623</span> <span class="tlaGNC">           1 :           .setSessionFound(true)</span></span>
+<span id="L624"><span class="lineNum">     624</span> <span class="tlaGNC">           1 :           .setEgressPort(egressPort)</span></span>
+<span id="L625"><span class="lineNum">     625</span>              :       )</span>
+<span id="L626"><span class="lineNum">     626</span> <span class="tlaGNC">           1 :       .build()</span></span>
+<span id="L627"><span class="lineNum">     627</span>              : </span>
+<span id="L628"><span class="lineNum">     628</span>              :   private fun cloneSessionMissEvent(sessionId: Int): TraceEvent =</span>
+<span id="L629"><span class="lineNum">     629</span> <span class="tlaGNC">           1 :     TraceEvent.newBuilder()</span></span>
+<span id="L630"><span class="lineNum">     630</span> <span class="tlaGNC">           1 :       .setCloneSessionLookup(</span></span>
+<span id="L631"><span class="lineNum">     631</span> <span class="tlaGNC">           1 :         CloneSessionLookupEvent.newBuilder().setSessionId(sessionId).setSessionFound(false)</span></span>
+<span id="L632"><span class="lineNum">     632</span>              :       )</span>
+<span id="L633"><span class="lineNum">     633</span> <span class="tlaGNC">           1 :       .build()</span></span>
+<span id="L634"><span class="lineNum">     634</span>              : </span>
+<span id="L635"><span class="lineNum">     635</span>              :   private fun buildDropTrace(events: List&lt;TraceEvent&gt;, reason: DropReason): TraceTree {</span>
+<span id="L636"><span class="lineNum">     636</span> <span class="tlaGNC">           1 :     val outcome = PacketOutcome.newBuilder().setDrop(Drop.newBuilder().setReason(reason)).build()</span></span>
+<span id="L637"><span class="lineNum">     637</span> <span class="tlaGNC">           1 :     return TraceTree.newBuilder().addAllEvents(events).setPacketOutcome(outcome).build()</span></span>
+<span id="L638"><span class="lineNum">     638</span>              :   }</span>
+<span id="L639"><span class="lineNum">     639</span>              : </span>
+<span id="L640"><span class="lineNum">     640</span>              :   private fun buildOutputTrace(events: List&lt;TraceEvent&gt;, port: Int, payload: ByteArray): TraceTree {</span>
+<span id="L641"><span class="lineNum">     641</span> <span class="tlaGNC">           1 :     val output =</span></span>
+<span id="L642"><span class="lineNum">     642</span> <span class="tlaGNC">           1 :       fourward.sim.v1.SimulatorProto.OutputPacket.newBuilder()</span></span>
+<span id="L643"><span class="lineNum">     643</span> <span class="tlaGNC">           1 :         .setEgressPort(port)</span></span>
+<span id="L644"><span class="lineNum">     644</span> <span class="tlaGNC">           1 :         .setPayload(com.google.protobuf.ByteString.copyFrom(payload))</span></span>
+<span id="L645"><span class="lineNum">     645</span> <span class="tlaGNC">           1 :         .build()</span></span>
+<span id="L646"><span class="lineNum">     646</span> <span class="tlaGNC">           1 :     val outcome = PacketOutcome.newBuilder().setOutput(output).build()</span></span>
+<span id="L647"><span class="lineNum">     647</span> <span class="tlaGNC">           1 :     return TraceTree.newBuilder().addAllEvents(events).setPacketOutcome(outcome).build()</span></span>
+<span id="L648"><span class="lineNum">     648</span>              :   }</span>
 <span id="L649"><span class="lineNum">     649</span>              : </span>
 <span id="L650"><span class="lineNum">     650</span>              :   private fun packetIngressEvent(ingressPort: UInt): TraceEvent =</span>
 <span id="L651"><span class="lineNum">     651</span> <span class="tlaGNC">           1 :     TraceEvent.newBuilder()</span></span>
