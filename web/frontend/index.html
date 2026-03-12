@@ -108,10 +108,10 @@
           <div class="form-row">
             <label>Presets</label>
             <div class="preset-buttons">
-              <button class="btn btn-small" onclick="applyPreset('ipv4')" title="Ethernet + IPv4 (etherType=0x0800)">IPv4</button>
-              <button class="btn btn-small" onclick="applyPreset('ipv6')" title="Ethernet + IPv6 (etherType=0x86DD)">IPv6</button>
-              <button class="btn btn-small" onclick="applyPreset('arp')" title="Ethernet + ARP (etherType=0x0806)">ARP</button>
-              <button class="btn btn-small" onclick="applyPreset('raw')" title="Minimal Ethernet frame">Raw</button>
+              <button class="btn btn-small" data-preset="ipv4" title="Ethernet + IPv4 (etherType=0x0800)">IPv4</button>
+              <button class="btn btn-small" data-preset="ipv6" title="Ethernet + IPv6 (etherType=0x86DD)">IPv6</button>
+              <button class="btn btn-small" data-preset="arp" title="Ethernet + ARP (etherType=0x0806)">ARP</button>
+              <button class="btn btn-small" data-preset="raw" title="Minimal Ethernet frame">Raw</button>
             </div>
           </div>
           <div class="form-row">
@@ -181,6 +181,6 @@
   <script src="https://cdn.jsdelivr.net/npm/@dagrejs/dagre@1.1.4/dist/dagre.min.js"></script>
   <!-- Monaco Editor from CDN -->
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
-  <script src="app.js"></script>
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>

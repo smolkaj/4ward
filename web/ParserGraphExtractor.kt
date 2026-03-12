@@ -24,10 +24,12 @@ object ParserGraphExtractor {
     val stateNames = parser.statesList.map { it.name }.toSet()
 
     for (state in parser.statesList) {
-      val type = when (state.name) {
-        "accept", "reject" -> "exit"
-        else -> "state"
-      }
+      val type =
+        when (state.name) {
+          "accept",
+          "reject" -> "exit"
+          else -> "state"
+        }
       nodes += Node(state.name, type, state.name)
 
       val transition = state.transition
@@ -39,7 +41,9 @@ object ParserGraphExtractor {
           val sel = transition.select
           for (case in sel.casesList) {
             val label = case.keysetsList.joinToString(", ") { keysetLabel(it) }
-            if (edges.none { it.from == state.name && it.to == case.nextState && it.label == label }) {
+            if (
+              edges.none { it.from == state.name && it.to == case.nextState && it.label == label }
+            ) {
               edges += Edge(state.name, case.nextState, label)
             }
           }
