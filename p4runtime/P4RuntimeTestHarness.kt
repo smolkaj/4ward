@@ -76,6 +76,17 @@ class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable 
   // Pipeline management
   // ---------------------------------------------------------------------------
 
+  /** Converts a [PipelineConfig] to the gRPC [ForwardingPipelineConfig] wire format. */
+  fun buildForwardingPipelineConfig(
+    config: PipelineConfig,
+    cookie: ForwardingPipelineConfig.Cookie = ForwardingPipelineConfig.Cookie.getDefaultInstance(),
+  ): ForwardingPipelineConfig =
+    ForwardingPipelineConfig.newBuilder()
+      .setP4Info(config.p4Info)
+      .setP4DeviceConfig(config.device.toByteString())
+      .setCookie(cookie)
+      .build()
+
   fun loadPipeline(
     config: PipelineConfig,
     cookie: ForwardingPipelineConfig.Cookie = ForwardingPipelineConfig.Cookie.getDefaultInstance(),
@@ -84,12 +95,7 @@ class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable 
       SetForwardingPipelineConfigRequest.newBuilder()
         .setDeviceId(1)
         .setAction(SetForwardingPipelineConfigRequest.Action.VERIFY_AND_COMMIT)
-        .setConfig(
-          ForwardingPipelineConfig.newBuilder()
-            .setP4Info(config.p4Info)
-            .setP4DeviceConfig(config.device.toByteString())
-            .setCookie(cookie)
-        )
+        .setConfig(buildForwardingPipelineConfig(config, cookie))
         .build()
     )
   }
@@ -377,6 +383,12 @@ class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable 
           )
           .build()
       )
+      withTimeoutOrNull(STREAM_TIMEOUT_MS) { responseChannel.receive() }
+    }
+
+    /** Sends an arbitrary stream message and waits for a response. */
+    fun sendRaw(msg: StreamMessageRequest): StreamMessageResponse? = runBlocking {
+      requestChannel.send(msg)
       withTimeoutOrNull(STREAM_TIMEOUT_MS) { responseChannel.receive() }
     }
 
