@@ -31,13 +31,13 @@
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
-            <td class="headerCovTableEntry">48</td>
+            <td class="headerCovTableEntryHi">96.0&nbsp;%</td>
+            <td class="headerCovTableEntry">50</td>
             <td class="headerCovTableEntry">48</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-11 23:17:57</td>
+            <td class="headerValue">2026-03-12 00:26:46</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -181,19 +181,21 @@
 <span id="L119"><span class="lineNum">     119</span> <span class="tlaGNC">           1 :         entity.hasDirectCounterEntry() -&gt;</span></span>
 <span id="L120"><span class="lineNum">     120</span> <span class="tlaGNC">           1 :           tableStore.readDirectCounterEntries(entity.directCounterEntry)</span></span>
 <span id="L121"><span class="lineNum">     121</span> <span class="tlaGNC">           1 :         entity.hasDirectMeterEntry() -&gt; tableStore.readDirectMeterEntries(entity.directMeterEntry)</span></span>
-<span id="L122"><span class="lineNum">     122</span> <span class="tlaGNC">           1 :         else -&gt; emptyList()</span></span>
-<span id="L123"><span class="lineNum">     123</span> <span class="tlaGNC">           1 :       }</span></span>
-<span id="L124"><span class="lineNum">     124</span> <span class="tlaGNC">           1 :     }</span></span>
-<span id="L125"><span class="lineNum">     125</span>              : }</span>
-<span id="L126"><span class="lineNum">     126</span>              : </span>
-<span id="L127"><span class="lineNum">     127</span>              : /** Recursively collects output packets from trace tree leaves (for forking programs). */</span>
-<span id="L128"><span class="lineNum">     128</span>              : fun collectOutputsFromTrace(tree: TraceTree): List&lt;OutputPacket&gt; =</span>
-<span id="L129"><span class="lineNum">     129</span> <span class="tlaGNC">           1 :   when {</span></span>
-<span id="L130"><span class="lineNum">     130</span> <span class="tlaGNC">           1 :     tree.hasForkOutcome() -&gt;</span></span>
-<span id="L131"><span class="lineNum">     131</span> <span class="tlaGNC">           1 :       tree.forkOutcome.branchesList.flatMap { collectOutputsFromTrace(it.subtree) }</span></span>
-<span id="L132"><span class="lineNum">     132</span> <span class="tlaGNC">           1 :     tree.hasPacketOutcome() &amp;&amp; tree.packetOutcome.hasOutput() -&gt; listOf(tree.packetOutcome.output)</span></span>
-<span id="L133"><span class="lineNum">     133</span> <span class="tlaGNC">           1 :     else -&gt; emptyList()</span></span>
-<span id="L134"><span class="lineNum">     134</span> <span class="tlaGNC">           1 :   }</span></span>
+<span id="L122"><span class="lineNum">     122</span> <span class="tlaUNC tlaBgUNC">           0 :         entity.hasPacketReplicationEngineEntry() -&gt;</span></span>
+<span id="L123"><span class="lineNum">     123</span> <span class="tlaUNC">           0 :           tableStore.readPreEntries(entity.packetReplicationEngineEntry)</span></span>
+<span id="L124"><span class="lineNum">     124</span> <span class="tlaGNC tlaBgGNC">           1 :         else -&gt; emptyList()</span></span>
+<span id="L125"><span class="lineNum">     125</span> <span class="tlaGNC">           1 :       }</span></span>
+<span id="L126"><span class="lineNum">     126</span> <span class="tlaGNC">           1 :     }</span></span>
+<span id="L127"><span class="lineNum">     127</span>              : }</span>
+<span id="L128"><span class="lineNum">     128</span>              : </span>
+<span id="L129"><span class="lineNum">     129</span>              : /** Recursively collects output packets from trace tree leaves (for forking programs). */</span>
+<span id="L130"><span class="lineNum">     130</span>              : fun collectOutputsFromTrace(tree: TraceTree): List&lt;OutputPacket&gt; =</span>
+<span id="L131"><span class="lineNum">     131</span> <span class="tlaGNC">           1 :   when {</span></span>
+<span id="L132"><span class="lineNum">     132</span> <span class="tlaGNC">           1 :     tree.hasForkOutcome() -&gt;</span></span>
+<span id="L133"><span class="lineNum">     133</span> <span class="tlaGNC">           1 :       tree.forkOutcome.branchesList.flatMap { collectOutputsFromTrace(it.subtree) }</span></span>
+<span id="L134"><span class="lineNum">     134</span> <span class="tlaGNC">           1 :     tree.hasPacketOutcome() &amp;&amp; tree.packetOutcome.hasOutput() -&gt; listOf(tree.packetOutcome.output)</span></span>
+<span id="L135"><span class="lineNum">     135</span> <span class="tlaGNC">           1 :     else -&gt; emptyList()</span></span>
+<span id="L136"><span class="lineNum">     136</span> <span class="tlaGNC">           1 :   }</span></span>
         </pre>
               </td>
             </tr>
