@@ -5,33 +5,55 @@ import { state } from './state.js';
 import { escapeHtml } from './encoding.js';
 
 /**
- * Collect deparser_emit events from a trace tree, following the first
- * complete path (no fork branching).
+ * Collect deparser_emit events from a trace tree for a specific output packet.
+ * Walks the tree looking for a PacketOutcome.output matching the given payload,
+ * collecting emit events along the path. Falls back to the first complete path
+ * if no exact match is found.
  */
-function collectEmitEvents(trace) {
+function collectEmitEvents(trace, targetPayload) {
+  // Collect emit events at this level.
   const emits = [];
   for (const event of trace.events || []) {
     if (event.deparser_emit) emits.push(event.deparser_emit);
   }
-  // Follow the first fork branch if present.
-  if (trace.fork_outcome?.branches?.length > 0) {
-    emits.push(...collectEmitEvents(trace.fork_outcome.branches[0].subtree));
+
+  // Leaf node with a packet outcome — check if it matches.
+  if (trace.packet_outcome?.output?.payload) {
+    return { emits, match: trace.packet_outcome.output.payload === targetPayload };
   }
-  return emits;
+
+  // No fork — this is either a drop or has no outcome.
+  if (!trace.fork_outcome?.branches?.length) {
+    return { emits, match: false };
+  }
+
+  // Walk fork branches. If targetPayload is provided, look for matching branch.
+  for (const branch of trace.fork_outcome.branches) {
+    const sub = collectEmitEvents(branch.subtree, targetPayload);
+    if (sub.match) {
+      return { emits: [...emits, ...sub.emits], match: true };
+    }
+  }
+
+  // No match found — fall back to first branch.
+  const fallback = collectEmitEvents(trace.fork_outcome.branches[0].subtree, null);
+  return { emits: [...emits, ...fallback.emits], match: false };
 }
 
+// Field name patterns that suggest specific formatting.
+const MAC_PATTERN = /addr|mac/i;
+const IPV4_PATTERN = /\bip|sip|dip|src_?addr|dst_?addr/i;
+
 /**
- * Format a field value as hex, with special formatting for common widths.
- * - 48-bit: MAC address (aa:bb:cc:dd:ee:ff)
- * - 32-bit: IPv4 dotted decimal (10.0.0.1)
- * - other: plain hex (0x0800)
+ * Format a field value contextually based on field name and bitwidth.
+ * Uses field name heuristics rather than bitwidth alone.
  */
-function formatFieldValue(bytes, bitwidth) {
+function formatFieldValue(bytes, bitwidth, fieldName) {
   if (bytes.length === 0) return '0x0';
-  if (bitwidth === 48 && bytes.length === 6) {
+  if (bitwidth === 48 && MAC_PATTERN.test(fieldName)) {
     return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(':');
   }
-  if (bitwidth === 32 && bytes.length === 4) {
+  if (bitwidth === 32 && IPV4_PATTERN.test(fieldName)) {
     return Array.from(bytes).join('.');
   }
   const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
@@ -42,11 +64,15 @@ function formatFieldValue(bytes, bitwidth) {
  * Dissect a packet into decoded headers using deparser emit events.
  * Returns an array of {typeName, fields: [{name, bitwidth, value}]} objects,
  * plus a trailing `remainder` byte array for any unparsed bytes.
+ *
+ * @param {Uint8Array} payload - output packet bytes
+ * @param {object} trace - trace tree node (must have `events` array)
+ * @param {string} [targetPayload] - base64 payload to match a specific fork branch
  */
-export function dissectPacket(payload, trace) {
+export function dissectPacket(payload, trace, targetPayload) {
   if (!payload || !trace || !state.headerTypes) return null;
 
-  const emits = collectEmitEvents(trace);
+  const { emits } = collectEmitEvents(trace, targetPayload || null);
   if (emits.length === 0) return null;
 
   const headers = [];
@@ -69,7 +95,7 @@ export function dissectPacket(payload, trace) {
       fields.push({
         name: fieldDef.name,
         bitwidth: fieldBits,
-        value: formatFieldValue(fieldBytes, fieldBits),
+        value: formatFieldValue(fieldBytes, fieldBits, fieldDef.name),
       });
       bitOffset += fieldBits;
     }

@@ -73,7 +73,7 @@ export function renderPacketResults(outputPackets, trace) {
   div.innerHTML = outputPackets.map(pkt => {
     const bytes = pkt.payload ? base64ToUint8Array(pkt.payload) : new Uint8Array(0);
     const hex = formatHexDump(bytes);
-    const dissection = dissectPacket(bytes, trace);
+    const dissection = dissectPacket(bytes, trace, pkt.payload);
     const decoded = renderDissectedPacket(dissection);
     const decodedSection = decoded
       ? `<div class="output-section"><div class="output-section-label">Decoded</div><div class="output-decoded">${decoded}</div></div>`
