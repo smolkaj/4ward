@@ -38,42 +38,38 @@ import java.math.BigInteger
  */
 class PSAArchitecture : Architecture {
 
+  /** Pipeline-invariant state derived from the [BehavioralConfig]. Computed once per packet. */
+  private class PipelineConfig(
+    val config: BehavioralConfig,
+    val tableStore: TableStore,
+    val stages: List<PipelineStage>,
+    val blockParams: Map<String, List<BlockParam>>,
+    val typesByName: Map<String, TypeDecl>,
+    val externInstances: Map<String, ExternInstanceDecl>,
+  )
+
   override fun processPacket(
     ingressPort: UInt,
     payload: ByteArray,
     config: BehavioralConfig,
     tableStore: TableStore,
   ): PipelineResult {
-    val typesByName = config.typesList.associateBy { it.name }
-    val stages = config.architecture.stagesList
-    val blockParams = buildBlockParamsMap(config)
-    val externInstances = buildExternInstancesMap(config)
-
-    // === Ingress pipeline ===
-    val ingress =
-      runIngressPipeline(
+    val pipeline =
+      PipelineConfig(
         config,
         tableStore,
-        stages,
-        blockParams,
-        typesByName,
-        externInstances,
-        payload,
-        ingressPort,
+        stages = config.architecture.stagesList,
+        blockParams = buildBlockParamsMap(config),
+        typesByName = config.typesList.associateBy { it.name },
+        externInstances = buildExternInstancesMap(config),
       )
+
+    // === Ingress pipeline ===
+    val ingress = runIngressPipeline(pipeline, payload, ingressPort)
     if (ingress.dropped) return buildDropResult(ingress.events)
 
     // === Traffic Manager: multicast vs. unicast ===
-    val egressState =
-      EgressState(
-        config,
-        typesByName,
-        stages,
-        blockParams,
-        tableStore,
-        externInstances,
-        ingress.output,
-      )
+    val egressState = EgressState(pipeline, ingress.output)
     val multicastGroup =
       (ingress.output?.fields?.get("multicast_group") as? BitVal)?.bits?.value?.toInt() ?: 0
 
@@ -108,36 +104,31 @@ class PSAArchitecture : Architecture {
   )
 
   private fun runIngressPipeline(
-    config: BehavioralConfig,
-    tableStore: TableStore,
-    stages: List<PipelineStage>,
-    blockParams: Map<String, List<BlockParam>>,
-    typesByName: Map<String, TypeDecl>,
-    externInstances: Map<String, ExternInstanceDecl>,
+    pipeline: PipelineConfig,
     payload: ByteArray,
     ingressPort: UInt,
   ): IngressResult {
     val ctx = PacketContext(payload)
     val env = Environment()
-    val values = createDefaultValues(config, typesByName)
+    val values = createDefaultValues(pipeline.config, pipeline.typesByName)
 
     initIngressMetadata(values, ingressPort)
     val output = values["psa_ingress_output_metadata_t"] as? StructVal
 
     val interpreter =
       Interpreter(
-        config,
-        tableStore,
+        pipeline.config,
+        pipeline.tableStore,
         ctx,
         emptyMap(),
-        createPsaExternHandler(tableStore, externInstances),
+        createPsaExternHandler(pipeline),
       )
 
     ctx.addTraceEvent(packetIngressEvent(ingressPort))
 
     // --- Ingress Parser ---
-    val parserStage = stages.first { it.name == "ingress_parser" }
-    bindStageParams(env, parserStage.blockName, blockParams, values)
+    val parserStage = pipeline.stages.first { it.name == "ingress_parser" }
+    bindStageParams(env, parserStage.blockName, pipeline.blockParams, values)
     runParserStage(interpreter, ctx, env, parserStage) { e ->
       (values["psa_ingress_input_metadata_t"] as? StructVal)?.let {
         it.fields["parser_error"] = ErrorVal(e.errorName)
@@ -145,8 +136,8 @@ class PSAArchitecture : Architecture {
     }
 
     // --- Ingress Control ---
-    val controlStage = stages.first { it.name == "ingress" }
-    bindStageParams(env, controlStage.blockName, blockParams, values)
+    val controlStage = pipeline.stages.first { it.name == "ingress" }
+    bindStageParams(env, controlStage.blockName, pipeline.blockParams, values)
     runControlStage(interpreter, ctx, env, controlStage)
 
     // --- Ingress drop check (PSA: drop=true by default) ---
@@ -156,8 +147,8 @@ class PSAArchitecture : Architecture {
     }
 
     // --- Ingress Deparser ---
-    val deparserStage = stages.first { it.name == "ingress_deparser" }
-    bindStageParams(env, deparserStage.blockName, blockParams, values)
+    val deparserStage = pipeline.stages.first { it.name == "ingress_deparser" }
+    bindStageParams(env, deparserStage.blockName, pipeline.blockParams, values)
     runControlStage(interpreter, ctx, env, deparserStage)
 
     val deparsedBytes = ctx.outputPayload() + ctx.drainRemainingInput()
@@ -174,7 +165,7 @@ class PSAArchitecture : Architecture {
     multicastGroup: Int,
   ): PipelineResult {
     val group =
-      egressState.tableStore.getMulticastGroup(multicastGroup)
+      egressState.pipeline.tableStore.getMulticastGroup(multicastGroup)
         ?: // BMv2 psa_switch: unknown multicast group → silently drop.
         return buildDropResult(ingress.events)
 
@@ -205,16 +196,8 @@ class PSAArchitecture : Architecture {
   // Egress pipeline (runs once per unicast, once per multicast replica)
   // ---------------------------------------------------------------------------
 
-  /** Shared state needed to run the egress pipeline. Avoids long parameter lists. */
-  private class EgressState(
-    val config: BehavioralConfig,
-    val typesByName: Map<String, TypeDecl>,
-    val stages: List<PipelineStage>,
-    val blockParams: Map<String, List<BlockParam>>,
-    val tableStore: TableStore,
-    val externInstances: Map<String, ExternInstanceDecl>,
-    val ingressOutput: StructVal?,
-  )
+  /** Shared state needed to run the egress pipeline. */
+  private class EgressState(val pipeline: PipelineConfig, val ingressOutput: StructVal?)
 
   /**
    * Runs the full egress pipeline (parser → control → deparser) and returns its TraceTree.
@@ -230,25 +213,20 @@ class PSAArchitecture : Architecture {
     instance: Int,
     packetPath: String,
   ): TraceTree {
+    val p = state.pipeline
     val egressCtx = PacketContext(deparsedBytes)
     val egressEnv = Environment()
-    val egressValues = createDefaultValues(state.config, state.typesByName)
+    val egressValues = createDefaultValues(p.config, p.typesByName)
 
     initEgressMetadata(egressValues, egressPort, instance, packetPath, state.ingressOutput)
     val egressOutput = egressValues["psa_egress_output_metadata_t"] as? StructVal
 
     val egressInterpreter =
-      Interpreter(
-        state.config,
-        state.tableStore,
-        egressCtx,
-        emptyMap(),
-        createPsaExternHandler(state.tableStore, state.externInstances),
-      )
+      Interpreter(p.config, p.tableStore, egressCtx, emptyMap(), createPsaExternHandler(p))
 
     // --- Egress Parser ---
-    val egressParserStage = state.stages.first { it.name == "egress_parser" }
-    bindStageParams(egressEnv, egressParserStage.blockName, state.blockParams, egressValues)
+    val egressParserStage = p.stages.first { it.name == "egress_parser" }
+    bindStageParams(egressEnv, egressParserStage.blockName, p.blockParams, egressValues)
     runParserStage(egressInterpreter, egressCtx, egressEnv, egressParserStage) { e ->
       (egressValues["psa_egress_input_metadata_t"] as? StructVal)?.let {
         it.fields["parser_error"] = ErrorVal(e.errorName)
@@ -256,8 +234,8 @@ class PSAArchitecture : Architecture {
     }
 
     // --- Egress Control ---
-    val egressStage = state.stages.first { it.name == "egress" }
-    bindStageParams(egressEnv, egressStage.blockName, state.blockParams, egressValues)
+    val egressStage = p.stages.first { it.name == "egress" }
+    bindStageParams(egressEnv, egressStage.blockName, p.blockParams, egressValues)
     runControlStage(egressInterpreter, egressCtx, egressEnv, egressStage)
 
     // --- Egress drop check (PSA: egress does NOT drop by default) ---
@@ -266,8 +244,8 @@ class PSAArchitecture : Architecture {
     }
 
     // --- Egress Deparser ---
-    val egressDeparserStage = state.stages.first { it.name == "egress_deparser" }
-    bindStageParams(egressEnv, egressDeparserStage.blockName, state.blockParams, egressValues)
+    val egressDeparserStage = p.stages.first { it.name == "egress_deparser" }
+    bindStageParams(egressEnv, egressDeparserStage.blockName, p.blockParams, egressValues)
     runControlStage(egressInterpreter, egressCtx, egressEnv, egressDeparserStage)
 
     val outputBytes = egressCtx.outputPayload() + egressCtx.drainRemainingInput()
@@ -438,73 +416,66 @@ class PSAArchitecture : Architecture {
   // PSA extern handler
   // ---------------------------------------------------------------------------
 
-  /**
-   * PSA extern handler: free functions and extern object methods.
-   *
-   * [externInstances] maps instance name → IR declaration (with constructor args), used to look up
-   * constructor parameters like hash algorithm.
-   */
-  private fun createPsaExternHandler(
-    tableStore: TableStore,
-    externInstances: Map<String, ExternInstanceDecl>,
-  ): ExternHandler = ExternHandler { call, eval ->
-    when (call) {
-      is ExternCall.FreeFunction ->
-        when (call.name) {
-          // send_to_port(inout ostd, in PortId_t port)
-          // After midend, becomes: send_to_port(ostd, port) where ostd is the output metadata.
-          "send_to_port" -> {
-            val ostd = eval.evalArg(0) as StructVal
-            val port = eval.evalArg(1) as BitVal
-            ostd.fields["drop"] = BoolVal(false)
-            ostd.fields["egress_port"] = port
-            UnitVal
+  /** PSA extern handler: free functions and extern object methods. */
+  private fun createPsaExternHandler(pipeline: PipelineConfig): ExternHandler =
+    ExternHandler { call, eval ->
+      when (call) {
+        is ExternCall.FreeFunction ->
+          when (call.name) {
+            // send_to_port(inout ostd, in PortId_t port)
+            // After midend, becomes: send_to_port(ostd, port) where ostd is the output metadata.
+            "send_to_port" -> {
+              val ostd = eval.evalArg(0) as StructVal
+              val port = eval.evalArg(1) as BitVal
+              ostd.fields["drop"] = BoolVal(false)
+              ostd.fields["egress_port"] = port
+              UnitVal
+            }
+            // multicast(inout ostd, in MulticastGroup_t group)
+            // PSA spec §6.2: marks the packet for multicast replication.
+            "multicast" -> {
+              val ostd = eval.evalArg(0) as StructVal
+              val group = eval.evalArg(1) as BitVal
+              ostd.fields["drop"] = BoolVal(false)
+              ostd.fields["multicast_group"] = group
+              UnitVal
+            }
+            "ingress_drop",
+            "egress_drop" -> {
+              val ostd = eval.evalArg(0) as StructVal
+              ostd.fields["drop"] = BoolVal(true)
+              UnitVal
+            }
+            else -> error("unhandled PSA extern: ${call.name}")
           }
-          // multicast(inout ostd, in MulticastGroup_t group)
-          // PSA spec §6.2: marks the packet for multicast replication.
-          "multicast" -> {
-            val ostd = eval.evalArg(0) as StructVal
-            val group = eval.evalArg(1) as BitVal
-            ostd.fields["drop"] = BoolVal(false)
-            ostd.fields["multicast_group"] = group
-            UnitVal
+        is ExternCall.Method ->
+          when (call.method) {
+            // PSA register.read(index) returns T directly (unlike v1model's void + out param).
+            "read" -> {
+              val index = (eval.evalArg(0) as BitVal).bits.value.toInt()
+              pipeline.tableStore.registerRead(call.instanceName, index)
+                ?: eval.defaultValue(eval.returnType())
+            }
+            "write" -> {
+              val index = (eval.evalArg(0) as BitVal).bits.value.toInt()
+              pipeline.tableStore.registerWrite(call.instanceName, index, eval.evalArg(1))
+              UnitVal
+            }
+            "count" -> UnitVal
+            // PSA Hash.get_hash: 1-arg form returns hash(data), 3-arg form returns
+            // (base + hash(data)) mod max. Algorithm comes from constructor args.
+            "get_hash" -> evalGetHash(call, eval, pipeline.externInstances)
+            // PSA Meter.execute(index): returns PSA_MeterColor_t. Always GREEN — no real
+            // packet rates in simulator (same as v1model).
+            "execute" -> EnumVal("GREEN")
+            else ->
+              error(
+                "unhandled PSA extern method: ${call.externType}.${call.method}" +
+                  " on ${call.instanceName}"
+              )
           }
-          "ingress_drop",
-          "egress_drop" -> {
-            val ostd = eval.evalArg(0) as StructVal
-            ostd.fields["drop"] = BoolVal(true)
-            UnitVal
-          }
-          else -> error("unhandled PSA extern: ${call.name}")
-        }
-      is ExternCall.Method ->
-        when (call.method) {
-          // PSA register.read(index) returns T directly (unlike v1model's void + out param).
-          "read" -> {
-            val index = (eval.evalArg(0) as BitVal).bits.value.toInt()
-            tableStore.registerRead(call.instanceName, index)
-              ?: eval.defaultValue(eval.returnType())
-          }
-          "write" -> {
-            val index = (eval.evalArg(0) as BitVal).bits.value.toInt()
-            tableStore.registerWrite(call.instanceName, index, eval.evalArg(1))
-            UnitVal
-          }
-          "count" -> UnitVal
-          // PSA Hash.get_hash: 1-arg form returns hash(data), 3-arg form returns
-          // (base + hash(data)) mod max. Algorithm comes from constructor args.
-          "get_hash" -> evalGetHash(call, eval, externInstances)
-          // PSA Meter.execute(index): returns PSA_MeterColor_t. Always GREEN — no real
-          // packet rates in simulator (same as v1model).
-          "execute" -> EnumVal("GREEN")
-          else ->
-            error(
-              "unhandled PSA extern method: ${call.externType}.${call.method}" +
-                " on ${call.instanceName}"
-            )
-        }
+      }
     }
-  }
 
   /** Evaluates PSA Hash.get_hash (1-arg or 3-arg form). */
   private fun evalGetHash(

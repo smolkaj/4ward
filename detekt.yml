@@ -55,10 +55,9 @@ style:
 complexity:
   # Test builder helpers legitimately need many parameters to fully specify a test
   # case without introducing opaque intermediate objects.
-  # PSAArchitecture.runIngressPipeline has 8 params (config, store, stages,
-  # blockParams, types, externInstances, payload, port).
+  # writeIndexedExtern() has 7 params (generic validation: type, name, id, index, info, storage, value).
   LongParameterList:
-    functionThreshold: 9
+    functionThreshold: 8
     constructorThreshold: 9
     excludes: ['**/test/**', '**/*Test.kt']
 
