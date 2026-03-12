@@ -122,6 +122,26 @@ class EntityReaderTest {
   }
 
   @Test
+  fun `default entry includes action parameters`() {
+    val params =
+      listOf(
+        P4RuntimeOuterClass.Action.Param.newBuilder().setParamId(1).setValue(bytes(42)).build(),
+        P4RuntimeOuterClass.Action.Param.newBuilder().setParamId(2).setValue(bytes(7)).build(),
+      )
+    stub.defaults[TABLE_A_NAME] = DefaultAction("drop", params)
+
+    val defaults = readTable(TABLE_A_ID).filter { it.tableEntry.isDefaultAction }
+    assertEquals(1, defaults.size)
+    val action = defaults[0].tableEntry.action.action
+    assertEquals(DROP_ACTION_ID, action.actionId)
+    assertEquals(2, action.paramsCount)
+    assertEquals(1, action.getParams(0).paramId)
+    assertEquals(bytes(42), action.getParams(0).value)
+    assertEquals(2, action.getParams(1).paramId)
+    assertEquals(bytes(7), action.getParams(1).value)
+  }
+
+  @Test
   fun `table with no explicit default uses NoAction`() {
     // Table B has no default action set, so it falls back to NoAction.
     val defaults = readTable(TABLE_B_ID).filter { it.tableEntry.isDefaultAction }
@@ -145,6 +165,20 @@ class EntityReaderTest {
     assertTrue(result[0].tableEntry.hasCounterData())
     assertEquals(100, result[0].tableEntry.counterData.byteCount)
     assertEquals(5, result[0].tableEntry.counterData.packetCount)
+  }
+
+  @Test
+  fun `entry in table with direct meter includes meter config`() {
+    stub.directMeters += TABLE_A_NAME
+    val entry = stub.addEntry(TABLE_A_NAME, TABLE_A_ID, byteArrayOf(1))
+    stub.meterData[entry] =
+      P4RuntimeOuterClass.MeterConfig.newBuilder().setCir(1000).setCburst(500).build()
+
+    val result = readTable(TABLE_A_ID).filter { !it.tableEntry.isDefaultAction }
+    assertEquals(1, result.size)
+    assertTrue(result[0].tableEntry.hasMeterConfig())
+    assertEquals(1000, result[0].tableEntry.meterConfig.cir)
+    assertEquals(500, result[0].tableEntry.meterConfig.cburst)
   }
 
   @Test
@@ -190,6 +224,9 @@ class EntityReaderTest {
 
   private fun matchValue(entity: Entity): List<Byte> =
     entity.tableEntry.getMatch(0).exact.value.toByteArray().toList()
+
+  private fun bytes(vararg values: Int): ByteString =
+    ByteString.copyFrom(values.map { it.toByte() }.toByteArray())
 
   private fun buildReader(): EntityReader {
     val tableNameById = mapOf(TABLE_A_ID to TABLE_A_NAME, TABLE_B_ID to TABLE_B_NAME)

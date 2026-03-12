@@ -30,7 +30,7 @@ private constructor(
    * - `table_id=N` with match fields: single entry matching the key (P4Runtime spec §11.1).
    */
   fun readTableEntities(filter: TableEntry, tables: TableDataReader): List<Entity> {
-    val tableIds = if (filter.tableId == 0) tableIdByName.values else listOfNotNull(filter.tableId)
+    val tableIds = if (filter.tableId == 0) tableIdByName.values else listOf(filter.tableId)
     val hasMatchFilter = filter.matchCount > 0
     val result = mutableListOf<Entity>()
 
@@ -66,6 +66,7 @@ private constructor(
       return Entity.newBuilder().setTableEntry(entry).build()
     }
     // P4Runtime spec §9.1: table entry reads include direct counter/meter data.
+    // Counters default to zeros (always present); meters have no meaningful default (omitted).
     val builder = entry.toBuilder()
     if (hasDirectCounter) {
       builder.counterData =
