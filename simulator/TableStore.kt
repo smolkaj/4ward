@@ -171,6 +171,10 @@ class TableStore : TableDataReader {
   var actionNameById: Map<Int, String> = emptyMap()
     private set
 
+  // Map behavioral (post-midend) names back to p4info aliases (the short names from the
+  // P4 source). Used for human-readable trace output.
+  private var actionAliasByName: Map<String, String> = emptyMap()
+  private var tableAliasByName: Map<String, String> = emptyMap()
   private var registerInfoById: Map<Int, RegisterInfo> = emptyMap()
   private var counterInfoById: Map<Int, IndexedExternInfo> = emptyMap()
   private var meterInfoById: Map<Int, IndexedExternInfo> = emptyMap()
@@ -204,16 +208,29 @@ class TableStore : TableDataReader {
     fun resolveName(alias: String, candidates: List<String>): String =
       candidates.find { it == alias } ?: candidates.find { it.endsWith("_$alias") } ?: alias
 
-    this.tableNameById =
-      p4info.tablesList.associate { table ->
-        val alias = table.preamble.alias.ifEmpty { table.preamble.name }
-        table.preamble.id to resolveName(alias, behavioralTableNames)
-      }
-    this.actionNameById =
-      p4info.actionsList.associate { action ->
-        val alias = action.preamble.alias.ifEmpty { action.preamble.name }
-        action.preamble.id to resolveName(alias, behavioralActionNames)
-      }
+    // Build both forward (id → behavioral name) and reverse (behavioral name → alias) maps
+    // in a single pass per list.
+    val tableById = mutableMapOf<Int, String>()
+    val tableByName = mutableMapOf<String, String>()
+    for (table in p4info.tablesList) {
+      val alias = table.preamble.alias.ifEmpty { table.preamble.name }
+      val behavioral = resolveName(alias, behavioralTableNames)
+      tableById[table.preamble.id] = behavioral
+      tableByName[behavioral] = alias
+    }
+    this.tableNameById = tableById
+    this.tableAliasByName = tableByName
+
+    val actionById = mutableMapOf<Int, String>()
+    val actionByName = mutableMapOf<String, String>()
+    for (action in p4info.actionsList) {
+      val alias = action.preamble.alias.ifEmpty { action.preamble.name }
+      val behavioral = resolveName(alias, behavioralActionNames)
+      actionById[action.preamble.id] = behavioral
+      actionByName[behavioral] = alias
+    }
+    this.actionNameById = actionById
+    this.actionAliasByName = actionByName
     this.registerInfoById =
       p4info.registersList.associate { reg ->
         val bitwidth = reg.typeSpec.bitstring.bit.bitwidth
@@ -1009,6 +1026,18 @@ class TableStore : TableDataReader {
 
   private fun resolveActionName(actionId: Int): String =
     actionNameById[actionId] ?: error("unknown action ID: $actionId")
+
+  /** Returns the short p4info alias for a behavioral action name, or the name itself if unknown. */
+  fun actionDisplayName(behavioralName: String): String =
+    actionAliasByName[behavioralName] ?: behavioralName
+
+  /** Returns the short p4info alias for a behavioral table name, or the name itself if unknown. */
+  fun tableDisplayName(behavioralName: String): String =
+    tableAliasByName[behavioralName] ?: behavioralName
+
+  /** Returns the short p4info alias for a behavioral name (table or action), or the name itself. */
+  fun displayName(behavioralName: String): String =
+    tableAliasByName[behavioralName] ?: actionAliasByName[behavioralName] ?: behavioralName
 
   /**
    * Scores an entry against [keyValues]. Returns null if the entry does not match. Returns a

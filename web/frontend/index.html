@@ -35,6 +35,7 @@
           <option value="basic_table">basic_table.p4</option>
           <option value="passthrough">passthrough.p4</option>
           <option value="mirror">mirror.p4</option>
+          <option value="sai_middleblock">sai_middleblock.p4</option>
         </select>
       </div>
       <div id="editor-container"></div>
@@ -107,10 +108,10 @@
           <div class="form-row">
             <label>Presets</label>
             <div class="preset-buttons">
-              <button class="btn btn-small" onclick="applyPreset('ipv4')" title="Ethernet + IPv4 (etherType=0x0800)">IPv4</button>
-              <button class="btn btn-small" onclick="applyPreset('ipv6')" title="Ethernet + IPv6 (etherType=0x86DD)">IPv6</button>
-              <button class="btn btn-small" onclick="applyPreset('arp')" title="Ethernet + ARP (etherType=0x0806)">ARP</button>
-              <button class="btn btn-small" onclick="applyPreset('raw')" title="Minimal Ethernet frame">Raw</button>
+              <button class="btn btn-small" data-preset="ipv4" title="Ethernet + IPv4 (etherType=0x0800)">IPv4</button>
+              <button class="btn btn-small" data-preset="ipv6" title="Ethernet + IPv6 (etherType=0x86DD)">IPv6</button>
+              <button class="btn btn-small" data-preset="arp" title="Ethernet + ARP (etherType=0x0806)">ARP</button>
+              <button class="btn btn-small" data-preset="raw" title="Minimal Ethernet frame">Raw</button>
             </div>
           </div>
           <div class="form-row">
@@ -140,54 +141,34 @@
           <p>No trace yet.</p>
           <p class="empty-hint">Send a packet to see the execution trace.</p>
         </div>
-        <div id="pipeline-diagram" class="hidden">
-          <div class="pipeline-flow">
-            <div class="pipeline-stage" data-stage="parser">
-              <div class="pipeline-stage-dot"></div>
-              <div class="pipeline-stage-label">parser</div>
-            </div>
-            <div class="pipeline-arrow"></div>
-            <div class="pipeline-stage" data-stage="verify_checksum">
-              <div class="pipeline-stage-dot"></div>
-              <div class="pipeline-stage-label">verify</div>
-            </div>
-            <div class="pipeline-arrow"></div>
-            <div class="pipeline-stage" data-stage="ingress">
-              <div class="pipeline-stage-dot"></div>
-              <div class="pipeline-stage-label">ingress</div>
-            </div>
-            <div class="pipeline-arrow"></div>
-            <div class="pipeline-stage" data-stage="egress">
-              <div class="pipeline-stage-dot"></div>
-              <div class="pipeline-stage-label">egress</div>
-            </div>
-            <div class="pipeline-arrow"></div>
-            <div class="pipeline-stage" data-stage="compute_checksum">
-              <div class="pipeline-stage-dot"></div>
-              <div class="pipeline-stage-label">checksum</div>
-            </div>
-            <div class="pipeline-arrow"></div>
-            <div class="pipeline-stage" data-stage="deparser">
-              <div class="pipeline-stage-dot"></div>
-              <div class="pipeline-stage-label">deparser</div>
-            </div>
-          </div>
-          <div id="pipeline-outcome" class="pipeline-outcome"></div>
+        <div id="trace-toolbar" class="hidden">
           <div class="playback-controls">
             <button id="btn-step-back" class="btn-playback" title="Step back">←</button>
             <button id="btn-step-forward" class="btn-playback" title="Step forward">→</button>
             <button id="btn-reset" class="btn-playback" title="Reset">↺</button>
             <span id="playback-position" class="playback-position"></span>
           </div>
-        </div>
-        <div id="trace-view-toggle" class="trace-view-toggle hidden">
-          <button class="trace-view-btn active" data-view="tree">Visual</button>
-          <button class="trace-view-btn" data-view="json">JSON</button>
-          <button class="trace-view-btn" data-view="proto">Proto</button>
+          <div class="trace-view-toggle">
+            <button class="trace-view-btn active" data-view="tree">Visual</button>
+            <button class="trace-view-btn" data-view="json">JSON</button>
+            <button class="trace-view-btn" data-view="proto">Proto</button>
+          </div>
         </div>
         <div id="trace-tree" class="hidden"></div>
         <pre id="trace-raw" class="trace-raw hidden"></pre>
       </div>
+    </div>
+  </div>
+
+  <!-- Control-flow graph (full width, visible once a pipeline is loaded) -->
+  <div id="graph-resize-handle" class="resize-handle-h hidden"></div>
+  <div id="control-graph" class="hidden">
+    <div class="control-graph-header">
+      <div class="control-graph-tabs"></div>
+      <button id="btn-graph-fullscreen" class="btn-playback" title="Toggle fullscreen">&#x26F6;</button>
+    </div>
+    <div class="control-graph-container">
+      <svg id="control-graph-svg"></svg>
     </div>
   </div>
 
@@ -196,8 +177,10 @@
     <span id="log-text"></span>
   </div>
 
+  <!-- dagre for control-flow graph layout (must load before Monaco's AMD loader) -->
+  <script src="https://cdn.jsdelivr.net/npm/@dagrejs/dagre@1.1.4/dist/dagre.min.js"></script>
   <!-- Monaco Editor from CDN -->
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
-  <script src="app.js"></script>
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>

@@ -237,6 +237,19 @@ input:focus, select:focus, textarea:focus {
   background: var(--accent);
 }
 
+.resize-handle-h {
+  height: 4px;
+  cursor: row-resize;
+  background: transparent;
+  transition: background var(--transition);
+  flex-shrink: 0;
+}
+
+.resize-handle-h:hover,
+.resize-handle-h.active {
+  background: var(--accent);
+}
+
 #right-pane {
   flex: 1 1 45%;
   min-width: 200px;
@@ -292,6 +305,10 @@ input:focus, select:focus, textarea:focus {
 
 .tab-content.active {
   display: block;
+}
+
+#tab-trace {
+  padding-top: 0;
 }
 
 /* =========================================================================
@@ -476,99 +493,20 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* =========================================================================
-   Pipeline diagram
+   Trace toolbar (playback controls + outcome + view toggle)
    ========================================================================= */
 
-#pipeline-diagram {
-  padding: 12px 16px;
+#trace-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
-}
-
-.pipeline-flow {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0;
-}
-
-.pipeline-stage {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  position: relative;
-}
-
-.pipeline-stage-dot {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--bg-tertiary);
-  border: 2px solid var(--border);
-  transition: all 0.3s ease;
-}
-
-.pipeline-stage.visited .pipeline-stage-dot {
-  background: var(--success);
-  border-color: var(--success);
-  box-shadow: 0 0 6px rgba(63, 185, 80, 0.4);
-}
-
-.pipeline-stage.dropped .pipeline-stage-dot {
-  background: var(--error);
-  border-color: var(--error);
-  box-shadow: 0 0 6px rgba(248, 81, 73, 0.4);
-}
-
-.pipeline-stage-label {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--text-muted);
-  text-align: center;
-  transition: color 0.3s ease;
-}
-
-.pipeline-stage.visited .pipeline-stage-label {
-  color: var(--success);
-}
-
-.pipeline-stage.dropped .pipeline-stage-label {
-  color: var(--error);
-}
-
-.pipeline-arrow {
-  width: 24px;
-  height: 2px;
-  background: var(--border);
-  position: relative;
-  margin: 0 2px;
-  margin-bottom: 18px; /* align with dots, not labels */
-  transition: background 0.3s ease;
-}
-
-.pipeline-arrow.active {
-  background: var(--success);
-}
-
-.pipeline-outcome {
-  text-align: center;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  margin-top: 8px;
-  min-height: 18px;
-}
-
-.pipeline-outcome.output {
-  color: var(--success);
-}
-
-.pipeline-outcome.drop {
-  color: var(--error);
-}
-
-.pipeline-outcome.fork {
-  color: #f778ba;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg-primary);
 }
 
 /* Playback controls */
@@ -576,9 +514,7 @@ input:focus, select:focus, textarea:focus {
 .playback-controls {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 4px;
-  margin-top: 8px;
 }
 
 .btn-playback {
@@ -615,23 +551,6 @@ input:focus, select:focus, textarea:focus {
   color: var(--text-muted);
   margin-left: 6px;
   min-width: 40px;
-}
-
-/* Active pipeline stage during playback (pulsing outline). */
-.pipeline-stage.active .pipeline-stage-dot {
-  background: var(--accent);
-  border-color: var(--accent);
-  box-shadow: 0 0 8px rgba(88, 166, 255, 0.6);
-  animation: stage-pulse 1s infinite;
-}
-
-.pipeline-stage.active .pipeline-stage-label {
-  color: var(--accent);
-}
-
-@keyframes stage-pulse {
-  0%, 100% { box-shadow: 0 0 6px rgba(88, 166, 255, 0.4); }
-  50% { box-shadow: 0 0 12px rgba(88, 166, 255, 0.8); }
 }
 
 /* Highlighted trace event or stage during playback. */
@@ -673,8 +592,7 @@ input:focus, select:focus, textarea:focus {
 .trace-view-toggle {
   display: flex;
   gap: 2px;
-  padding: 6px 16px;
-  border-bottom: 1px solid var(--border);
+  margin-left: auto;
 }
 
 .trace-view-btn {
@@ -742,12 +660,36 @@ input:focus, select:focus, textarea:focus {
   color: var(--text-secondary);
 }
 
+.trace-event[data-event-idx] {
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+.trace-event[data-event-idx]:hover {
+  background: var(--bg-hover);
+}
+
+.trace-entry-detail {
+  display: none;
+  margin-top: 2px;
+  padding: 4px 8px;
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: pre;
+  border-left: 2px solid var(--border);
+  cursor: pointer;
+}
+
+.trace-entry-detail.expanded {
+  display: block;
+}
+
 .trace-event.parser { color: #c9d1d9; }
-.trace-event.table-hit { color: var(--success); }
-.trace-event.table-miss { color: var(--warning); }
-.trace-event.action { color: var(--accent); }
-.trace-event.branch { color: #bc8cff; }
-.trace-event.branch code { color: #e2c5ff; font-size: 11px; }
+.trace-event.table-hit { color: var(--accent); }
+.trace-event.table-miss { color: var(--accent); }
+.trace-event.action { color: var(--success); }
+.trace-event.branch { color: var(--warning); }
+.trace-event.branch code { color: var(--warning); font-size: 11px; }
 .trace-event.extern { color: #f0883e; }
 .trace-event.mark-to-drop { color: var(--error); }
 .trace-event.clone { color: #f778ba; }
@@ -756,25 +698,6 @@ input:focus, select:focus, textarea:focus {
 .trace-event.stage-enter { color: var(--text-muted); font-weight: 600; }
 .trace-event.stage-exit { color: var(--text-muted); }
 .trace-event.ingress { color: var(--text-primary); font-weight: 600; }
-
-.trace-source {
-  display: inline-block;
-  font-size: 10px;
-  font-style: normal;
-  color: var(--accent);
-  background: var(--accent-bg);
-  padding: 0 5px;
-  border-radius: 3px;
-  cursor: pointer;
-  margin-left: 6px;
-  vertical-align: middle;
-  transition: all var(--transition);
-}
-
-.trace-source:hover {
-  background: rgba(56, 139, 253, 0.3);
-  text-decoration: underline;
-}
 
 .trace-outcome {
   padding: 2px 6px;
@@ -811,14 +734,19 @@ input:focus, select:focus, textarea:focus {
   margin: 2px 0;
 }
 
+.trace-stages {
+  margin: 4px 0 4px 12px;
+  padding-left: 12px;
+  border-left: 2px solid var(--border);
+}
+
 .trace-stage {
-  margin: 6px 0;
-  padding: 4px 0;
-  border-top: 1px solid var(--border-light);
+  margin: 4px 0;
+  padding: 2px 0;
 }
 
 .trace-stage:first-child {
-  border-top: none;
+  margin-top: 0;
 }
 
 /* Empty stages use the same .trace-collapse structure but with a hidden arrow
@@ -846,8 +774,7 @@ input:focus, select:focus, textarea:focus {
 
 .trace-collapse::before {
   content: '▾ ';
-  font-size: 10px;
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 
 .trace-collapse.collapsed::before {
@@ -863,16 +790,10 @@ input:focus, select:focus, textarea:focus {
   color: var(--text-primary);
 }
 
-.stage-summary {
-  color: var(--text-secondary);
-  font-weight: 400;
-  margin-left: 8px;
-  font-size: 11px;
-}
-
 .trace-stage-body {
-  padding-left: 12px;
-  border-left: 1px solid var(--border-light);
+  margin-left: 5px;
+  padding-left: 16px;
+  border-left: 2px solid var(--border);
 }
 
 .preset-buttons {
@@ -956,6 +877,213 @@ input:focus, select:focus, textarea:focus {
 /* =========================================================================
    Responsive adjustments
    ========================================================================= */
+
+/* ---------------------------------------------------------------------------
+   Control-flow graph
+   --------------------------------------------------------------------------- */
+
+#control-graph {
+  border-top: 1px solid var(--border);
+  padding: 6px 8px;
+  overflow: auto;
+  max-height: 30vh;
+}
+
+#control-graph::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+#control-graph::-webkit-scrollbar-thumb {
+  background: var(--text-muted);
+  border-radius: 4px;
+}
+
+#control-graph::-webkit-scrollbar-track {
+  background: var(--bg-tertiary);
+}
+
+.control-graph-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg-primary);
+}
+
+.control-graph-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+#control-graph:fullscreen {
+  max-height: none;
+  background: var(--bg-primary);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+#control-graph:fullscreen .control-graph-container {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+#control-graph:fullscreen .control-graph-container::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+#control-graph:fullscreen .control-graph-container::-webkit-scrollbar-thumb {
+  background: var(--text-muted);
+  border-radius: 4px;
+}
+
+#control-graph:fullscreen .control-graph-container::-webkit-scrollbar-track {
+  background: var(--bg-tertiary);
+}
+
+.control-graph-tab {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: 2px 10px;
+  cursor: pointer;
+}
+
+.control-graph-tab.active {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.control-graph-container {
+  overflow: auto;
+}
+
+#control-graph-svg {
+  display: block;
+  margin: 0 auto;
+  flex-shrink: 0;
+}
+
+.graph-edge {
+  stroke: var(--text-muted);
+  stroke-width: 1.5;
+  fill: none;
+}
+
+.graph-edge-false {
+  stroke-dasharray: 5 3;
+}
+
+.graph-edge-label {
+  fill: var(--text-secondary);
+  font-size: 10px;
+  font-family: var(--font-sans);
+}
+
+.graph-node-table {
+  fill: var(--bg-tertiary);
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+
+.graph-node-table.graph-active {
+  fill: var(--accent);
+  stroke: var(--accent);
+  stroke-width: 3;
+  filter: drop-shadow(0 0 6px var(--accent));
+}
+
+.graph-node-condition {
+  fill: var(--bg-tertiary);
+  stroke: var(--warning);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 3;
+}
+
+.graph-node-condition.graph-active {
+  fill: var(--warning);
+  stroke: var(--warning);
+  stroke-width: 3;
+  filter: drop-shadow(0 0 6px var(--warning));
+}
+
+.graph-node-state {
+  fill: var(--bg-tertiary);
+  stroke: var(--warning);
+  stroke-width: 1.5;
+}
+
+.graph-node-state.graph-active {
+  fill: var(--warning);
+  stroke: var(--warning);
+  stroke-width: 3;
+  filter: drop-shadow(0 0 6px var(--warning));
+}
+
+.graph-node-entry,
+.graph-node-exit {
+  fill: var(--text-muted);
+  stroke: none;
+}
+
+.graph-node-accept {
+  fill: none;
+  stroke: var(--success);
+  stroke-width: 2;
+}
+
+.graph-node-reject {
+  fill: none;
+  stroke: var(--error);
+  stroke-width: 2;
+}
+
+.graph-node-accept.graph-active {
+  fill: var(--success);
+  stroke: var(--success);
+  stroke-width: 3;
+  filter: drop-shadow(0 0 6px var(--success));
+}
+
+.graph-node-reject.graph-active {
+  fill: var(--error);
+  stroke: var(--error);
+  stroke-width: 3;
+  filter: drop-shadow(0 0 6px var(--error));
+}
+
+.graph-terminal-label {
+  font-size: 9px;
+}
+
+.graph-node-label {
+  fill: var(--text-primary);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  text-anchor: middle;
+  dominant-baseline: central;
+  alignment-baseline: central;
+}
+
+.graph-node-label.condition-label {
+  font-size: 11px;
+  fill: var(--text-secondary);
+}
+
+.graph-active + .graph-node-label {
+  fill: #fff;
+}
 
 @media (max-width: 768px) {
   #main {

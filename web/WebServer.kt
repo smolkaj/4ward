@@ -125,10 +125,11 @@ class WebServer(
       runBlocking { service.setForwardingPipelineConfig(request) }
       loadedP4Info = config.p4Info
 
+      val controlGraphJson = controlGraphJson(config.device.behavioral)
       sendJson(
         exchange,
         HTTP_OK,
-        """{"success":true,"p4info":${jsonPrinter.print(config.p4Info)}}""",
+        """{"success":true,"p4info":${jsonPrinter.print(config.p4Info)},"control_graph":$controlGraphJson}""",
       )
     } finally {
       Files.deleteIfExists(tempP4)
@@ -204,6 +205,41 @@ class WebServer(
       HTTP_OK,
       """{"output_packets":[$outputsJson],"trace":$traceJson,"trace_proto":${jsonEscape(traceProto)}}""",
     )
+  }
+
+  private fun controlGraphJson(behavioral: fourward.ir.v1.BehavioralConfig): String {
+    // Use the simulator's display-name maps (built during pipeline load from p4info aliases)
+    // to show human-readable names in the graph.
+    fun displayName(name: String) = simulator.displayName(name)
+
+    // Map block_name → stage_name so graph tabs match pipeline stage events.
+    val stageNameByBlock = behavioral.architecture.stagesList.associate { it.blockName to it.name }
+
+    val controlGraphs = ControlGraphExtractor.extract(behavioral)
+    val parserGraphs = ParserGraphExtractor.extract(behavioral)
+    val allGraphs = parserGraphs + controlGraphs
+
+    val entries =
+      allGraphs.joinToString(",") { graph ->
+        val nodesJson =
+          graph.nodes.joinToString(",") { node ->
+            val name = if (node.type == "table") displayName(node.name) else node.name
+            val id = if (node.type == "table") displayName(node.id) else node.id
+            """{"id":${jsonEscape(id)},"type":"${node.type}","name":${jsonEscape(name)}}"""
+          }
+        val edgesJson =
+          graph.edges.joinToString(",") { edge ->
+            val from = displayName(edge.from)
+            val to = displayName(edge.to)
+            val labelField =
+              if (edge.label.isNotEmpty()) ""","label":${jsonEscape(edge.label)}""" else ""
+            """{"from":${jsonEscape(from)},"to":${jsonEscape(to)}$labelField}"""
+          }
+        // Use the pipeline stage name as the graph key so auto-switching works.
+        val graphKey = stageNameByBlock[graph.name] ?: graph.name
+        """${jsonEscape(graphKey)}:{"nodes":[$nodesJson],"edges":[$edgesJson]}"""
+      }
+    return """{$entries}"""
   }
 
   // ---------------------------------------------------------------------------
