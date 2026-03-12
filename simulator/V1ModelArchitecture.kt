@@ -559,11 +559,6 @@ class V1ModelArchitecture : Architecture {
     }
   }
 
-  private fun buildDropTrace(events: List<TraceEvent>, reason: DropReason): TraceTree {
-    val outcome = PacketOutcome.newBuilder().setDrop(Drop.newBuilder().setReason(reason)).build()
-    return TraceTree.newBuilder().addAllEvents(events).setPacketOutcome(outcome).build()
-  }
-
   /**
    * Traffic manager drop check: egress_port == drop port (set by boundary from egress_spec or clone
    * session).
@@ -605,16 +600,6 @@ class V1ModelArchitecture : Architecture {
   private fun egressSpecIsDropPort(s: PipelineState): Boolean =
     (s.standardMetadata.fields["egress_spec"] as? BitVal)?.bits?.value?.toLong() == s.dropPort
 
-  private fun buildOutputTrace(events: List<TraceEvent>, port: Int, payload: ByteArray): TraceTree {
-    val output =
-      fourward.sim.v1.SimulatorProto.OutputPacket.newBuilder()
-        .setEgressPort(port)
-        .setPayload(com.google.protobuf.ByteString.copyFrom(payload))
-        .build()
-    val outcome = PacketOutcome.newBuilder().setOutput(output).build()
-    return TraceTree.newBuilder().addAllEvents(events).setPacketOutcome(outcome).build()
-  }
-
   /**
    * Resolves a pending clone session: emits a [CloneSessionLookupEvent] and returns the clone port,
    * or emits a miss event and returns null if the session doesn't exist.
@@ -646,6 +631,21 @@ class V1ModelArchitecture : Architecture {
         CloneSessionLookupEvent.newBuilder().setSessionId(sessionId).setSessionFound(false)
       )
       .build()
+
+  private fun buildDropTrace(events: List<TraceEvent>, reason: DropReason): TraceTree {
+    val outcome = PacketOutcome.newBuilder().setDrop(Drop.newBuilder().setReason(reason)).build()
+    return TraceTree.newBuilder().addAllEvents(events).setPacketOutcome(outcome).build()
+  }
+
+  private fun buildOutputTrace(events: List<TraceEvent>, port: Int, payload: ByteArray): TraceTree {
+    val output =
+      fourward.sim.v1.SimulatorProto.OutputPacket.newBuilder()
+        .setEgressPort(port)
+        .setPayload(com.google.protobuf.ByteString.copyFrom(payload))
+        .build()
+    val outcome = PacketOutcome.newBuilder().setOutput(output).build()
+    return TraceTree.newBuilder().addAllEvents(events).setPacketOutcome(outcome).build()
+  }
 
   private fun packetIngressEvent(ingressPort: UInt): TraceEvent =
     TraceEvent.newBuilder()

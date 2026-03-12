@@ -38,6 +38,7 @@ class Simulator {
     architecture =
       when (val archName = config.device.behavioral.architecture.name) {
         "v1model" -> V1ModelArchitecture()
+        "psa" -> PSAArchitecture()
         else -> throw IllegalArgumentException("unsupported architecture: $archName")
       }
   }
