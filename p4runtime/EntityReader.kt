@@ -30,8 +30,7 @@ private constructor(
    * - `table_id=N` with match fields: single entry matching the key (P4Runtime spec §11.1).
    */
   fun readTableEntities(filter: TableEntry, simulator: Simulator): List<Entity> {
-    val tableIds =
-      if (filter.tableId == 0) tableIdByName.values else listOfNotNull(filter.tableId)
+    val tableIds = if (filter.tableId == 0) tableIdByName.values else listOfNotNull(filter.tableId)
     val hasMatchFilter = filter.matchCount > 0
     val result = mutableListOf<Entity>()
 
@@ -113,8 +112,7 @@ private constructor(
     ): EntityReader {
       val tableIdByName = tableNameById.entries.associate { (id, name) -> name to id }
       val actionIdByName = actionNameById.entries.associate { (id, name) -> name to id }
-      val noActionId =
-        p4info.actionsList.find { it.preamble.name == "NoAction" }?.preamble?.id ?: 0
+      val noActionId = p4info.actionsList.find { it.preamble.name == "NoAction" }?.preamble?.id ?: 0
       return EntityReader(tableNameById, tableIdByName, actionIdByName, noActionId)
     }
   }
