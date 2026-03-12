@@ -243,28 +243,8 @@ class WebServer(
     return """{$entries}"""
   }
 
-  /** Serializes header TypeDecls as JSON: {"type_name": [{"name":"f","bitwidth":N}, ...], ...}. */
-  private fun headerTypesJson(behavioral: fourward.ir.v1.BehavioralConfig): String {
-    val entries =
-      behavioral.typesList
-        .filter { it.hasHeader() }
-        .joinToString(",") { typeDecl ->
-          val fields =
-            typeDecl.header.fieldsList.joinToString(",") { field ->
-              val bitwidth =
-                when {
-                  field.type.hasBit() -> field.type.bit.width
-                  field.type.hasSignedInt() -> field.type.signedInt.width
-                  field.type.boolean -> 1
-                  field.type.hasVarbit() -> field.type.varbit.maxWidth
-                  else -> 0
-                }
-              """{"name":${jsonEscape(field.name)},"bitwidth":$bitwidth}"""
-            }
-          "${jsonEscape(typeDecl.name)}:[$fields]"
-        }
-    return "{$entries}"
-  }
+  private fun headerTypesJson(behavioral: fourward.ir.v1.BehavioralConfig): String =
+    Companion.headerTypesJson(behavioral)
 
   // ---------------------------------------------------------------------------
   // Static file serving
@@ -461,6 +441,29 @@ class WebServer(
     }
 
     fun errorJson(message: String): String = """{"error":${jsonEscape(message)}}"""
+
+    /** Serializes header TypeDecls as JSON: {"type_name": [{"name":"f","bitwidth":N}, ...], ...}. */
+    fun headerTypesJson(behavioral: fourward.ir.v1.BehavioralConfig): String {
+      val entries =
+        behavioral.typesList
+          .filter { it.hasHeader() }
+          .joinToString(",") { typeDecl ->
+            val fields =
+              typeDecl.header.fieldsList.joinToString(",") { field ->
+                val bitwidth =
+                  when {
+                    field.type.hasBit() -> field.type.bit.width
+                    field.type.hasSignedInt() -> field.type.signedInt.width
+                    field.type.boolean -> 1
+                    field.type.hasVarbit() -> field.type.varbit.maxWidth
+                    else -> 0
+                  }
+                """{"name":${jsonEscape(field.name)},"bitwidth":$bitwidth}"""
+              }
+            "${jsonEscape(typeDecl.name)}:[$fields]"
+          }
+      return "{$entries}"
+    }
 
     fun hexToBytes(hex: String): ByteArray {
       val clean = hex.replace(Regex("[\\s:]+"), "").removePrefix("0x").removePrefix("0X")
