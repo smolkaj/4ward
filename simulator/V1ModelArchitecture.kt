@@ -864,39 +864,47 @@ class V1ModelArchitecture : Architecture {
     eval: ExternEvaluator,
     tableStore: TableStore,
   ): Value =
-    when (call.method) {
-      // register.read(out dst, index) / direct_meter.read(out color)
-      "read" -> {
-        // direct_meter.read has 1 arg; register.read has 2.
-        // WORKAROUND: p4c emits an empty externType for direct_meter instances
-        // (the MethodCall target Expr carries `type {}` instead of
-        // `type { named: "direct_meter" }`). The proper fix is to populate
-        // the type in the p4c backend; until then, disambiguate by arg count.
-        // TODO(p4c backend): populate extern type on MethodCall target Expr.
-        if (call.externType == "direct_meter" || eval.argCount() == 1) {
-          // direct_meter.read(out color): always GREEN (no real rates in simulator).
-          eval.writeOutArg(0, eval.defaultValue(eval.argType(0)))
-        } else {
-          // register.read(out dst, index)
-          val index = (eval.evalArg(1) as BitVal).bits.value.toInt()
-          val stored = tableStore.registerRead(call.instanceName, index)
-          eval.writeOutArg(0, stored ?: eval.defaultValue(eval.argType(0)))
+    when (call.externType) {
+      "register" ->
+        when (call.method) {
+          "read" -> {
+            val index = (eval.evalArg(1) as BitVal).bits.value.toInt()
+            val stored = tableStore.registerRead(call.instanceName, index)
+            eval.writeOutArg(0, stored ?: eval.defaultValue(eval.argType(0)))
+            UnitVal
+          }
+          "write" -> {
+            val index = (eval.evalArg(0) as BitVal).bits.value.toInt()
+            tableStore.registerWrite(call.instanceName, index, eval.evalArg(1))
+            UnitVal
+          }
+          else -> error("unhandled register method: ${call.method} on ${call.instanceName}")
         }
-        UnitVal
-      }
-      // meter.execute_meter(in index, out color): always GREEN.
-      "execute_meter" -> {
-        eval.writeOutArg(1, eval.defaultValue(eval.argType(1)))
-        UnitVal
-      }
-      // register.write(index, value)
-      "write" -> {
-        val index = (eval.evalArg(0) as BitVal).bits.value.toInt()
-        tableStore.registerWrite(call.instanceName, index, eval.evalArg(1))
-        UnitVal
-      }
-      // counter.count(index): fire-and-forget side-effect, invisible to data plane.
-      "count" -> UnitVal
+      "counter",
+      "direct_counter" ->
+        when (call.method) {
+          // fire-and-forget side-effect, invisible to data plane.
+          "count" -> UnitVal
+          else -> error("unhandled counter method: ${call.method} on ${call.instanceName}")
+        }
+      "meter" ->
+        when (call.method) {
+          // execute_meter(in index, out color): always GREEN (no real rates in simulator).
+          "execute_meter" -> {
+            eval.writeOutArg(1, eval.defaultValue(eval.argType(1)))
+            UnitVal
+          }
+          else -> error("unhandled meter method: ${call.method} on ${call.instanceName}")
+        }
+      "direct_meter" ->
+        when (call.method) {
+          // read(out color): always GREEN (no real rates in simulator).
+          "read" -> {
+            eval.writeOutArg(0, eval.defaultValue(eval.argType(0)))
+            UnitVal
+          }
+          else -> error("unhandled direct_meter method: ${call.method} on ${call.instanceName}")
+        }
       else ->
         error(
           "unhandled v1model extern method: ${call.externType}.${call.method}" +

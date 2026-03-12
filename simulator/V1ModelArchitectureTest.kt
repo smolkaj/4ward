@@ -370,7 +370,13 @@ class V1ModelArchitectureTest {
           listOf(VarDecl.newBuilder().setName("color").setType(bitType(8)).build()),
         ingressStmts =
           listOf(
-            methodCallStmt("my_meter", "execute_meter", bit(0, 32), nameRef("color", bitType(8))),
+            methodCallStmt(
+              "my_meter",
+              "execute_meter",
+              bit(0, 32),
+              nameRef("color", bitType(8)),
+              targetType = namedType("meter"),
+            ),
             assignField("sm", "egress_spec", 5, V1ModelArchitecture.DEFAULT_PORT_BITS),
           ),
       )

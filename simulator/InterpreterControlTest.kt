@@ -44,27 +44,44 @@ class InterpreterControlTest {
     when (call) {
       is ExternCall.FreeFunction -> error("unexpected extern call: ${call.name}")
       is ExternCall.Method ->
-        when (call.method) {
-          "read" -> {
-            if (call.externType == "direct_meter" || eval.argCount() == 1) {
-              eval.writeOutArg(0, eval.defaultValue(eval.argType(0)))
-            } else {
-              val index = (eval.evalArg(1) as BitVal).bits.value.toInt()
-              val stored = tableStore.registerRead(call.instanceName, index)
-              eval.writeOutArg(0, stored ?: eval.defaultValue(eval.argType(0)))
+        when (call.externType) {
+          "register" ->
+            when (call.method) {
+              "read" -> {
+                val index = (eval.evalArg(1) as BitVal).bits.value.toInt()
+                val stored = tableStore.registerRead(call.instanceName, index)
+                eval.writeOutArg(0, stored ?: eval.defaultValue(eval.argType(0)))
+                UnitVal
+              }
+              "write" -> {
+                val index = (eval.evalArg(0) as BitVal).bits.value.toInt()
+                tableStore.registerWrite(call.instanceName, index, eval.evalArg(1))
+                UnitVal
+              }
+              else -> error("unhandled register method: ${call.method}")
             }
-            UnitVal
-          }
-          "execute_meter" -> {
-            eval.writeOutArg(1, eval.defaultValue(eval.argType(1)))
-            UnitVal
-          }
-          "write" -> {
-            val index = (eval.evalArg(0) as BitVal).bits.value.toInt()
-            tableStore.registerWrite(call.instanceName, index, eval.evalArg(1))
-            UnitVal
-          }
-          "count" -> UnitVal
+          "direct_meter" ->
+            when (call.method) {
+              "read" -> {
+                eval.writeOutArg(0, eval.defaultValue(eval.argType(0)))
+                UnitVal
+              }
+              else -> error("unhandled direct_meter method: ${call.method}")
+            }
+          "meter" ->
+            when (call.method) {
+              "execute_meter" -> {
+                eval.writeOutArg(1, eval.defaultValue(eval.argType(1)))
+                UnitVal
+              }
+              else -> error("unhandled meter method: ${call.method}")
+            }
+          "counter",
+          "direct_counter" ->
+            when (call.method) {
+              "count" -> UnitVal
+              else -> error("unhandled counter method: ${call.method}")
+            }
           else ->
             error(
               "unhandled extern method: ${call.externType}.${call.method}" +
@@ -520,26 +537,15 @@ class InterpreterControlTest {
   }
 
   @Test
-  fun `direct_meter read with empty extern type falls back to arg count`() {
-    // p4c sometimes emits an empty type on the MethodCall target for direct_meter.
-    // The simulator disambiguates by arg count: 1 arg = direct_meter, 2 = register.
+  fun `execute_meter writes GREEN to out parameter`() {
     val stmt =
       methodCallStmt(
         "my_meter",
-        "read",
-        nameRef("color", bitType(2)),
-        // targetType omitted → empty type, exercising the workaround path
+        "execute_meter",
+        bit(0, 32),
+        nameRef("color", bitType(8)),
+        targetType = namedType("meter"),
       )
-    val config = controlConfig(stmt)
-    val env = emptyEnv
-    env.define("color", BitVal(3, 2))
-    interp(config).runControl("MyControl", env)
-    assertEquals(BitVal(0, 2), env.lookup("color"))
-  }
-
-  @Test
-  fun `execute_meter writes GREEN to out parameter`() {
-    val stmt = methodCallStmt("my_meter", "execute_meter", bit(0, 32), nameRef("color", bitType(8)))
     val config = controlConfig(stmt)
     val env = emptyEnv
     env.define("color", BitVal(0xFF, 8))
@@ -587,7 +593,7 @@ class InterpreterControlTest {
       assertThrows(IllegalStateException::class.java) {
         interp(config).runControl("MyControl", emptyEnv)
       }
-    assertEquals("unhandled extern method: register.unknown_method on obj", e.message)
+    assertEquals("unhandled register method: unknown_method", e.message)
   }
 
   // ---------------------------------------------------------------------------
