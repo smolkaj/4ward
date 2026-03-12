@@ -46,7 +46,7 @@ class InterpreterControlTest {
       is ExternCall.Method ->
         when (call.method) {
           "read" -> {
-            if (call.externType == "direct_meter") {
+            if (call.externType == "direct_meter" || eval.argCount() == 1) {
               eval.writeOutArg(0, eval.defaultValue(eval.argType(0)))
             } else {
               val index = (eval.evalArg(1) as BitVal).bits.value.toInt()
@@ -511,6 +511,24 @@ class InterpreterControlTest {
         "read",
         nameRef("color", bitType(2)),
         targetType = namedType("direct_meter"),
+      )
+    val config = controlConfig(stmt)
+    val env = emptyEnv
+    env.define("color", BitVal(3, 2))
+    interp(config).runControl("MyControl", env)
+    assertEquals(BitVal(0, 2), env.lookup("color"))
+  }
+
+  @Test
+  fun `direct_meter read with empty extern type falls back to arg count`() {
+    // p4c sometimes emits an empty type on the MethodCall target for direct_meter.
+    // The simulator disambiguates by arg count: 1 arg = direct_meter, 2 = register.
+    val stmt =
+      methodCallStmt(
+        "my_meter",
+        "read",
+        nameRef("color", bitType(2)),
+        // targetType omitted → empty type, exercising the workaround path
       )
     val config = controlConfig(stmt)
     val env = emptyEnv
