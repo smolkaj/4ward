@@ -100,6 +100,9 @@ private constructor(
   }
 
   companion object {
+    /** Placeholder for [PipelineState] before the simulator has loaded the pipeline. */
+    val EMPTY = EntityReader(emptyMap(), emptyMap(), emptyMap(), 0)
+
     /**
      * Builds an [EntityReader] from p4info and name resolution maps.
      *

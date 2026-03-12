@@ -1333,6 +1333,66 @@ class P4RuntimeConformanceTest {
     }
   }
 
+  // =========================================================================
+  // SetForwardingPipelineConfig actions (§7.2)
+  // =========================================================================
+
+  /** P4Runtime spec §7.2: VERIFY validates without applying. */
+  @Test
+  fun `75 - VERIFY validates without activating pipeline`() {
+    sendPipelineAction(SetForwardingPipelineConfigRequest.Action.VERIFY)
+
+    // Pipeline should not be active — reads should fail.
+    assertGrpcError(Status.Code.FAILED_PRECONDITION) { harness.readEntries() }
+  }
+
+  /** P4Runtime spec §7.2: VERIFY rejects invalid config. */
+  @Test
+  fun `76 - VERIFY rejects invalid config`() {
+    assertGrpcError(Status.Code.INVALID_ARGUMENT) {
+      sendPipelineAction(
+        SetForwardingPipelineConfigRequest.Action.VERIFY,
+        PipelineConfig.getDefaultInstance(),
+      )
+    }
+  }
+
+  /** P4Runtime spec §7.2: VERIFY_AND_SAVE stores config without activating. */
+  @Test
+  fun `77 - VERIFY_AND_SAVE saves without activating`() {
+    sendPipelineAction(SetForwardingPipelineConfigRequest.Action.VERIFY_AND_SAVE)
+
+    // Pipeline should not be active — reads should fail.
+    assertGrpcError(Status.Code.FAILED_PRECONDITION) { harness.readEntries() }
+  }
+
+  /** P4Runtime spec §7.2: COMMIT activates a previously saved pipeline. */
+  @Test
+  fun `78 - VERIFY_AND_SAVE then COMMIT activates pipeline`() {
+    sendPipelineAction(SetForwardingPipelineConfigRequest.Action.VERIFY_AND_SAVE)
+    sendPipelineAction(SetForwardingPipelineConfigRequest.Action.COMMIT)
+
+    // Pipeline should now be active.
+    val entries = harness.readEntries()
+    assertNotNull(entries)
+  }
+
+  /** P4Runtime spec §7.2: COMMIT without prior VERIFY_AND_SAVE fails. */
+  @Test
+  fun `79 - COMMIT without saved pipeline returns FAILED_PRECONDITION`() {
+    assertGrpcError(Status.Code.FAILED_PRECONDITION) {
+      sendPipelineAction(SetForwardingPipelineConfigRequest.Action.COMMIT)
+    }
+  }
+
+  /** P4Runtime spec §7.2: RECONCILE_AND_COMMIT is not supported. */
+  @Test
+  fun `80 - RECONCILE_AND_COMMIT returns UNIMPLEMENTED`() {
+    assertGrpcError(Status.Code.UNIMPLEMENTED) {
+      sendPipelineAction(SetForwardingPipelineConfigRequest.Action.RECONCILE_AND_COMMIT)
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Test helpers
   // ---------------------------------------------------------------------------
@@ -1347,6 +1407,24 @@ class P4RuntimeConformanceTest {
         .setDeviceId(1)
         .setAction(SetForwardingPipelineConfigRequest.Action.VERIFY_AND_COMMIT)
         .setConfig(config)
+        .build()
+    )
+  }
+
+  /** Sends a SetForwardingPipelineConfig with a specific action. */
+  private fun sendPipelineAction(
+    action: SetForwardingPipelineConfigRequest.Action,
+    config: PipelineConfig = loadBasicTableConfig(),
+  ) = runBlocking {
+    val fwdConfig =
+      ForwardingPipelineConfig.newBuilder()
+        .setP4Info(config.p4Info)
+        .setP4DeviceConfig(config.device.toByteString())
+    harness.stub.setForwardingPipelineConfig(
+      SetForwardingPipelineConfigRequest.newBuilder()
+        .setDeviceId(1)
+        .setAction(action)
+        .setConfig(fwdConfig)
         .build()
     )
   }
