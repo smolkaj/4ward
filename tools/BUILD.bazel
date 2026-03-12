@@ -1,0 +1,60 @@
+load("@doxygen//:doxygen.bzl", "doxygen")
+load("//bazel:docs_bundle.bzl", "docs_bundle")
+load("//bazel:dokka.bzl", "dokka_html")
+load("//bazel:proto_doc.bzl", "proto_doc")
+
+# Generate HTML documentation from all project proto_library targets.
+proto_doc(
+    name = "proto_docs",
+    out = "proto_docs.html",
+    protos = [
+        "//p4runtime:constraint_validator_proto",
+        "//simulator:ir_proto",
+        "//simulator:simulator_proto",
+    ],
+)
+
+# Generate HTML documentation from all project Kotlin sources.
+dokka_html(
+    name = "kotlin_docs",
+    srcs = [
+        "//cli:kotlin_srcs",
+        "//p4runtime:kotlin_srcs",
+        "//simulator:kotlin_srcs",
+        "//web:kotlin_srcs",
+    ],
+    deps = [
+        "//simulator:ir_java_proto",
+        "//simulator:p4runtime_java_proto",
+        "//simulator:simulator_java_proto",
+    ],
+)
+
+# Generate HTML documentation from the C++ p4c backend.
+doxygen(
+    name = "cpp_docs",
+    srcs = ["//p4c_backend:cpp_srcs"],
+    exclude_patterns = [
+        "*Test.cpp",
+        "*_test.cpp",
+    ],
+    extract_all = True,
+    project_brief = "C++ p4c backend plugin that emits proto IR from P4 source",
+    project_name = "4ward p4c Backend",
+    referenced_by_relation = True,
+    references_relation = True,
+    source_browser = True,
+    warn_if_undocumented = False,
+)
+
+# Assemble all documentation into a single site directory.
+# Usage: bazel build //tools:docs
+docs_bundle(
+    name = "docs",
+    index = "docs-index.html",
+    sections = {
+        ":proto_docs": "proto",
+        ":kotlin_docs": "kotlin",
+        ":cpp_docs": "cpp",
+    },
+)

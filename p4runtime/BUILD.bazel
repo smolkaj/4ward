@@ -229,6 +229,7 @@ kt_jvm_test(
 proto_library(
     name = "constraint_validator_proto",
     srcs = ["constraint_validator.proto"],
+    visibility = ["//tools:__pkg__"],
     deps = [
         "@p4runtime//proto/p4/config/v1:p4info_proto",
         "@p4runtime//proto/p4/v1:p4runtime_proto",
@@ -391,4 +392,20 @@ kt_jvm_test(
         "@maven//:junit_junit",
         "@maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
     ],
+)
+
+# =============================================================================
+# Documentation
+# =============================================================================
+
+filegroup(
+    name = "kotlin_srcs",
+    srcs = glob(
+        ["*.kt"],
+        exclude = [
+            "*Test.kt",
+            "*TestHarness.kt",
+        ],
+    ),
+    visibility = ["//tools:__pkg__"],
 )

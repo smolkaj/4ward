@@ -178,6 +178,52 @@ jobs:
           key: bazel-${{ matrix.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', 'bazel/*.patch') }}-${{ github.run_id }}
 
 
+  docs:
+    if: github.event_name == 'push'
+    name: Documentation
+    runs-on: ubuntu-24.04
+    # Docs are informational — don't block other jobs on failure.
+    continue-on-error: true
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Configure remote cache
+        env:
+          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
+        run: |
+          if [[ -n "${BUILDBUDDY_API_KEY}" ]]; then
+            echo "build --config=ci" >> ~/.bazelrc
+            echo "common --remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY}" >> ~/.bazelrc
+          fi
+
+      - name: Restore Bazel cache
+        uses: actions/cache/restore@v5
+        with:
+          path: ~/.cache/bazel
+          key: bazel-ubuntu-24.04-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', 'bazel/*.patch') }}
+          restore-keys: bazel-ubuntu-24.04-
+
+      - name: Generate documentation
+        run: bazel build //tools:docs
+
+      - name: Fetch gh-pages
+        run: git fetch --depth=1 origin gh-pages || true
+
+      - name: Publish to GitHub Pages
+        run: |
+          git worktree add /tmp/gh-pages gh-pages
+          rm -rf /tmp/gh-pages/docs
+          cp -r bazel-bin/tools/docs /tmp/gh-pages/docs
+          cd /tmp/gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/
+          git commit -m "Documentation for $(git -C "$GITHUB_WORKSPACE" rev-parse --short HEAD)" --allow-empty
+          git push origin gh-pages || (git pull --rebase origin gh-pages && git push origin gh-pages)
+
+
   coverage:
     # TODO: re-enable for PRs once coverage runs are faster/more reliable.
     if: github.event_name == 'push'
