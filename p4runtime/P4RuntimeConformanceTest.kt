@@ -631,17 +631,19 @@ class P4RuntimeConformanceTest {
     }
   }
 
-  /** P4Runtime spec §10.2: lower election_id is non-primary. */
+  /** P4Runtime spec §5: lower election_id is non-primary. */
   @Test
   fun `41 - lower election_id is non-primary`() {
-    harness.openStream().use { stream ->
-      stream.arbitrate(electionId = 5)
-      val resp = stream.arbitrate(electionId = 1)
-      assertEquals(
-        "lower election_id should get ALREADY_EXISTS",
-        com.google.rpc.Code.ALREADY_EXISTS_VALUE,
-        resp.arbitration.status.code,
-      )
+    harness.openStream().use { primary ->
+      primary.arbitrate(electionId = 5)
+      harness.openStream().use { backup ->
+        val resp = backup.arbitrate(electionId = 1)
+        assertEquals(
+          "lower election_id should get ALREADY_EXISTS",
+          com.google.rpc.Code.ALREADY_EXISTS_VALUE,
+          resp.arbitration.status.code,
+        )
+      }
     }
   }
 
@@ -655,17 +657,18 @@ class P4RuntimeConformanceTest {
     assertGrpcError(Status.Code.PERMISSION_DENIED) { harness.installEntry(entry, uint128(low = 3)) }
   }
 
-  /** P4Runtime spec §10.3: primary write succeeds. */
+  /** P4Runtime spec §5: primary write succeeds. */
   @Test
   fun `43 - primary write succeeds`() {
     val config = loadBasicTableConfig()
     harness.loadPipeline(config)
-    harness.openStream().use { stream -> stream.arbitrate(electionId = 5) }
-    val entry = buildExactEntry(config, matchValue = 0x0800, port = 1)
-    harness.installEntry(entry, uint128(low = 5))
-    // Verify the entry was written.
-    val results = harness.readRegularEntries()
-    assertEquals(1, results.size)
+    harness.openStream().use { stream ->
+      stream.arbitrate(electionId = 5)
+      val entry = buildExactEntry(config, matchValue = 0x0800, port = 1)
+      harness.installEntry(entry, uint128(low = 5))
+      val results = harness.readRegularEntries()
+      assertEquals(1, results.size)
+    }
   }
 
   /** Backward compatibility: write without any prior arbitration succeeds. */
@@ -680,15 +683,17 @@ class P4RuntimeConformanceTest {
     assertEquals(1, regular.size)
   }
 
-  /** P4Runtime spec §10.4: all controllers may read regardless of role. */
+  /** P4Runtime spec §5: all controllers may read regardless of role. */
   @Test
   fun `45 - all controllers may read regardless of role`() {
     val config = loadBasicTableConfig()
     harness.loadPipeline(config)
-    harness.openStream().use { stream -> stream.arbitrate(electionId = 5) }
-    val entry = buildExactEntry(config, matchValue = 0x0800, port = 1)
-    harness.installEntry(entry, uint128(low = 5))
-    // Read with no election_id (any controller) should succeed.
+    harness.openStream().use { stream ->
+      stream.arbitrate(electionId = 5)
+      val entry = buildExactEntry(config, matchValue = 0x0800, port = 1)
+      harness.installEntry(entry, uint128(low = 5))
+    }
+    // Read with no election_id (any controller) should succeed even after stream closes.
     val results = harness.readRegularEntries()
     assertEquals("read should return the installed entry", 1, results.size)
   }
@@ -1248,6 +1253,84 @@ class P4RuntimeConformanceTest {
       "should not have meter_config without explicit write",
       results[0].tableEntry.hasMeterConfig(),
     )
+  }
+
+  // =========================================================================
+  // Arbitration: demotion, promotion, zero election_id (scenarios 72-74)
+  // =========================================================================
+
+  /** P4Runtime spec §5: election_id=0 is a backup controller, cannot become primary. */
+  @Test
+  fun `72 - zero election_id cannot become primary`() {
+    harness.openStream().use { stream ->
+      val resp = stream.arbitrate(electionId = 0)
+      assertEquals(
+        "zero election_id should always be non-primary",
+        com.google.rpc.Code.ALREADY_EXISTS_VALUE,
+        resp.arbitration.status.code,
+      )
+    }
+  }
+
+  /** P4Runtime spec §5: displaced primary receives demotion notification. */
+  @Test
+  fun `73 - demotion notification sent to displaced primary`() {
+    harness.openStream().use { oldPrimary ->
+      oldPrimary.arbitrate(electionId = 3)
+      harness.openStream().use { newPrimary ->
+        // New controller with higher election_id displaces the old primary.
+        val resp = newPrimary.arbitrate(electionId = 7)
+        assertEquals(
+          "higher election_id should be primary",
+          com.google.rpc.Code.OK_VALUE,
+          resp.arbitration.status.code,
+        )
+        // Old primary should receive an async demotion notification.
+        val demotion = oldPrimary.receiveNext()
+        assertNotNull("old primary should receive demotion notification", demotion)
+        assertTrue("should be an arbitration message", demotion!!.hasArbitration())
+        assertEquals(
+          "demotion should include the old primary's election_id",
+          3,
+          demotion.arbitration.electionId.low,
+        )
+        assertEquals(
+          "demotion status should be ALREADY_EXISTS",
+          com.google.rpc.Code.ALREADY_EXISTS_VALUE,
+          demotion.arbitration.status.code,
+        )
+      }
+    }
+  }
+
+  /** P4Runtime spec §5: when primary disconnects, next highest is promoted. */
+  @Test
+  fun `74 - automatic promotion when primary disconnects`() {
+    val backup = harness.openStream()
+    backup.arbitrate(electionId = 3)
+    harness.openStream().use { primary ->
+      primary.arbitrate(electionId = 7)
+      // Drain the demotion notification from backup's channel.
+      backup.receiveNext()
+    }
+    // Primary (election_id=7) has disconnected. Backup should be promoted.
+    try {
+      val promotion = backup.receiveNext()
+      assertNotNull("backup should receive promotion notification", promotion)
+      assertTrue("should be an arbitration message", promotion!!.hasArbitration())
+      assertEquals(
+        "promotion should include the backup's election_id",
+        3,
+        promotion.arbitration.electionId.low,
+      )
+      assertEquals(
+        "promotion status should be OK",
+        com.google.rpc.Code.OK_VALUE,
+        promotion.arbitration.status.code,
+      )
+    } finally {
+      backup.close()
+    }
   }
 
   // ---------------------------------------------------------------------------

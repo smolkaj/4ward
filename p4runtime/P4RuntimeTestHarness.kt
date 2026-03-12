@@ -392,6 +392,11 @@ class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable 
       withTimeoutOrNull(STREAM_TIMEOUT_MS) { responseChannel.receive() }
     }
 
+    /** Receives the next unsolicited message (e.g., demotion/promotion notification). */
+    fun receiveNext(): StreamMessageResponse? = runBlocking {
+      withTimeoutOrNull(STREAM_TIMEOUT_MS) { responseChannel.receive() }
+    }
+
     override fun close() {
       requestChannel.close()
       scope.cancel()

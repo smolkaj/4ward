@@ -1,6 +1,6 @@
 package fourward.p4runtime
 
-import com.google.protobuf.Any
+import com.google.protobuf.Any as ProtoAny
 import fourward.ir.v1.DeviceConfig
 import fourward.ir.v1.PipelineConfig
 import fourward.simulator.Simulator
@@ -10,8 +10,12 @@ import io.grpc.Status
 import io.grpc.StatusException
 import java.io.Closeable
 import java.nio.file.Path
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import p4.v1.P4RuntimeGrpcKt
@@ -47,9 +51,10 @@ fun compareUint128(a: Uint128, b: Uint128): Int {
 /**
  * P4Runtime gRPC service backed by a 4ward [Simulator].
  *
- * Supports basic multi-controller arbitration: the controller with the highest election_id is
- * primary and may write; all controllers may read. No demotion notifications or disconnect
- * handling.
+ * Supports multi-controller arbitration per P4Runtime spec §5: the controller with the highest
+ * non-zero election_id is primary and may write; all controllers may read. Demotion notifications
+ * are sent when a higher election_id displaces the current primary, and automatic promotion occurs
+ * when the primary disconnects.
  */
 class P4RuntimeService(
   private val simulator: Simulator,
@@ -71,8 +76,24 @@ class P4RuntimeService(
 
   @Volatile private var pipeline: PipelineState? = null
 
-  // P4Runtime spec §10: highest election_id is the primary controller.
-  // null = no arbitration has occurred; writes are allowed for backward compatibility.
+  // ---------------------------------------------------------------------------
+  // Arbitration state (P4Runtime spec §5)
+  // ---------------------------------------------------------------------------
+
+  /** Per-stream controller state, tracked for demotion/promotion notifications. */
+  private data class ControllerStream(
+    val electionId: Uint128,
+    val notifications: SendChannel<StreamMessageResponse>,
+  )
+
+  private val arbitrationMutex = Mutex()
+  private val controllers = mutableMapOf<Any, ControllerStream>()
+
+  // True once any controller has sent MasterArbitrationUpdate. Once set, writes require
+  // a matching primary election_id (even if all controllers later disconnect).
+  @Volatile private var arbitrationOccurred: Boolean = false
+
+  // Highest non-zero election_id among active controllers, or null if none.
   @Volatile private var primaryElectionId: Uint128? = null
 
   private fun requirePipeline(): PipelineState =
@@ -275,47 +296,41 @@ class P4RuntimeService(
   // ---------------------------------------------------------------------------
 
   override fun streamChannel(requests: Flow<StreamMessageRequest>): Flow<StreamMessageResponse> =
-    flow {
-      requests.collect { msg ->
-        when {
-          msg.hasArbitration() -> {
-            val incomingId = msg.arbitration.electionId
-            val current = primaryElectionId
-            val isPrimary = current == null || compareUint128(incomingId, current) >= 0
-            if (isPrimary) primaryElectionId = incomingId
-            val statusCode =
-              if (isPrimary) com.google.rpc.Code.OK_VALUE
-              else com.google.rpc.Code.ALREADY_EXISTS_VALUE
-            emit(
-              StreamMessageResponse.newBuilder()
-                .setArbitration(
-                  MasterArbitrationUpdate.newBuilder()
-                    .setDeviceId(msg.arbitration.deviceId)
-                    .setElectionId(incomingId)
-                    .setStatus(com.google.rpc.Status.newBuilder().setCode(statusCode))
-                )
-                .build()
-            )
+    channelFlow {
+      val streamId = Any()
+      val notifications = Channel<StreamMessageResponse>(Channel.UNLIMITED)
+
+      // Forward async notifications (demotion/promotion) to the stream output.
+      launch { for (msg in notifications) send(msg) }
+
+      try {
+        requests.collect { msg ->
+          when {
+            msg.hasArbitration() ->
+              send(handleArbitration(streamId, msg.arbitration, notifications))
+            msg.hasPacket() -> {
+              val packetIns = lock.withLock { handlePacketOut(msg.packet) }
+              packetIns?.forEach { send(it) }
+            }
+            msg.hasDigestAck() ->
+              throw Status.UNIMPLEMENTED.withDescription(DIGEST_NOT_SUPPORTED).asException()
+            // P4Runtime spec §16: unrecognized stream messages get an error response.
+            else ->
+              send(
+                StreamMessageResponse.newBuilder()
+                  .setError(
+                    P4RuntimeOuterClass.StreamError.newBuilder()
+                      .setCanonicalCode(com.google.rpc.Code.INVALID_ARGUMENT_VALUE)
+                      .setMessage("unrecognized stream message")
+                      .setOther(P4RuntimeOuterClass.StreamOtherError.getDefaultInstance())
+                  )
+                  .build()
+              )
           }
-          msg.hasPacket() -> {
-            val packetIns = lock.withLock { handlePacketOut(msg.packet) }
-            packetIns?.forEach { emit(it) }
-          }
-          msg.hasDigestAck() ->
-            throw Status.UNIMPLEMENTED.withDescription(DIGEST_NOT_SUPPORTED).asException()
-          // P4Runtime spec §16: unrecognized stream messages get an error response.
-          else ->
-            emit(
-              StreamMessageResponse.newBuilder()
-                .setError(
-                  P4RuntimeOuterClass.StreamError.newBuilder()
-                    .setCanonicalCode(com.google.rpc.Code.INVALID_ARGUMENT_VALUE)
-                    .setMessage("unrecognized stream message")
-                    .setOther(P4RuntimeOuterClass.StreamOtherError.getDefaultInstance())
-                )
-                .build()
-            )
         }
+      } finally {
+        notifications.close()
+        handleDisconnect(streamId)
       }
     }
 
@@ -410,19 +425,121 @@ class P4RuntimeService(
   /**
    * Ensures the requester is the primary controller, or that no arbitration has occurred.
    *
-   * P4Runtime spec §10: only the primary (highest election_id) may write. If no arbitration has
-   * occurred, writes are allowed for backward compatibility with single-controller clients.
+   * P4Runtime spec §5: only the primary (highest non-zero election_id) may write. If no arbitration
+   * has occurred, writes are allowed for backward compatibility with single-controller clients.
    */
   private fun requirePrimaryOrNoArbitration(requestElectionId: Uint128) {
-    val primary = primaryElectionId ?: return
-    if (requestElectionId != primary) {
-      val id = if (primary.high == 0L) "${primary.low}" else "(${primary.high}, ${primary.low})"
+    if (!arbitrationOccurred) return
+    val primary = primaryElectionId
+    if (primary == null || requestElectionId != primary) {
+      val id =
+        primary?.let { if (it.high == 0L) "${it.low}" else "(${it.high}, ${it.low})" } ?: "none"
       throw Status.PERMISSION_DENIED.withDescription(
           "only the primary controller (election_id=$id) may write"
         )
         .asException()
     }
   }
+
+  // ---------------------------------------------------------------------------
+  // Arbitration logic (P4Runtime spec §5)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Processes a MasterArbitrationUpdate from a stream, updating controller tracking and sending
+   * demotion/promotion notifications as needed.
+   */
+  private suspend fun handleArbitration(
+    streamId: Any,
+    arbitration: MasterArbitrationUpdate,
+    notifications: SendChannel<StreamMessageResponse>,
+  ): StreamMessageResponse {
+    val incomingId = arbitration.electionId
+
+    return arbitrationMutex.withLock {
+      val oldPrimaryId = primaryElectionId
+      controllers[streamId] = ControllerStream(incomingId, notifications)
+      arbitrationOccurred = true
+
+      val newPrimaryId = computePrimary()
+      if (newPrimaryId != null) primaryElectionId = newPrimaryId
+
+      // If primary changed, send demotion/promotion notifications to other streams.
+      if (newPrimaryId != oldPrimaryId) {
+        notifyRoleChanges(streamId, oldPrimaryId, newPrimaryId)
+      }
+
+      val isPrimary =
+        !isZeroElectionId(incomingId) && newPrimaryId != null && incomingId == newPrimaryId
+      buildArbitrationResponse(arbitration.deviceId, incomingId, isPrimary)
+    }
+  }
+
+  /** Handles stream disconnect: removes the controller and promotes the next primary if needed. */
+  private suspend fun handleDisconnect(streamId: Any) {
+    arbitrationMutex.withLock {
+      controllers.remove(streamId) ?: return
+
+      val oldPrimaryId = primaryElectionId
+      val newPrimaryId = computePrimary()
+      if (newPrimaryId != null) primaryElectionId = newPrimaryId
+
+      // If the disconnected controller was primary, notify the promoted controller.
+      if (oldPrimaryId != null && newPrimaryId != oldPrimaryId && newPrimaryId != null) {
+        for ((_, ctrl) in controllers) {
+          if (ctrl.electionId == newPrimaryId) {
+            ctrl.notifications.trySend(buildArbitrationResponse(deviceId, ctrl.electionId, true))
+          }
+        }
+      }
+    }
+  }
+
+  /** Returns the highest non-zero election_id among active controllers, or null. */
+  private fun computePrimary(): Uint128? =
+    controllers.values
+      .map { it.electionId }
+      .filter { !isZeroElectionId(it) }
+      .maxWithOrNull(Comparator { a, b -> compareUint128(a, b) })
+
+  /** Sends demotion/promotion notifications to other streams when the primary changes. */
+  private fun notifyRoleChanges(
+    excludeStreamId: Any,
+    oldPrimaryId: Uint128?,
+    newPrimaryId: Uint128?,
+  ) {
+    for ((id, ctrl) in controllers) {
+      if (id == excludeStreamId) continue
+      val wasPrimary = oldPrimaryId != null && ctrl.electionId == oldPrimaryId
+      val isNowPrimary = newPrimaryId != null && ctrl.electionId == newPrimaryId
+      when {
+        wasPrimary && !isNowPrimary ->
+          ctrl.notifications.trySend(buildArbitrationResponse(deviceId, ctrl.electionId, false))
+        !wasPrimary && isNowPrimary ->
+          ctrl.notifications.trySend(buildArbitrationResponse(deviceId, ctrl.electionId, true))
+      }
+    }
+  }
+
+  private fun buildArbitrationResponse(
+    deviceId: Long,
+    electionId: Uint128,
+    isPrimary: Boolean,
+  ): StreamMessageResponse =
+    StreamMessageResponse.newBuilder()
+      .setArbitration(
+        MasterArbitrationUpdate.newBuilder()
+          .setDeviceId(deviceId)
+          .setElectionId(electionId)
+          .setStatus(
+            com.google.rpc.Status.newBuilder()
+              .setCode(
+                if (isPrimary) com.google.rpc.Code.OK_VALUE
+                else com.google.rpc.Code.ALREADY_EXISTS_VALUE
+              )
+          )
+      )
+      .build()
 
   /** Rejects requests targeting a different device (P4Runtime spec §6.3). */
   private fun requireDeviceId(requestDeviceId: Long) {
@@ -461,7 +578,7 @@ class P4RuntimeService(
         .setCode(com.google.rpc.Code.UNKNOWN_VALUE)
         .setMessage("Write failure.")
     for (error in errors) {
-      rpcStatus.addDetails(Any.pack(error))
+      rpcStatus.addDetails(ProtoAny.pack(error))
     }
     val metadata = Metadata()
     metadata.put(STATUS_DETAILS_KEY, rpcStatus.build().toByteArray())
@@ -488,6 +605,8 @@ class P4RuntimeService(
     private const val DIGEST_NOT_SUPPORTED = "digest is not supported"
 
     private const val OK_CODE = com.google.rpc.Code.OK_VALUE
+
+    private fun isZeroElectionId(id: Uint128): Boolean = id.high == 0L && id.low == 0L
 
     // Standard gRPC binary trailer for rich error details (P4Runtime spec §10).
     private val STATUS_DETAILS_KEY: Metadata.Key<ByteArray> =

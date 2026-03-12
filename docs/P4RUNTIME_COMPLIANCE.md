@@ -144,9 +144,9 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 | 10.2 | Higher election_id becomes primary | Y | ConformanceTest #40-41 |
 | 10.3 | Non-primary writes → PERMISSION_DENIED | Y | ConformanceTest #42-44 |
 | 10.4 | All controllers may read regardless of role | Y | ConformanceTest #45 |
-| 10.5 | Demotion notification to displaced primary | N | |
-| 10.6 | Automatic promotion on primary disconnect | N | |
-| 10.7 | Zero election_id: backup semantics (cannot be primary) | N | |
+| 10.5 | Demotion notification to displaced primary | Y | ConformanceTest #73 |
+| 10.6 | Automatic promotion on primary disconnect | Y | ConformanceTest #74 |
+| 10.7 | Zero election_id: backup semantics (cannot be primary) | Y | ConformanceTest #72 |
 | 10.8 | Role-based access control | N/A | Single default role sufficient for reference simulator |
 
 ## Read RPC (§11)
@@ -240,7 +240,7 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 | Write — other entities | 0 | 0 | 3 |
 | Write — atomicity | 3 | 0 | 1 |
 | Write — general | 2 | 0 | 0 |
-| Arbitration | 4 | 3 | 1 |
+| Arbitration | 7 | 0 | 1 |
 | Read | 11 | 0 | 0 |
 | GetForwardingPipelineConfig | 6 | 0 | 0 |
 | Capabilities | 1 | 0 | 0 |
@@ -248,4 +248,4 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 | Translation | 6 | 0 | 0 |
 | @refers_to | 6 | 0 | 0 |
 | p4-constraints | 4 | 0 | 0 |
-| **Total** | **115** | **3** | **10** |
+| **Total** | **118** | **0** | **10** |
