@@ -588,7 +588,7 @@ void FourWardBackend::emitParser(const IR::P4Parser* parser) {
     }
   }
 
-  // Emit parser-local variables (e.g. from inlined sub-parsers).
+  // Emit parser-local variables and extern instances.
   for (const auto* decl : parser->parserLocals) {
     if (const auto* varDecl = decl->to<IR::Declaration_Variable>()) {
       auto* vd = pd->add_local_vars();
@@ -596,6 +596,19 @@ void FourWardBackend::emitParser(const IR::P4Parser* parser) {
       *vd->mutable_type() = emitType(varDecl->type);
       if (varDecl->initializer) {
         *vd->mutable_initializer() = emitExpr(varDecl->initializer);
+      }
+    } else if (const auto* inst = decl->to<IR::Declaration_Instance>()) {
+      auto* ei = pd->add_extern_instances();
+      ei->set_name(inst->name.name.c_str());
+      if (const auto* tn = inst->type->to<IR::Type_Name>()) {
+        ei->set_type_name(tn->path->name.name.c_str());
+      } else if (const auto* spec = inst->type->to<IR::Type_Specialized>()) {
+        if (const auto* base = spec->baseType->to<IR::Type_Name>()) {
+          ei->set_type_name(base->path->name.name.c_str());
+        }
+      }
+      for (const auto* arg : *inst->arguments) {
+        *ei->add_constructor_args() = emitExpr(arg->expression);
       }
     }
   }

@@ -417,8 +417,11 @@ class PSAArchitecture : Architecture {
   // ---------------------------------------------------------------------------
 
   /** PSA extern handler: free functions and extern object methods. */
-  private fun createPsaExternHandler(pipeline: PipelineConfig): ExternHandler =
-    ExternHandler { call, eval ->
+  private fun createPsaExternHandler(pipeline: PipelineConfig): ExternHandler {
+    // Per-pipeline InternetChecksum state: instance name → running ones' complement sum.
+    // Fresh for each pipeline execution (ingress or egress).
+    val checksumState = mutableMapOf<String, BigInteger>()
+    return ExternHandler { call, eval ->
       when (call) {
         is ExternCall.FreeFunction ->
           when (call.name) {
@@ -468,6 +471,37 @@ class PSAArchitecture : Architecture {
             // PSA Meter.execute(index): returns PSA_MeterColor_t. Always GREEN — no real
             // packet rates in simulator (same as v1model).
             "execute" -> EnumVal("GREEN")
+            // --- InternetChecksum extern (PSA spec §7.7) ---
+            "clear" -> {
+              checksumState[call.instanceName] = BigInteger.ZERO
+              UnitVal
+            }
+            "add" -> {
+              val data = eval.evalArg(0) as StructVal
+              val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)
+              checksumState[call.instanceName] = onesComplementAdd(sum, sumWords(data))
+              UnitVal
+            }
+            "subtract" -> {
+              // RFC 1624: subtract by adding the ones' complement of the data's word sum.
+              val data = eval.evalArg(0) as StructVal
+              val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)
+              val dataSumComplement = CSUM_MASK.subtract(sumWords(data))
+              checksumState[call.instanceName] = onesComplementAdd(sum, dataSumComplement)
+              UnitVal
+            }
+            "get" -> {
+              val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)
+              BitVal(BitVector(CSUM_MASK.subtract(sum), CSUM_WORD_BITS))
+            }
+            "get_state" -> {
+              val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)
+              BitVal(BitVector(sum, CSUM_WORD_BITS))
+            }
+            "set_state" -> {
+              checksumState[call.instanceName] = (eval.evalArg(0) as BitVal).bits.value
+              UnitVal
+            }
             else ->
               error(
                 "unhandled PSA extern method: ${call.externType}.${call.method}" +
@@ -476,6 +510,7 @@ class PSAArchitecture : Architecture {
           }
       }
     }
+  }
 
   /** Evaluates PSA Hash.get_hash (1-arg or 3-arg form). */
   private fun evalGetHash(
@@ -508,9 +543,41 @@ class PSAArchitecture : Architecture {
     }
   }
 
-  /** Builds a flat map from extern instance name → declaration across all controls. */
+  /**
+   * Sums all 16-bit words in [data]'s concatenated fields using ones' complement addition.
+   *
+   * Pads to a 16-bit boundary. Returns the raw sum (not complemented).
+   */
+  private fun sumWords(data: StructVal): BigInteger {
+    val combined = concatFields(data) ?: return BigInteger.ZERO
+    val totalWidth = combined.width
+    val padded = ((totalWidth + CSUM_WORD_BITS - 1) / CSUM_WORD_BITS) * CSUM_WORD_BITS
+    var bits = combined.value.shiftLeft(padded - totalWidth)
+    var sum = BigInteger.ZERO
+    for (i in 0 until padded / CSUM_WORD_BITS) {
+      val word = bits.shiftRight(padded - (i + 1) * CSUM_WORD_BITS).and(CSUM_MASK)
+      sum = sum.add(word)
+    }
+    return foldCarries(sum)
+  }
+
+  /** Folds carries back into a 16-bit ones' complement value. */
+  private fun foldCarries(value: BigInteger): BigInteger {
+    var sum = value
+    while (sum > CSUM_MASK) {
+      sum = sum.and(CSUM_MASK).add(sum.shiftRight(CSUM_WORD_BITS))
+    }
+    return sum
+  }
+
+  /** Ones' complement addition of two 16-bit values with carry folding. */
+  private fun onesComplementAdd(a: BigInteger, b: BigInteger): BigInteger = foldCarries(a.add(b))
+
+  /** Builds a flat map from extern instance name → declaration across all parsers and controls. */
   private fun buildExternInstancesMap(config: BehavioralConfig): Map<String, ExternInstanceDecl> =
-    config.controlsList.flatMap { it.externInstancesList }.associateBy { it.name }
+    (config.parsersList.flatMap { it.externInstancesList } +
+        config.controlsList.flatMap { it.externInstancesList })
+      .associateBy { it.name }
 
   // ---------------------------------------------------------------------------
   // Trace helpers

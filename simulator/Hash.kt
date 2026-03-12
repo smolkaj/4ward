@@ -9,8 +9,8 @@ private const val CRC16_POLY = 0xA001
 private const val BYTE_MASK = 0xFF
 private const val CRC16_MASK = 0xFFFF
 
-private const val CSUM_WORD_BITS = 16
-private val CSUM_MASK = BigInteger.TWO.pow(CSUM_WORD_BITS).subtract(BigInteger.ONE)
+internal const val CSUM_WORD_BITS = 16
+internal val CSUM_MASK = BigInteger.TWO.pow(CSUM_WORD_BITS).subtract(BigInteger.ONE)
 
 /**
  * Concatenates all [BitVal] fields in a [StructVal] into a single [BitVector].
@@ -18,7 +18,7 @@ private val CSUM_MASK = BigInteger.TWO.pow(CSUM_WORD_BITS).subtract(BigInteger.O
  * [UnitVal] fields (from unextracted varbit<N> headers) are skipped — they have no bits to
  * contribute. This matches BMv2 which omits zero-length varbits from checksum computations.
  */
-private fun concatFields(data: StructVal): BitVector? =
+internal fun concatFields(data: StructVal): BitVector? =
   data.fields.values.mapNotNull { (it as? BitVal)?.bits }.reduceOrNull { acc, bv -> acc.concat(bv) }
 
 /**
