@@ -589,4 +589,93 @@ class PSAArchitectureTest {
     val outputs = collectOutputsFromTrace(result.trace)
     assertEquals(1, outputs.size)
   }
+
+  // ---------------------------------------------------------------------------
+  // InternetChecksum tests
+  // ---------------------------------------------------------------------------
+
+  /** Creates an ExternInstanceDecl for an InternetChecksum (no constructor args). */
+  private fun checksumInstance(name: String): ExternInstanceDecl =
+    ExternInstanceDecl.newBuilder().setTypeName("InternetChecksum").setName(name).build()
+
+  /** ck.clear() — void method call. */
+  private fun checksumClear(instanceName: String): Stmt =
+    methodCallStmt(instanceName, "clear", targetType = namedType("InternetChecksum"))
+
+  /** ck.add({f0, f1, ...}) — void method call with a struct expression argument. */
+  private fun checksumAdd(instanceName: String, vararg fields: Pair<String, Expr>): Stmt =
+    Stmt.newBuilder()
+      .setMethodCall(
+        MethodCallStmt.newBuilder()
+          .setCall(
+            Expr.newBuilder()
+              .setMethodCall(
+                MethodCall.newBuilder()
+                  .setTarget(nameRef(instanceName, namedType("InternetChecksum")))
+                  .setMethod("add")
+                  .addArgs(
+                    Expr.newBuilder()
+                      .setStructExpr(
+                        fields.fold(StructExpr.newBuilder()) { b, (name, value) ->
+                          b.addFields(StructExprField.newBuilder().setName(name).setValue(value))
+                        }
+                      )
+                      .setType(namedType("tuple_0"))
+                  )
+              )
+          )
+      )
+      .build()
+
+  /** ck.get() — returns bit<16>. */
+  private fun checksumGet(instanceName: String): Expr =
+    Expr.newBuilder()
+      .setMethodCall(
+        MethodCall.newBuilder()
+          .setTarget(nameRef(instanceName, namedType("InternetChecksum")))
+          .setMethod("get")
+      )
+      .setType(bitType(16))
+      .build()
+
+  @Test
+  fun `InternetChecksum clear and get returns 0xFFFF`() {
+    // After clear(), get() should return ~0 = 0xFFFF (complement of zero sum).
+    val config =
+      psaConfig(
+        ingressStmts =
+          listOf(
+            checksumClear("ck_0"),
+            Stmt.newBuilder()
+              .setMethodCall(MethodCallStmt.newBuilder().setCall(checksumGet("ck_0")))
+              .build(),
+            sendToPort(1),
+          ),
+        ingressExterns = listOf(checksumInstance("ck_0")),
+      )
+    val result = PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val outputs = collectOutputsFromTrace(result.trace)
+    assertEquals(1, outputs.size)
+  }
+
+  @Test
+  fun `InternetChecksum add then get computes correct checksum`() {
+    // Add two 16-bit words: 0x0001 and 0x00F2. Sum = 0x00F3. Checksum = ~0x00F3 = 0xFF0C.
+    val config =
+      psaConfig(
+        ingressStmts =
+          listOf(
+            checksumClear("ck_0"),
+            checksumAdd("ck_0", "f0" to bit(0x0001, 16), "f1" to bit(0x00F2, 16)),
+            Stmt.newBuilder()
+              .setMethodCall(MethodCallStmt.newBuilder().setCall(checksumGet("ck_0")))
+              .build(),
+            sendToPort(1),
+          ),
+        ingressExterns = listOf(checksumInstance("ck_0")),
+      )
+    val result = PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val outputs = collectOutputsFromTrace(result.trace)
+    assertEquals(1, outputs.size)
+  }
 }

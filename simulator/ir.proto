@@ -262,6 +262,9 @@ message ParserDecl {
   repeated ParamDecl params = 2;
   repeated ParserState states = 3;
   repeated VarDecl local_vars = 4;
+
+  // Extern object instances declared in this parser (e.g. InternetChecksum).
+  repeated ExternInstanceDecl extern_instances = 5;
 }
 
 message ParserState {

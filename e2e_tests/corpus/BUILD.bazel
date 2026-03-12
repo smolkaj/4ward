@@ -227,11 +227,12 @@ corpus_test_suite(
 
 # PSA corpus STF tests that pass in CI. Covers basic PSA pipeline: ingress/egress
 # parsing, drop-by-default, send_to_port, counters, metadata, parser errors,
-# registers, multicast, Hash, and Meter externs.
+# registers, multicast, Hash, Meter, and InternetChecksum externs.
 corpus_test_suite(
     name = "psa_stf_corpus_test",
     tests = [
         "hash-extern-bmv2",
+        "internet_checksum1-bmv2",
         "psa-basic-counter-bmv2",
         "psa-bool-ternary-const-entry-bmv2",
         "psa-drop-all-bmv2",
@@ -260,7 +261,6 @@ corpus_test_suite(
     name = "psa_manual_stf_corpus_test",
     tags = ["manual"],
     tests = [
-        "internet_checksum1-bmv2",  # InternetChecksum extern (clear/add/get)
         "psa-e2e-cloning-basic-bmv2",  # E2E cloning
         "psa-end-of-ingress-test-bmv2",  # Resubmit (packet_path=RESUBMIT)
         "psa-example-dpdk-varbit-bmv2",  # lookahead type resolution
