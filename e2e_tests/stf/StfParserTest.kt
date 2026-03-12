@@ -503,9 +503,27 @@ class StfParserTest {
   }
 
   @Test
+  fun `mirroring_add_mc parsed into pre config`() {
+    val stf = parse("mirroring_add_mc 8 3\npacket 0 FF")
+    assertEquals(1, stf.pre.mirroringAddMcs.size)
+    assertEquals(8, stf.pre.mirroringAddMcs[0].sessionId)
+    assertEquals(3, stf.pre.mirroringAddMcs[0].mcGroupId)
+  }
+
+  @Test
+  fun `mirroring_get is silently ignored`() {
+    val stf = parse("mirroring_get 8\npacket 0 FF")
+    // mirroring_get is informational only — should not appear in any parsed list.
+    assertTrue(stf.pre.mirroringAdds.isEmpty())
+    assertTrue(stf.pre.mirroringAddMcs.isEmpty())
+    assertEquals(1, stf.packets.size)
+  }
+
+  @Test
   fun `empty file has empty pre config`() {
     val stf = parse("packet 0 FF")
     assertTrue(stf.pre.mirroringAdds.isEmpty())
+    assertTrue(stf.pre.mirroringAddMcs.isEmpty())
     assertTrue(stf.pre.mcGroupCreates.isEmpty())
     assertTrue(stf.pre.mcNodeCreates.isEmpty())
     assertTrue(stf.pre.mcNodeAssociates.isEmpty())
@@ -532,6 +550,29 @@ class StfParserTest {
     assertEquals(1, group.replicasCount)
     assertEquals(6, group.replicasList[0].egressPort)
     assertEquals(400, group.replicasList[0].instance)
+  }
+
+  @Test
+  fun `resolveStfMirroringAddMc resolves clone session from multicast group`() {
+    val nodes =
+      listOf(
+        StfMcNodeCreate(rid = 0, ports = listOf(6, 7)),
+        StfMcNodeCreate(rid = 1, ports = listOf(8)),
+      )
+    val assocs =
+      listOf(
+        StfMcNodeAssociate(groupId = 3, nodeHandle = 0),
+        StfMcNodeAssociate(groupId = 3, nodeHandle = 1),
+      )
+    val req =
+      resolveStfMirroringAddMc(StfMirroringAddMc(sessionId = 8, mcGroupId = 3), nodes, assocs)
+    val session = req.entity.packetReplicationEngineEntry.cloneSessionEntry
+    assertEquals(8, session.sessionId)
+    // Node 0 (rid=0) has ports 6,7; node 1 (rid=1) has port 8 → 3 replicas total.
+    assertEquals(3, session.replicasCount)
+    assertEquals(6, session.replicasList[0].egressPort)
+    assertEquals(7, session.replicasList[1].egressPort)
+    assertEquals(8, session.replicasList[2].egressPort)
   }
 
   // ---------------------------------------------------------------------------

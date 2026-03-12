@@ -237,14 +237,17 @@ corpus_test_suite(
         "psa-bool-ternary-const-entry-bmv2",
         "psa-drop-all-bmv2",
         "psa-drop-all-corrected-bmv2",
+        "psa-e2e-cloning-basic-bmv2",
         "psa-example-register2-bmv2",
         "psa-fwd-bmv2",
+        "psa-i2e-cloning-basic-bmv2",
         "psa-metadata-bmv2",
         "psa-meter7-bmv2",
         "psa-multicast-basic-2-bmv2",
         "psa-multicast-basic-bmv2",
         "psa-multicast-basic-corrected-bmv2",
         "psa-parser-error-test-bmv2",
+        "psa-recirculate-no-meta-bmv2",
         "psa-register-complex-bmv2",
         "psa-register-read-write-2-bmv2",
         "psa-register-read-write-bmv2",
@@ -261,11 +264,8 @@ corpus_test_suite(
     name = "psa_manual_stf_corpus_test",
     tags = ["manual"],
     tests = [
-        "psa-e2e-cloning-basic-bmv2",  # E2E cloning
         "psa-end-of-ingress-test-bmv2",  # Resubmit (packet_path=RESUBMIT)
         "psa-example-dpdk-varbit-bmv2",  # lookahead type resolution
-        "psa-i2e-cloning-basic-bmv2",  # I2E cloning
-        "psa-recirculate-no-meta-bmv2",  # Recirculate
         "psa-resubmit-bmv2",  # Resubmit
     ],
 )

@@ -2,11 +2,15 @@ package fourward.simulator
 
 import com.google.protobuf.ByteString
 import fourward.ir.v1.Architecture
+import fourward.ir.v1.AssignmentStmt
 import fourward.ir.v1.BehavioralConfig
+import fourward.ir.v1.BinaryOp
+import fourward.ir.v1.BinaryOperator
 import fourward.ir.v1.ControlDecl
 import fourward.ir.v1.EnumDecl
 import fourward.ir.v1.Expr
 import fourward.ir.v1.ExternInstanceDecl
+import fourward.ir.v1.FieldAccess
 import fourward.ir.v1.FieldDecl
 import fourward.ir.v1.Literal
 import fourward.ir.v1.MethodCall
@@ -28,6 +32,7 @@ import fourward.sim.v1.SimulatorProto.ForkReason
 import fourward.sim.v1.SimulatorProto.PipelineStageEvent.Direction
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 import p4.v1.P4RuntimeOuterClass
 
@@ -86,7 +91,10 @@ class PSAArchitectureTest {
       .setStruct(
         StructDecl.newBuilder()
           .addFields(field("class_of_service", 8))
+          .addFields(boolField("clone"))
+          .addFields(field("clone_session_id", 16))
           .addFields(boolField("drop"))
+          .addFields(field("multicast_group", 32))
           .addFields(field("egress_port", 32))
       )
       .build()
@@ -116,7 +124,12 @@ class PSAArchitectureTest {
   private val egressOutputMeta =
     TypeDecl.newBuilder()
       .setName("psa_egress_output_metadata_t")
-      .setStruct(StructDecl.newBuilder().addFields(boolField("drop")))
+      .setStruct(
+        StructDecl.newBuilder()
+          .addFields(boolField("clone"))
+          .addFields(field("clone_session_id", 16))
+          .addFields(boolField("drop"))
+      )
       .build()
 
   private val egressDeparserInputMeta =
@@ -280,6 +293,9 @@ class PSAArchitectureTest {
   /** multicast(ostd, group) — marks packet for multicast replication. */
   private fun multicast(group: Long): Stmt =
     externCall("multicast", nameRef("ostd"), bit(group, 32))
+
+  /** egress_drop(ostd) — marks packet for drop in egress. */
+  private fun egressDrop(): Stmt = externCall("egress_drop", nameRef("ostd"))
 
   private fun writeMulticastGroup(store: TableStore, groupId: Int, replicas: List<Pair<Int, Int>>) {
     store.write(
@@ -656,6 +672,292 @@ class PSAArchitectureTest {
     val result = PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
     val outputs = collectOutputsFromTrace(result.trace)
     assertEquals(1, outputs.size)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Clone and recirculate tests
+  // ---------------------------------------------------------------------------
+
+  /** Sets ostd.clone = true and ostd.clone_session_id — used for both I2E and E2E clone tests. */
+  private fun cloneStmts(sessionId: Long): List<Stmt> =
+    listOf(
+      assignField("ostd", "clone", boolLit(true)),
+      assignField("ostd", "clone_session_id", bit(sessionId, 16)),
+    )
+
+  /** Builds an assignment: varName.fieldName = value. */
+  private fun assignField(varName: String, fieldName: String, value: Expr): Stmt =
+    Stmt.newBuilder()
+      .setAssignment(
+        AssignmentStmt.newBuilder()
+          .setLhs(
+            Expr.newBuilder()
+              .setFieldAccess(
+                FieldAccess.newBuilder().setExpr(nameRef(varName)).setFieldName(fieldName)
+              )
+          )
+          .setRhs(value)
+      )
+      .build()
+
+  private fun writeCloneSession(store: TableStore, sessionId: Int, replicas: List<Pair<Int, Int>>) {
+    store.write(
+      P4RuntimeOuterClass.Update.newBuilder()
+        .setType(P4RuntimeOuterClass.Update.Type.INSERT)
+        .setEntity(
+          P4RuntimeOuterClass.Entity.newBuilder()
+            .setPacketReplicationEngineEntry(
+              P4RuntimeOuterClass.PacketReplicationEngineEntry.newBuilder()
+                .setCloneSessionEntry(
+                  P4RuntimeOuterClass.CloneSessionEntry.newBuilder()
+                    .setSessionId(sessionId)
+                    .addAllReplicas(
+                      replicas.map { (instance, port) ->
+                        P4RuntimeOuterClass.Replica.newBuilder()
+                          .setInstance(instance)
+                          .setEgressPort(port)
+                          .build()
+                      }
+                    )
+                )
+            )
+        )
+        .build()
+    )
+  }
+
+  @Test
+  fun `I2E clone produces clone and original branches`() {
+    val config = psaConfig(ingressStmts = cloneStmts(100) + listOf(sendToPort(2)))
+    val store = TableStore()
+    writeCloneSession(store, 100, listOf(0 to 5))
+
+    val result = PSAArchitecture().processPacket(0u, byteArrayOf(0xAA.toByte()), config, store)
+    val outputs = collectOutputsFromTrace(result.trace)
+
+    assertEquals(2, outputs.size)
+    // Original on port 2, clone on port 5.
+    assertTrue(outputs.any { it.egressPort == 2 })
+    assertTrue(outputs.any { it.egressPort == 5 })
+  }
+
+  @Test
+  fun `I2E clone with drop still emits clone`() {
+    // Clone + ingress_drop: original is dropped, but clone still goes out.
+    val config = psaConfig(ingressStmts = cloneStmts(100))
+    val store = TableStore()
+    writeCloneSession(store, 100, listOf(0 to 7))
+
+    val result = PSAArchitecture().processPacket(0u, byteArrayOf(0xBB.toByte()), config, store)
+    val outputs = collectOutputsFromTrace(result.trace)
+
+    // Original dropped, clone emitted.
+    assertEquals(1, outputs.size)
+    assertEquals(7, outputs[0].egressPort)
+  }
+
+  @Test
+  fun `I2E clone trace has CLONE fork reason`() {
+    val config = psaConfig(ingressStmts = cloneStmts(100) + listOf(sendToPort(2)))
+    val store = TableStore()
+    writeCloneSession(store, 100, listOf(0 to 5))
+
+    val result = PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, store)
+
+    assertTrue(result.trace.hasForkOutcome())
+    assertEquals(ForkReason.CLONE, result.trace.forkOutcome.reason)
+    assertEquals("original", result.trace.forkOutcome.branchesList[0].label)
+    assertEquals("clone_port_5", result.trace.forkOutcome.branchesList[1].label)
+  }
+
+  @Test
+  fun `I2E clone with multicast replicas`() {
+    val config = psaConfig(ingressStmts = cloneStmts(100) + listOf(sendToPort(2)))
+    val store = TableStore()
+    writeCloneSession(store, 100, listOf(0 to 5, 1 to 6, 2 to 7))
+
+    val result = PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, store)
+    val outputs = collectOutputsFromTrace(result.trace)
+
+    // Original + 3 clones = 4 outputs.
+    assertEquals(4, outputs.size)
+    assertTrue(outputs.any { it.egressPort == 2 })
+    assertTrue(outputs.any { it.egressPort == 5 })
+    assertTrue(outputs.any { it.egressPort == 6 })
+    assertTrue(outputs.any { it.egressPort == 7 })
+  }
+
+  @Test
+  fun `E2E clone produces clone and original branches`() {
+    val config = psaConfig(ingressStmts = listOf(sendToPort(2)), egressStmts = cloneStmts(200))
+    val store = TableStore()
+    writeCloneSession(store, 200, listOf(0 to 8))
+
+    val result = PSAArchitecture().processPacket(0u, byteArrayOf(0xCC.toByte()), config, store)
+    val outputs = collectOutputsFromTrace(result.trace)
+
+    assertEquals(2, outputs.size)
+    assertTrue(outputs.any { it.egressPort == 2 })
+    assertTrue(outputs.any { it.egressPort == 8 })
+  }
+
+  @Test
+  fun `E2E clone with drop still creates clone fork`() {
+    // Egress unconditionally sets clone=true and drops. The E2E clone runs through a fresh
+    // egress pipeline, but the same control code drops it too. This is correct PSA behavior —
+    // in real programs, the egress control checks istd.packet_path to handle clones differently.
+    // The key semantic: E2E clone processing occurs regardless of the original's drop decision.
+    val config =
+      psaConfig(
+        ingressStmts = listOf(sendToPort(2)),
+        egressStmts = cloneStmts(200) + listOf(egressDrop()),
+      )
+    val store = TableStore()
+    writeCloneSession(store, 200, listOf(0 to 9))
+
+    val result = PSAArchitecture().processPacket(0u, byteArrayOf(0xDD.toByte()), config, store)
+
+    // Clone fork exists even though original drops — E2E clone is processed independently.
+    assertTrue(result.trace.hasForkOutcome())
+    assertEquals(ForkReason.CLONE, result.trace.forkOutcome.reason)
+    assertEquals(1, result.trace.forkOutcome.branchesCount)
+    assertEquals("clone_port_9", result.trace.forkOutcome.branchesList[0].label)
+    // Clone also dropped by the same egress control.
+    assertTrue(result.trace.forkOutcome.branchesList[0].subtree.packetOutcome.hasDrop())
+  }
+
+  @Test
+  fun `E2E clone with unknown session silently drops clone`() {
+    val config = psaConfig(ingressStmts = listOf(sendToPort(2)), egressStmts = cloneStmts(999))
+    val result = PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val outputs = collectOutputsFromTrace(result.trace)
+
+    // No clone session 999 → clone silently ignored, original output normally.
+    assertEquals(1, outputs.size)
+    assertEquals(2, outputs[0].egressPort)
+  }
+
+  @Test
+  fun `E2E clone trace has CLONE fork reason`() {
+    val config = psaConfig(ingressStmts = listOf(sendToPort(2)), egressStmts = cloneStmts(200))
+    val store = TableStore()
+    writeCloneSession(store, 200, listOf(0 to 8))
+
+    val result = PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, store)
+
+    // E2E clone fork is in the egress subtree, flattened into the top-level trace since
+    // there's no I2E clone.
+    assertTrue(result.trace.hasForkOutcome())
+    assertEquals(ForkReason.CLONE, result.trace.forkOutcome.reason)
+    assertEquals(2, result.trace.forkOutcome.branchesCount)
+    assertEquals("original", result.trace.forkOutcome.branchesList[0].label)
+    assertEquals("clone_port_8", result.trace.forkOutcome.branchesList[1].label)
+  }
+
+  @Test
+  fun `I2E clone with unknown session silently drops clone`() {
+    val config = psaConfig(ingressStmts = cloneStmts(999) + listOf(sendToPort(2)))
+    val result = PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val outputs = collectOutputsFromTrace(result.trace)
+
+    // No clone session 999 → clone silently ignored, original output normally.
+    assertEquals(1, outputs.size)
+    assertEquals(2, outputs[0].egressPort)
+  }
+
+  @Test
+  fun `recirculate depth limit is enforced`() {
+    // Unconditional send_to_port(PSA_PORT_RECIRCULATE) causes infinite recirculation.
+    // The simulator must reject it with a depth limit error.
+    // PSA_PORT_RECIRCULATE = 32w0xfffffffa (psa.p4).
+    val config = psaConfig(ingressStmts = listOf(sendToPort(0xFFFFFFFAL)))
+    try {
+      PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+      fail("expected recirculation depth exception")
+    } catch (e: IllegalStateException) {
+      assertTrue(e.message!!.contains("PSA recirculation depth exceeded"))
+    }
+  }
+
+  /** Field access expression: `varName.fieldName`. */
+  private fun fieldAccess(varName: String, fieldName: String): Expr =
+    Expr.newBuilder()
+      .setFieldAccess(FieldAccess.newBuilder().setExpr(nameRef(varName)).setFieldName(fieldName))
+      .build()
+
+  /** Enum literal expression. */
+  private fun enumLit(member: String): Expr =
+    Expr.newBuilder().setLiteral(Literal.newBuilder().setEnumMember(member)).build()
+
+  /** Binary EQ expression with boolean result type. */
+  private fun eq(left: Expr, right: Expr): Expr =
+    Expr.newBuilder()
+      .setBinaryOp(BinaryOp.newBuilder().setOp(BinaryOperator.EQ).setLeft(left).setRight(right))
+      .setType(Type.newBuilder().setBoolean(true))
+      .build()
+
+  @Test
+  fun `recirculate single pass forwards on second ingress`() {
+    // First ingress: send to PSA_PORT_RECIRCULATE.
+    // Second ingress (packet_path == RECIRCULATE): send to port 5.
+    val isRecirculate = eq(fieldAccess("istd", "packet_path"), enumLit("RECIRCULATE"))
+    val config =
+      psaConfig(
+        ingressStmts =
+          listOf(
+            ifStmt(
+              condition = isRecirculate,
+              thenStmts = listOf(sendToPort(5)),
+              elseStmts = listOf(sendToPort(0xFFFFFFFAL)),
+            )
+          )
+      )
+    val result =
+      PSAArchitecture().processPacket(0u, byteArrayOf(0xAA.toByte()), config, TableStore())
+    val outputs = collectOutputsFromTrace(result.trace)
+
+    // Packet recirculates once, then forwards on port 5.
+    assertEquals(1, outputs.size)
+    assertEquals(5, outputs[0].egressPort)
+    // Trace should show a RECIRCULATE fork.
+    assertTrue(result.trace.hasForkOutcome())
+    assertEquals(ForkReason.RECIRCULATE, result.trace.forkOutcome.reason)
+    assertEquals("recirculate", result.trace.forkOutcome.branchesList[0].label)
+  }
+
+  @Test
+  fun `egress drop without clone produces drop trace`() {
+    // Egress drops the original packet, no clone — pure egress drop path.
+    val config = psaConfig(ingressStmts = listOf(sendToPort(2)), egressStmts = listOf(egressDrop()))
+    val result = PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+
+    assertTrue(result.trace.hasPacketOutcome())
+    assertTrue(result.trace.packetOutcome.hasDrop())
+    assertEquals(DropReason.MARK_TO_DROP, result.trace.packetOutcome.drop.reason)
+  }
+
+  @Test
+  fun `ingress_drop overrides send_to_port`() {
+    // send_to_port sets drop=false, then ingress_drop sets drop=true — last writer wins.
+    val config =
+      psaConfig(ingressStmts = listOf(sendToPort(2), externCall("ingress_drop", nameRef("ostd"))))
+    val result = PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+
+    assertTrue(result.trace.hasPacketOutcome())
+    assertTrue(result.trace.packetOutcome.hasDrop())
+  }
+
+  @Test
+  fun `clone flag true with default session ID produces no clone`() {
+    // Set clone=true but leave clone_session_id at default (0). No session 0 exists.
+    val config =
+      psaConfig(ingressStmts = listOf(assignField("ostd", "clone", boolLit(true)), sendToPort(2)))
+    val result = PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val outputs = collectOutputsFromTrace(result.trace)
+
+    // No clone session 0 → clone silently ignored, original output normally.
+    assertEquals(1, outputs.size)
+    assertEquals(2, outputs[0].egressPort)
   }
 
   @Test

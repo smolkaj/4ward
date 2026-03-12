@@ -84,6 +84,37 @@ A related issue: the backend emits unsized integer literals (no type) for
 
 ---
 
+## Shared trace helpers between V1Model and PSA architectures
+
+**Files**: `simulator/V1ModelArchitecture.kt`, `simulator/PSAArchitecture.kt`
+
+**Problem**: Both architecture implementations have byte-for-byte identical
+private helpers: `buildDropTrace`, `buildOutputTrace`, `packetIngressEvent`,
+`stageEvent`. These emerged naturally as PSA grew to match v1model's trace
+structure, but the duplication is now clear.
+
+**Fix**: Extract into a shared `TraceHelpers.kt` (or add to `Architecture.kt`
+as package-level functions). `buildDropTrace` in PSA hard-codes
+`DropReason.MARK_TO_DROP` while v1model parameterizes it — unify on the
+parameterized form.
+
+---
+
+## `PacketContext.getEvents()` defensive copy
+
+**Files**: `simulator/PacketContext.kt`
+
+**Problem**: `getEvents()` calls `toList()` to defensively copy the internal
+`MutableList<TraceEvent>`, but every caller immediately passes the result to
+`addAllEvents()` on a proto builder and never mutates it. This produces an
+unnecessary O(N) copy on every packet — including the common fast path with
+no cloning or recirculation.
+
+**Fix**: Return the internal list directly as `List<TraceEvent>` (no copy).
+`PacketContext` is single-owner and not reused after events are retrieved.
+
+---
+
 ## Upstream p4c backend
 
 Land the 4ward backend in the p4c repository. Blocked on upstream review.

@@ -64,31 +64,86 @@ class PSAArchitecture : Architecture {
         externInstances = buildExternInstancesMap(config),
       )
 
+    val tree = processPacketRecursive(pipeline, payload, ingressPort, PACKET_PATH_NORMAL, 0)
+    return PipelineResult(tree)
+  }
+
+  /**
+   * Runs one full ingress→egress pass and handles I2E/E2E clone forks and recirculation.
+   *
+   * For recirculate, calls itself recursively with the deparsed egress bytes looped back to
+   * ingress. [depth] guards against infinite recirculation loops.
+   */
+  private fun processPacketRecursive(
+    pipeline: PipelineConfig,
+    payload: ByteArray,
+    ingressPort: UInt,
+    packetPath: String,
+    depth: Int,
+  ): TraceTree {
+    check(depth < MAX_RECIRCULATIONS) { "PSA recirculation depth exceeded ($MAX_RECIRCULATIONS)" }
+
     // === Ingress pipeline ===
-    val ingress = runIngressPipeline(pipeline, payload, ingressPort)
-    if (ingress.dropped) return buildDropResult(ingress.events, ingress.dropReason)
+    val ingress = runIngressPipeline(pipeline, payload, ingressPort, packetPath)
+
+    // === I2E clone: uses ORIGINAL input bytes (pre-ingress), independent of drop decision ===
+    val i2eCloneBranches = buildI2ECloneBranches(pipeline, payload, ingress.output)
+
+    if (ingress.dropped) {
+      if (i2eCloneBranches.isNotEmpty()) {
+        // Dropped but cloned: emit only the clone branches.
+        return buildForkTree(ingress.events, ForkReason.CLONE, i2eCloneBranches)
+      }
+      return buildDropTrace(ingress.events, ingress.dropReason)
+    }
 
     // === Traffic Manager: multicast vs. unicast ===
+    val originalTree = buildOriginalEgressPath(pipeline, ingress, depth)
+
+    if (i2eCloneBranches.isNotEmpty()) {
+      val originalBranch =
+        ForkBranch.newBuilder().setLabel("original").setSubtree(originalTree).build()
+      return buildForkTree(
+        ingress.events,
+        ForkReason.CLONE,
+        listOf(originalBranch) + i2eCloneBranches,
+      )
+    }
+
+    // No I2E clone: flatten ingress + original egress into a single trace.
+    return TraceTree.newBuilder()
+      .addAllEvents(ingress.events)
+      .addAllEvents(originalTree.eventsList)
+      .also { if (originalTree.hasPacketOutcome()) it.setPacketOutcome(originalTree.packetOutcome) }
+      .also { if (originalTree.hasForkOutcome()) it.setForkOutcome(originalTree.forkOutcome) }
+      .build()
+  }
+
+  /** Builds the egress path for the original (non-cloned) packet: multicast or unicast. */
+  private fun buildOriginalEgressPath(
+    pipeline: PipelineConfig,
+    ingress: IngressResult,
+    depth: Int,
+  ): TraceTree {
     val egressState = EgressState(pipeline, ingress.output)
     val multicastGroup =
       (ingress.output?.fields?.get("multicast_group") as? BitVal)?.bits?.value?.toInt() ?: 0
 
     if (multicastGroup != 0) {
-      return multicastFork(egressState, ingress, multicastGroup)
+      return multicastEgressTree(egressState, ingress, multicastGroup, depth)
     }
 
     val egressPort =
       (ingress.output?.fields?.get("egress_port") as? BitVal)?.bits?.value?.toInt() ?: 0
 
-    // === Unicast egress ===
-    val egressTrace =
-      runEgressPipeline(egressState, ingress.deparsedBytes, egressPort, 0, "NORMAL_UNICAST")
-
-    // Flatten ingress + egress events into a single trace.
-    val tree =
-      TraceTree.newBuilder().addAllEvents(ingress.events).addAllEvents(egressTrace.eventsList)
-    if (egressTrace.hasPacketOutcome()) tree.setPacketOutcome(egressTrace.packetOutcome)
-    return PipelineResult(tree.build())
+    return runEgressWithPostProcessing(
+      egressState,
+      ingress.deparsedBytes,
+      egressPort,
+      0,
+      PACKET_PATH_NORMAL_UNICAST,
+      depth,
+    )
   }
 
   // ---------------------------------------------------------------------------
@@ -108,12 +163,13 @@ class PSAArchitecture : Architecture {
     pipeline: PipelineConfig,
     payload: ByteArray,
     ingressPort: UInt,
+    packetPath: String,
   ): IngressResult {
     val ctx = PacketContext(payload)
     val env = Environment()
     val values = createDefaultValues(pipeline.config, pipeline.typesByName)
 
-    initIngressMetadata(values, ingressPort)
+    initIngressMetadata(values, ingressPort, packetPath)
     val output = values["psa_ingress_output_metadata_t"] as? StructVal
 
     val interpreter =
@@ -171,37 +227,37 @@ class PSAArchitecture : Architecture {
   // Traffic Manager: multicast
   // ---------------------------------------------------------------------------
 
-  private fun multicastFork(
+  /** Builds a multicast fork TraceTree (without ingress events — caller prepends those). */
+  private fun multicastEgressTree(
     egressState: EgressState,
     ingress: IngressResult,
     multicastGroup: Int,
-  ): PipelineResult {
+    depth: Int,
+  ): TraceTree {
     val group =
       egressState.pipeline.tableStore.getMulticastGroup(multicastGroup)
         ?: // BMv2 psa_switch: unknown multicast group → silently drop.
-        return buildDropResult(ingress.events, ingress.dropReason)
+        return buildDropTrace(emptyList())
 
     val branches =
       group.replicasList.map { replica ->
         val subtree =
-          runEgressPipeline(
+          runEgressWithPostProcessing(
             egressState,
             ingress.deparsedBytes,
             replica.egressPort,
             replica.instance,
-            "NORMAL_MULTICAST",
+            PACKET_PATH_NORMAL_MULTICAST,
+            depth,
           )
         ForkBranch.newBuilder()
           .setLabel("replica_${replica.instance}_port_${replica.egressPort}")
           .setSubtree(subtree)
           .build()
       }
-    val tree =
-      TraceTree.newBuilder()
-        .addAllEvents(ingress.events)
-        .setForkOutcome(Fork.newBuilder().setReason(ForkReason.MULTICAST).addAllBranches(branches))
-        .build()
-    return PipelineResult(tree)
+    return TraceTree.newBuilder()
+      .setForkOutcome(Fork.newBuilder().setReason(ForkReason.MULTICAST).addAllBranches(branches))
+      .build()
   }
 
   // ---------------------------------------------------------------------------
@@ -212,19 +268,84 @@ class PSAArchitecture : Architecture {
   private class EgressState(val pipeline: PipelineConfig, val ingressOutput: StructVal?)
 
   /**
-   * Runs the full egress pipeline (parser → control → deparser) and returns its TraceTree.
-   *
-   * For multicast, this is called once per replica. For unicast, called once. The returned trace
-   * contains only egress events — the caller composes the full trace (unicast: flat merge,
-   * multicast: fork branches).
+   * Raw result from running the egress pipeline stages (before post-processing for clone/recirc).
    */
-  private fun runEgressPipeline(
+  private class EgressCoreResult(
+    val events: List<TraceEvent>,
+    val dropped: Boolean,
+    val deparsedBytes: ByteArray,
+    val output: StructVal?,
+    val dropReason: DropReason = DropReason.MARK_TO_DROP,
+  )
+
+  /**
+   * Runs the full egress pipeline (parser → control → drop check → deparser), then handles E2E
+   * clone forks and recirculation.
+   */
+  private fun runEgressWithPostProcessing(
     state: EgressState,
     deparsedBytes: ByteArray,
     egressPort: Int,
     instance: Int,
     packetPath: String,
+    depth: Int,
   ): TraceTree {
+    val core = runEgressCore(state, deparsedBytes, egressPort, instance, packetPath)
+
+    // E2E clone: uses deparsed bytes from this egress pass. Independent of drop decision.
+    val e2eCloneBranches = buildE2ECloneBranches(state.pipeline, core)
+
+    if (core.dropped) {
+      if (e2eCloneBranches.isNotEmpty()) {
+        return buildForkTree(core.events, ForkReason.CLONE, e2eCloneBranches)
+      }
+      return buildDropTrace(core.events, core.dropReason)
+    }
+
+    // Recirculate: loop deparsed bytes back to ingress.
+    val isRecirculate = egressPort.toUInt().toLong() == PSA_PORT_RECIRCULATE_LONG
+    val outputTree =
+      if (isRecirculate) {
+        val recircTree =
+          processPacketRecursive(
+            state.pipeline,
+            core.deparsedBytes,
+            PSA_PORT_RECIRCULATE_UINT,
+            PACKET_PATH_RECIRCULATE,
+            depth + 1,
+          )
+        TraceTree.newBuilder()
+          .addAllEvents(core.events)
+          .setForkOutcome(
+            Fork.newBuilder()
+              .setReason(ForkReason.RECIRCULATE)
+              .addBranches(ForkBranch.newBuilder().setLabel("recirculate").setSubtree(recircTree))
+          )
+          .build()
+      } else {
+        buildOutputTrace(core.events, egressPort, core.deparsedBytes)
+      }
+
+    if (e2eCloneBranches.isNotEmpty()) {
+      val originalBranch =
+        ForkBranch.newBuilder().setLabel("original").setSubtree(outputTree).build()
+      return buildForkTree(emptyList(), ForkReason.CLONE, listOf(originalBranch) + e2eCloneBranches)
+    }
+
+    return outputTree
+  }
+
+  /**
+   * Runs the egress pipeline stages (parser → control → drop check → deparser) and returns raw
+   * results for post-processing by the caller.
+   */
+  private fun runEgressCore(
+    state: EgressState,
+    deparsedBytes: ByteArray,
+    egressPort: Int,
+    instance: Int,
+    packetPath: String,
+  ): EgressCoreResult {
     val p = state.pipeline
     val egressCtx = PacketContext(deparsedBytes)
     val egressEnv = Environment()
@@ -245,41 +366,115 @@ class PSAArchitecture : Architecture {
       }
     }
 
+    // An assert()/assume() failure anywhere in egress drops the packet.
     try {
       // --- Egress Control ---
       val egressStage = p.stages.first { it.name == "egress" }
       bindStageParams(egressEnv, egressStage.blockName, p.blockParams, egressValues)
       runControlStage(egressInterpreter, egressCtx, egressEnv, egressStage)
-
-      // --- Egress drop check (PSA: egress does NOT drop by default) ---
-      if ((egressOutput?.fields?.get("drop") as? BoolVal)?.value == true) {
-        return buildDropTrace(egressCtx.getEvents())
-      }
-
-      // --- Egress Deparser ---
-      val egressDeparserStage = p.stages.first { it.name == "egress_deparser" }
-      bindStageParams(egressEnv, egressDeparserStage.blockName, p.blockParams, egressValues)
-      runControlStage(egressInterpreter, egressCtx, egressEnv, egressDeparserStage)
     } catch (_: AssertionFailureException) {
-      return buildDropTrace(egressCtx.getEvents(), DropReason.ASSERTION_FAILURE)
+      return EgressCoreResult(
+        egressCtx.getEvents(),
+        dropped = true,
+        byteArrayOf(),
+        egressOutput,
+        dropReason = DropReason.ASSERTION_FAILURE,
+      )
     }
 
+    // --- Egress drop check (PSA: egress does NOT drop by default) ---
+    val dropped = (egressOutput?.fields?.get("drop") as? BoolVal)?.value == true
+
+    // --- Egress Deparser (always runs — E2E clone uses deparsed bytes even for dropped pkts) ---
+    val egressDeparserStage = p.stages.first { it.name == "egress_deparser" }
+    bindStageParams(egressEnv, egressDeparserStage.blockName, p.blockParams, egressValues)
+    runControlStage(egressInterpreter, egressCtx, egressEnv, egressDeparserStage)
+
     val outputBytes = egressCtx.outputPayload() + egressCtx.drainRemainingInput()
-    return buildOutputTrace(egressCtx.getEvents(), egressPort, outputBytes)
+    return EgressCoreResult(egressCtx.getEvents(), dropped, outputBytes, egressOutput)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Clone branch construction
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Builds I2E clone branches if the ingress output metadata requests cloning.
+   *
+   * I2E clones use the ORIGINAL input bytes (pre-ingress) — not the ingress-deparsed output. Each
+   * replica in the clone session's multicast group produces a separate egress execution with
+   * `packet_path = CLONE_I2E`.
+   */
+  private fun buildI2ECloneBranches(
+    pipeline: PipelineConfig,
+    originalPayload: ByteArray,
+    ingressOutput: StructVal?,
+  ): List<ForkBranch> =
+    // I2E clones don't carry ingress output metadata to egress — egress gets a fresh EgressState
+    // with no ingressOutput. Clones do not produce further clones (no chained cloning in PSA).
+    buildCloneBranches(pipeline, ingressOutput, originalPayload, PACKET_PATH_CLONE_I2E)
+
+  /**
+   * Builds E2E clone branches if the egress output metadata requests cloning.
+   *
+   * E2E clones use the deparsed bytes from the current egress pass. Each replica produces a fresh
+   * egress execution with `packet_path = CLONE_E2E`. Chained E2E cloning is suppressed (PSA spec:
+   * behavior is implementation-specific; BMv2 suppresses it).
+   */
+  private fun buildE2ECloneBranches(
+    pipeline: PipelineConfig,
+    core: EgressCoreResult,
+  ): List<ForkBranch> =
+    buildCloneBranches(pipeline, core.output, core.deparsedBytes, PACKET_PATH_CLONE_E2E)
+
+  /**
+   * Shared clone branch builder for both I2E and E2E cloning.
+   *
+   * Checks the clone flag in [cloneMetadata], looks up the clone session, and runs a fresh egress
+   * for each replica. Clone egress runs via [runEgressCore] directly (no post-processing), which
+   * prevents chained cloning.
+   */
+  private fun buildCloneBranches(
+    pipeline: PipelineConfig,
+    cloneMetadata: StructVal?,
+    clonePayload: ByteArray,
+    packetPath: String,
+  ): List<ForkBranch> {
+    if ((cloneMetadata?.fields?.get("clone") as? BoolVal)?.value != true) return emptyList()
+    val sessionId =
+      (cloneMetadata.fields["clone_session_id"] as? BitVal)?.bits?.value?.toInt()
+        ?: return emptyList()
+    val session = pipeline.tableStore.getCloneSession(sessionId) ?: return emptyList()
+    val cloneState = EgressState(pipeline, ingressOutput = null)
+    return session.replicasList.map { replica ->
+      val result =
+        runEgressCore(cloneState, clonePayload, replica.egressPort, replica.instance, packetPath)
+      val subtree =
+        if (result.dropped) buildDropTrace(result.events, result.dropReason)
+        else buildOutputTrace(result.events, replica.egressPort, result.deparsedBytes)
+      ForkBranch.newBuilder()
+        .setLabel("clone_port_${replica.egressPort}")
+        .setSubtree(subtree)
+        .build()
+    }
   }
 
   // ---------------------------------------------------------------------------
   // Metadata initialisation
   // ---------------------------------------------------------------------------
 
-  private fun initIngressMetadata(values: Map<String, Value>, ingressPort: UInt) {
+  private fun initIngressMetadata(
+    values: Map<String, Value>,
+    ingressPort: UInt,
+    packetPath: String,
+  ) {
     (values["psa_ingress_parser_input_metadata_t"] as? StructVal)?.let {
       it.setBitField("ingress_port", ingressPort.toLong())
-      it.fields["packet_path"] = EnumVal("NORMAL")
+      it.fields["packet_path"] = EnumVal(packetPath)
     }
     (values["psa_ingress_input_metadata_t"] as? StructVal)?.let {
       it.setBitField("ingress_port", ingressPort.toLong())
-      it.fields["packet_path"] = EnumVal("NORMAL")
+      it.fields["packet_path"] = EnumVal(packetPath)
       it.fields["parser_error"] = ErrorVal("NoError")
     }
     // PSA spec: ingress output metadata defaults to drop=true.
@@ -297,13 +492,15 @@ class PSAArchitecture : Architecture {
   ) {
     val cos =
       (ingressOutput?.fields?.get("class_of_service") as? BitVal)?.bits?.value?.toLong() ?: 0
+    // PSA ports are bit<32>; convert signed Int to unsigned Long for BitVector compatibility.
+    val unsignedPort = egressPort.toUInt().toLong()
     (values["psa_egress_parser_input_metadata_t"] as? StructVal)?.let {
-      it.setBitField("egress_port", egressPort.toLong())
+      it.setBitField("egress_port", unsignedPort)
       it.fields["packet_path"] = EnumVal(packetPath)
     }
     (values["psa_egress_input_metadata_t"] as? StructVal)?.let {
       it.setBitField("class_of_service", cos)
-      it.setBitField("egress_port", egressPort.toLong())
+      it.setBitField("egress_port", unsignedPort)
       it.fields["packet_path"] = EnumVal(packetPath)
       // PSA spec §6.5: instance identifies the replica within a multicast group.
       // Only set if the program declares the field (not all PSA programs use it).
@@ -315,7 +512,7 @@ class PSAArchitecture : Architecture {
       it.fields["drop"] = BoolVal(false)
     }
     (values["psa_egress_deparser_input_metadata_t"] as? StructVal)?.let {
-      it.setBitField("egress_port", egressPort.toLong())
+      it.setBitField("egress_port", unsignedPort)
     }
   }
 
@@ -599,10 +796,15 @@ class PSAArchitecture : Architecture {
   // Trace helpers
   // ---------------------------------------------------------------------------
 
-  private fun buildDropResult(
+  private fun buildForkTree(
     events: List<TraceEvent>,
-    reason: DropReason = DropReason.MARK_TO_DROP,
-  ): PipelineResult = PipelineResult(buildDropTrace(events, reason))
+    reason: ForkReason,
+    branches: List<ForkBranch>,
+  ): TraceTree =
+    TraceTree.newBuilder()
+      .addAllEvents(events)
+      .setForkOutcome(Fork.newBuilder().setReason(reason).addAllBranches(branches))
+      .build()
 
   private fun buildDropTrace(
     events: List<TraceEvent>,
@@ -641,6 +843,14 @@ class PSAArchitecture : Architecture {
       .build()
 
   private companion object {
+    // PSA_PacketPath_t enum values (PSA spec §6.1).
+    const val PACKET_PATH_NORMAL = "NORMAL"
+    const val PACKET_PATH_NORMAL_UNICAST = "NORMAL_UNICAST"
+    const val PACKET_PATH_NORMAL_MULTICAST = "NORMAL_MULTICAST"
+    const val PACKET_PATH_CLONE_I2E = "CLONE_I2E"
+    const val PACKET_PATH_CLONE_E2E = "CLONE_E2E"
+    const val PACKET_PATH_RECIRCULATE = "RECIRCULATE"
+
     /** Architecture-level packet I/O types that are not user-visible parameters. */
     val IO_TYPES = setOf("packet_in", "packet_out")
 
@@ -652,5 +862,12 @@ class PSAArchitecture : Architecture {
         "CRC32" to "crc32",
         "ONES_COMPLEMENT16" to "csum16",
       )
+
+    /** PSA_PORT_RECIRCULATE (psa.p4: `const PortId_t PSA_PORT_RECIRCULATE = 32w0xfffffffa`). */
+    const val PSA_PORT_RECIRCULATE_LONG = 0xFFFFFFFAL
+    val PSA_PORT_RECIRCULATE_UINT = PSA_PORT_RECIRCULATE_LONG.toUInt()
+
+    /** Guard against infinite recirculation loops (BMv2 psa_switch uses a similar limit). */
+    const val MAX_RECIRCULATIONS = 16
   }
 }
