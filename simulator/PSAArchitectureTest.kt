@@ -41,10 +41,7 @@ class PSAArchitectureTest {
     FieldDecl.newBuilder().setName(name).setType(bitType(width)).build()
 
   private fun boolField(name: String): FieldDecl =
-    FieldDecl.newBuilder()
-      .setName(name)
-      .setType(Type.newBuilder().setBoolean(true))
-      .build()
+    FieldDecl.newBuilder().setName(name).setType(Type.newBuilder().setBoolean(true)).build()
 
   private fun enumField(name: String, enumType: String): FieldDecl =
     FieldDecl.newBuilder().setName(name).setType(namedType(enumType)).build()
@@ -348,7 +345,13 @@ class PSAArchitectureTest {
       psaConfig(
         ingressStmts =
           listOf(
-            methodCallStmt("my_reg", "write", bit(0, 32), bit(0xBEEF, 16), targetType = namedType("Register")),
+            methodCallStmt(
+              "my_reg",
+              "write",
+              bit(0, 32),
+              bit(0xBEEF, 16),
+              targetType = namedType("Register"),
+            ),
             sendToPort(1),
           )
       )
@@ -375,10 +378,7 @@ class PSAArchitectureTest {
           listOf(
             // Assign the register read result to a local (we use an expression statement).
             Stmt.newBuilder()
-              .setMethodCall(
-                MethodCallStmt.newBuilder()
-                  .setCall(registerReadExpr("my_reg", 5, 16))
-              )
+              .setMethodCall(MethodCallStmt.newBuilder().setCall(registerReadExpr("my_reg", 5, 16)))
               .build(),
             sendToPort(1),
           )
