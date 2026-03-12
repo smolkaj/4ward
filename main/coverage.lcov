@@ -276,66 +276,84 @@ FN:59,fourward/p4runtime/P4RuntimeService::<init> (Lfourward/simulator/Simulator
 FNDA:1,fourward/p4runtime/P4RuntimeService::<init> (Lfourward/simulator/Simulator;Ljava/nio/file/Path;Lkotlinx/coroutines/sync/Mutex;J)V
 FN:59,fourward/p4runtime/P4RuntimeService::<init> (Lfourward/simulator/Simulator;Ljava/nio/file/Path;Lkotlinx/coroutines/sync/Mutex;JILkotlin/jvm/internal/DefaultConstructorMarker;)V
 FNDA:1,fourward/p4runtime/P4RuntimeService::<init> (Lfourward/simulator/Simulator;Ljava/nio/file/Path;Lkotlinx/coroutines/sync/Mutex;JILkotlin/jvm/internal/DefaultConstructorMarker;)V
-FN:104,fourward/p4runtime/P4RuntimeService::requirePipeline ()Lfourward/p4runtime/P4RuntimeService$PipelineState;
+FN:110,fourward/p4runtime/P4RuntimeService::requirePipeline ()Lfourward/p4runtime/P4RuntimeService$PipelineState;
 FNDA:1,fourward/p4runtime/P4RuntimeService::requirePipeline ()Lfourward/p4runtime/P4RuntimeService$PipelineState;
-FN:113,fourward/p4runtime/P4RuntimeService::setForwardingPipelineConfig (Lp4/v1/P4RuntimeOuterClass$SetForwardingPipelineConfigRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+FN:119,fourward/p4runtime/P4RuntimeService::setForwardingPipelineConfig (Lp4/v1/P4RuntimeOuterClass$SetForwardingPipelineConfigRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 FNDA:1,fourward/p4runtime/P4RuntimeService::setForwardingPipelineConfig (Lp4/v1/P4RuntimeOuterClass$SetForwardingPipelineConfigRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-FN:153,fourward/p4runtime/P4RuntimeService::verifyPipeline (Lp4/v1/P4RuntimeOuterClass$ForwardingPipelineConfig;)Lfourward/p4runtime/P4RuntimeService$PipelineState;
+FN:159,fourward/p4runtime/P4RuntimeService::verifyPipeline (Lp4/v1/P4RuntimeOuterClass$ForwardingPipelineConfig;)Lfourward/p4runtime/P4RuntimeService$PipelineState;
 FNDA:1,fourward/p4runtime/P4RuntimeService::verifyPipeline (Lp4/v1/P4RuntimeOuterClass$ForwardingPipelineConfig;)Lfourward/p4runtime/P4RuntimeService$PipelineState;
-FN:191,fourward/p4runtime/P4RuntimeService::commitPipeline (Lfourward/p4runtime/P4RuntimeService$PipelineState;)V
+FN:198,fourward/p4runtime/P4RuntimeService::commitPipeline (Lfourward/p4runtime/P4RuntimeService$PipelineState;)V
 FNDA:1,fourward/p4runtime/P4RuntimeService::commitPipeline (Lfourward/p4runtime/P4RuntimeService$PipelineState;)V
-FN:210,fourward/p4runtime/P4RuntimeService::write (Lp4/v1/P4RuntimeOuterClass$WriteRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+FN:217,fourward/p4runtime/P4RuntimeService::write (Lp4/v1/P4RuntimeOuterClass$WriteRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 FNDA:1,fourward/p4runtime/P4RuntimeService::write (Lp4/v1/P4RuntimeOuterClass$WriteRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-FN:232,fourward/p4runtime/P4RuntimeService::writeContinueOnError (Ljava/util/List;Lfourward/p4runtime/P4RuntimeService$PipelineState;)Lp4/v1/P4RuntimeOuterClass$WriteResponse;
-FNDA:1,fourward/p4runtime/P4RuntimeService::writeContinueOnError (Ljava/util/List;Lfourward/p4runtime/P4RuntimeService$PipelineState;)Lp4/v1/P4RuntimeOuterClass$WriteResponse;
-FN:260,fourward/p4runtime/P4RuntimeService::writeAtomic (Ljava/util/List;Lfourward/p4runtime/P4RuntimeService$PipelineState;)Lp4/v1/P4RuntimeOuterClass$WriteResponse;
-FNDA:1,fourward/p4runtime/P4RuntimeService::writeAtomic (Ljava/util/List;Lfourward/p4runtime/P4RuntimeService$PipelineState;)Lp4/v1/P4RuntimeOuterClass$WriteResponse;
-FN:274,fourward/p4runtime/P4RuntimeService::processUpdate (Lp4/v1/P4RuntimeOuterClass$Update;Lfourward/p4runtime/P4RuntimeService$PipelineState;)V
-FNDA:1,fourward/p4runtime/P4RuntimeService::processUpdate (Lp4/v1/P4RuntimeOuterClass$Update;Lfourward/p4runtime/P4RuntimeService$PipelineState;)V
-FN:318,fourward/p4runtime/P4RuntimeService::read (Lp4/v1/P4RuntimeOuterClass$ReadRequest;)Lkotlinx/coroutines/flow/Flow;
+FN:245,fourward/p4runtime/P4RuntimeService::writeContinueOnError (Ljava/util/List;Lfourward/p4runtime/P4RuntimeService$PipelineState;Ljava/lang/String;)Lp4/v1/P4RuntimeOuterClass$WriteResponse;
+FNDA:1,fourward/p4runtime/P4RuntimeService::writeContinueOnError (Ljava/util/List;Lfourward/p4runtime/P4RuntimeService$PipelineState;Ljava/lang/String;)Lp4/v1/P4RuntimeOuterClass$WriteResponse;
+FN:277,fourward/p4runtime/P4RuntimeService::writeAtomic (Ljava/util/List;Lfourward/p4runtime/P4RuntimeService$PipelineState;Ljava/lang/String;)Lp4/v1/P4RuntimeOuterClass$WriteResponse;
+FNDA:1,fourward/p4runtime/P4RuntimeService::writeAtomic (Ljava/util/List;Lfourward/p4runtime/P4RuntimeService$PipelineState;Ljava/lang/String;)Lp4/v1/P4RuntimeOuterClass$WriteResponse;
+FN:291,fourward/p4runtime/P4RuntimeService::processUpdate (Lp4/v1/P4RuntimeOuterClass$Update;Lfourward/p4runtime/P4RuntimeService$PipelineState;Ljava/lang/String;)V
+FNDA:1,fourward/p4runtime/P4RuntimeService::processUpdate (Lp4/v1/P4RuntimeOuterClass$Update;Lfourward/p4runtime/P4RuntimeService$PipelineState;Ljava/lang/String;)V
+FN:336,fourward/p4runtime/P4RuntimeService::read (Lp4/v1/P4RuntimeOuterClass$ReadRequest;)Lkotlinx/coroutines/flow/Flow;
 FNDA:1,fourward/p4runtime/P4RuntimeService::read (Lp4/v1/P4RuntimeOuterClass$ReadRequest;)Lkotlinx/coroutines/flow/Flow;
-FN:357,fourward/p4runtime/P4RuntimeService::streamChannel (Lkotlinx/coroutines/flow/Flow;)Lkotlinx/coroutines/flow/Flow;
+FN:384,fourward/p4runtime/P4RuntimeService::streamChannel (Lkotlinx/coroutines/flow/Flow;)Lkotlinx/coroutines/flow/Flow;
 FNDA:1,fourward/p4runtime/P4RuntimeService::streamChannel (Lkotlinx/coroutines/flow/Flow;)Lkotlinx/coroutines/flow/Flow;
-FN:402,fourward/p4runtime/P4RuntimeService::handlePacketOut (Lp4/v1/P4RuntimeOuterClass$PacketOut;)Ljava/util/List;
+FN:429,fourward/p4runtime/P4RuntimeService::handlePacketOut (Lp4/v1/P4RuntimeOuterClass$PacketOut;)Ljava/util/List;
 FNDA:1,fourward/p4runtime/P4RuntimeService::handlePacketOut (Lp4/v1/P4RuntimeOuterClass$PacketOut;)Ljava/util/List;
-FN:443,fourward/p4runtime/P4RuntimeService::extractIngressPort (Ljava/util/List;)I
+FN:470,fourward/p4runtime/P4RuntimeService::extractIngressPort (Ljava/util/List;)I
 FNDA:1,fourward/p4runtime/P4RuntimeService::extractIngressPort (Ljava/util/List;)I
-FN:454,fourward/p4runtime/P4RuntimeService::getForwardingPipelineConfig (Lp4/v1/P4RuntimeOuterClass$GetForwardingPipelineConfigRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+FN:481,fourward/p4runtime/P4RuntimeService::getForwardingPipelineConfig (Lp4/v1/P4RuntimeOuterClass$GetForwardingPipelineConfigRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 FNDA:1,fourward/p4runtime/P4RuntimeService::getForwardingPipelineConfig (Lp4/v1/P4RuntimeOuterClass$GetForwardingPipelineConfigRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-FN:481,fourward/p4runtime/P4RuntimeService::capabilities (Lp4/v1/P4RuntimeOuterClass$CapabilitiesRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+FN:508,fourward/p4runtime/P4RuntimeService::capabilities (Lp4/v1/P4RuntimeOuterClass$CapabilitiesRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 FNDA:1,fourward/p4runtime/P4RuntimeService::capabilities (Lp4/v1/P4RuntimeOuterClass$CapabilitiesRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-FN:490,fourward/p4runtime/P4RuntimeService::requirePrimaryOrNoArbitration (Lp4/v1/P4RuntimeOuterClass$Uint128;)V
-FNDA:1,fourward/p4runtime/P4RuntimeService::requirePrimaryOrNoArbitration (Lp4/v1/P4RuntimeOuterClass$Uint128;)V
-FN:516,fourward/p4runtime/P4RuntimeService::handleArbitration (Ljava/lang/Object;Lp4/v1/P4RuntimeOuterClass$MasterArbitrationUpdate;Lkotlinx/coroutines/channels/SendChannel;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+FN:519,fourward/p4runtime/P4RuntimeService::requirePrimaryOrNoArbitration (Lp4/v1/P4RuntimeOuterClass$Uint128;Ljava/lang/String;)V
+FNDA:1,fourward/p4runtime/P4RuntimeService::requirePrimaryOrNoArbitration (Lp4/v1/P4RuntimeOuterClass$Uint128;Ljava/lang/String;)V
+FN:518,fourward/p4runtime/P4RuntimeService::requirePrimaryOrNoArbitration$default (Lfourward/p4runtime/P4RuntimeService;Lp4/v1/P4RuntimeOuterClass$Uint128;Ljava/lang/String;ILjava/lang/Object;)V
+FNDA:0,fourward/p4runtime/P4RuntimeService::requirePrimaryOrNoArbitration$default (Lfourward/p4runtime/P4RuntimeService;Lp4/v1/P4RuntimeOuterClass$Uint128;Ljava/lang/String;ILjava/lang/Object;)V
+FN:549,fourward/p4runtime/P4RuntimeService::handleArbitration (Ljava/lang/Object;Lp4/v1/P4RuntimeOuterClass$MasterArbitrationUpdate;Lkotlinx/coroutines/channels/SendChannel;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 FNDA:1,fourward/p4runtime/P4RuntimeService::handleArbitration (Ljava/lang/Object;Lp4/v1/P4RuntimeOuterClass$MasterArbitrationUpdate;Lkotlinx/coroutines/channels/SendChannel;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-FN:543,fourward/p4runtime/P4RuntimeService::handleDisconnect (Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+FN:584,fourward/p4runtime/P4RuntimeService::handleDisconnect (Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 FNDA:1,fourward/p4runtime/P4RuntimeService::handleDisconnect (Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-FN:563,fourward/p4runtime/P4RuntimeService::computePrimary ()Lp4/v1/P4RuntimeOuterClass$Uint128;
-FNDA:1,fourward/p4runtime/P4RuntimeService::computePrimary ()Lp4/v1/P4RuntimeOuterClass$Uint128;
-FN:574,fourward/p4runtime/P4RuntimeService::notifyRoleChanges (Ljava/lang/Object;Lp4/v1/P4RuntimeOuterClass$Uint128;Lp4/v1/P4RuntimeOuterClass$Uint128;)V
-FNDA:1,fourward/p4runtime/P4RuntimeService::notifyRoleChanges (Ljava/lang/Object;Lp4/v1/P4RuntimeOuterClass$Uint128;Lp4/v1/P4RuntimeOuterClass$Uint128;)V
-FN:592,fourward/p4runtime/P4RuntimeService::buildArbitrationResponse (JLp4/v1/P4RuntimeOuterClass$Uint128;Z)Lp4/v1/P4RuntimeOuterClass$StreamMessageResponse;
-FNDA:1,fourward/p4runtime/P4RuntimeService::buildArbitrationResponse (JLp4/v1/P4RuntimeOuterClass$Uint128;Z)Lp4/v1/P4RuntimeOuterClass$StreamMessageResponse;
-FN:609,fourward/p4runtime/P4RuntimeService::requireDeviceId (J)V
+FN:598,fourward/p4runtime/P4RuntimeService::recomputeRolePrimary (Ljava/lang/String;Ljava/lang/Object;)V
+FNDA:1,fourward/p4runtime/P4RuntimeService::recomputeRolePrimary (Ljava/lang/String;Ljava/lang/Object;)V
+FN:597,fourward/p4runtime/P4RuntimeService::recomputeRolePrimary$default (Lfourward/p4runtime/P4RuntimeService;Ljava/lang/String;Ljava/lang/Object;ILjava/lang/Object;)V
+FNDA:1,fourward/p4runtime/P4RuntimeService::recomputeRolePrimary$default (Lfourward/p4runtime/P4RuntimeService;Ljava/lang/String;Ljava/lang/Object;ILjava/lang/Object;)V
+FN:617,fourward/p4runtime/P4RuntimeService::computePrimary (Ljava/lang/String;Ljava/lang/Object;)Lp4/v1/P4RuntimeOuterClass$Uint128;
+FNDA:1,fourward/p4runtime/P4RuntimeService::computePrimary (Ljava/lang/String;Ljava/lang/Object;)Lp4/v1/P4RuntimeOuterClass$Uint128;
+FN:616,fourward/p4runtime/P4RuntimeService::computePrimary$default (Lfourward/p4runtime/P4RuntimeService;Ljava/lang/String;Ljava/lang/Object;ILjava/lang/Object;)Lp4/v1/P4RuntimeOuterClass$Uint128;
+FNDA:1,fourward/p4runtime/P4RuntimeService::computePrimary$default (Lfourward/p4runtime/P4RuntimeService;Ljava/lang/String;Ljava/lang/Object;ILjava/lang/Object;)Lp4/v1/P4RuntimeOuterClass$Uint128;
+FN:630,fourward/p4runtime/P4RuntimeService::notifyRoleChanges (Ljava/lang/String;Ljava/lang/Object;Lp4/v1/P4RuntimeOuterClass$Uint128;Lp4/v1/P4RuntimeOuterClass$Uint128;)V
+FNDA:1,fourward/p4runtime/P4RuntimeService::notifyRoleChanges (Ljava/lang/String;Ljava/lang/Object;Lp4/v1/P4RuntimeOuterClass$Uint128;Lp4/v1/P4RuntimeOuterClass$Uint128;)V
+FN:653,fourward/p4runtime/P4RuntimeService::buildArbitrationResponse (JLp4/v1/P4RuntimeOuterClass$Uint128;ZLjava/lang/String;)Lp4/v1/P4RuntimeOuterClass$StreamMessageResponse;
+FNDA:1,fourward/p4runtime/P4RuntimeService::buildArbitrationResponse (JLp4/v1/P4RuntimeOuterClass$Uint128;ZLjava/lang/String;)Lp4/v1/P4RuntimeOuterClass$StreamMessageResponse;
+FN:647,fourward/p4runtime/P4RuntimeService::buildArbitrationResponse$default (Lfourward/p4runtime/P4RuntimeService;JLp4/v1/P4RuntimeOuterClass$Uint128;ZLjava/lang/String;ILjava/lang/Object;)Lp4/v1/P4RuntimeOuterClass$StreamMessageResponse;
+FNDA:0,fourward/p4runtime/P4RuntimeService::buildArbitrationResponse$default (Lfourward/p4runtime/P4RuntimeService;JLp4/v1/P4RuntimeOuterClass$Uint128;ZLjava/lang/String;ILjava/lang/Object;)Lp4/v1/P4RuntimeOuterClass$StreamMessageResponse;
+FN:672,fourward/p4runtime/P4RuntimeService::requireDeviceId (J)V
 FNDA:1,fourward/p4runtime/P4RuntimeService::requireDeviceId (J)V
-FN:623,fourward/p4runtime/P4RuntimeService::rejectUnsupportedEntity (Lp4/v1/P4RuntimeOuterClass$Entity;)V
+FN:698,fourward/p4runtime/P4RuntimeService::requireEntityAccess (Lp4/v1/P4RuntimeOuterClass$Entity;Lfourward/p4runtime/RoleMap;Ljava/lang/String;)V
+FNDA:1,fourward/p4runtime/P4RuntimeService::requireEntityAccess (Lp4/v1/P4RuntimeOuterClass$Entity;Lfourward/p4runtime/RoleMap;Ljava/lang/String;)V
+FN:722,fourward/p4runtime/P4RuntimeService::filterByRole (Ljava/util/List;Lfourward/p4runtime/RoleMap;Ljava/lang/String;)Ljava/util/List;
+FNDA:1,fourward/p4runtime/P4RuntimeService::filterByRole (Ljava/util/List;Lfourward/p4runtime/RoleMap;Ljava/lang/String;)Ljava/util/List;
+FN:736,fourward/p4runtime/P4RuntimeService::entityIdForRole (Lp4/v1/P4RuntimeOuterClass$Entity;)Ljava/lang/Integer;
+FNDA:1,fourward/p4runtime/P4RuntimeService::entityIdForRole (Lp4/v1/P4RuntimeOuterClass$Entity;)Ljava/lang/Integer;
+FN:760,fourward/p4runtime/P4RuntimeService::rejectUnsupportedEntity (Lp4/v1/P4RuntimeOuterClass$Entity;)V
 FNDA:1,fourward/p4runtime/P4RuntimeService::rejectUnsupportedEntity (Lp4/v1/P4RuntimeOuterClass$Entity;)V
-FN:644,fourward/p4runtime/P4RuntimeService::buildBatchError (Ljava/util/List;)Lio/grpc/StatusException;
+FN:781,fourward/p4runtime/P4RuntimeService::buildBatchError (Ljava/util/List;)Lio/grpc/StatusException;
 FNDA:1,fourward/p4runtime/P4RuntimeService::buildBatchError (Ljava/util/List;)Lio/grpc/StatusException;
-FN:657,fourward/p4runtime/P4RuntimeService::close ()V
+FN:794,fourward/p4runtime/P4RuntimeService::close ()V
 FNDA:1,fourward/p4runtime/P4RuntimeService::close ()V
-FN:686,fourward/p4runtime/P4RuntimeService::<clinit> ()V
+FN:823,fourward/p4runtime/P4RuntimeService::<clinit> ()V
 FNDA:1,fourward/p4runtime/P4RuntimeService::<clinit> ()V
-FN:682,fourward/p4runtime/P4RuntimeService$Companion::isZeroElectionId (Lp4/v1/P4RuntimeOuterClass$Uint128;)Z
+FN:819,fourward/p4runtime/P4RuntimeService$Companion::isZeroElectionId (Lp4/v1/P4RuntimeOuterClass$Uint128;)Z
 FNDA:1,fourward/p4runtime/P4RuntimeService$Companion::isZeroElectionId (Lp4/v1/P4RuntimeOuterClass$Uint128;)Z
-FN:88,fourward/p4runtime/P4RuntimeService$ControllerStream::<init> (Lp4/v1/P4RuntimeOuterClass$Uint128;Lkotlinx/coroutines/channels/SendChannel;)V
-FNDA:1,fourward/p4runtime/P4RuntimeService$ControllerStream::<init> (Lp4/v1/P4RuntimeOuterClass$Uint128;Lkotlinx/coroutines/channels/SendChannel;)V
-FN:89,fourward/p4runtime/P4RuntimeService$ControllerStream::getElectionId ()Lp4/v1/P4RuntimeOuterClass$Uint128;
+FN:89,fourward/p4runtime/P4RuntimeService$ControllerStream::<init> (Ljava/lang/String;Lp4/v1/P4RuntimeOuterClass$Uint128;Lkotlinx/coroutines/channels/SendChannel;)V
+FNDA:1,fourward/p4runtime/P4RuntimeService$ControllerStream::<init> (Ljava/lang/String;Lp4/v1/P4RuntimeOuterClass$Uint128;Lkotlinx/coroutines/channels/SendChannel;)V
+FN:90,fourward/p4runtime/P4RuntimeService$ControllerStream::getRoleName ()Ljava/lang/String;
+FNDA:1,fourward/p4runtime/P4RuntimeService$ControllerStream::getRoleName ()Ljava/lang/String;
+FN:91,fourward/p4runtime/P4RuntimeService$ControllerStream::getElectionId ()Lp4/v1/P4RuntimeOuterClass$Uint128;
 FNDA:1,fourward/p4runtime/P4RuntimeService$ControllerStream::getElectionId ()Lp4/v1/P4RuntimeOuterClass$Uint128;
-FN:90,fourward/p4runtime/P4RuntimeService$ControllerStream::getNotifications ()Lkotlinx/coroutines/channels/SendChannel;
+FN:92,fourward/p4runtime/P4RuntimeService$ControllerStream::getNotifications ()Lkotlinx/coroutines/channels/SendChannel;
 FNDA:1,fourward/p4runtime/P4RuntimeService$ControllerStream::getNotifications ()Lkotlinx/coroutines/channels/SendChannel;
-FN:67,fourward/p4runtime/P4RuntimeService$PipelineState::<init> (Lfourward/ir/v1/PipelineConfig;Lp4/v1/P4RuntimeOuterClass$ForwardingPipelineConfig$Cookie;Lfourward/p4runtime/TypeTranslator;Lfourward/p4runtime/WriteValidator;Lfourward/p4runtime/ReferenceValidator;Lfourward/p4runtime/ConstraintValidator;Lfourward/p4runtime/PacketHeaderCodec;Lfourward/p4runtime/EntityReader;)V
-FNDA:1,fourward/p4runtime/P4RuntimeService$PipelineState::<init> (Lfourward/ir/v1/PipelineConfig;Lp4/v1/P4RuntimeOuterClass$ForwardingPipelineConfig$Cookie;Lfourward/p4runtime/TypeTranslator;Lfourward/p4runtime/WriteValidator;Lfourward/p4runtime/ReferenceValidator;Lfourward/p4runtime/ConstraintValidator;Lfourward/p4runtime/PacketHeaderCodec;Lfourward/p4runtime/EntityReader;)V
+FN:67,fourward/p4runtime/P4RuntimeService$PipelineState::<init> (Lfourward/ir/v1/PipelineConfig;Lp4/v1/P4RuntimeOuterClass$ForwardingPipelineConfig$Cookie;Lfourward/p4runtime/TypeTranslator;Lfourward/p4runtime/WriteValidator;Lfourward/p4runtime/ReferenceValidator;Lfourward/p4runtime/ConstraintValidator;Lfourward/p4runtime/PacketHeaderCodec;Lfourward/p4runtime/EntityReader;Lfourward/p4runtime/RoleMap;)V
+FNDA:1,fourward/p4runtime/P4RuntimeService$PipelineState::<init> (Lfourward/ir/v1/PipelineConfig;Lp4/v1/P4RuntimeOuterClass$ForwardingPipelineConfig$Cookie;Lfourward/p4runtime/TypeTranslator;Lfourward/p4runtime/WriteValidator;Lfourward/p4runtime/ReferenceValidator;Lfourward/p4runtime/ConstraintValidator;Lfourward/p4runtime/PacketHeaderCodec;Lfourward/p4runtime/EntityReader;Lfourward/p4runtime/RoleMap;)V
 FN:68,fourward/p4runtime/P4RuntimeService$PipelineState::getConfig ()Lfourward/ir/v1/PipelineConfig;
 FNDA:1,fourward/p4runtime/P4RuntimeService$PipelineState::getConfig ()Lfourward/ir/v1/PipelineConfig;
 FN:69,fourward/p4runtime/P4RuntimeService$PipelineState::getCookie ()Lp4/v1/P4RuntimeOuterClass$ForwardingPipelineConfig$Cookie;
@@ -352,228 +370,280 @@ FN:74,fourward/p4runtime/P4RuntimeService$PipelineState::getPacketHeaderCodec ()
 FNDA:1,fourward/p4runtime/P4RuntimeService$PipelineState::getPacketHeaderCodec ()Lfourward/p4runtime/PacketHeaderCodec;
 FN:75,fourward/p4runtime/P4RuntimeService$PipelineState::getEntityReader ()Lfourward/p4runtime/EntityReader;
 FNDA:1,fourward/p4runtime/P4RuntimeService$PipelineState::getEntityReader ()Lfourward/p4runtime/EntityReader;
-FN:566,fourward/p4runtime/P4RuntimeService$computePrimary$3::compare (Lp4/v1/P4RuntimeOuterClass$Uint128;Lp4/v1/P4RuntimeOuterClass$Uint128;)I
-FNDA:1,fourward/p4runtime/P4RuntimeService$computePrimary$3::compare (Lp4/v1/P4RuntimeOuterClass$Uint128;Lp4/v1/P4RuntimeOuterClass$Uint128;)I
-FN:318,fourward/p4runtime/P4RuntimeService$read$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
+FN:76,fourward/p4runtime/P4RuntimeService$PipelineState::getRoleMap ()Lfourward/p4runtime/RoleMap;
+FNDA:1,fourward/p4runtime/P4RuntimeService$PipelineState::getRoleMap ()Lfourward/p4runtime/RoleMap;
+FN:96,fourward/p4runtime/P4RuntimeService$RoleElection::<init> (Lp4/v1/P4RuntimeOuterClass$Uint128;Z)V
+FNDA:1,fourward/p4runtime/P4RuntimeService$RoleElection::<init> (Lp4/v1/P4RuntimeOuterClass$Uint128;Z)V
+FN:96,fourward/p4runtime/P4RuntimeService$RoleElection::<init> (Lp4/v1/P4RuntimeOuterClass$Uint128;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+FNDA:1,fourward/p4runtime/P4RuntimeService$RoleElection::<init> (Lp4/v1/P4RuntimeOuterClass$Uint128;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+FN:97,fourward/p4runtime/P4RuntimeService$RoleElection::getPrimaryElectionId ()Lp4/v1/P4RuntimeOuterClass$Uint128;
+FNDA:1,fourward/p4runtime/P4RuntimeService$RoleElection::getPrimaryElectionId ()Lp4/v1/P4RuntimeOuterClass$Uint128;
+FN:98,fourward/p4runtime/P4RuntimeService$RoleElection::getArbitrationOccurred ()Z
+FNDA:1,fourward/p4runtime/P4RuntimeService$RoleElection::getArbitrationOccurred ()Z
+FN:621,fourward/p4runtime/P4RuntimeService$computePrimary$4::compare (Lp4/v1/P4RuntimeOuterClass$Uint128;Lp4/v1/P4RuntimeOuterClass$Uint128;)I
+FNDA:1,fourward/p4runtime/P4RuntimeService$computePrimary$4::compare (Lp4/v1/P4RuntimeOuterClass$Uint128;Lp4/v1/P4RuntimeOuterClass$Uint128;)I
+FN:336,fourward/p4runtime/P4RuntimeService$read$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
 FNDA:1,fourward/p4runtime/P4RuntimeService$read$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
-FN:357,fourward/p4runtime/P4RuntimeService$streamChannel$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
+FN:384,fourward/p4runtime/P4RuntimeService$streamChannel$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
 FNDA:1,fourward/p4runtime/P4RuntimeService$streamChannel$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
-FN:362,fourward/p4runtime/P4RuntimeService$streamChannel$1$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
+FN:389,fourward/p4runtime/P4RuntimeService$streamChannel$1$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
 FNDA:1,fourward/p4runtime/P4RuntimeService$streamChannel$1$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
-FN:365,fourward/p4runtime/P4RuntimeService$streamChannel$1$2::emit (Lp4/v1/P4RuntimeOuterClass$StreamMessageRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+FN:392,fourward/p4runtime/P4RuntimeService$streamChannel$1$2::emit (Lp4/v1/P4RuntimeOuterClass$StreamMessageRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 FNDA:1,fourward/p4runtime/P4RuntimeService$streamChannel$1$2::emit (Lp4/v1/P4RuntimeOuterClass$StreamMessageRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 FN:46,fourward/p4runtime/P4RuntimeServiceKt::compareUint128 (Lp4/v1/P4RuntimeOuterClass$Uint128;Lp4/v1/P4RuntimeOuterClass$Uint128;)I
 FNDA:1,fourward/p4runtime/P4RuntimeServiceKt::compareUint128 (Lp4/v1/P4RuntimeOuterClass$Uint128;Lp4/v1/P4RuntimeOuterClass$Uint128;)I
-BRDA:104,0,0,1
-BRDA:104,0,1,1
-BRDA:116,0,0,1
-BRDA:116,0,1,1
-BRDA:116,0,2,1
-BRDA:116,0,3,1
-BRDA:116,0,4,1
-BRDA:116,0,5,0
-BRDA:118,0,0,0
-BRDA:118,0,1,1
-BRDA:122,0,0,0
+BRDA:110,0,0,1
+BRDA:110,0,1,1
+BRDA:122,0,0,1
 BRDA:122,0,1,1
-BRDA:122,0,2,0
+BRDA:122,0,2,1
 BRDA:122,0,3,1
-BRDA:127,0,0,1
-BRDA:127,0,1,1
-BRDA:153,0,0,1
-BRDA:153,0,1,0
-BRDA:153,0,2,1
-BRDA:153,0,3,1
-BRDA:181,0,0,1
-BRDA:181,0,1,1
-BRDA:198,0,0,1
-BRDA:198,0,1,1
-BRDA:198,0,2,0
-BRDA:198,0,3,1
-BRDA:214,0,0,1
-BRDA:214,0,1,0
-BRDA:234,0,0,1
-BRDA:234,0,1,1
-BRDA:243,0,0,0
-BRDA:243,0,1,1
-BRDA:248,0,0,1
-BRDA:248,0,1,1
-BRDA:262,0,0,1
-BRDA:262,0,1,0
-BRDA:277,0,0,1
-BRDA:277,0,1,1
-BRDA:280,0,0,1
-BRDA:280,0,1,0
-BRDA:280,0,2,1
-BRDA:280,0,3,1
-BRDA:281,0,0,1
-BRDA:281,0,1,1
-BRDA:281,0,2,1
-BRDA:281,0,3,1
-BRDA:285,0,0,1
-BRDA:285,0,1,1
-BRDA:294,0,0,1
-BRDA:294,0,1,1
-BRDA:294,0,2,1
-BRDA:294,0,3,1
-BRDA:294,0,4,1
-BRDA:294,0,5,1
-BRDA:296,0,0,1
-BRDA:296,0,1,1
-BRDA:302,0,0,1
-BRDA:302,0,1,1
+BRDA:122,0,4,1
+BRDA:122,0,5,0
+BRDA:124,0,0,0
+BRDA:124,0,1,1
+BRDA:128,0,0,0
+BRDA:128,0,1,1
+BRDA:128,0,2,0
+BRDA:128,0,3,1
+BRDA:133,0,0,1
+BRDA:133,0,1,1
+BRDA:159,0,0,1
+BRDA:159,0,1,0
+BRDA:159,0,2,1
+BRDA:159,0,3,1
+BRDA:187,0,0,1
+BRDA:187,0,1,1
+BRDA:205,0,0,1
+BRDA:205,0,1,1
+BRDA:205,0,2,0
+BRDA:205,0,3,1
+BRDA:222,0,0,1
+BRDA:222,0,1,0
+BRDA:247,0,0,1
+BRDA:247,0,1,1
+BRDA:256,0,0,0
+BRDA:256,0,1,1
+BRDA:261,0,0,1
+BRDA:261,0,1,1
+BRDA:279,0,0,1
+BRDA:279,0,1,0
+BRDA:295,0,0,1
+BRDA:295,0,1,1
+BRDA:298,0,0,1
+BRDA:298,0,1,0
+BRDA:298,0,2,1
+BRDA:298,0,3,1
+BRDA:299,0,0,1
+BRDA:299,0,1,1
+BRDA:299,0,2,1
+BRDA:299,0,3,1
 BRDA:303,0,0,1
 BRDA:303,0,1,1
-BRDA:305,0,0,1
-BRDA:305,0,1,1
-BRDA:307,0,0,1
-BRDA:307,0,1,0
-BRDA:402,0,0,0
-BRDA:402,0,1,1
-BRDA:403,0,0,1
-BRDA:403,0,1,0
-BRDA:403,0,2,1
-BRDA:403,0,3,1
-BRDA:405,0,0,1
-BRDA:405,0,1,1
-BRDA:405,0,2,1
-BRDA:405,0,3,1
-BRDA:411,0,0,1
-BRDA:411,0,1,1
-BRDA:422,0,0,1
-BRDA:422,0,1,1
-BRDA:436,0,0,1
-BRDA:436,0,1,1
-BRDA:436,0,2,1
-BRDA:436,0,3,1
-BRDA:443,0,0,1
-BRDA:443,0,1,0
-BRDA:443,0,2,1
-BRDA:443,0,3,0
-BRDA:443,0,4,1
-BRDA:443,0,5,0
-BRDA:444,0,0,1
-BRDA:444,0,1,0
-BRDA:444,0,2,1
-BRDA:444,0,3,0
-BRDA:458,0,0,1
-BRDA:458,0,1,1
-BRDA:458,0,2,1
-BRDA:458,0,3,1
-BRDA:490,0,0,1
-BRDA:490,0,1,1
-BRDA:492,0,0,1
-BRDA:492,0,1,0
-BRDA:492,0,2,1
-BRDA:492,0,3,1
-BRDA:494,0,0,1
-BRDA:494,0,1,0
-BRDA:494,0,2,1
-BRDA:494,0,3,0
-BRDA:494,0,4,0
-BRDA:494,0,5,1
-BRDA:517,0,0,1
-BRDA:517,0,1,1
-BRDA:517,0,2,1
-BRDA:517,0,3,1
-BRDA:517,0,4,0
-BRDA:517,0,5,1
-BRDA:528,0,0,1
-BRDA:528,0,1,1
-BRDA:531,0,0,1
-BRDA:531,0,1,1
-BRDA:536,0,0,1
-BRDA:536,0,1,1
-BRDA:536,0,2,1
-BRDA:536,0,3,0
-BRDA:536,0,4,1
-BRDA:536,0,5,1
-BRDA:537,0,0,1
-BRDA:537,0,1,1
-BRDA:544,0,0,1
-BRDA:544,0,1,1
-BRDA:548,0,0,1
-BRDA:548,0,1,1
-BRDA:551,0,0,1
-BRDA:551,0,1,1
-BRDA:551,0,2,1
-BRDA:551,0,3,1
-BRDA:551,0,4,1
-BRDA:551,0,5,1
-BRDA:552,0,0,1
-BRDA:552,0,1,1
-BRDA:553,0,0,1
-BRDA:553,0,1,0
-BRDA:565,0,0,1
-BRDA:565,0,1,1
-BRDA:574,0,0,1
-BRDA:574,0,1,1
-BRDA:575,0,0,1
-BRDA:575,0,1,1
-BRDA:576,0,0,1
-BRDA:576,0,1,0
-BRDA:576,0,2,1
-BRDA:576,0,3,0
+BRDA:312,0,0,1
+BRDA:312,0,1,1
+BRDA:312,0,2,1
+BRDA:312,0,3,1
+BRDA:312,0,4,1
+BRDA:312,0,5,1
+BRDA:314,0,0,1
+BRDA:314,0,1,1
+BRDA:320,0,0,1
+BRDA:320,0,1,1
+BRDA:321,0,0,1
+BRDA:321,0,1,1
+BRDA:323,0,0,1
+BRDA:323,0,1,1
+BRDA:325,0,0,1
+BRDA:325,0,1,0
+BRDA:429,0,0,0
+BRDA:429,0,1,1
+BRDA:430,0,0,1
+BRDA:430,0,1,0
+BRDA:430,0,2,1
+BRDA:430,0,3,1
+BRDA:432,0,0,1
+BRDA:432,0,1,1
+BRDA:432,0,2,1
+BRDA:432,0,3,1
+BRDA:438,0,0,1
+BRDA:438,0,1,1
+BRDA:449,0,0,1
+BRDA:449,0,1,1
+BRDA:463,0,0,1
+BRDA:463,0,1,1
+BRDA:463,0,2,1
+BRDA:463,0,3,1
+BRDA:470,0,0,1
+BRDA:470,0,1,0
+BRDA:470,0,2,1
+BRDA:470,0,3,0
+BRDA:470,0,4,1
+BRDA:470,0,5,0
+BRDA:471,0,0,1
+BRDA:471,0,1,0
+BRDA:471,0,2,1
+BRDA:471,0,3,0
+BRDA:485,0,0,1
+BRDA:485,0,1,1
+BRDA:485,0,2,1
+BRDA:485,0,3,1
+BRDA:520,0,0,1
+BRDA:520,0,1,1
+BRDA:520,0,2,0
+BRDA:520,0,3,1
+BRDA:522,0,0,1
+BRDA:522,0,1,1
+BRDA:522,0,2,1
+BRDA:522,0,3,1
+BRDA:524,0,0,1
+BRDA:524,0,1,1
+BRDA:524,0,2,1
+BRDA:524,0,3,0
+BRDA:524,0,4,1
+BRDA:524,0,5,1
+BRDA:525,0,0,1
+BRDA:525,0,1,1
+BRDA:525,0,2,1
+BRDA:525,0,3,1
+BRDA:549,0,0,1
+BRDA:549,0,1,1
+BRDA:559,0,0,1
+BRDA:559,0,1,1
+BRDA:559,0,2,1
+BRDA:559,0,3,1
+BRDA:572,0,0,1
+BRDA:572,0,1,1
 BRDA:577,0,0,1
-BRDA:577,0,1,0
-BRDA:577,0,2,0
-BRDA:577,0,3,1
-BRDA:579,0,0,1
-BRDA:579,0,1,0
-BRDA:579,0,2,1
-BRDA:579,0,3,0
-BRDA:581,0,0,-
-BRDA:581,0,1,-
-BRDA:581,0,2,-
-BRDA:581,0,3,-
-BRDA:600,0,0,1
-BRDA:600,0,1,1
-BRDA:609,0,0,1
-BRDA:609,0,1,1
-BRDA:624,0,0,1
-BRDA:624,0,1,1
-BRDA:626,0,0,1
-BRDA:626,0,1,1
-BRDA:628,0,0,1
-BRDA:628,0,1,1
-BRDA:648,0,0,1
-BRDA:648,0,1,1
-BRDA:657,0,0,1
-BRDA:657,0,1,1
-BRDA:657,0,2,1
-BRDA:657,0,3,1
-BRDA:658,0,0,1
-BRDA:658,0,1,1
-BRDA:658,0,2,0
-BRDA:658,0,3,1
-BRDA:682,0,0,1
-BRDA:682,0,1,0
-BRDA:682,0,2,1
-BRDA:682,0,3,1
-BRDA:330,0,0,1
-BRDA:330,0,1,1
-BRDA:336,0,0,1
-BRDA:336,0,1,1
-BRDA:336,0,2,1
-BRDA:336,0,3,1
-BRDA:337,0,0,1
-BRDA:337,0,1,0
-BRDA:337,0,2,1
-BRDA:337,0,3,1
-BRDA:338,0,0,1
-BRDA:338,0,1,1
-BRDA:347,0,0,1
-BRDA:347,0,1,1
+BRDA:577,0,1,1
+BRDA:577,0,2,1
+BRDA:577,0,3,0
+BRDA:577,0,4,1
+BRDA:577,0,5,1
+BRDA:578,0,0,1
+BRDA:578,0,1,1
+BRDA:585,0,0,1
+BRDA:585,0,1,1
+BRDA:598,0,0,0
+BRDA:598,0,1,1
+BRDA:604,0,0,1
+BRDA:604,0,1,1
+BRDA:604,0,2,1
+BRDA:604,0,3,1
+BRDA:604,0,4,1
+BRDA:604,0,5,1
+BRDA:605,0,0,1
+BRDA:605,0,1,1
+BRDA:606,0,0,1
+BRDA:606,0,1,0
+BRDA:606,0,2,1
+BRDA:606,0,3,0
+BRDA:606,0,4,1
+BRDA:606,0,5,0
+BRDA:618,0,0,1
+BRDA:618,0,1,1
+BRDA:618,0,2,1
+BRDA:618,0,3,1
+BRDA:620,0,0,1
+BRDA:620,0,1,1
+BRDA:630,0,0,1
+BRDA:630,0,1,1
+BRDA:631,0,0,1
+BRDA:631,0,1,1
+BRDA:631,0,2,1
+BRDA:631,0,3,1
+BRDA:632,0,0,1
+BRDA:632,0,1,0
+BRDA:632,0,2,1
+BRDA:632,0,3,0
+BRDA:633,0,0,1
+BRDA:633,0,1,0
+BRDA:633,0,2,0
+BRDA:633,0,3,1
+BRDA:635,0,0,1
+BRDA:635,0,1,0
+BRDA:635,0,2,1
+BRDA:635,0,3,0
+BRDA:639,0,0,-
+BRDA:639,0,1,-
+BRDA:639,0,2,-
+BRDA:639,0,3,-
+BRDA:660,0,0,1
+BRDA:660,0,1,1
+BRDA:664,0,0,1
+BRDA:664,0,1,1
+BRDA:664,0,2,1
+BRDA:664,0,3,1
+BRDA:672,0,0,1
+BRDA:672,0,1,1
+BRDA:698,0,0,1
+BRDA:698,0,1,1
+BRDA:698,0,2,1
+BRDA:698,0,3,1
+BRDA:700,0,0,1
+BRDA:700,0,1,0
+BRDA:701,0,0,1
+BRDA:701,0,1,1
+BRDA:703,0,0,1
+BRDA:703,0,1,1
+BRDA:704,0,0,1
+BRDA:704,0,1,1
+BRDA:723,0,0,1
+BRDA:723,0,1,0
+BRDA:736,0,0,0
+BRDA:736,0,1,0
+BRDA:736,0,2,1
+BRDA:736,0,3,0
+BRDA:736,0,4,0
+BRDA:736,0,5,0
+BRDA:761,0,0,1
+BRDA:761,0,1,1
+BRDA:763,0,0,1
+BRDA:763,0,1,1
+BRDA:765,0,0,1
+BRDA:765,0,1,1
+BRDA:785,0,0,1
+BRDA:785,0,1,1
+BRDA:794,0,0,1
+BRDA:794,0,1,1
+BRDA:794,0,2,1
+BRDA:794,0,3,1
+BRDA:795,0,0,1
+BRDA:795,0,1,1
+BRDA:795,0,2,0
+BRDA:795,0,3,1
+BRDA:819,0,0,1
+BRDA:819,0,1,0
+BRDA:819,0,2,1
+BRDA:819,0,3,1
+BRDA:352,0,0,1
+BRDA:352,0,1,1
 BRDA:362,0,0,1
 BRDA:362,0,1,1
-BRDA:367,0,0,1
-BRDA:367,0,1,1
-BRDA:369,0,0,1
-BRDA:369,0,1,1
-BRDA:371,0,0,1
-BRDA:371,0,1,0
-BRDA:373,0,0,0
-BRDA:373,0,1,1
+BRDA:362,0,2,1
+BRDA:362,0,3,1
+BRDA:363,0,0,1
+BRDA:363,0,1,1
+BRDA:363,0,2,1
+BRDA:363,0,3,1
+BRDA:364,0,0,1
+BRDA:364,0,1,0
+BRDA:364,0,2,1
+BRDA:364,0,3,1
+BRDA:365,0,0,1
+BRDA:365,0,1,1
+BRDA:374,0,0,1
+BRDA:374,0,1,1
+BRDA:389,0,0,1
+BRDA:389,0,1,1
+BRDA:394,0,0,1
+BRDA:394,0,1,1
+BRDA:396,0,0,1
+BRDA:396,0,1,1
+BRDA:398,0,0,1
+BRDA:398,0,1,0
+BRDA:400,0,0,0
+BRDA:400,0,1,1
 BRDA:47,0,0,1
 BRDA:47,0,1,1
 DA:46,1
@@ -594,301 +664,357 @@ DA:72,1
 DA:73,1
 DA:74,1
 DA:75,1
-DA:88,1
+DA:76,1
 DA:89,1
 DA:90,1
-DA:93,1
-DA:94,1
-DA:104,1
-DA:113,1
-DA:114,1
-DA:115,1
-DA:116,1
-DA:118,1
+DA:91,1
+DA:92,1
+DA:96,1
+DA:97,1
+DA:98,1
+DA:99,1
+DA:101,1
+DA:102,1
+DA:107,1
+DA:110,1
+DA:119,1
 DA:120,1
+DA:121,1
 DA:122,1
-DA:123,1
+DA:124,1
 DA:126,1
-DA:127,1
 DA:128,1
 DA:129,1
-DA:131,1
 DA:132,1
 DA:133,1
-DA:136,1
+DA:134,1
+DA:135,1
 DA:137,1
-DA:140,0
-DA:141,0
-DA:143,0
-DA:145,1
-DA:146,1
-DA:153,1
-DA:154,1
-DA:155,1
-DA:157,1
+DA:138,1
+DA:139,1
+DA:142,1
+DA:143,1
+DA:146,0
+DA:147,0
+DA:149,0
+DA:151,1
+DA:152,1
+DA:159,1
 DA:160,1
 DA:161,1
-DA:162,1
 DA:163,1
-DA:164,1
-DA:165,1
+DA:166,1
 DA:167,1
 DA:168,1
+DA:169,1
+DA:170,1
 DA:171,1
-DA:172,1
+DA:173,1
 DA:174,1
-DA:175,1
-DA:176,1
 DA:177,1
 DA:178,1
-DA:179,1
+DA:180,1
 DA:181,1
 DA:182,1
+DA:183,1
+DA:184,1
 DA:185,1
+DA:187,1
+DA:188,1
 DA:191,1
 DA:192,1
-DA:193,0
-DA:194,0
-DA:195,0
-DA:196,0
 DA:198,1
-DA:200,1
-DA:201,1
-DA:202,1
-DA:203,1
+DA:199,1
+DA:200,0
+DA:201,0
+DA:202,0
+DA:203,0
+DA:205,1
+DA:207,1
+DA:208,1
+DA:209,1
 DA:210,1
-DA:211,1
-DA:212,1
-DA:213,1
-DA:214,1
-DA:216,1
-DA:221,0
+DA:217,1
+DA:218,1
+DA:219,1
+DA:220,1
+DA:221,1
 DA:222,1
-DA:223,1
+DA:225,1
+DA:230,0
+DA:231,1
 DA:232,1
-DA:233,1
-DA:234,1
-DA:235,1
-DA:236,1
-DA:237,1
-DA:238,1
-DA:239,1
-DA:240,1
-DA:241,1
-DA:242,1
-DA:243,1
-DA:244,1
+DA:245,1
+DA:246,1
+DA:247,1
 DA:248,1
 DA:249,1
+DA:250,1
 DA:251,1
-DA:260,1
+DA:252,1
+DA:253,1
+DA:254,1
+DA:255,1
+DA:256,1
+DA:257,1
 DA:261,1
 DA:262,1
-DA:263,1
-DA:265,1
-DA:266,1
-DA:267,1
-DA:269,0
-DA:274,1
+DA:264,1
 DA:277,1
 DA:278,1
+DA:279,1
 DA:280,1
-DA:281,1
-DA:285,1
-DA:286,1
-DA:287,1
-DA:288,1
-DA:293,1
-DA:294,1
+DA:282,1
+DA:283,1
+DA:284,1
+DA:286,0
+DA:291,1
+DA:292,1
 DA:295,1
 DA:296,1
-DA:297,1
-DA:301,1
-DA:302,1
+DA:298,1
+DA:299,1
 DA:303,1
 DA:304,1
 DA:305,1
 DA:306,1
-DA:307,1
-DA:308,1
-DA:309,0
-DA:310,0
+DA:311,1
 DA:312,1
-DA:318,1
+DA:313,1
+DA:314,1
+DA:315,1
+DA:319,1
+DA:320,1
 DA:321,1
 DA:322,1
 DA:323,1
 DA:324,1
-DA:327,1
-DA:328,1
-DA:329,1
+DA:325,1
+DA:326,1
+DA:327,0
+DA:328,0
 DA:330,1
-DA:331,1
-DA:333,1
-DA:334,1
 DA:336,1
-DA:337,1
-DA:338,1
 DA:339,1
+DA:340,1
 DA:341,1
-DA:344,1
-DA:345,1
+DA:342,1
+DA:343,1
+DA:346,1
 DA:347,1
 DA:348,1
-DA:350,1
-DA:357,1
-DA:358,1
-DA:359,1
+DA:351,1
+DA:352,1
+DA:353,1
+DA:355,1
+DA:356,1
+DA:361,1
 DA:362,1
+DA:363,1
 DA:364,1
 DA:365,1
 DA:366,1
-DA:367,1
 DA:368,1
-DA:369,1
-DA:370,1
 DA:371,1
-DA:373,1
-DA:374,0
+DA:372,1
+DA:374,1
+DA:375,1
 DA:377,1
-DA:378,1
-DA:379,1
-DA:380,1
-DA:381,1
-DA:382,1
-DA:383,1
+DA:384,1
 DA:385,1
-DA:388,1
-DA:390,1
+DA:386,1
+DA:389,1
 DA:391,1
 DA:392,1
 DA:393,1
-DA:402,1
-DA:403,1
+DA:394,1
+DA:395,1
+DA:396,1
+DA:397,1
+DA:398,1
+DA:400,1
+DA:401,0
 DA:404,1
 DA:405,1
+DA:406,1
+DA:407,1
+DA:408,1
+DA:409,1
 DA:410,1
-DA:411,1
 DA:412,1
-DA:413,1
 DA:415,1
+DA:417,1
 DA:418,1
+DA:419,1
 DA:420,1
-DA:421,1
-DA:422,1
-DA:423,1
-DA:424,1
-DA:426,1
-DA:427,1
-DA:428,1
 DA:429,1
 DA:430,1
 DA:431,1
-DA:433,1
-DA:435,1
-DA:436,1
+DA:432,1
 DA:437,1
-DA:443,1
-DA:444,1
+DA:438,1
+DA:439,1
+DA:440,1
+DA:442,1
+DA:445,1
+DA:447,1
+DA:448,1
+DA:449,1
+DA:450,1
+DA:451,1
+DA:453,1
 DA:454,1
 DA:455,1
+DA:456,1
 DA:457,1
 DA:458,1
-DA:461,1
+DA:460,1
 DA:462,1
-DA:466,1
-DA:469,1
-DA:473,1
+DA:463,1
+DA:464,1
+DA:470,1
+DA:471,1
 DA:481,1
-DA:490,1
-DA:491,1
-DA:492,1
+DA:482,1
+DA:484,1
+DA:485,1
+DA:488,1
+DA:489,1
 DA:493,1
-DA:494,1
-DA:495,1
 DA:496,1
-DA:498,1
 DA:500,1
-DA:516,1
-DA:517,1
-DA:518,1
+DA:508,1
+DA:518,0
+DA:519,1
 DA:520,1
+DA:521,1
 DA:522,1
 DA:523,1
 DA:524,1
 DA:525,1
+DA:526,1
 DA:527,1
-DA:528,1
+DA:529,1
 DA:531,1
-DA:532,1
-DA:535,1
-DA:536,1
-DA:537,1
-DA:543,1
-DA:544,1
-DA:546,1
-DA:547,1
-DA:548,1
-DA:551,1
+DA:549,1
+DA:550,1
 DA:552,1
 DA:553,1
-DA:554,1
+DA:555,1
 DA:558,1
 DA:559,1
+DA:560,1
 DA:563,1
 DA:564,1
 DA:565,1
-DA:566,1
-DA:574,1
-DA:575,1
+DA:567,1
+DA:568,1
+DA:569,1
+DA:572,1
+DA:573,1
 DA:576,1
 DA:577,1
 DA:578,1
-DA:579,1
-DA:580,1
-DA:581,0
-DA:582,0
+DA:584,1
 DA:585,1
-DA:592,1
-DA:593,1
-DA:594,1
-DA:595,1
-DA:596,1
+DA:586,1
+DA:587,1
+DA:588,1
 DA:597,1
 DA:598,1
 DA:599,1
 DA:600,1
 DA:601,1
+DA:604,1
 DA:605,1
-DA:609,1
-DA:610,1
-DA:611,1
+DA:606,1
+DA:607,1
+DA:608,1
 DA:613,1
-DA:615,1
-DA:623,1
-DA:624,1
-DA:625,1
-DA:626,1
-DA:627,1
-DA:628,1
-DA:629,1
+DA:616,1
+DA:617,1
+DA:618,1
+DA:619,1
+DA:620,1
+DA:621,1
+DA:630,1
 DA:631,1
-DA:644,1
+DA:632,1
+DA:633,1
+DA:634,1
+DA:635,1
+DA:636,1
+DA:637,1
+DA:639,0
+DA:640,0
+DA:641,0
 DA:645,1
-DA:646,1
-DA:647,1
-DA:648,1
-DA:649,1
-DA:651,1
-DA:652,1
+DA:647,0
+DA:651,0
 DA:653,1
+DA:654,1
+DA:655,1
+DA:656,1
 DA:657,1
 DA:658,1
 DA:659,1
-DA:682,1
-DA:686,1
-LH:297
-LF:311
+DA:660,1
+DA:661,1
+DA:664,1
+DA:665,1
+DA:667,1
+DA:672,1
+DA:673,1
+DA:674,1
+DA:676,1
+DA:678,1
+DA:698,1
+DA:699,1
+DA:700,1
+DA:701,1
+DA:702,1
+DA:703,1
+DA:704,1
+DA:705,1
+DA:706,1
+DA:708,1
+DA:710,1
+DA:722,1
+DA:723,1
+DA:724,1
+DA:725,1
+DA:736,1
+DA:737,1
+DA:739,0
+DA:741,0
+DA:743,0
+DA:745,0
+DA:755,0
+DA:756,1
+DA:760,1
+DA:761,1
+DA:762,1
+DA:763,1
+DA:764,1
+DA:765,1
+DA:766,1
+DA:768,1
+DA:781,1
+DA:782,1
+DA:783,1
+DA:784,1
+DA:785,1
+DA:786,1
+DA:788,1
+DA:789,1
+DA:790,1
+DA:794,1
+DA:795,1
+DA:796,1
+DA:819,1
+DA:823,1
+LH:344
+LF:367
 end_of_record
 SF:p4runtime/PacketHeaderCodec.kt
 FN:22,fourward/p4runtime/PacketHeaderCodec::<init> (Ljava/util/List;Ljava/util/List;I)V
@@ -1260,6 +1386,70 @@ DA:214,1
 DA:215,1
 LH:90
 LF:91
+end_of_record
+SF:p4runtime/RoleMap.kt
+FN:15,fourward/p4runtime/RoleMap::<init> (Ljava/util/Map;)V
+FNDA:1,fourward/p4runtime/RoleMap::<init> (Ljava/util/Map;)V
+FN:18,fourward/p4runtime/RoleMap::role (I)Ljava/lang/String;
+FNDA:1,fourward/p4runtime/RoleMap::role (I)Ljava/lang/String;
+FN:22,fourward/p4runtime/RoleMap::getHasRoles ()Z
+FNDA:1,fourward/p4runtime/RoleMap::getHasRoles ()Z
+FN:27,fourward/p4runtime/RoleMap::<clinit> ()V
+FNDA:1,fourward/p4runtime/RoleMap::<clinit> ()V
+FN:31,fourward/p4runtime/RoleMap$Companion::create (Lp4/config/v1/P4InfoOuterClass$P4Info;)Lfourward/p4runtime/RoleMap;
+FNDA:1,fourward/p4runtime/RoleMap$Companion::create (Lp4/config/v1/P4InfoOuterClass$P4Info;)Lfourward/p4runtime/RoleMap;
+FN:61,fourward/p4runtime/RoleMap$Companion::parseRole (Ljava/util/List;)Ljava/lang/String;
+FNDA:1,fourward/p4runtime/RoleMap$Companion::parseRole (Ljava/util/List;)Ljava/lang/String;
+BRDA:22,0,0,1
+BRDA:22,0,1,1
+BRDA:34,0,0,1
+BRDA:34,0,1,1
+BRDA:35,0,0,1
+BRDA:35,0,1,1
+BRDA:40,0,0,1
+BRDA:40,0,1,1
+BRDA:42,0,0,1
+BRDA:42,0,1,1
+BRDA:46,0,0,1
+BRDA:46,0,1,1
+BRDA:48,0,0,1
+BRDA:48,0,1,1
+BRDA:52,0,0,1
+BRDA:52,0,1,1
+BRDA:53,0,0,1
+BRDA:53,0,1,1
+BRDA:53,0,2,1
+BRDA:53,0,3,1
+BRDA:54,0,0,1
+BRDA:54,0,1,1
+BRDA:61,0,0,1
+BRDA:61,0,1,1
+BRDA:63,0,0,1
+BRDA:63,0,1,1
+DA:15,1
+DA:18,1
+DA:22,1
+DA:27,1
+DA:31,1
+DA:34,1
+DA:35,1
+DA:36,1
+DA:40,1
+DA:41,1
+DA:42,1
+DA:46,1
+DA:47,1
+DA:48,1
+DA:52,1
+DA:53,1
+DA:54,1
+DA:57,1
+DA:61,1
+DA:62,1
+DA:63,1
+DA:65,1
+LH:22
+LF:22
 end_of_record
 SF:p4runtime/TypeTranslator.kt
 FN:34,fourward/p4runtime/SdnValue$Bitstring::<init> (Lcom/google/protobuf/ByteString;)V
