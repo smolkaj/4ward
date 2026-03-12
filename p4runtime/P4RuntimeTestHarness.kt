@@ -142,14 +142,14 @@ class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable 
   // Table entry management
   // ---------------------------------------------------------------------------
 
-  fun installEntry(entity: Entity, electionId: Uint128? = null): WriteResponse =
-    writeEntity(Update.Type.INSERT, entity, electionId)
+  fun installEntry(entity: Entity, electionId: Uint128? = null, role: String = ""): WriteResponse =
+    writeEntity(Update.Type.INSERT, entity, electionId, role)
 
-  fun modifyEntry(entity: Entity, electionId: Uint128? = null): WriteResponse =
-    writeEntity(Update.Type.MODIFY, entity, electionId)
+  fun modifyEntry(entity: Entity, electionId: Uint128? = null, role: String = ""): WriteResponse =
+    writeEntity(Update.Type.MODIFY, entity, electionId, role)
 
-  fun deleteEntry(entity: Entity, electionId: Uint128? = null): WriteResponse =
-    writeEntity(Update.Type.DELETE, entity, electionId)
+  fun deleteEntry(entity: Entity, electionId: Uint128? = null, role: String = ""): WriteResponse =
+    writeEntity(Update.Type.DELETE, entity, electionId, role)
 
   /** Sends a raw [WriteRequest] — use for testing request-level fields like atomicity. */
   fun writeRaw(request: WriteRequest): WriteResponse = runBlocking { stub.write(request) }
@@ -161,16 +161,23 @@ class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable 
       .apply { entities.forEach { addUpdates(Update.newBuilder().setType(type).setEntity(it)) } }
       .build()
 
-  private fun writeEntity(type: Update.Type, entity: Entity, electionId: Uint128?): WriteResponse =
-    runBlocking {
-      stub.write(
-        WriteRequest.newBuilder()
-          .setDeviceId(1)
-          .apply { if (electionId != null) setElectionId(electionId) }
-          .addUpdates(Update.newBuilder().setType(type).setEntity(entity))
-          .build()
-      )
-    }
+  private fun writeEntity(
+    type: Update.Type,
+    entity: Entity,
+    electionId: Uint128?,
+    role: String = "",
+  ): WriteResponse = runBlocking {
+    stub.write(
+      WriteRequest.newBuilder()
+        .setDeviceId(1)
+        .apply {
+          if (electionId != null) setElectionId(electionId)
+          if (role.isNotEmpty()) setRole(role)
+        }
+        .addUpdates(Update.newBuilder().setType(type).setEntity(entity))
+        .build()
+    )
+  }
 
   /** Wildcard read: returns all table entries including defaults (table_id=0). */
   fun readEntries(): List<Entity> = readTableEntries(0)
@@ -183,10 +190,11 @@ class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable 
     readTableEntries(tableId).filter { !it.tableEntry.isDefaultAction }
 
   /** Per-table read: returns entries from a single table (or all tables if tableId is 0). */
-  fun readTableEntries(tableId: Int): List<Entity> =
+  fun readTableEntries(tableId: Int, role: String = ""): List<Entity> =
     readEntries(
       ReadRequest.newBuilder()
         .setDeviceId(1)
+        .apply { if (role.isNotEmpty()) setRole(role) }
         .addEntities(Entity.newBuilder().setTableEntry(TableEntry.newBuilder().setTableId(tableId)))
         .build()
     )
@@ -349,16 +357,19 @@ class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable 
         stub.streamChannel(requestChannel.consumeAsFlow()).collect { responseChannel.send(it) }
       }
 
-    fun arbitrate(deviceId: Long = 1, electionId: Long = 1): StreamMessageResponse = runBlocking {
-      requestChannel.send(
-        StreamMessageRequest.newBuilder()
-          .setArbitration(
-            MasterArbitrationUpdate.newBuilder()
-              .setDeviceId(deviceId)
-              .setElectionId(Uint128.newBuilder().setHigh(0).setLow(electionId))
-          )
-          .build()
-      )
+    fun arbitrate(
+      deviceId: Long = 1,
+      electionId: Long = 1,
+      roleName: String = "",
+    ): StreamMessageResponse = runBlocking {
+      val arb =
+        MasterArbitrationUpdate.newBuilder()
+          .setDeviceId(deviceId)
+          .setElectionId(Uint128.newBuilder().setHigh(0).setLow(electionId))
+      if (roleName.isNotEmpty()) {
+        arb.setRole(P4RuntimeOuterClass.Role.newBuilder().setName(roleName))
+      }
+      requestChannel.send(StreamMessageRequest.newBuilder().setArbitration(arb).build())
       withTimeout(STREAM_TIMEOUT_MS) { responseChannel.receive() }
     }
 

@@ -1,5 +1,6 @@
 package fourward.p4runtime
 
+import com.google.protobuf.Any as ProtoAny
 import fourward.ir.v1.PipelineConfig
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.assertGrpcError
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildEthernetFrame
@@ -1443,9 +1444,19 @@ class P4RuntimeConformanceTest {
     assertGrpcError(Status.Code.UNIMPLEMENTED) { harness.readEntries(request) }
   }
 
-  /** P4Runtime spec §15: non-default role on arbitration → UNIMPLEMENTED. */
+  /** P4Runtime spec §15: arbitration with a named role succeeds. */
   @Test
-  fun `84 - arbitration with non-default role rejected as UNIMPLEMENTED`() {
+  fun `84 - arbitration with named role succeeds`() {
+    harness.openStream().use { session ->
+      val response = session.arbitrate(roleName = "sdn_controller")
+      assertTrue(response.hasArbitration())
+      assertEquals("sdn_controller", response.arbitration.role.name)
+    }
+  }
+
+  /** P4Runtime spec §15: Role.config is rejected with UNIMPLEMENTED. */
+  @Test
+  fun `85 - arbitration with Role config rejected as UNIMPLEMENTED`() {
     assertGrpcError(Status.Code.UNIMPLEMENTED) {
       runBlocking {
         val request =
@@ -1454,11 +1465,115 @@ class P4RuntimeConformanceTest {
               P4RuntimeOuterClass.MasterArbitrationUpdate.newBuilder()
                 .setDeviceId(1)
                 .setElectionId(Uint128.newBuilder().setHigh(0).setLow(1))
-                .setRole(P4RuntimeOuterClass.Role.newBuilder().setName("custom_role"))
+                .setRole(
+                  P4RuntimeOuterClass.Role.newBuilder()
+                    .setName("sdn_controller")
+                    .setConfig(ProtoAny.getDefaultInstance())
+                )
             )
             .build()
         harness.stub.streamChannel(flowOf(request)).collect {}
       }
+    }
+  }
+
+  /** P4Runtime spec §15: different roles have independent primary elections. */
+  @Test
+  fun `86 - per-role independent primary election`() {
+    harness.openStream().use { role1Primary ->
+      harness.openStream().use { role2Primary ->
+        // Both become primary for their respective roles.
+        val r1 = role1Primary.arbitrate(electionId = 1, roleName = "role_a")
+        val r2 = role2Primary.arbitrate(electionId = 1, roleName = "role_b")
+        assertEquals(com.google.rpc.Code.OK_VALUE, r1.arbitration.status.code)
+        assertEquals(com.google.rpc.Code.OK_VALUE, r2.arbitration.status.code)
+      }
+    }
+  }
+
+  /** P4Runtime spec §15: named-role controller cannot write entities outside its role. */
+  @Test
+  fun `87 - named-role write denied for non-matching entity`() {
+    harness.loadPipeline(loadBasicTableConfig())
+    // basic_table has no @p4runtime_role annotations → all entities belong to default role.
+    harness.openStream().use { session -> session.arbitrate(roleName = "sdn_controller") }
+    val entry = buildExactEntry(loadBasicTableConfig(), 1, 1)
+    assertGrpcError(Status.Code.PERMISSION_DENIED, "role 'sdn_controller'") {
+      harness.installEntry(entry, role = "sdn_controller")
+    }
+  }
+
+  /** P4Runtime spec §15: wildcard read filters out entities not matching the controller's role. */
+  @Test
+  fun `88 - named-role wildcard read returns empty for non-matching entities`() {
+    harness.loadPipeline(loadBasicTableConfig())
+    // basic_table has no @p4runtime_role annotations → all entities belong to default role.
+    // A named-role wildcard read returns empty (not PERMISSION_DENIED).
+    harness.installEntry(buildExactEntry(loadBasicTableConfig(), 1, 1))
+    val entries = harness.readTableEntries(0, role = "sdn_controller")
+    assertTrue("wildcard read for non-matching role should return empty", entries.isEmpty())
+  }
+
+  /** P4Runtime spec §15: specific-entity read denied for non-matching role. */
+  @Test
+  fun `88a - named-role specific read denied for non-matching entity`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    val tableId = config.p4Info.tablesList.first().preamble.id
+    assertGrpcError(Status.Code.PERMISSION_DENIED, "role 'sdn_controller'") {
+      harness.readTableEntries(tableId, role = "sdn_controller")
+    }
+  }
+
+  /** P4Runtime spec §15: default-role controller has full access to all entities. */
+  @Test
+  fun `89 - default-role controller has full access`() {
+    harness.loadPipeline(loadBasicTableConfig())
+    // Default role (empty) can write and read everything.
+    val entry = buildExactEntry(loadBasicTableConfig(), 1, 1)
+    harness.installEntry(entry)
+    val entries = harness.readEntries()
+    assertFalse("should have entries", entries.isEmpty())
+  }
+
+  /** P4Runtime spec §5: writes rejected after all controllers for a role disconnect. */
+  @Test
+  fun `90 - write rejected after last controller disconnects`() {
+    harness.loadPipeline(loadBasicTableConfig())
+    // Arbitrate, then close the stream — no active primary remains.
+    harness.openStream().use { session -> session.arbitrate() }
+    val entry = buildExactEntry(loadBasicTableConfig(), 1, 1)
+    assertGrpcError(Status.Code.PERMISSION_DENIED) {
+      harness.installEntry(entry, electionId = uint128(low = 1))
+    }
+  }
+
+  /** P4Runtime spec §15: re-arbitration with a different role updates old role's primary. */
+  @Test
+  fun `91 - role change on re-arbitration clears old role primary`() {
+    harness.loadPipeline(loadBasicTableConfig())
+    harness.openStream().use { session ->
+      // Become primary for role_a.
+      val r1 = session.arbitrate(roleName = "role_a")
+      assertEquals(com.google.rpc.Code.OK_VALUE, r1.arbitration.status.code)
+      // Switch to role_b — should clear role_a's primary.
+      val r2 = session.arbitrate(roleName = "role_b")
+      assertEquals(com.google.rpc.Code.OK_VALUE, r2.arbitration.status.code)
+      // role_a should have no primary anymore. A write claiming role_a primary should fail.
+      val entry = buildExactEntry(loadBasicTableConfig(), 1, 1)
+      assertGrpcError(Status.Code.PERMISSION_DENIED) {
+        harness.installEntry(entry, electionId = uint128(low = 1), role = "role_a")
+      }
+    }
+  }
+
+  /** P4Runtime spec §5: election_id=0 with a named role is a backup, cannot be primary. */
+  @Test
+  fun `92 - zero election_id with named role is backup`() {
+    harness.openStream().use { session ->
+      val response = session.arbitrate(electionId = 0, roleName = "sdn_controller")
+      // Status should be ALREADY_EXISTS (non-primary) since election_id=0 cannot be primary.
+      assertEquals(com.google.rpc.Code.ALREADY_EXISTS_VALUE, response.arbitration.status.code)
     }
   }
 

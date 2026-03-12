@@ -148,7 +148,12 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 | 10.5 | Demotion notification to displaced primary | Y | ConformanceTest #73 |
 | 10.6 | Automatic promotion on primary disconnect | Y | ConformanceTest #74 |
 | 10.7 | Zero election_id: backup semantics (cannot be primary) | Y | ConformanceTest #72 |
-| 10.8 | Role-based access control | Y | Non-default role rejected with UNIMPLEMENTED; ConformanceTest #84 |
+| 10.8 | Per-role primary election | Y | ConformanceTest #84, #86 |
+| 10.9 | Role-based write access control | Y | ConformanceTest #87, #89 |
+| 10.10 | Role-based read access control (specific + wildcard) | Y | ConformanceTest #88, #88a |
+| 10.11 | Role.config rejected | Y | ConformanceTest #85 |
+| 10.12 | No ghost primary after disconnect | Y | ConformanceTest #90 |
+| 10.13 | Role change clears old role's primary | Y | ConformanceTest #91 |
 
 ## Read RPC (§11)
 
@@ -241,7 +246,7 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 | Write — other entities | 3 | 0 | 0 |
 | Write — atomicity | 4 | 0 | 0 |
 | Write — general | 2 | 0 | 0 |
-| Arbitration | 8 | 0 | 0 |
+| Arbitration | 13 | 0 | 0 |
 | Read | 11 | 0 | 0 |
 | GetForwardingPipelineConfig | 6 | 0 | 0 |
 | Capabilities | 1 | 0 | 0 |
@@ -249,4 +254,4 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 | Translation | 6 | 0 | 0 |
 | @refers_to | 6 | 0 | 0 |
 | p4-constraints | 4 | 0 | 0 |
-| **Total** | **127** | **0** | **3** |
+| **Total** | **132** | **0** | **3** |

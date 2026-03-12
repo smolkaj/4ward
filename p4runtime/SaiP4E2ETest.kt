@@ -573,6 +573,71 @@ class SaiP4E2ETest {
   }
 
   // =========================================================================
+  // Role-based access control (§15)
+  //
+  // SAI P4 tables declare @p4runtime_role("sdn_controller") (most tables) or
+  // @p4runtime_role("packet_replication_engine_manager") (ingress_clone_table).
+  // =========================================================================
+
+  @Test
+  fun `named-role controller can write and read entities matching its role`() {
+    val eid = P4RuntimeTestHarness.uint128(low = 1)
+    // Keep stream open for the duration of the test so the controller stays primary.
+    harness.openStream().use { session ->
+      session.arbitrate(roleName = "sdn_controller")
+      // vrf_table has @p4runtime_role("sdn_controller") — write should succeed.
+      harness.installEntry(buildVrfEntry("vrf-role"), electionId = eid, role = "sdn_controller")
+
+      val vrfTable = findTable("vrf_table")
+      val entries =
+        harness.readTableEntries(vrfTable.preamble.id, role = "sdn_controller").filter {
+          !it.tableEntry.isDefaultAction
+        }
+      assertEquals("expected one vrf_table entry", 1, entries.size)
+      assertEquals("vrf-role", entries[0].tableEntry.matchList.first().exact.value.toStringUtf8())
+    }
+  }
+
+  @Test
+  fun `wrong-role controller cannot write to another role's table`() {
+    val eid = P4RuntimeTestHarness.uint128(low = 1)
+    harness.openStream().use { session ->
+      session.arbitrate(roleName = "packet_replication_engine_manager")
+      // vrf_table belongs to "sdn_controller", not "packet_replication_engine_manager".
+      P4RuntimeTestHarness.assertGrpcError(Status.Code.PERMISSION_DENIED, "role") {
+        harness.installEntry(
+          buildVrfEntry("vrf-denied"),
+          electionId = eid,
+          role = "packet_replication_engine_manager",
+        )
+      }
+    }
+  }
+
+  @Test
+  fun `wildcard read with role returns only matching tables`() {
+    val eid = P4RuntimeTestHarness.uint128(low = 1)
+    harness.openStream().use { session ->
+      session.arbitrate(roleName = "sdn_controller")
+      harness.installEntry(buildVrfEntry("vrf-wildcard"), electionId = eid, role = "sdn_controller")
+
+      // Wildcard read (table_id=0) with role="sdn_controller" should return entries
+      // only from sdn_controller tables, filtering out other roles.
+      val roleMap = RoleMap.create(config.p4Info)
+      val entities = harness.readTableEntries(0, role = "sdn_controller")
+      for (entity in entities) {
+        val tableId = entity.tableEntry.tableId
+        val table = config.p4Info.tablesList.find { it.preamble.id == tableId }!!
+        assertEquals(
+          "table '${table.preamble.alias}' should belong to sdn_controller",
+          "sdn_controller",
+          roleMap.role(tableId),
+        )
+      }
+    }
+  }
+
+  // =========================================================================
   // Delete: verify translated entries can be removed
   // =========================================================================
 

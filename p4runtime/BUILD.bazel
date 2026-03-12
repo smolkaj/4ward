@@ -179,6 +179,18 @@ kt_jvm_test(
 )
 
 kt_jvm_test(
+    name = "RoleMapTest",
+    srcs = ["RoleMapTest.kt"],
+    test_class = "fourward.p4runtime.RoleMapTest",
+    deps = [
+        ":p4info_java_proto",
+        ":p4runtime_lib",
+        "@maven//:com_google_protobuf_protobuf_java",
+        "@maven//:junit_junit",
+    ],
+)
+
+kt_jvm_test(
     name = "TypeTranslatorTest",
     srcs = ["TypeTranslatorTest.kt"],
     test_class = "fourward.p4runtime.TypeTranslatorTest",
