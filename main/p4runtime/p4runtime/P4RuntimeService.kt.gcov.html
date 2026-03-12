@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-12 18:17:28</td>
+            <td class="headerValue">2026-03-12 18:22:02</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -432,9 +432,9 @@
 <span id="L370"><span class="lineNum">     370</span> <span class="tlaGNC">           1 :         extractIngressPort(packetOut.metadataList) to packetOut.payload.toByteArray()</span></span>
 <span id="L371"><span class="lineNum">     371</span>              :       }</span>
 <span id="L372"><span class="lineNum">     372</span>              : </span>
-<span id="L373"><span class="lineNum">     373</span> <span class="tlaGNC">           1 :     val response = simulator.processPacket(ingressPort, payload)</span></span>
+<span id="L373"><span class="lineNum">     373</span> <span class="tlaGNC">           1 :     val result = simulator.processPacket(ingressPort, payload)</span></span>
 <span id="L374"><span class="lineNum">     374</span>              : </span>
-<span id="L375"><span class="lineNum">     375</span> <span class="tlaGNC">           1 :     return response.outputPacketsList.map { outputPacket -&gt;</span></span>
+<span id="L375"><span class="lineNum">     375</span> <span class="tlaGNC">           1 :     return result.outputPackets.map { outputPacket -&gt;</span></span>
 <span id="L376"><span class="lineNum">     376</span> <span class="tlaGNC">           1 :       val rawPacketIn =</span></span>
 <span id="L377"><span class="lineNum">     377</span> <span class="tlaGNC">           1 :         if (codec != null) {</span></span>
 <span id="L378"><span class="lineNum">     378</span> <span class="tlaGNC">           1 :           val metadata = codec.buildPacketInMetadata(ingressPort, outputPacket.egressPort)</span></span>

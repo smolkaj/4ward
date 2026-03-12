@@ -88,22 +88,20 @@ FN:21,fourward/p4runtime/DataplaneService::<init> (Lfourward/simulator/Simulator
 FNDA:1,fourward/p4runtime/DataplaneService::<init> (Lfourward/simulator/Simulator;Lkotlinx/coroutines/sync/Mutex;)V
 FN:25,fourward/p4runtime/DataplaneService::processPacket (Lfourward/sim/v1/SimulatorProto$ProcessPacketRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 FNDA:1,fourward/p4runtime/DataplaneService::processPacket (Lfourward/sim/v1/SimulatorProto$ProcessPacketRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-FN:35,fourward/p4runtime/DataplaneService::processPacketWithTraceTree (Lfourward/sim/v1/SimulatorProto$ProcessPacketRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+FN:33,fourward/p4runtime/DataplaneService::processPacketWithTraceTree (Lfourward/sim/v1/SimulatorProto$ProcessPacketRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 FNDA:0,fourward/p4runtime/DataplaneService::processPacketWithTraceTree (Lfourward/sim/v1/SimulatorProto$ProcessPacketRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 DA:21,1
 DA:25,1
 DA:26,1
 DA:27,1
-DA:28,1
-DA:29,1
+DA:33,0
+DA:34,0
 DA:35,0
 DA:36,0
 DA:37,0
 DA:38,0
-DA:39,0
-DA:40,0
-LH:6
-LF:12
+LH:4
+LF:10
 end_of_record
 SF:p4runtime/EntityReader.kt
 FN:18,fourward/p4runtime/EntityReader::<init> (Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;I)V
@@ -4564,121 +4562,121 @@ LH:260
 LF:270
 end_of_record
 SF:simulator/Simulator.kt
-FN:20,fourward/simulator/Simulator::<init> ()V
+FN:13,fourward/simulator/ProcessPacketResult::<init> (Ljava/util/List;Lfourward/sim/v1/SimulatorProto$TraceTree;)V
+FNDA:1,fourward/simulator/ProcessPacketResult::<init> (Ljava/util/List;Lfourward/sim/v1/SimulatorProto$TraceTree;)V
+FN:13,fourward/simulator/ProcessPacketResult::getOutputPackets ()Ljava/util/List;
+FNDA:1,fourward/simulator/ProcessPacketResult::getOutputPackets ()Ljava/util/List;
+FN:13,fourward/simulator/ProcessPacketResult::getTrace ()Lfourward/sim/v1/SimulatorProto$TraceTree;
+FNDA:1,fourward/simulator/ProcessPacketResult::getTrace ()Lfourward/sim/v1/SimulatorProto$TraceTree;
+FN:27,fourward/simulator/Simulator::<init> ()V
 FNDA:1,fourward/simulator/Simulator::<init> ()V
-FN:34,fourward/simulator/Simulator::loadPipeline (Lfourward/ir/v1/PipelineConfig;)V
+FN:41,fourward/simulator/Simulator::loadPipeline (Lfourward/ir/v1/PipelineConfig;)V
 FNDA:1,fourward/simulator/Simulator::loadPipeline (Lfourward/ir/v1/PipelineConfig;)V
-FN:52,fourward/simulator/Simulator::processPacket (I[B)Lfourward/sim/v1/SimulatorProto$ProcessPacketResponse;
-FNDA:1,fourward/simulator/Simulator::processPacket (I[B)Lfourward/sim/v1/SimulatorProto$ProcessPacketResponse;
-FN:79,fourward/simulator/Simulator::writeEntry (Lp4/v1/P4RuntimeOuterClass$Update;)Lfourward/simulator/WriteResult;
+FN:59,fourward/simulator/Simulator::processPacket (I[B)Lfourward/simulator/ProcessPacketResult;
+FNDA:1,fourward/simulator/Simulator::processPacket (I[B)Lfourward/simulator/ProcessPacketResult;
+FN:83,fourward/simulator/Simulator::writeEntry (Lp4/v1/P4RuntimeOuterClass$Update;)Lfourward/simulator/WriteResult;
 FNDA:1,fourward/simulator/Simulator::writeEntry (Lp4/v1/P4RuntimeOuterClass$Update;)Lfourward/simulator/WriteResult;
-FN:84,fourward/simulator/Simulator::snapshotWriteState ()Lfourward/simulator/TableStore$WriteState;
+FN:88,fourward/simulator/Simulator::snapshotWriteState ()Lfourward/simulator/TableStore$WriteState;
 FNDA:1,fourward/simulator/Simulator::snapshotWriteState ()Lfourward/simulator/TableStore$WriteState;
-FN:87,fourward/simulator/Simulator::restoreWriteState (Lfourward/simulator/TableStore$WriteState;)V
+FN:91,fourward/simulator/Simulator::restoreWriteState (Lfourward/simulator/TableStore$WriteState;)V
 FNDA:1,fourward/simulator/Simulator::restoreWriteState (Lfourward/simulator/TableStore$WriteState;)V
-FN:99,fourward/simulator/Simulator::hasTableEntryWithFieldValue (IILcom/google/protobuf/ByteString;)Z
+FN:103,fourward/simulator/Simulator::hasTableEntryWithFieldValue (IILcom/google/protobuf/ByteString;)Z
 FNDA:1,fourward/simulator/Simulator::hasTableEntryWithFieldValue (IILcom/google/protobuf/ByteString;)Z
-FN:102,fourward/simulator/Simulator::hasMulticastGroup (I)Z
+FN:106,fourward/simulator/Simulator::hasMulticastGroup (I)Z
 FNDA:1,fourward/simulator/Simulator::hasMulticastGroup (I)Z
-FN:110,fourward/simulator/Simulator::getTableNameById ()Ljava/util/Map;
+FN:114,fourward/simulator/Simulator::getTableNameById ()Ljava/util/Map;
 FNDA:1,fourward/simulator/Simulator::getTableNameById ()Ljava/util/Map;
-FN:113,fourward/simulator/Simulator::getActionNameById ()Ljava/util/Map;
+FN:117,fourward/simulator/Simulator::getActionNameById ()Ljava/util/Map;
 FNDA:1,fourward/simulator/Simulator::getActionNameById ()Ljava/util/Map;
-FN:115,fourward/simulator/Simulator::getTableEntries (Ljava/lang/String;)Ljava/util/List;
+FN:119,fourward/simulator/Simulator::getTableEntries (Ljava/lang/String;)Ljava/util/List;
 FNDA:1,fourward/simulator/Simulator::getTableEntries (Ljava/lang/String;)Ljava/util/List;
-FN:117,fourward/simulator/Simulator::getDefaultAction (Ljava/lang/String;)Lfourward/simulator/DefaultAction;
+FN:121,fourward/simulator/Simulator::getDefaultAction (Ljava/lang/String;)Lfourward/simulator/DefaultAction;
 FNDA:1,fourward/simulator/Simulator::getDefaultAction (Ljava/lang/String;)Lfourward/simulator/DefaultAction;
-FN:120,fourward/simulator/Simulator::getDirectCounterData (Lp4/v1/P4RuntimeOuterClass$TableEntry;)Lp4/v1/P4RuntimeOuterClass$CounterData;
+FN:124,fourward/simulator/Simulator::getDirectCounterData (Lp4/v1/P4RuntimeOuterClass$TableEntry;)Lp4/v1/P4RuntimeOuterClass$CounterData;
 FNDA:1,fourward/simulator/Simulator::getDirectCounterData (Lp4/v1/P4RuntimeOuterClass$TableEntry;)Lp4/v1/P4RuntimeOuterClass$CounterData;
-FN:123,fourward/simulator/Simulator::getDirectMeterData (Lp4/v1/P4RuntimeOuterClass$TableEntry;)Lp4/v1/P4RuntimeOuterClass$MeterConfig;
+FN:127,fourward/simulator/Simulator::getDirectMeterData (Lp4/v1/P4RuntimeOuterClass$TableEntry;)Lp4/v1/P4RuntimeOuterClass$MeterConfig;
 FNDA:1,fourward/simulator/Simulator::getDirectMeterData (Lp4/v1/P4RuntimeOuterClass$TableEntry;)Lp4/v1/P4RuntimeOuterClass$MeterConfig;
-FN:125,fourward/simulator/Simulator::hasDirectCounter (Ljava/lang/String;)Z
+FN:129,fourward/simulator/Simulator::hasDirectCounter (Ljava/lang/String;)Z
 FNDA:1,fourward/simulator/Simulator::hasDirectCounter (Ljava/lang/String;)Z
-FN:127,fourward/simulator/Simulator::hasDirectMeter (Ljava/lang/String;)Z
+FN:131,fourward/simulator/Simulator::hasDirectMeter (Ljava/lang/String;)Z
 FNDA:1,fourward/simulator/Simulator::hasDirectMeter (Ljava/lang/String;)Z
-FN:138,fourward/simulator/Simulator::readEntries (Ljava/util/List;)Ljava/util/List;
+FN:142,fourward/simulator/Simulator::readEntries (Ljava/util/List;)Ljava/util/List;
 FNDA:1,fourward/simulator/Simulator::readEntries (Ljava/util/List;)Ljava/util/List;
-FN:156,fourward/simulator/Simulator::displayName (Ljava/lang/String;)Ljava/lang/String;
+FN:160,fourward/simulator/Simulator::displayName (Ljava/lang/String;)Ljava/lang/String;
 FNDA:0,fourward/simulator/Simulator::displayName (Ljava/lang/String;)Ljava/lang/String;
-FN:161,fourward/simulator/SimulatorKt::collectOutputsFromTrace (Lfourward/sim/v1/SimulatorProto$TraceTree;)Ljava/util/List;
+FN:165,fourward/simulator/SimulatorKt::collectOutputsFromTrace (Lfourward/sim/v1/SimulatorProto$TraceTree;)Ljava/util/List;
 FNDA:1,fourward/simulator/SimulatorKt::collectOutputsFromTrace (Lfourward/sim/v1/SimulatorProto$TraceTree;)Ljava/util/List;
-BRDA:40,0,0,1
-BRDA:40,0,1,1
-BRDA:41,0,0,1
-BRDA:41,0,1,1
-BRDA:52,0,0,1
-BRDA:52,0,1,1
-BRDA:53,0,0,0
-BRDA:53,0,1,1
-BRDA:79,0,0,1
-BRDA:79,0,1,1
-BRDA:102,0,0,1
-BRDA:102,0,1,1
-BRDA:140,0,0,0
-BRDA:140,0,1,1
-BRDA:141,0,0,1
-BRDA:141,0,1,1
-BRDA:142,0,0,1
-BRDA:142,0,1,1
-BRDA:143,0,0,1
-BRDA:143,0,1,1
-BRDA:144,0,0,1
+BRDA:47,0,0,1
+BRDA:47,0,1,1
+BRDA:48,0,0,1
+BRDA:48,0,1,1
+BRDA:59,0,0,1
+BRDA:59,0,1,1
+BRDA:60,0,0,0
+BRDA:60,0,1,1
+BRDA:83,0,0,1
+BRDA:83,0,1,1
+BRDA:106,0,0,1
+BRDA:106,0,1,1
+BRDA:144,0,0,0
 BRDA:144,0,1,1
 BRDA:145,0,0,1
 BRDA:145,0,1,1
 BRDA:146,0,0,1
 BRDA:146,0,1,1
+BRDA:147,0,0,1
+BRDA:147,0,1,1
 BRDA:148,0,0,1
-BRDA:148,0,1,0
-BRDA:149,0,0,-
-BRDA:149,0,1,-
-BRDA:162,0,0,1
-BRDA:162,0,1,1
-BRDA:164,0,0,1
-BRDA:164,0,1,0
-BRDA:164,0,2,1
-BRDA:164,0,3,1
-DA:20,1
-DA:24,1
-DA:34,1
-DA:36,1
-DA:38,1
-DA:39,1
-DA:40,1
+BRDA:148,0,1,1
+BRDA:149,0,0,1
+BRDA:149,0,1,1
+BRDA:150,0,0,1
+BRDA:150,0,1,1
+BRDA:152,0,0,1
+BRDA:152,0,1,0
+BRDA:153,0,0,-
+BRDA:153,0,1,-
+BRDA:166,0,0,1
+BRDA:166,0,1,1
+BRDA:168,0,0,1
+BRDA:168,0,1,0
+BRDA:168,0,2,1
+BRDA:168,0,3,1
+DA:13,1
+DA:27,1
+DA:31,1
 DA:41,1
-DA:42,1
-DA:44,1
-DA:52,1
-DA:53,1
-DA:55,1
-DA:56,1
-DA:57,1
-DA:58,1
+DA:43,1
+DA:45,1
+DA:46,1
+DA:47,1
+DA:48,1
+DA:49,1
+DA:51,1
 DA:59,1
 DA:60,1
+DA:62,1
+DA:63,1
+DA:64,1
+DA:65,1
 DA:66,1
 DA:67,1
-DA:68,1
-DA:69,1
-DA:70,1
-DA:79,1
-DA:80,1
+DA:73,1
+DA:74,1
+DA:83,1
 DA:84,1
-DA:87,1
-DA:99,1
-DA:102,1
-DA:110,1
-DA:113,1
-DA:115,1
+DA:88,1
+DA:91,1
+DA:103,1
+DA:106,1
+DA:114,1
 DA:117,1
-DA:120,1
-DA:123,1
-DA:125,1
+DA:119,1
+DA:121,1
+DA:124,1
 DA:127,1
-DA:138,1
-DA:139,1
-DA:140,1
-DA:141,1
+DA:129,1
+DA:131,1
 DA:142,1
 DA:143,1
 DA:144,1
@@ -4686,20 +4684,24 @@ DA:145,1
 DA:146,1
 DA:147,1
 DA:148,1
-DA:149,0
-DA:150,0
+DA:149,1
+DA:150,1
 DA:151,1
 DA:152,1
-DA:153,1
-DA:156,0
-DA:161,1
-DA:162,1
-DA:163,1
-DA:164,1
+DA:153,0
+DA:154,0
+DA:155,1
+DA:156,1
+DA:157,1
+DA:160,0
 DA:165,1
 DA:166,1
-LH:57
-LF:60
+DA:167,1
+DA:168,1
+DA:169,1
+DA:170,1
+LH:55
+LF:58
 end_of_record
 SF:simulator/TableDataReader.kt
 LH:0
