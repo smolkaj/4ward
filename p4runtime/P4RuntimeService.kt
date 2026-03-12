@@ -73,6 +73,7 @@ class P4RuntimeService(
     val constraintValidator: ConstraintValidator?,
     val packetHeaderCodec: PacketHeaderCodec?,
     val entityReader: EntityReader,
+    val roleMap: RoleMap,
   )
 
   @Volatile private var pipeline: PipelineState? = null
@@ -86,19 +87,24 @@ class P4RuntimeService(
 
   /** Per-stream controller state, tracked for demotion/promotion notifications. */
   private data class ControllerStream(
+    val roleName: String, // empty = default role
     val electionId: Uint128,
     val notifications: SendChannel<StreamMessageResponse>,
+  )
+
+  /** Per-role arbitration state. Each role has its own independent primary election. */
+  private data class RoleElection(
+    val primaryElectionId: Uint128? = null,
+    val arbitrationOccurred: Boolean = false,
   )
 
   private val arbitrationMutex = Mutex()
   private val controllers = mutableMapOf<Any, ControllerStream>()
 
-  // True once any controller has sent MasterArbitrationUpdate. Once set, writes require
-  // a matching primary election_id (even if all controllers later disconnect).
-  @Volatile private var arbitrationOccurred: Boolean = false
-
-  // Highest non-zero election_id among active controllers, or null if none.
-  @Volatile private var primaryElectionId: Uint128? = null
+  // Per-role election state: key is role name (empty = default role).
+  // Modified under arbitrationMutex, but read without it by requirePrimaryOrNoArbitration
+  // (which runs under the write lock). ConcurrentHashMap ensures safe concurrent reads.
+  private val roleElections = java.util.concurrent.ConcurrentHashMap<String, RoleElection>()
 
   private fun requirePipeline(): PipelineState =
     pipeline ?: throw Status.FAILED_PRECONDITION.withDescription(NO_PIPELINE_MESSAGE).asException()
@@ -112,7 +118,7 @@ class P4RuntimeService(
   ): SetForwardingPipelineConfigResponse =
     lock.withLock {
       requireDeviceId(request.deviceId)
-      requirePrimaryOrNoArbitration(request.electionId)
+      requirePrimaryOrNoArbitration(request.electionId, request.role)
       when (request.action) {
         SetForwardingPipelineConfigRequest.Action.VERIFY ->
           verifyPipeline(request.config).also { it.constraintValidator?.close() }
@@ -183,6 +189,7 @@ class P4RuntimeService(
       // Placeholder — EntityReader needs simulator name maps that are only
       // available after loadPipeline; commitPipeline creates the real one.
       entityReader = EntityReader.EMPTY,
+      roleMap = RoleMap.create(fwdConfig.p4Info),
     )
   }
 
@@ -210,15 +217,17 @@ class P4RuntimeService(
     lock.withLock {
       requireDeviceId(request.deviceId)
       val state = requirePipeline()
-      requirePrimaryOrNoArbitration(request.electionId)
+      val roleName = request.role // empty = default role
+      requirePrimaryOrNoArbitration(request.electionId, roleName)
       when (request.atomicity) {
         WriteRequest.Atomicity.CONTINUE_ON_ERROR,
-        WriteRequest.Atomicity.UNRECOGNIZED -> writeContinueOnError(request.updatesList, state)
+        WriteRequest.Atomicity.UNRECOGNIZED ->
+          writeContinueOnError(request.updatesList, state, roleName)
         // P4Runtime spec §12.2: ROLLBACK_ON_ERROR and DATAPLANE_ATOMIC both guarantee
         // all-or-none semantics. DATAPLANE_ATOMIC additionally requires data-plane atomicity,
         // which we get for free because the write lock serializes all operations.
         WriteRequest.Atomicity.ROLLBACK_ON_ERROR,
-        WriteRequest.Atomicity.DATAPLANE_ATOMIC -> writeAtomic(request.updatesList, state)
+        WriteRequest.Atomicity.DATAPLANE_ATOMIC -> writeAtomic(request.updatesList, state, roleName)
       }
     }
 
@@ -228,12 +237,16 @@ class P4RuntimeService(
    * Per §12.3: if any update fails, the gRPC status is UNKNOWN with one [P4RuntimeOuterClass.Error]
    * per update packed into `google.rpc.Status.details`.
    */
-  private fun writeContinueOnError(updates: List<Update>, state: PipelineState): WriteResponse {
+  private fun writeContinueOnError(
+    updates: List<Update>,
+    state: PipelineState,
+    roleName: String,
+  ): WriteResponse {
     val errors = ArrayList<P4RuntimeOuterClass.Error>(updates.size)
     var hasError = false
     for (rawUpdate in updates) {
       try {
-        processUpdate(rawUpdate, state)
+        processUpdate(rawUpdate, state, roleName)
         errors.add(P4RuntimeOuterClass.Error.newBuilder().setCanonicalCode(OK_CODE).build())
       } catch (e: StatusException) {
         hasError = true
@@ -256,11 +269,15 @@ class P4RuntimeService(
    *
    * Snapshots write-state before the batch and restores it if any update fails.
    */
-  private fun writeAtomic(updates: List<Update>, state: PipelineState): WriteResponse {
+  private fun writeAtomic(
+    updates: List<Update>,
+    state: PipelineState,
+    roleName: String,
+  ): WriteResponse {
     val snapshot = simulator.snapshotWriteState()
     try {
       for (rawUpdate in updates) {
-        processUpdate(rawUpdate, state)
+        processUpdate(rawUpdate, state, roleName)
       }
     } catch (e: StatusException) {
       simulator.restoreWriteState(snapshot)
@@ -270,8 +287,9 @@ class P4RuntimeService(
   }
 
   /** Validates and applies a single update. Throws [StatusException] on failure. */
-  private fun processUpdate(rawUpdate: Update, state: PipelineState) {
+  private fun processUpdate(rawUpdate: Update, state: PipelineState, roleName: String) {
     rejectUnsupportedEntity(rawUpdate.entity)
+    requireEntityAccess(rawUpdate.entity, state.roleMap, roleName)
     // Validate against p4info before type translation so SDN-visible values
     // are checked at canonical widths (P4Runtime spec §8.3, §9.1).
     if (rawUpdate.entity.hasTableEntry()) {
@@ -322,23 +340,32 @@ class P4RuntimeService(
       lock.withLock {
         requireDeviceId(request.deviceId)
         val state = requirePipeline()
+        val roleName = request.role // empty = default role
         // Table entries are assembled by EntityReader (P4Runtime presentation layer);
         // all other entity types are read directly from the simulator.
         val entities =
           request.entitiesList.flatMap { entity ->
             rejectUnsupportedEntity(entity)
+            // For specific (non-wildcard) entities, check access upfront so the controller
+            // gets a clear PERMISSION_DENIED. For wildcards, results are filtered post-read.
+            requireEntityAccess(entity, state.roleMap, roleName)
             if (entity.hasTableEntry()) {
               state.entityReader.readTableEntities(entity.tableEntry, simulator)
             } else {
               simulator.readEntries(listOf(entity))
             }
           }
-        if (entities.isNotEmpty()) {
+        // Filter results by role for named-role controllers. This handles wildcard reads
+        // (where the request entity doesn't carry a specific ID) by returning only entities
+        // the controller's role can access.
+        val filtered =
+          if (roleName.isNotEmpty()) filterByRole(entities, state.roleMap, roleName) else entities
+        if (filtered.isNotEmpty()) {
           val translator = state.typeTranslator?.takeIf { it.hasTranslations }
           if (translator != null) {
-            entities.map { translator.translateForRead(it) }
+            filtered.map { translator.translateForRead(it) }
           } else {
-            entities
+            filtered
           }
         } else {
           null
@@ -481,19 +508,23 @@ class P4RuntimeService(
     CapabilitiesResponse.newBuilder().setP4RuntimeApiVersion(P4RUNTIME_API_VERSION).build()
 
   /**
-   * Ensures the requester is the primary controller, or that no arbitration has occurred.
+   * Ensures the requester is the primary controller for the given role, or that no arbitration has
+   * occurred for that role.
    *
-   * P4Runtime spec §5: only the primary (highest non-zero election_id) may write. If no arbitration
-   * has occurred, writes are allowed for backward compatibility with single-controller clients.
+   * P4Runtime spec §5, §15: only the primary (highest non-zero election_id) for a given role may
+   * write. If no arbitration has occurred for the role, writes are allowed for backward
+   * compatibility with single-controller clients.
    */
-  private fun requirePrimaryOrNoArbitration(requestElectionId: Uint128) {
-    if (!arbitrationOccurred) return
-    val primary = primaryElectionId
+  private fun requirePrimaryOrNoArbitration(requestElectionId: Uint128, roleName: String = "") {
+    val election = roleElections[roleName]
+    if (election == null || !election.arbitrationOccurred) return
+    val primary = election.primaryElectionId
     if (primary == null || requestElectionId != primary) {
       val id =
         primary?.let { if (it.high == 0L) "${it.low}" else "(${it.high}, ${it.low})" } ?: "none"
+      val roleDesc = if (roleName.isEmpty()) "default role" else "role '$roleName'"
       throw Status.PERMISSION_DENIED.withDescription(
-          "only the primary controller (election_id=$id) may write"
+          "only the primary controller for $roleDesc (election_id=$id) may write"
         )
         .asException()
     }
@@ -506,80 +537,109 @@ class P4RuntimeService(
   /**
    * Processes a MasterArbitrationUpdate from a stream, updating controller tracking and sending
    * demotion/promotion notifications as needed.
+   *
+   * P4Runtime spec §15: each role has its own independent primary election.
    */
   private suspend fun handleArbitration(
     streamId: Any,
     arbitration: MasterArbitrationUpdate,
     notifications: SendChannel<StreamMessageResponse>,
   ): StreamMessageResponse {
-    // P4Runtime spec §15: role-based access control. We only support the default role.
-    val role = arbitration.role
-    if (role.name.isNotEmpty() || role.hasConfig()) {
-      throw Status.UNIMPLEMENTED.withDescription(ROLE_NOT_SUPPORTED).asException()
+    // P4Runtime spec §15: Role.config is target-specific policy we don't support.
+    if (arbitration.role.hasConfig()) {
+      throw Status.UNIMPLEMENTED.withDescription(ROLE_CONFIG_NOT_SUPPORTED).asException()
     }
+    val roleName = arbitration.role.name // empty = default role
     val incomingId = arbitration.electionId
 
     return arbitrationMutex.withLock {
-      val oldPrimaryId = primaryElectionId
-      controllers[streamId] = ControllerStream(incomingId, notifications)
-      arbitrationOccurred = true
+      // If this controller was previously arbitrating under a different role, recompute
+      // the old role's primary before overwriting the entry.
+      val previousEntry = controllers[streamId]
+      if (previousEntry != null && previousEntry.roleName != roleName) {
+        recomputeRolePrimary(previousEntry.roleName, excludeStreamId = streamId)
+      }
 
-      val newPrimaryId = computePrimary()
-      if (newPrimaryId != null) primaryElectionId = newPrimaryId
+      val election = roleElections.getOrPut(roleName) { RoleElection() }
+      val oldPrimaryId = election.primaryElectionId
+      controllers[streamId] = ControllerStream(roleName, incomingId, notifications)
 
-      // If primary changed, send demotion/promotion notifications to other streams.
+      val newPrimaryId = computePrimary(roleName)
+      roleElections[roleName] =
+        election.copy(arbitrationOccurred = true, primaryElectionId = newPrimaryId)
+
+      // If primary changed, send demotion/promotion notifications to other streams with this role.
       if (newPrimaryId != oldPrimaryId) {
-        notifyRoleChanges(streamId, oldPrimaryId, newPrimaryId)
+        notifyRoleChanges(roleName, streamId, oldPrimaryId, newPrimaryId)
       }
 
       val isPrimary =
         !isZeroElectionId(incomingId) && newPrimaryId != null && incomingId == newPrimaryId
-      buildArbitrationResponse(arbitration.deviceId, incomingId, isPrimary)
+      buildArbitrationResponse(arbitration.deviceId, incomingId, isPrimary, roleName)
     }
   }
 
   /** Handles stream disconnect: removes the controller and promotes the next primary if needed. */
   private suspend fun handleDisconnect(streamId: Any) {
     arbitrationMutex.withLock {
-      controllers.remove(streamId) ?: return
+      val removed = controllers.remove(streamId) ?: return
+      recomputeRolePrimary(removed.roleName)
+    }
+  }
 
-      val oldPrimaryId = primaryElectionId
-      val newPrimaryId = computePrimary()
-      if (newPrimaryId != null) primaryElectionId = newPrimaryId
+  /**
+   * Recomputes the primary for [roleName] after a controller leaves or changes role, sends
+   * promotion notifications, and cleans up empty role elections.
+   *
+   * When [excludeStreamId] is set, the controller is still in [controllers] but about to switch
+   * roles, so it is excluded from the primary computation for the old role.
+   */
+  private fun recomputeRolePrimary(roleName: String, excludeStreamId: Any? = null) {
+    val election = roleElections[roleName] ?: return
+    val oldPrimaryId = election.primaryElectionId
+    val newPrimaryId = computePrimary(roleName, excludeStreamId)
+    roleElections[roleName] = election.copy(primaryElectionId = newPrimaryId)
 
-      // If the disconnected controller was primary, notify the promoted controller.
-      if (oldPrimaryId != null && newPrimaryId != oldPrimaryId && newPrimaryId != null) {
-        for ((_, ctrl) in controllers) {
-          if (ctrl.electionId == newPrimaryId) {
-            ctrl.notifications.trySend(buildArbitrationResponse(deviceId, ctrl.electionId, true))
-          }
+    // If the primary changed, notify the promoted controller.
+    if (oldPrimaryId != null && newPrimaryId != oldPrimaryId && newPrimaryId != null) {
+      for ((id, ctrl) in controllers) {
+        if (id != excludeStreamId && ctrl.roleName == roleName && ctrl.electionId == newPrimaryId) {
+          ctrl.notifications.trySend(
+            buildArbitrationResponse(deviceId, ctrl.electionId, true, roleName)
+          )
         }
       }
     }
   }
 
-  /** Returns the highest non-zero election_id among active controllers, or null. */
-  private fun computePrimary(): Uint128? =
-    controllers.values
-      .map { it.electionId }
+  /** Returns the highest non-zero election_id among controllers with the given role, or null. */
+  private fun computePrimary(roleName: String, excludeStreamId: Any? = null): Uint128? =
+    controllers.entries
+      .filter { (id, ctrl) -> id != excludeStreamId && ctrl.roleName == roleName }
+      .map { it.value.electionId }
       .filter { !isZeroElectionId(it) }
       .maxWithOrNull(Comparator { a, b -> compareUint128(a, b) })
 
-  /** Sends demotion/promotion notifications to other streams when the primary changes. */
+  /** Sends demotion/promotion notifications to other streams with the same role. */
   private fun notifyRoleChanges(
+    roleName: String,
     excludeStreamId: Any,
     oldPrimaryId: Uint128?,
     newPrimaryId: Uint128?,
   ) {
     for ((id, ctrl) in controllers) {
-      if (id == excludeStreamId) continue
+      if (id == excludeStreamId || ctrl.roleName != roleName) continue
       val wasPrimary = oldPrimaryId != null && ctrl.electionId == oldPrimaryId
       val isNowPrimary = newPrimaryId != null && ctrl.electionId == newPrimaryId
       when {
         wasPrimary && !isNowPrimary ->
-          ctrl.notifications.trySend(buildArbitrationResponse(deviceId, ctrl.electionId, false))
+          ctrl.notifications.trySend(
+            buildArbitrationResponse(deviceId, ctrl.electionId, false, roleName)
+          )
         !wasPrimary && isNowPrimary ->
-          ctrl.notifications.trySend(buildArbitrationResponse(deviceId, ctrl.electionId, true))
+          ctrl.notifications.trySend(
+            buildArbitrationResponse(deviceId, ctrl.electionId, true, roleName)
+          )
       }
     }
   }
@@ -588,21 +648,24 @@ class P4RuntimeService(
     deviceId: Long,
     electionId: Uint128,
     isPrimary: Boolean,
-  ): StreamMessageResponse =
-    StreamMessageResponse.newBuilder()
-      .setArbitration(
-        MasterArbitrationUpdate.newBuilder()
-          .setDeviceId(deviceId)
-          .setElectionId(electionId)
-          .setStatus(
-            com.google.rpc.Status.newBuilder()
-              .setCode(
-                if (isPrimary) com.google.rpc.Code.OK_VALUE
-                else com.google.rpc.Code.ALREADY_EXISTS_VALUE
-              )
-          )
-      )
-      .build()
+    roleName: String = "",
+  ): StreamMessageResponse {
+    val arb =
+      MasterArbitrationUpdate.newBuilder()
+        .setDeviceId(deviceId)
+        .setElectionId(electionId)
+        .setStatus(
+          com.google.rpc.Status.newBuilder()
+            .setCode(
+              if (isPrimary) com.google.rpc.Code.OK_VALUE
+              else com.google.rpc.Code.ALREADY_EXISTS_VALUE
+            )
+        )
+    if (roleName.isNotEmpty()) {
+      arb.setRole(P4RuntimeOuterClass.Role.newBuilder().setName(roleName))
+    }
+    return StreamMessageResponse.newBuilder().setArbitration(arb).build()
+  }
 
   /** Rejects requests targeting a different device (P4Runtime spec §6.3). */
   private fun requireDeviceId(requestDeviceId: Long) {
@@ -617,6 +680,80 @@ class P4RuntimeService(
   // ---------------------------------------------------------------------------
   // Unsupported feature guards
   // ---------------------------------------------------------------------------
+
+  /**
+   * Checks that the controller's role grants access to the entity.
+   *
+   * Default-role controllers (empty `roleName`) have access to all entities. Named-role controllers
+   * can only access entities whose `@p4runtime_role` matches their role.
+   *
+   * Wildcard requests (entity ID = 0) are skipped here — results are filtered post-read by
+   * [filterByRole] instead.
+   */
+  private fun requireEntityAccess(
+    entity: P4RuntimeOuterClass.Entity,
+    roleMap: RoleMap,
+    roleName: String,
+  ) {
+    if (roleName.isEmpty()) return // default role = full access
+    val entityId =
+      entityIdForRole(entity) ?: return // unknown entity type — let later validation handle it
+    if (entityId == 0) return // wildcard — filtering happens post-read
+    val entityRole = roleMap.role(entityId)
+    if (entityRole != roleName) {
+      val entityDesc = entityRole ?: "default role"
+      throw Status.PERMISSION_DENIED.withDescription(
+          "role '$roleName' cannot access entity belonging to $entityDesc"
+        )
+        .asException()
+    }
+  }
+
+  /**
+   * Filters read results to only include entities the controller's role can access.
+   *
+   * Used for wildcard reads where the request entity doesn't specify a particular ID.
+   */
+  private fun filterByRole(
+    entities: List<P4RuntimeOuterClass.Entity>,
+    roleMap: RoleMap,
+    roleName: String,
+  ): List<P4RuntimeOuterClass.Entity> =
+    entities.filter { entity ->
+      val id = entityIdForRole(entity) ?: return@filter true // unscoped types (counters, etc.)
+      roleMap.role(id) == roleName
+    }
+
+  /**
+   * Extracts the p4info ID to use for role checking.
+   *
+   * For table entries and direct resources, this is the table ID (since `@p4runtime_role` is on
+   * tables). For action profiles, this is the action profile ID (which inherits its role from its
+   * associated tables in [RoleMap]). Returns null for entity types that don't have role annotations
+   * (standalone counters, meters, registers, PRE entries).
+   */
+  private fun entityIdForRole(entity: P4RuntimeOuterClass.Entity): Int? =
+    when (entity.entityCase) {
+      P4RuntimeOuterClass.Entity.EntityCase.TABLE_ENTRY -> entity.tableEntry.tableId
+      P4RuntimeOuterClass.Entity.EntityCase.ACTION_PROFILE_MEMBER ->
+        entity.actionProfileMember.actionProfileId
+      P4RuntimeOuterClass.Entity.EntityCase.ACTION_PROFILE_GROUP ->
+        entity.actionProfileGroup.actionProfileId
+      P4RuntimeOuterClass.Entity.EntityCase.DIRECT_COUNTER_ENTRY ->
+        entity.directCounterEntry.tableEntry.tableId
+      P4RuntimeOuterClass.Entity.EntityCase.DIRECT_METER_ENTRY ->
+        entity.directMeterEntry.tableEntry.tableId
+      // Standalone counters, meters, registers, PRE, and unimplemented types: no role annotations.
+      P4RuntimeOuterClass.Entity.EntityCase.COUNTER_ENTRY,
+      P4RuntimeOuterClass.Entity.EntityCase.METER_ENTRY,
+      P4RuntimeOuterClass.Entity.EntityCase.REGISTER_ENTRY,
+      P4RuntimeOuterClass.Entity.EntityCase.PACKET_REPLICATION_ENGINE_ENTRY,
+      P4RuntimeOuterClass.Entity.EntityCase.VALUE_SET_ENTRY,
+      P4RuntimeOuterClass.Entity.EntityCase.DIGEST_ENTRY,
+      P4RuntimeOuterClass.Entity.EntityCase.EXTERN_ENTRY,
+      P4RuntimeOuterClass.Entity.EntityCase.ENTITY_NOT_SET,
+      null -> null
+    }
 
   /** Rejects entity types that are documented but not implemented. */
   private fun rejectUnsupportedEntity(entity: P4RuntimeOuterClass.Entity) {
@@ -674,8 +811,8 @@ class P4RuntimeService(
     private const val DIGEST_NOT_SUPPORTED = "digest is not supported"
     private const val VALUE_SET_NOT_SUPPORTED = "ValueSetEntry is not supported"
     private const val EXTERN_ENTRY_NOT_SUPPORTED = "ExternEntry is not supported"
-    private const val ROLE_NOT_SUPPORTED =
-      "role-based access control is not supported; omit the role field or use the default role"
+    private const val ROLE_CONFIG_NOT_SUPPORTED =
+      "Role.config is not supported; use @p4runtime_role annotations in p4info instead"
 
     private const val OK_CODE = com.google.rpc.Code.OK_VALUE
 

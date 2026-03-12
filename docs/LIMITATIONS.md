@@ -35,11 +35,11 @@ guilt — just write it down so someone can find it later.
 
 ## P4Runtime server
 
-- **Basic multi-controller arbitration.** The highest `election_id` becomes
-  primary and may write; all controllers may read (P4Runtime spec §10).
-  Not implemented: demotion notifications to existing non-primary controllers
-  when a new primary is elected, and automatic promotion of the next-highest
-  controller when the primary disconnects.
+- **Full multi-controller arbitration with role-based access control.**
+  Per-role primary election, demotion/promotion notifications, automatic
+  promotion on disconnect, and `@p4runtime_role` enforcement for reads and
+  writes (P4Runtime spec §5, §15). `Role.config` (target-specific policy)
+  is rejected with UNIMPLEMENTED.
 - **`@p4runtime_translation`: fully integrated for action params, match fields,
   and PacketIO metadata.** The `TypeTranslator` supports `sdn_bitwidth` and
   `sdn_string` with explicit, auto-allocate, and hybrid mapping modes.
