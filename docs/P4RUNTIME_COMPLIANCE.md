@@ -16,9 +16,10 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 | 7.4 | Invalid p4_device_config bytes → INVALID_ARGUMENT | Y | ConformanceTest #37 |
 | 7.5 | Missing p4_device_config → INVALID_ARGUMENT | Y | ConformanceTest #38 |
 | 7.6 | Requires primary controller when arbitration is active | Y | ConformanceTest #66 |
-| 7.7 | VERIFY action validates without applying | N | |
+| 7.7 | VERIFY action validates without applying | Y | ConformanceTest #75 |
 | 7.8 | VERIFY_AND_COMMIT applies atomically | Y | ConformanceTest #1 |
-| 7.9 | VERIFY_AND_SAVE / COMMIT / RECONCILE_AND_COMMIT | N/A | Two-phase commit not meaningful for a reference simulator |
+| 7.9 | VERIFY_AND_SAVE + COMMIT two-phase pipeline load | Y | ConformanceTest #77-78 |
+| 7.9a | RECONCILE_AND_COMMIT rejected | Y | ConformanceTest #80 |
 | 7.10 | Cookie stored and returned | Y | ConformanceTest #59 |
 | 7.11 | Pipeline reload clears table entries | Y | ConformanceTest #58 |
 | 7.12 | Const table entries populated at load time | Y | ConformanceTest #65 |
@@ -116,9 +117,9 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 
 | # | Requirement | Status | Test |
 |---|-------------|--------|------|
-| 9.70 | ValueSetEntry | N/A | No parser value set support in simulator |
-| 9.71 | DigestEntry configuration | N/A | Digests out of scope (no real packet rates) |
-| 9.72 | ExternEntry | N/A | No standard v1model extern entities |
+| 9.70 | ValueSetEntry | Y | Rejected with UNIMPLEMENTED; ConformanceTest #81 |
+| 9.71 | DigestEntry configuration | Y | Rejected with UNIMPLEMENTED; ConformanceTest #83 |
+| 9.72 | ExternEntry | Y | Rejected with UNIMPLEMENTED; ConformanceTest #82 |
 
 ## Write RPC — atomicity (§12)
 
@@ -126,7 +127,7 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 |---|-------------|--------|------|
 | 9.80 | CONTINUE_ON_ERROR: process all updates, per-update errors | Y | WriteErrorTest |
 | 9.81 | ROLLBACK_ON_ERROR: undo on failure | Y | WriteErrorTest |
-| 9.82 | DATAPLANE_ATOMIC | N/A | Not meaningful for a reference simulator |
+| 9.82 | DATAPLANE_ATOMIC | Y | Handled as ROLLBACK_ON_ERROR; WriteErrorTest |
 | 9.83 | Per-update error reporting in WriteResponse | Y | WriteErrorTest |
 
 ## Write RPC — general (§12)
@@ -147,7 +148,7 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 | 10.5 | Demotion notification to displaced primary | Y | ConformanceTest #73 |
 | 10.6 | Automatic promotion on primary disconnect | Y | ConformanceTest #74 |
 | 10.7 | Zero election_id: backup semantics (cannot be primary) | Y | ConformanceTest #72 |
-| 10.8 | Role-based access control | N/A | Single default role sufficient for reference simulator |
+| 10.8 | Role-based access control | Y | Non-default role rejected with UNIMPLEMENTED; ConformanceTest #84 |
 
 ## Read RPC (§11)
 
@@ -193,7 +194,7 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 | 14.5 | Digest delivery | N/A | Out of scope — no real packet rates to trigger digests |
 | 14.6 | DigestListAck handling | N/A | Digests out of scope |
 | 14.7 | Idle timeout notifications | N/A | Out of scope — no wall-clock time in a reference simulator |
-| 14.8 | Architecture-specific `other` messages | N/A | No v1model stream extensions |
+| 14.8 | Architecture-specific `other` messages | Y | Rejected with StreamError; ConformanceTest #67 |
 
 ## @p4runtime_translation (§8.3)
 
@@ -230,22 +231,22 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 
 | Category | Tested | Not tested | N/A |
 |----------|--------|------------|-----|
-| SetForwardingPipelineConfig | 9 | 0 | 1 |
+| SetForwardingPipelineConfig | 12 | 0 | 0 |
 | General encoding | 7 | 0 | 0 |
 | Write — tables | 29 | 0 | 0 |
 | Write — profiles | 8 | 0 | 0 |
 | Write — registers | 5 | 0 | 0 |
 | Write — counters/meters | 4 | 0 | 0 |
 | Write — PRE | 6 | 0 | 0 |
-| Write — other entities | 0 | 0 | 3 |
-| Write — atomicity | 3 | 0 | 1 |
+| Write — other entities | 3 | 0 | 0 |
+| Write — atomicity | 4 | 0 | 0 |
 | Write — general | 2 | 0 | 0 |
-| Arbitration | 7 | 0 | 1 |
+| Arbitration | 8 | 0 | 0 |
 | Read | 11 | 0 | 0 |
 | GetForwardingPipelineConfig | 6 | 0 | 0 |
 | Capabilities | 1 | 0 | 0 |
-| StreamChannel | 4 | 0 | 4 |
+| StreamChannel | 5 | 0 | 3 |
 | Translation | 6 | 0 | 0 |
 | @refers_to | 6 | 0 | 0 |
 | p4-constraints | 4 | 0 | 0 |
-| **Total** | **118** | **0** | **10** |
+| **Total** | **127** | **0** | **3** |
