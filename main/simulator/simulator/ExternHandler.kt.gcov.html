@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-12 17:31:16</td>
+            <td class="headerValue">2026-03-12 17:35:58</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -102,49 +102,52 @@
 <span id="L40"><span class="lineNum">      40</span>              :    */</span>
 <span id="L41"><span class="lineNum">      41</span>              :   fun returnType(): Type</span>
 <span id="L42"><span class="lineNum">      42</span>              : </span>
-<span id="L43"><span class="lineNum">      43</span>              :   /** Evaluates argument [index] and returns its runtime value. */</span>
-<span id="L44"><span class="lineNum">      44</span>              :   fun evalArg(index: Int): Value</span>
+<span id="L43"><span class="lineNum">      43</span>              :   /** Returns the number of arguments passed to this extern call. */</span>
+<span id="L44"><span class="lineNum">      44</span>              :   fun argCount(): Int</span>
 <span id="L45"><span class="lineNum">      45</span>              : </span>
-<span id="L46"><span class="lineNum">      46</span>              :   /** Returns the IR type of argument [index]. */</span>
-<span id="L47"><span class="lineNum">      47</span>              :   fun argType(index: Int): Type</span>
+<span id="L46"><span class="lineNum">      46</span>              :   /** Evaluates argument [index] and returns its runtime value. */</span>
+<span id="L47"><span class="lineNum">      47</span>              :   fun evalArg(index: Int): Value</span>
 <span id="L48"><span class="lineNum">      48</span>              : </span>
-<span id="L49"><span class="lineNum">      49</span>              :   /** Writes [value] back to the lvalue at argument [index] (for out/inout params). */</span>
-<span id="L50"><span class="lineNum">      50</span>              :   fun writeOutArg(index: Int, value: Value)</span>
+<span id="L49"><span class="lineNum">      49</span>              :   /** Returns the IR type of argument [index]. */</span>
+<span id="L50"><span class="lineNum">      50</span>              :   fun argType(index: Int): Type</span>
 <span id="L51"><span class="lineNum">      51</span>              : </span>
-<span id="L52"><span class="lineNum">      52</span>              :   /** Returns the zero/default value for [type] (e.g. for uninitialized register reads). */</span>
-<span id="L53"><span class="lineNum">      53</span>              :   fun defaultValue(type: Type): Value</span>
+<span id="L52"><span class="lineNum">      52</span>              :   /** Writes [value] back to the lvalue at argument [index] (for out/inout params). */</span>
+<span id="L53"><span class="lineNum">      53</span>              :   fun writeOutArg(index: Int, value: Value)</span>
 <span id="L54"><span class="lineNum">      54</span>              : </span>
-<span id="L55"><span class="lineNum">      55</span>              :   /**</span>
-<span id="L56"><span class="lineNum">      56</span>              :    * Builds a [TraceEvent.Builder] pre-populated with the current statement's source info.</span>
-<span id="L57"><span class="lineNum">      57</span>              :    *</span>
-<span id="L58"><span class="lineNum">      58</span>              :    * Extern handlers should use this instead of constructing [TraceEvent.newBuilder] directly, so</span>
-<span id="L59"><span class="lineNum">      59</span>              :    * that trace events carry accurate source location information.</span>
-<span id="L60"><span class="lineNum">      60</span>              :    */</span>
-<span id="L61"><span class="lineNum">      61</span>              :   fun traceEventBuilder(): TraceEvent.Builder</span>
-<span id="L62"><span class="lineNum">      62</span>              : </span>
-<span id="L63"><span class="lineNum">      63</span>              :   /** Appends a trace event to the current packet's trace. */</span>
-<span id="L64"><span class="lineNum">      64</span>              :   fun addTraceEvent(event: TraceEvent)</span>
+<span id="L55"><span class="lineNum">      55</span>              :   /** Returns the zero/default value for [type] (e.g. for uninitialized register reads). */</span>
+<span id="L56"><span class="lineNum">      56</span>              :   fun defaultValue(type: Type): Value</span>
+<span id="L57"><span class="lineNum">      57</span>              : </span>
+<span id="L58"><span class="lineNum">      58</span>              :   /**</span>
+<span id="L59"><span class="lineNum">      59</span>              :    * Builds a [TraceEvent.Builder] pre-populated with the current statement's source info.</span>
+<span id="L60"><span class="lineNum">      60</span>              :    *</span>
+<span id="L61"><span class="lineNum">      61</span>              :    * Extern handlers should use this instead of constructing [TraceEvent.newBuilder] directly, so</span>
+<span id="L62"><span class="lineNum">      62</span>              :    * that trace events carry accurate source location information.</span>
+<span id="L63"><span class="lineNum">      63</span>              :    */</span>
+<span id="L64"><span class="lineNum">      64</span>              :   fun traceEventBuilder(): TraceEvent.Builder</span>
 <span id="L65"><span class="lineNum">      65</span>              : </span>
-<span id="L66"><span class="lineNum">      66</span>              :   /** Peeks at remaining unparsed input bytes (for `_with_payload` checksum variants). */</span>
-<span id="L67"><span class="lineNum">      67</span>              :   fun peekRemainingInput(): ByteArray</span>
-<span id="L68"><span class="lineNum">      68</span>              : }</span>
-<span id="L69"><span class="lineNum">      69</span>              : </span>
-<span id="L70"><span class="lineNum">      70</span>              : /**</span>
-<span id="L71"><span class="lineNum">      71</span>              :  * Architecture-provided handler for extern functions and extern object methods.</span>
-<span id="L72"><span class="lineNum">      72</span>              :  *</span>
-<span id="L73"><span class="lineNum">      73</span>              :  * The interpreter delegates all extern calls — free functions (e.g. `mark_to_drop`) and object</span>
-<span id="L74"><span class="lineNum">      74</span>              :  * methods (e.g. `register.read`) — to a single [handle] method. Each P4 architecture provides its</span>
-<span id="L75"><span class="lineNum">      75</span>              :  * own implementation covering its extern library.</span>
-<span id="L76"><span class="lineNum">      76</span>              :  */</span>
-<span id="L77"><span class="lineNum">      77</span>              : fun interface ExternHandler {</span>
-<span id="L78"><span class="lineNum">      78</span>              :   /**</span>
-<span id="L79"><span class="lineNum">      79</span>              :    * Executes the extern described by [call] using [eval] to access arguments.</span>
-<span id="L80"><span class="lineNum">      80</span>              :    *</span>
-<span id="L81"><span class="lineNum">      81</span>              :    * @return the call's result value ([UnitVal] for void externs).</span>
-<span id="L82"><span class="lineNum">      82</span>              :    * @throws IllegalStateException for unrecognised externs.</span>
-<span id="L83"><span class="lineNum">      83</span>              :    */</span>
-<span id="L84"><span class="lineNum">      84</span>              :   fun handle(call: ExternCall, eval: ExternEvaluator): Value</span>
-<span id="L85"><span class="lineNum">      85</span>              : }</span>
+<span id="L66"><span class="lineNum">      66</span>              :   /** Appends a trace event to the current packet's trace. */</span>
+<span id="L67"><span class="lineNum">      67</span>              :   fun addTraceEvent(event: TraceEvent)</span>
+<span id="L68"><span class="lineNum">      68</span>              : </span>
+<span id="L69"><span class="lineNum">      69</span>              :   /** Peeks at remaining unparsed input bytes (for `_with_payload` checksum variants). */</span>
+<span id="L70"><span class="lineNum">      70</span>              :   fun peekRemainingInput(): ByteArray</span>
+<span id="L71"><span class="lineNum">      71</span>              : }</span>
+<span id="L72"><span class="lineNum">      72</span>              : </span>
+<span id="L73"><span class="lineNum">      73</span>              : /**</span>
+<span id="L74"><span class="lineNum">      74</span>              :  * Architecture-provided handler for extern functions and extern object methods.</span>
+<span id="L75"><span class="lineNum">      75</span>              :  *</span>
+<span id="L76"><span class="lineNum">      76</span>              :  * The interpreter delegates all extern calls — free functions (e.g. `mark_to_drop`) and object</span>
+<span id="L77"><span class="lineNum">      77</span>              :  * methods (e.g. `register.read`) — to a single [handle] method. Each P4 architecture provides its</span>
+<span id="L78"><span class="lineNum">      78</span>              :  * own implementation covering its extern library.</span>
+<span id="L79"><span class="lineNum">      79</span>              :  */</span>
+<span id="L80"><span class="lineNum">      80</span>              : fun interface ExternHandler {</span>
+<span id="L81"><span class="lineNum">      81</span>              :   /**</span>
+<span id="L82"><span class="lineNum">      82</span>              :    * Executes the extern described by [call] using [eval] to access arguments.</span>
+<span id="L83"><span class="lineNum">      83</span>              :    *</span>
+<span id="L84"><span class="lineNum">      84</span>              :    * @return the call's result value ([UnitVal] for void externs).</span>
+<span id="L85"><span class="lineNum">      85</span>              :    * @throws IllegalStateException for unrecognised externs.</span>
+<span id="L86"><span class="lineNum">      86</span>              :    */</span>
+<span id="L87"><span class="lineNum">      87</span>              :   fun handle(call: ExternCall, eval: ExternEvaluator): Value</span>
+<span id="L88"><span class="lineNum">      88</span>              : }</span>
         </pre>
               </td>
             </tr>
