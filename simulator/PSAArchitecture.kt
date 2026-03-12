@@ -5,6 +5,9 @@ import fourward.ir.v1.PipelineStage
 import fourward.ir.v1.TypeDecl
 import fourward.sim.v1.SimulatorProto.Drop
 import fourward.sim.v1.SimulatorProto.DropReason
+import fourward.sim.v1.SimulatorProto.Fork
+import fourward.sim.v1.SimulatorProto.ForkBranch
+import fourward.sim.v1.SimulatorProto.ForkReason
 import fourward.sim.v1.SimulatorProto.PacketIngressEvent
 import fourward.sim.v1.SimulatorProto.PacketOutcome
 import fourward.sim.v1.SimulatorProto.PipelineStageEvent
@@ -41,70 +44,183 @@ class PSAArchitecture : Architecture {
   ): PipelineResult {
     val typesByName = config.typesList.associateBy { it.name }
     val stages = config.architecture.stagesList
-
-    // Build a lookup from block name → params for per-stage parameter binding.
     val blockParams = buildBlockParamsMap(config)
 
     // === Ingress pipeline ===
-    val ingressCtx = PacketContext(payload)
-    val ingressEnv = Environment()
-    val ingressValues = createDefaultValues(config, typesByName)
+    val ingress =
+      runIngressPipeline(config, tableStore, stages, blockParams, typesByName, payload, ingressPort)
+    if (ingress.dropped) return buildDropResult(ingress.events)
 
-    initIngressMetadata(ingressValues, ingressPort)
-    val ingressOutput = ingressValues["psa_ingress_output_metadata_t"] as? StructVal
+    // === Traffic Manager: multicast vs. unicast ===
+    val egressState =
+      EgressState(config, typesByName, stages, blockParams, tableStore, ingress.output)
+    val multicastGroup =
+      (ingress.output?.fields?.get("multicast_group") as? BitVal)?.bits?.value?.toInt() ?: 0
 
-    val ingressInterpreter =
-      Interpreter(config, tableStore, ingressCtx, emptyMap(), createPsaExternHandler(tableStore))
+    if (multicastGroup != 0) {
+      return multicastFork(egressState, ingress, multicastGroup)
+    }
 
-    ingressCtx.addTraceEvent(packetIngressEvent(ingressPort))
+    val egressPort =
+      (ingress.output?.fields?.get("egress_port") as? BitVal)?.bits?.value?.toInt() ?: 0
+
+    // === Unicast egress ===
+    val egressTrace =
+      runEgressPipeline(egressState, ingress.deparsedBytes, egressPort, 0, "NORMAL_UNICAST")
+
+    // Flatten ingress + egress events into a single trace.
+    val tree =
+      TraceTree.newBuilder().addAllEvents(ingress.events).addAllEvents(egressTrace.eventsList)
+    if (egressTrace.hasPacketOutcome()) tree.setPacketOutcome(egressTrace.packetOutcome)
+    return PipelineResult(tree.build())
+  }
+
+  // ---------------------------------------------------------------------------
+  // Ingress pipeline
+  // ---------------------------------------------------------------------------
+
+  /** Result of running the ingress pipeline (parser → control → drop check → deparser). */
+  private class IngressResult(
+    val events: List<TraceEvent>,
+    val output: StructVal?,
+    val deparsedBytes: ByteArray,
+    val dropped: Boolean,
+  )
+
+  private fun runIngressPipeline(
+    config: BehavioralConfig,
+    tableStore: TableStore,
+    stages: List<PipelineStage>,
+    blockParams: Map<String, List<BlockParam>>,
+    typesByName: Map<String, TypeDecl>,
+    payload: ByteArray,
+    ingressPort: UInt,
+  ): IngressResult {
+    val ctx = PacketContext(payload)
+    val env = Environment()
+    val values = createDefaultValues(config, typesByName)
+
+    initIngressMetadata(values, ingressPort)
+    val output = values["psa_ingress_output_metadata_t"] as? StructVal
+
+    val interpreter =
+      Interpreter(config, tableStore, ctx, emptyMap(), createPsaExternHandler(tableStore))
+
+    ctx.addTraceEvent(packetIngressEvent(ingressPort))
 
     // --- Ingress Parser ---
-    val ingressParserStage = stages.first { it.name == "ingress_parser" }
-    bindStageParams(ingressEnv, ingressParserStage.blockName, blockParams, ingressValues)
-    runParserStage(ingressInterpreter, ingressCtx, ingressEnv, ingressParserStage) { e ->
-      (ingressValues["psa_ingress_input_metadata_t"] as? StructVal)?.let {
+    val parserStage = stages.first { it.name == "ingress_parser" }
+    bindStageParams(env, parserStage.blockName, blockParams, values)
+    runParserStage(interpreter, ctx, env, parserStage) { e ->
+      (values["psa_ingress_input_metadata_t"] as? StructVal)?.let {
         it.fields["parser_error"] = ErrorVal(e.errorName)
       }
     }
 
     // --- Ingress Control ---
-    val ingressStage = stages.first { it.name == "ingress" }
-    bindStageParams(ingressEnv, ingressStage.blockName, blockParams, ingressValues)
-    runControlStage(ingressInterpreter, ingressCtx, ingressEnv, ingressStage)
+    val controlStage = stages.first { it.name == "ingress" }
+    bindStageParams(env, controlStage.blockName, blockParams, values)
+    runControlStage(interpreter, ctx, env, controlStage)
 
     // --- Ingress drop check (PSA: drop=true by default) ---
-    if ((ingressOutput?.fields?.get("drop") as? BoolVal)?.value != false) {
-      return buildDropResult(ingressCtx.getEvents())
+    val dropped = (output?.fields?.get("drop") as? BoolVal)?.value != false
+    if (dropped) {
+      return IngressResult(ctx.getEvents(), output, byteArrayOf(), dropped = true)
     }
 
-    val egressPort =
-      (ingressOutput?.fields?.get("egress_port") as? BitVal)?.bits?.value?.toInt() ?: 0
-
     // --- Ingress Deparser ---
-    val ingressDeparserStage = stages.first { it.name == "ingress_deparser" }
-    bindStageParams(ingressEnv, ingressDeparserStage.blockName, blockParams, ingressValues)
-    runControlStage(ingressInterpreter, ingressCtx, ingressEnv, ingressDeparserStage)
+    val deparserStage = stages.first { it.name == "ingress_deparser" }
+    bindStageParams(env, deparserStage.blockName, blockParams, values)
+    runControlStage(interpreter, ctx, env, deparserStage)
 
-    val deparsedBytes = ingressCtx.outputPayload() + ingressCtx.drainRemainingInput()
-    val ingressEvents = ingressCtx.getEvents()
+    val deparsedBytes = ctx.outputPayload() + ctx.drainRemainingInput()
+    return IngressResult(ctx.getEvents(), output, deparsedBytes, dropped = false)
+  }
 
-    // === Egress pipeline (re-parses the deparsed packet) ===
+  // ---------------------------------------------------------------------------
+  // Traffic Manager: multicast
+  // ---------------------------------------------------------------------------
+
+  private fun multicastFork(
+    egressState: EgressState,
+    ingress: IngressResult,
+    multicastGroup: Int,
+  ): PipelineResult {
+    val group =
+      egressState.tableStore.getMulticastGroup(multicastGroup)
+        ?: // BMv2 psa_switch: unknown multicast group → silently drop.
+        return buildDropResult(ingress.events)
+
+    val branches =
+      group.replicasList.map { replica ->
+        val subtree =
+          runEgressPipeline(
+            egressState,
+            ingress.deparsedBytes,
+            replica.egressPort,
+            replica.instance,
+            "NORMAL_MULTICAST",
+          )
+        ForkBranch.newBuilder()
+          .setLabel("replica_${replica.instance}_port_${replica.egressPort}")
+          .setSubtree(subtree)
+          .build()
+      }
+    val tree =
+      TraceTree.newBuilder()
+        .addAllEvents(ingress.events)
+        .setForkOutcome(Fork.newBuilder().setReason(ForkReason.MULTICAST).addAllBranches(branches))
+        .build()
+    return PipelineResult(tree)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Egress pipeline (runs once per unicast, once per multicast replica)
+  // ---------------------------------------------------------------------------
+
+  /** Shared state needed to run the egress pipeline. Avoids long parameter lists. */
+  private class EgressState(
+    val config: BehavioralConfig,
+    val typesByName: Map<String, TypeDecl>,
+    val stages: List<PipelineStage>,
+    val blockParams: Map<String, List<BlockParam>>,
+    val tableStore: TableStore,
+    val ingressOutput: StructVal?,
+  )
+
+  /**
+   * Runs the full egress pipeline (parser → control → deparser) and returns its TraceTree.
+   *
+   * For multicast, this is called once per replica. For unicast, called once. The returned trace
+   * contains only egress events — the caller composes the full trace (unicast: flat merge,
+   * multicast: fork branches).
+   */
+  private fun runEgressPipeline(
+    state: EgressState,
+    deparsedBytes: ByteArray,
+    egressPort: Int,
+    instance: Int,
+    packetPath: String,
+  ): TraceTree {
     val egressCtx = PacketContext(deparsedBytes)
     val egressEnv = Environment()
-    val egressValues = createDefaultValues(config, typesByName)
+    val egressValues = createDefaultValues(state.config, state.typesByName)
 
-    initEgressMetadata(egressValues, egressPort, ingressOutput)
+    initEgressMetadata(egressValues, egressPort, instance, packetPath, state.ingressOutput)
     val egressOutput = egressValues["psa_egress_output_metadata_t"] as? StructVal
 
     val egressInterpreter =
-      Interpreter(config, tableStore, egressCtx, emptyMap(), createPsaExternHandler(tableStore))
-
-    // Carry ingress trace events into the egress context.
-    for (event in ingressEvents) egressCtx.addTraceEvent(event)
+      Interpreter(
+        state.config,
+        state.tableStore,
+        egressCtx,
+        emptyMap(),
+        createPsaExternHandler(state.tableStore),
+      )
 
     // --- Egress Parser ---
-    val egressParserStage = stages.first { it.name == "egress_parser" }
-    bindStageParams(egressEnv, egressParserStage.blockName, blockParams, egressValues)
+    val egressParserStage = state.stages.first { it.name == "egress_parser" }
+    bindStageParams(egressEnv, egressParserStage.blockName, state.blockParams, egressValues)
     runParserStage(egressInterpreter, egressCtx, egressEnv, egressParserStage) { e ->
       (egressValues["psa_egress_input_metadata_t"] as? StructVal)?.let {
         it.fields["parser_error"] = ErrorVal(e.errorName)
@@ -112,22 +228,22 @@ class PSAArchitecture : Architecture {
     }
 
     // --- Egress Control ---
-    val egressStage = stages.first { it.name == "egress" }
-    bindStageParams(egressEnv, egressStage.blockName, blockParams, egressValues)
+    val egressStage = state.stages.first { it.name == "egress" }
+    bindStageParams(egressEnv, egressStage.blockName, state.blockParams, egressValues)
     runControlStage(egressInterpreter, egressCtx, egressEnv, egressStage)
 
     // --- Egress drop check (PSA: egress does NOT drop by default) ---
     if ((egressOutput?.fields?.get("drop") as? BoolVal)?.value == true) {
-      return buildDropResult(egressCtx.getEvents())
+      return buildDropTrace(egressCtx.getEvents())
     }
 
     // --- Egress Deparser ---
-    val egressDeparserStage = stages.first { it.name == "egress_deparser" }
-    bindStageParams(egressEnv, egressDeparserStage.blockName, blockParams, egressValues)
+    val egressDeparserStage = state.stages.first { it.name == "egress_deparser" }
+    bindStageParams(egressEnv, egressDeparserStage.blockName, state.blockParams, egressValues)
     runControlStage(egressInterpreter, egressCtx, egressEnv, egressDeparserStage)
 
     val outputBytes = egressCtx.outputPayload() + egressCtx.drainRemainingInput()
-    return buildOutputResult(egressCtx.getEvents(), egressPort, outputBytes)
+    return buildOutputTrace(egressCtx.getEvents(), egressPort, outputBytes)
   }
 
   // ---------------------------------------------------------------------------
@@ -153,18 +269,23 @@ class PSAArchitecture : Architecture {
   private fun initEgressMetadata(
     values: Map<String, Value>,
     egressPort: Int,
+    instance: Int,
+    packetPath: String,
     ingressOutput: StructVal?,
   ) {
     val cos =
       (ingressOutput?.fields?.get("class_of_service") as? BitVal)?.bits?.value?.toLong() ?: 0
     (values["psa_egress_parser_input_metadata_t"] as? StructVal)?.let {
       it.setBitField("egress_port", egressPort.toLong())
-      it.fields["packet_path"] = EnumVal("NORMAL_UNICAST")
+      it.fields["packet_path"] = EnumVal(packetPath)
     }
     (values["psa_egress_input_metadata_t"] as? StructVal)?.let {
       it.setBitField("class_of_service", cos)
       it.setBitField("egress_port", egressPort.toLong())
-      it.fields["packet_path"] = EnumVal("NORMAL_UNICAST")
+      it.fields["packet_path"] = EnumVal(packetPath)
+      // PSA spec §6.5: instance identifies the replica within a multicast group.
+      // Only set if the program declares the field (not all PSA programs use it).
+      if (it.fields.containsKey("instance")) it.setBitField("instance", instance.toLong())
       it.fields["parser_error"] = ErrorVal("NoError")
     }
     // PSA spec: egress output metadata defaults to drop=false.
@@ -289,12 +410,7 @@ class PSAArchitecture : Architecture {
   // PSA extern handler
   // ---------------------------------------------------------------------------
 
-  /**
-   * Creates a minimal PSA extern handler.
-   *
-   * Currently handles `send_to_port` (sets egress_port and drop=false on the ingress output
-   * metadata). Additional PSA externs will be added as tests require them.
-   */
+  /** PSA extern handler: `send_to_port`, `multicast`, `ingress_drop`/`egress_drop`, registers. */
   private fun createPsaExternHandler(tableStore: TableStore): ExternHandler =
     ExternHandler { call, eval ->
       when (call) {
@@ -307,6 +423,15 @@ class PSAArchitecture : Architecture {
               val port = eval.evalArg(1) as BitVal
               ostd.fields["drop"] = BoolVal(false)
               ostd.fields["egress_port"] = port
+              UnitVal
+            }
+            // multicast(inout ostd, in MulticastGroup_t group)
+            // PSA spec §6.2: marks the packet for multicast replication.
+            "multicast" -> {
+              val ostd = eval.evalArg(0) as StructVal
+              val group = eval.evalArg(1) as BitVal
+              ostd.fields["drop"] = BoolVal(false)
+              ostd.fields["multicast_group"] = group
               UnitVal
             }
             "ingress_drop",
@@ -344,30 +469,25 @@ class PSAArchitecture : Architecture {
   // Trace helpers
   // ---------------------------------------------------------------------------
 
-  private fun buildDropResult(events: List<TraceEvent>): PipelineResult {
+  private fun buildDropResult(events: List<TraceEvent>): PipelineResult =
+    PipelineResult(buildDropTrace(events))
+
+  private fun buildDropTrace(events: List<TraceEvent>): TraceTree {
     val outcome =
       PacketOutcome.newBuilder()
         .setDrop(Drop.newBuilder().setReason(DropReason.MARK_TO_DROP))
         .build()
-    return PipelineResult(
-      TraceTree.newBuilder().addAllEvents(events).setPacketOutcome(outcome).build()
-    )
+    return TraceTree.newBuilder().addAllEvents(events).setPacketOutcome(outcome).build()
   }
 
-  private fun buildOutputResult(
-    events: List<TraceEvent>,
-    port: Int,
-    payload: ByteArray,
-  ): PipelineResult {
+  private fun buildOutputTrace(events: List<TraceEvent>, port: Int, payload: ByteArray): TraceTree {
     val output =
       fourward.sim.v1.SimulatorProto.OutputPacket.newBuilder()
         .setEgressPort(port)
         .setPayload(com.google.protobuf.ByteString.copyFrom(payload))
         .build()
     val outcome = PacketOutcome.newBuilder().setOutput(output).build()
-    return PipelineResult(
-      TraceTree.newBuilder().addAllEvents(events).setPacketOutcome(outcome).build()
-    )
+    return TraceTree.newBuilder().addAllEvents(events).setPacketOutcome(outcome).build()
   }
 
   private fun packetIngressEvent(ingressPort: UInt): TraceEvent =

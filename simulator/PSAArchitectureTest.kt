@@ -20,10 +20,12 @@ import fourward.ir.v1.Transition
 import fourward.ir.v1.Type
 import fourward.ir.v1.TypeDecl
 import fourward.sim.v1.SimulatorProto.DropReason
+import fourward.sim.v1.SimulatorProto.ForkReason
 import fourward.sim.v1.SimulatorProto.PipelineStageEvent.Direction
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import p4.v1.P4RuntimeOuterClass
 
 /**
  * Unit tests for [PSAArchitecture].
@@ -194,10 +196,10 @@ class PSAArchitectureTest {
       )
       .build()
 
-  private fun noopControl(name: String, vararg paramPairs: Pair<String, String>): ControlDecl =
+  private fun noopControl(name: String, params: List<Pair<String, String>>): ControlDecl =
     ControlDecl.newBuilder()
       .setName(name)
-      .addAllParams(paramPairs.map { (n, t) -> param(n, t) })
+      .addAllParams(params.map { (n, t) -> param(n, t) })
       .build()
 
   private fun control(
@@ -258,14 +260,44 @@ class PSAArchitectureTest {
       .addParsers(noopParser)
       .addParsers(egressParser)
       .addControls(control("Ingress", ingressParams, ingressStmts))
-      .addControls(noopControl("IngressDeparser", *ingressDeparserParams.toTypedArray()))
+      .addControls(noopControl("IngressDeparser", ingressDeparserParams))
       .addControls(control("Egress", egressParams, egressStmts))
-      .addControls(noopControl("EgressDeparser", *egressDeparserParams.toTypedArray()))
+      .addControls(noopControl("EgressDeparser", egressDeparserParams))
       .build()
 
   /** send_to_port(ostd, port) — sets drop=false and egress_port on the output metadata. */
   private fun sendToPort(port: Long): Stmt =
     externCall("send_to_port", nameRef("ostd"), bit(port, 32))
+
+  /** multicast(ostd, group) — marks packet for multicast replication. */
+  private fun multicast(group: Long): Stmt =
+    externCall("multicast", nameRef("ostd"), bit(group, 32))
+
+  private fun writeMulticastGroup(store: TableStore, groupId: Int, replicas: List<Pair<Int, Int>>) {
+    store.write(
+      P4RuntimeOuterClass.Update.newBuilder()
+        .setType(P4RuntimeOuterClass.Update.Type.INSERT)
+        .setEntity(
+          P4RuntimeOuterClass.Entity.newBuilder()
+            .setPacketReplicationEngineEntry(
+              P4RuntimeOuterClass.PacketReplicationEngineEntry.newBuilder()
+                .setMulticastGroupEntry(
+                  P4RuntimeOuterClass.MulticastGroupEntry.newBuilder()
+                    .setMulticastGroupId(groupId)
+                    .addAllReplicas(
+                      replicas.map { (rid, port) ->
+                        P4RuntimeOuterClass.Replica.newBuilder()
+                          .setInstance(rid)
+                          .setEgressPort(port)
+                          .build()
+                      }
+                    )
+                )
+            )
+        )
+        .build()
+    )
+  }
 
   /** PSA register.read method call expression: reg.read(index). */
   private fun registerReadExpr(regName: String, index: Long, returnWidth: Int): Expr =
@@ -388,5 +420,51 @@ class PSAArchitectureTest {
     // Should not crash — the read returns a default zero value.
     val outputs = collectOutputsFromTrace(result.trace)
     assertEquals(1, outputs.size)
+  }
+
+  @Test
+  fun `multicast replicates packet to all group members`() {
+    val config = psaConfig(ingressStmts = listOf(multicast(1)))
+    val tableStore = TableStore()
+    writeMulticastGroup(tableStore, groupId = 1, replicas = listOf(0 to 5, 1 to 6, 2 to 7))
+
+    val payload = byteArrayOf(0xAA.toByte(), 0xBB.toByte())
+    val result = PSAArchitecture().processPacket(0u, payload, config, tableStore)
+    val outputs = collectOutputsFromTrace(result.trace)
+
+    assertEquals(3, outputs.size)
+    assertEquals(5, outputs[0].egressPort)
+    assertEquals(6, outputs[1].egressPort)
+    assertEquals(7, outputs[2].egressPort)
+    // All replicas carry the same payload.
+    for (output in outputs) {
+      assertEquals(ByteString.copyFrom(payload), output.payload)
+    }
+  }
+
+  @Test
+  fun `multicast trace has fork node with MULTICAST reason`() {
+    val config = psaConfig(ingressStmts = listOf(multicast(1)))
+    val tableStore = TableStore()
+    writeMulticastGroup(tableStore, groupId = 1, replicas = listOf(0 to 2, 1 to 3))
+
+    val result = PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, tableStore)
+
+    assertTrue(result.trace.hasForkOutcome())
+    assertEquals(ForkReason.MULTICAST, result.trace.forkOutcome.reason)
+    assertEquals(2, result.trace.forkOutcome.branchesCount)
+    assertEquals("replica_0_port_2", result.trace.forkOutcome.branchesList[0].label)
+    assertEquals("replica_1_port_3", result.trace.forkOutcome.branchesList[1].label)
+  }
+
+  @Test
+  fun `multicast with unknown group drops packet`() {
+    // multicast(group=99) but no group 99 is configured — should drop.
+    val config = psaConfig(ingressStmts = listOf(multicast(99)))
+    val result = PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+
+    assertTrue(result.trace.hasPacketOutcome())
+    assertTrue(result.trace.packetOutcome.hasDrop())
+    assertEquals(DropReason.MARK_TO_DROP, result.trace.packetOutcome.drop.reason)
   }
 }
