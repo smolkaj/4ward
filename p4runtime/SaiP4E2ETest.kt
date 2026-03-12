@@ -654,6 +654,468 @@ class SaiP4E2ETest {
   }
 
   // =========================================================================
+  // Translation coverage: remaining SAI P4 tables
+  //
+  // These round-trip tests verify that P4Runtime Write/Read with sdn_string
+  // translation works for every SAI P4 table, not just the 10 tables covered
+  // by the forwarding and referential-integrity tests above.
+  // =========================================================================
+
+  // --- IPv6 routing ---
+
+  @Test
+  @Suppress("MagicNumber")
+  fun `ipv6_table entry with translated vrf_id and nexthop_id round-trips`() {
+    harness.installEntry(buildVrfEntry("vrf-v6"))
+    harness.installEntry(buildRouterInterfaceEntry("rif-1", "Ethernet0"))
+    harness.installEntry(buildNeighborEntry("rif-1", NEIGHBOR_ID, NEIGHBOR_MAC))
+    harness.installEntry(buildNexthopEntry("nhop-v6", "rif-1"))
+
+    val table = findTable("ipv6_table")
+    val action = findAction("set_nexthop_id")
+    harness.installEntry(
+      buildEntry(
+        table,
+        action,
+        matches =
+          listOf(
+            exactMatch(table, "vrf_id", "vrf-v6"),
+            lpmMatch(table, "ipv6_dst", IPV6_2001_DB8, prefixLen = 32),
+          ),
+        params = listOf(stringParam(action, "nexthop_id", "nhop-v6")),
+      )
+    )
+
+    val entities = harness.readRegularTableEntries(table.preamble.id)
+    assertEquals("expected one ipv6_table entry", 1, entities.size)
+    val entry = entities[0].tableEntry
+    val vrfFieldId = matchFieldId(table, "vrf_id")
+    assertEquals(
+      "vrf-v6",
+      entry.matchList.find { it.fieldId == vrfFieldId }!!.exact.value.toStringUtf8(),
+    )
+    val nexthopParamId = paramId(action, "nexthop_id")
+    assertEquals(
+      "nhop-v6",
+      entry.action.action.paramsList.find { it.paramId == nexthopParamId }!!.value.toStringUtf8(),
+    )
+  }
+
+  @Test
+  @Suppress("MagicNumber")
+  fun `ipv6_multicast_table entry with translated vrf_id round-trips`() {
+    harness.installEntry(buildVrfEntry(""))
+    installMulticastGroup(groupId = 2, ports = listOf(0, 1))
+
+    val table = findTable("ipv6_multicast_table")
+    val action = findAction("set_multicast_group_id")
+    val ipv6Mcast = byteArrayOf(0xff.toByte(), 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1)
+    harness.installEntry(
+      buildEntry(
+        table,
+        action,
+        matches = listOf(exactMatch(table, "vrf_id", ""), exactMatch(table, "ipv6_dst", ipv6Mcast)),
+        params = listOf(bytesParam(action, "multicast_group_id", byteArrayOf(0, 2))),
+      )
+    )
+
+    val entities = harness.readRegularTableEntries(table.preamble.id)
+    assertEquals("expected one ipv6_multicast_table entry", 1, entities.size)
+    val vrfFieldId = matchFieldId(table, "vrf_id")
+    assertEquals(
+      "",
+      entities[0]
+        .tableEntry
+        .matchList
+        .find { it.fieldId == vrfFieldId }!!
+        .exact
+        .value
+        .toStringUtf8(),
+    )
+  }
+
+  // --- Tunneling ---
+
+  @Test
+  @Suppress("MagicNumber")
+  fun `tunnel_table entry with translated tunnel_id and router_interface_id round-trips`() {
+    harness.installEntry(buildRouterInterfaceEntry("rif-1", "Ethernet0"))
+    harness.installEntry(buildNeighborEntry("rif-1", NEIGHBOR_ID, NEIGHBOR_MAC))
+
+    val table = findTable("tunnel_table")
+    val action = findAction("mark_for_p2p_tunnel_encap")
+    harness.installEntry(
+      buildEntry(
+        table,
+        action,
+        matches = listOf(exactMatch(table, "tunnel_id", "tunnel-1")),
+        params =
+          listOf(
+            bytesParam(action, "encap_src_ip", IPV6_2001_DB8),
+            bytesParam(action, "encap_dst_ip", NEIGHBOR_ID),
+            stringParam(action, "router_interface_id", "rif-1"),
+          ),
+      )
+    )
+
+    val entities = harness.readRegularTableEntries(table.preamble.id)
+    assertEquals("expected one tunnel_table entry", 1, entities.size)
+    val entry = entities[0].tableEntry
+    assertEquals("tunnel-1", entry.matchList.first().exact.value.toStringUtf8())
+    val rifParamId = paramId(action, "router_interface_id")
+    assertEquals(
+      "rif-1",
+      entry.action.action.paramsList.find { it.paramId == rifParamId }!!.value.toStringUtf8(),
+    )
+  }
+
+  @Test
+  @Suppress("MagicNumber")
+  fun `ipv6_tunnel_termination_table entry with ternary IPv6 round-trips`() {
+    val table = findTable("ipv6_tunnel_termination_table")
+    val action = findAction("tunnel_decap")
+    val dstIpv6 = byteArrayOf(0x20, 0x01, 0x0d, 0xb8.toByte(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1)
+    val srcIpv6 = byteArrayOf(0x20, 0x01, 0x0d, 0xb8.toByte(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2)
+    val mask128 = ByteArray(16) { 0xff.toByte() }
+    harness.installEntry(
+      buildEntry(
+        table,
+        action,
+        matches =
+          listOf(
+            ternaryMatch(table, "dst_ipv6", dstIpv6, mask128),
+            ternaryMatch(table, "src_ipv6", srcIpv6, mask128),
+          ),
+        priority = 1,
+      )
+    )
+
+    val entities = harness.readRegularTableEntries(table.preamble.id)
+    assertEquals("expected one ipv6_tunnel_termination_table entry", 1, entities.size)
+  }
+
+  // --- VLAN ---
+
+  @Test
+  @Suppress("MagicNumber")
+  fun `vlan_table and vlan_membership_table with translated port_id round-trip`() {
+    val vlanTable = findTable("vlan_table")
+    val noAction = findAction("no_action")
+    harness.installEntry(
+      buildEntry(
+        vlanTable,
+        noAction,
+        matches = listOf(exactMatch(vlanTable, "vlan_id", byteArrayOf(0, 100))),
+      )
+    )
+
+    val memberTable = findTable("vlan_membership_table")
+    val taggedAction = findAction("make_tagged_member")
+    harness.installEntry(
+      buildEntry(
+        memberTable,
+        taggedAction,
+        matches =
+          listOf(
+            exactMatch(memberTable, "vlan_id", byteArrayOf(0, 100)),
+            exactMatch(memberTable, "port", "Ethernet0"),
+          ),
+      )
+    )
+
+    // port should round-trip as string (port_id_t is sdn_string).
+    val entities = harness.readRegularTableEntries(memberTable.preamble.id)
+    assertEquals("expected one vlan_membership_table entry", 1, entities.size)
+    val portFieldId = matchFieldId(memberTable, "port")
+    assertEquals(
+      "Ethernet0",
+      entities[0]
+        .tableEntry
+        .matchList
+        .find { it.fieldId == portFieldId }!!
+        .exact
+        .value
+        .toStringUtf8(),
+    )
+  }
+
+  @Test
+  fun `disable_ingress_vlan_checks_table accepts wildcard entry`() {
+    val table = findTable("disable_ingress_vlan_checks_table")
+    val action = findAction("disable_ingress_vlan_checks")
+    harness.installEntry(
+      buildEntry(
+        table,
+        action,
+        matches = listOf(lpmMatch(table, "dummy_match", byteArrayOf(0), prefixLen = 0)),
+      )
+    )
+
+    val entities = harness.readRegularTableEntries(table.preamble.id)
+    assertEquals("expected one disable_ingress_vlan_checks_table entry", 1, entities.size)
+  }
+
+  @Test
+  fun `disable_egress_vlan_checks_table accepts wildcard entry`() {
+    val table = findTable("disable_egress_vlan_checks_table")
+    val action = findAction("disable_egress_vlan_checks")
+    harness.installEntry(
+      buildEntry(
+        table,
+        action,
+        matches = listOf(lpmMatch(table, "dummy_match", byteArrayOf(0), prefixLen = 0)),
+      )
+    )
+
+    val entities = harness.readRegularTableEntries(table.preamble.id)
+    assertEquals("expected one disable_egress_vlan_checks_table entry", 1, entities.size)
+  }
+
+  // --- L3 admission ---
+
+  @Test
+  fun `l3_admit_table entry with ternary dst_mac and translated in_port round-trips`() {
+    val table = findTable("l3_admit_table")
+    val action = findAction("admit_to_l3")
+    harness.installEntry(
+      buildEntry(
+        table,
+        action,
+        matches =
+          listOf(
+            ternaryMatch(
+              table,
+              "dst_mac",
+              byteArrayOf(0x00, 0x00, 0x00, 0x00, 0x00, 0x00),
+              byteArrayOf(0x01, 0x00, 0x00, 0x00, 0x00, 0x00),
+            ),
+            optionalMatch(table, "in_port", "Ethernet0"),
+          ),
+        priority = 1,
+      )
+    )
+
+    val entities = harness.readRegularTableEntries(table.preamble.id)
+    assertEquals("expected one l3_admit_table entry", 1, entities.size)
+    val inPortId = matchFieldId(table, "in_port")
+    assertEquals(
+      "Ethernet0",
+      entities[0]
+        .tableEntry
+        .matchList
+        .find { it.fieldId == inPortId }!!
+        .optional
+        .value
+        .toStringUtf8(),
+    )
+  }
+
+  // --- Mirroring ---
+
+  @Test
+  @Suppress("MagicNumber")
+  fun `mirror_session_table entry with translated IDs round-trips`() {
+    val table = findTable("mirror_session_table")
+    val action = findAction("mirror_with_vlan_tag_and_ipfix_encapsulation")
+    harness.installEntry(
+      buildEntry(
+        table,
+        action,
+        matches = listOf(exactMatch(table, "mirror_session_id", "mirror-1")),
+        params =
+          listOf(
+            stringParam(action, "monitor_port", "Ethernet0"),
+            stringParam(action, "monitor_failover_port", "Ethernet1"),
+            bytesParam(
+              action,
+              "mirror_encap_src_mac",
+              byteArrayOf(0x00, 0x11, 0x22, 0x33, 0x44, 0x55),
+            ),
+            bytesParam(action, "mirror_encap_dst_mac", NEIGHBOR_MAC),
+            bytesParam(action, "mirror_encap_vlan_id", byteArrayOf(0, 100)),
+            bytesParam(action, "mirror_encap_src_ip", IPV6_2001_DB8),
+            bytesParam(action, "mirror_encap_dst_ip", NEIGHBOR_ID),
+            bytesParam(action, "mirror_encap_udp_src_port", byteArrayOf(0x13, 0x88.toByte())),
+            bytesParam(action, "mirror_encap_udp_dst_port", byteArrayOf(0x13, 0x89.toByte())),
+          ),
+      )
+    )
+
+    val entities = harness.readRegularTableEntries(table.preamble.id)
+    assertEquals("expected one mirror_session_table entry", 1, entities.size)
+    val entry = entities[0].tableEntry
+    assertEquals("mirror-1", entry.matchList.first().exact.value.toStringUtf8())
+    val portParamId = paramId(action, "monitor_port")
+    assertEquals(
+      "Ethernet0",
+      entry.action.action.paramsList.find { it.paramId == portParamId }!!.value.toStringUtf8(),
+    )
+  }
+
+  // --- Multicast rewrites ---
+
+  @Test
+  fun `multicast_router_interface_table entry with translated port round-trips`() {
+    val table = findTable("multicast_router_interface_table")
+    val action = findAction("set_multicast_src_mac")
+    harness.installEntry(
+      buildEntry(
+        table,
+        action,
+        matches =
+          listOf(
+            exactMatch(table, "multicast_replica_port", "Ethernet0"),
+            exactMatch(table, "multicast_replica_instance", byteArrayOf(0, 1)),
+          ),
+        params = listOf(bytesParam(action, "src_mac", RIF_MAC)),
+      )
+    )
+
+    val entities = harness.readRegularTableEntries(table.preamble.id)
+    assertEquals("expected one multicast_router_interface_table entry", 1, entities.size)
+    val portFieldId = matchFieldId(table, "multicast_replica_port")
+    assertEquals(
+      "Ethernet0",
+      entities[0]
+        .tableEntry
+        .matchList
+        .find { it.fieldId == portFieldId }!!
+        .exact
+        .value
+        .toStringUtf8(),
+    )
+  }
+
+  // --- ACL egress ---
+
+  @Test
+  fun `acl_egress_table entry with translated out_port round-trips`() {
+    val table = findTable("acl_egress_table")
+    val action = findAction("acl_drop")
+    harness.installEntry(
+      buildEntry(
+        table,
+        action,
+        matches =
+          listOf(
+            optionalMatch(table, "is_ip", byteArrayOf(1)),
+            optionalMatch(table, "out_port", "Ethernet0"),
+          ),
+        priority = 1,
+      )
+    )
+
+    val entities = harness.readRegularTableEntries(table.preamble.id)
+    assertEquals("expected one acl_egress_table entry", 1, entities.size)
+    val outPortId = matchFieldId(table, "out_port")
+    assertEquals(
+      "Ethernet0",
+      entities[0]
+        .tableEntry
+        .matchList
+        .find { it.fieldId == outPortId }!!
+        .optional
+        .value
+        .toStringUtf8(),
+    )
+  }
+
+  // --- ACL ingress variants ---
+
+  @Test
+  fun `acl_ingress_mirror_and_redirect_table with translated nexthop_id round-trips`() {
+    harness.installEntry(buildRouterInterfaceEntry("rif-1", "Ethernet0"))
+    harness.installEntry(buildNeighborEntry("rif-1", NEIGHBOR_ID, NEIGHBOR_MAC))
+    harness.installEntry(buildNexthopEntry("nhop-redirect", "rif-1"))
+
+    val table = findTable("acl_ingress_mirror_and_redirect_table")
+    val action = findAction("redirect_to_nexthop")
+    harness.installEntry(
+      buildEntry(
+        table,
+        action,
+        matches = listOf(optionalMatch(table, "is_ipv4", byteArrayOf(1))),
+        params = listOf(stringParam(action, "nexthop_id", "nhop-redirect")),
+        priority = 1,
+      )
+    )
+
+    val entities = harness.readRegularTableEntries(table.preamble.id)
+    assertEquals("expected one acl_ingress_mirror_and_redirect_table entry", 1, entities.size)
+    val nexthopParamId = paramId(action, "nexthop_id")
+    assertEquals(
+      "nhop-redirect",
+      entities[0]
+        .tableEntry
+        .action
+        .action
+        .paramsList
+        .find { it.paramId == nexthopParamId }!!
+        .value
+        .toStringUtf8(),
+    )
+  }
+
+  @Test
+  @Suppress("MagicNumber")
+  fun `acl_ingress_security_table entry round-trips`() {
+    val table = findTable("acl_ingress_security_table")
+    val action = findAction("acl_forward")
+    harness.installEntry(
+      buildEntry(
+        table,
+        action,
+        matches =
+          listOf(
+            optionalMatch(table, "is_ipv4", byteArrayOf(1)),
+            ternaryMatch(table, "src_ip", byteArrayOf(10, 0, 0, 0), byteArrayOf(-1, 0, 0, 0)),
+          ),
+        priority = 1,
+      )
+    )
+
+    val entities = harness.readRegularTableEntries(table.preamble.id)
+    assertEquals("expected one acl_ingress_security_table entry", 1, entities.size)
+  }
+
+  // --- Ingress cloning ---
+
+  @Test
+  @Suppress("MagicNumber")
+  fun `ingress_clone_table entry with translated mirror_egress_port round-trips`() {
+    val table = findTable("ingress_clone_table")
+    val action = findAction("ingress_clone")
+    harness.installEntry(
+      buildEntry(
+        table,
+        action,
+        matches =
+          listOf(
+            exactMatch(table, "marked_to_copy", byteArrayOf(1)),
+            exactMatch(table, "marked_to_mirror", byteArrayOf(0)),
+            optionalMatch(table, "mirror_egress_port", "Ethernet0"),
+          ),
+        params = listOf(bytesParam(action, "clone_session", byteArrayOf(0, 0, 0, 1))),
+        priority = 1,
+      )
+    )
+
+    val entities = harness.readRegularTableEntries(table.preamble.id)
+    assertEquals("expected one ingress_clone_table entry", 1, entities.size)
+    val mirrorPortId = matchFieldId(table, "mirror_egress_port")
+    assertEquals(
+      "Ethernet0",
+      entities[0]
+        .tableEntry
+        .matchList
+        .find { it.fieldId == mirrorPortId }!!
+        .optional
+        .value
+        .toStringUtf8(),
+    )
+  }
+
+  // =========================================================================
   // p4info lookup helpers — delegates to P4RuntimeTestHarness.Companion
   // =========================================================================
 
@@ -697,6 +1159,12 @@ class SaiP4E2ETest {
       .setOptional(FieldMatch.Optional.newBuilder().setValue(ByteString.copyFrom(value)))
       .build()
 
+  private fun optionalMatch(
+    table: P4InfoOuterClass.Table,
+    fieldName: String,
+    value: String,
+  ): FieldMatch = optionalMatch(table, fieldName, value.toByteArray(Charsets.UTF_8))
+
   private fun ternaryMatch(
     table: P4InfoOuterClass.Table,
     fieldName: String,
@@ -712,7 +1180,6 @@ class SaiP4E2ETest {
       )
       .build()
 
-  @Suppress("SameParameterValue")
   private fun lpmMatch(
     table: P4InfoOuterClass.Table,
     fieldName: String,
@@ -1003,5 +1470,10 @@ class SaiP4E2ETest {
     private val SRC_MAC = byteArrayOf(0x00, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E)
     private val SRC_IP = byteArrayOf(192.toByte(), 168.toByte(), 1, 1)
     private val DST_IP = byteArrayOf(10, 0, 0, 1)
+
+    // 2001:db8:: — used as IPv6 prefix in routing and tunnel tests.
+    @Suppress("MagicNumber")
+    private val IPV6_2001_DB8 =
+      byteArrayOf(0x20, 0x01, 0x0d, 0xb8.toByte(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
   }
 }
