@@ -77,6 +77,9 @@ class P4RuntimeService(
 
   @Volatile private var pipeline: PipelineState? = null
 
+  // Only accessed under lock; @Volatile not needed.
+  private var savedPipeline: PipelineState? = null
+
   // ---------------------------------------------------------------------------
   // Arbitration state (P4Runtime spec §5)
   // ---------------------------------------------------------------------------
@@ -110,53 +113,94 @@ class P4RuntimeService(
     lock.withLock {
       requireDeviceId(request.deviceId)
       requirePrimaryOrNoArbitration(request.electionId)
-      val fwdConfig = request.config
-      if (!fwdConfig.hasP4Info() || fwdConfig.p4DeviceConfig.isEmpty) {
-        throw Status.INVALID_ARGUMENT.withDescription(
-            "ForwardingPipelineConfig must include p4info and p4_device_config"
-          )
-          .asException()
-      }
-
-      val deviceConfig =
-        try {
-          DeviceConfig.parseFrom(fwdConfig.p4DeviceConfig)
-        } catch (e: com.google.protobuf.InvalidProtocolBufferException) {
-          throw Status.INVALID_ARGUMENT.withDescription(
-              "p4_device_config is not a valid DeviceConfig: ${e.message}"
-            )
-            .withCause(e)
-            .asException()
+      when (request.action) {
+        SetForwardingPipelineConfigRequest.Action.VERIFY ->
+          verifyPipeline(request.config).also { it.constraintValidator?.close() }
+        SetForwardingPipelineConfigRequest.Action.VERIFY_AND_COMMIT ->
+          commitPipeline(verifyPipeline(request.config))
+        SetForwardingPipelineConfigRequest.Action.VERIFY_AND_SAVE -> {
+          savedPipeline?.constraintValidator?.close()
+          savedPipeline = verifyPipeline(request.config)
         }
+        SetForwardingPipelineConfigRequest.Action.COMMIT -> {
+          val saved =
+            savedPipeline
+              ?: throw Status.FAILED_PRECONDITION.withDescription(
+                  "COMMIT requires a previously saved pipeline (VERIFY_AND_SAVE)"
+                )
+                .asException()
+          commitPipeline(saved)
+          savedPipeline = null
+        }
+        SetForwardingPipelineConfigRequest.Action.RECONCILE_AND_COMMIT ->
+          throw Status.UNIMPLEMENTED.withDescription("RECONCILE_AND_COMMIT is not supported")
+            .asException()
+        SetForwardingPipelineConfigRequest.Action.UNSPECIFIED,
+        SetForwardingPipelineConfigRequest.Action.UNRECOGNIZED ->
+          throw Status.INVALID_ARGUMENT.withDescription(
+              "unrecognized SetForwardingPipelineConfig action"
+            )
+            .asException()
+      }
+      SetForwardingPipelineConfigResponse.getDefaultInstance()
+    }
 
-      val pipelineConfig =
-        PipelineConfig.newBuilder().setP4Info(fwdConfig.p4Info).setDevice(deviceConfig).build()
+  /**
+   * Validates the forwarding pipeline config and builds a [PipelineState] without activating it.
+   * Used by VERIFY, VERIFY_AND_COMMIT, and VERIFY_AND_SAVE.
+   */
+  private fun verifyPipeline(fwdConfig: ForwardingPipelineConfig): PipelineState {
+    if (!fwdConfig.hasP4Info() || fwdConfig.p4DeviceConfig.isEmpty) {
+      throw Status.INVALID_ARGUMENT.withDescription(
+          "ForwardingPipelineConfig must include p4info and p4_device_config"
+        )
+        .asException()
+    }
 
+    val deviceConfig =
       try {
-        simulator.loadPipeline(pipelineConfig)
-      } catch (e: IllegalArgumentException) {
-        throw Status.INTERNAL.withDescription("Simulator rejected pipeline: ${e.message}")
+        DeviceConfig.parseFrom(fwdConfig.p4DeviceConfig)
+      } catch (e: com.google.protobuf.InvalidProtocolBufferException) {
+        throw Status.INVALID_ARGUMENT.withDescription(
+            "p4_device_config is not a valid DeviceConfig: ${e.message}"
+          )
           .withCause(e)
           .asException()
       }
 
-      pipeline?.constraintValidator?.close()
-      val entityReader =
-        EntityReader.create(fwdConfig.p4Info, simulator.tableNameById, simulator.actionNameById)
-      pipeline =
-        PipelineState(
-          config = pipelineConfig,
-          cookie = fwdConfig.cookie,
-          typeTranslator = TypeTranslator.create(fwdConfig.p4Info, deviceConfig.translationsList),
-          writeValidator = WriteValidator(pipelineConfig.p4Info),
-          referenceValidator = ReferenceValidator.create(fwdConfig.p4Info),
-          constraintValidator =
-            constraintValidatorBinary?.let { ConstraintValidator.create(fwdConfig.p4Info, it) },
-          packetHeaderCodec = PacketHeaderCodec.create(fwdConfig.p4Info, deviceConfig.behavioral),
-          entityReader = entityReader,
-        )
-      SetForwardingPipelineConfigResponse.getDefaultInstance()
+    val pipelineConfig =
+      PipelineConfig.newBuilder().setP4Info(fwdConfig.p4Info).setDevice(deviceConfig).build()
+
+    return PipelineState(
+      config = pipelineConfig,
+      cookie = fwdConfig.cookie,
+      typeTranslator = TypeTranslator.create(fwdConfig.p4Info, deviceConfig.translationsList),
+      writeValidator = WriteValidator(pipelineConfig.p4Info),
+      referenceValidator = ReferenceValidator.create(fwdConfig.p4Info),
+      constraintValidator =
+        constraintValidatorBinary?.let { ConstraintValidator.create(fwdConfig.p4Info, it) },
+      packetHeaderCodec = PacketHeaderCodec.create(fwdConfig.p4Info, deviceConfig.behavioral),
+      // Placeholder — EntityReader needs simulator name maps that are only
+      // available after loadPipeline; commitPipeline creates the real one.
+      entityReader = EntityReader.EMPTY,
+    )
+  }
+
+  /** Loads a verified pipeline into the simulator and activates it. */
+  private fun commitPipeline(state: PipelineState) {
+    try {
+      simulator.loadPipeline(state.config)
+    } catch (e: IllegalArgumentException) {
+      throw Status.INTERNAL.withDescription("Simulator rejected pipeline: ${e.message}")
+        .withCause(e)
+        .asException()
     }
+    pipeline?.constraintValidator?.close()
+    // EntityReader needs simulator name maps that are only populated after loadPipeline.
+    val entityReader =
+      EntityReader.create(state.config.p4Info, simulator.tableNameById, simulator.actionNameById)
+    pipeline = state.copy(entityReader = entityReader)
+  }
 
   // ---------------------------------------------------------------------------
   // Write
@@ -600,6 +644,7 @@ class P4RuntimeService(
 
   override fun close() {
     pipeline?.constraintValidator?.close()
+    savedPipeline?.constraintValidator?.close()
   }
 
   companion object {
