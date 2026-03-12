@@ -2,7 +2,7 @@
 // using deparser emit trace events and header type definitions from the IR.
 
 import { state } from './state.js';
-import { escapeHtml, formatHexDump } from './encoding.js';
+import { escapeHtml, formatHexDump, bytesToHex } from './encoding.js';
 
 /**
  * Collect deparser_emit events from a trace tree for a specific output packet.
@@ -42,7 +42,7 @@ function collectEmitEvents(trace, targetPayload) {
 
 // Field name patterns that suggest specific formatting.
 const MAC_PATTERN = /addr|mac/i;
-const IPV4_PATTERN = /\bip|sip|dip|src_?addr|dst_?addr/i;
+const IPV4_PATTERN = /\b(ip|sip|dip|src_?addr|dst_?addr)/i;
 
 /**
  * Format a field value contextually based on field name and bitwidth.
@@ -51,13 +51,12 @@ const IPV4_PATTERN = /\bip|sip|dip|src_?addr|dst_?addr/i;
 function formatFieldValue(bytes, bitwidth, fieldName) {
   if (bytes.length === 0) return '0x0';
   if (bitwidth === 48 && MAC_PATTERN.test(fieldName)) {
-    return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(':');
+    return bytesToHex(bytes, ':');
   }
   if (bitwidth === 32 && IPV4_PATTERN.test(fieldName)) {
     return Array.from(bytes).join('.');
   }
-  const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
-  return '0x' + hex;
+  return '0x' + bytesToHex(bytes, '');
 }
 
 /**
@@ -146,7 +145,7 @@ export function renderDissectedPacket(dissection) {
   }
 
   if (dissection.remainder && dissection.remainder.length > 0) {
-    const hex = Array.from(dissection.remainder).map(b => b.toString(16).padStart(2, '0')).join(' ');
+    const hex = bytesToHex(dissection.remainder);
     html += `<div class="dissect-header"><div class="dissect-header-name">payload</div><div class="dissect-field"><span class="dissect-field-value">${hex}</span></div></div>`;
   }
 

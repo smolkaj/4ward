@@ -64,8 +64,8 @@ export function base64ToUint8Array(b64) {
   return bytes;
 }
 
-function bytesToHex(bytes) {
-  return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(' ');
+export function bytesToHex(bytes, separator = ' ') {
+  return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(separator);
 }
 
 export function base64ToHex(b64) {
