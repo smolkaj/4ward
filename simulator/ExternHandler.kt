@@ -35,6 +35,11 @@ sealed class ExternCall {
  * back out-params, and emit trace events — without needing direct access to interpreter internals.
  */
 interface ExternEvaluator {
+  /**
+   * Returns the IR return type of the extern call (for non-void methods like PSA register.read).
+   */
+  fun returnType(): Type
+
   /** Evaluates argument [index] and returns its runtime value. */
   fun evalArg(index: Int): Value
 

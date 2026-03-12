@@ -12,13 +12,13 @@ guilt — just write it down so someone can find it later.
 
 ## Architecture support
 
-- **PSA: basic pipeline only.** The PSA two-pipeline architecture (ingress +
-  egress) is implemented with support for `send_to_port`, `ingress_drop`,
-  `egress_drop`, basic counters, and top-level assignments. 10 of 26 PSA corpus
-  tests pass. Missing: `Hash`/`InternetChecksum`/`Meter` externs, multicast,
-  I2E/E2E cloning, resubmit, recirculate, `end_of_ingress`, `lookahead` type
-  resolution, and PSA-style `register.read` (returns `T` directly instead of
-  `void` with `out` param). PNA and TNA are not implemented.
+- **PSA: basic pipeline + registers.** The PSA two-pipeline architecture
+  (ingress + egress) is implemented with support for `send_to_port`,
+  `ingress_drop`, `egress_drop`, registers, basic counters, and top-level
+  assignments. 14 of 26 PSA corpus tests pass. Missing:
+  `Hash`/`InternetChecksum`/`Meter` externs, multicast, I2E/E2E cloning,
+  resubmit, recirculate, `end_of_ingress`, `lookahead` type resolution.
+  PNA and TNA are not implemented.
 
 ## Externs
 
