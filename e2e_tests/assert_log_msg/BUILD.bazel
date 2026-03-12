@@ -1,0 +1,22 @@
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
+load("//e2e_tests:p4c.bzl", "p4c_compile")
+
+p4c_compile(
+    name = "assert_log_msg",
+    src_p4 = "assert_log_msg.p4",
+)
+
+kt_jvm_test(
+    name = "assert_log_msg_test",
+    srcs = ["AssertLogMsgTest.kt"],
+    data = [
+        "assert_log_msg.stf",
+        ":assert_log_msg_pb",
+    ],
+    test_class = "fourward.e2e.assertlogmsg.AssertLogMsgTest",
+    deps = [
+        "//e2e_tests/stf:stf_runner",
+        "@maven//:com_google_protobuf_protobuf_java",
+        "@maven//:junit_junit",
+    ],
+)

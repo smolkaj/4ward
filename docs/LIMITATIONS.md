@@ -30,7 +30,7 @@ guilt — just write it down so someone can find it later.
 - **Meters always return GREEN.** `meter.execute_meter()` and
   `direct_meter.read()` always return GREEN (0). Rate limiting is not
   simulated — there are no real packet rates in STF tests.
-- **`digest`, `log_msg` not implemented.** No corpus tests depend on these.
+- **`digest` not implemented.** No corpus tests depend on it.
 
 ## P4Runtime server
 

@@ -35,6 +35,10 @@ fun boolLit(v: Boolean): Expr =
     .setType(Type.newBuilder().setBoolean(true))
     .build()
 
+/** String literal expression, e.g. for log_msg format strings. */
+fun stringLit(value: String): Expr =
+  Expr.newBuilder().setLiteral(Literal.newBuilder().setStringLiteral(value)).build()
+
 fun nameRef(name: String, type: Type? = null): Expr =
   Expr.newBuilder()
     .setNameRef(NameRef.newBuilder().setName(name))

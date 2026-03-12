@@ -11,6 +11,7 @@ import fourward.sim.v1.SimulatorProto.DropReason
 import fourward.sim.v1.SimulatorProto.Fork
 import fourward.sim.v1.SimulatorProto.ForkBranch
 import fourward.sim.v1.SimulatorProto.ForkReason
+import fourward.sim.v1.SimulatorProto.LogMessageEvent
 import fourward.sim.v1.SimulatorProto.MarkToDropEvent
 import fourward.sim.v1.SimulatorProto.PacketIngressEvent
 import fourward.sim.v1.SimulatorProto.PacketOutcome
@@ -396,49 +397,54 @@ class V1ModelArchitecture : Architecture {
 
     val parserEventCount = s.packetCtx.getEvents().size
 
-    // --- Ingress controls (verify checksum, ingress) ---
-    // I2E clone branch: skip ingress — the clone gets the original parsed packet,
-    // not the version modified by ingress (BMv2 simple_switch semantics).
-    if (decisions.branchMode !is BranchMode.I2EClone) {
-      runControlStages(s, s.ingressControls)
-    }
+    // An assert()/assume() failure anywhere in the pipeline drops the packet.
+    try {
+      // --- Ingress controls (verify checksum, ingress) ---
+      // I2E clone branch: skip ingress — the clone gets the original parsed packet,
+      // not the version modified by ingress (BMv2 simple_switch semantics).
+      if (decisions.branchMode !is BranchMode.I2EClone) {
+        runControlStages(s, s.ingressControls)
+      }
 
-    // --- Ingress→egress boundary (traffic manager) ---
-    ingressEgressBoundary(ctx, s, decisions, parserEventCount)
-    if (egressPortIsDropPort(s)) {
-      return buildDropTrace(s.packetCtx.getEvents(), DropReason.MARK_TO_DROP)
-    }
+      // --- Ingress→egress boundary (traffic manager) ---
+      ingressEgressBoundary(ctx, s, decisions, parserEventCount)
+      if (egressPortIsDropPort(s)) {
+        return buildDropTrace(s.packetCtx.getEvents(), DropReason.MARK_TO_DROP)
+      }
 
-    // --- Egress controls (egress, compute checksum) ---
-    // BMv2: egress_spec starts matching egress_port for each egress run. This
-    // ensures mark_to_drop() during egress is the only way to set the drop port,
-    // regardless of what ingress or a prior egress run left in egress_spec.
-    resetEgressSpec(s)
-    runControlStages(s, s.egressControls)
-
-    // --- Post-egress boundary (E2E clone / recirculate) ---
-    postEgressBoundary(ctx, s, decisions)
-
-    // E2E clone branch: postEgressBoundary set up clone metadata — run egress again.
-    if (decisions.branchMode is BranchMode.E2EClone) {
+      // --- Egress controls (egress, compute checksum) ---
+      // BMv2: egress_spec starts matching egress_port for each egress run. This
+      // ensures mark_to_drop() during egress is the only way to set the drop port,
+      // regardless of what ingress or a prior egress run left in egress_spec.
       resetEgressSpec(s)
       runControlStages(s, s.egressControls)
-    }
 
-    // mark_to_drop() called during egress (or the E2E clone's second egress run)
-    // sets egress_spec to the drop port.
-    if (egressSpecIsDropPort(s)) {
-      return buildDropTrace(s.packetCtx.getEvents(), DropReason.MARK_TO_DROP)
-    }
+      // --- Post-egress boundary (E2E clone / recirculate) ---
+      postEgressBoundary(ctx, s, decisions)
 
-    // --- Deparser ---
-    if (s.deparserStage != null) {
-      s.packetCtx.addTraceEvent(stageEvent(s.deparserStage, PipelineStageEvent.Direction.ENTER))
-      try {
-        s.interpreter.runControl(s.deparserStage.blockName, s.env)
-      } finally {
-        s.packetCtx.addTraceEvent(stageEvent(s.deparserStage, PipelineStageEvent.Direction.EXIT))
+      // E2E clone branch: postEgressBoundary set up clone metadata — run egress again.
+      if (decisions.branchMode is BranchMode.E2EClone) {
+        resetEgressSpec(s)
+        runControlStages(s, s.egressControls)
       }
+
+      // mark_to_drop() called during egress (or the E2E clone's second egress run)
+      // sets egress_spec to the drop port.
+      if (egressSpecIsDropPort(s)) {
+        return buildDropTrace(s.packetCtx.getEvents(), DropReason.MARK_TO_DROP)
+      }
+
+      // --- Deparser ---
+      if (s.deparserStage != null) {
+        s.packetCtx.addTraceEvent(stageEvent(s.deparserStage, PipelineStageEvent.Direction.ENTER))
+        try {
+          s.interpreter.runControl(s.deparserStage.blockName, s.env)
+        } finally {
+          s.packetCtx.addTraceEvent(stageEvent(s.deparserStage, PipelineStageEvent.Direction.EXIT))
+        }
+      }
+    } catch (_: AssertionFailureException) {
+      return buildDropTrace(s.packetCtx.getEvents(), DropReason.ASSERTION_FAILURE)
     }
 
     // Append any bytes the parser did not extract (the un-parsed packet body).
@@ -825,6 +831,19 @@ class V1ModelArchitecture : Architecture {
         eval.writeOutArg(0, BitVal(BitVector(result, resultWidth)))
         UnitVal
       }
+      // log_msg(msg) / log_msg(msg, data): debug output with {} placeholders.
+      // Defined in v1model.p4 — emits a trace event with the interpolated message.
+      "log_msg" -> {
+        val format = (eval.evalArg(0) as StringVal).value
+        val message = if (eval.argCount() > 1) formatLogMessage(format, eval.evalArg(1)) else format
+        eval.addTraceEvent(
+          eval
+            .traceEventBuilder()
+            .setLogMessage(LogMessageEvent.newBuilder().setMessage(message))
+            .build()
+        )
+        UnitVal
+      }
       else -> error("unhandled v1model extern: $name")
     }
 
@@ -1033,3 +1052,42 @@ internal class RecirculateFork(
   eventsBeforeFork: List<TraceEvent>,
   val preservedMetadata: Map<String, Value>? = null,
 ) : ForkException(eventsBeforeFork)
+
+// =============================================================================
+// log_msg formatting helpers
+// =============================================================================
+
+/** Substitutes `{}` placeholders in a log_msg format string with struct field values. */
+private fun formatLogMessage(format: String, data: Value): String {
+  val values =
+    when (data) {
+      is StructVal -> data.fields.values.toList()
+      else -> listOf(data)
+    }
+  val sb = StringBuilder()
+  var valueIdx = 0
+  var i = 0
+  while (i < format.length) {
+    if (i + 1 < format.length && format[i] == '{' && format[i + 1] == '}') {
+      sb.append(if (valueIdx < values.size) formatValue(values[valueIdx++]) else "{}")
+      i += 2
+    } else {
+      sb.append(format[i])
+      i++
+    }
+  }
+  return sb.toString()
+}
+
+/** Formats a runtime value for log_msg output. */
+private fun formatValue(value: Value): String =
+  when (value) {
+    is BitVal -> value.bits.value.toString()
+    is IntVal -> value.bits.value.toString()
+    is BoolVal -> value.value.toString()
+    is InfIntVal -> value.value.toString()
+    is EnumVal -> value.member
+    is ErrorVal -> value.member
+    is StringVal -> value.value
+    else -> value.toString()
+  }

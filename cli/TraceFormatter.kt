@@ -69,6 +69,11 @@ object TraceFormatter {
       }
       event.hasMarkToDrop() -> appendLine("${prefix}mark_to_drop()")
       event.hasClone() -> appendLine("${prefix}clone session ${event.clone.sessionId}")
+      event.hasLogMessage() -> appendLine("${prefix}log_msg: ${event.logMessage.message}")
+      event.hasAssertion() -> {
+        val result = if (event.assertion.passed) "passed" else "FAILED"
+        appendLine("${prefix}assert: $result")
+      }
     }
   }
 
@@ -82,6 +87,7 @@ object TraceFormatter {
       DropReason.MARK_TO_DROP -> "mark_to_drop"
       DropReason.PARSER_REJECT -> "parser reject"
       DropReason.PIPELINE_EXECUTION_LIMIT_REACHED -> "execution limit"
+      DropReason.ASSERTION_FAILURE -> "assertion failure"
       else -> "unknown"
     }
 

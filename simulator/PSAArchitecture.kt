@@ -66,7 +66,7 @@ class PSAArchitecture : Architecture {
 
     // === Ingress pipeline ===
     val ingress = runIngressPipeline(pipeline, payload, ingressPort)
-    if (ingress.dropped) return buildDropResult(ingress.events)
+    if (ingress.dropped) return buildDropResult(ingress.events, ingress.dropReason)
 
     // === Traffic Manager: multicast vs. unicast ===
     val egressState = EgressState(pipeline, ingress.output)
@@ -101,6 +101,7 @@ class PSAArchitecture : Architecture {
     val output: StructVal?,
     val deparsedBytes: ByteArray,
     val dropped: Boolean,
+    val dropReason: DropReason = DropReason.MARK_TO_DROP,
   )
 
   private fun runIngressPipeline(
@@ -135,21 +136,32 @@ class PSAArchitecture : Architecture {
       }
     }
 
-    // --- Ingress Control ---
-    val controlStage = pipeline.stages.first { it.name == "ingress" }
-    bindStageParams(env, controlStage.blockName, pipeline.blockParams, values)
-    runControlStage(interpreter, ctx, env, controlStage)
+    // An assert()/assume() failure anywhere in the pipeline drops the packet.
+    try {
+      // --- Ingress Control ---
+      val controlStage = pipeline.stages.first { it.name == "ingress" }
+      bindStageParams(env, controlStage.blockName, pipeline.blockParams, values)
+      runControlStage(interpreter, ctx, env, controlStage)
 
-    // --- Ingress drop check (PSA: drop=true by default) ---
-    val dropped = (output?.fields?.get("drop") as? BoolVal)?.value != false
-    if (dropped) {
-      return IngressResult(ctx.getEvents(), output, byteArrayOf(), dropped = true)
+      // --- Ingress drop check (PSA: drop=true by default) ---
+      val dropped = (output?.fields?.get("drop") as? BoolVal)?.value != false
+      if (dropped) {
+        return IngressResult(ctx.getEvents(), output, byteArrayOf(), dropped = true)
+      }
+
+      // --- Ingress Deparser ---
+      val deparserStage = pipeline.stages.first { it.name == "ingress_deparser" }
+      bindStageParams(env, deparserStage.blockName, pipeline.blockParams, values)
+      runControlStage(interpreter, ctx, env, deparserStage)
+    } catch (_: AssertionFailureException) {
+      return IngressResult(
+        ctx.getEvents(),
+        output,
+        byteArrayOf(),
+        dropped = true,
+        dropReason = DropReason.ASSERTION_FAILURE,
+      )
     }
-
-    // --- Ingress Deparser ---
-    val deparserStage = pipeline.stages.first { it.name == "ingress_deparser" }
-    bindStageParams(env, deparserStage.blockName, pipeline.blockParams, values)
-    runControlStage(interpreter, ctx, env, deparserStage)
 
     val deparsedBytes = ctx.outputPayload() + ctx.drainRemainingInput()
     return IngressResult(ctx.getEvents(), output, deparsedBytes, dropped = false)
@@ -167,7 +179,7 @@ class PSAArchitecture : Architecture {
     val group =
       egressState.pipeline.tableStore.getMulticastGroup(multicastGroup)
         ?: // BMv2 psa_switch: unknown multicast group → silently drop.
-        return buildDropResult(ingress.events)
+        return buildDropResult(ingress.events, ingress.dropReason)
 
     val branches =
       group.replicasList.map { replica ->
@@ -233,20 +245,24 @@ class PSAArchitecture : Architecture {
       }
     }
 
-    // --- Egress Control ---
-    val egressStage = p.stages.first { it.name == "egress" }
-    bindStageParams(egressEnv, egressStage.blockName, p.blockParams, egressValues)
-    runControlStage(egressInterpreter, egressCtx, egressEnv, egressStage)
+    try {
+      // --- Egress Control ---
+      val egressStage = p.stages.first { it.name == "egress" }
+      bindStageParams(egressEnv, egressStage.blockName, p.blockParams, egressValues)
+      runControlStage(egressInterpreter, egressCtx, egressEnv, egressStage)
 
-    // --- Egress drop check (PSA: egress does NOT drop by default) ---
-    if ((egressOutput?.fields?.get("drop") as? BoolVal)?.value == true) {
-      return buildDropTrace(egressCtx.getEvents())
+      // --- Egress drop check (PSA: egress does NOT drop by default) ---
+      if ((egressOutput?.fields?.get("drop") as? BoolVal)?.value == true) {
+        return buildDropTrace(egressCtx.getEvents())
+      }
+
+      // --- Egress Deparser ---
+      val egressDeparserStage = p.stages.first { it.name == "egress_deparser" }
+      bindStageParams(egressEnv, egressDeparserStage.blockName, p.blockParams, egressValues)
+      runControlStage(egressInterpreter, egressCtx, egressEnv, egressDeparserStage)
+    } catch (_: AssertionFailureException) {
+      return buildDropTrace(egressCtx.getEvents(), DropReason.ASSERTION_FAILURE)
     }
-
-    // --- Egress Deparser ---
-    val egressDeparserStage = p.stages.first { it.name == "egress_deparser" }
-    bindStageParams(egressEnv, egressDeparserStage.blockName, p.blockParams, egressValues)
-    runControlStage(egressInterpreter, egressCtx, egressEnv, egressDeparserStage)
 
     val outputBytes = egressCtx.outputPayload() + egressCtx.drainRemainingInput()
     return buildOutputTrace(egressCtx.getEvents(), egressPort, outputBytes)
@@ -583,14 +599,16 @@ class PSAArchitecture : Architecture {
   // Trace helpers
   // ---------------------------------------------------------------------------
 
-  private fun buildDropResult(events: List<TraceEvent>): PipelineResult =
-    PipelineResult(buildDropTrace(events))
+  private fun buildDropResult(
+    events: List<TraceEvent>,
+    reason: DropReason = DropReason.MARK_TO_DROP,
+  ): PipelineResult = PipelineResult(buildDropTrace(events, reason))
 
-  private fun buildDropTrace(events: List<TraceEvent>): TraceTree {
-    val outcome =
-      PacketOutcome.newBuilder()
-        .setDrop(Drop.newBuilder().setReason(DropReason.MARK_TO_DROP))
-        .build()
+  private fun buildDropTrace(
+    events: List<TraceEvent>,
+    reason: DropReason = DropReason.MARK_TO_DROP,
+  ): TraceTree {
+    val outcome = PacketOutcome.newBuilder().setDrop(Drop.newBuilder().setReason(reason)).build()
     return TraceTree.newBuilder().addAllEvents(events).setPacketOutcome(outcome).build()
   }
 

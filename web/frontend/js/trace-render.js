@@ -109,7 +109,8 @@ function formatActionParams(ae) {
 }
 
 function isActionEffect(event) {
-  return event.mark_to_drop || event.extern_call || event.clone || event.clone_session_lookup;
+  return event.mark_to_drop || event.extern_call || event.clone || event.clone_session_lookup
+    || event.log_message || event.assertion;
 }
 
 function renderStageEvents(events) {
@@ -197,6 +198,12 @@ function renderTraceEvent(event) {
       : `Clone session ${csl.session_id} not found (dropped)`;
     const cls = csl.session_found ? 'clone-session-hit' : 'clone-session-miss';
     return `<div ${attr} class="trace-event ${cls}">${text}</div>`;
+  } else if (event.log_message) {
+    return `<div ${attr} class="trace-event log-msg">log_msg: ${escapeHtml(event.log_message.message)}</div>`;
+  } else if (event.assertion) {
+    const result = event.assertion.passed ? 'passed' : 'FAILED';
+    const cls = event.assertion.passed ? 'assert-pass' : 'assert-fail';
+    return `<div ${attr} class="trace-event ${cls}">assert: ${result}</div>`;
   } else {
     return '';
   }

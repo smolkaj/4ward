@@ -495,6 +495,7 @@ message Literal {
     string error_member = 4;  // e.g. "NoError", "PacketTooShort"
     string enum_member =
         5;  // plain (non-serializable) enum member, e.g. "crc16"
+    string string_literal = 6;  // string literal, e.g. log_msg format string
   }
 }
 

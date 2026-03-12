@@ -698,6 +698,9 @@ input:focus, select:focus, textarea:focus {
 .trace-event.stage-enter { color: var(--text-muted); font-weight: 600; }
 .trace-event.stage-exit { color: var(--text-muted); }
 .trace-event.ingress { color: var(--text-primary); font-weight: 600; }
+.trace-event.log-msg { color: #8b949e; font-style: italic; }
+.trace-event.assert-pass { color: var(--success); }
+.trace-event.assert-fail { color: var(--error); font-weight: 600; }
 
 .trace-outcome {
   padding: 2px 6px;
