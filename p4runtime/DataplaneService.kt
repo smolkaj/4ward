@@ -22,21 +22,19 @@ class DataplaneService(private val simulator: Simulator, private val lock: Mutex
   DataplaneGrpcKt.DataplaneCoroutineImplBase() {
 
   override suspend fun processPacket(request: ProcessPacketRequest): ProcessPacketResponse {
-    val response =
+    val result =
       lock.withLock { simulator.processPacket(request.ingressPort, request.payload.toByteArray()) }
-    return ProcessPacketResponse.newBuilder()
-      .addAllOutputPackets(response.outputPacketsList)
-      .build()
+    return ProcessPacketResponse.newBuilder().addAllOutputPackets(result.outputPackets).build()
   }
 
   override suspend fun processPacketWithTraceTree(
     request: ProcessPacketRequest
   ): ProcessPacketWithTraceTreeResponse {
-    val response =
+    val result =
       lock.withLock { simulator.processPacket(request.ingressPort, request.payload.toByteArray()) }
     return ProcessPacketWithTraceTreeResponse.newBuilder()
-      .addAllOutputPackets(response.outputPacketsList)
-      .setTrace(response.trace)
+      .addAllOutputPackets(result.outputPackets)
+      .setTrace(result.trace)
       .build()
   }
 }

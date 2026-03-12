@@ -2,8 +2,15 @@ package fourward.simulator
 
 import fourward.ir.v1.PipelineConfig
 import fourward.sim.v1.SimulatorProto.OutputPacket
-import fourward.sim.v1.SimulatorProto.ProcessPacketResponse
 import fourward.sim.v1.SimulatorProto.TraceTree
+
+/**
+ * Result of processing a single packet through the pipeline.
+ *
+ * Decouples the simulator from the gRPC wire format ([fourward.sim.v1.SimulatorProto
+ * .ProcessPacketResponse]). Each RPC method builds its own wire proto from this data class.
+ */
+data class ProcessPacketResult(val outputPackets: List<OutputPacket>, val trace: TraceTree)
 
 /**
  * The top-level simulator state machine.
@@ -48,7 +55,7 @@ class Simulator : TableDataReader {
    *
    * @throws IllegalStateException if no pipeline is loaded.
    */
-  fun processPacket(ingressPort: Int, payload: ByteArray): ProcessPacketResponse {
+  fun processPacket(ingressPort: Int, payload: ByteArray): ProcessPacketResult {
     val config = checkNotNull(pipeline) { "no pipeline loaded" }
     val arch = checkNotNull(architecture) { "no pipeline loaded" }
 
@@ -64,10 +71,7 @@ class Simulator : TableDataReader {
     // of truth for packet outcomes. Non-forking trees have a single leaf; forking trees
     // (multicast, clone) have multiple leaves whose outputs are collected recursively.
     val trace = result.trace
-    return ProcessPacketResponse.newBuilder()
-      .setTrace(trace)
-      .addAllOutputPackets(collectOutputsFromTrace(trace))
-      .build()
+    return ProcessPacketResult(outputPackets = collectOutputsFromTrace(trace), trace = trace)
   }
 
   /**

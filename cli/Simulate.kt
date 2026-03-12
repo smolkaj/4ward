@@ -7,7 +7,6 @@ import fourward.e2e.installStfEntries
 import fourward.e2e.loadPipelineConfig
 import fourward.e2e.matchOutputAgainstExpects
 import fourward.simulator.Simulator
-import fourward.simulator.collectOutputsFromTrace
 import java.io.FileNotFoundException
 import java.nio.file.NoSuchFileException
 import java.nio.file.Path
@@ -59,16 +58,15 @@ fun simulate(pipelinePath: Path, stfPath: Path, format: OutputFormat): Int {
   val textProtoPrinter = TextFormat.printer()
 
   for (packet in stf.packets) {
-    val resp = sim.processPacket(packet.ingressPort, packet.payload)
-    val trace = resp.trace
+    val result = sim.processPacket(packet.ingressPort, packet.payload)
     when (format) {
       OutputFormat.HUMAN -> {
         println("packet received: port ${packet.ingressPort}, ${packet.payload.size} bytes")
-        println(TraceFormatter.format(trace).trim().prependIndent("  "))
+        println(TraceFormatter.format(result.trace).trim().prependIndent("  "))
       }
-      OutputFormat.TEXTPROTO -> print(textProtoPrinter.printToString(trace))
+      OutputFormat.TEXTPROTO -> print(textProtoPrinter.printToString(result.trace))
     }
-    val pkts = resp.outputPacketsList.ifEmpty { collectOutputsFromTrace(trace) }
+    val pkts = result.outputPackets
     for (pkt in pkts) {
       outputQueue += ReceivedPacket(pkt.egressPort, pkt.payload.toByteArray())
     }

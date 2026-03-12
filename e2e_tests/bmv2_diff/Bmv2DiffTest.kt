@@ -5,7 +5,6 @@ import fourward.e2e.hex
 import fourward.e2e.installStfEntries
 import fourward.e2e.loadPipelineConfig
 import fourward.simulator.Simulator
-import fourward.simulator.collectOutputsFromTrace
 import java.io.File
 import java.nio.file.Paths
 import org.junit.Assert
@@ -54,9 +53,8 @@ class Bmv2DiffTest(private val testName: String) {
     sim.loadPipeline(config)
     installStfEntries(sim, stf, config.p4Info)
     for (packet in stf.packets) {
-      val resp = sim.processPacket(packet.ingressPort, packet.payload)
-      val pkts = resp.outputPacketsList.ifEmpty { collectOutputsFromTrace(resp.trace) }
-      for (pkt in pkts) {
+      val result = sim.processPacket(packet.ingressPort, packet.payload)
+      for (pkt in result.outputPackets) {
         fourwardOutputs.add(pkt.egressPort to pkt.payload.toByteArray())
       }
     }

@@ -370,9 +370,9 @@ class P4RuntimeService(
         extractIngressPort(packetOut.metadataList) to packetOut.payload.toByteArray()
       }
 
-    val response = simulator.processPacket(ingressPort, payload)
+    val result = simulator.processPacket(ingressPort, payload)
 
-    return response.outputPacketsList.map { outputPacket ->
+    return result.outputPackets.map { outputPacket ->
       val rawPacketIn =
         if (codec != null) {
           val metadata = codec.buildPacketInMetadata(ingressPort, outputPacket.egressPort)
