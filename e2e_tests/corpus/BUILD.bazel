@@ -1,3 +1,4 @@
+load("//e2e_tests:compile_test.bzl", "compile_test_suite")
 load("//e2e_tests:corpus.bzl", "corpus_test_suite")
 
 # p4c corpus STF tests run in CI. All entries must pass.
@@ -269,6 +270,15 @@ corpus_test_suite(
     ],
 )
 
+# PSA programs that take excessively long to compile with p4c-4ward.
+compile_test_suite(
+    name = "psa_slow_compile_test",
+    tags = ["manual"],
+    tests = [
+        "psa-subtract-inst1",  # OOM-killed during compilation
+    ],
+)
+
 # Tests blocked on unsupported non-v1model/non-PSA architectures.
 # These fail at p4c-4ward compile time.
 corpus_test_suite(
@@ -276,5 +286,69 @@ corpus_test_suite(
     tags = ["manual"],
     tests = [
         "gauntlet_optional-bmv2",  # unsupported architecture 'top'
+    ],
+)
+
+# PSA compile-only tests. These P4 programs have no STF companions, so we
+# verify they at least compile through p4c-4ward successfully. Exercises the
+# compiler's PSA support across a wide range of externs and language features.
+compile_test_suite(
+    name = "psa_compile_test",
+    tests = [
+        "psa-action-profile1",
+        "psa-action-profile3",
+        "psa-action-profile4",
+        "psa-action-selector1",
+        "psa-action-selector2",
+        "psa-action-selector3",
+        "psa-action-selector4",
+        "psa-action-selector5",
+        "psa-action-selector6",
+        "psa-conditional_operator",
+        "psa-counter1",
+        "psa-counter2",
+        "psa-counter3",
+        "psa-counter4",
+        "psa-custom-type-counter-index",
+        "psa-example-counters-bmv2",
+        "psa-example-digest-bmv2",
+        "psa-example-incremental-checksum",
+        "psa-example-logical-operations",
+        "psa-example-mask-range",
+        "psa-example-mask-range1",
+        "psa-example-optional-match",
+        "psa-example-parser-checksum",
+        "psa-example-range-match",
+        "psa-example-select_tuple",
+        "psa-example-select_tuple-1",
+        "psa-example-select_tuple-mask",
+        "psa-example-select_tuple-wc",
+        "psa-example-switch-with-constant-expr",
+        "psa-hash",
+        "psa-hash-02",
+        "psa-hash-03",
+        "psa-hash-04",
+        "psa-hash-05",
+        "psa-hash-06",
+        "psa-hash-07",
+        "psa-hash-08",
+        "psa-hash-09",
+        "psa-hash-10",
+        "psa-header-stack",
+        "psa-idle-timeout",
+        "psa-isvalid",
+        "psa-meter1",
+        "psa-meter3",
+        "psa-meter4",
+        "psa-meter5",
+        "psa-random",
+        "psa-register1",
+        "psa-register2",
+        "psa-register3",
+        "psa-remove-header",
+        "psa-switch-expression-without-default",
+        "psa-table-hit-miss",
+        "psa-test",
+        "psa-variable-index",
     ],
 )

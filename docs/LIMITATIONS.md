@@ -12,13 +12,15 @@ guilt — just write it down so someone can find it later.
 
 ## Architecture support
 
-- **PSA: all 26 corpus tests pass.** The PSA two-pipeline architecture
-  (ingress + egress) is implemented with support for `send_to_port`,
-  `ingress_drop`, `egress_drop`, `multicast`, I2E/E2E cloning (via
-  `ostd.clone` + `clone_session_id`), recirculate (`PSA_PORT_RECIRCULATE`),
+- **PSA: all 26 corpus tests pass + 55 compile-only tests.** The PSA
+  two-pipeline architecture (ingress + egress) is implemented with support for
+  `send_to_port`, `ingress_drop`, `egress_drop`, `multicast`, I2E/E2E cloning
+  (via `ostd.clone` + `clone_session_id`), recirculate (`PSA_PORT_RECIRCULATE`),
   resubmit (`ostd.resubmit`), registers, `Hash.get_hash`, `Meter.execute`
   (stub GREEN), `InternetChecksum` (clear/add/subtract/get/get_state/set_state),
-  basic counters, and top-level assignments. PNA and TNA are not implemented.
+  basic counters, and top-level assignments. An additional 55 PSA programs
+  without STF companions are verified to compile through p4c-4ward. PNA and
+  TNA are not implemented.
 
 ## Externs
 
@@ -108,3 +110,5 @@ guilt — just write it down so someone can find it later.
 - **`gauntlet_various_ops-bmv2` compilation timeout.** p4c-4ward takes 10+
   minutes on this program. Performance issue, not a missing feature. Blocks
   1 corpus test.
+- **`psa-subtract-inst1` OOM during compilation.** p4c-4ward is killed by the
+  OS during compilation. Same class of issue as `gauntlet_various_ops-bmv2`.
