@@ -168,10 +168,27 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btn) deleteCloneSession(parseInt(btn.dataset.deleteClone, 10));
   });
 
+  // Global keyboard shortcuts (suppressed when focus is in editor/input/textarea).
+  document.addEventListener('keydown', (e) => {
+    const tag = document.activeElement?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    // Monaco's own container catches keys when focused; check explicitly.
+    if (document.activeElement?.closest('#editor-container')) return;
+
+    switch (e.key) {
+      case 'ArrowRight': e.preventDefault(); stepForward(); break;
+      case 'ArrowLeft': e.preventDefault(); stepBack(); break;
+      case 'Escape': e.preventDefault(); resetPlayback(); break;
+      case '1': switchTab('tables'); break;
+      case '2': switchTab('packets'); break;
+      case '3': switchTab('trace'); break;
+    }
+  });
+
   // Initialize Monaco editor
   const isMac = navigator.platform.includes('Mac');
   const mod = isMac ? '\u2318' : 'Ctrl';
   initEditor(compileAndLoad).then(() => {
-    log(`Editor ready \u2014 ${mod}+Enter to compile & load`, 'info');
+    log(`Editor ready \u2014 ${mod}+Enter to compile & load \u00b7 \u2190\u2192 step trace \u00b7 1/2/3 switch tabs`, 'info');
   });
 });
