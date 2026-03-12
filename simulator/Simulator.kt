@@ -17,7 +17,7 @@ import fourward.sim.v1.SimulatorProto.TraceTree
  * One [Simulator] instance runs for the lifetime of the process; it is single-threaded (callers
  * must serialise concurrent requests).
  */
-class Simulator {
+class Simulator : TableDataReader {
 
   private var pipeline: PipelineConfig? = null
   private var architecture: Architecture? = null
@@ -101,17 +101,43 @@ class Simulator {
   /** Returns true if a multicast group with [groupId] exists in the PRE. */
   fun hasMulticastGroup(groupId: Int): Boolean = tableStore.getMulticastGroup(groupId) != null
 
+  // -------------------------------------------------------------------------
+  // Raw data accessors (used by the P4Runtime layer's EntityReader)
+  // -------------------------------------------------------------------------
+
+  /** ID→name maps populated by [loadPipeline], for building P4Runtime Entity protos. */
+  val tableNameById: Map<Int, String>
+    get() = tableStore.tableNameById
+
+  val actionNameById: Map<Int, String>
+    get() = tableStore.actionNameById
+
+  override fun getTableEntries(tableName: String) = tableStore.getTableEntries(tableName)
+
+  override fun getDefaultAction(tableName: String) = tableStore.getDefaultAction(tableName)
+
+  override fun getDirectCounterData(entry: p4.v1.P4RuntimeOuterClass.TableEntry) =
+    tableStore.getDirectCounterData(entry)
+
+  override fun getDirectMeterData(entry: p4.v1.P4RuntimeOuterClass.TableEntry) =
+    tableStore.getDirectMeterData(entry)
+
+  override fun hasDirectCounter(tableName: String) = tableStore.hasDirectCounter(tableName)
+
+  override fun hasDirectMeter(tableName: String) = tableStore.hasDirectMeter(tableName)
+
   /**
-   * Reads entities matching the given filters.
+   * Reads non-table entities matching the given filters.
    *
-   * P4Runtime spec §11.1: each entity in the list is a filter; the result is the union.
+   * Table entries are handled by [fourward.p4runtime.EntityReader] in the P4Runtime layer; this
+   * method handles all other entity types.
    */
   fun readEntries(
     filters: List<p4.v1.P4RuntimeOuterClass.Entity>
   ): List<p4.v1.P4RuntimeOuterClass.Entity> =
     filters.flatMap { entity ->
       when {
-        entity.hasTableEntry() -> tableStore.readEntities(entity.tableEntry)
+        entity.hasTableEntry() -> emptyList()
         entity.hasActionProfileMember() -> tableStore.readProfileMembers(entity.actionProfileMember)
         entity.hasActionProfileGroup() -> tableStore.readProfileGroups(entity.actionProfileGroup)
         entity.hasRegisterEntry() -> tableStore.readRegisterEntries(entity.registerEntry)

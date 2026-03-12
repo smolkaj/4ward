@@ -12,10 +12,18 @@ import p4.v1.P4RuntimeOuterClass.Update
 /** Interprets a protobuf [ByteString] as an unsigned big-endian integer. */
 private fun ByteString.toUnsignedBigInteger(): BigInteger = BigInteger(1, toByteArray())
 
-// P4Runtime spec §9.1: two entries are the same iff they have the same match key
-// AND the same priority (priority is part of the key for ternary/range tables).
-private fun TableEntry.sameKey(other: TableEntry): Boolean =
+/**
+ * P4Runtime spec §9.1: two entries match the same key iff they have the same table_id, match
+ * fields, and priority (priority is part of the key for ternary/range tables).
+ */
+fun TableEntry.sameKey(other: TableEntry): Boolean =
   tableId == other.tableId && priority == other.priority && matchList == other.matchList
+
+/** Default action state for a table: action name and optional parameters. */
+data class DefaultAction(
+  val name: String,
+  val params: List<p4.v1.P4RuntimeOuterClass.Action.Param> = emptyList(),
+)
 
 /** Result of a [TableStore.write] operation. */
 sealed class WriteResult {
@@ -41,17 +49,12 @@ sealed class WriteResult {
  *
  * Call [loadMappings] once per pipeline load before any [write] or [lookup] calls.
  */
-class TableStore {
+class TableStore : TableDataReader {
 
   private data class RegisterInfo(val name: String, val bitwidth: Int, val size: Int)
 
   /** Metadata for statically-allocated indexed externs (counters, meters). */
   private data class IndexedExternInfo(val size: Int)
-
-  data class DefaultAction(
-    val name: String,
-    val params: List<p4.v1.P4RuntimeOuterClass.Action.Param> = emptyList(),
-  )
 
   // -------------------------------------------------------------------------
   // Write-state
@@ -160,12 +163,13 @@ class TableStore {
   }
 
   // Populated by loadMappings; used to resolve IDs to names in write() and lookup().
-  private var tableNameById: Map<Int, String> = emptyMap()
-  private var actionNameById: Map<Int, String> = emptyMap()
+  // Public read-only accessors let the P4Runtime layer build Entity protos without
+  // duplicating the behavioral name resolution logic.
+  var tableNameById: Map<Int, String> = emptyMap()
+    private set
 
-  // Pre-built P4Runtime protos for default entries, keyed by table name.
-  // Built once during loadMappings() so the read path returns them directly.
-  private var defaultEntryByTable: Map<String, P4RuntimeOuterClass.Entity> = emptyMap()
+  var actionNameById: Map<Int, String> = emptyMap()
+    private set
 
   private var registerInfoById: Map<Int, RegisterInfo> = emptyMap()
   private var counterInfoById: Map<Int, IndexedExternInfo> = emptyMap()
@@ -254,8 +258,7 @@ class TableStore {
       }
     }
 
-    // Install default actions from p4info, and pre-build the read-path protos.
-    val defaultProtos = mutableMapOf<String, P4RuntimeOuterClass.Entity>()
+    // Install default actions from p4info.
     for (table in p4infoTables) {
       // const_default_action_id: immutable default set in the P4 source with `const`.
       // initial_default_action: mutable default set in the P4 source without `const`.
@@ -276,25 +279,8 @@ class TableStore {
             }
           else emptyList()
         setDefaultAction(tableName, actionName, params)
-        defaultProtos[tableName] =
-          P4RuntimeOuterClass.Entity.newBuilder()
-            .setTableEntry(
-              P4RuntimeOuterClass.TableEntry.newBuilder()
-                .setTableId(table.preamble.id)
-                .setIsDefaultAction(true)
-                .setAction(
-                  P4RuntimeOuterClass.TableAction.newBuilder()
-                    .setAction(
-                      P4RuntimeOuterClass.Action.newBuilder()
-                        .setActionId(defaultActionId)
-                        .addAllParams(params)
-                    )
-                )
-            )
-            .build()
       }
     }
-    this.defaultEntryByTable = defaultProtos
 
     // Install static table entries declared with `const entries` in the P4 source.
     for (update in device.staticEntries.updatesList) {
@@ -309,6 +295,25 @@ class TableStore {
   ) {
     defaultActions[tableName] = DefaultAction(actionName, params)
   }
+
+  // -------------------------------------------------------------------------
+  // Raw data accessors (used by the P4Runtime layer's EntityReader)
+  // -------------------------------------------------------------------------
+
+  override fun getTableEntries(tableName: String): List<TableEntry> =
+    tables[tableName] ?: emptyList()
+
+  override fun getDefaultAction(tableName: String): DefaultAction? = defaultActions[tableName]
+
+  override fun getDirectCounterData(entry: TableEntry): P4RuntimeOuterClass.CounterData? =
+    directCounterData[entry]
+
+  override fun getDirectMeterData(entry: TableEntry): P4RuntimeOuterClass.MeterConfig? =
+    directMeterData[entry]
+
+  override fun hasDirectCounter(tableName: String): Boolean = tableName in directCounterTables
+
+  override fun hasDirectMeter(tableName: String): Boolean = tableName in directMeterTables
 
   // -------------------------------------------------------------------------
   // Registers
@@ -849,43 +854,6 @@ class TableStore {
     if (matchFilter == null) return entries
     // P4Runtime spec §9.1: match key + priority uniquely identify an entry.
     return listOfNotNull(entries.find { it.sameKey(matchFilter) })
-  }
-
-  /**
-   * Returns table entries as P4Runtime Entity protos, filtered by [filter].
-   * - `table_id=0`, no match fields → wildcard: returns all entries from all tables.
-   * - `table_id=N`, no match fields → returns all entries from table N.
-   * - `table_id=N` with match fields → returns only the entry whose match key matches the filter
-   *   (P4Runtime spec §11.1: match fields in the filter act as an exact key lookup).
-   */
-  fun readEntities(
-    filter: P4RuntimeOuterClass.TableEntry = P4RuntimeOuterClass.TableEntry.getDefaultInstance()
-  ): List<P4RuntimeOuterClass.Entity> {
-    val tableNames = resolveTableNames(filter.tableId)
-    val hasMatchFilter = filter.matchCount > 0
-    val matchFilter = if (hasMatchFilter) filter else null
-
-    val entries =
-      tableNames.flatMap { tableName ->
-        val hasDirectCounter = tableName in directCounterTables
-        val hasDirectMeter = tableName in directMeterTables
-        filteredEntries(tableName, matchFilter).map { entry ->
-          val builder = entry.toBuilder()
-          // P4Runtime spec §9.1: table entry reads include inline direct resource data.
-          // Counters default to zero; meters are only included if explicitly configured.
-          if (hasDirectCounter) {
-            builder.setCounterData(
-              directCounterData[entry] ?: P4RuntimeOuterClass.CounterData.getDefaultInstance()
-            )
-          }
-          if (hasDirectMeter) directMeterData[entry]?.let { builder.setMeterConfig(it) }
-          P4RuntimeOuterClass.Entity.newBuilder().setTableEntry(builder).build()
-        }
-      }
-
-    // P4Runtime spec §11.1: wildcard reads (no match filter) include the default entry.
-    if (hasMatchFilter) return entries
-    return entries + tableNames.mapNotNull { defaultEntryByTable[it] }
   }
 
   /**

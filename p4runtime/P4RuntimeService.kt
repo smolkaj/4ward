@@ -72,6 +72,7 @@ class P4RuntimeService(
     val referenceValidator: ReferenceValidator?,
     val constraintValidator: ConstraintValidator?,
     val packetHeaderCodec: PacketHeaderCodec?,
+    val entityReader: EntityReader,
   )
 
   @Volatile private var pipeline: PipelineState? = null
@@ -140,6 +141,8 @@ class P4RuntimeService(
       }
 
       pipeline?.constraintValidator?.close()
+      val entityReader =
+        EntityReader.create(fwdConfig.p4Info, simulator.tableNameById, simulator.actionNameById)
       pipeline =
         PipelineState(
           config = pipelineConfig,
@@ -150,6 +153,7 @@ class P4RuntimeService(
           constraintValidator =
             constraintValidatorBinary?.let { ConstraintValidator.create(fwdConfig.p4Info, it) },
           packetHeaderCodec = PacketHeaderCodec.create(fwdConfig.p4Info, deviceConfig.behavioral),
+          entityReader = entityReader,
         )
       SetForwardingPipelineConfigResponse.getDefaultInstance()
     }
@@ -274,7 +278,16 @@ class P4RuntimeService(
       lock.withLock {
         requireDeviceId(request.deviceId)
         val state = requirePipeline()
-        val entities = simulator.readEntries(request.entitiesList)
+        // Table entries are assembled by EntityReader (P4Runtime presentation layer);
+        // all other entity types are read directly from the simulator.
+        val entities =
+          request.entitiesList.flatMap { entity ->
+            if (entity.hasTableEntry()) {
+              state.entityReader.readTableEntities(entity.tableEntry, simulator)
+            } else {
+              simulator.readEntries(listOf(entity))
+            }
+          }
         if (entities.isNotEmpty()) {
           val translator = state.typeTranslator?.takeIf { it.hasTranslations }
           if (translator != null) {
