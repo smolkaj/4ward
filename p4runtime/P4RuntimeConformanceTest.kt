@@ -17,11 +17,14 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import p4.v1.P4RuntimeOuterClass
 import p4.v1.P4RuntimeOuterClass.Entity
 import p4.v1.P4RuntimeOuterClass.ForwardingPipelineConfig
 import p4.v1.P4RuntimeOuterClass.GetForwardingPipelineConfigRequest
 import p4.v1.P4RuntimeOuterClass.ReadRequest
 import p4.v1.P4RuntimeOuterClass.SetForwardingPipelineConfigRequest
+import p4.v1.P4RuntimeOuterClass.StreamMessageRequest
+import p4.v1.P4RuntimeOuterClass.Uint128
 
 /**
  * P4Runtime conformance tests.
@@ -55,6 +58,9 @@ class P4RuntimeConformanceTest {
 
   private fun loadPassthroughConfig() =
     P4RuntimeTestHarness.loadConfig("e2e_tests/passthrough/passthrough.txtpb")
+
+  private fun loadConstEntriesConfig() =
+    P4RuntimeTestHarness.loadConfig("e2e_tests/trace_tree/clone_with_egress.txtpb")
 
   // =========================================================================
   // SetForwardingPipelineConfig (scenarios 1-3)
@@ -1075,6 +1081,172 @@ class P4RuntimeConformanceTest {
       "default action should be drop",
       dropAction.preamble.id,
       defaultEntry.action.action.actionId,
+    )
+  }
+
+  // =========================================================================
+  // Const table entries populated at load time (scenario 65)
+  // =========================================================================
+
+  /** P4Runtime spec §7: const entries in P4 source appear after pipeline load. */
+  @Test
+  fun `65 - const entries populated at load time`() {
+    val config = loadConstEntriesConfig()
+    harness.loadPipeline(config)
+
+    // The clone_with_egress program has a table `egress_classify` with 2 const entries.
+    val egressTable =
+      config.p4Info.tablesList.first { it.preamble.name.contains("egress_classify") }
+    val entries = harness.readRegularTableEntries(egressTable.preamble.id)
+    assertEquals("expected 2 const entries", 2, entries.size)
+
+    // P4Runtime spec §9.1: const tables are immutable.
+    assertGrpcError(Status.Code.INVALID_ARGUMENT) { harness.modifyEntry(entries[0]) }
+    assertGrpcError(Status.Code.INVALID_ARGUMENT) { harness.deleteEntry(entries[0]) }
+  }
+
+  // =========================================================================
+  // SetPipeline requires primary controller (scenario 66)
+  // =========================================================================
+
+  /** P4Runtime spec §7: SetForwardingPipelineConfig requires primary when arbitration active. */
+  @Test
+  fun `66 - SetPipeline from non-primary returns PERMISSION_DENIED`() {
+    // Establish primary with election_id=5.
+    harness.openStream().use { stream -> stream.arbitrate(electionId = 5) }
+
+    // Attempt SetPipeline with election_id=3 (non-primary).
+    val config = loadBasicTableConfig()
+    assertGrpcError(Status.Code.PERMISSION_DENIED) {
+      runBlocking {
+        harness.stub.setForwardingPipelineConfig(
+          SetForwardingPipelineConfigRequest.newBuilder()
+            .setDeviceId(1)
+            .setElectionId(Uint128.newBuilder().setHigh(0).setLow(3))
+            .setAction(SetForwardingPipelineConfigRequest.Action.VERIFY_AND_COMMIT)
+            .setConfig(harness.buildForwardingPipelineConfig(config))
+            .build()
+        )
+      }
+    }
+  }
+
+  // =========================================================================
+  // StreamError on invalid stream message (scenario 67)
+  // =========================================================================
+
+  /** P4Runtime spec §16: unrecognized stream messages get a StreamError response. */
+  @Test
+  fun `67 - unrecognized stream message returns StreamError`() {
+    harness.openStream().use { stream ->
+      stream.arbitrate()
+      // Send an empty StreamMessageRequest (no oneof field set).
+      val response = stream.sendRaw(StreamMessageRequest.getDefaultInstance())
+      assertNotNull("expected a StreamError response", response)
+      assertTrue("should be a StreamError", response!!.hasError())
+      assertEquals(com.google.rpc.Code.INVALID_ARGUMENT_VALUE, response.error.canonicalCode)
+    }
+  }
+
+  // =========================================================================
+  // Direct counter/meter data in table entry reads (scenario 68)
+  // =========================================================================
+
+  /** P4Runtime spec §9.1: table entry reads include inline direct counter data. */
+  @Test
+  fun `68 - table entry read includes direct counter data`() {
+    val config = loadConfigWithDirectCounter()
+    harness.loadPipeline(config)
+    val tableEntry = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    harness.installEntry(tableEntry)
+
+    // Write direct counter data.
+    val directCounterEntity =
+      Entity.newBuilder()
+        .setDirectCounterEntry(
+          P4RuntimeOuterClass.DirectCounterEntry.newBuilder()
+            .setTableEntry(tableEntry.tableEntry)
+            .setData(
+              P4RuntimeOuterClass.CounterData.newBuilder().setPacketCount(42).setByteCount(1000)
+            )
+        )
+        .build()
+    harness.modifyEntry(directCounterEntity)
+
+    // Read table entries — counter_data should be inlined.
+    val results = harness.readRegularEntries()
+    assertEquals(1, results.size)
+    assertTrue("should have counter_data", results[0].tableEntry.hasCounterData())
+    assertEquals(42, results[0].tableEntry.counterData.packetCount)
+    assertEquals(1000, results[0].tableEntry.counterData.byteCount)
+  }
+
+  /** P4Runtime spec §9.1: table entry reads include inline direct meter config. */
+  @Test
+  fun `69 - table entry read includes direct meter config`() {
+    val config = loadConfigWithDirectMeter()
+    harness.loadPipeline(config)
+    val tableEntry = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    harness.installEntry(tableEntry)
+
+    // Write direct meter config.
+    val directMeterEntity =
+      Entity.newBuilder()
+        .setDirectMeterEntry(
+          P4RuntimeOuterClass.DirectMeterEntry.newBuilder()
+            .setTableEntry(tableEntry.tableEntry)
+            .setConfig(
+              P4RuntimeOuterClass.MeterConfig.newBuilder()
+                .setCir(1000)
+                .setCburst(500)
+                .setPir(2000)
+                .setPburst(1000)
+            )
+        )
+        .build()
+    harness.modifyEntry(directMeterEntity)
+
+    // Read table entries — meter_config should be inlined.
+    val results = harness.readRegularEntries()
+    assertEquals(1, results.size)
+    assertTrue("should have meter_config", results[0].tableEntry.hasMeterConfig())
+    assertEquals(1000, results[0].tableEntry.meterConfig.cir)
+    assertEquals(2000, results[0].tableEntry.meterConfig.pir)
+  }
+
+  /** P4Runtime spec §9.1: unwritten direct counter defaults to zero in table reads. */
+  @Test
+  fun `70 - table entry read includes zero counter data for unwritten direct counter`() {
+    val config = loadConfigWithDirectCounter()
+    harness.loadPipeline(config)
+    val tableEntry = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    harness.installEntry(tableEntry)
+
+    // Do NOT write any counter data — the read should still include counter_data with zeros.
+    val results = harness.readRegularEntries()
+    assertEquals(1, results.size)
+    assertTrue(
+      "should have counter_data even without explicit write",
+      results[0].tableEntry.hasCounterData(),
+    )
+    assertEquals(0, results[0].tableEntry.counterData.packetCount)
+    assertEquals(0, results[0].tableEntry.counterData.byteCount)
+  }
+
+  /** P4Runtime spec §9.1: unwritten direct meter is omitted from table reads (unlike counters). */
+  @Test
+  fun `71 - table entry read omits meter config for unwritten direct meter`() {
+    val config = loadConfigWithDirectMeter()
+    harness.loadPipeline(config)
+    val tableEntry = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    harness.installEntry(tableEntry)
+
+    // Do NOT write any meter config — the read should NOT include meter_config.
+    val results = harness.readRegularEntries()
+    assertEquals(1, results.size)
+    assertFalse(
+      "should not have meter_config without explicit write",
+      results[0].tableEntry.hasMeterConfig(),
     )
   }
 

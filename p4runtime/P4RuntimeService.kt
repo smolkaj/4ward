@@ -87,6 +87,7 @@ class P4RuntimeService(
   ): SetForwardingPipelineConfigResponse =
     lock.withLock {
       requireDeviceId(request.deviceId)
+      requirePrimaryOrNoArbitration(request.electionId)
       val fwdConfig = request.config
       if (!fwdConfig.hasP4Info() || fwdConfig.p4DeviceConfig.isEmpty) {
         throw Status.INVALID_ARGUMENT.withDescription(
@@ -302,6 +303,18 @@ class P4RuntimeService(
           }
           msg.hasDigestAck() ->
             throw Status.UNIMPLEMENTED.withDescription(DIGEST_NOT_SUPPORTED).asException()
+          // P4Runtime spec §16: unrecognized stream messages get an error response.
+          else ->
+            emit(
+              StreamMessageResponse.newBuilder()
+                .setError(
+                  P4RuntimeOuterClass.StreamError.newBuilder()
+                    .setCanonicalCode(com.google.rpc.Code.INVALID_ARGUMENT_VALUE)
+                    .setMessage("unrecognized stream message")
+                    .setOther(P4RuntimeOuterClass.StreamOtherError.getDefaultInstance())
+                )
+                .build()
+            )
         }
       }
     }

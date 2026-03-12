@@ -15,13 +15,13 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 | 7.3 | Empty/invalid config → INVALID_ARGUMENT | Y | ConformanceTest #3 |
 | 7.4 | Invalid p4_device_config bytes → INVALID_ARGUMENT | Y | ConformanceTest #37 |
 | 7.5 | Missing p4_device_config → INVALID_ARGUMENT | Y | ConformanceTest #38 |
-| 7.6 | Requires primary controller when arbitration is active | N | |
+| 7.6 | Requires primary controller when arbitration is active | Y | ConformanceTest #66 |
 | 7.7 | VERIFY action validates without applying | N | |
 | 7.8 | VERIFY_AND_COMMIT applies atomically | Y | ConformanceTest #1 |
 | 7.9 | VERIFY_AND_SAVE / COMMIT / RECONCILE_AND_COMMIT | N/A | Two-phase commit not meaningful for a reference simulator |
 | 7.10 | Cookie stored and returned | Y | ConformanceTest #59 |
 | 7.11 | Pipeline reload clears table entries | Y | ConformanceTest #58 |
-| 7.12 | Const table entries populated at load time | N | |
+| 7.12 | Const table entries populated at load time | Y | ConformanceTest #65 |
 
 ## General encoding (§8)
 
@@ -67,7 +67,7 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 | 9.26 | Default entry: MODIFY semantics | Y | WriteValidatorTest |
 | 9.27 | RESOURCE_EXHAUSTED when table is full | Y | TableStoreTest, ConformanceTest |
 | 9.28 | Write batch: updates applied in order | Y | ConformanceTest #39 |
-| 9.29 | Direct counter/meter data in table entry reads | N | |
+| 9.29 | Direct counter/meter data in table entry reads | Y | ConformanceTest #68-69 |
 
 ## Write RPC — action profiles (§9.2)
 
@@ -189,7 +189,7 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 | 14.1 | PacketOut processed, PacketIn returned | Y | ConformanceTest #13 |
 | 14.2 | PacketOut with table entries forwards correctly | Y | ConformanceTest #14 |
 | 14.3 | Multiple packets preserve ordering | Y | ConformanceTest #15 |
-| 14.4 | StreamError on invalid stream message | N | |
+| 14.4 | StreamError on invalid stream message | Y | ConformanceTest #67 |
 | 14.5 | Digest delivery | N/A | Out of scope — no real packet rates to trigger digests |
 | 14.6 | DigestListAck handling | N/A | Digests out of scope |
 | 14.7 | Idle timeout notifications | N/A | Out of scope — no wall-clock time in a reference simulator |
@@ -230,9 +230,9 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 
 | Category | Tested | Not tested | N/A |
 |----------|--------|------------|-----|
-| SetForwardingPipelineConfig | 7 | 2 | 1 |
+| SetForwardingPipelineConfig | 9 | 0 | 1 |
 | General encoding | 7 | 0 | 0 |
-| Write — tables | 28 | 1 | 0 |
+| Write — tables | 29 | 0 | 0 |
 | Write — profiles | 8 | 0 | 0 |
 | Write — registers | 5 | 0 | 0 |
 | Write — counters/meters | 4 | 0 | 0 |
@@ -244,8 +244,8 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 | Read | 11 | 0 | 0 |
 | GetForwardingPipelineConfig | 6 | 0 | 0 |
 | Capabilities | 1 | 0 | 0 |
-| StreamChannel | 3 | 1 | 4 |
+| StreamChannel | 4 | 0 | 4 |
 | Translation | 6 | 0 | 0 |
 | @refers_to | 6 | 0 | 0 |
 | p4-constraints | 4 | 0 | 0 |
-| **Total** | **111** | **7** | **10** |
+| **Total** | **115** | **3** | **10** |

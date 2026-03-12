@@ -552,18 +552,10 @@ class TableStore {
       P4RuntimeOuterClass.DirectCounterEntry.getDefaultInstance()
   ): List<P4RuntimeOuterClass.Entity> {
     val tableEntry = filter.tableEntry
-    val tablesToRead =
-      if (tableEntry.tableId == 0) directCounterTables
-      else {
-        val tableName = tableNameById[tableEntry.tableId] ?: return emptyList()
-        if (tableName !in directCounterTables) return emptyList()
-        setOf(tableName)
-      }
-    val hasMatchFilter = tableEntry.matchCount > 0
-    return tablesToRead.flatMap { tableName ->
-      val entries = tables[tableName] ?: return@flatMap emptyList()
-      val filtered = if (hasMatchFilter) entries.filter { it.sameKey(tableEntry) } else entries
-      filtered.map { entry ->
+    val tableNames = resolveTableNames(tableEntry.tableId, directCounterTables)
+    val matchFilter = if (tableEntry.matchCount > 0) tableEntry else null
+    return tableNames.flatMap { tableName ->
+      filteredEntries(tableName, matchFilter).map { entry ->
         val data = directCounterData[entry] ?: P4RuntimeOuterClass.CounterData.getDefaultInstance()
         P4RuntimeOuterClass.Entity.newBuilder()
           .setDirectCounterEntry(
@@ -591,18 +583,10 @@ class TableStore {
       P4RuntimeOuterClass.DirectMeterEntry.getDefaultInstance()
   ): List<P4RuntimeOuterClass.Entity> {
     val tableEntry = filter.tableEntry
-    val tablesToRead =
-      if (tableEntry.tableId == 0) directMeterTables
-      else {
-        val tableName = tableNameById[tableEntry.tableId] ?: return emptyList()
-        if (tableName !in directMeterTables) return emptyList()
-        setOf(tableName)
-      }
-    val hasMatchFilter = tableEntry.matchCount > 0
-    return tablesToRead.flatMap { tableName ->
-      val entries = tables[tableName] ?: return@flatMap emptyList()
-      val filtered = if (hasMatchFilter) entries.filter { it.sameKey(tableEntry) } else entries
-      filtered.map { entry ->
+    val tableNames = resolveTableNames(tableEntry.tableId, directMeterTables)
+    val matchFilter = if (tableEntry.matchCount > 0) tableEntry else null
+    return tableNames.flatMap { tableName ->
+      filteredEntries(tableName, matchFilter).map { entry ->
         val builder = P4RuntimeOuterClass.DirectMeterEntry.newBuilder().setTableEntry(entry)
         directMeterData[entry]?.let { builder.setConfig(it) }
         P4RuntimeOuterClass.Entity.newBuilder().setDirectMeterEntry(builder).build()
@@ -848,6 +832,25 @@ class TableStore {
   // Read
   // -------------------------------------------------------------------------
 
+  /** Resolves table names for a read, optionally restricted to [scope]. */
+  private fun resolveTableNames(tableId: Int, scope: Set<String>? = null): Collection<String> {
+    if (tableId == 0) return scope ?: tableNameById.values
+    val name = tableNameById[tableId] ?: return emptyList()
+    if (scope != null && name !in scope) return emptyList()
+    return listOf(name)
+  }
+
+  /** Returns entries from [tableName], filtered by match key if [matchFilter] is non-null. */
+  private fun filteredEntries(
+    tableName: String,
+    matchFilter: P4RuntimeOuterClass.TableEntry?,
+  ): List<P4RuntimeOuterClass.TableEntry> {
+    val entries = tables[tableName] ?: return emptyList()
+    if (matchFilter == null) return entries
+    // P4Runtime spec §9.1: match key + priority uniquely identify an entry.
+    return listOfNotNull(entries.find { it.sameKey(matchFilter) })
+  }
+
   /**
    * Returns table entries as P4Runtime Entity protos, filtered by [filter].
    * - `table_id=0`, no match fields → wildcard: returns all entries from all tables.
@@ -858,24 +861,30 @@ class TableStore {
   fun readEntities(
     filter: P4RuntimeOuterClass.TableEntry = P4RuntimeOuterClass.TableEntry.getDefaultInstance()
   ): List<P4RuntimeOuterClass.Entity> {
+    val tableNames = resolveTableNames(filter.tableId)
     val hasMatchFilter = filter.matchCount > 0
-    val tableNames =
-      if (filter.tableId != 0) listOfNotNull(tableNameById[filter.tableId])
-      else tableNameById.values.toList()
+    val matchFilter = if (hasMatchFilter) filter else null
 
     val entries =
-      tableNames
-        .mapNotNull { tables[it] }
-        .flatMap { entries ->
-          // P4Runtime spec §9.1: match key + priority uniquely identify an entry,
-          // so at most one entry can match a filter with match fields.
-          if (hasMatchFilter) listOfNotNull(entries.find { it.sameKey(filter) }) else entries
+      tableNames.flatMap { tableName ->
+        val hasDirectCounter = tableName in directCounterTables
+        val hasDirectMeter = tableName in directMeterTables
+        filteredEntries(tableName, matchFilter).map { entry ->
+          val builder = entry.toBuilder()
+          // P4Runtime spec §9.1: table entry reads include inline direct resource data.
+          // Counters default to zero; meters are only included if explicitly configured.
+          if (hasDirectCounter) {
+            builder.setCounterData(
+              directCounterData[entry] ?: P4RuntimeOuterClass.CounterData.getDefaultInstance()
+            )
+          }
+          if (hasDirectMeter) directMeterData[entry]?.let { builder.setMeterConfig(it) }
+          P4RuntimeOuterClass.Entity.newBuilder().setTableEntry(builder).build()
         }
-        .map { P4RuntimeOuterClass.Entity.newBuilder().setTableEntry(it).build() }
+      }
 
     // P4Runtime spec §11.1: wildcard reads (no match filter) include the default entry.
     if (hasMatchFilter) return entries
-
     return entries + tableNames.mapNotNull { defaultEntryByTable[it] }
   }
 
