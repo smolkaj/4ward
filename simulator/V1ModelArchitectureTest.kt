@@ -196,6 +196,10 @@ class V1ModelArchitectureTest {
       .setType(bitType(width))
       .build()
 
+  /** Unsized integer literal (no type annotation). p4c emits these for some constant arguments. */
+  private fun unsizedIntArg(value: Long): Expr =
+    Expr.newBuilder().setLiteral(Literal.newBuilder().setInteger(value)).build()
+
   /**
    * Builds a minimal v1model [BehavioralConfig].
    *
@@ -885,6 +889,45 @@ class V1ModelArchitectureTest {
     assertEquals(2, outputs.size)
     assertEquals(3, outputs[0].egressPort)
     assertEquals(8, outputs[1].egressPort)
+  }
+
+  @Test
+  fun `clone_preserving_field_list handles unsized integer field list arg`() {
+    // p4c sometimes emits an unsized integer literal (no type) for the field list ID.
+    // The simulator must handle both BitVal and InfIntVal for this argument.
+    val config =
+      v1modelConfig(
+        ingressStmts =
+          listOf(
+            assignField("meta", "preserved", 0xABCD, 16),
+            // unsizedIntArg(1) instead of intArg(1, 8) — exercises the InfIntVal path.
+            externCall(
+              "clone_preserving_field_list",
+              enumArg("I2E"),
+              intArg(1, 32),
+              unsizedIntArg(1),
+            ),
+            assignField("sm", "egress_spec", 2, V1ModelArchitecture.DEFAULT_PORT_BITS),
+          ),
+        egressStmts =
+          listOf(
+            ifFieldEquals(
+              "sm",
+              "instance_type",
+              1,
+              32,
+              ifFieldEquals("meta", "preserved", 0, 16, externCall("mark_to_drop", nameRef("sm"))),
+            )
+          ),
+        metaTypeDecl = metaTypeWithFieldList,
+      )
+    val tableStore = TableStore()
+    writeCloneSession(tableStore, sessionId = 1, egressPort = 7)
+
+    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, tableStore)
+
+    val outputs = collectOutputsFromTrace(result.trace)
+    assertEquals(2, outputs.size)
   }
 
   @Test

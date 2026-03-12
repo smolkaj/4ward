@@ -40,6 +40,17 @@ import java.math.BigInteger
  * - BMv2 simple_switch semantics:
  *   https://github.com/p4lang/behavioral-model/blob/main/docs/simple_switch.md
  */
+/**
+ * Evaluates an extern argument as an Int, handling both sized (BitVal) and unsized (InfIntVal)
+ * integer literals. p4c sometimes emits unsized literals for field list IDs.
+ */
+private fun evalIntArg(eval: ExternEvaluator, index: Int): Int =
+  when (val arg = eval.evalArg(index)) {
+    is BitVal -> arg.bits.value.toInt()
+    is InfIntVal -> arg.value.toInt()
+    else -> error("expected integer argument at index $index, got: $arg")
+  }
+
 class V1ModelArchitecture : Architecture {
 
   /** Invariant inputs to the pipeline, shared across fork re-executions. */
@@ -729,7 +740,7 @@ class V1ModelArchitecture : Architecture {
         val sessionId = (eval.evalArg(1) as BitVal).bits.value.toInt()
         val fieldListId =
           if (name == "clone_preserving_field_list") {
-            (eval.evalArg(2) as BitVal).bits.value.toInt()
+            evalIntArg(eval, 2)
           } else {
             null
           }
@@ -753,7 +764,7 @@ class V1ModelArchitecture : Architecture {
       "resubmit_preserving_field_list" -> {
         pendingOps.resubmit = true
         if (name == "resubmit_preserving_field_list") {
-          pendingOps.resubmitFieldListId = (eval.evalArg(0) as BitVal).bits.value.toInt()
+          pendingOps.resubmitFieldListId = evalIntArg(eval, 0)
         }
         UnitVal
       }
@@ -762,7 +773,7 @@ class V1ModelArchitecture : Architecture {
       "recirculate_preserving_field_list" -> {
         pendingOps.recirculate = true
         if (name == "recirculate_preserving_field_list") {
-          pendingOps.recirculateFieldListId = (eval.evalArg(0) as BitVal).bits.value.toInt()
+          pendingOps.recirculateFieldListId = evalIntArg(eval, 0)
         }
         UnitVal
       }
@@ -837,7 +848,13 @@ class V1ModelArchitecture : Architecture {
     when (call.method) {
       // register.read(out dst, index) / direct_meter.read(out color)
       "read" -> {
-        if (call.externType == "direct_meter") {
+        // direct_meter.read has 1 arg; register.read has 2.
+        // WORKAROUND: p4c emits an empty externType for direct_meter instances
+        // (the MethodCall target Expr carries `type {}` instead of
+        // `type { named: "direct_meter" }`). The proper fix is to populate
+        // the type in the p4c backend; until then, disambiguate by arg count.
+        // TODO(p4c backend): populate extern type on MethodCall target Expr.
+        if (call.externType == "direct_meter" || eval.argCount() == 1) {
           // direct_meter.read(out color): always GREEN (no real rates in simulator).
           eval.writeOutArg(0, eval.defaultValue(eval.argType(0)))
         } else {
