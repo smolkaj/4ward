@@ -949,6 +949,61 @@ class P4RuntimeConformanceTest {
     assertGrpcError(Status.Code.INVALID_ARGUMENT) { harness.installEntry(directMeterEntity) }
   }
 
+  // =========================================================================
+  // device_id validation (scenarios 60-62)
+  // =========================================================================
+
+  /** P4Runtime spec §6.3: Write with wrong device_id → NOT_FOUND. */
+  @Test
+  fun `60 - write with wrong device_id returns NOT_FOUND`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    assertGrpcError(Status.Code.NOT_FOUND, "unknown device_id") {
+      runBlocking {
+        harness.stub.write(
+          p4.v1.P4RuntimeOuterClass.WriteRequest.newBuilder()
+            .setDeviceId(999)
+            .addUpdates(
+              p4.v1.P4RuntimeOuterClass.Update.newBuilder()
+                .setType(p4.v1.P4RuntimeOuterClass.Update.Type.INSERT)
+                .setEntity(buildExactEntry(config, matchValue = 0x0800, port = 1))
+            )
+            .build()
+        )
+      }
+    }
+  }
+
+  /** P4Runtime spec §6.3: Read with wrong device_id → NOT_FOUND. */
+  @Test
+  fun `61 - read with wrong device_id returns NOT_FOUND`() {
+    harness.loadPipeline(loadBasicTableConfig())
+    assertGrpcError(Status.Code.NOT_FOUND, "unknown device_id") {
+      harness.readEntries(
+        ReadRequest.newBuilder()
+          .setDeviceId(999)
+          .addEntities(
+            Entity.newBuilder()
+              .setTableEntry(p4.v1.P4RuntimeOuterClass.TableEntry.newBuilder().setTableId(0))
+          )
+          .build()
+      )
+    }
+  }
+
+  /** P4Runtime spec §6.3: GetForwardingPipelineConfig with wrong device_id → NOT_FOUND. */
+  @Test
+  fun `62 - getForwardingPipelineConfig with wrong device_id returns NOT_FOUND`() {
+    harness.loadPipeline(loadBasicTableConfig())
+    assertGrpcError(Status.Code.NOT_FOUND, "unknown device_id") {
+      runBlocking {
+        harness.stub.getForwardingPipelineConfig(
+          GetForwardingPipelineConfigRequest.newBuilder().setDeviceId(999).build()
+        )
+      }
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Test helpers
   // ---------------------------------------------------------------------------
