@@ -75,6 +75,28 @@ We are driving development by building towards two demanding real-world applicat
 > [!WARNING]
 > **Pre-1.0 Notice:** We are aggressively refactoring to build the best system possible. Until we reach 1.0, nothing is sacred except correctness and the test suite.
 
+## Where we're headed
+
+We have an **[ambitious roadmap](docs/ROADMAP.md)**: a **definitive P4 reference
+implementation** with unique capabilities like trace trees and architecture
+customization — production-ready for industry-grade P4 programs, warts and all.
+
+We're building towards two demanding real-world applications as a forcing function:
+
+1. **[SAI P4](https://github.com/sonic-net/sonic-pins/tree/main/sai_p4)**
+   — a 27-table program that exercises `@p4runtime_translation` with string port
+   names, `@entry_restriction`, and everything the ecosystem currently papers
+   over with hardcoded workarounds.
+
+2. **[DVaaS](https://github.com/sonic-net/sonic-pins/tree/main/dvaas)**
+   — SONiC's dataplane validation service, currently using BMv2.
+
+4ward is pre-1.0 and growing fast. See the **[Roadmap](docs/ROADMAP.md)** for
+the full plan and [STATUS.md](docs/STATUS.md) for daily progress.
+
+**CAUTION:** We will aggressively refactor to build the best system we can;
+nothing is sacred except correctness and the test suite — until we reach 1.0.
+
 ## Quick start
 
 [Tested on](https://4ward.buildbuddy.io/tests/) macOS and Ubuntu. You need
@@ -313,7 +335,6 @@ report in about 5. No flakes, no "works on my machine." See for yourself on the
 | [AI_WORKFLOW.md](docs/AI_WORKFLOW.md) | How to develop with AI agents |
 | [TESTING_STRATEGY.md](docs/TESTING_STRATEGY.md) | Why three test oracles, and what that enables |
 | [P4RUNTIME_COMPLIANCE.md](docs/P4RUNTIME_COMPLIANCE.md) | P4Runtime spec compliance matrix |
-| [P4RUNTIME_CONFIDENCE.md](docs/P4RUNTIME_CONFIDENCE.md) | P4Runtime server confidence assessment |
 | [SAI_P4_CONFIDENCE.md](docs/SAI_P4_CONFIDENCE.md) | SAI P4 confidence gaps and action plan |
 | [LIMITATIONS.md](docs/LIMITATIONS.md) | Known shortcuts and gaps |
 | [REFACTORING.md](docs/REFACTORING.md) | Tech debt and cleanup backlog |

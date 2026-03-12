@@ -81,8 +81,7 @@ assessment (#293) documents the remaining blind spots honestly.
 500 p4testgen tests (#260) + 10 constraint violation tests + metadata
 preservation for clone/resubmit/recirculate (#266) close the remaining fidelity
 gaps. BMv2 action profile support in the diff-testing driver (#264) rounds out
-the testing infrastructure. Full assessment in
-[P4RUNTIME_CONFIDENCE.md](P4RUNTIME_CONFIDENCE.md).
+the testing infrastructure.
 
 ### Simulator: clean architecture boundary
 
