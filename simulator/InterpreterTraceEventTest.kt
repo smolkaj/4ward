@@ -13,6 +13,7 @@ import fourward.sim.v1.SimulatorProto.DropReason
 import fourward.sim.v1.SimulatorProto.MarkToDropEvent
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -232,5 +233,50 @@ class InterpreterTraceEventTest {
     assertEquals(10, branchEvent.sourceInfo.line)
     assertEquals("mark_to_drop(sm)", markToDropEvent.sourceInfo.sourceFragment)
     assertEquals(20, markToDropEvent.sourceInfo.line)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Test 8: assert(true) emits AssertionEvent with passed=true
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `assert true emits passing AssertionEvent`() {
+    val config = controlConfig("MyIngress", externCall("assert", boolLit(true)))
+    val pktCtx = PacketContext(byteArrayOf())
+    Interpreter(config, TableStore(), pktCtx).runControl("MyIngress", Environment())
+
+    val events = pktCtx.getEvents().filter { it.hasAssertion() }
+    assertEquals(1, events.size)
+    assertTrue(events[0].assertion.passed)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Test 9: assert(false) emits AssertionEvent with passed=false and throws
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `assert false emits failing AssertionEvent and throws`() {
+    val config = controlConfig("MyIngress", externCall("assert", boolLit(false)))
+    val pktCtx = PacketContext(byteArrayOf())
+    assertThrows(AssertionFailureException::class.java) {
+      Interpreter(config, TableStore(), pktCtx).runControl("MyIngress", Environment())
+    }
+
+    val events = pktCtx.getEvents().filter { it.hasAssertion() }
+    assertEquals(1, events.size)
+    assertFalse(events[0].assertion.passed)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Test 10: assume behaves identically to assert at runtime
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `assume false throws AssertionFailureException`() {
+    val config = controlConfig("MyIngress", externCall("assume", boolLit(false)))
+    val pktCtx = PacketContext(byteArrayOf())
+    assertThrows(AssertionFailureException::class.java) {
+      Interpreter(config, TableStore(), pktCtx).runControl("MyIngress", Environment())
+    }
   }
 }

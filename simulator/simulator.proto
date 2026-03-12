@@ -132,6 +132,8 @@ message TraceEvent {
     PacketIngressEvent packet_ingress = 8;
     PipelineStageEvent pipeline_stage = 9;
     CloneSessionLookupEvent clone_session_lookup = 10;
+    LogMessageEvent log_message = 11;
+    AssertionEvent assertion = 12;
   }
 
   fourward.ir.v1.SourceInfo source_info = 100;
@@ -218,10 +220,21 @@ message PipelineStageEvent {
   Direction direction = 3;
 }
 
+// Fired when the P4 program calls log_msg().
+message LogMessageEvent {
+  string message = 1;
+}
+
+// Fired when the P4 program calls assert() or assume(). P4 spec §12.9.
+message AssertionEvent {
+  bool passed = 1;  // true = condition held; false = assertion failed
+}
+
 enum DropReason {
   DROP_REASON_UNSPECIFIED = 0;
   MARK_TO_DROP = 1;   // explicit mark_to_drop()
   PARSER_REJECT = 2;  // parser transitioned to reject state
   PIPELINE_EXECUTION_LIMIT_REACHED =
-      3;  // too many fork branches (exponential blowup guard)
+      3;                  // too many fork branches (exponential blowup guard)
+  ASSERTION_FAILURE = 4;  // assert() or assume() failed
 }

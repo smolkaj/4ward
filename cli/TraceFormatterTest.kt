@@ -2,11 +2,13 @@ package fourward.cli
 
 import com.google.protobuf.ByteString
 import fourward.sim.v1.SimulatorProto.ActionExecutionEvent
+import fourward.sim.v1.SimulatorProto.AssertionEvent
 import fourward.sim.v1.SimulatorProto.Drop
 import fourward.sim.v1.SimulatorProto.DropReason
 import fourward.sim.v1.SimulatorProto.Fork
 import fourward.sim.v1.SimulatorProto.ForkBranch
 import fourward.sim.v1.SimulatorProto.ForkReason
+import fourward.sim.v1.SimulatorProto.LogMessageEvent
 import fourward.sim.v1.SimulatorProto.MarkToDropEvent
 import fourward.sim.v1.SimulatorProto.OutputPacket
 import fourward.sim.v1.SimulatorProto.PacketOutcome
@@ -175,6 +177,76 @@ class TraceFormatterTest {
       |"""
         .trimMargin(),
       output,
+    )
+  }
+
+  @Test
+  fun logMessageEvent() {
+    val tree =
+      TraceTree.newBuilder()
+        .addEvents(
+          TraceEvent.newBuilder()
+            .setLogMessage(LogMessageEvent.newBuilder().setMessage("TTL = 64, port = 1"))
+        )
+        .setPacketOutcome(
+          PacketOutcome.newBuilder()
+            .setOutput(OutputPacket.newBuilder().setEgressPort(1).setPayload(ByteString.EMPTY))
+        )
+        .build()
+
+    assertEquals(
+      """
+      |log_msg: TTL = 64, port = 1
+      |output port 1, 0 bytes
+      |"""
+        .trimMargin(),
+      TraceFormatter.format(tree),
+    )
+  }
+
+  @Test
+  fun assertionPassedEvent() {
+    val tree =
+      TraceTree.newBuilder()
+        .addEvents(
+          TraceEvent.newBuilder().setAssertion(AssertionEvent.newBuilder().setPassed(true))
+        )
+        .setPacketOutcome(
+          PacketOutcome.newBuilder()
+            .setOutput(OutputPacket.newBuilder().setEgressPort(1).setPayload(ByteString.EMPTY))
+        )
+        .build()
+
+    assertEquals(
+      """
+      |assert: passed
+      |output port 1, 0 bytes
+      |"""
+        .trimMargin(),
+      TraceFormatter.format(tree),
+    )
+  }
+
+  @Test
+  fun assertionFailedDrop() {
+    val tree =
+      TraceTree.newBuilder()
+        .addEvents(
+          TraceEvent.newBuilder().setAssertion(AssertionEvent.newBuilder().setPassed(false))
+        )
+        .setPacketOutcome(
+          PacketOutcome.newBuilder()
+            .setDrop(Drop.newBuilder().setReason(DropReason.ASSERTION_FAILURE))
+        )
+        .build()
+
+    assertEquals(
+      """
+      |assert: FAILED
+      |drop (reason: assertion failure)
+      |"""
+        .trimMargin(),
+      TraceFormatter.format(tree),
     )
   }
 }

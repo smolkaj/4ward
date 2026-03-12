@@ -51,6 +51,9 @@ data class ErrorVal(val member: String) : Value()
 /** A plain (non-serializable) P4 enum value, e.g. HashAlgorithm.crc16. */
 data class EnumVal(val member: String) : Value()
 
+/** A string value, used by log_msg format strings. */
+data class StringVal(val value: String) : Value()
+
 /**
  * A header instance.
  *

@@ -1,0 +1,10 @@
+# assert_log_msg.stf — STF test for assert_log_msg.p4
+#
+# Packet on port 0: passes all assertions, forwarded to port 1.
+# Packet on port 5: assert(ingress_port != 5) fails, packet dropped.
+
+packet 0 FFFFFFFFFFFF 000000000001 0800
+expect 1 FFFFFFFFFFFF 000000000001 0800
+
+# Assertion failure → drop (no expect line).
+packet 5 FFFFFFFFFFFF 000000000002 0800

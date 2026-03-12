@@ -130,6 +130,8 @@ fourward::ir::v1::Expr FourWardBackend::emitExpr(const IR::Expression* expr) {
     }
   } else if (const auto* b = expr->to<IR::BoolLiteral>()) {
     out.mutable_literal()->set_boolean(b->value);
+  } else if (const auto* sl = expr->to<IR::StringLiteral>()) {
+    out.mutable_literal()->set_string_literal(sl->value.c_str());
   } else if (const auto* pe = expr->to<IR::PathExpression>()) {
     out.mutable_name_ref()->set_name(pe->path->name.name.c_str());
   } else if (const auto* mem = expr->to<IR::Member>()) {

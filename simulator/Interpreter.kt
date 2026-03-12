@@ -16,6 +16,7 @@ import fourward.ir.v1.TableBehavior
 import fourward.ir.v1.Type
 import fourward.ir.v1.UnaryOperator
 import fourward.sim.v1.SimulatorProto.ActionExecutionEvent
+import fourward.sim.v1.SimulatorProto.AssertionEvent
 import fourward.sim.v1.SimulatorProto.BranchEvent
 import fourward.sim.v1.SimulatorProto.ParserTransitionEvent
 import fourward.sim.v1.SimulatorProto.TableLookupEvent
@@ -316,6 +317,7 @@ class Interpreter(
       lit.hasBoolean() -> BoolVal(lit.boolean)
       lit.hasErrorMember() -> ErrorVal(lit.errorMember)
       lit.hasEnumMember() -> EnumVal(lit.enumMember)
+      lit.hasStringLiteral() -> StringVal(lit.stringLiteral)
       lit.hasInteger() -> {
         val v = BigInteger.valueOf(lit.integer.toLong())
         when {
@@ -858,6 +860,18 @@ class Interpreter(
       return UnitVal
     }
 
+    // assert(condition) / assume(condition): P4 spec §12.9.
+    // At runtime, assume behaves identically to assert — the distinction is for
+    // static analysis tools. On failure, emit a trace event and abort processing.
+    if (funcName == "assert" || funcName == "assume") {
+      val condition = (evalExpr(call.argsList[0], env) as BoolVal).value
+      packetCtx?.addTraceEvent(
+        traceEventBuilder().setAssertion(AssertionEvent.newBuilder().setPassed(condition)).build()
+      )
+      if (!condition) throw AssertionFailureException("$funcName failed")
+      return UnitVal
+    }
+
     // All other externs are architecture-specific — delegate to the handler.
     val handler = externHandler ?: error("no extern handler for: $funcName")
     return handler.handle(ExternCall.FreeFunction(funcName), createExternEvaluator(call, env))
@@ -1167,6 +1181,9 @@ class Interpreter(
  * Thrown by an `exit` statement; unwinds the call stack to the top of the current pipeline stage.
  */
 class ExitException : Exception()
+
+/** Thrown when assert() or assume() fails. The architecture catches this and drops the packet. */
+class AssertionFailureException(message: String) : Exception(message)
 
 /** Thrown by a `return` statement inside an action or function. */
 class ReturnException(val value: Value) : Exception()

@@ -1074,4 +1074,97 @@ class V1ModelArchitectureTest {
     // Clone should NOT drop: not_preserved was reset to 0, so 0x1234 check is false.
     assertEquals(2, outputs.size)
   }
+
+  // ---------------------------------------------------------------------------
+  // assert / assume tests
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `assert true passes through normally`() {
+    val config =
+      v1modelConfig(
+        externCall("assert", boolLit(true)),
+        assignField("sm", "egress_spec", 1, V1ModelArchitecture.DEFAULT_PORT_BITS),
+      )
+    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val outputs = collectOutputsFromTrace(result.trace)
+
+    assertEquals(1, outputs.size)
+    assertEquals(1, outputs[0].egressPort)
+    // Trace should contain a passing assertion event.
+    assertTrue(result.trace.eventsList.any { it.hasAssertion() && it.assertion.passed })
+  }
+
+  @Test
+  fun `assert false drops packet with ASSERTION_FAILURE reason`() {
+    val config = v1modelConfig(externCall("assert", boolLit(false)))
+    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+
+    assertTrue(result.trace.hasPacketOutcome())
+    assertTrue(result.trace.packetOutcome.hasDrop())
+    assertEquals(DropReason.ASSERTION_FAILURE, result.trace.packetOutcome.drop.reason)
+    // Trace should contain a failing assertion event.
+    assertTrue(result.trace.eventsList.any { it.hasAssertion() && !it.assertion.passed })
+  }
+
+  @Test
+  fun `assume false drops packet with ASSERTION_FAILURE reason`() {
+    val config = v1modelConfig(externCall("assume", boolLit(false)))
+    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+
+    assertTrue(result.trace.hasPacketOutcome())
+    assertTrue(result.trace.packetOutcome.hasDrop())
+    assertEquals(DropReason.ASSERTION_FAILURE, result.trace.packetOutcome.drop.reason)
+  }
+
+  // ---------------------------------------------------------------------------
+  // log_msg tests
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `log_msg emits LogMessageEvent with format string`() {
+    val config =
+      v1modelConfig(
+        externCall("log_msg", stringLit("hello world")),
+        assignField("sm", "egress_spec", 1, V1ModelArchitecture.DEFAULT_PORT_BITS),
+      )
+    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val outputs = collectOutputsFromTrace(result.trace)
+
+    assertEquals(1, outputs.size)
+    val logEvents = result.trace.eventsList.filter { it.hasLogMessage() }
+    assertEquals(1, logEvents.size)
+    assertEquals("hello world", logEvents[0].logMessage.message)
+  }
+
+  @Test
+  fun `log_msg substitutes placeholders from arg`() {
+    val config =
+      v1modelConfig(
+        externCall("log_msg", stringLit("value = {}"), bit(42, 8)),
+        assignField("sm", "egress_spec", 1, V1ModelArchitecture.DEFAULT_PORT_BITS),
+      )
+    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val outputs = collectOutputsFromTrace(result.trace)
+
+    assertEquals(1, outputs.size)
+    val logEvents = result.trace.eventsList.filter { it.hasLogMessage() }
+    assertEquals(1, logEvents.size)
+    assertEquals("value = 42", logEvents[0].logMessage.message)
+  }
+
+  @Test
+  fun `egress assert false drops packet with ASSERTION_FAILURE reason`() {
+    val config =
+      v1modelConfig(
+        ingressStmts =
+          listOf(assignField("sm", "egress_spec", 1, V1ModelArchitecture.DEFAULT_PORT_BITS)),
+        egressStmts = listOf(externCall("assert", boolLit(false))),
+      )
+    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+
+    assertTrue(result.trace.hasPacketOutcome())
+    assertTrue(result.trace.packetOutcome.hasDrop())
+    assertEquals(DropReason.ASSERTION_FAILURE, result.trace.packetOutcome.drop.reason)
+  }
 }

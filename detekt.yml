@@ -109,6 +109,7 @@ exceptions:
       - ExitException
       - EOFException
       - PacketTooShortException
+      - AssertionFailureException
       - FileNotFoundException
       - NoSuchFileException
 
