@@ -70,7 +70,7 @@ We are driving development by building towards two demanding real-world applicat
 2. **[DVaaS](https://github.com/sonic-net/sonic-pins/tree/main/dvaas)**
    — SONiC's dataplane validation service. We are building 4ward to be a modern, highly capable drop-in replacement for its current BMv2 backend.
 
-4ward is pre-1.0 and moving fast. Check out the **[Roadmap](docs/ROADMAP.md)** for the big picture and **[STATUS.md](docs/STATUS.md)** for daily progress.
+4ward is pre-1.0 and moving fast. Check out the **[Roadmap](docs/ROADMAP.md)** for the big picture and **[STATUS.md](docs/STATUS.md)** for  progress updates.
 
 > [!WARNING]
 > **Pre-1.0 Notice:** We are aggressively refactoring to build the best system possible. Until we reach 1.0, nothing is sacred except correctness and the test suite.
