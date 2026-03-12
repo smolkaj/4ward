@@ -232,7 +232,9 @@ class ControlGraphExtractorTest {
     val match =
       g.edges.any { e -> e.from == from && e.to == to && (label.isEmpty() || e.label == label) }
     assertTrue(
-      "Expected edge $from -> $to" + if (label.isNotEmpty()) " [$label]" else "" + " in ${g.edges}",
+      "Expected edge $from -> $to" +
+        (if (label.isNotEmpty()) " [$label]" else "") +
+        " in ${g.edges}",
       match,
     )
   }

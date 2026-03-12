@@ -208,26 +208,29 @@ class TableStore : TableDataReader {
     fun resolveName(alias: String, candidates: List<String>): String =
       candidates.find { it == alias } ?: candidates.find { it.endsWith("_$alias") } ?: alias
 
-    this.tableNameById =
-      p4info.tablesList.associate { table ->
-        val alias = table.preamble.alias.ifEmpty { table.preamble.name }
-        table.preamble.id to resolveName(alias, behavioralTableNames)
-      }
-    this.tableAliasByName =
-      p4info.tablesList.associate { table ->
-        val alias = table.preamble.alias.ifEmpty { table.preamble.name }
-        resolveName(alias, behavioralTableNames) to alias
-      }
-    this.actionNameById =
-      p4info.actionsList.associate { action ->
-        val alias = action.preamble.alias.ifEmpty { action.preamble.name }
-        action.preamble.id to resolveName(alias, behavioralActionNames)
-      }
-    this.actionAliasByName =
-      p4info.actionsList.associate { action ->
-        val alias = action.preamble.alias.ifEmpty { action.preamble.name }
-        resolveName(alias, behavioralActionNames) to alias
-      }
+    // Build both forward (id → behavioral name) and reverse (behavioral name → alias) maps
+    // in a single pass per list.
+    val tableById = mutableMapOf<Int, String>()
+    val tableByName = mutableMapOf<String, String>()
+    for (table in p4info.tablesList) {
+      val alias = table.preamble.alias.ifEmpty { table.preamble.name }
+      val behavioral = resolveName(alias, behavioralTableNames)
+      tableById[table.preamble.id] = behavioral
+      tableByName[behavioral] = alias
+    }
+    this.tableNameById = tableById
+    this.tableAliasByName = tableByName
+
+    val actionById = mutableMapOf<Int, String>()
+    val actionByName = mutableMapOf<String, String>()
+    for (action in p4info.actionsList) {
+      val alias = action.preamble.alias.ifEmpty { action.preamble.name }
+      val behavioral = resolveName(alias, behavioralActionNames)
+      actionById[action.preamble.id] = behavioral
+      actionByName[behavioral] = alias
+    }
+    this.actionNameById = actionById
+    this.actionAliasByName = actionByName
     this.registerInfoById =
       p4info.registersList.associate { reg ->
         val bitwidth = reg.typeSpec.bitstring.bit.bitwidth
