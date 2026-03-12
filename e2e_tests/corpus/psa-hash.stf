@@ -1,0 +1,8 @@
+# PSA Hash: CRC16 hash of Ethernet header stored in metadata.
+# Tests: Hash extern instantiation and get_hash().
+# No send_to_port → packets dropped by PSA default.
+
+add tbl hdr.ethernet.srcAddr:0x00aabbccddee a1()
+
+# Table hit → a1 action computes CRC16 hash of ethernet header
+packet 0 001122334455 00aabbccddee 0800

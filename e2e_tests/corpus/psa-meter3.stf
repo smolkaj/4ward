@@ -1,0 +1,9 @@
+# PSA Meter: conditional table apply based on meter result.
+# Tests: Meter.execute() return value, conditional control flow.
+# No send_to_port → packets dropped by PSA default.
+
+# Table entry for when meter returns GREEN (which it always does in our stub)
+add tbl hdr.ethernet.srcAddr:0x00aabbccddee NoAction()
+
+# Meter at index 0 returns GREEN (stub) → table is applied
+packet 0 001122334455 00aabbccddee 0800

@@ -1,0 +1,11 @@
+# PSA logical operations: bitwise OR, AND, XOR on MAC addresses.
+# Tests: bitwise operators in actions, metadata field slicing.
+# No send_to_port → packets dropped by PSA default.
+
+add tbl a.srcAddr:0x00aabbccddee forward()
+
+# Table hit → forward action computes OR/AND/XOR, results assigned to headers
+packet 0 001122334455 00aabbccddee 0800
+
+# Table miss → metadata stays zero, assignments produce zero values
+packet 0 001122334455 00ffeeddccbb 0800

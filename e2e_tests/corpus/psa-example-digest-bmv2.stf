@@ -1,0 +1,17 @@
+# PSA digest example: L2 MAC learning switch with Digest extern.
+# Tests: multiple exact-match tables, send_to_port, Digest.pack (stubbed).
+
+# Known source MAC → no digest. Known dest MAC → forward to port 2.
+add learned_sources hdr.ethernet.srcAddr:0x00aabbccddee NoAction()
+add l2_tbl hdr.ethernet.dstAddr:0x001122334455 do_L2_forward(egress_port:2)
+
+# Ethernet + IPv4 packet with known source, known destination → port 2
+packet 0 001122334455 00aabbccddee 0800 45000014000100004000000a 0a000001 0a000101
+expect 2 001122334455 00aabbccddee 0800 45000014000100004000000a 0a000001 0a000101 $
+
+# Unknown source MAC (triggers digest), known destination → still forwarded
+packet 1 001122334455 00ffeeddccbb 0800 45000014000100004000000a 0a000001 0a000101
+expect 2 001122334455 00ffeeddccbb 0800 45000014000100004000000a 0a000001 0a000101 $
+
+# Known source, unknown destination → l2_tbl miss → PSA default drop
+packet 0 ffffffffffff 00aabbccddee 0800 45000014000100004000000a 0a000001 0a000101

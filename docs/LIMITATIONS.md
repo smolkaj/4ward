@@ -12,15 +12,16 @@ guilt — just write it down so someone can find it later.
 
 ## Architecture support
 
-- **PSA: all 26 corpus tests pass + 55 compile-only tests.** The PSA
+- **PSA: 38 corpus STF tests pass + 43 compile-only tests.** The PSA
   two-pipeline architecture (ingress + egress) is implemented with support for
   `send_to_port`, `ingress_drop`, `egress_drop`, `multicast`, I2E/E2E cloning
   (via `ostd.clone` + `clone_session_id`), recirculate (`PSA_PORT_RECIRCULATE`),
-  resubmit (`ostd.resubmit`), registers, `Hash.get_hash`, `Meter.execute`
-  (stub GREEN), `InternetChecksum` (clear/add/subtract/get/get_state/set_state),
-  basic counters, and top-level assignments. An additional 55 PSA programs
-  without STF companions are verified to compile through p4c-4ward. PNA and
-  TNA are not implemented.
+  resubmit (`ostd.resubmit`), registers, `Hash.get_hash` (headers + structs),
+  `Meter.execute` (stub GREEN), `Random.read()`,
+  `InternetChecksum` (clear/add/subtract/get/get_state/set_state),
+  `Digest.pack` (stub no-op), basic counters, action profiles, and top-level
+  assignments. An additional 43 PSA programs without STF companions are verified
+  to compile through p4c-4ward. PNA and TNA are not implemented.
 
 ## Externs
 
@@ -31,7 +32,8 @@ guilt — just write it down so someone can find it later.
 - **Meters always return GREEN.** `meter.execute_meter()` and
   `direct_meter.read()` always return GREEN (0). Rate limiting is not
   simulated — there are no real packet rates in STF tests.
-- **`digest` not implemented.** No corpus tests depend on it.
+- **`digest` is a no-op stub.** PSA `Digest.pack()` is accepted but doesn't
+  deliver messages to the control plane. v1model `digest()` is not implemented.
 
 ## P4Runtime server
 

@@ -677,12 +677,21 @@ class PSAArchitecture : Architecture {
           }
         is ExternCall.Method ->
           when (call.method) {
-            // PSA register.read(index) returns T directly (unlike v1model's void + out param).
-            "read" -> {
-              val index = (eval.evalArg(0) as BitVal).bits.value.toInt()
-              pipeline.tableStore.registerRead(call.instanceName, index)
-                ?: eval.defaultValue(eval.returnType())
-            }
+            // Register.read(index) returns T directly (unlike v1model's void + out param).
+            // Random.read() takes 0 args — returns a random value in [min, max].
+            "read" ->
+              if (eval.argCount() > 0) {
+                val index = (eval.evalArg(0) as BitVal).bits.value.toInt()
+                pipeline.tableStore.registerRead(call.instanceName, index)
+                  ?: eval.defaultValue(eval.returnType())
+              } else {
+                // PSA Random.read() — PSA spec §7.5.
+                val instance = pipeline.externInstances[call.instanceName]
+                val lo = instance?.constructorArgsList?.getOrNull(0)?.literal?.integer ?: 0L
+                val hi = instance?.constructorArgsList?.getOrNull(1)?.literal?.integer ?: 0L
+                val value = if (hi > lo) kotlin.random.Random.nextLong(lo, hi + 1) else lo
+                BitVal(BitVector(BigInteger.valueOf(value), eval.returnType().bit.width))
+              }
             "write" -> {
               val index = (eval.evalArg(0) as BitVal).bits.value.toInt()
               pipeline.tableStore.registerWrite(call.instanceName, index, eval.evalArg(1))
@@ -701,14 +710,14 @@ class PSAArchitecture : Architecture {
               UnitVal
             }
             "add" -> {
-              val data = eval.evalArg(0) as StructVal
+              val data = eval.evalArg(0).asStructVal()
               val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)
               checksumState[call.instanceName] = onesComplementAdd(sum, sumWords(data))
               UnitVal
             }
             "subtract" -> {
               // RFC 1624: subtract by adding the ones' complement of the data's word sum.
-              val data = eval.evalArg(0) as StructVal
+              val data = eval.evalArg(0).asStructVal()
               val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)
               val dataSumComplement = CSUM_MASK.subtract(sumWords(data))
               checksumState[call.instanceName] = onesComplementAdd(sum, dataSumComplement)
@@ -726,6 +735,10 @@ class PSAArchitecture : Architecture {
               checksumState[call.instanceName] = (eval.evalArg(0) as BitVal).bits.value
               UnitVal
             }
+            // Digest.pack() queues a digest message for the control plane. No-op in STF
+            // testing since there's no control-plane receiver.
+            // TODO(PSA): implement digest delivery via P4Runtime StreamChannel.
+            "pack" -> UnitVal
             else ->
               error(
                 "unhandled PSA extern method: ${call.externType}.${call.method}" +
@@ -753,13 +766,13 @@ class PSAArchitecture : Architecture {
 
     return if (eval.argCount() == 1) {
       // 1-arg form: get_hash(data) → hash(data) truncated to result width
-      val data = eval.evalArg(0) as StructVal
+      val data = eval.evalArg(0).asStructVal()
       val hash = computeHash(algorithm, data)
       BitVal(BitVector(hash, resultWidth))
     } else {
       // 3-arg form: get_hash(base, data, max) → (base + hash(data)) mod max
       val base = (eval.evalArg(0) as BitVal).bits.value
-      val data = eval.evalArg(1) as StructVal
+      val data = eval.evalArg(1).asStructVal()
       val max = (eval.evalArg(2) as BitVal).bits.value
       val hash = computeHash(algorithm, data)
       val result = if (max > BigInteger.ZERO) base + hash.mod(max) else base
