@@ -30,6 +30,7 @@ import fourward.sim.v1.SimulatorProto.ForkReason
 import fourward.sim.v1.SimulatorProto.PipelineStageEvent.Direction
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 import p4.v1.P4RuntimeOuterClass
 
@@ -842,12 +843,13 @@ class PSAArchitectureTest {
 
     val result = PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, store)
 
-    // The egress subtree should have a CLONE fork (not the top-level trace, which is flat
-    // ingress+egress since there's no I2E clone).
-    val outputs = collectOutputsFromTrace(result.trace)
-    assertEquals(2, outputs.size)
-    assertTrue(outputs.any { it.egressPort == 2 })
-    assertTrue(outputs.any { it.egressPort == 8 })
+    // E2E clone fork is in the egress subtree, flattened into the top-level trace since
+    // there's no I2E clone.
+    assertTrue(result.trace.hasForkOutcome())
+    assertEquals(ForkReason.CLONE, result.trace.forkOutcome.reason)
+    assertEquals(2, result.trace.forkOutcome.branchesCount)
+    assertEquals("original", result.trace.forkOutcome.branchesList[0].label)
+    assertEquals("clone_port_8", result.trace.forkOutcome.branchesList[1].label)
   }
 
   @Test
@@ -869,7 +871,7 @@ class PSAArchitectureTest {
     val config = psaConfig(ingressStmts = listOf(sendToPort(0xFFFFFFFAL)))
     try {
       PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
-      assertTrue("expected recirculation depth exception", false)
+      fail("expected recirculation depth exception")
     } catch (e: IllegalStateException) {
       assertTrue(e.message!!.contains("PSA recirculation depth exceeded"))
     }

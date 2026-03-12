@@ -275,7 +275,6 @@ class PSAArchitecture : Architecture {
     val dropped: Boolean,
     val deparsedBytes: ByteArray,
     val output: StructVal?,
-    val egressPort: Int,
     val dropReason: DropReason = DropReason.MARK_TO_DROP,
   )
 
@@ -386,12 +385,11 @@ class PSAArchitecture : Architecture {
         dropped = true,
         byteArrayOf(),
         egressOutput,
-        egressPort,
         dropReason = DropReason.ASSERTION_FAILURE,
       )
     }
     val outputBytes = egressCtx.outputPayload() + egressCtx.drainRemainingInput()
-    return EgressCoreResult(egressCtx.getEvents(), dropped, outputBytes, egressOutput, egressPort)
+    return EgressCoreResult(egressCtx.getEvents(), dropped, outputBytes, egressOutput)
   }
 
   // ---------------------------------------------------------------------------
