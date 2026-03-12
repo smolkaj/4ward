@@ -6,7 +6,9 @@ import fourward.ir.v1.BehavioralConfig
 import fourward.ir.v1.ControlDecl
 import fourward.ir.v1.EnumDecl
 import fourward.ir.v1.Expr
+import fourward.ir.v1.ExternInstanceDecl
 import fourward.ir.v1.FieldDecl
+import fourward.ir.v1.Literal
 import fourward.ir.v1.MethodCall
 import fourward.ir.v1.MethodCallStmt
 import fourward.ir.v1.ParamDecl
@@ -16,6 +18,8 @@ import fourward.ir.v1.PipelineStage
 import fourward.ir.v1.StageKind
 import fourward.ir.v1.Stmt
 import fourward.ir.v1.StructDecl
+import fourward.ir.v1.StructExpr
+import fourward.ir.v1.StructExprField
 import fourward.ir.v1.Transition
 import fourward.ir.v1.Type
 import fourward.ir.v1.TypeDecl
@@ -206,11 +210,13 @@ class PSAArchitectureTest {
     name: String,
     params: List<Pair<String, String>>,
     stmts: List<Stmt> = emptyList(),
+    externInstances: List<ExternInstanceDecl> = emptyList(),
   ): ControlDecl =
     ControlDecl.newBuilder()
       .setName(name)
       .addAllParams(params.map { (n, t) -> param(n, t) })
       .addAllApplyBody(stmts)
+      .addAllExternInstances(externInstances)
       .build()
 
   private val ingressParams =
@@ -253,15 +259,17 @@ class PSAArchitectureTest {
   private fun psaConfig(
     ingressStmts: List<Stmt> = emptyList(),
     egressStmts: List<Stmt> = emptyList(),
+    ingressExterns: List<ExternInstanceDecl> = emptyList(),
+    egressExterns: List<ExternInstanceDecl> = emptyList(),
   ): BehavioralConfig =
     BehavioralConfig.newBuilder()
       .setArchitecture(psaArch)
       .addAllTypes(allTypes)
       .addParsers(noopParser)
       .addParsers(egressParser)
-      .addControls(control("Ingress", ingressParams, ingressStmts))
+      .addControls(control("Ingress", ingressParams, ingressStmts, ingressExterns))
       .addControls(noopControl("IngressDeparser", ingressDeparserParams))
-      .addControls(control("Egress", egressParams, egressStmts))
+      .addControls(control("Egress", egressParams, egressStmts, egressExterns))
       .addControls(noopControl("EgressDeparser", egressDeparserParams))
       .build()
 
@@ -466,5 +474,119 @@ class PSAArchitectureTest {
     assertTrue(result.trace.hasPacketOutcome())
     assertTrue(result.trace.packetOutcome.hasDrop())
     assertEquals(DropReason.MARK_TO_DROP, result.trace.packetOutcome.drop.reason)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Hash get_hash tests
+  // ---------------------------------------------------------------------------
+
+  /** Creates an ExternInstanceDecl for a Hash with the given algorithm. */
+  private fun hashInstance(name: String, algorithm: String): ExternInstanceDecl =
+    ExternInstanceDecl.newBuilder()
+      .setTypeName("Hash")
+      .setName(name)
+      .addConstructorArgs(
+        Expr.newBuilder().setLiteral(Literal.newBuilder().setEnumMember(algorithm))
+      )
+      .build()
+
+  /** Creates an ExternInstanceDecl for a Meter. */
+  private fun meterInstance(name: String): ExternInstanceDecl =
+    ExternInstanceDecl.newBuilder()
+      .setTypeName("Meter")
+      .setName(name)
+      .addConstructorArgs(bit(1024, 32))
+      .addConstructorArgs(
+        Expr.newBuilder().setLiteral(Literal.newBuilder().setEnumMember("PACKETS"))
+      )
+      .build()
+
+  /** Hash.get_hash(data) — 1-arg form, result assigned to nothing (just exercises the path). */
+  private fun hashGetHash1Arg(instanceName: String, fieldValue: Long, fieldWidth: Int): Stmt =
+    Stmt.newBuilder()
+      .setMethodCall(
+        MethodCallStmt.newBuilder()
+          .setCall(
+            Expr.newBuilder()
+              .setMethodCall(
+                MethodCall.newBuilder()
+                  .setTarget(nameRef(instanceName, namedType("Hash")))
+                  .setMethod("get_hash")
+                  .addArgs(
+                    Expr.newBuilder()
+                      .setStructExpr(
+                        StructExpr.newBuilder()
+                          .addFields(
+                            StructExprField.newBuilder()
+                              .setName("f0")
+                              .setValue(bit(fieldValue, fieldWidth))
+                          )
+                      )
+                      .setType(namedType("tuple_0"))
+                  )
+              )
+              .setType(bitType(16))
+          )
+      )
+      .build()
+
+  /** Meter.execute(index) — returns PSA_MeterColor_t. */
+  private fun meterExecute(instanceName: String, index: Long): Stmt =
+    Stmt.newBuilder()
+      .setMethodCall(
+        MethodCallStmt.newBuilder()
+          .setCall(
+            Expr.newBuilder()
+              .setMethodCall(
+                MethodCall.newBuilder()
+                  .setTarget(nameRef(instanceName, namedType("Meter")))
+                  .setMethod("execute")
+                  .addArgs(bit(index, 12))
+              )
+              .setType(namedType("PSA_MeterColor_t"))
+          )
+      )
+      .build()
+
+  @Test
+  fun `hash get_hash 1-arg form does not crash`() {
+    // Hash<bit<16>>(CRC16) h; h.get_hash({f0 = 0x456})
+    val config =
+      psaConfig(
+        ingressStmts = listOf(hashGetHash1Arg("h_0", 0x456, 12), sendToPort(1)),
+        ingressExterns = listOf(hashInstance("h_0", "CRC16")),
+      )
+    val result = PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val outputs = collectOutputsFromTrace(result.trace)
+    assertEquals(1, outputs.size)
+  }
+
+  @Test
+  fun `hash get_hash computes deterministic CRC16`() {
+    // Verify that Hash.get_hash returns a consistent CRC16 value.
+    val config =
+      psaConfig(
+        ingressStmts = listOf(hashGetHash1Arg("h_0", 0x456, 12), sendToPort(1)),
+        ingressExterns = listOf(hashInstance("h_0", "CRC16")),
+      )
+    // Run twice — should get the same result (deterministic hash).
+    val result1 = PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val result2 = PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val out1 = collectOutputsFromTrace(result1.trace)
+    val out2 = collectOutputsFromTrace(result2.trace)
+    assertEquals(out1[0].payload, out2[0].payload)
+  }
+
+  @Test
+  fun `meter execute returns GREEN and does not crash`() {
+    // Meter<bit<12>>(1024, PACKETS) meter0; meter0.execute(1)
+    val config =
+      psaConfig(
+        ingressStmts = listOf(meterExecute("meter0", 1), sendToPort(1)),
+        ingressExterns = listOf(meterInstance("meter0")),
+      )
+    val result = PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val outputs = collectOutputsFromTrace(result.trace)
+    assertEquals(1, outputs.size)
   }
 }

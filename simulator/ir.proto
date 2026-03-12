@@ -319,6 +319,21 @@ message ControlDecl {
   repeated VarDecl local_vars = 3;
   repeated ActionDecl local_actions = 4;
   repeated Stmt apply_body = 5;
+
+  // Extern object instances declared in this control (e.g. Hash, Meter,
+  // Register). Carries constructor argument values needed by the simulator
+  // to implement architecture-specific semantics (e.g. hash algorithm).
+  repeated ExternInstanceDecl extern_instances = 6;
+}
+
+// An extern object instance with its constructor argument values.
+// E.g. `Hash<bit<16>>(PSA_HashAlgorithm_t.CRC16) h;` produces an
+// ExternInstanceDecl with type_name="Hash", name="h", and one
+// constructor_arg that is an EnumVal for CRC16.
+message ExternInstanceDecl {
+  string type_name = 1;  // extern type (e.g. "Hash", "Meter", "Register")
+  string name = 2;       // instance name (post-midend, e.g. "h_0")
+  repeated Expr constructor_args = 3;
 }
 
 message ActionDecl {

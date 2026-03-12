@@ -1,6 +1,7 @@
 package fourward.simulator
 
 import fourward.ir.v1.BehavioralConfig
+import fourward.ir.v1.ExternInstanceDecl
 import fourward.ir.v1.PipelineStage
 import fourward.ir.v1.TypeDecl
 import fourward.sim.v1.SimulatorProto.Drop
@@ -13,6 +14,7 @@ import fourward.sim.v1.SimulatorProto.PacketOutcome
 import fourward.sim.v1.SimulatorProto.PipelineStageEvent
 import fourward.sim.v1.SimulatorProto.TraceEvent
 import fourward.sim.v1.SimulatorProto.TraceTree
+import java.math.BigInteger
 
 /**
  * PSA (Portable Switch Architecture) pipeline implementation.
@@ -45,15 +47,33 @@ class PSAArchitecture : Architecture {
     val typesByName = config.typesList.associateBy { it.name }
     val stages = config.architecture.stagesList
     val blockParams = buildBlockParamsMap(config)
+    val externInstances = buildExternInstancesMap(config)
 
     // === Ingress pipeline ===
     val ingress =
-      runIngressPipeline(config, tableStore, stages, blockParams, typesByName, payload, ingressPort)
+      runIngressPipeline(
+        config,
+        tableStore,
+        stages,
+        blockParams,
+        typesByName,
+        externInstances,
+        payload,
+        ingressPort,
+      )
     if (ingress.dropped) return buildDropResult(ingress.events)
 
     // === Traffic Manager: multicast vs. unicast ===
     val egressState =
-      EgressState(config, typesByName, stages, blockParams, tableStore, ingress.output)
+      EgressState(
+        config,
+        typesByName,
+        stages,
+        blockParams,
+        tableStore,
+        externInstances,
+        ingress.output,
+      )
     val multicastGroup =
       (ingress.output?.fields?.get("multicast_group") as? BitVal)?.bits?.value?.toInt() ?: 0
 
@@ -93,6 +113,7 @@ class PSAArchitecture : Architecture {
     stages: List<PipelineStage>,
     blockParams: Map<String, List<BlockParam>>,
     typesByName: Map<String, TypeDecl>,
+    externInstances: Map<String, ExternInstanceDecl>,
     payload: ByteArray,
     ingressPort: UInt,
   ): IngressResult {
@@ -104,7 +125,13 @@ class PSAArchitecture : Architecture {
     val output = values["psa_ingress_output_metadata_t"] as? StructVal
 
     val interpreter =
-      Interpreter(config, tableStore, ctx, emptyMap(), createPsaExternHandler(tableStore))
+      Interpreter(
+        config,
+        tableStore,
+        ctx,
+        emptyMap(),
+        createPsaExternHandler(tableStore, externInstances),
+      )
 
     ctx.addTraceEvent(packetIngressEvent(ingressPort))
 
@@ -185,6 +212,7 @@ class PSAArchitecture : Architecture {
     val stages: List<PipelineStage>,
     val blockParams: Map<String, List<BlockParam>>,
     val tableStore: TableStore,
+    val externInstances: Map<String, ExternInstanceDecl>,
     val ingressOutput: StructVal?,
   )
 
@@ -215,7 +243,7 @@ class PSAArchitecture : Architecture {
         state.tableStore,
         egressCtx,
         emptyMap(),
-        createPsaExternHandler(state.tableStore),
+        createPsaExternHandler(state.tableStore, state.externInstances),
       )
 
     // --- Egress Parser ---
@@ -410,60 +438,108 @@ class PSAArchitecture : Architecture {
   // PSA extern handler
   // ---------------------------------------------------------------------------
 
-  /** PSA extern handler: `send_to_port`, `multicast`, `ingress_drop`/`egress_drop`, registers. */
-  private fun createPsaExternHandler(tableStore: TableStore): ExternHandler =
-    ExternHandler { call, eval ->
-      when (call) {
-        is ExternCall.FreeFunction ->
-          when (call.name) {
-            // send_to_port(inout ostd, in PortId_t port)
-            // After midend, becomes: send_to_port(ostd, port) where ostd is the output metadata.
-            "send_to_port" -> {
-              val ostd = eval.evalArg(0) as StructVal
-              val port = eval.evalArg(1) as BitVal
-              ostd.fields["drop"] = BoolVal(false)
-              ostd.fields["egress_port"] = port
-              UnitVal
-            }
-            // multicast(inout ostd, in MulticastGroup_t group)
-            // PSA spec §6.2: marks the packet for multicast replication.
-            "multicast" -> {
-              val ostd = eval.evalArg(0) as StructVal
-              val group = eval.evalArg(1) as BitVal
-              ostd.fields["drop"] = BoolVal(false)
-              ostd.fields["multicast_group"] = group
-              UnitVal
-            }
-            "ingress_drop",
-            "egress_drop" -> {
-              val ostd = eval.evalArg(0) as StructVal
-              ostd.fields["drop"] = BoolVal(true)
-              UnitVal
-            }
-            else -> error("unhandled PSA extern: ${call.name}")
+  /**
+   * PSA extern handler: free functions and extern object methods.
+   *
+   * [externInstances] maps instance name → IR declaration (with constructor args), used to look up
+   * constructor parameters like hash algorithm.
+   */
+  private fun createPsaExternHandler(
+    tableStore: TableStore,
+    externInstances: Map<String, ExternInstanceDecl>,
+  ): ExternHandler = ExternHandler { call, eval ->
+    when (call) {
+      is ExternCall.FreeFunction ->
+        when (call.name) {
+          // send_to_port(inout ostd, in PortId_t port)
+          // After midend, becomes: send_to_port(ostd, port) where ostd is the output metadata.
+          "send_to_port" -> {
+            val ostd = eval.evalArg(0) as StructVal
+            val port = eval.evalArg(1) as BitVal
+            ostd.fields["drop"] = BoolVal(false)
+            ostd.fields["egress_port"] = port
+            UnitVal
           }
-        is ExternCall.Method ->
-          when (call.method) {
-            // PSA register.read(index) returns T directly (unlike v1model's void + out param).
-            "read" -> {
-              val index = (eval.evalArg(0) as BitVal).bits.value.toInt()
-              tableStore.registerRead(call.instanceName, index)
-                ?: eval.defaultValue(eval.returnType())
-            }
-            "write" -> {
-              val index = (eval.evalArg(0) as BitVal).bits.value.toInt()
-              tableStore.registerWrite(call.instanceName, index, eval.evalArg(1))
-              UnitVal
-            }
-            "count" -> UnitVal
-            else ->
-              error(
-                "unhandled PSA extern method: ${call.externType}.${call.method}" +
-                  " on ${call.instanceName}"
-              )
+          // multicast(inout ostd, in MulticastGroup_t group)
+          // PSA spec §6.2: marks the packet for multicast replication.
+          "multicast" -> {
+            val ostd = eval.evalArg(0) as StructVal
+            val group = eval.evalArg(1) as BitVal
+            ostd.fields["drop"] = BoolVal(false)
+            ostd.fields["multicast_group"] = group
+            UnitVal
           }
-      }
+          "ingress_drop",
+          "egress_drop" -> {
+            val ostd = eval.evalArg(0) as StructVal
+            ostd.fields["drop"] = BoolVal(true)
+            UnitVal
+          }
+          else -> error("unhandled PSA extern: ${call.name}")
+        }
+      is ExternCall.Method ->
+        when (call.method) {
+          // PSA register.read(index) returns T directly (unlike v1model's void + out param).
+          "read" -> {
+            val index = (eval.evalArg(0) as BitVal).bits.value.toInt()
+            tableStore.registerRead(call.instanceName, index)
+              ?: eval.defaultValue(eval.returnType())
+          }
+          "write" -> {
+            val index = (eval.evalArg(0) as BitVal).bits.value.toInt()
+            tableStore.registerWrite(call.instanceName, index, eval.evalArg(1))
+            UnitVal
+          }
+          "count" -> UnitVal
+          // PSA Hash.get_hash: 1-arg form returns hash(data), 3-arg form returns
+          // (base + hash(data)) mod max. Algorithm comes from constructor args.
+          "get_hash" -> evalGetHash(call, eval, externInstances)
+          // PSA Meter.execute(index): returns PSA_MeterColor_t. Always GREEN — no real
+          // packet rates in simulator (same as v1model).
+          "execute" -> EnumVal("GREEN")
+          else ->
+            error(
+              "unhandled PSA extern method: ${call.externType}.${call.method}" +
+                " on ${call.instanceName}"
+            )
+        }
     }
+  }
+
+  /** Evaluates PSA Hash.get_hash (1-arg or 3-arg form). */
+  private fun evalGetHash(
+    call: ExternCall.Method,
+    eval: ExternEvaluator,
+    externInstances: Map<String, ExternInstanceDecl>,
+  ): Value {
+    val instance =
+      externInstances[call.instanceName] ?: error("unknown Hash instance: ${call.instanceName}")
+    val psaAlgorithm =
+      instance.constructorArgsList.firstOrNull()?.literal?.enumMember
+        ?: error("Hash instance ${call.instanceName} missing algorithm constructor arg")
+    val algorithm =
+      PSA_HASH_ALGORITHMS[psaAlgorithm] ?: error("unsupported PSA hash algorithm: $psaAlgorithm")
+    val resultWidth = eval.returnType().bit.width
+
+    return if (eval.argCount() == 1) {
+      // 1-arg form: get_hash(data) → hash(data) truncated to result width
+      val data = eval.evalArg(0) as StructVal
+      val hash = computeHash(algorithm, data)
+      BitVal(BitVector(hash, resultWidth))
+    } else {
+      // 3-arg form: get_hash(base, data, max) → (base + hash(data)) mod max
+      val base = (eval.evalArg(0) as BitVal).bits.value
+      val data = eval.evalArg(1) as StructVal
+      val max = (eval.evalArg(2) as BitVal).bits.value
+      val hash = computeHash(algorithm, data)
+      val result = if (max > BigInteger.ZERO) base + hash.mod(max) else base
+      BitVal(BitVector(result, resultWidth))
+    }
+  }
+
+  /** Builds a flat map from extern instance name → declaration across all controls. */
+  private fun buildExternInstancesMap(config: BehavioralConfig): Map<String, ExternInstanceDecl> =
+    config.controlsList.flatMap { it.externInstancesList }.associateBy { it.name }
 
   // ---------------------------------------------------------------------------
   // Trace helpers
@@ -511,5 +587,14 @@ class PSAArchitecture : Architecture {
   private companion object {
     /** Architecture-level packet I/O types that are not user-visible parameters. */
     val IO_TYPES = setOf("packet_in", "packet_out")
+
+    /** Maps PSA_HashAlgorithm_t enum members to the internal algorithm names used by Hash.kt. */
+    val PSA_HASH_ALGORITHMS =
+      mapOf(
+        "IDENTITY" to "identity",
+        "CRC16" to "crc16",
+        "CRC32" to "crc32",
+        "ONES_COMPLEMENT16" to "csum16",
+      )
   }
 }

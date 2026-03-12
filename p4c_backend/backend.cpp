@@ -77,6 +77,10 @@ fourward::ir::v1::Type FourWardBackend::emitType(const IR::Type* type) {
     }
   } else if (type->is<IR::Type_Error>()) {
     out.set_error(true);
+  } else if (const auto* ext = type->to<IR::Type_Extern>()) {
+    // Extern object types (Hash, Meter, Register, etc.) — emit as named so the
+    // simulator can identify the extern type in method call targets.
+    out.set_named(ext->name.name.c_str());
   } else {
     LOG1("WARNING: unhandled type " << type->node_type_name()
                                     << "; emitting as unnamed");
@@ -692,6 +696,23 @@ void FourWardBackend::emitControl(const IR::P4Control* control) {
       *vd->mutable_type() = emitType(varDecl->type);
       if (varDecl->initializer) {
         *vd->mutable_initializer() = emitExpr(varDecl->initializer);
+      }
+    } else if (const auto* inst = decl->to<IR::Declaration_Instance>()) {
+      // Extern object instances (Hash, Meter, Register, etc.) with their
+      // constructor argument values — needed by the simulator to implement
+      // architecture-specific semantics (e.g. hash algorithm selection).
+      auto* ei = cd->add_extern_instances();
+      ei->set_name(inst->name.name.c_str());
+      // Extract the base extern type name from the (possibly specialized) type.
+      if (const auto* tn = inst->type->to<IR::Type_Name>()) {
+        ei->set_type_name(tn->path->name.name.c_str());
+      } else if (const auto* spec = inst->type->to<IR::Type_Specialized>()) {
+        if (const auto* base = spec->baseType->to<IR::Type_Name>()) {
+          ei->set_type_name(base->path->name.name.c_str());
+        }
+      }
+      for (const auto* arg : *inst->arguments) {
+        *ei->add_constructor_args() = emitExpr(arg->expression);
       }
     }
   }

@@ -40,6 +40,9 @@ interface ExternEvaluator {
    */
   fun returnType(): Type
 
+  /** Returns the number of arguments passed to this extern call. */
+  fun argCount(): Int
+
   /** Evaluates argument [index] and returns its runtime value. */
   fun evalArg(index: Int): Value
 
