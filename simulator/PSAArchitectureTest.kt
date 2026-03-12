@@ -291,6 +291,9 @@ class PSAArchitectureTest {
   private fun multicast(group: Long): Stmt =
     externCall("multicast", nameRef("ostd"), bit(group, 32))
 
+  /** egress_drop(ostd) — marks packet for drop in egress. */
+  private fun egressDrop(): Stmt = externCall("egress_drop", nameRef("ostd"))
+
   private fun writeMulticastGroup(store: TableStore, groupId: Int, replicas: List<Pair<Int, Int>>) {
     store.write(
       P4RuntimeOuterClass.Update.newBuilder()
@@ -796,6 +799,31 @@ class PSAArchitectureTest {
   }
 
   @Test
+  fun `E2E clone with drop still creates clone fork`() {
+    // Egress unconditionally sets clone=true and drops. The E2E clone runs through a fresh
+    // egress pipeline, but the same control code drops it too. This is correct PSA behavior —
+    // in real programs, the egress control checks istd.packet_path to handle clones differently.
+    // The key semantic: E2E clone processing occurs regardless of the original's drop decision.
+    val config =
+      psaConfig(
+        ingressStmts = listOf(sendToPort(2)),
+        egressStmts = cloneStmts(200) + listOf(egressDrop()),
+      )
+    val store = TableStore()
+    writeCloneSession(store, 200, listOf(0 to 9))
+
+    val result = PSAArchitecture().processPacket(0u, byteArrayOf(0xDD.toByte()), config, store)
+
+    // Clone fork exists even though original drops — E2E clone is processed independently.
+    assertTrue(result.trace.hasForkOutcome())
+    assertEquals(ForkReason.CLONE, result.trace.forkOutcome.reason)
+    assertEquals(1, result.trace.forkOutcome.branchesCount)
+    assertEquals("clone_port_9", result.trace.forkOutcome.branchesList[0].label)
+    // Clone also dropped by the same egress control.
+    assertTrue(result.trace.forkOutcome.branchesList[0].subtree.packetOutcome.hasDrop())
+  }
+
+  @Test
   fun `E2E clone with unknown session silently drops clone`() {
     val config = psaConfig(ingressStmts = listOf(sendToPort(2)), egressStmts = cloneStmts(999))
     val result = PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
@@ -804,6 +832,47 @@ class PSAArchitectureTest {
     // No clone session 999 → clone silently ignored, original output normally.
     assertEquals(1, outputs.size)
     assertEquals(2, outputs[0].egressPort)
+  }
+
+  @Test
+  fun `E2E clone trace has CLONE fork reason`() {
+    val config = psaConfig(ingressStmts = listOf(sendToPort(2)), egressStmts = cloneStmts(200))
+    val store = TableStore()
+    writeCloneSession(store, 200, listOf(0 to 8))
+
+    val result = PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, store)
+
+    // The egress subtree should have a CLONE fork (not the top-level trace, which is flat
+    // ingress+egress since there's no I2E clone).
+    val outputs = collectOutputsFromTrace(result.trace)
+    assertEquals(2, outputs.size)
+    assertTrue(outputs.any { it.egressPort == 2 })
+    assertTrue(outputs.any { it.egressPort == 8 })
+  }
+
+  @Test
+  fun `I2E clone with unknown session silently drops clone`() {
+    val config = psaConfig(ingressStmts = cloneStmts(999) + listOf(sendToPort(2)))
+    val result = PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val outputs = collectOutputsFromTrace(result.trace)
+
+    // No clone session 999 → clone silently ignored, original output normally.
+    assertEquals(1, outputs.size)
+    assertEquals(2, outputs[0].egressPort)
+  }
+
+  @Test
+  fun `recirculate depth limit is enforced`() {
+    // Unconditional send_to_port(PSA_PORT_RECIRCULATE) causes infinite recirculation.
+    // The simulator must reject it with a depth limit error.
+    // PSA_PORT_RECIRCULATE = 32w0xfffffffa (psa.p4).
+    val config = psaConfig(ingressStmts = listOf(sendToPort(0xFFFFFFFAL)))
+    try {
+      PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+      assertTrue("expected recirculation depth exception", false)
+    } catch (e: IllegalStateException) {
+      assertTrue(e.message!!.contains("PSA recirculation depth exceeded"))
+    }
   }
 
   @Test
