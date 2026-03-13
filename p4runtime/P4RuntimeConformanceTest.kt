@@ -1848,6 +1848,116 @@ class P4RuntimeConformanceTest {
     }
   }
 
+  // =========================================================================
+  // Coverage-guided tests (Phase 4)
+  // =========================================================================
+
+  /** P4Runtime spec §7: UNSPECIFIED pipeline action must be rejected. */
+  @Test
+  fun `100 - UNSPECIFIED pipeline action returns INVALID_ARGUMENT`() {
+    assertGrpcError(Status.Code.INVALID_ARGUMENT, "unrecognized") {
+      sendPipelineAction(SetForwardingPipelineConfigRequest.Action.UNSPECIFIED)
+    }
+  }
+
+  /** StreamChannel: digest ack is not supported and must be explicitly rejected. */
+  @Test
+  fun `101 - digest ack via stream returns UNIMPLEMENTED`() {
+    assertGrpcError(Status.Code.UNIMPLEMENTED, "digest") {
+      runBlocking {
+        val request =
+          StreamMessageRequest.newBuilder()
+            .setDigestAck(P4RuntimeOuterClass.DigestListAck.newBuilder().setDigestId(1))
+            .build()
+        harness.stub.streamChannel(flowOf(request)).collect {}
+      }
+    }
+  }
+
+  /** P4Runtime spec §5: when primary self-demotes, backup receives a promotion notification. */
+  @Test
+  fun `102 - backup promoted when primary self-demotes`() {
+    harness.openStream().use { streamA ->
+      harness.openStream().use { streamB ->
+        // A becomes primary with electionId=5.
+        val a1 = streamA.arbitrate(electionId = 5)
+        assertEquals(com.google.rpc.Code.OK_VALUE, a1.arbitration.status.code)
+        // B is backup with electionId=3.
+        val b1 = streamB.arbitrate(electionId = 3)
+        assertEquals(com.google.rpc.Code.ALREADY_EXISTS_VALUE, b1.arbitration.status.code)
+        // A self-demotes by re-arbitrating with electionId=1.
+        val a2 = streamA.arbitrate(electionId = 1)
+        assertEquals(
+          "A should now be backup",
+          com.google.rpc.Code.ALREADY_EXISTS_VALUE,
+          a2.arbitration.status.code,
+        )
+        // B should receive a promotion notification.
+        val promotion = streamB.receiveNext()
+        assertNotNull("backup should receive promotion", promotion)
+        assertTrue("should be arbitration", promotion!!.hasArbitration())
+        assertEquals(
+          "B should now be primary",
+          com.google.rpc.Code.OK_VALUE,
+          promotion.arbitration.status.code,
+        )
+      }
+    }
+  }
+
+  /** P4Runtime spec §15: named-role entity access check covers action profile member. */
+  @Test
+  fun `103 - named-role write denied for action profile member`() {
+    harness.loadPipeline(loadBasicTableConfig())
+    val member =
+      P4RuntimeTestHarness.buildMemberEntity(actionProfileId = 1, memberId = 1, actionId = 1)
+    assertGrpcError(Status.Code.PERMISSION_DENIED, "cannot access") {
+      harness.installEntry(member, role = "sdn_controller")
+    }
+  }
+
+  /** P4Runtime spec §15: named-role entity access check covers direct counter. */
+  @Test
+  fun `104 - named-role write denied for direct counter entity`() {
+    harness.loadPipeline(loadBasicTableConfig())
+    val directCounter =
+      Entity.newBuilder()
+        .setDirectCounterEntry(
+          P4RuntimeOuterClass.DirectCounterEntry.newBuilder()
+            .setTableEntry(P4RuntimeOuterClass.TableEntry.newBuilder().setTableId(1))
+        )
+        .build()
+    assertGrpcError(Status.Code.PERMISSION_DENIED, "cannot access") {
+      harness.installEntry(directCounter, role = "sdn_controller")
+    }
+  }
+
+  /** P4Runtime spec §15: unscoped entities (counters, meters, registers) pass role checks. */
+  @Test
+  fun `105 - named-role read allows unscoped counter entity`() {
+    harness.loadPipeline(loadConfigWithCounter())
+    val request =
+      ReadRequest.newBuilder()
+        .setDeviceId(1)
+        .setRole("sdn_controller")
+        .addEntities(
+          Entity.newBuilder()
+            .setCounterEntry(P4RuntimeOuterClass.CounterEntry.newBuilder().setCounterId(CTR_ID))
+        )
+        .build()
+    val results = harness.readEntries(request)
+    assertEquals("named-role read of unscoped counter should succeed", CTR_SIZE, results.size)
+  }
+
+  /** DataplaneService: processPacketWithTraceTree returns both output packets and trace. */
+  @Test
+  fun `106 - processPacketWithTraceTree returns output and trace`() {
+    harness.loadPipeline(loadPassthroughConfig())
+    val resp = harness.simulatePacketWithTrace(0, byteArrayOf(0x01, 0x02))
+    assertTrue("should have output packets", resp.outputPacketsList.isNotEmpty())
+    assertTrue("trace should be present", resp.hasTrace())
+  }
+
   // ---------------------------------------------------------------------------
   // Test helpers
   // ---------------------------------------------------------------------------

@@ -458,6 +458,53 @@ class P4RuntimeWriteErrorTest {
   }
 
   // =========================================================================
+  // Unimplemented entity guards (coverage gaps)
+  // =========================================================================
+
+  // P4Runtime spec §9.6: value_set only supports MODIFY, not INSERT or DELETE.
+  @Test
+  fun `write ValueSetEntry with INSERT returns INVALID_ARGUMENT`() {
+    harness.loadPipeline(loadBasicTableConfig())
+    val entity =
+      Entity.newBuilder()
+        .setValueSetEntry(p4.v1.P4RuntimeOuterClass.ValueSetEntry.newBuilder().setValueSetId(1))
+        .build()
+    assertGrpcError(Status.Code.INVALID_ARGUMENT, "MODIFY") { harness.installEntry(entity) }
+  }
+
+  @Test
+  fun `write ExternEntry returns UNIMPLEMENTED`() {
+    harness.loadPipeline(loadBasicTableConfig())
+    val entity =
+      Entity.newBuilder()
+        .setExternEntry(
+          p4.v1.P4RuntimeOuterClass.ExternEntry.newBuilder().setExternTypeId(1).setExternId(1)
+        )
+        .build()
+    assertGrpcError(Status.Code.UNIMPLEMENTED, "ExternEntry") { harness.installEntry(entity) }
+  }
+
+  // =========================================================================
+  // Write atomicity edge cases (coverage gaps)
+  // =========================================================================
+
+  // P4Runtime spec §12.2: unrecognized atomicity must be rejected.
+  @Test
+  fun `UNRECOGNIZED write atomicity returns INVALID_ARGUMENT`() {
+    harness.loadPipeline(loadBasicTableConfig())
+    @Suppress("MagicNumber")
+    val request =
+      WriteRequest.newBuilder()
+        .setDeviceId(1)
+        .setAtomicityValue(999)
+        .addUpdates(Update.newBuilder().setType(Update.Type.INSERT).setEntity(badTableEntity()))
+        .build()
+    assertGrpcError(Status.Code.INVALID_ARGUMENT, "unrecognized write atomicity") {
+      harness.writeRaw(request)
+    }
+  }
+
+  // =========================================================================
   // Helpers
   // =========================================================================
 
