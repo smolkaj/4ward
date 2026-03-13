@@ -31,13 +31,13 @@
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">93.2&nbsp;%</td>
+            <td class="headerCovTableEntryHi">96.5&nbsp;%</td>
             <td class="headerCovTableEntry">367</td>
-            <td class="headerCovTableEntry">342</td>
+            <td class="headerCovTableEntry">354</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-13 20:04:48</td>
+            <td class="headerValue">2026-03-13 22:11:56</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">96.7&nbsp;%</td>
@@ -205,12 +205,12 @@
 <span id="L143"><span class="lineNum">     143</span> <span class="tlaGNC">           1 :             .asException()</span></span>
 <span id="L144"><span class="lineNum">     144</span>              :         SetForwardingPipelineConfigRequest.Action.UNSPECIFIED,</span>
 <span id="L145"><span class="lineNum">     145</span>              :         SetForwardingPipelineConfigRequest.Action.UNRECOGNIZED -&gt;</span>
-<span id="L146"><span class="lineNum">     146</span> <span class="tlaUNC tlaBgUNC">           0 :           throw Status.INVALID_ARGUMENT.withDescription(</span></span>
-<span id="L147"><span class="lineNum">     147</span> <span class="tlaUNC">           0 :               &quot;unrecognized SetForwardingPipelineConfig action&quot;</span></span>
+<span id="L146"><span class="lineNum">     146</span> <span class="tlaGNC">           1 :           throw Status.INVALID_ARGUMENT.withDescription(</span></span>
+<span id="L147"><span class="lineNum">     147</span> <span class="tlaGNC">           1 :               &quot;unrecognized SetForwardingPipelineConfig action&quot;</span></span>
 <span id="L148"><span class="lineNum">     148</span>              :             )</span>
-<span id="L149"><span class="lineNum">     149</span> <span class="tlaUNC">           0 :             .asException()</span></span>
+<span id="L149"><span class="lineNum">     149</span> <span class="tlaGNC">           1 :             .asException()</span></span>
 <span id="L150"><span class="lineNum">     150</span>              :       }</span>
-<span id="L151"><span class="lineNum">     151</span> <span class="tlaGNC tlaBgGNC">           1 :       SetForwardingPipelineConfigResponse.getDefaultInstance()</span></span>
+<span id="L151"><span class="lineNum">     151</span> <span class="tlaGNC">           1 :       SetForwardingPipelineConfigResponse.getDefaultInstance()</span></span>
 <span id="L152"><span class="lineNum">     152</span> <span class="tlaGNC">           1 :     }</span></span>
 <span id="L153"><span class="lineNum">     153</span>              : </span>
 <span id="L154"><span class="lineNum">     154</span>              :   /**</span>
@@ -285,13 +285,13 @@
 <span id="L223"><span class="lineNum">     223</span>              :         WriteRequest.Atomicity.CONTINUE_ON_ERROR -&gt;</span>
 <span id="L224"><span class="lineNum">     224</span> <span class="tlaGNC">           1 :           writeContinueOnError(request.updatesList, state, roleName)</span></span>
 <span id="L225"><span class="lineNum">     225</span>              :         WriteRequest.Atomicity.UNRECOGNIZED -&gt;</span>
-<span id="L226"><span class="lineNum">     226</span> <span class="tlaUNC tlaBgUNC">           0 :           throw Status.INVALID_ARGUMENT.withDescription(&quot;unrecognized write atomicity&quot;)</span></span>
-<span id="L227"><span class="lineNum">     227</span> <span class="tlaUNC">           0 :             .asException()</span></span>
+<span id="L226"><span class="lineNum">     226</span> <span class="tlaGNC">           1 :           throw Status.INVALID_ARGUMENT.withDescription(&quot;unrecognized write atomicity&quot;)</span></span>
+<span id="L227"><span class="lineNum">     227</span> <span class="tlaGNC">           1 :             .asException()</span></span>
 <span id="L228"><span class="lineNum">     228</span>              :         // P4Runtime spec §12.2: ROLLBACK_ON_ERROR and DATAPLANE_ATOMIC both guarantee</span>
 <span id="L229"><span class="lineNum">     229</span>              :         // all-or-none semantics. DATAPLANE_ATOMIC additionally requires data-plane atomicity,</span>
 <span id="L230"><span class="lineNum">     230</span>              :         // which we get for free because the write lock serializes all operations.</span>
 <span id="L231"><span class="lineNum">     231</span>              :         WriteRequest.Atomicity.ROLLBACK_ON_ERROR,</span>
-<span id="L232"><span class="lineNum">     232</span> <span class="tlaUNC">           0 :         WriteRequest.Atomicity.DATAPLANE_ATOMIC -&gt; writeAtomic(request.updatesList, state, roleName)</span></span>
+<span id="L232"><span class="lineNum">     232</span> <span class="tlaUNC tlaBgUNC">           0 :         WriteRequest.Atomicity.DATAPLANE_ATOMIC -&gt; writeAtomic(request.updatesList, state, roleName)</span></span>
 <span id="L233"><span class="lineNum">     233</span> <span class="tlaGNC tlaBgGNC">           1 :       }</span></span>
 <span id="L234"><span class="lineNum">     234</span> <span class="tlaGNC">           1 :     }</span></span>
 <span id="L235"><span class="lineNum">     235</span>              : </span>
@@ -460,10 +460,10 @@
 <span id="L398"><span class="lineNum">     398</span> <span class="tlaGNC">           1 :               packetIns?.forEach { send(it) }</span></span>
 <span id="L399"><span class="lineNum">     399</span>              :             }</span>
 <span id="L400"><span class="lineNum">     400</span> <span class="tlaGNC">           1 :             msg.hasDigestAck() -&gt;</span></span>
-<span id="L401"><span class="lineNum">     401</span> <span class="tlaUNC tlaBgUNC">           0 :               throw Status.UNIMPLEMENTED.withDescription(DIGEST_NOT_SUPPORTED).asException()</span></span>
+<span id="L401"><span class="lineNum">     401</span> <span class="tlaGNC">           1 :               throw Status.UNIMPLEMENTED.withDescription(DIGEST_NOT_SUPPORTED).asException()</span></span>
 <span id="L402"><span class="lineNum">     402</span>              :             // P4Runtime spec §16: unrecognized stream messages get an error response.</span>
 <span id="L403"><span class="lineNum">     403</span>              :             else -&gt;</span>
-<span id="L404"><span class="lineNum">     404</span> <span class="tlaGNC tlaBgGNC">           1 :               send(</span></span>
+<span id="L404"><span class="lineNum">     404</span> <span class="tlaGNC">           1 :               send(</span></span>
 <span id="L405"><span class="lineNum">     405</span> <span class="tlaGNC">           1 :                 StreamMessageResponse.newBuilder()</span></span>
 <span id="L406"><span class="lineNum">     406</span> <span class="tlaGNC">           1 :                   .setError(</span></span>
 <span id="L407"><span class="lineNum">     407</span> <span class="tlaGNC">           1 :                     P4RuntimeOuterClass.StreamError.newBuilder()</span></span>
@@ -699,13 +699,13 @@
 <span id="L637"><span class="lineNum">     637</span> <span class="tlaGNC">           1 :           ctrl.notifications.trySend(</span></span>
 <span id="L638"><span class="lineNum">     638</span> <span class="tlaGNC">           1 :             buildArbitrationResponse(deviceId, ctrl.electionId, false, roleName)</span></span>
 <span id="L639"><span class="lineNum">     639</span>              :           )</span>
-<span id="L640"><span class="lineNum">     640</span> <span class="tlaUNC tlaBgUNC">           0 :         !wasPrimary &amp;&amp; isNowPrimary -&gt;</span></span>
-<span id="L641"><span class="lineNum">     641</span> <span class="tlaUNC">           0 :           ctrl.notifications.trySend(</span></span>
-<span id="L642"><span class="lineNum">     642</span> <span class="tlaUNC">           0 :             buildArbitrationResponse(deviceId, ctrl.electionId, true, roleName)</span></span>
+<span id="L640"><span class="lineNum">     640</span> <span class="tlaGNC">           1 :         !wasPrimary &amp;&amp; isNowPrimary -&gt;</span></span>
+<span id="L641"><span class="lineNum">     641</span> <span class="tlaGNC">           1 :           ctrl.notifications.trySend(</span></span>
+<span id="L642"><span class="lineNum">     642</span> <span class="tlaGNC">           1 :             buildArbitrationResponse(deviceId, ctrl.electionId, true, roleName)</span></span>
 <span id="L643"><span class="lineNum">     643</span>              :           )</span>
 <span id="L644"><span class="lineNum">     644</span>              :       }</span>
 <span id="L645"><span class="lineNum">     645</span>              :     }</span>
-<span id="L646"><span class="lineNum">     646</span> <span class="tlaGNC tlaBgGNC">           1 :   }</span></span>
+<span id="L646"><span class="lineNum">     646</span> <span class="tlaGNC">           1 :   }</span></span>
 <span id="L647"><span class="lineNum">     647</span>              : </span>
 <span id="L648"><span class="lineNum">     648</span> <span class="tlaUNC tlaBgUNC">           0 :   private fun buildArbitrationResponse(</span></span>
 <span id="L649"><span class="lineNum">     649</span>              :     deviceId: Long,</span>
@@ -799,13 +799,13 @@
 <span id="L737"><span class="lineNum">     737</span> <span class="tlaGNC">           1 :     when (entity.entityCase) {</span></span>
 <span id="L738"><span class="lineNum">     738</span> <span class="tlaGNC">           1 :       P4RuntimeOuterClass.Entity.EntityCase.TABLE_ENTRY -&gt; entity.tableEntry.tableId</span></span>
 <span id="L739"><span class="lineNum">     739</span>              :       P4RuntimeOuterClass.Entity.EntityCase.ACTION_PROFILE_MEMBER -&gt;</span>
-<span id="L740"><span class="lineNum">     740</span> <span class="tlaUNC tlaBgUNC">           0 :         entity.actionProfileMember.actionProfileId</span></span>
+<span id="L740"><span class="lineNum">     740</span> <span class="tlaGNC">           1 :         entity.actionProfileMember.actionProfileId</span></span>
 <span id="L741"><span class="lineNum">     741</span>              :       P4RuntimeOuterClass.Entity.EntityCase.ACTION_PROFILE_GROUP -&gt;</span>
-<span id="L742"><span class="lineNum">     742</span> <span class="tlaUNC">           0 :         entity.actionProfileGroup.actionProfileId</span></span>
+<span id="L742"><span class="lineNum">     742</span> <span class="tlaUNC tlaBgUNC">           0 :         entity.actionProfileGroup.actionProfileId</span></span>
 <span id="L743"><span class="lineNum">     743</span>              :       P4RuntimeOuterClass.Entity.EntityCase.DIRECT_COUNTER_ENTRY -&gt;</span>
-<span id="L744"><span class="lineNum">     744</span> <span class="tlaUNC">           0 :         entity.directCounterEntry.tableEntry.tableId</span></span>
+<span id="L744"><span class="lineNum">     744</span> <span class="tlaGNC tlaBgGNC">           1 :         entity.directCounterEntry.tableEntry.tableId</span></span>
 <span id="L745"><span class="lineNum">     745</span>              :       P4RuntimeOuterClass.Entity.EntityCase.DIRECT_METER_ENTRY -&gt;</span>
-<span id="L746"><span class="lineNum">     746</span> <span class="tlaUNC">           0 :         entity.directMeterEntry.tableEntry.tableId</span></span>
+<span id="L746"><span class="lineNum">     746</span> <span class="tlaUNC tlaBgUNC">           0 :         entity.directMeterEntry.tableEntry.tableId</span></span>
 <span id="L747"><span class="lineNum">     747</span>              :       // Standalone counters, meters, registers, PRE, and unimplemented types: no role annotations.</span>
 <span id="L748"><span class="lineNum">     748</span>              :       P4RuntimeOuterClass.Entity.EntityCase.COUNTER_ENTRY,</span>
 <span id="L749"><span class="lineNum">     749</span>              :       P4RuntimeOuterClass.Entity.EntityCase.METER_ENTRY,</span>
@@ -815,8 +815,8 @@
 <span id="L753"><span class="lineNum">     753</span>              :       P4RuntimeOuterClass.Entity.EntityCase.DIGEST_ENTRY,</span>
 <span id="L754"><span class="lineNum">     754</span>              :       P4RuntimeOuterClass.Entity.EntityCase.EXTERN_ENTRY,</span>
 <span id="L755"><span class="lineNum">     755</span>              :       P4RuntimeOuterClass.Entity.EntityCase.ENTITY_NOT_SET,</span>
-<span id="L756"><span class="lineNum">     756</span> <span class="tlaUNC">           0 :       null -&gt; null</span></span>
-<span id="L757"><span class="lineNum">     757</span> <span class="tlaGNC tlaBgGNC">           1 :     }</span></span>
+<span id="L756"><span class="lineNum">     756</span> <span class="tlaGNC tlaBgGNC">           1 :       null -&gt; null</span></span>
+<span id="L757"><span class="lineNum">     757</span> <span class="tlaGNC">           1 :     }</span></span>
 <span id="L758"><span class="lineNum">     758</span>              : </span>
 <span id="L759"><span class="lineNum">     759</span>              :   /** Rejects entity types that are documented but not implemented. */</span>
 <span id="L760"><span class="lineNum">     760</span>              :   private fun rejectUnsupportedEntity(entity: P4RuntimeOuterClass.Entity) {</span>

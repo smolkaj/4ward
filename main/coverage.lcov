@@ -89,18 +89,18 @@ FNDA:1,fourward/p4runtime/DataplaneService::<init> (Lfourward/simulator/Simulato
 FN:25,fourward/p4runtime/DataplaneService::processPacket (Lfourward/sim/v1/SimulatorProto$ProcessPacketRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 FNDA:1,fourward/p4runtime/DataplaneService::processPacket (Lfourward/sim/v1/SimulatorProto$ProcessPacketRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 FN:33,fourward/p4runtime/DataplaneService::processPacketWithTraceTree (Lfourward/sim/v1/SimulatorProto$ProcessPacketRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-FNDA:0,fourward/p4runtime/DataplaneService::processPacketWithTraceTree (Lfourward/sim/v1/SimulatorProto$ProcessPacketRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+FNDA:1,fourward/p4runtime/DataplaneService::processPacketWithTraceTree (Lfourward/sim/v1/SimulatorProto$ProcessPacketRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 DA:21,1
 DA:25,1
 DA:26,1
 DA:27,1
-DA:33,0
-DA:34,0
-DA:35,0
-DA:36,0
-DA:37,0
-DA:38,0
-LH:4
+DA:33,1
+DA:34,1
+DA:35,1
+DA:36,1
+DA:37,1
+DA:38,1
+LH:10
 LF:10
 end_of_record
 SF:p4runtime/EntityReader.kt
@@ -399,7 +399,7 @@ BRDA:122,0,1,1
 BRDA:122,0,2,1
 BRDA:122,0,3,1
 BRDA:122,0,4,1
-BRDA:122,0,5,0
+BRDA:122,0,5,1
 BRDA:124,0,0,0
 BRDA:124,0,1,1
 BRDA:128,0,0,0
@@ -419,7 +419,7 @@ BRDA:205,0,1,1
 BRDA:205,0,2,0
 BRDA:205,0,3,1
 BRDA:222,0,0,1
-BRDA:222,0,1,0
+BRDA:222,0,1,1
 BRDA:222,0,2,0
 BRDA:249,0,0,1
 BRDA:249,0,1,1
@@ -529,7 +529,7 @@ BRDA:599,0,1,1
 BRDA:605,0,0,1
 BRDA:605,0,1,1
 BRDA:605,0,2,1
-BRDA:605,0,3,0
+BRDA:605,0,3,1
 BRDA:605,0,4,1
 BRDA:605,0,5,1
 BRDA:606,0,0,1
@@ -555,19 +555,19 @@ BRDA:632,0,3,1
 BRDA:633,0,0,1
 BRDA:633,0,1,0
 BRDA:633,0,2,1
-BRDA:633,0,3,0
+BRDA:633,0,3,1
 BRDA:634,0,0,1
 BRDA:634,0,1,0
-BRDA:634,0,2,0
+BRDA:634,0,2,1
 BRDA:634,0,3,1
 BRDA:636,0,0,1
-BRDA:636,0,1,0
+BRDA:636,0,1,1
 BRDA:636,0,2,1
 BRDA:636,0,3,0
-BRDA:640,0,0,-
-BRDA:640,0,1,-
-BRDA:640,0,2,-
-BRDA:640,0,3,-
+BRDA:640,0,0,1
+BRDA:640,0,1,0
+BRDA:640,0,2,1
+BRDA:640,0,3,0
 BRDA:661,0,0,1
 BRDA:661,0,1,1
 BRDA:665,0,0,1
@@ -581,7 +581,7 @@ BRDA:699,0,1,1
 BRDA:699,0,2,1
 BRDA:699,0,3,1
 BRDA:701,0,0,1
-BRDA:701,0,1,0
+BRDA:701,0,1,1
 BRDA:702,0,0,1
 BRDA:702,0,1,1
 BRDA:704,0,0,1
@@ -589,13 +589,13 @@ BRDA:704,0,1,1
 BRDA:705,0,0,1
 BRDA:705,0,1,1
 BRDA:724,0,0,1
-BRDA:724,0,1,0
-BRDA:737,0,0,0
+BRDA:724,0,1,1
+BRDA:737,0,0,1
 BRDA:737,0,1,0
 BRDA:737,0,2,1
-BRDA:737,0,3,0
+BRDA:737,0,3,1
 BRDA:737,0,4,0
-BRDA:737,0,5,0
+BRDA:737,0,5,1
 BRDA:762,0,0,1
 BRDA:762,0,1,1
 BRDA:765,0,0,1
@@ -640,7 +640,7 @@ BRDA:396,0,0,1
 BRDA:396,0,1,1
 BRDA:398,0,0,1
 BRDA:398,0,1,0
-BRDA:400,0,0,0
+BRDA:400,0,0,1
 BRDA:400,0,1,1
 BRDA:47,0,0,1
 BRDA:47,0,1,1
@@ -692,9 +692,9 @@ DA:138,1
 DA:139,1
 DA:142,1
 DA:143,1
-DA:146,0
-DA:147,0
-DA:149,0
+DA:146,1
+DA:147,1
+DA:149,1
 DA:151,1
 DA:152,1
 DA:159,1
@@ -739,8 +739,8 @@ DA:220,1
 DA:221,1
 DA:222,1
 DA:224,1
-DA:226,0
-DA:227,0
+DA:226,1
+DA:227,1
 DA:232,0
 DA:233,1
 DA:234,1
@@ -832,7 +832,7 @@ DA:396,1
 DA:397,1
 DA:398,1
 DA:400,1
-DA:401,0
+DA:401,1
 DA:404,1
 DA:405,1
 DA:406,1
@@ -945,9 +945,9 @@ DA:635,1
 DA:636,1
 DA:637,1
 DA:638,1
-DA:640,0
-DA:641,0
-DA:642,0
+DA:640,1
+DA:641,1
+DA:642,1
 DA:646,1
 DA:648,0
 DA:652,0
@@ -985,11 +985,11 @@ DA:725,1
 DA:726,1
 DA:737,1
 DA:738,1
-DA:740,0
+DA:740,1
 DA:742,0
-DA:744,0
+DA:744,1
 DA:746,0
-DA:756,0
+DA:756,1
 DA:757,1
 DA:761,1
 DA:762,1
@@ -1011,7 +1011,7 @@ DA:795,1
 DA:796,1
 DA:818,1
 DA:822,1
-LH:342
+LH:354
 LF:367
 end_of_record
 SF:p4runtime/PacketHeaderCodec.kt
