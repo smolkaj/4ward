@@ -1,9 +1,17 @@
 load("@doxygen//:doxygen.bzl", "doxygen")
-load("//bazel:docs_bundle.bzl", "docs_bundle")
 load("//bazel:dokka.bzl", "dokka_html")
 load("//bazel:proto_doc.bzl", "proto_doc")
 
-# Generate HTML documentation from all project proto_library targets.
+# Build all docs: bazel build //tools:docs
+filegroup(
+    name = "docs",
+    srcs = [
+        ":cpp_docs",
+        ":kotlin_docs",
+        ":proto_docs",
+    ],
+)
+
 proto_doc(
     name = "proto_docs",
     out = "proto_docs.html",
@@ -14,7 +22,6 @@ proto_doc(
     ],
 )
 
-# Generate HTML documentation from all project Kotlin sources.
 dokka_html(
     name = "kotlin_docs",
     srcs = [
@@ -30,7 +37,6 @@ dokka_html(
     ],
 )
 
-# Generate HTML documentation from the C++ p4c backend.
 doxygen(
     name = "cpp_docs",
     srcs = ["//p4c_backend:cpp_srcs"],
@@ -45,16 +51,4 @@ doxygen(
     references_relation = True,
     source_browser = True,
     warn_if_undocumented = False,
-)
-
-# Assemble all documentation into a single site directory.
-# Usage: bazel build //tools:docs
-docs_bundle(
-    name = "docs",
-    index = "docs-index.html",
-    sections = {
-        ":proto_docs": "proto",
-        ":kotlin_docs": "kotlin",
-        ":cpp_docs": "cpp",
-    },
 )
