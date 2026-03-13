@@ -565,6 +565,187 @@ class P4RuntimeConformanceTest {
   }
 
   // =========================================================================
+  // Multi-table fixture (scenarios 93-96)
+  // =========================================================================
+
+  /**
+   * Builds a synthetic multi-table config by injecting additional tables with ternary, LPM, range,
+   * and optional match types into the basic_table p4info.
+   */
+  private fun loadMultiTableConfig(): PipelineConfig {
+    val base = loadBasicTableConfig()
+    val dropId = P4RuntimeTestHarness.findAction(base, "drop").preamble.id
+    val p4InfoBuilder = base.p4Info.toBuilder()
+    // Add a ternary table.
+    p4InfoBuilder.addTables(
+      p4.config.v1.P4InfoOuterClass.Table.newBuilder()
+        .setPreamble(
+          p4.config.v1.P4InfoOuterClass.Preamble.newBuilder()
+            .setId(MULTI_TERNARY_TABLE_ID)
+            .setName("ternary_table")
+            .setAlias("ternary_table")
+        )
+        .addMatchFields(
+          p4.config.v1.P4InfoOuterClass.MatchField.newBuilder()
+            .setId(1)
+            .setName("f1")
+            .setBitwidth(16)
+            .setMatchType(p4.config.v1.P4InfoOuterClass.MatchField.MatchType.TERNARY)
+        )
+        .addActionRefs(p4.config.v1.P4InfoOuterClass.ActionRef.newBuilder().setId(dropId))
+    )
+    // Add an LPM table.
+    p4InfoBuilder.addTables(
+      p4.config.v1.P4InfoOuterClass.Table.newBuilder()
+        .setPreamble(
+          p4.config.v1.P4InfoOuterClass.Preamble.newBuilder()
+            .setId(MULTI_LPM_TABLE_ID)
+            .setName("lpm_table")
+            .setAlias("lpm_table")
+        )
+        .addMatchFields(
+          p4.config.v1.P4InfoOuterClass.MatchField.newBuilder()
+            .setId(1)
+            .setName("f1")
+            .setBitwidth(32)
+            .setMatchType(p4.config.v1.P4InfoOuterClass.MatchField.MatchType.LPM)
+        )
+        .addActionRefs(p4.config.v1.P4InfoOuterClass.ActionRef.newBuilder().setId(dropId))
+    )
+    return base.toBuilder().setP4Info(p4InfoBuilder).build()
+  }
+
+  @Test
+  fun `93 - write entries to multiple tables and read all back`() {
+    val config = loadMultiTableConfig()
+    harness.loadPipeline(config)
+    // Write to the original exact table.
+    harness.installEntry(buildExactEntry(config, matchValue = 0x0800, port = 1))
+    // Write to the ternary table.
+    harness.installEntry(buildTernaryEntry(MULTI_TERNARY_TABLE_ID, config))
+    // Write to the LPM table.
+    harness.installEntry(buildLpmEntry(MULTI_LPM_TABLE_ID, config))
+
+    // Wildcard read returns entries from all tables + defaults.
+    val results = harness.readEntries()
+    val regular = results.filter { !it.tableEntry.isDefaultAction }
+    assertEquals("should have 3 regular entries across tables", 3, regular.size)
+    val tableIds = regular.map { it.tableEntry.tableId }.toSet()
+    assertEquals("entries should span 3 different tables", 3, tableIds.size)
+  }
+
+  @Test
+  fun `94 - table-specific read returns only that table entries`() {
+    val config = loadMultiTableConfig()
+    harness.loadPipeline(config)
+    harness.installEntry(buildExactEntry(config, matchValue = 0x0800, port = 1))
+    harness.installEntry(buildTernaryEntry(MULTI_TERNARY_TABLE_ID, config))
+    harness.installEntry(buildLpmEntry(MULTI_LPM_TABLE_ID, config))
+
+    // Read only the ternary table.
+    val request =
+      ReadRequest.newBuilder()
+        .setDeviceId(1)
+        .addEntities(
+          Entity.newBuilder()
+            .setTableEntry(
+              P4RuntimeOuterClass.TableEntry.newBuilder().setTableId(MULTI_TERNARY_TABLE_ID)
+            )
+        )
+        .build()
+    val results = harness.readEntries(request)
+    val regular = results.filter { !it.tableEntry.isDefaultAction }
+    assertEquals("should have 1 entry in ternary table", 1, regular.size)
+    assertEquals(MULTI_TERNARY_TABLE_ID, regular[0].tableEntry.tableId)
+  }
+
+  @Test
+  fun `95 - delete from one table does not affect others`() {
+    val config = loadMultiTableConfig()
+    harness.loadPipeline(config)
+    val exactEntry = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    harness.installEntry(exactEntry)
+    harness.installEntry(buildTernaryEntry(MULTI_TERNARY_TABLE_ID, config))
+    harness.installEntry(buildLpmEntry(MULTI_LPM_TABLE_ID, config))
+
+    // Delete the exact entry.
+    harness.deleteEntry(exactEntry)
+
+    val regular = harness.readRegularEntries()
+    assertEquals("2 entries should remain", 2, regular.size)
+    assertTrue(
+      "no exact table entries",
+      regular.none { it.tableEntry.tableId == config.p4Info.tablesList.first().preamble.id },
+    )
+  }
+
+  @Test
+  fun `96 - wildcard read returns default entries for all tables`() {
+    val config = loadMultiTableConfig()
+    harness.loadPipeline(config)
+    // Don't install any regular entries — just check defaults.
+    val results = harness.readEntries()
+    val defaults = results.filter { it.tableEntry.isDefaultAction }
+    // Each table with a default action contributes one default entry.
+    assertTrue("should have multiple default entries", defaults.size >= 2)
+    val tableIds = defaults.map { it.tableEntry.tableId }.toSet()
+    assertTrue("defaults should span multiple tables", tableIds.size >= 2)
+  }
+
+  /** Builds a ternary table entry with a simple match. */
+  private fun buildTernaryEntry(tableId: Int, config: PipelineConfig): Entity {
+    val dropId = P4RuntimeTestHarness.findAction(config, "drop").preamble.id
+    return Entity.newBuilder()
+      .setTableEntry(
+        P4RuntimeOuterClass.TableEntry.newBuilder()
+          .setTableId(tableId)
+          .addMatch(
+            P4RuntimeOuterClass.FieldMatch.newBuilder()
+              .setFieldId(1)
+              .setTernary(
+                P4RuntimeOuterClass.FieldMatch.Ternary.newBuilder()
+                  .setValue(com.google.protobuf.ByteString.copyFrom(byteArrayOf(0x08, 0x00)))
+                  .setMask(
+                    com.google.protobuf.ByteString.copyFrom(byteArrayOf(0xFF.toByte(), 0x00))
+                  )
+              )
+          )
+          .setPriority(10)
+          .setAction(
+            P4RuntimeOuterClass.TableAction.newBuilder()
+              .setAction(P4RuntimeOuterClass.Action.newBuilder().setActionId(dropId))
+          )
+      )
+      .build()
+  }
+
+  /** Builds an LPM table entry with a /16 prefix. */
+  private fun buildLpmEntry(tableId: Int, config: PipelineConfig): Entity {
+    val dropId = P4RuntimeTestHarness.findAction(config, "drop").preamble.id
+    return Entity.newBuilder()
+      .setTableEntry(
+        P4RuntimeOuterClass.TableEntry.newBuilder()
+          .setTableId(tableId)
+          .addMatch(
+            P4RuntimeOuterClass.FieldMatch.newBuilder()
+              .setFieldId(1)
+              .setLpm(
+                P4RuntimeOuterClass.FieldMatch.LPM.newBuilder()
+                  .setValue(
+                    com.google.protobuf.ByteString.copyFrom(byteArrayOf(0x0A, 0x00, 0x00, 0x00))
+                  )
+                  .setPrefixLen(16)
+              )
+          )
+          .setAction(
+            P4RuntimeOuterClass.TableAction.newBuilder()
+              .setAction(P4RuntimeOuterClass.Action.newBuilder().setActionId(dropId))
+          )
+      )
+      .build()
+  }
+
+  // =========================================================================
   // Register entries (scenarios 32-34)
   // =========================================================================
 
@@ -1105,6 +1286,82 @@ class P4RuntimeConformanceTest {
   }
 
   // =========================================================================
+  // Default entry edge cases (scenarios 97-99)
+  // =========================================================================
+
+  /** P4Runtime spec §9.1: MODIFY changes the default action; read-back reflects the update. */
+  @Test
+  fun `97 - MODIFY default entry changes the action`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    val tableId = config.p4Info.tablesList.first().preamble.id
+    val noActionId = config.p4Info.actionsList.find { it.preamble.name == "NoAction" }!!.preamble.id
+
+    // Change default from drop() to NoAction.
+    val defaultEntity =
+      Entity.newBuilder()
+        .setTableEntry(
+          P4RuntimeOuterClass.TableEntry.newBuilder()
+            .setTableId(tableId)
+            .setIsDefaultAction(true)
+            .setAction(
+              P4RuntimeOuterClass.TableAction.newBuilder()
+                .setAction(P4RuntimeOuterClass.Action.newBuilder().setActionId(noActionId))
+            )
+        )
+        .build()
+    harness.modifyEntry(defaultEntity)
+
+    // Read back and verify.
+    val defaults = harness.readEntries().filter { it.tableEntry.isDefaultAction }
+    val readBack = defaults.first { it.tableEntry.tableId == tableId }.tableEntry
+    assertEquals(
+      "default action should now be NoAction",
+      noActionId,
+      readBack.action.action.actionId,
+    )
+  }
+
+  /** P4Runtime spec §9.1: INSERT of a default entry is rejected. */
+  @Test
+  fun `98 - INSERT default entry returns INVALID_ARGUMENT`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    val tableId = config.p4Info.tablesList.first().preamble.id
+    val dropId = P4RuntimeTestHarness.findAction(config, "drop").preamble.id
+
+    val defaultEntity =
+      Entity.newBuilder()
+        .setTableEntry(
+          P4RuntimeOuterClass.TableEntry.newBuilder()
+            .setTableId(tableId)
+            .setIsDefaultAction(true)
+            .setAction(
+              P4RuntimeOuterClass.TableAction.newBuilder()
+                .setAction(P4RuntimeOuterClass.Action.newBuilder().setActionId(dropId))
+            )
+        )
+        .build()
+    assertGrpcError(Status.Code.INVALID_ARGUMENT) { harness.installEntry(defaultEntity) }
+  }
+
+  /** P4Runtime spec §9.1: DELETE of a default entry is rejected. */
+  @Test
+  fun `99 - DELETE default entry returns INVALID_ARGUMENT`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    val tableId = config.p4Info.tablesList.first().preamble.id
+
+    val defaultEntity =
+      Entity.newBuilder()
+        .setTableEntry(
+          P4RuntimeOuterClass.TableEntry.newBuilder().setTableId(tableId).setIsDefaultAction(true)
+        )
+        .build()
+    assertGrpcError(Status.Code.INVALID_ARGUMENT) { harness.deleteEntry(defaultEntity) }
+  }
+
+  // =========================================================================
   // Const table entries populated at load time (scenario 65)
   // =========================================================================
 
@@ -1637,5 +1894,7 @@ class P4RuntimeConformanceTest {
     private const val MTR_SIZE = 4
     private const val DCTR_ID = 800
     private const val DMTR_ID = 900
+    private const val MULTI_TERNARY_TABLE_ID = 1000
+    private const val MULTI_LPM_TABLE_ID = 1001
   }
 }

@@ -339,4 +339,159 @@ class P4RuntimeWriteErrorTest {
     val readBack = harness.readRegularEntries()
     assert(readBack.isEmpty()) { "$atomicity should have rolled back the good entry" }
   }
+
+  // =========================================================================
+  // Batch edge cases (P4Runtime spec §12.2)
+  // =========================================================================
+
+  @Test
+  fun `empty batch succeeds`() {
+    harness.loadPipeline(loadBasicTableConfig())
+    val request = WriteRequest.newBuilder().setDeviceId(1).build()
+    harness.writeRaw(request)
+  }
+
+  @Test
+  fun `all-failing batch reports all errors`() {
+    harness.loadPipeline(loadBasicTableConfig())
+    val bad1 = Entity.newBuilder().setTableEntry(TableEntry.newBuilder().setTableId(99998)).build()
+    val bad2 = Entity.newBuilder().setTableEntry(TableEntry.newBuilder().setTableId(99999)).build()
+    val request = harness.buildBatchRequest(Update.Type.INSERT, listOf(bad1, bad2))
+    try {
+      harness.writeRaw(request)
+      throw AssertionError("expected batch error")
+    } catch (e: StatusException) {
+      val errors = extractBatchErrors(e)!!
+      assert(errors.size == 2) { "expected 2 per-update errors" }
+      assert(errors[0].canonicalCode == com.google.rpc.Code.NOT_FOUND_VALUE)
+      assert(errors[1].canonicalCode == com.google.rpc.Code.NOT_FOUND_VALUE)
+    }
+  }
+
+  @Test
+  fun `mixed INSERT and DELETE batch applies both`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    val entry1 = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    val entry2 = buildExactEntry(config, matchValue = 0x0806, port = 2)
+    // Install two entries first.
+    harness.installEntry(entry1)
+    harness.installEntry(entry2)
+    // Batch: DELETE entry1 + INSERT entry3.
+    val entry3 = buildExactEntry(config, matchValue = 0x86DD, port = 3)
+    val request =
+      WriteRequest.newBuilder()
+        .setDeviceId(1)
+        .addUpdates(Update.newBuilder().setType(Update.Type.DELETE).setEntity(entry1))
+        .addUpdates(Update.newBuilder().setType(Update.Type.INSERT).setEntity(entry3))
+        .build()
+    harness.writeRaw(request)
+    val results = harness.readRegularEntries()
+    assert(results.size == 2) { "expected 2 entries after mixed DELETE+INSERT batch" }
+  }
+
+  @Test
+  fun `duplicate INSERT in batch reports ALREADY_EXISTS for second`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    val entry = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    val request = harness.buildBatchRequest(Update.Type.INSERT, listOf(entry, entry))
+    try {
+      harness.writeRaw(request)
+      throw AssertionError("expected batch error")
+    } catch (e: StatusException) {
+      val errors = extractBatchErrors(e)!!
+      assert(errors.size == 2) { "expected 2 per-update errors" }
+      assert(errors[0].canonicalCode == com.google.rpc.Code.OK_VALUE) {
+        "first INSERT should be OK"
+      }
+      assert(errors[1].canonicalCode == com.google.rpc.Code.ALREADY_EXISTS_VALUE) {
+        "second INSERT should be ALREADY_EXISTS"
+      }
+    }
+  }
+
+  // =========================================================================
+  // Structured error detail verification (P4Runtime spec §12.1)
+  // =========================================================================
+
+  @Test
+  fun `batch error details include message field`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    val bad = Entity.newBuilder().setTableEntry(TableEntry.newBuilder().setTableId(99999)).build()
+    val request = harness.buildBatchRequest(Update.Type.INSERT, listOf(bad))
+    try {
+      harness.writeRaw(request)
+      throw AssertionError("expected batch error")
+    } catch (e: StatusException) {
+      val errors = extractBatchErrors(e)!!
+      assert(errors.size == 1)
+      assert(errors[0].canonicalCode == com.google.rpc.Code.NOT_FOUND_VALUE)
+      assert(errors[0].message.isNotEmpty()) { "error detail should include a message" }
+    }
+  }
+
+  @Test
+  fun `batch error details include correct canonical_code for validation errors`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    // Use an exact entry with wrong match field width to trigger INVALID_ARGUMENT.
+    val table = config.p4Info.tablesList.first()
+    val tableId = table.preamble.id
+    val actionId = table.actionRefsList.first().id
+    val wrongWidth =
+      Entity.newBuilder()
+        .setTableEntry(
+          TableEntry.newBuilder()
+            .setTableId(tableId)
+            .addMatch(
+              p4.v1.P4RuntimeOuterClass.FieldMatch.newBuilder()
+                .setFieldId(table.matchFieldsList.first().id)
+                .setExact(
+                  p4.v1.P4RuntimeOuterClass.FieldMatch.Exact.newBuilder()
+                    .setValue(ByteString.copyFrom(byteArrayOf(0x01)))
+                )
+            )
+            .setAction(
+              p4.v1.P4RuntimeOuterClass.TableAction.newBuilder()
+                .setAction(p4.v1.P4RuntimeOuterClass.Action.newBuilder().setActionId(actionId))
+            )
+        )
+        .build()
+    val request = harness.buildBatchRequest(Update.Type.INSERT, listOf(wrongWidth))
+    try {
+      harness.writeRaw(request)
+      throw AssertionError("expected batch error")
+    } catch (e: StatusException) {
+      val errors = extractBatchErrors(e)!!
+      assert(errors.size == 1)
+      assert(errors[0].canonicalCode == com.google.rpc.Code.INVALID_ARGUMENT_VALUE) {
+        "wrong width should yield INVALID_ARGUMENT, got code ${errors[0].canonicalCode}"
+      }
+      assert(errors[0].message.isNotEmpty()) { "validation error should include a message" }
+    }
+  }
+
+  @Test
+  fun `batch error with mixed codes reports per-update details`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    val good = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    // A NOT_FOUND error (unknown table).
+    val notFound =
+      Entity.newBuilder().setTableEntry(TableEntry.newBuilder().setTableId(99999)).build()
+    val request = harness.buildBatchRequest(Update.Type.INSERT, listOf(good, notFound))
+    try {
+      harness.writeRaw(request)
+      throw AssertionError("expected batch error")
+    } catch (e: StatusException) {
+      val errors = extractBatchErrors(e)!!
+      assert(errors.size == 2) { "expected 2 per-update errors" }
+      assert(errors[0].canonicalCode == com.google.rpc.Code.OK_VALUE)
+      assert(errors[1].canonicalCode == com.google.rpc.Code.NOT_FOUND_VALUE)
+      // The failing update should have an explanatory message.
+      assert(errors[1].message.isNotEmpty()) { "NOT_FOUND error should include a message" }
+    }
+  }
 }

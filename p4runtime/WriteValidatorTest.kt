@@ -871,6 +871,69 @@ class WriteValidatorTest {
   }
 
   // =========================================================================
+  // Encoding edge cases (§8.3)
+  // =========================================================================
+
+  @Test
+  fun `bit1 field accepts 1-byte value`() {
+    val v = WriteValidator(testP4InfoWithBitwidths())
+    v.validate(insertUpdate(BIT1_TABLE_ID, listOf(exactMatch(BIT1_FIELD_ID, bytes(1))), action()))
+  }
+
+  @Test
+  fun `bit7 field accepts 1-byte value`() {
+    val v = WriteValidator(testP4InfoWithBitwidths())
+    v.validate(insertUpdate(BIT7_TABLE_ID, listOf(exactMatch(BIT7_FIELD_ID, bytes(1))), action()))
+  }
+
+  @Test
+  fun `bit7 field rejects 2-byte value`() {
+    val v = WriteValidator(testP4InfoWithBitwidths())
+    val e =
+      assertThrows(StatusException::class.java) {
+        v.validate(
+          insertUpdate(BIT7_TABLE_ID, listOf(exactMatch(BIT7_FIELD_ID, bytes(2))), action())
+        )
+      }
+    assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code)
+    assert(e.status.description!!.contains("bytes"))
+  }
+
+  @Test
+  fun `bit128 field accepts 16-byte value`() {
+    val v = WriteValidator(testP4InfoWithBitwidths())
+    v.validate(
+      insertUpdate(BIT128_TABLE_ID, listOf(exactMatch(BIT128_FIELD_ID, bytes(16))), action())
+    )
+  }
+
+  @Test
+  fun `bit128 field rejects 15-byte value`() {
+    val v = WriteValidator(testP4InfoWithBitwidths())
+    val e =
+      assertThrows(StatusException::class.java) {
+        v.validate(
+          insertUpdate(BIT128_TABLE_ID, listOf(exactMatch(BIT128_FIELD_ID, bytes(15))), action())
+        )
+      }
+    assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code)
+    assert(e.status.description!!.contains("bytes"))
+  }
+
+  @Test
+  fun `leading zero bytes are allowed in exact match`() {
+    // bit<16> field with value 0x0001 — the leading zero byte is valid.
+    val v = validator()
+    v.validate(
+      insertUpdate(
+        EXACT_TABLE_ID,
+        listOf(exactMatch(MATCH_FIELD_ID, byteArrayOf(0x00, 0x01))),
+        action(),
+      )
+    )
+  }
+
+  // =========================================================================
   // Test fixtures
   // =========================================================================
 
@@ -881,6 +944,12 @@ class WriteValidatorTest {
     private const val CONST_TABLE_ID = 4
     private const val RANGE_TABLE_ID = 5
     private const val OPTIONAL_TABLE_ID = 6
+    private const val BIT1_TABLE_ID = 100
+    private const val BIT7_TABLE_ID = 101
+    private const val BIT128_TABLE_ID = 102
+    private const val BIT1_FIELD_ID = 100
+    private const val BIT7_FIELD_ID = 101
+    private const val BIT128_FIELD_ID = 102
     private const val MATCH_FIELD_ID = 1
     private const val TERNARY_FIELD_ID = 2
     private const val LPM_FIELD_ID = 3
@@ -1047,6 +1116,63 @@ class WriteValidatorTest {
               .setId(PARAM_ID)
               .setName("port")
               .setBitwidth(0) // sdn_string translation — bitwidth 0
+          )
+      )
+      .build()
+
+  /** P4info with tables using bit<1>, bit<7>, and bit<128> match fields for encoding edge cases. */
+  private fun testP4InfoWithBitwidths(): P4InfoOuterClass.P4Info =
+    P4InfoOuterClass.P4Info.newBuilder()
+      .addTables(
+        P4InfoOuterClass.Table.newBuilder()
+          .setPreamble(
+            P4InfoOuterClass.Preamble.newBuilder().setId(BIT1_TABLE_ID).setName("bit1_table")
+          )
+          .addMatchFields(
+            P4InfoOuterClass.MatchField.newBuilder()
+              .setId(BIT1_FIELD_ID)
+              .setName("f_bit1")
+              .setBitwidth(1)
+              .setMatchType(P4InfoOuterClass.MatchField.MatchType.EXACT)
+          )
+          .addActionRefs(P4InfoOuterClass.ActionRef.newBuilder().setId(ACTION_ID))
+      )
+      .addTables(
+        P4InfoOuterClass.Table.newBuilder()
+          .setPreamble(
+            P4InfoOuterClass.Preamble.newBuilder().setId(BIT7_TABLE_ID).setName("bit7_table")
+          )
+          .addMatchFields(
+            P4InfoOuterClass.MatchField.newBuilder()
+              .setId(BIT7_FIELD_ID)
+              .setName("f_bit7")
+              .setBitwidth(7)
+              .setMatchType(P4InfoOuterClass.MatchField.MatchType.EXACT)
+          )
+          .addActionRefs(P4InfoOuterClass.ActionRef.newBuilder().setId(ACTION_ID))
+      )
+      .addTables(
+        P4InfoOuterClass.Table.newBuilder()
+          .setPreamble(
+            P4InfoOuterClass.Preamble.newBuilder().setId(BIT128_TABLE_ID).setName("bit128_table")
+          )
+          .addMatchFields(
+            P4InfoOuterClass.MatchField.newBuilder()
+              .setId(BIT128_FIELD_ID)
+              .setName("f_bit128")
+              .setBitwidth(128)
+              .setMatchType(P4InfoOuterClass.MatchField.MatchType.EXACT)
+          )
+          .addActionRefs(P4InfoOuterClass.ActionRef.newBuilder().setId(ACTION_ID))
+      )
+      .addActions(
+        P4InfoOuterClass.Action.newBuilder()
+          .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(ACTION_ID).setName("forward"))
+          .addParams(
+            P4InfoOuterClass.Action.Param.newBuilder()
+              .setId(PARAM_ID)
+              .setName("port")
+              .setBitwidth(PARAM_BITWIDTH)
           )
       )
       .build()

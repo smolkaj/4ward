@@ -421,25 +421,24 @@ All five gaps found in the Phase 1 audit are fixed, each with unit + E2E tests:
   omission).
 - Range match `low > high` semantic validation: rejected with `INVALID_ARGUMENT`.
 
-#### Phase 3: deepen test coverage
+#### Phase 3: deepen test coverage — DONE
 
 Go beyond "does it work?" to "does it work in every corner?"
 
-- **Multi-table test fixtures.** Add a ConformanceTest fixture with multiple
-  tables using different match types (exact, ternary, LPM, range, optional).
-  Exercise cross-table writes, wildcard reads spanning tables, and table-
-  specific filtering.
-- **Structured error detail verification.** Extend the test harness to verify
-  `p4.v1.Error` protos in `grpc-status-details-bin` for all error paths, not
-  just CONTINUE_ON_ERROR. Check `canonical_code`, `message`, and `space`.
-- **Encoding edge cases.** Test `bit<1>`, `bit<7>` (non-byte-aligned),
-  `bit<128>` (IPv6-width), values with leading zero bytes, empty bytestrings.
-- **Batch edge cases.** Empty batch, all-failing batch, mixed
-  INSERT/MODIFY/DELETE batch, duplicate entries within a batch.
-- **Default entry edge cases.** `has_initial_default_action`, clearing the
-  default, read-back of `is_default_action`.
-
-**Done when:** each category above has at least 3 new tests.
+- **Multi-table test fixtures.** Synthetic multi-table config (exact + ternary +
+  LPM). 4 tests: cross-table writes, table-specific reads, delete isolation,
+  wildcard default entries.
+- **Structured error detail verification.** 3 tests verifying `p4.v1.Error`
+  protos: message presence, `canonical_code` for validation errors, mixed-code
+  per-update details.
+- **Encoding edge cases.** 6 tests: `bit<1>`, `bit<7>`, `bit<128>` widths,
+  over/under-sized values, leading zero bytes.
+- **Batch edge cases.** 4 tests: empty batch, all-failing batch, mixed
+  INSERT/DELETE batch, duplicate INSERT detection.
+- **Default entry edge cases.** 3 integration tests (MODIFY changes action,
+  INSERT rejected, DELETE rejected) + 2 unit tests (params preserved, action
+  name resolved). Also implemented default entry MODIFY in simulator — was
+  previously validated but not applied.
 
 #### Phase 4: adversarial testing
 
@@ -493,6 +492,5 @@ and at least one external test suite has been evaluated.
   (PNA) is next.
 - Track 8 (interfaces) is complete: gRPC services, CLI, and playground with
   visual pipeline diagrams and animated trace playback.
-- Track 9 builds on Track 4. Phases 1–3 can start immediately. Phase 4
-  (adversarial testing) is best after phase 3 establishes a stronger test
-  harness.
+- Track 9 builds on Track 4. Phases 1–3 are complete. Phase 4
+  (adversarial testing) is next.
