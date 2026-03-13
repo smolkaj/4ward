@@ -41,6 +41,7 @@ class TableStoreTest {
     meters: List<P4InfoOuterClass.Meter> = emptyList(),
     directCounters: List<P4InfoOuterClass.DirectCounter> = emptyList(),
     directMeters: List<P4InfoOuterClass.DirectMeter> = emptyList(),
+    valueSets: List<P4InfoOuterClass.ValueSet> = emptyList(),
   ): P4InfoOuterClass.P4Info =
     P4InfoOuterClass.P4Info.newBuilder()
       .addAllTables(tables)
@@ -51,6 +52,7 @@ class TableStoreTest {
       .addAllMeters(meters)
       .addAllDirectCounters(directCounters)
       .addAllDirectMeters(directMeters)
+      .addAllValueSets(valueSets)
       .build()
 
   /** Builds a minimal p4info [P4InfoOuterClass.Table] with the given ID and name. */
@@ -2534,6 +2536,149 @@ class TableStoreTest {
   }
 
   // ---------------------------------------------------------------------------
+  // Value sets (P4Runtime spec §9.6)
+  // ---------------------------------------------------------------------------
+
+  private fun storeWithValueSet(
+    valueSetId: Int = VALUE_SET_ID,
+    valueSetName: String = VALUE_SET_NAME,
+    valueSetSize: Int = VALUE_SET_SIZE,
+  ): TableStore {
+    val s = TableStore()
+    s.loadMappings(
+      p4info =
+        buildP4Info(
+          tables =
+            listOf(
+              P4InfoOuterClass.Table.newBuilder()
+                .setPreamble(
+                  P4InfoOuterClass.Preamble.newBuilder().setId(TABLE_ID).setAlias(TABLE_NAME)
+                )
+                .build()
+            ),
+          actions = ACTION_LIST,
+          valueSets =
+            listOf(
+              P4InfoOuterClass.ValueSet.newBuilder()
+                .setPreamble(
+                  P4InfoOuterClass.Preamble.newBuilder().setId(valueSetId).setAlias(valueSetName)
+                )
+                .setSize(valueSetSize)
+                .build()
+            ),
+        )
+    )
+    return s
+  }
+
+  private fun valueSetUpdate(
+    valueSetId: Int = VALUE_SET_ID,
+    type: Update.Type = Update.Type.MODIFY,
+    members: List<P4RuntimeOuterClass.ValueSetMember> = emptyList(),
+  ): Update =
+    Update.newBuilder()
+      .setType(type)
+      .setEntity(
+        Entity.newBuilder()
+          .setValueSetEntry(
+            P4RuntimeOuterClass.ValueSetEntry.newBuilder()
+              .setValueSetId(valueSetId)
+              .addAllMembers(members)
+          )
+      )
+      .build()
+
+  private fun exactVsMember(value: ByteArray): P4RuntimeOuterClass.ValueSetMember =
+    P4RuntimeOuterClass.ValueSetMember.newBuilder()
+      .addMatch(
+        FieldMatch.newBuilder()
+          .setFieldId(1)
+          .setExact(FieldMatch.Exact.newBuilder().setValue(ByteString.copyFrom(value)))
+      )
+      .build()
+
+  @Test
+  fun `value_set MODIFY succeeds`() {
+    val s = storeWithValueSet()
+    val member = exactVsMember(byteArrayOf(0x42))
+    assertEquals(WriteResult.Success, s.write(valueSetUpdate(members = listOf(member))))
+    assertEquals(listOf(member), s.getValueSetMembers(VALUE_SET_NAME))
+  }
+
+  @Test
+  fun `value_set MODIFY replaces all members atomically`() {
+    val s = storeWithValueSet()
+    val m1 = exactVsMember(byteArrayOf(0x01))
+    val m2 = exactVsMember(byteArrayOf(0x02))
+    s.write(valueSetUpdate(members = listOf(m1)))
+    s.write(valueSetUpdate(members = listOf(m2)))
+    assertEquals(listOf(m2), s.getValueSetMembers(VALUE_SET_NAME))
+  }
+
+  @Test
+  fun `value_set MODIFY with empty members clears the set`() {
+    val s = storeWithValueSet()
+    s.write(valueSetUpdate(members = listOf(exactVsMember(byteArrayOf(0x01)))))
+    s.write(valueSetUpdate(members = emptyList()))
+    assertEquals(
+      emptyList<P4RuntimeOuterClass.ValueSetMember>(),
+      s.getValueSetMembers(VALUE_SET_NAME),
+    )
+  }
+
+  @Test
+  fun `value_set INSERT is rejected`() {
+    val s = storeWithValueSet()
+    assertTrue(s.write(valueSetUpdate(type = Update.Type.INSERT)) is WriteResult.InvalidArgument)
+  }
+
+  @Test
+  fun `value_set DELETE is rejected`() {
+    val s = storeWithValueSet()
+    assertTrue(s.write(valueSetUpdate(type = Update.Type.DELETE)) is WriteResult.InvalidArgument)
+  }
+
+  @Test
+  fun `value_set unknown ID returns NotFound`() {
+    val s = storeWithValueSet()
+    assertTrue(s.write(valueSetUpdate(valueSetId = 999)) is WriteResult.NotFound)
+  }
+
+  @Test
+  fun `value_set exceeding size limit returns ResourceExhausted`() {
+    val s = storeWithValueSet(valueSetSize = 2)
+    val members = (1..3).map { exactVsMember(byteArrayOf(it.toByte())) }
+    assertTrue(s.write(valueSetUpdate(members = members)) is WriteResult.ResourceExhausted)
+  }
+
+  @Test
+  fun `value_set wildcard read returns all value sets`() {
+    val s = storeWithValueSet()
+    s.write(valueSetUpdate(members = listOf(exactVsMember(byteArrayOf(0x01)))))
+    val results = s.readValueSetEntries()
+    assertEquals(1, results.size)
+    assertEquals(VALUE_SET_ID, results[0].valueSetEntry.valueSetId)
+    assertEquals(1, results[0].valueSetEntry.membersCount)
+  }
+
+  @Test
+  fun `value_set read by ID returns matching entry`() {
+    val s = storeWithValueSet()
+    s.write(valueSetUpdate(members = listOf(exactVsMember(byteArrayOf(0x01)))))
+    val filter = P4RuntimeOuterClass.ValueSetEntry.newBuilder().setValueSetId(VALUE_SET_ID).build()
+    val results = s.readValueSetEntries(filter)
+    assertEquals(1, results.size)
+    assertEquals(VALUE_SET_ID, results[0].valueSetEntry.valueSetId)
+  }
+
+  @Test
+  fun `value_set read unknown ID returns empty`() {
+    val s = storeWithValueSet()
+    val filter = P4RuntimeOuterClass.ValueSetEntry.newBuilder().setValueSetId(999).build()
+    assertEquals(0, s.readValueSetEntries(filter).size)
+  }
+
+  // ---------------------------------------------------------------------------
   // Constants
   // ---------------------------------------------------------------------------
 
@@ -2555,6 +2700,9 @@ class TableStoreTest {
     private const val MAX_GROUP_SIZE = 2
     private const val DIRECT_COUNTER_ID = 800
     private const val DIRECT_METER_ID = 900
+    private const val VALUE_SET_ID = 1000
+    private const val VALUE_SET_NAME = "myValueSet"
+    private const val VALUE_SET_SIZE = 4
     private val ACTION_IDS = listOf(10, 20, 42, 50, 77, 99, 100, 200)
     private val ACTION_LIST: List<P4InfoOuterClass.Action> =
       ACTION_IDS.map { id ->

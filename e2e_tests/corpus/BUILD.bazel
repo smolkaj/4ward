@@ -278,6 +278,7 @@ corpus_test_suite(
         "psa-remove-header": "//e2e_tests/corpus:psa-remove-header.stf",
         "psa-switch-expression-without-default": "//e2e_tests/corpus:psa-switch-expression-without-default.stf",
         "psa-table-hit-miss": "//e2e_tests/corpus:psa-table-hit-miss.stf",
+        "psa-test": "//e2e_tests/corpus:psa-test.stf",
         "psa-variable-index": "//e2e_tests/corpus:psa-variable-index.stf",
     },
     tests = [
@@ -350,6 +351,7 @@ corpus_test_suite(
         "psa-resubmit-bmv2",
         "psa-switch-expression-without-default",
         "psa-table-hit-miss",
+        "psa-test",
         "psa-top-level-assignments-bmv2",
         "psa-unicast-or-drop-bmv2",
         "psa-unicast-or-drop-corrected-bmv2",
@@ -382,18 +384,6 @@ corpus_test_suite(
     tags = ["manual"],
     tests = [
         "gauntlet_optional-bmv2",  # unsupported architecture 'top'
-    ],
-)
-
-# PSA tests blocked on unimplemented simulator features.
-corpus_test_suite(
-    name = "psa_blocked_stf_corpus_test",
-    stf_overrides = {
-        "psa-test": "//e2e_tests/corpus:psa-test.stf",
-    },
-    tags = ["manual"],
-    tests = [
-        "psa-test",  # parser value_set not implemented
     ],
 )
 

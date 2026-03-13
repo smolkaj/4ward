@@ -10,7 +10,40 @@ import p4.v1.P4RuntimeOuterClass.TableEntry
 import p4.v1.P4RuntimeOuterClass.Update
 
 /** Interprets a protobuf [ByteString] as an unsigned big-endian integer. */
-private fun ByteString.toUnsignedBigInteger(): BigInteger = BigInteger(1, toByteArray())
+internal fun ByteString.toUnsignedBigInteger(): BigInteger = BigInteger(1, toByteArray())
+
+/**
+ * Tests whether a [BitVector] matches a P4Runtime [FieldMatch].
+ *
+ * Supports exact, ternary, LPM, range, and optional match kinds. An unset FieldMatch (no kind set)
+ * acts as a wildcard (matches any value). Returns `false` for unknown match kinds.
+ */
+fun matchesFieldMatch(bits: BitVector, match: P4RuntimeOuterClass.FieldMatch): Boolean =
+  when {
+    match.hasExact() -> bits.value == match.exact.value.toUnsignedBigInteger()
+    match.hasTernary() -> {
+      val want = match.ternary.value.toUnsignedBigInteger()
+      val mask = match.ternary.mask.toUnsignedBigInteger()
+      bits.value.and(mask) == want.and(mask)
+    }
+    match.hasLpm() -> {
+      val prefixLen = match.lpm.prefixLen
+      if (prefixLen == 0) true
+      else {
+        val prefix = match.lpm.value.toUnsignedBigInteger()
+        val shift = bits.width - prefixLen
+        bits.value.shiftRight(shift) == prefix.shiftRight(shift)
+      }
+    }
+    match.hasRange() -> {
+      val lo = match.range.low.toUnsignedBigInteger()
+      val hi = match.range.high.toUnsignedBigInteger()
+      bits.value in lo..hi
+    }
+    match.hasOptional() -> bits.value == match.optional.value.toUnsignedBigInteger()
+    // Unset FieldMatch = wildcard (matches any value).
+    else -> true
+  }
 
 /**
  * P4Runtime spec §9.1: two entries match the same key iff they have the same table_id, match
@@ -90,6 +123,8 @@ class TableStore : TableDataReader {
       mutableMapOf()
     internal val multicastGroups: MutableMap<Int, P4RuntimeOuterClass.MulticastGroupEntry> =
       mutableMapOf()
+    internal val valueSets: MutableMap<String, MutableList<P4RuntimeOuterClass.ValueSetMember>> =
+      mutableMapOf()
 
     /** Creates a deep copy for snapshot/restore (P4Runtime spec §12.2). */
     fun deepCopy(): WriteState =
@@ -109,6 +144,7 @@ class TableStore : TableDataReader {
         meters.forEach { (k, v) -> copy.meters[k] = v.toMutableMap() }
         copy.cloneSessions.putAll(cloneSessions)
         copy.multicastGroups.putAll(multicastGroups)
+        valueSets.forEach { (k, v) -> copy.valueSets[k] = v.toMutableList() }
       }
   }
 
@@ -148,6 +184,9 @@ class TableStore : TableDataReader {
   private val multicastGroups
     get() = writeState.multicastGroups
 
+  private val valueSets
+    get() = writeState.valueSets
+
   // Pipeline config (populated by loadMappings, not part of write-state).
   private var tableSizeLimit: Map<String, Int> = emptyMap()
   private var profileMaxGroupSize: Map<Int, Int> = emptyMap()
@@ -179,6 +218,10 @@ class TableStore : TableDataReader {
   private var registerInfoById: Map<Int, RegisterInfo> = emptyMap()
   private var counterInfoById: Map<Int, IndexedExternInfo> = emptyMap()
   private var meterInfoById: Map<Int, IndexedExternInfo> = emptyMap()
+
+  private data class ValueSetInfo(val name: String, val size: Int)
+
+  private var valueSetInfoById: Map<Int, ValueSetInfo> = emptyMap()
 
   /**
    * Initialises the store for a loaded pipeline and clears all mutable state.
@@ -241,6 +284,11 @@ class TableStore : TableDataReader {
       p4info.countersList.associate { it.preamble.id to IndexedExternInfo(it.size.toInt()) }
     this.meterInfoById =
       p4info.metersList.associate { it.preamble.id to IndexedExternInfo(it.size.toInt()) }
+    this.valueSetInfoById =
+      p4info.valueSetsList.associate {
+        it.preamble.id to
+          ValueSetInfo(name = it.preamble.alias.ifEmpty { it.preamble.name }, size = it.size)
+      }
     this.directCounterTables =
       p4info.directCountersList.mapNotNull { tableNameById[it.directTableId] }.toSet()
     this.directMeterTables =
@@ -622,6 +670,60 @@ class TableStore : TableDataReader {
   }
 
   // -------------------------------------------------------------------------
+  // Value sets (P4 spec §12.14, P4Runtime spec §9.6)
+  // -------------------------------------------------------------------------
+
+  /** Returns the members of a parser value_set, or empty if not populated. */
+  fun getValueSetMembers(name: String): List<P4RuntimeOuterClass.ValueSetMember> =
+    valueSets[name] ?: emptyList()
+
+  /** Directly sets value_set members by name, bypassing P4Runtime write path. For testing. */
+  internal fun populateValueSet(name: String, members: List<P4RuntimeOuterClass.ValueSetMember>) {
+    valueSets[name] = members.toMutableList()
+  }
+
+  private fun writeValueSetEntry(
+    type: Update.Type,
+    entry: P4RuntimeOuterClass.ValueSetEntry,
+  ): WriteResult {
+    // P4Runtime spec §9.6: value_set only supports MODIFY (replaces all members atomically).
+    if (type != Update.Type.MODIFY)
+      return WriteResult.InvalidArgument("value_set only supports MODIFY, not $type")
+    val info =
+      valueSetInfoById[entry.valueSetId]
+        ?: return WriteResult.NotFound("unknown value_set ID: ${entry.valueSetId}")
+    val name = info.name
+    val maxSize = info.size
+    if (entry.membersCount > maxSize)
+      return WriteResult.ResourceExhausted(
+        "value_set '$name' has max size $maxSize, got ${entry.membersCount} members"
+      )
+    valueSets[name] = entry.membersList.toMutableList()
+    return WriteResult.Success
+  }
+
+  fun readValueSetEntries(
+    filter: P4RuntimeOuterClass.ValueSetEntry =
+      P4RuntimeOuterClass.ValueSetEntry.getDefaultInstance()
+  ): List<P4RuntimeOuterClass.Entity> {
+    val entries =
+      if (filter.valueSetId == 0) valueSetInfoById
+      else {
+        val info = valueSetInfoById[filter.valueSetId] ?: return emptyList()
+        mapOf(filter.valueSetId to info)
+      }
+    return entries.map { (vsId, info) ->
+      P4RuntimeOuterClass.Entity.newBuilder()
+        .setValueSetEntry(
+          P4RuntimeOuterClass.ValueSetEntry.newBuilder()
+            .setValueSetId(vsId)
+            .addAllMembers(valueSets[info.name] ?: emptyList())
+        )
+        .build()
+    }
+  }
+
+  // -------------------------------------------------------------------------
   // Write
   // -------------------------------------------------------------------------
 
@@ -638,11 +740,12 @@ class TableStore : TableDataReader {
       entity.hasDirectMeterEntry() -> writeDirectMeterEntry(update.type, entity.directMeterEntry)
       entity.hasPacketReplicationEngineEntry() ->
         writePreEntry(update.type, entity.packetReplicationEngineEntry)
+      entity.hasValueSetEntry() -> writeValueSetEntry(update.type, entity.valueSetEntry)
       entity.hasTableEntry() -> writeTableEntry(update)
       else ->
         WriteResult.InvalidArgument(
           "unsupported entity type; only table entries, action profiles, counters, meters, " +
-            "registers, and PRE entries are supported"
+            "registers, value sets, and PRE entries are supported"
         )
     }
   }
@@ -1094,44 +1197,15 @@ class TableStore : TableDataReader {
           else -> return null
         }
 
+      if (!matchesFieldMatch(bits, match)) return null
+
+      // Accumulate score for priority-based match kinds.
       when {
-        match.hasExact() -> {
-          if (bits.value != match.exact.value.toUnsignedBigInteger()) return null
-          // Exact match doesn't contribute to relative scoring — all exact
-          // fields either match or don't.  We add nothing here; the entry's
-          // priority (if any) is added once below the when block.
-        }
-        match.hasLpm() -> {
-          val prefixLen = match.lpm.prefixLen
-          val prefix = match.lpm.value.toUnsignedBigInteger()
-          val mask =
-            if (prefixLen == 0) BigInteger.ZERO
-            else
-              BigInteger.ONE.shiftLeft(bits.width - prefixLen)
-                .minus(BigInteger.ONE)
-                .not()
-                .and(BigInteger.TWO.pow(bits.width).minus(BigInteger.ONE))
-          if (bits.value.and(mask) != prefix.and(mask)) return null
-          score += prefixLen.toLong()
-        }
-        match.hasTernary() -> {
-          val want = match.ternary.value.toUnsignedBigInteger()
-          val mask = match.ternary.mask.toUnsignedBigInteger()
-          if (bits.value.and(mask) != want.and(mask)) return null
-          score += entry.priority.toLong()
-        }
-        match.hasRange() -> {
-          val lo = match.range.low.toUnsignedBigInteger()
-          val hi = match.range.high.toUnsignedBigInteger()
-          if (bits.value < lo || bits.value > hi) return null
-          score += entry.priority.toLong()
-        }
-        // P4 spec §14.2.1.3: optional match behaves like exact when present;
-        // omitted optional fields are wildcards (the FieldMatch is absent).
-        match.hasOptional() -> {
-          if (bits.value != match.optional.value.toUnsignedBigInteger()) return null
-        }
-        else -> return null // unsupported match kind
+        match.hasLpm() -> score += match.lpm.prefixLen.toLong()
+        match.hasTernary() -> score += entry.priority.toLong()
+        match.hasRange() -> score += entry.priority.toLong()
+      // Exact and optional don't contribute to relative scoring — all exact
+      // fields either match or don't.
       }
     }
     return score

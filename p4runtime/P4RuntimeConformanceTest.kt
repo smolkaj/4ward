@@ -1669,19 +1669,20 @@ class P4RuntimeConformanceTest {
   // Unsupported entity types (P4Runtime spec §9.6, §9.8, §15)
   // ---------------------------------------------------------------------------
 
-  /** P4Runtime spec §9.6: reading a ValueSetEntry should fail with UNIMPLEMENTED. */
+  /** P4Runtime spec §9.6: reading an unknown ValueSetEntry returns empty. */
   @Test
-  fun `81 - read ValueSetEntry rejected as UNIMPLEMENTED`() {
+  fun `81 - read unknown ValueSetEntry returns empty`() {
     harness.loadPipeline(loadBasicTableConfig())
     val request =
       ReadRequest.newBuilder()
         .setDeviceId(1)
         .addEntities(
           Entity.newBuilder()
-            .setValueSetEntry(P4RuntimeOuterClass.ValueSetEntry.newBuilder().setValueSetId(1))
+            .setValueSetEntry(P4RuntimeOuterClass.ValueSetEntry.newBuilder().setValueSetId(999))
         )
         .build()
-    assertGrpcError(Status.Code.UNIMPLEMENTED) { harness.readEntries(request) }
+    val results = harness.readEntries(request)
+    assertEquals(0, results.size)
   }
 
   /** P4Runtime spec §9.9: reading an ExternEntry should fail with UNIMPLEMENTED. */
