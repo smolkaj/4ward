@@ -794,34 +794,10 @@ class PSAArchitecture : Architecture {
     }
 
   /**
-   * Sums all 16-bit words in [data]'s concatenated fields using ones' complement addition.
-   *
-   * Pads to a 16-bit boundary. Returns the raw sum (not complemented).
+   * Sums all 16-bit words in [data]'s concatenated fields. Returns the raw sum (not complemented).
    */
-  private fun sumWords(data: StructVal): BigInteger {
-    val combined = concatFields(data) ?: return BigInteger.ZERO
-    val totalWidth = combined.width
-    val padded = ((totalWidth + CSUM_WORD_BITS - 1) / CSUM_WORD_BITS) * CSUM_WORD_BITS
-    var bits = combined.value.shiftLeft(padded - totalWidth)
-    var sum = BigInteger.ZERO
-    for (i in 0 until padded / CSUM_WORD_BITS) {
-      val word = bits.shiftRight(padded - (i + 1) * CSUM_WORD_BITS).and(CSUM_MASK)
-      sum = sum.add(word)
-    }
-    return foldCarries(sum)
-  }
-
-  /** Folds carries back into a 16-bit ones' complement value. */
-  private fun foldCarries(value: BigInteger): BigInteger {
-    var sum = value
-    while (sum > CSUM_MASK) {
-      sum = sum.and(CSUM_MASK).add(sum.shiftRight(CSUM_WORD_BITS))
-    }
-    return sum
-  }
-
-  /** Ones' complement addition of two 16-bit values with carry folding. */
-  private fun onesComplementAdd(a: BigInteger, b: BigInteger): BigInteger = foldCarries(a.add(b))
+  private fun sumWords(data: StructVal): BigInteger =
+    concatFields(data)?.let { sumBitWords(it) } ?: BigInteger.ZERO
 
   /** Builds a flat map from extern instance name → declaration across all parsers and controls. */
   private fun buildExternInstancesMap(config: BehavioralConfig): Map<String, ExternInstanceDecl> =

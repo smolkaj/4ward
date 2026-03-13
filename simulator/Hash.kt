@@ -21,13 +21,26 @@ internal val CSUM_MASK = BigInteger.TWO.pow(CSUM_WORD_BITS).subtract(BigInteger.
 internal fun concatFields(data: StructVal): BitVector? =
   data.fields.values.mapNotNull { (it as? BitVal)?.bits }.reduceOrNull { acc, bv -> acc.concat(bv) }
 
+/** Folds carries back into a 16-bit ones' complement value. */
+internal fun foldCarries(value: BigInteger): BigInteger {
+  var sum = value
+  while (sum > CSUM_MASK) {
+    sum = sum.and(CSUM_MASK).add(sum.shiftRight(CSUM_WORD_BITS))
+  }
+  return sum
+}
+
+/** Ones' complement addition of two 16-bit values with carry folding. */
+internal fun onesComplementAdd(a: BigInteger, b: BigInteger): BigInteger = foldCarries(a.add(b))
+
 /**
- * Ones' complement (csum16) checksum over a bit vector.
+ * Sums all 16-bit words in [combined] using ones' complement addition.
  *
- * Pads to a 16-bit boundary, sums all 16-bit words with end-around carry, and returns the
- * complement. This is the standard Internet checksum (RFC 1071) used by IPv4, TCP, and UDP.
+ * Pads to a 16-bit boundary. Returns the raw folded sum (not complemented). Used both by the
+ * one-shot csum16 hash algorithm and by PSA's incremental [InternetChecksum][PSAArchitecture]
+ * extern.
  */
-private fun onesComplementChecksumBits(combined: BitVector): BigInteger {
+internal fun sumBitWords(combined: BitVector): BigInteger {
   val totalWidth = combined.width
   val padded = ((totalWidth + CSUM_WORD_BITS - 1) / CSUM_WORD_BITS) * CSUM_WORD_BITS
   var bits = combined.value.shiftLeft(padded - totalWidth)
@@ -36,11 +49,17 @@ private fun onesComplementChecksumBits(combined: BitVector): BigInteger {
     val word = bits.shiftRight(padded - (i + 1) * CSUM_WORD_BITS).and(CSUM_MASK)
     sum = sum.add(word)
   }
-  while (sum > CSUM_MASK) {
-    sum = sum.and(CSUM_MASK).add(sum.shiftRight(CSUM_WORD_BITS))
-  }
-  return CSUM_MASK.subtract(sum)
+  return foldCarries(sum)
 }
+
+/**
+ * Ones' complement (csum16) checksum over a bit vector.
+ *
+ * Pads to a 16-bit boundary, sums all 16-bit words with end-around carry, and returns the
+ * complement. This is the standard Internet checksum (RFC 1071) used by IPv4, TCP, and UDP.
+ */
+private fun onesComplementChecksumBits(combined: BitVector): BigInteger =
+  CSUM_MASK.subtract(sumBitWords(combined))
 
 /** Ones' complement (csum16) checksum over the fields of a struct. */
 fun onesComplementChecksum(data: StructVal): BigInteger {
