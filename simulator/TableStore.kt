@@ -151,6 +151,7 @@ class TableStore : TableDataReader {
   // Pipeline config (populated by loadMappings, not part of write-state).
   private var tableSizeLimit: Map<String, Int> = emptyMap()
   private var profileMaxGroupSize: Map<Int, Int> = emptyMap()
+  private var profileSizeLimit: Map<Int, Int> = emptyMap()
   private val tableActionProfile: MutableMap<String, Int> = mutableMapOf()
   private var directCounterTables: Set<String> = emptySet()
   private var directMeterTables: Set<String> = emptySet()
@@ -261,11 +262,15 @@ class TableStore : TableDataReader {
         }
         .toMap()
 
-    // P4Runtime spec §9.2: enforce max_group_size from p4info action profiles.
+    // P4Runtime spec §9.2: enforce max_group_size and total size from p4info action profiles.
     profileMaxGroupSize =
       p4info.actionProfilesList
         .filter { it.maxGroupSize > 0 }
         .associate { it.preamble.id to it.maxGroupSize }
+    profileSizeLimit =
+      p4info.actionProfilesList
+        .filter { it.size > 0 }
+        .associate { it.preamble.id to it.size.toInt() }
 
     // Register which tables use action profiles (implementation_id != 0).
     for (table in p4infoTables) {
@@ -730,19 +735,28 @@ class TableStore : TableDataReader {
   private fun writeProfileMember(
     type: Update.Type,
     member: P4RuntimeOuterClass.ActionProfileMember,
-  ): WriteResult =
-    writeProfileEntity(
+  ): WriteResult {
+    if (type == Update.Type.INSERT) {
+      val err = checkProfileSizeLimit(member.actionProfileId)
+      if (err != null) return err
+    }
+    return writeProfileEntity(
       type,
       profileMembers.getOrPut(member.actionProfileId) { mutableMapOf() },
       member.memberId,
       member,
       "member ${member.memberId} in action profile ${member.actionProfileId}",
     )
+  }
 
   private fun writeProfileGroup(
     type: Update.Type,
     group: P4RuntimeOuterClass.ActionProfileGroup,
   ): WriteResult {
+    if (type == Update.Type.INSERT) {
+      val err = checkProfileSizeLimit(group.actionProfileId)
+      if (err != null) return err
+    }
     // P4Runtime spec §9.2: enforce max_group_size on INSERT and MODIFY.
     if (type == Update.Type.INSERT || type == Update.Type.MODIFY) {
       val maxSize = profileMaxGroupSize[group.actionProfileId]
@@ -759,6 +773,20 @@ class TableStore : TableDataReader {
       group,
       "group ${group.groupId} in action profile ${group.actionProfileId}",
     )
+  }
+
+  /** Checks total member+group count against the p4info action_profile.size limit. */
+  private fun checkProfileSizeLimit(profileId: Int): WriteResult? {
+    val limit = profileSizeLimit[profileId] ?: return null
+    val memberCount = profileMembers[profileId]?.size ?: 0
+    val groupCount = profileGroups[profileId]?.size ?: 0
+    val current = memberCount + groupCount
+    if (current >= limit) {
+      return WriteResult.ResourceExhausted(
+        "action profile $profileId is at capacity ($current/$limit members+groups)"
+      )
+    }
+    return null
   }
 
   private fun writePreEntry(

@@ -56,19 +56,6 @@ guilt — just write it down so someone can find it later.
   time-dependent features that have no meaningful semantics in a reference
   simulator: there are no real packet rates to trigger digests, and no
   wall-clock time to expire idle entries. These are explicitly out of scope.
-- **Write validation only covers table entries.** `WriteValidator` validates
-  match fields, action IDs, params, priority, and encoding for `TableEntry`
-  writes. Action profile member and group writes are not validated against
-  p4info — a member with a bogus `action_id` or wrong params is accepted
-  and stored, only failing at packet processing time.
-- **`action_profile.size` not enforced.** The p4info `size` field on action
-  profiles is not checked. Clients can insert an unbounded number of
-  members/groups.
-- **`UNRECOGNIZED` proto enum values fall through silently.** Unknown
-  `WriteRequest.Atomicity` values are treated as `CONTINUE_ON_ERROR`;
-  unknown `GetForwardingPipelineConfig.ResponseType` values are treated
-  as `ALL`. Both are defensible defaults but do not follow the project's
-  "fail loudly" invariant.
 
 ## Simulator
 

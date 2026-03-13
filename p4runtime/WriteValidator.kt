@@ -40,8 +40,34 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
   private val paramInfoByAction: Map<Int, Map<Int, P4InfoOuterClass.Action.Param>> =
     p4Info.actionsList.associate { it.preamble.id to it.paramsList.associateBy { p -> p.id } }
 
-  /** Validates a table entry update. Throws [StatusException] on spec violations. */
+  // Pre-computed per-action-profile: ID lookup and valid action IDs (union from associated tables).
+  private val actionProfileInfoById: Map<Int, P4InfoOuterClass.ActionProfile> =
+    p4Info.actionProfilesList.associateBy { it.preamble.id }
+
+  private val actionRefIdsByProfile: Map<Int, Set<Int>> =
+    p4Info.actionProfilesList.associate { ap ->
+      ap.preamble.id to
+        ap.tableIdsList.flatMap { tableId -> actionRefIdsByTable[tableId] ?: emptySet() }.toSet()
+    }
+
+  /**
+   * Validates an update against the p4info schema. Dispatches to entity-specific validation based
+   * on the entity type. Throws [StatusException] on spec violations.
+   */
   fun validate(update: P4RuntimeOuterClass.Update) {
+    val entity = update.entity
+    when {
+      entity.hasTableEntry() -> validateTableEntry(update)
+      entity.hasActionProfileMember() -> validateMember(update)
+      entity.hasActionProfileGroup() -> validateGroup(update)
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Table entry validation (§9.1)
+  // ---------------------------------------------------------------------------
+
+  private fun validateTableEntry(update: P4RuntimeOuterClass.Update) {
     val entry = update.entity.tableEntry
     val tableInfo =
       tableInfoById[entry.tableId] ?: throw notFound("unknown table ID: ${entry.tableId}")
@@ -228,6 +254,8 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
       fm.hasRange() -> {
         checkWidth(w, fm.range.low.size(), "match field '$f' low")
         checkWidth(w, fm.range.high.size(), "match field '$f' high")
+        // P4Runtime spec §9.1.1: low must be <= high.
+        checkRangeOrder(fm.range.low, fm.range.high, f)
       }
       fm.hasOptional() -> checkWidth(w, fm.optional.value.size(), "match field '$f' value")
     }
@@ -251,6 +279,48 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
     if (!hasPriorityFields && entry.priority != 0) {
       throw invalidArg("table '$name' must have priority == 0 (exact/LPM match only)")
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Action profile member validation (§9.2.1)
+  // ---------------------------------------------------------------------------
+
+  private fun validateMember(update: P4RuntimeOuterClass.Update) {
+    val member = update.entity.actionProfileMember
+    val profileId = member.actionProfileId
+    val profileInfo =
+      actionProfileInfoById[profileId] ?: throw notFound("unknown action_profile_id: $profileId")
+
+    // DELETE only needs the key (profile_id + member_id); skip content validation.
+    if (update.type == P4RuntimeOuterClass.Update.Type.DELETE) return
+
+    val action = member.action
+    val actionInfo =
+      actionInfoById[action.actionId] ?: throw invalidArg("unknown action ID: ${action.actionId}")
+
+    val validActionIds = actionRefIdsByProfile[profileId] ?: emptySet()
+    if (action.actionId !in validActionIds) {
+      throw invalidArg(
+        "action ID ${action.actionId} is not valid for action profile " +
+          "'${profileInfo.preamble.alias.ifEmpty { profileInfo.preamble.name }}'"
+      )
+    }
+
+    validateActionParams(action, actionInfo)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Action profile group validation (§9.2.2)
+  // ---------------------------------------------------------------------------
+
+  private fun validateGroup(update: P4RuntimeOuterClass.Update) {
+    val group = update.entity.actionProfileGroup
+    val profileId = group.actionProfileId
+    if (profileId !in actionProfileInfoById) {
+      throw notFound("unknown action_profile_id: $profileId")
+    }
+    // Group members reference member_ids, which are validated at write time by the simulator.
+    // Schema-level validation only checks the profile ID exists.
   }
 
   companion object {
@@ -280,6 +350,20 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
           )
         }
       }
+    }
+
+    /** §9.1.1: range match low must be <= high (unsigned comparison). */
+    private fun checkRangeOrder(low: ByteString, high: ByteString, fieldName: String) {
+      for (i in 0 until low.size()) {
+        val l = low.byteAt(i).toInt() and 0xFF
+        val h = high.byteAt(i).toInt() and 0xFF
+        if (l < h) return // low < high — valid
+        if (l > h) {
+          throw invalidArg("match field '$fieldName' has range low > high")
+        }
+        // l == h — continue to next byte
+      }
+      // low == high — valid (single-value range)
     }
 
     /** §8.3: LPM value bits beyond prefix_len must be zero. */

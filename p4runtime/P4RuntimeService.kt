@@ -220,9 +220,11 @@ class P4RuntimeService(
       val roleName = request.role // empty = default role
       requirePrimaryOrNoArbitration(request.electionId, roleName)
       when (request.atomicity) {
-        WriteRequest.Atomicity.CONTINUE_ON_ERROR,
-        WriteRequest.Atomicity.UNRECOGNIZED ->
+        WriteRequest.Atomicity.CONTINUE_ON_ERROR ->
           writeContinueOnError(request.updatesList, state, roleName)
+        WriteRequest.Atomicity.UNRECOGNIZED ->
+          throw Status.INVALID_ARGUMENT.withDescription("unrecognized write atomicity")
+            .asException()
         // P4Runtime spec §12.2: ROLLBACK_ON_ERROR and DATAPLANE_ATOMIC both guarantee
         // all-or-none semantics. DATAPLANE_ATOMIC additionally requires data-plane atomicity,
         // which we get for free because the write lock serializes all operations.
@@ -292,9 +294,7 @@ class P4RuntimeService(
     requireEntityAccess(rawUpdate.entity, state.roleMap, roleName)
     // Validate against p4info before type translation so SDN-visible values
     // are checked at canonical widths (P4Runtime spec §8.3, §9.1).
-    if (rawUpdate.entity.hasTableEntry()) {
-      state.writeValidator.validate(rawUpdate)
-    }
+    state.writeValidator.validate(rawUpdate)
     val translator = state.typeTranslator?.takeIf { it.hasTranslations }
     val update = translator?.translateForWrite(rawUpdate) ?: rawUpdate
 
@@ -483,11 +483,12 @@ class P4RuntimeService(
 
     val fwdConfig = ForwardingPipelineConfig.newBuilder().setCookie(state.cookie)
     when (request.responseType) {
-      GetForwardingPipelineConfigRequest.ResponseType.ALL,
-      GetForwardingPipelineConfigRequest.ResponseType.UNRECOGNIZED -> {
+      GetForwardingPipelineConfigRequest.ResponseType.ALL -> {
         fwdConfig.setP4Info(state.config.p4Info)
         fwdConfig.setP4DeviceConfig(state.config.device.toByteString())
       }
+      GetForwardingPipelineConfigRequest.ResponseType.UNRECOGNIZED ->
+        throw Status.INVALID_ARGUMENT.withDescription("unrecognized response type").asException()
       GetForwardingPipelineConfigRequest.ResponseType.COOKIE_ONLY -> {}
       GetForwardingPipelineConfigRequest.ResponseType.P4INFO_AND_COOKIE -> {
         fwdConfig.setP4Info(state.config.p4Info)
