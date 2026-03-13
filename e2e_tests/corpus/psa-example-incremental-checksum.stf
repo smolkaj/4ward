@@ -1,0 +1,14 @@
+# PSA incremental checksum: IPv4/TCP forwarding with source address rewrite.
+# EgressParser doesn't re-parse → egress deparser operates on invalid headers.
+# Net effect: packet forwarded with modified srcAddr, checksums unchanged.
+# Tests: LPM table, send_to_port, header modification, PSA two-pipeline semantics,
+#        InternetChecksum extern in deparser (on invalid headers = no-op).
+
+# Route 10.0.1.0/24 → forward to port 2, rewrite srcAddr to 10.0.0.1
+add route hdr.ipv4.dstAddr:0x0A000100/24 forward(port:2, srcAddr:0x0A000001)
+
+# IPv4+TCP: 192.168.1.1 → 10.0.1.1, srcPort=1234, dstPort=80 (SYN)
+packet 0 001122334455 AABBCCDDEEFF 0800 45000028 00000000 4006AE26 C0A80101 0A000101 04D20050 00000000 00000000 50020000 DE160000
+
+# Forwarded on port 2: srcAddr rewritten to 10.0.0.1, checksums stale
+expect 2 001122334455 AABBCCDDEEFF 0800 45000028 00000000 4006AE26 0A000001 0A000101 04D20050 00000000 00000000 50020000 DE160000

@@ -1,0 +1,6 @@
+# PSA range match: table with range + exact match kinds.
+# Tests: Range match kind (PSA-specific), parser mask/range select.
+# No send_to_port → packets dropped by PSA default.
+
+# IPv4 packet
+packet 0 001122334455 00aabbccddee 0800 45000028 00000000 4006AE26 C0A80101 0A000101

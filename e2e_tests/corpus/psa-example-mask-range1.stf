@@ -1,0 +1,6 @@
+# PSA mask/range variant: parser local variables, egress parser also uses mask/range.
+# Tests: Parser and control local variables, egress parser select expressions.
+# No send_to_port → packets dropped by PSA default.
+
+# IPv4 packet
+packet 0 001122334455 00aabbccddee 0800 45000028 00000000 4006AE26 C0A80101 0A000101

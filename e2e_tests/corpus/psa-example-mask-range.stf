@@ -1,0 +1,7 @@
+# PSA mask/range: parser select with mask (0x0800 &&& 0x0F00) and range (4..7).
+# Table uses ternary match on ethernet.srcAddr.
+# Tests: Parser mask and range select expressions, ternary table apply.
+# No send_to_port → packets dropped by PSA default.
+
+# IPv4 packet — parser matches etherType via mask, then protocol via range
+packet 0 001122334455 00aabbccddee 0800 45000028 00000000 4006AE26 C0A80101 0A000101

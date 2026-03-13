@@ -764,21 +764,34 @@ class PSAArchitecture : Architecture {
       PSA_HASH_ALGORITHMS[psaAlgorithm] ?: error("unsupported PSA hash algorithm: $psaAlgorithm")
     val resultWidth = eval.returnType().bit.width
 
+    val resultMask = BigInteger.TWO.pow(resultWidth) - BigInteger.ONE
+
     return if (eval.argCount() == 1) {
       // 1-arg form: get_hash(data) → hash(data) truncated to result width
-      val data = eval.evalArg(0).asStructVal()
-      val hash = computeHash(algorithm, data)
+      val data = hashDataArg(eval.evalArg(0))
+      val hash = computeHash(algorithm, data).and(resultMask)
       BitVal(BitVector(hash, resultWidth))
     } else {
       // 3-arg form: get_hash(base, data, max) → (base + hash(data)) mod max
       val base = (eval.evalArg(0) as BitVal).bits.value
-      val data = eval.evalArg(1).asStructVal()
+      val data = hashDataArg(eval.evalArg(1))
       val max = (eval.evalArg(2) as BitVal).bits.value
       val hash = computeHash(algorithm, data)
-      val result = if (max > BigInteger.ZERO) base + hash.mod(max) else base
+      val result = if (max > BigInteger.ZERO) (base + hash.mod(max)).and(resultMask) else base
       BitVal(BitVector(result, resultWidth))
     }
   }
+
+  /**
+   * Coerces a hash data argument to [StructVal]. The p4c midend usually wraps hash inputs in a
+   * StructExpression, but single-field inputs (e.g. `get_hash(hdr.ethernet.srcAddr)`) arrive as
+   * bare [BitVal]. Headers arrive as [HeaderVal].
+   */
+  private fun hashDataArg(value: Value): StructVal =
+    when (value) {
+      is BitVal -> StructVal("", mutableMapOf("_0" to value))
+      else -> value.asStructVal()
+    }
 
   /**
    * Sums all 16-bit words in [data]'s concatenated fields using ones' complement addition.

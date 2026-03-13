@@ -1,0 +1,10 @@
+# PSA variable index: runtime-computed header stack index vlan_tag[b.depth].
+# Table gated by !ethernet.isValid() — never reached after parser extracts.
+# Tests: Variable header stack indexing, bitslice, top-level function call.
+# No send_to_port → packets dropped by PSA default.
+
+# Single-tagged VLAN: etherType=0x8100, VLAN(pcp=0,cfi=0,vid=1,ether_type=0x0800)
+packet 0 001122334455 00aabbccddee 8100 00010800
+
+# Double-tagged VLAN
+packet 0 001122334455 00aabbccddee 8100 00018100 00020800

@@ -12,16 +12,17 @@ guilt — just write it down so someone can find it later.
 
 ## Architecture support
 
-- **PSA: 38 corpus STF tests pass + 43 compile-only tests.** The PSA
+- **PSA: 73 corpus STF tests pass + 7 compile-only tests.** The PSA
   two-pipeline architecture (ingress + egress) is implemented with support for
   `send_to_port`, `ingress_drop`, `egress_drop`, `multicast`, I2E/E2E cloning
   (via `ostd.clone` + `clone_session_id`), recirculate (`PSA_PORT_RECIRCULATE`),
-  resubmit (`ostd.resubmit`), registers, `Hash.get_hash` (headers + structs),
-  `Meter.execute` (stub GREEN), `Random.read()`,
-  `InternetChecksum` (clear/add/subtract/get/get_state/set_state),
-  `Digest.pack` (stub no-op), basic counters, action profiles, and top-level
-  assignments. An additional 43 PSA programs without STF companions are verified
-  to compile through p4c-4ward. PNA and TNA are not implemented.
+  resubmit (`ostd.resubmit`), registers, `Hash.get_hash` (headers, structs,
+  bare fields, 1-arg and 3-arg forms), `Meter.execute` (stub GREEN),
+  `Random.read()`, `InternetChecksum` (clear/add/subtract/get/get_state/set_state),
+  `Digest.pack` (stub no-op), counters (indirect + direct), action profiles,
+  action selectors, header stacks, and top-level assignments. An additional 7
+  DPDK-target PSA programs are verified to compile. Parser `value_set` is not
+  implemented. PNA and TNA are not implemented.
 
 ## Externs
 
