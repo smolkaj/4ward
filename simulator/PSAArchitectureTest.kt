@@ -34,6 +34,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
+import p4.config.v1.P4InfoOuterClass
 import p4.v1.P4RuntimeOuterClass
 
 /**
@@ -1227,6 +1228,321 @@ class PSAArchitectureTest {
     } catch (e: IllegalStateException) {
       assertTrue(e.message!!.contains("PSA recirculation depth exceeded"))
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Action selector fork tests
+  // ---------------------------------------------------------------------------
+
+  private companion object {
+    const val AS_TABLE_ID = 1
+    const val AS_TABLE_NAME = "myTable"
+    const val AS_PROFILE_ID = 100
+    const val AS_ACTION_A_ID = 10
+    const val AS_ACTION_B_ID = 20
+  }
+
+  /**
+   * Builds a control block with a table apply and optional post-table statements.
+   *
+   * The table has one exact-match key reading from a local variable `k` (initializer `0x0A`), with
+   * empty `actionA`/`actionB` local actions. Tests care about fork structure, not action bodies.
+   */
+  private fun controlWithTable(
+    controlName: String,
+    params: List<Pair<String, String>>,
+    tableName: String,
+    postTableStmts: List<Stmt>,
+  ): ControlDecl {
+    val localActions =
+      listOf("actionA", "actionB").map { name ->
+        fourward.ir.v1.ActionDecl.newBuilder().setName(name).build()
+      }
+    val localVar =
+      fourward.ir.v1.VarDecl.newBuilder()
+        .setName("k")
+        .setType(bitType(8))
+        .setInitializer(bit(0x0A, 8))
+        .build()
+    val tableApplyStmt =
+      Stmt.newBuilder()
+        .setMethodCall(
+          MethodCallStmt.newBuilder()
+            .setCall(
+              Expr.newBuilder()
+                .setTableApply(fourward.ir.v1.TableApplyExpr.newBuilder().setTableName(tableName))
+            )
+        )
+        .build()
+    return ControlDecl.newBuilder()
+      .setName(controlName)
+      .addAllParams(params.map { (n, t) -> param(n, t) })
+      .addLocalVars(localVar)
+      .addAllApplyBody(listOf(tableApplyStmt) + postTableStmts)
+      .addAllLocalActions(localActions)
+      .build()
+  }
+
+  /** Table behavior for action selector tests: exact-match key on field "1" reading local `k`. */
+  private fun tableBehavior(tableName: String): fourward.ir.v1.TableBehavior.Builder =
+    fourward.ir.v1.TableBehavior.newBuilder()
+      .setName(tableName)
+      .addKeys(
+        fourward.ir.v1.TableKey.newBuilder().setFieldName("1").setExpr(nameRef("k", bitType(8)))
+      )
+
+  /** Builds a PSA config with a table in the ingress control. */
+  private fun psaConfigWithTable(
+    tableName: String = AS_TABLE_NAME,
+    postTableStmts: List<Stmt> = listOf(sendToPort(1)),
+  ): BehavioralConfig =
+    BehavioralConfig.newBuilder()
+      .setArchitecture(psaArch)
+      .addAllTypes(allTypes)
+      .addParsers(noopParser)
+      .addParsers(egressParser)
+      .addControls(controlWithTable("Ingress", ingressParams, tableName, postTableStmts))
+      .addControls(noopControl("IngressDeparser", ingressDeparserParams))
+      .addControls(noopControl("Egress", egressParams))
+      .addControls(noopControl("EgressDeparser", egressDeparserParams))
+      .addTables(tableBehavior(tableName))
+      .build()
+
+  /** Builds a PSA config with a table in the egress control. */
+  private fun psaConfigWithEgressTable(
+    tableName: String = AS_TABLE_NAME,
+    postTableStmts: List<Stmt> = emptyList(),
+    ingressStmts: List<Stmt> = listOf(sendToPort(1)),
+  ): BehavioralConfig =
+    BehavioralConfig.newBuilder()
+      .setArchitecture(psaArch)
+      .addAllTypes(allTypes)
+      .addParsers(noopParser)
+      .addParsers(egressParser)
+      .addControls(control("Ingress", ingressParams, ingressStmts))
+      .addControls(noopControl("IngressDeparser", ingressDeparserParams))
+      .addControls(controlWithTable("Egress", egressParams, tableName, postTableStmts))
+      .addControls(noopControl("EgressDeparser", egressDeparserParams))
+      .addTables(tableBehavior(tableName))
+      .build()
+
+  /** Creates a TableStore with p4info for an action-profile-backed table. */
+  private fun storeWithActionProfile(): TableStore {
+    val store = TableStore()
+    store.loadMappings(
+      p4info =
+        P4InfoOuterClass.P4Info.newBuilder()
+          .addTables(
+            P4InfoOuterClass.Table.newBuilder()
+              .setPreamble(
+                P4InfoOuterClass.Preamble.newBuilder().setId(AS_TABLE_ID).setAlias(AS_TABLE_NAME)
+              )
+              .setImplementationId(AS_PROFILE_ID)
+          )
+          .addActions(
+            P4InfoOuterClass.Action.newBuilder()
+              .setPreamble(
+                P4InfoOuterClass.Preamble.newBuilder().setId(AS_ACTION_A_ID).setAlias("actionA")
+              )
+          )
+          .addActions(
+            P4InfoOuterClass.Action.newBuilder()
+              .setPreamble(
+                P4InfoOuterClass.Preamble.newBuilder().setId(AS_ACTION_B_ID).setAlias("actionB")
+              )
+          )
+          .addActionProfiles(
+            P4InfoOuterClass.ActionProfile.newBuilder()
+              .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(AS_PROFILE_ID))
+          )
+          .build()
+    )
+    return store
+  }
+
+  private fun writeActionProfileMember(store: TableStore, memberId: Int, actionId: Int) {
+    store.write(
+      P4RuntimeOuterClass.Update.newBuilder()
+        .setType(P4RuntimeOuterClass.Update.Type.INSERT)
+        .setEntity(
+          P4RuntimeOuterClass.Entity.newBuilder()
+            .setActionProfileMember(
+              P4RuntimeOuterClass.ActionProfileMember.newBuilder()
+                .setActionProfileId(AS_PROFILE_ID)
+                .setMemberId(memberId)
+                .setAction(P4RuntimeOuterClass.Action.newBuilder().setActionId(actionId))
+            )
+        )
+        .build()
+    )
+  }
+
+  private fun writeActionProfileGroup(store: TableStore, groupId: Int, memberIds: List<Int>) {
+    store.write(
+      P4RuntimeOuterClass.Update.newBuilder()
+        .setType(P4RuntimeOuterClass.Update.Type.INSERT)
+        .setEntity(
+          P4RuntimeOuterClass.Entity.newBuilder()
+            .setActionProfileGroup(
+              P4RuntimeOuterClass.ActionProfileGroup.newBuilder()
+                .setActionProfileId(AS_PROFILE_ID)
+                .setGroupId(groupId)
+                .addAllMembers(
+                  memberIds.map { mid ->
+                    P4RuntimeOuterClass.ActionProfileGroup.Member.newBuilder()
+                      .setMemberId(mid)
+                      .setWeight(1)
+                      .build()
+                  }
+                )
+            )
+        )
+        .build()
+    )
+  }
+
+  private fun writeGroupTableEntry(store: TableStore, keyValue: Byte, groupId: Int) {
+    store.write(
+      P4RuntimeOuterClass.Update.newBuilder()
+        .setType(P4RuntimeOuterClass.Update.Type.INSERT)
+        .setEntity(
+          P4RuntimeOuterClass.Entity.newBuilder()
+            .setTableEntry(
+              P4RuntimeOuterClass.TableEntry.newBuilder()
+                .setTableId(AS_TABLE_ID)
+                .addMatch(
+                  P4RuntimeOuterClass.FieldMatch.newBuilder()
+                    .setFieldId(1)
+                    .setExact(
+                      P4RuntimeOuterClass.FieldMatch.Exact.newBuilder()
+                        .setValue(com.google.protobuf.ByteString.copyFrom(byteArrayOf(keyValue)))
+                    )
+                )
+                .setAction(
+                  P4RuntimeOuterClass.TableAction.newBuilder().setActionProfileGroupId(groupId)
+                )
+            )
+        )
+        .build()
+    )
+  }
+
+  @Test
+  fun `action selector group hit produces fork with member branches`() {
+    val config = psaConfigWithTable()
+    val store = storeWithActionProfile()
+    writeActionProfileMember(store, memberId = 0, actionId = AS_ACTION_A_ID)
+    writeActionProfileMember(store, memberId = 1, actionId = AS_ACTION_B_ID)
+    writeActionProfileGroup(store, groupId = 1, memberIds = listOf(0, 1))
+    writeGroupTableEntry(store, keyValue = 0x0A, groupId = 1)
+
+    val result = PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, store)
+
+    // Should produce an ACTION_SELECTOR fork with 2 member branches.
+    assertTrue("expected fork outcome", result.trace.hasForkOutcome())
+    assertEquals(ForkReason.ACTION_SELECTOR, result.trace.forkOutcome.reason)
+    assertEquals(2, result.trace.forkOutcome.branchesCount)
+    assertEquals("member_0", result.trace.forkOutcome.branchesList[0].label)
+    assertEquals("member_1", result.trace.forkOutcome.branchesList[1].label)
+
+    // Both members forward (send_to_port(1) in post-table statements).
+    val outputs = collectOutputsFromTrace(result.trace)
+    assertEquals(2, outputs.size)
+    assertTrue(outputs.all { it.egressPort == 1 })
+  }
+
+  @Test
+  fun `action selector table miss uses default action without fork`() {
+    // Table miss: no entry for key 0x0A → falls through to NoAction default.
+    // No group resolution → no ActionSelectorFork → no fork, just drop (PSA default).
+    val config = psaConfigWithTable(postTableStmts = emptyList())
+    val store = storeWithActionProfile()
+
+    val result = PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, store)
+
+    // No fork — table miss falls through to default action, packet dropped by PSA default.
+    assertTrue("expected drop (no fork)", result.trace.hasPacketOutcome())
+    assertTrue(result.trace.packetOutcome.hasDrop())
+  }
+
+  @Test
+  fun `action selector single member produces single-branch fork`() {
+    val config = psaConfigWithTable()
+    val store = storeWithActionProfile()
+    writeActionProfileMember(store, memberId = 0, actionId = AS_ACTION_A_ID)
+    writeActionProfileGroup(store, groupId = 1, memberIds = listOf(0))
+    writeGroupTableEntry(store, keyValue = 0x0A, groupId = 1)
+
+    val result = PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, store)
+
+    assertTrue("expected fork outcome", result.trace.hasForkOutcome())
+    assertEquals(ForkReason.ACTION_SELECTOR, result.trace.forkOutcome.reason)
+    assertEquals(1, result.trace.forkOutcome.branchesCount)
+    assertEquals("member_0", result.trace.forkOutcome.branchesList[0].label)
+
+    val outputs = collectOutputsFromTrace(result.trace)
+    assertEquals(1, outputs.size)
+  }
+
+  @Test
+  fun `action selector fork in egress produces fork`() {
+    // Table is in egress control. Ingress forwards via send_to_port(1), then egress hits the
+    // action selector group — exercises the runEgressWithPostProcessing catch site.
+    val config = psaConfigWithEgressTable()
+    val store = storeWithActionProfile()
+    writeActionProfileMember(store, memberId = 0, actionId = AS_ACTION_A_ID)
+    writeActionProfileMember(store, memberId = 1, actionId = AS_ACTION_B_ID)
+    writeActionProfileGroup(store, groupId = 1, memberIds = listOf(0, 1))
+    writeGroupTableEntry(store, keyValue = 0x0A, groupId = 1)
+
+    val result = PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, store)
+
+    // Egress fork: ACTION_SELECTOR with 2 member branches.
+    assertTrue("expected fork outcome", result.trace.hasForkOutcome())
+    assertEquals(ForkReason.ACTION_SELECTOR, result.trace.forkOutcome.reason)
+    assertEquals(2, result.trace.forkOutcome.branchesCount)
+    assertEquals("member_0", result.trace.forkOutcome.branchesList[0].label)
+    assertEquals("member_1", result.trace.forkOutcome.branchesList[1].label)
+
+    // Both members forward (egress doesn't drop by default).
+    val outputs = collectOutputsFromTrace(result.trace)
+    assertEquals(2, outputs.size)
+    assertTrue(outputs.all { it.egressPort == 1 })
+  }
+
+  @Test
+  fun `action selector fork in clone branch egress`() {
+    // I2E clone + egress table with action selector group. The clone's egress runs through
+    // runCloneEgress, which must catch ActionSelectorFork — this is the third catch site.
+    val config = psaConfigWithEgressTable(ingressStmts = cloneStmts(100) + listOf(sendToPort(2)))
+    val store = storeWithActionProfile()
+    writeActionProfileMember(store, memberId = 0, actionId = AS_ACTION_A_ID)
+    writeActionProfileMember(store, memberId = 1, actionId = AS_ACTION_B_ID)
+    writeActionProfileGroup(store, groupId = 1, memberIds = listOf(0, 1))
+    writeGroupTableEntry(store, keyValue = 0x0A, groupId = 1)
+    writeCloneSession(store, 100, listOf(0 to 5))
+
+    val result = PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, store)
+
+    // Top-level fork is CLONE (I2E clone).
+    assertTrue("expected clone fork", result.trace.hasForkOutcome())
+    assertEquals(ForkReason.CLONE, result.trace.forkOutcome.reason)
+
+    // Original branch: egress action selector fork with 2 members.
+    val originalBranch = result.trace.forkOutcome.branchesList.first { it.label == "original" }
+    assertTrue("expected fork in original", originalBranch.subtree.hasForkOutcome())
+    assertEquals(ForkReason.ACTION_SELECTOR, originalBranch.subtree.forkOutcome.reason)
+    assertEquals(2, originalBranch.subtree.forkOutcome.branchesCount)
+
+    // Clone branch: also hits the egress table, producing its own action selector fork.
+    val cloneBranch = result.trace.forkOutcome.branchesList.first { it.label.startsWith("clone_") }
+    assertTrue("expected fork in clone", cloneBranch.subtree.hasForkOutcome())
+    assertEquals(ForkReason.ACTION_SELECTOR, cloneBranch.subtree.forkOutcome.reason)
+    assertEquals(2, cloneBranch.subtree.forkOutcome.branchesCount)
+
+    // All 4 paths produce output packets: 2 (original members) + 2 (clone members).
+    val outputs = collectOutputsFromTrace(result.trace)
+    assertEquals(4, outputs.size)
   }
 
   @Test
