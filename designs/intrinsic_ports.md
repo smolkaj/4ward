@@ -35,14 +35,31 @@ port is derived from port width in the P4Runtime layer. Neither is configurable.
 
 ## Design
 
-Both intrinsic ports should have sensible defaults (derived from port width) and
-be configurable. Open questions:
+### Defaults
 
-1. Where does the configuration live? Options: simulator proto, CLI flags,
-   `SetForwardingPipelineConfig`, or a combination.
+Both intrinsic ports have sensible defaults derived from the pipeline itself:
+- **Drop port**: derived from the IR's `standard_metadata` port width in
+  `V1ModelArchitecture`.
+- **CPU port**: derived from the p4info's `controller_packet_metadata` field
+  widths in `PacketHeaderCodec`.
 
-2. Should the simulator know about the CPU port, or should it remain
-   port-agnostic with the CPU port handled externally?
+### Simulator stays port-agnostic
 
-3. Should there be a shared definition of intrinsic ports that both layers
-   reference?
+The simulator knows about the drop port (needed by `mark_to_drop` and the
+traffic manager) but not the CPU port. The CPU port has no data-plane semantics
+— it's only meaningful to the layer that bridges data plane and control plane
+(P4Runtime). This keeps the simulator focused on packet processing.
+
+### Overrides
+
+Both intrinsic ports are configurable via constructor/config parameters,
+defaulting to null (use the derived value). Each entry point sources the
+override however makes sense for its context:
+
+| Entry point | Drop port override | CPU port override |
+|---|---|---|
+| **CLI** (`4ward run`) | `--drop-port` flag → passed to `Simulator` | `--cpu-port` flag → passed to `P4RuntimeServer` |
+| **P4Runtime server** | `--drop-port` flag → passed to `Simulator` | `--cpu-port` flag → kept in server |
+| **Web playground** | Same as P4Runtime server (it wraps one) | Same as P4Runtime server |
+| **STF runner** | Constructor param on `StfRunner` (default: null) | N/A — no P4Runtime, no CPU port semantics |
+| **Test harness** | Constructor param on `P4RuntimeTestHarness` | Constructor param on `P4RuntimeTestHarness` |
