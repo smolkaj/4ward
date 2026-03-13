@@ -12,20 +12,14 @@ semantics to them beyond just forwarding:
   (P4Runtime) as PacketIn. Packets from the control plane (PacketOut) enter the
   data plane on this port.
 
-### v1model specifics
-
-In v1model, both intrinsic ports are derived from the port width (`bit<N>`, typically
-`N=9`):
-
-| Port | Default value |
-|------|---------------|
-| Drop port | `2^N - 1` (511) |
-| CPU port | `2^N - 2` (510) |
+### v1model and BMv2 specifics
 
 v1model's `mark_to_drop` does nothing more than set `egress_spec` to the drop
 port — dropping *is* egressing on the drop port.
 
-BMv2 makes both configurable at runtime (`--drop-port`, `--cpu-port`).
+BMv2 makes both intrinsic ports configurable at runtime (`--drop-port`,
+`--cpu-port`). The drop port defaults to 511; the CPU port has no default and
+must be explicitly set to enable PacketIn/PacketOut.
 
 ## Problem
 
@@ -35,14 +29,58 @@ port is derived from port width in the P4Runtime layer. Neither is configurable.
 
 ## Design
 
-Both intrinsic ports should have sensible defaults (derived from port width) and
-be configurable. Open questions:
+### Defaults
 
-1. Where does the configuration live? Options: simulator proto, CLI flags,
-   `SetForwardingPipelineConfig`, or a combination.
+Both intrinsic ports are data-plane values. Default values are derived from the
+data-plane port width (`N`), following BMv2 conventions:
 
-2. Should the simulator know about the CPU port, or should it remain
-   port-agnostic with the CPU port handled externally?
+| Port | Default data-plane value | Port width source |
+|------|--------------------------|-------------------|
+| Drop port | `2^N - 1` (511 for `N=9`) | IR's `standard_metadata` port field width |
+| CPU port | `2^N - 2` (510 for `N=9`) | IR's `controller_packet_metadata` header field width |
 
-3. Should there be a shared definition of intrinsic ports that both layers
-   reference?
+When `@p4runtime_translation` is in use, the control-plane representation of
+these ports (e.g., SDN strings) is a separate concern handled by the
+`TypeTranslator`.
+
+#### Why enable the CPU port by default?
+
+BMv2 requires an explicit `--cpu-port` flag — without it, packet I/O is
+silently disabled. We chose a different default: the CPU port is automatically
+derived when the p4info contains
+[`ControllerPacketMetadata`](https://p4lang.github.io/p4runtime/spec/v1.5.0/P4Runtime-Spec.html#sec-controller-packet-metadata)
+(i.e., the P4 program uses `@controller_header`), and disabled otherwise.
+
+The presence of `@controller_header` is a strong signal that the program expects
+packet I/O. Silently disabling it when the user forgets a flag is worse than an
+occasionally surprising default — especially for a development and testing tool
+where "just works" matters. When the auto-configured value is wrong, the
+override is always available.
+
+### Simulator stays port-agnostic
+
+The simulator knows about the drop port (needed by `mark_to_drop` and the
+traffic manager) but not the CPU port. The CPU port has no data-plane semantics
+— it's only meaningful to the layer that bridges data plane and control plane
+(P4Runtime). This keeps the simulator focused on packet processing.
+
+### Overrides
+
+Both intrinsic ports are configurable via constructor/config parameters. The
+CPU port override has three states:
+
+- **unset** (default) → derive from p4info
+- **explicit value** (e.g., `--cpu-port=510`) → use that data-plane port
+- **disabled** (e.g., `--cpu-port=none`) → no CPU port, even if the p4info has
+  `ControllerPacketMetadata`. Useful for testing the data plane in isolation
+  without packet I/O interception.
+
+Each entry point sources the override however makes sense for its context:
+
+| Entry point | Drop port override | CPU port override |
+|---|---|---|
+| **CLI** (`4ward run`) | `--drop-port` flag → passed to `Simulator` | `--cpu-port` flag → passed to `P4RuntimeServer` |
+| **P4Runtime server** | `--drop-port` flag → passed to `Simulator` | `--cpu-port` flag → kept in server |
+| **Web playground** | Same as P4Runtime server (it wraps one) | Same as P4Runtime server |
+| **STF runner** | Constructor param on `StfRunner` (default: null) | N/A — no P4Runtime, no CPU port semantics |
+| **Test harness** | Constructor param on `P4RuntimeTestHarness` | Constructor param on `P4RuntimeTestHarness` |
