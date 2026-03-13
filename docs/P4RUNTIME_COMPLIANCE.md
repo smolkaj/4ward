@@ -4,27 +4,41 @@ Systematic mapping of [P4Runtime spec](https://p4lang.github.io/p4runtime/spec/m
 requirements to test coverage. Living document — update when tests are added
 or gaps are closed.
 
-Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
+This matrix is self-authored: we wrote both the requirements and the tests.
+Requirements we misunderstand or overlook won't appear here. To keep ourselves
+honest, uncatalogued spec sections and test depth limitations are documented
+explicitly at the end.
 
-## SetForwardingPipelineConfig (§7)
+Legend: **Y** = tested, **N** = not tested, **R** = rejected with
+UNIMPLEMENTED (rejection is tested), **N/A** = out of scope
+
+> Internal requirement IDs (e.g. 7.1, 9.10) are stable identifiers for this
+> matrix — they do not correspond to P4Runtime spec section numbers. Spec
+> section references appear in each section heading.
+
+---
+
+## Part 1: P4Runtime spec requirements
+
+### Client arbitration (spec §5)
 
 | # | Requirement | Status | Test |
 |---|-------------|--------|------|
-| 7.1 | Load valid pipeline succeeds | Y | ConformanceTest #1 |
-| 7.2 | Pipeline reload replaces previous | Y | ConformanceTest #2 |
-| 7.3 | Empty/invalid config → INVALID_ARGUMENT | Y | ConformanceTest #3 |
-| 7.4 | Invalid p4_device_config bytes → INVALID_ARGUMENT | Y | ConformanceTest #37 |
-| 7.5 | Missing p4_device_config → INVALID_ARGUMENT | Y | ConformanceTest #38 |
-| 7.6 | Requires primary controller when arbitration is active | Y | ConformanceTest #66 |
-| 7.7 | VERIFY action validates without applying | Y | ConformanceTest #75 |
-| 7.8 | VERIFY_AND_COMMIT applies atomically | Y | ConformanceTest #1 |
-| 7.9 | VERIFY_AND_SAVE + COMMIT two-phase pipeline load | Y | ConformanceTest #77-78 |
-| 7.9a | RECONCILE_AND_COMMIT rejected | Y | ConformanceTest #80 |
-| 7.10 | Cookie stored and returned | Y | ConformanceTest #59 |
-| 7.11 | Pipeline reload clears table entries | Y | ConformanceTest #58 |
-| 7.12 | Const table entries populated at load time | Y | ConformanceTest #65 |
+| 10.1 | Arbitration establishes master | Y | ConformanceTest #12 |
+| 10.2 | Higher election_id becomes primary | Y | ConformanceTest #40-41 |
+| 10.3 | Non-primary writes → PERMISSION_DENIED | Y | ConformanceTest #42-44 |
+| 10.4 | All controllers may read regardless of role | Y | ConformanceTest #45 |
+| 10.5 | Demotion notification to displaced primary | Y | ConformanceTest #73 |
+| 10.6 | Automatic promotion on primary disconnect | Y | ConformanceTest #74 |
+| 10.7 | Zero election_id: backup semantics (cannot be primary) | Y | ConformanceTest #72 |
+| 10.8 | Per-role primary election | Y | ConformanceTest #84, #86 |
+| 10.9 | Role-based write access control | Y | ConformanceTest #87, #89 |
+| 10.10 | Role-based read access control (specific + wildcard) | Y | ConformanceTest #88, #88a |
+| 10.11 | Role.config rejected | R | ConformanceTest #85 |
+| 10.12 | No ghost primary after disconnect | Y | ConformanceTest #90 |
+| 10.13 | Role change clears old role's primary | Y | ConformanceTest #91 |
 
-## General encoding (§8)
+### Bytestring encoding (spec §8.3)
 
 | # | Requirement | Status | Test |
 |---|-------------|--------|------|
@@ -36,7 +50,7 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 | 8.6 | LPM: bits beyond prefix_len must be zero | Y | WriteValidatorTest |
 | 8.7 | Read responses zero-pad bytestrings to ceil(bitwidth/8) | Y | ConformanceTest #63 |
 
-## Write RPC — table entries (§9.1)
+### Table entries (spec §9.1)
 
 | # | Requirement | Status | Test |
 |---|-------------|--------|------|
@@ -70,7 +84,7 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 | 9.28 | Write batch: updates applied in order | Y | ConformanceTest #39 |
 | 9.29 | Direct counter/meter data in table entry reads | Y | ConformanceTest #68-69 |
 
-## Write RPC — action profiles (§9.2)
+### Action profiles (spec §9.2)
 
 | # | Requirement | Status | Test |
 |---|-------------|--------|------|
@@ -83,17 +97,7 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 | 9.36 | One-shot action selector | Y | TableStoreTest, WriteValidatorTest |
 | 9.37 | Group max_size enforcement | Y | TableStoreTest |
 
-## Write RPC — registers (§9.7)
-
-| # | Requirement | Status | Test |
-|---|-------------|--------|------|
-| 9.40 | MODIFY register entry persists value | Y | TableStoreTest, ConformanceTest #32 |
-| 9.41 | INSERT register → INVALID_ARGUMENT | Y | TableStoreTest, ConformanceTest #34 |
-| 9.42 | DELETE register → INVALID_ARGUMENT | Y | TableStoreTest |
-| 9.43 | Out-of-bounds index → error | Y | TableStoreTest |
-| 9.44 | Unknown register_id → NOT_FOUND | Y | TableStoreTest |
-
-## Write RPC — counters & meters (§9.3, §9.4)
+### Counters & meters (spec §9.3, §9.4)
 
 | # | Requirement | Status | Test |
 |---|-------------|--------|------|
@@ -102,7 +106,7 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 | 9.52 | Direct meter config | Y | TableStoreTest, ConformanceTest #55-57 |
 | 9.53 | Indirect meter config | Y | TableStoreTest, ConformanceTest #49-51 |
 
-## Write RPC — PRE (§9.5)
+### Packet replication engine (spec §9.5)
 
 | # | Requirement | Status | Test |
 |---|-------------|--------|------|
@@ -113,15 +117,20 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 | 9.64 | PRE DELETE non-existent → NOT_FOUND | Y | TableStoreTest |
 | 9.65 | PRE entries readable via Read RPC | Y | TableStoreTest |
 
-## Write RPC — other entity types (§9.6, §9.8, §9.9)
+### Other entity types (spec §9.6, §9.7, §9.8, §9.9)
 
 | # | Requirement | Status | Test |
 |---|-------------|--------|------|
-| 9.70 | ValueSetEntry | Y | Rejected with UNIMPLEMENTED; ConformanceTest #81 |
-| 9.71 | DigestEntry configuration | Y | Rejected with UNIMPLEMENTED; ConformanceTest #83 |
-| 9.72 | ExternEntry | Y | Rejected with UNIMPLEMENTED; ConformanceTest #82 |
+| 9.40 | MODIFY register entry persists value | Y | TableStoreTest, ConformanceTest #32 |
+| 9.41 | INSERT register → INVALID_ARGUMENT | Y | TableStoreTest, ConformanceTest #34 |
+| 9.42 | DELETE register → INVALID_ARGUMENT | Y | TableStoreTest |
+| 9.43 | Out-of-bounds index → error | Y | TableStoreTest |
+| 9.44 | Unknown register_id → NOT_FOUND | Y | TableStoreTest |
+| 9.70 | ValueSetEntry | R | Rejected with UNIMPLEMENTED; ConformanceTest #81 |
+| 9.71 | DigestEntry configuration | R | Rejected with UNIMPLEMENTED; ConformanceTest #83 |
+| 9.72 | ExternEntry | R | Rejected with UNIMPLEMENTED; ConformanceTest #82 |
 
-## Write RPC — atomicity (§12)
+### Write RPC (spec §12)
 
 | # | Requirement | Status | Test |
 |---|-------------|--------|------|
@@ -129,33 +138,10 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 | 9.81 | ROLLBACK_ON_ERROR: undo on failure | Y | WriteErrorTest |
 | 9.82 | DATAPLANE_ATOMIC | Y | Handled as ROLLBACK_ON_ERROR; WriteErrorTest |
 | 9.83 | Per-update error reporting in WriteResponse | Y | WriteErrorTest |
-
-## Write RPC — general (§12)
-
-| # | Requirement | Status | Test |
-|---|-------------|--------|------|
 | 9.90 | device_id validated on Write | Y | ConformanceTest #60 |
 | 9.91 | Write allowed without prior arbitration | Y | ConformanceTest (implicit) |
 
-## Arbitration (§5)
-
-| # | Requirement | Status | Test |
-|---|-------------|--------|------|
-| 10.1 | Arbitration establishes master | Y | ConformanceTest #12 |
-| 10.2 | Higher election_id becomes primary | Y | ConformanceTest #40-41 |
-| 10.3 | Non-primary writes → PERMISSION_DENIED | Y | ConformanceTest #42-44 |
-| 10.4 | All controllers may read regardless of role | Y | ConformanceTest #45 |
-| 10.5 | Demotion notification to displaced primary | Y | ConformanceTest #73 |
-| 10.6 | Automatic promotion on primary disconnect | Y | ConformanceTest #74 |
-| 10.7 | Zero election_id: backup semantics (cannot be primary) | Y | ConformanceTest #72 |
-| 10.8 | Per-role primary election | Y | ConformanceTest #84, #86 |
-| 10.9 | Role-based write access control | Y | ConformanceTest #87, #89 |
-| 10.10 | Role-based read access control (specific + wildcard) | Y | ConformanceTest #88, #88a |
-| 10.11 | Role.config rejected | Y | ConformanceTest #85 |
-| 10.12 | No ghost primary after disconnect | Y | ConformanceTest #90 |
-| 10.13 | Role change clears old role's primary | Y | ConformanceTest #91 |
-
-## Read RPC (§11)
+### Read RPC (spec §13)
 
 | # | Requirement | Status | Test |
 |---|-------------|--------|------|
@@ -163,7 +149,7 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 | 11.2 | Wildcard read returns all table entries | Y | ConformanceTest #9 |
 | 11.3 | Read empty table returns empty | Y | ConformanceTest #10 |
 | 11.4 | Read with table_id filter | Y | ConformanceTest #20 |
-| 11.5 | Empty entity list → no results (§11.1) | Y | ConformanceTest #21 |
+| 11.5 | Empty entity list → no results (spec §13.2) | Y | ConformanceTest #21 |
 | 11.6 | Per-entry read with match key | Y | ConformanceTest #23-25 |
 | 11.7 | Wildcard read for action profiles | Y | ConformanceTest #35 |
 | 11.8 | Wildcard read for registers | Y | TableStoreTest |
@@ -171,7 +157,25 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 | 11.10 | Default entry included in wildcard table reads | Y | ConformanceTest #64 |
 | 11.11 | device_id validated on Read | Y | ConformanceTest #61 |
 
-## GetForwardingPipelineConfig (§7)
+### SetForwardingPipelineConfig (spec §7, §14)
+
+| # | Requirement | Status | Test |
+|---|-------------|--------|------|
+| 7.1 | Load valid pipeline succeeds | Y | ConformanceTest #1 |
+| 7.2 | Pipeline reload replaces previous | Y | ConformanceTest #2 |
+| 7.3 | Empty/invalid config → INVALID_ARGUMENT | Y | ConformanceTest #3 |
+| 7.4 | Invalid p4_device_config bytes → INVALID_ARGUMENT | Y | ConformanceTest #37 |
+| 7.5 | Missing p4_device_config → INVALID_ARGUMENT | Y | ConformanceTest #38 |
+| 7.6 | Requires primary controller when arbitration is active | Y | ConformanceTest #66 |
+| 7.7 | VERIFY action validates without applying | Y | ConformanceTest #75 |
+| 7.8 | VERIFY_AND_COMMIT applies atomically | Y | ConformanceTest #1 |
+| 7.9 | VERIFY_AND_SAVE + COMMIT two-phase pipeline load | Y | ConformanceTest #77-78 |
+| 7.9a | RECONCILE_AND_COMMIT rejected | R | ConformanceTest #80 |
+| 7.10 | Cookie stored and returned | Y | ConformanceTest #59 |
+| 7.11 | Pipeline reload clears table entries | Y | ConformanceTest #58 |
+| 7.12 | Const table entries populated at load time | Y | ConformanceTest #65 |
+
+### GetForwardingPipelineConfig (spec §15)
 
 | # | Requirement | Status | Test |
 |---|-------------|--------|------|
@@ -182,13 +186,7 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 | 12.5 | COOKIE_ONLY returns empty config | Y | ConformanceTest #36 |
 | 12.6 | device_id validated | Y | ConformanceTest #62 |
 
-## Capabilities (§17)
-
-| # | Requirement | Status | Test |
-|---|-------------|--------|------|
-| 13.1 | Returns API version | Y | ConformanceTest #19 |
-
-## StreamChannel (§16)
+### StreamChannel (spec §16)
 
 | # | Requirement | Status | Test |
 |---|-------------|--------|------|
@@ -201,7 +199,20 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 | 14.7 | Idle timeout notifications | N/A | Out of scope — no wall-clock time in a reference simulator |
 | 14.8 | Architecture-specific `other` messages | Y | Rejected with StreamError; ConformanceTest #67 |
 
-## @p4runtime_translation (§8.3)
+### Capabilities (spec §17)
+
+| # | Requirement | Status | Test |
+|---|-------------|--------|------|
+| 13.1 | Returns API version | Y | ConformanceTest #19 |
+
+### @p4runtime_translation (spec §8.4.6, §18)
+
+User-defined types with a `@p4runtime_translation` annotation use a
+`translated_type` in p4info (`P4NewTypeTranslation` in `p4types.proto`). The
+spec defines the annotation and the p4info representation but leaves the actual
+mapping mechanism — how SDN values are assigned to data-plane values —
+underspecified. 4ward ships a built-in translation engine with explicit,
+auto-allocate, and hybrid modes.
 
 | # | Requirement | Status | Test |
 |---|-------------|--------|------|
@@ -212,7 +223,39 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 | 15.5 | End-to-end forwarding with translated ports | Y | TranslationTest |
 | 15.6 | sdn_string write/read round-trip with SAI P4 | Y | SaiP4E2ETest |
 
-## @refers_to
+### Spec sections not yet catalogued
+
+These spec sections contain testable requirements not yet represented in this
+matrix. Each needs to be reviewed, with requirements either added above,
+marked N/A with justification, or rejected with UNIMPLEMENTED.
+
+| Spec section | Topic | Notes |
+|---|---|---|
+| §6 | P4Info message | ID allocation rules (§6.3), per-entity metadata. Much of this is implicitly tested (we validate table_id, action_id, etc.) but not catalogued. |
+| §8.1 | Default-valued fields | Set/unset semantics for scalar and message fields. |
+| §8.2 | Read-write symmetry | Written entities must read back identically. Implicitly tested but not as a named requirement. |
+| §8.4 | P4Data complex types | Structs, headers, enums, serializable enums, error types. Not used by any current test fixture. |
+| §9.1.5 | Preinitialized tables | `initial_entries` populated at load time and readable. Not tested. |
+| §9.1.8 | Idle timeout | `idle_timeout_ns` and `time_since_last_hit` fields. Out of scope (no wall-clock time) but not catalogued as N/A. |
+| §9.2.2 | Action profile group rules | `watch_port`, empty groups, member reference semantics. Partially tested (max_size) but not fully catalogued. |
+| §9.4.3 | MeterCounterData | Per-color counter data. Not tested. |
+| §10 | Error reporting messages | Structured `p4.v1.Error` format with `canonical_code`, `message`, `space`, `code`, `details`. Only batch errors are tested (WriteErrorTest CONTINUE_ON_ERROR). |
+| §11 | Atomicity of individual ops | Individual write/read operations are atomic. Implicitly guaranteed by the Mutex but not explicitly tested under concurrency. |
+| §12.1 | Write batch ordering | Cross-entity-type ordering rules. Only same-type ordering is tested (9.28). |
+| §13.3 | Read batch processing | Multiple entity types in one Read request. Not tested. |
+| §13.4 | Read/Write parallelism | Concurrent read and write operations. Not tested. |
+| §18 | PSA portability | Port number translation (§18.1.1), packet-IO field translation (§18.1.2). The `@p4runtime_translation` annotation is catalogued above; §18's PSA-specific translation guidance (port-as-index, extern APIs) is not. |
+| §19 | Versioning | Major/minor version scheme. API version is returned (13.1) but version negotiation is not tested. |
+| §20 | Non-PSA extensions | Architecture-specific externs (§20.1), new match types (§20.2.1), new table properties (§20.2.2). Not applicable until a non-PSA architecture needs extensions. |
+
+---
+
+## Part 2: project extensions
+
+These are real, valuable capabilities tested end-to-end — but they are not part
+of the P4Runtime spec. They are counted separately from spec compliance.
+
+### @refers_to
 
 | # | Requirement | Status | Test |
 |---|-------------|--------|------|
@@ -223,7 +266,7 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 | 17.5 | builtin::multicast_group_table references | Y | ReferenceValidatorTest |
 | 17.6 | DELETE bypasses referential checks | Y | ReferenceValidatorTest |
 
-## p4-constraints
+### p4-constraints
 
 | # | Requirement | Status | Test |
 |---|-------------|--------|------|
@@ -232,69 +275,44 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 | 18.3 | DELETE bypasses constraint validation | Y | ConstraintTest |
 | 18.4 | Pipeline without constraints works normally | Y | ConstraintTest |
 
+---
+
 ## Summary
 
-| Category | Tested | Not tested | N/A |
-|----------|--------|------------|-----|
-| SetForwardingPipelineConfig | 12 | 0 | 0 |
-| General encoding | 7 | 0 | 0 |
-| Write — tables | 29 | 0 | 0 |
-| Write — profiles | 8 | 0 | 0 |
-| Write — registers | 5 | 0 | 0 |
-| Write — counters/meters | 4 | 0 | 0 |
-| Write — PRE | 6 | 0 | 0 |
-| Write — other entities | 3 | 0 | 0 |
-| Write — atomicity | 4 | 0 | 0 |
-| Write — general | 2 | 0 | 0 |
-| Arbitration | 13 | 0 | 0 |
-| Read | 11 | 0 | 0 |
-| GetForwardingPipelineConfig | 6 | 0 | 0 |
-| Capabilities | 1 | 0 | 0 |
-| StreamChannel | 5 | 0 | 3 |
-| Translation | 6 | 0 | 0 |
-| @refers_to | 6 | 0 | 0 |
-| p4-constraints | 4 | 0 | 0 |
-| **Total** | **132** | **0** | **3** |
+### P4Runtime spec requirements
 
-## Honest assessment of this matrix
+| Category | Y | R | N | N/A |
+|----------|---|---|---|-----|
+| Client arbitration (§5) | 12 | 1 | 0 | 0 |
+| Bytestring encoding (§8.3) | 7 | 0 | 0 | 0 |
+| Table entries (§9.1) | 29 | 0 | 0 | 0 |
+| Action profiles (§9.2) | 8 | 0 | 0 | 0 |
+| Counters & meters (§9.3, §9.4) | 4 | 0 | 0 | 0 |
+| Packet replication engine (§9.5) | 6 | 0 | 0 | 0 |
+| Other entity types (§9.6–§9.9) | 5 | 3 | 0 | 0 |
+| Write RPC (§12) | 6 | 0 | 0 | 0 |
+| Read RPC (§13) | 11 | 0 | 0 | 0 |
+| SetForwardingPipelineConfig (§14) | 12 | 1 | 0 | 0 |
+| GetForwardingPipelineConfig (§15) | 6 | 0 | 0 | 0 |
+| StreamChannel (§16) | 5 | 0 | 0 | 3 |
+| Capabilities (§17) | 1 | 0 | 0 | 0 |
+| @p4runtime_translation (§8.4.6, §18) | 6 | 0 | 0 | 0 |
+| **Spec total** | **118** | **5** | **0** | **3** |
 
-This matrix is self-authored: we wrote both the requirements and the tests. That
-means requirements we misunderstand or overlook won't appear here. This section
-documents the known weaknesses so readers can calibrate their confidence.
+### Project extensions (not in P4Runtime spec)
 
-### What the 132 count includes
+| Category | Tested |
+|----------|--------|
+| @refers_to | 6 |
+| p4-constraints | 4 |
+| **Extensions total** | **10** |
 
-The 132 tested items are not all P4Runtime spec requirements:
+**Grand total: 118 spec implemented + 5 spec rejected + 10 extensions = 133
+catalogued, plus 16 uncatalogued spec sections.**
 
-- **116 items from the P4Runtime spec** — the core compliance claim.
-- **16 items from project-specific extensions** — `@p4runtime_translation` (6),
-  `@refers_to` (6), and `p4-constraints` (4). These are real, valuable
-  capabilities but they are not part of the P4Runtime spec.
-- **3 of the 116 spec items are "tested rejections"** — ValueSetEntry,
-  DigestEntry, and ExternEntry are rejected with `UNIMPLEMENTED` and the
-  rejection is tested. That's correct behavior per our design invariant #5, but
-  it's not the same as implementing the feature.
+---
 
-### Spec sections not yet catalogued
-
-These spec sections contain testable requirements that are not represented in
-this matrix:
-
-| Spec section | Topic | Gap |
-|---|---|---|
-| §6 | P4Info message | ID allocation rules, per-entity metadata validation |
-| §10 | Error reporting | Structured `p4.v1.Error` format (`canonical_code`, `space`, `details`) |
-| §18 | PSA portability | Port number translation, packet-IO header field translation |
-| §19 | Versioning | Major/minor version scheme, backward compatibility |
-| §20 | Non-PSA extensions | Architecture-specific externs, new match/table types |
-
-Within covered sections, notable omissions include: optional match type
-end-to-end testing, range match semantic validation (`low > high`), idle
-timeout fields, preinitialized table entries (§9.1.5), `watch_port` in action
-profiles, `MeterCounterData` per-color counters, and P4Data complex types
-(structs, headers, enums).
-
-### Test depth limitations
+## Test depth limitations
 
 - **No concurrency testing.** All tests are single-threaded. Concurrent writes,
   reads during pipeline reload, and multi-controller races are untested.
