@@ -14,7 +14,7 @@ Two goals, mostly orthogonal:
    simulator, then comparing outputs. Today that reference simulator is BMv2.
 
 2. **Full [SAI P4](https://github.com/sonic-net/sonic-pins/tree/main/sai_p4) support.**
-   SAI P4 is a 27-table v1model program that models the SONiC Switch
+   SAI P4 is a 30-table v1model program that models the SONiC Switch
    Abstraction Interface. It makes heavy use of features that BMv2 handles
    poorly or not at all — `@p4runtime_translation`, `@entry_restriction` /
    `@action_restriction`
@@ -372,6 +372,97 @@ dagre-based graph layout, interactive zoom/pan, and full-screen mode. Animated
 trace playback in the Trace tab. Keyboard shortcuts (#297) for common
 operations.
 
+### Track 9: P4Runtime hardening
+
+**Priority: next | Parallelizable: yes (across phases)**
+
+Track 4 built a working P4Runtime server with 132 tested requirements. Track 9
+takes it from "works" to "unimpeachable." The goal is extremely high confidence
+that 4ward's P4Runtime implementation is correct, complete, and robust — the
+kind of confidence where you'd bet your production deployment on it.
+
+Motivation: a [self-audit of the compliance matrix](P4RUNTIME_COMPLIANCE.md#honest-assessment-of-this-matrix)
+found that the 132/132 number overstates coverage. 16 items are extensions (not
+spec requirements), 3 are tested rejections, entire spec sections are
+uncatalogued, tests are shallow (single-table fixtures, no concurrency, no
+structured error verification), and `WriteValidator` doesn't cover all entity
+types. This track systematically closes every gap.
+
+Four phases, roughly ordered by effort and impact:
+
+#### Phase 1: honest compliance matrix
+
+Fix the compliance matrix so it's a trustworthy audit artifact, not a feel-good
+scorecard.
+
+- Fix section number references to match the actual P4Runtime spec (§13 for
+  Read, §14 for SetForwardingPipelineConfig, etc.).
+- Separate spec requirements from extensions in the summary table. Show two
+  totals: core spec items and extensions.
+- Catalogue missing spec sections: §6 (P4Info validation), §10 (error reporting
+  format), §18 (PSA portability), §19 (versioning), §20 (non-PSA extensions).
+  For each, decide: implement, reject with UNIMPLEMENTED, or mark N/A with
+  justification.
+
+**Done when:** the compliance matrix has correct spec references, separates
+extensions from spec requirements, and every spec section with testable
+requirements is either represented or explicitly scoped out.
+
+#### Phase 2: close implementation gaps
+
+Fix the concrete gaps found in the audit, each with a test.
+
+- **`WriteValidator` for action profile entities.** Validate `action_id`,
+  params, and byte widths on `ActionProfileMember` writes (same rigor as table
+  entries). Validate `ActionProfileGroup` member references.
+- **`action_profile.size` enforcement.** Enforce the p4info `size` limit on
+  total member+group count.
+- **`UNRECOGNIZED` enum rejection.** Return `INVALID_ARGUMENT` for unrecognized
+  `Atomicity` and `ResponseType` values instead of falling through to defaults.
+- **Optional match type E2E test.** Add a test fixture with an optional match
+  field and exercise it end-to-end.
+- **Range match semantic validation.** Reject `low > high`. Add test.
+
+**Done when:** every item above has a failing test written first, then the fix.
+
+#### Phase 3: deepen test coverage
+
+Go beyond "does it work?" to "does it work in every corner?"
+
+- **Multi-table test fixtures.** Add a ConformanceTest fixture with multiple
+  tables using different match types (exact, ternary, LPM, range, optional).
+  Exercise cross-table writes, wildcard reads spanning tables, and table-
+  specific filtering.
+- **Structured error detail verification.** Extend the test harness to verify
+  `p4.v1.Error` protos in `grpc-status-details-bin` for all error paths, not
+  just CONTINUE_ON_ERROR. Check `canonical_code`, `message`, and `space`.
+- **Encoding edge cases.** Test `bit<1>`, `bit<7>` (non-byte-aligned),
+  `bit<128>` (IPv6-width), values with leading zero bytes, empty bytestrings.
+- **Batch edge cases.** Empty batch, all-failing batch, mixed
+  INSERT/MODIFY/DELETE batch, duplicate entries within a batch.
+- **Default entry edge cases.** `has_initial_default_action`, clearing the
+  default, read-back of `is_default_action`.
+
+**Done when:** each category above has at least 3 new tests.
+
+#### Phase 4: adversarial testing
+
+Shake the tree with inputs no reasonable controller would send.
+
+- **Concurrency testing.** Two controllers writing simultaneously, read during
+  pipeline reload, write during wildcard read. Verify the Mutex serialization
+  holds under load.
+- **Fuzz testing.** Feed malformed `WriteRequest` protos to the server (random
+  field mutation, truncated bytestrings, enormous batches). The server must
+  never crash — only return errors. Consider libprotobuf-mutator or a simple
+  Kotlin property-based test.
+- **External validation.** Investigate existing P4Runtime test suites
+  (p4lang/PI, ONOS, Stratum) for tests we could run against 4ward. Any test
+  written by someone else is worth more than three we wrote ourselves.
+
+**Done when:** fuzz testing runs in CI without crashes, concurrency tests pass,
+and at least one external test suite has been evaluated.
+
 ## Sequencing
 
 ```
@@ -392,6 +483,9 @@ operations.
   Track 7     │ standalone CLI            │    │          │    │          │
               │                           │    │          │    │          │
   Track 8     │ playground + vision       │    │          │    │          │
+              │                           │    │          │    │          │
+  Track 9     │                           │    │ P4Rt     │    │ fuzz +   │
+              │                           │    │ hardening│    │ external │
               └───────────────────────────┘    └──────────┘    └──────────┘
 ```
 
@@ -403,3 +497,6 @@ operations.
   (PNA) is next.
 - Track 8 (interfaces) is complete: gRPC services, CLI, and playground with
   visual pipeline diagrams and animated trace playback.
+- Track 9 builds on Track 4. Phases 1–3 can start immediately. Phase 4
+  (adversarial testing) is best after phase 3 establishes a stronger test
+  harness.
