@@ -14,7 +14,7 @@ semantics to them beyond just forwarding:
 
 ### v1model specifics
 
-In v1model, both ports are derived from the port width (`bit<N>`, typically
+In v1model, both intrinsic ports are derived from the port width (`bit<N>`, typically
 `N=9`):
 
 | Port | Default value |
@@ -22,8 +22,8 @@ In v1model, both ports are derived from the port width (`bit<N>`, typically
 | Drop port | `2^N - 1` (511) |
 | CPU port | `2^N - 2` (510) |
 
-`mark_to_drop()` does nothing more than set `egress_spec` to the drop port —
-dropping *is* egressing on the drop port.
+v1model's `mark_to_drop` does nothing more than set `egress_spec` to the drop
+port — dropping *is* egressing on the drop port.
 
 BMv2 makes both configurable at runtime (`--drop-port`, `--cpu-port`).
 
