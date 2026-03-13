@@ -289,10 +289,10 @@ testing may not be reliable.
 
 **Done when:** 26 PSA corpus tests pass.
 
-**Current status:** 20/26 corpus tests pass. Implemented: two-pipeline
+**Current status:** 26/26 corpus tests pass. Implemented: two-pipeline
 orchestration, multicast replication, registers, counters, Hash, Meter (stub),
-InternetChecksum. Remaining 6 tests blocked on I2E/E2E cloning, resubmit,
-recirculate, and one lookahead edge case.
+InternetChecksum, parser errors, metadata handling, drop-by-default, resubmit,
+recirculate, cloning (I2E and E2E).
 
 #### Phase 3: PNA (Portable NIC Architecture)
 
@@ -387,7 +387,7 @@ operations.
               │                           │    │          │    │          │
   Track 5     │ arch customization        │    │          │    │          │
               │                           │    │          │    │          │
-  Track 6     │ refactor, PSA 20/26       │    │ PSA 6/6  │    │   PNA    │
+  Track 6     │ refactor, PSA 26/26 ✓     │    │          │    │   PNA    │
               │                           │    │          │    │          │
   Track 7     │ standalone CLI            │    │          │    │          │
               │                           │    │          │    │          │
@@ -399,7 +399,7 @@ operations.
 - Tracks 1, 3, 4, 5, 7, and 8 are complete.
 - Track 5 subsumes Track 4C and 4E.
 - Track 2 is picked up opportunistically.
-- Track 6 phase 1 (refactoring) is complete. Phase 2 (PSA) is 20/26 — six
-  tests remain. Phase 3 (PNA) depends on phase 2.
+- Track 6 phases 1 (refactoring) and 2 (PSA, 26/26) are complete. Phase 3
+  (PNA) is next.
 - Track 8 (interfaces) is complete: gRPC services, CLI, and playground with
   visual pipeline diagrams and animated trace playback.
