@@ -876,19 +876,19 @@ class WriteValidatorTest {
 
   @Test
   fun `bit1 field accepts 1-byte value`() {
-    val v = WriteValidator(testP4InfoWithBitwidths())
+    val v = bitwidthValidator()
     v.validate(insertUpdate(BIT1_TABLE_ID, listOf(exactMatch(BIT1_FIELD_ID, bytes(1))), action()))
   }
 
   @Test
   fun `bit7 field accepts 1-byte value`() {
-    val v = WriteValidator(testP4InfoWithBitwidths())
+    val v = bitwidthValidator()
     v.validate(insertUpdate(BIT7_TABLE_ID, listOf(exactMatch(BIT7_FIELD_ID, bytes(1))), action()))
   }
 
   @Test
   fun `bit7 field rejects 2-byte value`() {
-    val v = WriteValidator(testP4InfoWithBitwidths())
+    val v = bitwidthValidator()
     val e =
       assertThrows(StatusException::class.java) {
         v.validate(
@@ -901,7 +901,7 @@ class WriteValidatorTest {
 
   @Test
   fun `bit128 field accepts 16-byte value`() {
-    val v = WriteValidator(testP4InfoWithBitwidths())
+    val v = bitwidthValidator()
     v.validate(
       insertUpdate(BIT128_TABLE_ID, listOf(exactMatch(BIT128_FIELD_ID, bytes(16))), action())
     )
@@ -909,7 +909,7 @@ class WriteValidatorTest {
 
   @Test
   fun `bit128 field rejects 15-byte value`() {
-    val v = WriteValidator(testP4InfoWithBitwidths())
+    val v = bitwidthValidator()
     val e =
       assertThrows(StatusException::class.java) {
         v.validate(
@@ -969,6 +969,8 @@ class WriteValidatorTest {
 
   private fun validatorWithZeroBitwidthParam(): WriteValidator =
     WriteValidator(testP4InfoWithZeroBitwidthParam())
+
+  private fun bitwidthValidator(): WriteValidator = WriteValidator(testP4InfoWithBitwidths())
 
   private fun testP4Info(): P4InfoOuterClass.P4Info =
     P4InfoOuterClass.P4Info.newBuilder()

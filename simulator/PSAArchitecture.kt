@@ -36,6 +36,7 @@ import java.math.BigInteger
 class PSAArchitecture : Architecture {
 
   /** Pipeline-invariant state derived from the [BehavioralConfig]. Computed once per packet. */
+  @Suppress("LongParameterList")
   private class PipelineConfig(
     val config: BehavioralConfig,
     val tableStore: TableStore,

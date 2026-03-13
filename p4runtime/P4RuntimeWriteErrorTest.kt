@@ -71,9 +71,9 @@ class P4RuntimeWriteErrorTest {
   @Test
   fun `insert with unknown table ID returns NOT_FOUND`() {
     harness.loadPipeline(loadBasicTableConfig())
-    val entity =
-      Entity.newBuilder().setTableEntry(TableEntry.newBuilder().setTableId(99999)).build()
-    assertGrpcError(Status.Code.NOT_FOUND, "unknown table ID") { harness.installEntry(entity) }
+    assertGrpcError(Status.Code.NOT_FOUND, "unknown table ID") {
+      harness.installEntry(badTableEntity())
+    }
   }
 
   // =========================================================================
@@ -292,21 +292,14 @@ class P4RuntimeWriteErrorTest {
     val config = loadBasicTableConfig()
     harness.loadPipeline(config)
     val good = buildExactEntry(config, matchValue = 0x0800, port = 1)
-    val bad = Entity.newBuilder().setTableEntry(TableEntry.newBuilder().setTableId(99999)).build()
-    val request = harness.buildBatchRequest(Update.Type.INSERT, listOf(good, bad))
-    try {
-      harness.writeRaw(request)
-      throw AssertionError("expected batch error")
-    } catch (e: StatusException) {
-      assert(e.status.code == Status.Code.UNKNOWN) { "expected UNKNOWN, got ${e.status.code}" }
-      val errors = extractBatchErrors(e)!!
-      assert(errors.size == 2) { "expected 2 per-update errors, got ${errors.size}" }
-      assert(errors[0].getCanonicalCode() == com.google.rpc.Code.OK_VALUE) {
-        "first update should be OK"
-      }
-      assert(errors[1].getCanonicalCode() == com.google.rpc.Code.NOT_FOUND_VALUE) {
-        "second update should be NOT_FOUND"
-      }
+    val request = harness.buildBatchRequest(Update.Type.INSERT, listOf(good, badTableEntity()))
+    val errors = assertBatchError { harness.writeRaw(request) }
+    assert(errors.size == 2) { "expected 2 per-update errors, got ${errors.size}" }
+    assert(errors[0].getCanonicalCode() == com.google.rpc.Code.OK_VALUE) {
+      "first update should be OK"
+    }
+    assert(errors[1].getCanonicalCode() == com.google.rpc.Code.NOT_FOUND_VALUE) {
+      "second update should be NOT_FOUND"
     }
     // Good update was applied despite bad one failing.
     val readBack = harness.readRegularEntries()
@@ -328,10 +321,9 @@ class P4RuntimeWriteErrorTest {
     val config = loadBasicTableConfig()
     harness.loadPipeline(config)
     val good = buildExactEntry(config, matchValue = 0x0800, port = 1)
-    val bad = Entity.newBuilder().setTableEntry(TableEntry.newBuilder().setTableId(99999)).build()
     val request =
       harness
-        .buildBatchRequest(Update.Type.INSERT, listOf(good, bad))
+        .buildBatchRequest(Update.Type.INSERT, listOf(good, badTableEntity()))
         .toBuilder()
         .setAtomicity(atomicity)
         .build()
@@ -354,18 +346,15 @@ class P4RuntimeWriteErrorTest {
   @Test
   fun `all-failing batch reports all errors`() {
     harness.loadPipeline(loadBasicTableConfig())
-    val bad1 = Entity.newBuilder().setTableEntry(TableEntry.newBuilder().setTableId(99998)).build()
-    val bad2 = Entity.newBuilder().setTableEntry(TableEntry.newBuilder().setTableId(99999)).build()
-    val request = harness.buildBatchRequest(Update.Type.INSERT, listOf(bad1, bad2))
-    try {
-      harness.writeRaw(request)
-      throw AssertionError("expected batch error")
-    } catch (e: StatusException) {
-      val errors = extractBatchErrors(e)!!
-      assert(errors.size == 2) { "expected 2 per-update errors" }
-      assert(errors[0].canonicalCode == com.google.rpc.Code.NOT_FOUND_VALUE)
-      assert(errors[1].canonicalCode == com.google.rpc.Code.NOT_FOUND_VALUE)
-    }
+    val request =
+      harness.buildBatchRequest(
+        Update.Type.INSERT,
+        listOf(badTableEntity(99998), badTableEntity(99999)),
+      )
+    val errors = assertBatchError { harness.writeRaw(request) }
+    assert(errors.size == 2) { "expected 2 per-update errors" }
+    assert(errors[0].canonicalCode == com.google.rpc.Code.NOT_FOUND_VALUE)
+    assert(errors[1].canonicalCode == com.google.rpc.Code.NOT_FOUND_VALUE)
   }
 
   @Test
@@ -396,18 +385,11 @@ class P4RuntimeWriteErrorTest {
     harness.loadPipeline(config)
     val entry = buildExactEntry(config, matchValue = 0x0800, port = 1)
     val request = harness.buildBatchRequest(Update.Type.INSERT, listOf(entry, entry))
-    try {
-      harness.writeRaw(request)
-      throw AssertionError("expected batch error")
-    } catch (e: StatusException) {
-      val errors = extractBatchErrors(e)!!
-      assert(errors.size == 2) { "expected 2 per-update errors" }
-      assert(errors[0].canonicalCode == com.google.rpc.Code.OK_VALUE) {
-        "first INSERT should be OK"
-      }
-      assert(errors[1].canonicalCode == com.google.rpc.Code.ALREADY_EXISTS_VALUE) {
-        "second INSERT should be ALREADY_EXISTS"
-      }
+    val errors = assertBatchError { harness.writeRaw(request) }
+    assert(errors.size == 2) { "expected 2 per-update errors" }
+    assert(errors[0].canonicalCode == com.google.rpc.Code.OK_VALUE) { "first INSERT should be OK" }
+    assert(errors[1].canonicalCode == com.google.rpc.Code.ALREADY_EXISTS_VALUE) {
+      "second INSERT should be ALREADY_EXISTS"
     }
   }
 
@@ -417,19 +399,12 @@ class P4RuntimeWriteErrorTest {
 
   @Test
   fun `batch error details include message field`() {
-    val config = loadBasicTableConfig()
-    harness.loadPipeline(config)
-    val bad = Entity.newBuilder().setTableEntry(TableEntry.newBuilder().setTableId(99999)).build()
-    val request = harness.buildBatchRequest(Update.Type.INSERT, listOf(bad))
-    try {
-      harness.writeRaw(request)
-      throw AssertionError("expected batch error")
-    } catch (e: StatusException) {
-      val errors = extractBatchErrors(e)!!
-      assert(errors.size == 1)
-      assert(errors[0].canonicalCode == com.google.rpc.Code.NOT_FOUND_VALUE)
-      assert(errors[0].message.isNotEmpty()) { "error detail should include a message" }
-    }
+    harness.loadPipeline(loadBasicTableConfig())
+    val request = harness.buildBatchRequest(Update.Type.INSERT, listOf(badTableEntity()))
+    val errors = assertBatchError { harness.writeRaw(request) }
+    assert(errors.size == 1)
+    assert(errors[0].canonicalCode == com.google.rpc.Code.NOT_FOUND_VALUE)
+    assert(errors[0].message.isNotEmpty()) { "error detail should include a message" }
   }
 
   @Test
@@ -460,17 +435,12 @@ class P4RuntimeWriteErrorTest {
         )
         .build()
     val request = harness.buildBatchRequest(Update.Type.INSERT, listOf(wrongWidth))
-    try {
-      harness.writeRaw(request)
-      throw AssertionError("expected batch error")
-    } catch (e: StatusException) {
-      val errors = extractBatchErrors(e)!!
-      assert(errors.size == 1)
-      assert(errors[0].canonicalCode == com.google.rpc.Code.INVALID_ARGUMENT_VALUE) {
-        "wrong width should yield INVALID_ARGUMENT, got code ${errors[0].canonicalCode}"
-      }
-      assert(errors[0].message.isNotEmpty()) { "validation error should include a message" }
+    val errors = assertBatchError { harness.writeRaw(request) }
+    assert(errors.size == 1)
+    assert(errors[0].canonicalCode == com.google.rpc.Code.INVALID_ARGUMENT_VALUE) {
+      "wrong width should yield INVALID_ARGUMENT, got code ${errors[0].canonicalCode}"
     }
+    assert(errors[0].message.isNotEmpty()) { "validation error should include a message" }
   }
 
   @Test
@@ -478,20 +448,30 @@ class P4RuntimeWriteErrorTest {
     val config = loadBasicTableConfig()
     harness.loadPipeline(config)
     val good = buildExactEntry(config, matchValue = 0x0800, port = 1)
-    // A NOT_FOUND error (unknown table).
-    val notFound =
-      Entity.newBuilder().setTableEntry(TableEntry.newBuilder().setTableId(99999)).build()
-    val request = harness.buildBatchRequest(Update.Type.INSERT, listOf(good, notFound))
+    val request = harness.buildBatchRequest(Update.Type.INSERT, listOf(good, badTableEntity()))
+    val errors = assertBatchError { harness.writeRaw(request) }
+    assert(errors.size == 2) { "expected 2 per-update errors" }
+    assert(errors[0].canonicalCode == com.google.rpc.Code.OK_VALUE)
+    assert(errors[1].canonicalCode == com.google.rpc.Code.NOT_FOUND_VALUE)
+    // The failing update should have an explanatory message.
+    assert(errors[1].message.isNotEmpty()) { "NOT_FOUND error should include a message" }
+  }
+
+  // =========================================================================
+  // Helpers
+  // =========================================================================
+
+  /** Builds an entity referencing a non-existent table, for error-path testing. */
+  private fun badTableEntity(tableId: Int = 99999): Entity =
+    Entity.newBuilder().setTableEntry(TableEntry.newBuilder().setTableId(tableId)).build()
+
+  /** Executes [block], asserts it throws a batch error, and returns the per-update error list. */
+  private fun assertBatchError(block: () -> Unit): List<p4.v1.P4RuntimeOuterClass.Error> {
     try {
-      harness.writeRaw(request)
+      block()
       throw AssertionError("expected batch error")
     } catch (e: StatusException) {
-      val errors = extractBatchErrors(e)!!
-      assert(errors.size == 2) { "expected 2 per-update errors" }
-      assert(errors[0].canonicalCode == com.google.rpc.Code.OK_VALUE)
-      assert(errors[1].canonicalCode == com.google.rpc.Code.NOT_FOUND_VALUE)
-      // The failing update should have an explanatory message.
-      assert(errors[1].message.isNotEmpty()) { "NOT_FOUND error should include a message" }
+      return extractBatchErrors(e) ?: throw AssertionError("no batch error details in trailers")
     }
   }
 }
