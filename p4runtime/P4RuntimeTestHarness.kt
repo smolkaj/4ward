@@ -5,6 +5,7 @@ import fourward.ir.v1.PipelineConfig
 import fourward.sim.v1.DataplaneGrpcKt.DataplaneCoroutineStub
 import fourward.sim.v1.SimulatorProto.OutputPacket
 import fourward.sim.v1.SimulatorProto.ProcessPacketRequest
+import fourward.sim.v1.SimulatorProto.ProcessPacketWithTraceTreeResponse
 import fourward.simulator.Simulator
 import io.grpc.ManagedChannel
 import io.grpc.Status
@@ -136,6 +137,19 @@ class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable 
           .build()
       )
       .outputPacketsList
+  }
+
+  /** Sends a packet and returns both output packets and the trace tree. */
+  fun simulatePacketWithTrace(
+    ingressPort: Int,
+    payload: ByteArray,
+  ): ProcessPacketWithTraceTreeResponse = runBlocking {
+    dataplaneStub.processPacketWithTraceTree(
+      ProcessPacketRequest.newBuilder()
+        .setIngressPort(ingressPort)
+        .setPayload(ByteString.copyFrom(payload))
+        .build()
+    )
   }
 
   // ---------------------------------------------------------------------------
