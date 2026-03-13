@@ -31,13 +31,13 @@
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">94.8&nbsp;%</td>
-            <td class="headerCovTableEntry">58</td>
-            <td class="headerCovTableEntry">55</td>
+            <td class="headerCovTableEntryHi">96.6&nbsp;%</td>
+            <td class="headerCovTableEntry">59</td>
+            <td class="headerCovTableEntry">57</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-13 19:49:09</td>
+            <td class="headerValue">2026-03-13 20:04:48</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">95.5&nbsp;%</td>
@@ -212,24 +212,25 @@
 <span id="L150"><span class="lineNum">     150</span> <span class="tlaGNC">           1 :         entity.hasDirectCounterEntry() -&gt;</span></span>
 <span id="L151"><span class="lineNum">     151</span> <span class="tlaGNC">           1 :           tableStore.readDirectCounterEntries(entity.directCounterEntry)</span></span>
 <span id="L152"><span class="lineNum">     152</span> <span class="tlaGNC">           1 :         entity.hasDirectMeterEntry() -&gt; tableStore.readDirectMeterEntries(entity.directMeterEntry)</span></span>
-<span id="L153"><span class="lineNum">     153</span> <span class="tlaUNC tlaBgUNC">           0 :         entity.hasPacketReplicationEngineEntry() -&gt;</span></span>
-<span id="L154"><span class="lineNum">     154</span> <span class="tlaUNC">           0 :           tableStore.readPreEntries(entity.packetReplicationEngineEntry)</span></span>
-<span id="L155"><span class="lineNum">     155</span> <span class="tlaGNC tlaBgGNC">           1 :         else -&gt; error(&quot;unsupported entity type for read: ${entity.entityCase}&quot;)</span></span>
-<span id="L156"><span class="lineNum">     156</span> <span class="tlaGNC">           1 :       }</span></span>
-<span id="L157"><span class="lineNum">     157</span> <span class="tlaGNC">           1 :     }</span></span>
-<span id="L158"><span class="lineNum">     158</span>              : </span>
-<span id="L159"><span class="lineNum">     159</span>              :   /** Returns the short p4info alias for a behavioral name (table or action), or the name itself. */</span>
-<span id="L160"><span class="lineNum">     160</span> <span class="tlaUNC tlaBgUNC">           0 :   fun displayName(behavioralName: String): String = tableStore.displayName(behavioralName)</span></span>
-<span id="L161"><span class="lineNum">     161</span>              : }</span>
-<span id="L162"><span class="lineNum">     162</span>              : </span>
-<span id="L163"><span class="lineNum">     163</span>              : /** Recursively collects output packets from trace tree leaves (for forking programs). */</span>
-<span id="L164"><span class="lineNum">     164</span>              : fun collectOutputsFromTrace(tree: TraceTree): List&lt;OutputPacket&gt; =</span>
-<span id="L165"><span class="lineNum">     165</span> <span class="tlaGNC tlaBgGNC">           1 :   when {</span></span>
-<span id="L166"><span class="lineNum">     166</span> <span class="tlaGNC">           1 :     tree.hasForkOutcome() -&gt;</span></span>
-<span id="L167"><span class="lineNum">     167</span> <span class="tlaGNC">           1 :       tree.forkOutcome.branchesList.flatMap { collectOutputsFromTrace(it.subtree) }</span></span>
-<span id="L168"><span class="lineNum">     168</span> <span class="tlaGNC">           1 :     tree.hasPacketOutcome() &amp;&amp; tree.packetOutcome.hasOutput() -&gt; listOf(tree.packetOutcome.output)</span></span>
-<span id="L169"><span class="lineNum">     169</span> <span class="tlaGNC">           1 :     else -&gt; emptyList()</span></span>
-<span id="L170"><span class="lineNum">     170</span> <span class="tlaGNC">           1 :   }</span></span>
+<span id="L153"><span class="lineNum">     153</span> <span class="tlaGNC">           1 :         entity.hasPacketReplicationEngineEntry() -&gt;</span></span>
+<span id="L154"><span class="lineNum">     154</span> <span class="tlaUNC tlaBgUNC">           0 :           tableStore.readPreEntries(entity.packetReplicationEngineEntry)</span></span>
+<span id="L155"><span class="lineNum">     155</span> <span class="tlaGNC tlaBgGNC">           1 :         entity.hasValueSetEntry() -&gt; tableStore.readValueSetEntries(entity.valueSetEntry)</span></span>
+<span id="L156"><span class="lineNum">     156</span> <span class="tlaGNC">           1 :         else -&gt; error(&quot;unsupported entity type for read: ${entity.entityCase}&quot;)</span></span>
+<span id="L157"><span class="lineNum">     157</span> <span class="tlaGNC">           1 :       }</span></span>
+<span id="L158"><span class="lineNum">     158</span> <span class="tlaGNC">           1 :     }</span></span>
+<span id="L159"><span class="lineNum">     159</span>              : </span>
+<span id="L160"><span class="lineNum">     160</span>              :   /** Returns the short p4info alias for a behavioral name (table or action), or the name itself. */</span>
+<span id="L161"><span class="lineNum">     161</span> <span class="tlaUNC tlaBgUNC">           0 :   fun displayName(behavioralName: String): String = tableStore.displayName(behavioralName)</span></span>
+<span id="L162"><span class="lineNum">     162</span>              : }</span>
+<span id="L163"><span class="lineNum">     163</span>              : </span>
+<span id="L164"><span class="lineNum">     164</span>              : /** Recursively collects output packets from trace tree leaves (for forking programs). */</span>
+<span id="L165"><span class="lineNum">     165</span>              : fun collectOutputsFromTrace(tree: TraceTree): List&lt;OutputPacket&gt; =</span>
+<span id="L166"><span class="lineNum">     166</span> <span class="tlaGNC tlaBgGNC">           1 :   when {</span></span>
+<span id="L167"><span class="lineNum">     167</span> <span class="tlaGNC">           1 :     tree.hasForkOutcome() -&gt;</span></span>
+<span id="L168"><span class="lineNum">     168</span> <span class="tlaGNC">           1 :       tree.forkOutcome.branchesList.flatMap { collectOutputsFromTrace(it.subtree) }</span></span>
+<span id="L169"><span class="lineNum">     169</span> <span class="tlaGNC">           1 :     tree.hasPacketOutcome() &amp;&amp; tree.packetOutcome.hasOutput() -&gt; listOf(tree.packetOutcome.output)</span></span>
+<span id="L170"><span class="lineNum">     170</span> <span class="tlaGNC">           1 :     else -&gt; emptyList()</span></span>
+<span id="L171"><span class="lineNum">     171</span> <span class="tlaGNC">           1 :   }</span></span>
         </pre>
               </td>
             </tr>
