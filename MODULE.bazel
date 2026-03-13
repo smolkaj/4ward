@@ -116,8 +116,6 @@ git_override(
 
 # --- Documentation tool binaries ---
 
-# Doxygen — generates HTML documentation from C/C++ source files.
-# Hermetic binary download handled by rules_doxygen.
 bazel_dep(name = "rules_doxygen", version = "2.6.2", dev_dependency = True)
 
 doxygen_extension = use_extension(
@@ -127,12 +125,7 @@ doxygen_extension = use_extension(
 )
 use_repo(doxygen_extension, "doxygen")
 
-# protoc-gen-doc — generates HTML documentation from .proto files.
-# Platform-specific pre-built binaries; selected via //bazel:protoc_gen_doc.
-_http_archive = use_repo_rule(
-    "@bazel_tools//tools/build_defs/repo:http.bzl",
-    "http_archive",
-)
+_http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 _http_archive(
     name = "protoc_gen_doc_linux_amd64",
@@ -148,9 +141,6 @@ _http_archive(
     url = "https://github.com/pseudomuto/protoc-gen-doc/releases/download/v1.5.1/protoc-gen-doc_1.5.1_darwin_arm64.tar.gz",
 )
 
-# Dokka CLI — generates HTML documentation from Kotlin source files.
-# All JARs are fat/self-contained (no transitive deps to resolve).
-# Only fetched when building //tools:kotlin_docs (a dev-only target).
 _http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
 
 _http_file(

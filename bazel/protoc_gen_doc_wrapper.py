@@ -1,15 +1,6 @@
-"""Wrapper around protoc-gen-doc that declares editions support.
-
-protoc-gen-doc handles editions protos correctly but doesn't declare support in
-its CodeGeneratorResponse, causing protoc to reject the output. This wrapper
-patches the response to set:
-  - supported_features = 3 (FEATURE_PROTO3_OPTIONAL | FEATURE_SUPPORTS_EDITIONS)
-  - minimum_edition = EDITION_PROTO2 (998)
-  - maximum_edition = EDITION_2024 (1001)
-
-Remove this wrapper when protoc-gen-doc adds native editions support:
-https://github.com/pseudomuto/protoc-gen-doc/issues/541
-"""
+# WORKAROUND: protoc-gen-doc doesn't declare FEATURE_SUPPORTS_EDITIONS, so protoc
+# rejects its output for edition 2024 protos. This wrapper patches the response.
+# Remove when upstream adds support: https://github.com/pseudomuto/protoc-gen-doc/issues/541
 
 import os
 import subprocess

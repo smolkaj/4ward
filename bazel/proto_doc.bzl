@@ -1,13 +1,4 @@
-"""Rule for generating HTML documentation from proto_library targets.
-
-Uses protoc-gen-doc (https://github.com/pseudomuto/protoc-gen-doc) as a protoc
-plugin.  The rule extracts transitive proto sources and import paths from
-ProtoInfo so protoc can resolve all imports — including external ones like
-p4runtime and google/protobuf.
-
-A thin Python wrapper adds FEATURE_SUPPORTS_EDITIONS to the plugin's response
-because protoc-gen-doc hasn't declared editions support yet.
-"""
+"""Bazel rule: HTML documentation from proto_library targets via protoc-gen-doc."""
 
 load("@protobuf//bazel/common:proto_info.bzl", "ProtoInfo")
 
@@ -32,7 +23,7 @@ def _proto_doc_impl(ctx):
     args = ctx.actions.args()
     args.add("--plugin=protoc-gen-doc=" + wrapper.path)
     args.add("--doc_out=" + out.dirname)
-    args.add("--doc_opt=" + ctx.attr.format + "," + out.basename)
+    args.add("--doc_opt=html," + out.basename)
     args.add_all(transitive_proto_path, format_each = "--proto_path=%s")
 
     # Descriptor paths: relative to their proto_source_root.
@@ -63,36 +54,11 @@ def _proto_doc_impl(ctx):
 
 proto_doc = rule(
     implementation = _proto_doc_impl,
-    doc = "Generate HTML documentation from proto_library targets using protoc-gen-doc.",
     attrs = {
-        "protos": attr.label_list(
-            mandatory = True,
-            providers = [ProtoInfo],
-            doc = "proto_library targets to document.",
-        ),
-        "format": attr.string(
-            default = "html",
-            values = ["html", "markdown", "json", "docbook"],
-            doc = "Output format.",
-        ),
-        "out": attr.output(
-            mandatory = True,
-            doc = "Output file.",
-        ),
-        "_protoc": attr.label(
-            default = "@protobuf//:protoc",
-            executable = True,
-            cfg = "exec",
-        ),
-        "_wrapper": attr.label(
-            default = "//bazel:protoc_gen_doc_wrapper",
-            executable = True,
-            cfg = "exec",
-        ),
-        "_plugin": attr.label(
-            default = "//bazel:protoc_gen_doc",
-            executable = True,
-            cfg = "exec",
-        ),
+        "protos": attr.label_list(mandatory = True, providers = [ProtoInfo]),
+        "out": attr.output(mandatory = True),
+        "_protoc": attr.label(default = "@protobuf//:protoc", executable = True, cfg = "exec"),
+        "_wrapper": attr.label(default = "//bazel:protoc_gen_doc_wrapper", executable = True, cfg = "exec"),
+        "_plugin": attr.label(default = "//bazel:protoc_gen_doc", executable = True, cfg = "exec"),
     },
 )

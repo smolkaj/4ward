@@ -83,40 +83,15 @@ def _dokka_html_impl(ctx):
 
 dokka_html = rule(
     implementation = _dokka_html_impl,
-    doc = "Generate HTML documentation from Kotlin sources using Dokka CLI.",
     attrs = {
-        "srcs": attr.label_list(
-            mandatory = True,
-            allow_files = [".kt"],
-            doc = "Kotlin source files or filegroups to document.",
-        ),
-        "deps": attr.label_list(
-            doc = "Dependencies providing classpath JARs for type resolution.",
-        ),
-        "module_name": attr.string(
-            default = "4ward",
-            doc = "Module name shown in the documentation.",
-        ),
-        "_cli": attr.label(
-            default = "@dokka_cli//file:dokka-cli.jar",
-            allow_single_file = True,
-        ),
-        "_base": attr.label(
-            default = "@dokka_base//file:dokka-base.jar",
-            allow_single_file = True,
-        ),
-        "_analysis": attr.label(
-            default = "@dokka_analysis//file:analysis-kotlin-descriptors.jar",
-            allow_single_file = True,
-        ),
-        "_kotlinx_html": attr.label(
-            default = "@dokka_kotlinx_html//file:kotlinx-html-jvm.jar",
-            allow_single_file = True,
-        ),
-        "_freemarker": attr.label(
-            default = "@dokka_freemarker//file:freemarker.jar",
-            allow_single_file = True,
-        ),
+        "srcs": attr.label_list(mandatory = True, allow_files = [".kt"]),
+        "deps": attr.label_list(),
+        "module_name": attr.string(default = "4ward"),
+        "_cli": attr.label(default = "@dokka_cli//file:dokka-cli.jar", allow_single_file = True),
+        "_base": attr.label(default = "@dokka_base//file:dokka-base.jar", allow_single_file = True),
+        "_analysis": attr.label(default = "@dokka_analysis//file:analysis-kotlin-descriptors.jar", allow_single_file = True),
+        "_kotlinx_html": attr.label(default = "@dokka_kotlinx_html//file:kotlinx-html-jvm.jar", allow_single_file = True),
+        "_freemarker": attr.label(default = "@dokka_freemarker//file:freemarker.jar", allow_single_file = True),
     },
     toolchains = ["@bazel_tools//tools/jdk:runtime_toolchain_type"],
 )
