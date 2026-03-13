@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Generate project documentation: proto reference, Kotlin reference, C++ reference.
+# Generate project documentation (Kotlin + C++ reference).
 #
 # Everything is built by Bazel; this script assembles the outputs into a local
 # directory for browsing.
@@ -16,9 +16,8 @@ bazel build //tools:docs
 
 chmod -R u+w docs-output 2>/dev/null || true
 rm -rf docs-output
-mkdir -p docs-output/proto docs-output/cpp
+mkdir -p docs-output/cpp
 cp tools/docs-index.html docs-output/index.html
-cp bazel-bin/tools/proto_docs.html docs-output/proto/index.html
 cp -r bazel-bin/tools/kotlin_docs/. docs-output/kotlin
 cp -r bazel-bin/tools/html/. docs-output/cpp
 

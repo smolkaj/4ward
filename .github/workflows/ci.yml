@@ -215,9 +215,8 @@ jobs:
         run: |
           git worktree add /tmp/gh-pages gh-pages
           rm -rf /tmp/gh-pages/docs
-          mkdir -p /tmp/gh-pages/docs/proto /tmp/gh-pages/docs/cpp
+          mkdir -p /tmp/gh-pages/docs/cpp
           cp tools/docs-index.html /tmp/gh-pages/docs/index.html
-          cp bazel-bin/tools/proto_docs.html /tmp/gh-pages/docs/proto/index.html
           cp -r bazel-bin/tools/kotlin_docs/. /tmp/gh-pages/docs/kotlin
           cp -r bazel-bin/tools/html/. /tmp/gh-pages/docs/cpp
           cd /tmp/gh-pages

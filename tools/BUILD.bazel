@@ -1,6 +1,5 @@
 load("@doxygen//:doxygen.bzl", "doxygen")
 load("//bazel:dokka.bzl", "dokka_html")
-load("//bazel:proto_doc.bzl", "proto_doc")
 
 # Build all docs: bazel build //tools:docs
 filegroup(
@@ -8,17 +7,6 @@ filegroup(
     srcs = [
         ":cpp_docs",
         ":kotlin_docs",
-        ":proto_docs",
-    ],
-)
-
-proto_doc(
-    name = "proto_docs",
-    out = "proto_docs.html",
-    protos = [
-        "//p4runtime:constraint_validator_proto",
-        "//simulator:ir_proto",
-        "//simulator:simulator_proto",
     ],
 )
 

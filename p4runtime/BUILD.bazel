@@ -229,7 +229,6 @@ kt_jvm_test(
 proto_library(
     name = "constraint_validator_proto",
     srcs = ["constraint_validator.proto"],
-    visibility = ["//tools:__pkg__"],
     deps = [
         "@p4runtime//proto/p4/config/v1:p4info_proto",
         "@p4runtime//proto/p4/v1:p4runtime_proto",

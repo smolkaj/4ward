@@ -125,22 +125,6 @@ doxygen_extension = use_extension(
 )
 use_repo(doxygen_extension, "doxygen")
 
-_http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
-
-_http_archive(
-    name = "protoc_gen_doc_linux_amd64",
-    build_file = "//bazel:protoc_gen_doc.BUILD",
-    sha256 = "47cd72b07e6dab3408d686a65d37d3a6ab616da7d8b564b2bd2a2963a72b72fd",
-    url = "https://github.com/pseudomuto/protoc-gen-doc/releases/download/v1.5.1/protoc-gen-doc_1.5.1_linux_amd64.tar.gz",
-)
-
-_http_archive(
-    name = "protoc_gen_doc_darwin_arm64",
-    build_file = "//bazel:protoc_gen_doc.BUILD",
-    sha256 = "6e8c737d9a67a6a873a3f1d37ed8bb2a0a9996f6dcf6701aa1048c7bd798aaf9",
-    url = "https://github.com/pseudomuto/protoc-gen-doc/releases/download/v1.5.1/protoc-gen-doc_1.5.1_darwin_arm64.tar.gz",
-)
-
 _http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
 
 _http_file(
