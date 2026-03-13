@@ -2,11 +2,8 @@
 
 ## Assumptions
 
-- There is a designated **CPU port** — a well-known port number that bridges
-  data plane and control plane. The CPU port is not defined by the P4
-  architecture; in BMv2 it is a runtime flag (`--cpu-port`), and in 4ward it is
-  derived from the p4info's `controller_packet_metadata` field widths (currently
-  `2^portBits - 2`, e.g. port 510 for 9-bit ports).
+- There is a designated **CPU port** — see
+  [intrinsic_ports.md](intrinsic_ports.md) for details.
 
 ## Requirements
 
