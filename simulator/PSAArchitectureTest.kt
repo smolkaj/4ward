@@ -518,8 +518,8 @@ class PSAArchitectureTest {
       )
       .build()
 
-  /** Hash.get_hash(data) — 1-arg form, result assigned to nothing (just exercises the path). */
-  private fun hashGetHash1Arg(instanceName: String, fieldValue: Long, fieldWidth: Int): Stmt =
+  /** Hash.get_hash(args...) statement — builds the shared MethodCall proto scaffold. */
+  private fun hashGetHashStmt(instanceName: String, args: List<Expr>, resultWidth: Int = 16): Stmt =
     Stmt.newBuilder()
       .setMethodCall(
         MethodCallStmt.newBuilder()
@@ -529,23 +529,26 @@ class PSAArchitectureTest {
                 MethodCall.newBuilder()
                   .setTarget(nameRef(instanceName, namedType("Hash")))
                   .setMethod("get_hash")
-                  .addArgs(
-                    Expr.newBuilder()
-                      .setStructExpr(
-                        StructExpr.newBuilder()
-                          .addFields(
-                            StructExprField.newBuilder()
-                              .setName("f0")
-                              .setValue(bit(fieldValue, fieldWidth))
-                          )
-                      )
-                      .setType(namedType("tuple_0"))
-                  )
+                  .addAllArgs(args)
               )
-              .setType(bitType(16))
+              .setType(bitType(resultWidth))
           )
       )
       .build()
+
+  /** A struct expression wrapping a single field — the common hash data argument shape. */
+  private fun structField(name: String, value: Long, width: Int): Expr =
+    Expr.newBuilder()
+      .setStructExpr(
+        StructExpr.newBuilder()
+          .addFields(StructExprField.newBuilder().setName(name).setValue(bit(value, width)))
+      )
+      .setType(namedType("tuple_0"))
+      .build()
+
+  /** Hash.get_hash({f0 = value}) — 1-arg form with struct-wrapped data. */
+  private fun hashGetHash1Arg(instanceName: String, fieldValue: Long, fieldWidth: Int): Stmt =
+    hashGetHashStmt(instanceName, listOf(structField("f0", fieldValue, fieldWidth)))
 
   /** Meter.execute(index) — returns PSA_MeterColor_t. */
   private fun meterExecute(instanceName: String, index: Long): Stmt =
@@ -601,27 +604,9 @@ class PSAArchitectureTest {
    * `get_hash(hdr.ethernet.srcAddr)` arrive as bare bit values. Bug #4 in this PR.
    */
   private fun hashGetHash1ArgBareBit(instanceName: String, value: Long, width: Int): Stmt =
-    Stmt.newBuilder()
-      .setMethodCall(
-        MethodCallStmt.newBuilder()
-          .setCall(
-            Expr.newBuilder()
-              .setMethodCall(
-                MethodCall.newBuilder()
-                  .setTarget(nameRef(instanceName, namedType("Hash")))
-                  .setMethod("get_hash")
-                  .addArgs(bit(value, width))
-              )
-              .setType(bitType(16))
-          )
-      )
-      .build()
+    hashGetHashStmt(instanceName, listOf(bit(value, width)))
 
-  /**
-   * Hash.get_hash(base, data, max) — 3-arg form.
-   *
-   * Returns (base + hash(data)) mod max, truncated to result width.
-   */
+  /** Hash.get_hash(base, data, max) — 3-arg form: (base + hash(data)) mod max. */
   private fun hashGetHash3Arg(
     instanceName: String,
     base: Long,
@@ -630,34 +615,15 @@ class PSAArchitectureTest {
     max: Long,
     resultWidth: Int,
   ): Stmt =
-    Stmt.newBuilder()
-      .setMethodCall(
-        MethodCallStmt.newBuilder()
-          .setCall(
-            Expr.newBuilder()
-              .setMethodCall(
-                MethodCall.newBuilder()
-                  .setTarget(nameRef(instanceName, namedType("Hash")))
-                  .setMethod("get_hash")
-                  .addArgs(bit(base, resultWidth))
-                  .addArgs(
-                    Expr.newBuilder()
-                      .setStructExpr(
-                        StructExpr.newBuilder()
-                          .addFields(
-                            StructExprField.newBuilder()
-                              .setName("f0")
-                              .setValue(bit(fieldValue, fieldWidth))
-                          )
-                      )
-                      .setType(namedType("tuple_0"))
-                  )
-                  .addArgs(bit(max, resultWidth))
-              )
-              .setType(bitType(resultWidth))
-          )
-      )
-      .build()
+    hashGetHashStmt(
+      instanceName,
+      listOf(
+        bit(base, resultWidth),
+        structField("f0", fieldValue, fieldWidth),
+        bit(max, resultWidth),
+      ),
+      resultWidth,
+    )
 
   /** Creates an ExternInstanceDecl for a Random with [lo, hi] constructor args. */
   private fun randomInstance(name: String, lo: Long, hi: Long): ExternInstanceDecl =

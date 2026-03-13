@@ -678,19 +678,22 @@ class PSAArchitecture : Architecture {
         is ExternCall.Method ->
           when (call.method) {
             // Register.read(index) returns T directly (unlike v1model's void + out param).
-            // Random.read() takes 0 args — returns a random value in [min, max].
             "read" ->
-              if (eval.argCount() > 0) {
-                val index = (eval.evalArg(0) as BitVal).bits.value.toInt()
-                pipeline.tableStore.registerRead(call.instanceName, index)
-                  ?: eval.defaultValue(eval.returnType())
-              } else {
-                // PSA Random.read() — PSA spec §7.5.
-                val instance = pipeline.externInstances[call.instanceName]
-                val lo = instance?.constructorArgsList?.getOrNull(0)?.literal?.integer ?: 0L
-                val hi = instance?.constructorArgsList?.getOrNull(1)?.literal?.integer ?: 0L
-                val value = if (hi > lo) kotlin.random.Random.nextLong(lo, hi + 1) else lo
-                BitVal(BitVector(BigInteger.valueOf(value), eval.returnType().bit.width))
+              when (call.externType) {
+                "Register" -> {
+                  val index = (eval.evalArg(0) as BitVal).bits.value.toInt()
+                  pipeline.tableStore.registerRead(call.instanceName, index)
+                    ?: eval.defaultValue(eval.returnType())
+                }
+                // PSA Random.read() — 0 args, returns a random value in [min, max] (PSA spec §7.5).
+                "Random" -> {
+                  val instance = pipeline.externInstances[call.instanceName]
+                  val lo = instance?.constructorArgsList?.getOrNull(0)?.literal?.integer ?: 0L
+                  val hi = instance?.constructorArgsList?.getOrNull(1)?.literal?.integer ?: 0L
+                  val value = if (hi > lo) kotlin.random.Random.nextLong(lo, hi + 1) else lo
+                  BitVal(BitVector(BigInteger.valueOf(value), eval.returnType().bit.width))
+                }
+                else -> error("unhandled PSA extern read: ${call.externType}.read")
               }
             "write" -> {
               val index = (eval.evalArg(0) as BitVal).bits.value.toInt()
