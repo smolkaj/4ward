@@ -327,6 +327,7 @@ report in about 5. No flakes, no "works on my machine." See for yourself on the
 | [LIMITATIONS.md](docs/LIMITATIONS.md) | Known shortcuts and gaps |
 | [REFACTORING.md](docs/REFACTORING.md) | Tech debt and cleanup backlog |
 | [AGENTS.md](AGENTS.md) | Guide for AI coding agents |
+| [designs/](designs/) | Design proposals (WIP) |
 
 ## Want to help?
 
