@@ -12,20 +12,14 @@ semantics to them beyond just forwarding:
   (P4Runtime) as PacketIn. Packets from the control plane (PacketOut) enter the
   data plane on this port.
 
-### v1model specifics
-
-In v1model, both intrinsic ports are derived from the port width (`bit<N>`, typically
-`N=9`):
-
-| Port | Default value |
-|------|---------------|
-| Drop port | `2^N - 1` (511) |
-| CPU port | `2^N - 2` (510) |
+### v1model and BMv2 specifics
 
 v1model's `mark_to_drop` does nothing more than set `egress_spec` to the drop
 port — dropping *is* egressing on the drop port.
 
-BMv2 makes both configurable at runtime (`--drop-port`, `--cpu-port`).
+BMv2 makes both intrinsic ports configurable at runtime (`--drop-port`,
+`--cpu-port`). The drop port defaults to 511; the CPU port has no default and
+must be explicitly set to enable PacketIn/PacketOut.
 
 ## Problem
 
@@ -37,11 +31,17 @@ port is derived from port width in the P4Runtime layer. Neither is configurable.
 
 ### Defaults
 
-Both intrinsic ports have sensible defaults derived from the pipeline itself:
-- **Drop port**: derived from the IR's `standard_metadata` port width in
-  `V1ModelArchitecture`.
-- **CPU port**: derived from the p4info's `controller_packet_metadata` field
-  widths in `PacketHeaderCodec`.
+Both intrinsic ports are data-plane values. Default values are derived from the
+data-plane port width (`N`), following BMv2 conventions:
+
+| Port | Default data-plane value | Port width source |
+|------|--------------------------|-------------------|
+| Drop port | `2^N - 1` (511 for `N=9`) | IR's `standard_metadata` port field width |
+| CPU port | `2^N - 2` (510 for `N=9`) | IR's `controller_packet_metadata` header field width |
+
+When `@p4runtime_translation` is in use, the control-plane representation of
+these ports (e.g., SDN strings) is a separate concern handled by the
+`TypeTranslator`.
 
 ### Simulator stays port-agnostic
 
