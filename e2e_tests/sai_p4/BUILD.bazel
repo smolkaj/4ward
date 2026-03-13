@@ -31,14 +31,14 @@ genrule(
     outs = ["sai_middleblock.txtpb"],
     cmd = " ".join([
         "$(execpath //p4c_backend:p4c-4ward)",
-        "-I $$(dirname $(execpath @p4c//:core_p4))",
+        "-I $$(dirname $(execpath @p4c//p4include:core.p4))",
         "-o $@",
         "$(execpath instantiations/google/middleblock.p4)",
     ]),
     tools = [
         "//p4c_backend:p4c-4ward",
-        "@p4c//:core_p4",
-        "@p4c//:p4include",
+        "@p4c//p4include",
+        "@p4c//p4include:core.p4",
     ],
     visibility = ["//p4runtime:__pkg__"],
 )

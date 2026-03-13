@@ -29,11 +29,11 @@ def p4c_compile(name, src_p4, includes = [], tags = [], visibility = None, defin
         outs = [name + ".txtpb"],
         # Custom includes come first so they can shadow standard library files
         # (e.g. a modified v1model.p4 with wider port fields).
-        cmd = "$(execpath //p4c_backend:p4c-4ward)" + include_flags + " -I $$(dirname $(execpath @p4c//:core_p4))" + define_flags + " -o $@ $(execpath " + src_p4 + ")",
+        cmd = "$(execpath //p4c_backend:p4c-4ward)" + include_flags + " -I $$(dirname $(execpath @p4c//p4include:core.p4))" + define_flags + " -o $@ $(execpath " + src_p4 + ")",
         tools = [
             "//p4c_backend:p4c-4ward",
-            "@p4c//:core_p4",
-            "@p4c//:p4include",
+            "@p4c//p4include:core.p4",
+            "@p4c//p4include",
         ],
         tags = tags,
         visibility = visibility,

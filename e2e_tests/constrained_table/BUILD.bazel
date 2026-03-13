@@ -2,11 +2,11 @@ genrule(
     name = "constrained_table_pb",
     srcs = ["constrained_table.p4"],
     outs = ["constrained_table.txtpb"],
-    cmd = "$(execpath //p4c_backend:p4c-4ward) -I $$(dirname $(execpath @p4c//:core_p4)) -o $@ $(SRCS)",
+    cmd = "$(execpath //p4c_backend:p4c-4ward) -I $$(dirname $(execpath @p4c//p4include:core.p4)) -o $@ $(SRCS)",
     tools = [
         "//p4c_backend:p4c-4ward",
-        "@p4c//:core_p4",
-        "@p4c//:p4include",
+        "@p4c//p4include",
+        "@p4c//p4include:core.p4",
     ],
     visibility = ["//p4runtime:__pkg__"],
 )

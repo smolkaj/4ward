@@ -26,7 +26,7 @@ cc_binary(
     # p4include provides core.p4, v1model.p4, etc. The binary resolves them via
     # CONFIG_PKGDATADIR = "external/p4c+" (set at build time in config.h), so
     # the files must be present in the runfiles tree under that path.
-    data = ["@p4c//:p4include"],
+    data = ["@p4c//p4include"],
     visibility = ["//visibility:public"],
     deps = [
         ":p4c_backend_lib",
