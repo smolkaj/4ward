@@ -31,18 +31,18 @@
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">92.0&nbsp;%</td>
+            <td class="headerCovTableEntryHi">90.9&nbsp;%</td>
+            <td class="headerCovTableEntry">55</td>
             <td class="headerCovTableEntry">50</td>
-            <td class="headerCovTableEntry">46</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-13 00:58:37</td>
+            <td class="headerValue">2026-03-13 01:03:59</td>
             <td></td>
             <td class="headerItem">Functions:</td>
-            <td class="headerCovTableEntryMed">87.8&nbsp;%</td>
-            <td class="headerCovTableEntry">49</td>
-            <td class="headerCovTableEntry">43</td>
+            <td class="headerCovTableEntryMed">88.0&nbsp;%</td>
+            <td class="headerCovTableEntry">50</td>
+            <td class="headerCovTableEntry">44</td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
                 </table>
@@ -206,6 +206,21 @@
 <span id="L144"><span class="lineNum">     144</span>              : </span>
 <span id="L145"><span class="lineNum">     145</span>              : /** Sentinel for void returns and uninitialised variables. */</span>
 <span id="L146"><span class="lineNum">     146</span> <span class="tlaGNC">           1 : object UnitVal : Value()</span></span>
+<span id="L147"><span class="lineNum">     147</span>              : </span>
+<span id="L148"><span class="lineNum">     148</span>              : /**</span>
+<span id="L149"><span class="lineNum">     149</span>              :  * Views a [HeaderVal] or [StructVal] as a [StructVal] for read-only field-based operations</span>
+<span id="L150"><span class="lineNum">     150</span>              :  * (hashing, checksums). Headers have the same `fields` map but carry an extra validity bit that</span>
+<span id="L151"><span class="lineNum">     151</span>              :  * these operations don't need.</span>
+<span id="L152"><span class="lineNum">     152</span>              :  *</span>
+<span id="L153"><span class="lineNum">     153</span>              :  * The returned [StructVal] shares the original [HeaderVal]'s mutable field map — callers must not</span>
+<span id="L154"><span class="lineNum">     154</span>              :  * mutate the returned struct's fields.</span>
+<span id="L155"><span class="lineNum">     155</span>              :  */</span>
+<span id="L156"><span class="lineNum">     156</span>              : fun Value.asStructVal(): StructVal =</span>
+<span id="L157"><span class="lineNum">     157</span> <span class="tlaGNC">           1 :   when (this) {</span></span>
+<span id="L158"><span class="lineNum">     158</span> <span class="tlaGNC">           1 :     is StructVal -&gt; this</span></span>
+<span id="L159"><span class="lineNum">     159</span> <span class="tlaGNC">           1 :     is HeaderVal -&gt; StructVal(typeName, fields)</span></span>
+<span id="L160"><span class="lineNum">     160</span> <span class="tlaUNC tlaBgUNC">           0 :     else -&gt; error(&quot;expected struct or header, got ${this::class.simpleName}&quot;)</span></span>
+<span id="L161"><span class="lineNum">     161</span> <span class="tlaGNC tlaBgGNC">           1 :   }</span></span>
         </pre>
               </td>
             </tr>
