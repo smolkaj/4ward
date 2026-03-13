@@ -255,3 +255,56 @@ Legend: **Y** = tested, **N** = not tested, **N/A** = out of scope
 | @refers_to | 6 | 0 | 0 |
 | p4-constraints | 4 | 0 | 0 |
 | **Total** | **132** | **0** | **3** |
+
+## Honest assessment of this matrix
+
+This matrix is self-authored: we wrote both the requirements and the tests. That
+means requirements we misunderstand or overlook won't appear here. This section
+documents the known weaknesses so readers can calibrate their confidence.
+
+### What the 132 count includes
+
+The 132 tested items are not all P4Runtime spec requirements:
+
+- **116 items from the P4Runtime spec** — the core compliance claim.
+- **16 items from project-specific extensions** — `@p4runtime_translation` (6),
+  `@refers_to` (6), and `p4-constraints` (4). These are real, valuable
+  capabilities but they are not part of the P4Runtime spec.
+- **3 of the 116 spec items are "tested rejections"** — ValueSetEntry,
+  DigestEntry, and ExternEntry are rejected with `UNIMPLEMENTED` and the
+  rejection is tested. That's correct behavior per our design invariant #5, but
+  it's not the same as implementing the feature.
+
+### Spec sections not yet catalogued
+
+These spec sections contain testable requirements that are not represented in
+this matrix:
+
+| Spec section | Topic | Gap |
+|---|---|---|
+| §6 | P4Info message | ID allocation rules, per-entity metadata validation |
+| §10 | Error reporting | Structured `p4.v1.Error` format (`canonical_code`, `space`, `details`) |
+| §18 | PSA portability | Port number translation, packet-IO header field translation |
+| §19 | Versioning | Major/minor version scheme, backward compatibility |
+| §20 | Non-PSA extensions | Architecture-specific externs, new match/table types |
+
+Within covered sections, notable omissions include: optional match type
+end-to-end testing, range match semantic validation (`low > high`), idle
+timeout fields, preinitialized table entries (§9.1.5), `watch_port` in action
+profiles, `MeterCounterData` per-color counters, and P4Data complex types
+(structs, headers, enums).
+
+### Test depth limitations
+
+- **No concurrency testing.** All tests are single-threaded. Concurrent writes,
+  reads during pipeline reload, and multi-controller races are untested.
+- **Single-table test fixtures.** Most ConformanceTest and WriteErrorTest
+  scenarios use `basic_table.p4` (one table, one exact match field, two
+  actions). Multi-table programs with different match types are not exercised
+  at the P4Runtime level. SAI P4 E2E tests partially compensate for this.
+- **Error detail verification is shallow.** Only 1 test (CONTINUE_ON_ERROR)
+  inspects the structured `p4.v1.Error` protos in `grpc-status-details-bin`.
+  The other ~100 tests check gRPC status codes only, not P4Runtime-specific
+  error details.
+- **No encoding edge cases.** Untested: `bit<1>`, non-byte-aligned bitwidths
+  (`bit<7>`), very wide fields (`bit<256>`), values with leading zero bytes.
