@@ -1,28 +1,13 @@
 #!/usr/bin/env bash
-# Generate project documentation (Kotlin + C++ reference).
-#
-# Everything is built by Bazel; this script assembles the outputs into a local
-# directory for browsing.
-#
-# Usage:
-#   ./tools/docs.sh          # generate all docs
-#   ./tools/docs.sh --open   # generate and open in browser
-
+# Generate C++ API reference docs. Usage: ./tools/docs.sh [--open]
 set -euo pipefail
-
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
 bazel build //tools:docs
 
 chmod -R u+w docs-output 2>/dev/null || true
 rm -rf docs-output
-mkdir -p docs-output/cpp
-cp tools/docs-index.html docs-output/index.html
-cp -r bazel-bin/tools/kotlin_docs/. docs-output/kotlin
-cp -r bazel-bin/tools/html/. docs-output/cpp
+cp -r bazel-bin/tools/html docs-output
 
 echo "Documentation generated in docs-output/"
-
-if [[ "${1:-}" == "--open" ]]; then
-  open docs-output/index.html 2>/dev/null || xdg-open docs-output/index.html 2>/dev/null || true
-fi
+[[ "${1:-}" == "--open" ]] && { open docs-output/index.html 2>/dev/null || xdg-open docs-output/index.html 2>/dev/null || true; }

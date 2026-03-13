@@ -215,10 +215,7 @@ jobs:
         run: |
           git worktree add /tmp/gh-pages gh-pages
           rm -rf /tmp/gh-pages/docs
-          mkdir -p /tmp/gh-pages/docs/cpp
-          cp tools/docs-index.html /tmp/gh-pages/docs/index.html
-          cp -r bazel-bin/tools/kotlin_docs/. /tmp/gh-pages/docs/kotlin
-          cp -r bazel-bin/tools/html/. /tmp/gh-pages/docs/cpp
+          cp -r bazel-bin/tools/html /tmp/gh-pages/docs
           cd /tmp/gh-pages
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

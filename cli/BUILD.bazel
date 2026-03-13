@@ -42,12 +42,3 @@ kt_jvm_test(
         "@maven//:junit_junit",
     ],
 )
-
-filegroup(
-    name = "kotlin_srcs",
-    srcs = glob(
-        ["*.kt"],
-        exclude = ["*Test.kt"],
-    ),
-    visibility = ["//tools:__pkg__"],
-)

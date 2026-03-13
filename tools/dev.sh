@@ -16,7 +16,7 @@ Commands:
   lint            Run all linters
   coverage        Run tests with coverage, open report
   diff-coverage   Compute incremental coverage from a diff + LCOV file
-  docs            Generate project documentation (proto, Kotlin, C++)
+  docs            Generate C++ API reference docs
   help            Show this help
 EOF
 }

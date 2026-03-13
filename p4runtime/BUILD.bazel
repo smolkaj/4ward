@@ -392,15 +392,3 @@ kt_jvm_test(
         "@maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
     ],
 )
-
-filegroup(
-    name = "kotlin_srcs",
-    srcs = glob(
-        ["*.kt"],
-        exclude = [
-            "*Test.kt",
-            "*TestHarness.kt",
-        ],
-    ),
-    visibility = ["//tools:__pkg__"],
-)

@@ -1,32 +1,7 @@
 load("@doxygen//:doxygen.bzl", "doxygen")
-load("//bazel:dokka.bzl", "dokka_html")
-
-# Build all docs: bazel build //tools:docs
-filegroup(
-    name = "docs",
-    srcs = [
-        ":cpp_docs",
-        ":kotlin_docs",
-    ],
-)
-
-dokka_html(
-    name = "kotlin_docs",
-    srcs = [
-        "//cli:kotlin_srcs",
-        "//p4runtime:kotlin_srcs",
-        "//simulator:kotlin_srcs",
-        "//web:kotlin_srcs",
-    ],
-    deps = [
-        "//simulator:ir_java_proto",
-        "//simulator:p4runtime_java_proto",
-        "//simulator:simulator_java_proto",
-    ],
-)
 
 doxygen(
-    name = "cpp_docs",
+    name = "docs",
     srcs = ["//p4c_backend:cpp_srcs"],
     exclude_patterns = [
         "*Test.cpp",
