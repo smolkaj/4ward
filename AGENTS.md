@@ -81,13 +81,19 @@ results rather than waiting for a full local rebuild. Check CI logs with
    the cost of readability or correctness, don't. This is a development and
    testing tool.
 
-5. **Fail loudly on unsupported features.** Never silently accept a request
-   the system cannot fulfill. If a proto field, enum value, entity type, or
-   RPC option is parsed but not implemented, reject it with an explicit error
-   (e.g. gRPC `UNIMPLEMENTED`). Silent acceptance is a correctness bug in a
-   reference implementation — users will assume the feature works. Prefer
-   exhaustive `when` expressions and avoid `else` catch-alls that funnel
-   unknown inputs into a default path.
+5. **Never fail silently.** Prefer compile-time failures (exhaustive `when`
+   expressions, type system constraints) over runtime checks. When
+   compile-time enforcement isn't feasible, fail loudly at runtime with an
+   explicit error (e.g. gRPC `UNIMPLEMENTED`, `error()`, `require()`).
+   Never let unhandled inputs fall through to a generic code path that
+   happens to "work" — that's the worst kind of bug: it looks correct.
+
+   Concretely: if a proto field, enum value, entity type, or RPC option is
+   parsed but not implemented, reject it. Avoid `else` catch-alls that
+   funnel unknown inputs into a default path. When adding validation for a
+   new case, also implement (or explicitly reject) the corresponding
+   behavior in all downstream layers — validation alone creates a false
+   sense of completeness.
 
 ## Style
 
