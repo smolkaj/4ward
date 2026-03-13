@@ -152,7 +152,16 @@ class Interpreter(
     // empty environment is correct for all of them.
     val constEnv = Environment()
     for (case in select.casesList) {
-      if (keyValues.zip(case.keysetsList).all { (v, k) -> matchesKeyset(v, k, constEnv) }) {
+      // P4 spec §12.14: a value_set replaces the entire keyset tuple for a case —
+      // it cannot be mixed with non-value_set keysets. Checking only the first keyset
+      // is sufficient to distinguish value_set cases from normal keyset cases.
+      val firstKeyset = case.keysetsList.firstOrNull()
+      if (firstKeyset != null && firstKeyset.hasValueSet()) {
+        val members = tableStore.getValueSetMembers(firstKeyset.valueSet)
+        if (members.any { member -> matchesValueSetMember(keyValues, member) }) {
+          return Triple(case.nextState, formatted, expression)
+        }
+      } else if (keyValues.zip(case.keysetsList).all { (v, k) -> matchesKeyset(v, k, constEnv) }) {
         return Triple(case.nextState, formatted, expression)
       }
     }
@@ -201,6 +210,36 @@ class Interpreter(
       }
       else -> error("unhandled keyset kind: $keyset")
     }
+
+  /**
+   * Matches a list of select key values against a single [ValueSetMember]'s field matches.
+   *
+   * Each member has one [FieldMatch] per key, in the same order as the select keys. An unset
+   * FieldMatch acts as a wildcard (matches any value).
+   */
+  private fun matchesValueSetMember(
+    keyValues: List<Value>,
+    member: p4.v1.P4RuntimeOuterClass.ValueSetMember,
+  ): Boolean {
+    if (member.matchCount != keyValues.size) return false
+    return keyValues.zip(member.matchList).all { (value, fieldMatch) ->
+      matchFieldMatch(value, fieldMatch)
+    }
+  }
+
+  /** Matches a single runtime value against a P4Runtime [FieldMatch]. */
+  private fun matchFieldMatch(
+    value: Value,
+    fieldMatch: p4.v1.P4RuntimeOuterClass.FieldMatch,
+  ): Boolean {
+    val bits =
+      when (value) {
+        is BitVal -> value.bits
+        is BoolVal -> if (value.value) BOOL_TRUE_BITS else BOOL_FALSE_BITS
+        else -> return false
+      }
+    return matchesFieldMatch(bits, fieldMatch)
+  }
 
   // -------------------------------------------------------------------------
   // Control
@@ -1194,6 +1233,8 @@ class Interpreter(
   companion object {
     // P4 spec §8.18: header stack lastIndex/size are bit<32>.
     private const val STACK_PROPERTY_BITS = 32
+    private val BOOL_TRUE_BITS = BitVector.ofInt(1, 1)
+    private val BOOL_FALSE_BITS = BitVector.ofInt(0, 1)
   }
 }
 

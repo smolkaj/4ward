@@ -265,6 +265,17 @@ message ParserDecl {
 
   // Extern object instances declared in this parser (e.g. InternetChecksum).
   repeated ExternInstanceDecl extern_instances = 5;
+
+  // Parser value_set declarations (P4 spec §12.14).
+  repeated ValueSetDecl value_sets = 6;
+}
+
+// Parser value_set declaration: a named set of values configurable by the
+// control plane. Used in parser select transitions to match against dynamically
+// populated entries.
+message ValueSetDecl {
+  string name = 1;
+  uint32 size = 2;  // maximum number of entries
 }
 
 message ParserState {
@@ -300,6 +311,7 @@ message KeysetExpr {
     RangeKeyset range = 2;  // lo .. hi (inclusive)
     MaskKeyset mask = 3;    // value &&& mask
     bool default_case = 4;  // the "_" wildcard
+    string value_set = 5;   // references a ValueSetDecl by name
   }
 }
 

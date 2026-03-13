@@ -616,6 +616,12 @@ void FourWardBackend::emitParser(const IR::P4Parser* parser) {
       for (const auto* arg : *inst->arguments) {
         *ei->add_constructor_args() = emitExpr(arg->expression);
       }
+    } else if (const auto* pvs = decl->to<IR::P4ValueSet>()) {
+      auto* vsd = pd->add_value_sets();
+      vsd->set_name(pvs->name.name.c_str());
+      if (const auto* sz = pvs->size->to<IR::Constant>()) {
+        vsd->set_size(sz->asUnsigned());
+      }
     }
   }
 
@@ -649,6 +655,15 @@ void FourWardBackend::emitParser(const IR::P4Parser* parser) {
           auto* m = k->mutable_mask();
           *m->mutable_value() = emitExpr(mask->left);
           *m->mutable_mask() = emitExpr(mask->right);
+        } else if (const auto* pe = expr->to<IR::PathExpression>()) {
+          // P4 spec §12.14: a PathExpression in a select keyset may refer to a
+          // parser value_set rather than a compile-time constant.
+          const auto* decl = refMap_.getDeclaration(pe->path, false);
+          if (decl && decl->is<IR::P4ValueSet>()) {
+            k->set_value_set(pe->path->name.name.c_str());
+          } else {
+            *k->mutable_exact() = emitExpr(expr);
+          }
         } else {
           *k->mutable_exact() = emitExpr(expr);
         }

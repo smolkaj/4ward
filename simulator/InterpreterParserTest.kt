@@ -14,6 +14,7 @@
 
 package fourward.simulator
 
+import com.google.protobuf.ByteString
 import fourward.ir.v1.BehavioralConfig
 import fourward.ir.v1.KeysetExpr
 import fourward.ir.v1.ParserDecl
@@ -22,8 +23,10 @@ import fourward.ir.v1.SelectCase
 import fourward.ir.v1.SelectTransition
 import fourward.ir.v1.Stmt
 import fourward.ir.v1.Transition
+import fourward.ir.v1.ValueSetDecl
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import p4.v1.P4RuntimeOuterClass
 
 /**
  * Unit tests for [Interpreter.runParser] state machine traversal.
@@ -41,9 +44,18 @@ class InterpreterParserTest {
       .addAllStmts(stmts.toList())
       .build()
 
-  private fun interp(vararg states: ParserState): Interpreter {
-    val parser = ParserDecl.newBuilder().setName("MyParser").addAllStates(states.toList()).build()
-    return Interpreter(BehavioralConfig.newBuilder().addParsers(parser).build(), TableStore())
+  private fun interp(
+    vararg states: ParserState,
+    tableStore: TableStore = TableStore(),
+    valueSets: List<ValueSetDecl> = emptyList(),
+  ): Interpreter {
+    val parser =
+      ParserDecl.newBuilder()
+        .setName("MyParser")
+        .addAllStates(states.toList())
+        .addAllValueSets(valueSets)
+        .build()
+    return Interpreter(BehavioralConfig.newBuilder().addParsers(parser).build(), tableStore)
   }
 
   @Test
@@ -124,5 +136,173 @@ class InterpreterParserTest {
     // The start state's stmts should have executed before the select.
     assertEquals(BitVal(1, 8), env.lookup("x"))
     // Parser stopped at reject (no exception thrown = success).
+  }
+
+  // ---------------------------------------------------------------------------
+  // Parser value_set (P4 spec §12.14)
+  // ---------------------------------------------------------------------------
+
+  /** Builds a value_set member with a single exact field match. */
+  private fun exactMember(value: ByteArray): P4RuntimeOuterClass.ValueSetMember =
+    P4RuntimeOuterClass.ValueSetMember.newBuilder()
+      .addMatch(
+        P4RuntimeOuterClass.FieldMatch.newBuilder()
+          .setFieldId(1)
+          .setExact(
+            P4RuntimeOuterClass.FieldMatch.Exact.newBuilder().setValue(ByteString.copyFrom(value))
+          )
+      )
+      .build()
+
+  /** Builds a value_set member with a single ternary field match. */
+  private fun ternaryMember(value: ByteArray, mask: ByteArray): P4RuntimeOuterClass.ValueSetMember =
+    P4RuntimeOuterClass.ValueSetMember.newBuilder()
+      .addMatch(
+        P4RuntimeOuterClass.FieldMatch.newBuilder()
+          .setFieldId(1)
+          .setTernary(
+            P4RuntimeOuterClass.FieldMatch.Ternary.newBuilder()
+              .setValue(ByteString.copyFrom(value))
+              .setMask(ByteString.copyFrom(mask))
+          )
+      )
+      .build()
+
+  /** Creates a select state with a value_set case and a default fallback. */
+  private fun valueSetSelectState(
+    keyExpr: fourward.ir.v1.Expr,
+    valueSetName: String,
+    matchNextState: String,
+    defaultNextState: String = "reject",
+  ): ParserState =
+    ParserState.newBuilder()
+      .setName("start")
+      .setTransition(
+        Transition.newBuilder()
+          .setSelect(
+            SelectTransition.newBuilder()
+              .addKeys(keyExpr)
+              .addCases(
+                SelectCase.newBuilder()
+                  .addKeysets(KeysetExpr.newBuilder().setValueSet(valueSetName))
+                  .setNextState(matchNextState)
+              )
+              .setDefaultState(defaultNextState)
+          )
+      )
+      .build()
+
+  @Test
+  fun `value_set with no members never matches`() {
+    val store = TableStore()
+    val env = Environment()
+    env.define("x", BitVal(0x42, 8))
+
+    val selectState = valueSetSelectState(nameRef("x", bitType(8)), "pvs", "accept")
+
+    interp(
+        selectState,
+        state("accept", "accept"),
+        tableStore = store,
+        valueSets = listOf(ValueSetDecl.newBuilder().setName("pvs").setSize(4).build()),
+      )
+      .runParser("MyParser", env)
+    // Empty value_set → no match → falls through to default (reject).
+  }
+
+  @Test
+  fun `value_set with exact member that matches transitions`() {
+    val store = TableStore()
+    store.populateValueSet("pvs", listOf(exactMember(byteArrayOf(0x42))))
+
+    val env = Environment()
+    env.define("x", BitVal(0x42, 8))
+    env.define("y", BitVal(0, 8))
+
+    val selectState = valueSetSelectState(nameRef("x", bitType(8)), "pvs", "matched")
+    val matchedState = state("matched", "accept", assign("y", bit(1, 8)))
+
+    interp(
+        selectState,
+        matchedState,
+        tableStore = store,
+        valueSets = listOf(ValueSetDecl.newBuilder().setName("pvs").setSize(4).build()),
+      )
+      .runParser("MyParser", env)
+
+    assertEquals(BitVal(1, 8), env.lookup("y"))
+  }
+
+  @Test
+  fun `value_set with exact member that does not match falls through`() {
+    val store = TableStore()
+    store.populateValueSet("pvs", listOf(exactMember(byteArrayOf(0x99.toByte()))))
+
+    val env = Environment()
+    env.define("x", BitVal(0x42, 8))
+
+    val selectState = valueSetSelectState(nameRef("x", bitType(8)), "pvs", "accept")
+
+    interp(
+        selectState,
+        tableStore = store,
+        valueSets = listOf(ValueSetDecl.newBuilder().setName("pvs").setSize(4).build()),
+      )
+      .runParser("MyParser", env)
+    // No match → default → reject.
+  }
+
+  @Test
+  fun `value_set with ternary member matches masked value`() {
+    val store = TableStore()
+    // Match 0xA0 with mask 0xF0 → matches any value in 0xA0..0xAF.
+    store.populateValueSet(
+      "pvs",
+      listOf(ternaryMember(byteArrayOf(0xA0.toByte()), byteArrayOf(0xF0.toByte()))),
+    )
+
+    val env = Environment()
+    env.define("x", BitVal(0xAB, 8))
+    env.define("y", BitVal(0, 8))
+
+    val selectState = valueSetSelectState(nameRef("x", bitType(8)), "pvs", "matched")
+    val matchedState = state("matched", "accept", assign("y", bit(1, 8)))
+
+    interp(
+        selectState,
+        matchedState,
+        tableStore = store,
+        valueSets = listOf(ValueSetDecl.newBuilder().setName("pvs").setSize(4).build()),
+      )
+      .runParser("MyParser", env)
+
+    assertEquals(BitVal(1, 8), env.lookup("y"))
+  }
+
+  @Test
+  fun `value_set matches any member in the set`() {
+    val store = TableStore()
+    // Two members: 0x10 and 0x20. Key is 0x20 → second member matches.
+    store.populateValueSet(
+      "pvs",
+      listOf(exactMember(byteArrayOf(0x10)), exactMember(byteArrayOf(0x20))),
+    )
+
+    val env = Environment()
+    env.define("x", BitVal(0x20, 8))
+    env.define("y", BitVal(0, 8))
+
+    val selectState = valueSetSelectState(nameRef("x", bitType(8)), "pvs", "matched")
+    val matchedState = state("matched", "accept", assign("y", bit(1, 8)))
+
+    interp(
+        selectState,
+        matchedState,
+        tableStore = store,
+        valueSets = listOf(ValueSetDecl.newBuilder().setName("pvs").setSize(4).build()),
+      )
+      .runParser("MyParser", env)
+
+    assertEquals(BitVal(1, 8), env.lookup("y"))
   }
 }

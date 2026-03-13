@@ -761,8 +761,7 @@ class P4RuntimeService(
     when {
       entity.hasDigestEntry() ->
         throw Status.UNIMPLEMENTED.withDescription(DIGEST_NOT_SUPPORTED).asException()
-      entity.hasValueSetEntry() ->
-        throw Status.UNIMPLEMENTED.withDescription(VALUE_SET_NOT_SUPPORTED).asException()
+      // ValueSetEntry is now handled via the normal write/read path in TableStore.
       entity.hasExternEntry() ->
         throw Status.UNIMPLEMENTED.withDescription(EXTERN_ENTRY_NOT_SUPPORTED).asException()
     }
@@ -810,7 +809,6 @@ class P4RuntimeService(
       "No pipeline loaded; call SetForwardingPipelineConfig first"
 
     private const val DIGEST_NOT_SUPPORTED = "digest is not supported"
-    private const val VALUE_SET_NOT_SUPPORTED = "ValueSetEntry is not supported"
     private const val EXTERN_ENTRY_NOT_SUPPORTED = "ExternEntry is not supported"
     private const val ROLE_CONFIG_NOT_SUPPORTED =
       "Role.config is not supported; use @p4runtime_role annotations in p4info instead"
