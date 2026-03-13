@@ -5,10 +5,10 @@ load("//e2e_tests:p4c.bzl", "p4c_compile")
 # This guarantees our test always tracks upstream with exactly one change.
 genrule(
     name = "wide_v1model",
-    srcs = ["@p4c//:p4include"],
+    srcs = ["@p4c//p4include"],
     outs = ["v1model.p4"],
-    cmd = "sed 's/bit<9>/bit<16>/g' $$(dirname $(execpath @p4c//:core_p4))/v1model.p4 > $@",
-    tools = ["@p4c//:core_p4"],
+    cmd = "sed 's/bit<9>/bit<16>/g' $$(dirname $(execpath @p4c//p4include:core.p4))/v1model.p4 > $@",
+    tools = ["@p4c//p4include:core.p4"],
 )
 
 p4c_compile(

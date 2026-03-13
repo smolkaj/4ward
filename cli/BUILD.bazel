@@ -24,7 +24,7 @@ kt_jvm_binary(
     name = "4ward",
     data = [
         "//p4c_backend:p4c-4ward",
-        "@p4c//:p4include",
+        "@p4c//p4include",
     ],
     main_class = "fourward.cli.MainKt",
     visibility = ["//visibility:public"],

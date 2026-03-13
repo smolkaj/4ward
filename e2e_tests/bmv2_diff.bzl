@@ -79,12 +79,12 @@ def _add_test_genrules(test, p4_src, stf_src, includes, tags, data):
         name = test + "_json",
         srcs = [p4_src] + includes,
         outs = [test + ".json"],
-        cmd = "$(execpath @p4c//:p4c_bmv2) -I $$(dirname $(execpath @p4c//:core_p4))" + include_flags + " -o $@ $(execpath " + p4_src + ")",
+        cmd = "$(execpath @p4c//:p4c_bmv2) -I $$(dirname $(execpath @p4c//p4include:core.p4))" + include_flags + " -o $@ $(execpath " + p4_src + ")",
         tags = tags,
         tools = [
             "@p4c//:p4c_bmv2",
-            "@p4c//:core_p4",
-            "@p4c//:p4include",
+            "@p4c//p4include:core.p4",
+            "@p4c//p4include",
         ],
     )
 

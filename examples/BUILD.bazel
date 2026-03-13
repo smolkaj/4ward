@@ -17,7 +17,7 @@ cram_test(
         "//cli:4ward",
         "//examples:basic_table.p4",
         "//examples:passthrough.p4",
-        "@p4c//:p4include",
+        "@p4c//p4include",
     ],
     env_args = [
         "FOURWARD=$(rootpath //cli:4ward)",

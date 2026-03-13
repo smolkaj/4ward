@@ -80,11 +80,11 @@ _p4testgen_stfs = rule(
             cfg = "exec",
         ),
         "_core_p4": attr.label(
-            default = "@p4c//:core_p4",
+            default = "@p4c//p4include:core.p4",
             allow_single_file = True,
         ),
         "_p4include": attr.label(
-            default = "@p4c//:p4include",
+            default = "@p4c//p4include",
         ),
     },
     toolchains = use_cc_toolchain(),
