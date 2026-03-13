@@ -421,7 +421,7 @@ All five gaps found in the Phase 1 audit are fixed, each with unit + E2E tests:
   omission).
 - Range match `low > high` semantic validation: rejected with `INVALID_ARGUMENT`.
 
-#### Phase 3: deepen test coverage
+#### Phase 3: deepen test coverage — DONE
 
 Go beyond "does it work?" to "does it work in every corner?"
 
@@ -445,6 +445,8 @@ Go beyond "does it work?" to "does it work in every corner?"
 
 Shake the tree with inputs no reasonable controller would send.
 
+- **Coverage-guided testing.** Use `tools/coverage.sh --html` to find untested
+  branches in the P4Runtime server and write targeted tests for them.
 - **Concurrency testing.** Two controllers writing simultaneously, read during
   pipeline reload, write during wildcard read. Verify the Mutex serialization
   holds under load.
@@ -493,6 +495,5 @@ and at least one external test suite has been evaluated.
   (PNA) is next.
 - Track 8 (interfaces) is complete: gRPC services, CLI, and playground with
   visual pipeline diagrams and animated trace playback.
-- Track 9 builds on Track 4. Phases 1–3 can start immediately. Phase 4
-  (adversarial testing) is best after phase 3 establishes a stronger test
-  harness.
+- Track 9 builds on Track 4. Phases 1–3 are complete. Phase 4
+  (adversarial testing) is next.

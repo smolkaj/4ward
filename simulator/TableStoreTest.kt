@@ -523,6 +523,70 @@ class TableStoreTest {
   }
 
   // ---------------------------------------------------------------------------
+  // Default entry writes (P4Runtime spec §9.1)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `MODIFY default entry updates the default action`() {
+    store.setDefaultAction(TABLE_NAME, "drop")
+    assertEquals("drop", store.lookup(TABLE_NAME, emptyList()).actionName)
+
+    val result =
+      store.write(
+        Update.newBuilder()
+          .setType(Update.Type.MODIFY)
+          .setEntity(
+            Entity.newBuilder()
+              .setTableEntry(
+                TableEntry.newBuilder()
+                  .setTableId(TABLE_ID)
+                  .setIsDefaultAction(true)
+                  .setAction(
+                    P4RuntimeOuterClass.TableAction.newBuilder()
+                      .setAction(P4RuntimeOuterClass.Action.newBuilder().setActionId(42))
+                  )
+              )
+          )
+          .build()
+      )
+    assertEquals(WriteResult.Success, result)
+    assertEquals("action42", store.lookup(TABLE_NAME, emptyList()).actionName)
+  }
+
+  @Test
+  fun `MODIFY default entry with params preserves params`() {
+    val param =
+      P4RuntimeOuterClass.Action.Param.newBuilder()
+        .setParamId(1)
+        .setValue(com.google.protobuf.ByteString.copyFrom(byteArrayOf(0x09)))
+        .build()
+    val result =
+      store.write(
+        Update.newBuilder()
+          .setType(Update.Type.MODIFY)
+          .setEntity(
+            Entity.newBuilder()
+              .setTableEntry(
+                TableEntry.newBuilder()
+                  .setTableId(TABLE_ID)
+                  .setIsDefaultAction(true)
+                  .setAction(
+                    P4RuntimeOuterClass.TableAction.newBuilder()
+                      .setAction(
+                        P4RuntimeOuterClass.Action.newBuilder().setActionId(42).addParams(param)
+                      )
+                  )
+              )
+          )
+          .build()
+      )
+    assertEquals(WriteResult.Success, result)
+    val defaultAction = store.getDefaultAction(TABLE_NAME)!!
+    assertEquals("action42", defaultAction.name)
+    assertEquals(1, defaultAction.params.size)
+  }
+
+  // ---------------------------------------------------------------------------
   // Action profiles
   // ---------------------------------------------------------------------------
 

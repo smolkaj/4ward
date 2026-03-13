@@ -653,6 +653,14 @@ class TableStore : TableDataReader {
       tableNameById[entry.tableId]
         ?: return WriteResult.NotFound("unknown table ID: ${entry.tableId}")
 
+    // P4Runtime spec §9.1: default entries are stored separately and only support MODIFY.
+    // The WriteValidator already rejects INSERT/DELETE for defaults.
+    if (entry.isDefaultAction) {
+      val actionName = resolveActionName(entry.action.action.actionId)
+      defaultActions[tableName] = DefaultAction(actionName, entry.action.action.paramsList)
+      return WriteResult.Success
+    }
+
     val entries = tables.getOrPut(tableName) { mutableListOf() }
     val existingIndex = entries.indexOfFirst { it.sameKey(entry) }
 
