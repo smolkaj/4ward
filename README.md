@@ -48,11 +48,11 @@ plane.
 
 | | BMv2 | 4ward goal | Status |
 |---|---|---|---|
-| P4Runtime support | outdated | [**100% spec-compliant**](docs/ROADMAP.md#track-4-p4runtime-reference-implementation) | 🚧 [119/120 requirements](docs/P4RUNTIME_COMPLIANCE.md) |
+| P4Runtime support | outdated | [**100% spec-compliant**](docs/ROADMAP.md#track-4-p4runtime-reference-implementation) | ✅ [132/132 requirements](docs/P4RUNTIME_COMPLIANCE.md) |
 | Trace format | text | [**proto/JSON**](e2e_tests/trace_tree/clone_with_egress.golden.txtpb) | ✅ |
 | All possible traces | not natively | [**trace trees!**](docs/ROADMAP.md#track-3-trace-trees) | ✅ |
 | `@p4runtime_translation` | no | [**built-in translation engine**](#p4runtime_translation-done-right) | ✅ |
-| Architecture-generic | no | [**by design**](docs/ROADMAP.md#track-6-multi-architecture-support) | 🚧 v1model done, PSA 20/26 |
+| Architecture-generic | no | [**by design**](docs/ROADMAP.md#track-6-multi-architecture-support) | ✅ v1model + PSA (PNA next) |
 | Architecture customization | no | [**by design**](docs/ROADMAP.md#track-5-architecture-customization) | ✅ |
 | Interactive playground | no | [**browser-based IDE with trace playback & packet decoding**](#web-playground) | ✅ |
 | Easy to extend | ehh | [**if AI can extend it, anyone can**](docs/ROADMAP.md#why-4ward-is-easier-to-extend) | ✅ |
@@ -66,7 +66,7 @@ We have an **[ambitious roadmap](docs/ROADMAP.md)**: to build the **definitive P
 We are driving development by building towards two demanding real-world applications as forcing functions:
 
 1. **[SAI P4](https://github.com/sonic-net/sonic-pins/tree/main/sai_p4)**
-   — A 27-table program that exercises `@p4runtime_translation` with string port names, `@entry_restriction`, and everything the ecosystem currently papers over with hardcoded workarounds.
+   — A 30-table program that exercises `@p4runtime_translation` with string port names, `@entry_restriction`, and everything the ecosystem currently papers over with hardcoded workarounds.
 2. **[DVaaS](https://github.com/sonic-net/sonic-pins/tree/main/dvaas)**
    — SONiC's dataplane validation service. We are building 4ward to be a modern, highly capable drop-in replacement for its current BMv2 backend.
 
