@@ -43,6 +43,20 @@ When `@p4runtime_translation` is in use, the control-plane representation of
 these ports (e.g., SDN strings) is a separate concern handled by the
 `TypeTranslator`.
 
+#### Why enable the CPU port by default?
+
+BMv2 requires an explicit `--cpu-port` flag — without it, packet I/O is
+silently disabled. We chose a different default: the CPU port is automatically
+derived when the p4info contains
+[`ControllerPacketMetadata`](https://p4lang.github.io/p4runtime/spec/v1.5.0/P4Runtime-Spec.html#sec-controller-packet-metadata)
+(i.e., the P4 program uses `@controller_header`), and disabled otherwise.
+
+The presence of `@controller_header` is a strong signal that the program expects
+packet I/O. Silently disabling it when the user forgets a flag is worse than an
+occasionally surprising default — especially for a development and testing tool
+where "just works" matters. When the auto-configured value is wrong, the
+override is always available.
+
 ### Simulator stays port-agnostic
 
 The simulator knows about the drop port (needed by `mark_to_drop` and the
@@ -52,9 +66,16 @@ traffic manager) but not the CPU port. The CPU port has no data-plane semantics
 
 ### Overrides
 
-Both intrinsic ports are configurable via constructor/config parameters,
-defaulting to null (use the derived value). Each entry point sources the
-override however makes sense for its context:
+Both intrinsic ports are configurable via constructor/config parameters. The
+CPU port override has three states:
+
+- **unset** (default) → derive from p4info
+- **explicit value** (e.g., `--cpu-port=510`) → use that data-plane port
+- **disabled** (e.g., `--cpu-port=none`) → no CPU port, even if the p4info has
+  `ControllerPacketMetadata`. Useful for testing the data plane in isolation
+  without packet I/O interception.
+
+Each entry point sources the override however makes sense for its context:
 
 | Entry point | Drop port override | CPU port override |
 |---|---|---|
