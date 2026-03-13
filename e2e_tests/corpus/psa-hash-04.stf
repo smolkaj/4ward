@@ -1,0 +1,7 @@
+# PSA Hash: two hash instances (CRC16 + IDENTITY) on same tuple.
+# Tests: Multiple Hash extern instances with different algorithms.
+# No send_to_port → packets dropped by PSA default.
+
+add tbl hdr.ethernet.srcAddr:0x00aabbccddee a1()
+
+packet 0 001122334455 00aabbccddee 0800

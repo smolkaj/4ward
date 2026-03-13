@@ -1,0 +1,7 @@
+# PSA parser checksum: InternetChecksum in parser to verify IPv4 header.
+# Table uses const entries mapping parser_error → index.
+# Tests: InternetChecksum in parser, verify(), const entries, DirectCounter, ingress_drop.
+# No send_to_port → packets dropped by PSA default (or by ingress_drop on error).
+
+# Valid IPv4+TCP packet (correct checksum AE26) — no parser error, passes through
+packet 0 001122334455 00aabbccddee 0800 45000028 00000000 4006AE26 C0A80101 0A000101 04D20050 00000000 00000000 50020000 DE160000

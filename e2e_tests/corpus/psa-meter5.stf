@@ -1,0 +1,7 @@
+# PSA DirectMeter: direct meter with execute() action (not in table actions).
+# Tests: DirectMeter extern binding; execute_meter action is declared but unreachable.
+# No send_to_port → packets dropped by PSA default.
+
+add tbl hdr.ethernet.srcAddr:0x00aabbccddee NoAction()
+
+packet 0 001122334455 00aabbccddee 0800

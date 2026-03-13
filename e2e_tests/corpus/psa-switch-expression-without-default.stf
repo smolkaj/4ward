@@ -1,0 +1,5 @@
+# PSA switch without default: switch(16w2) falls through cases 2→3→4.
+# Tests: Constant-expression switch without default case, table apply.
+# No send_to_port → packets dropped by PSA default.
+
+packet 0 001122334455 00aabbccddee 0800

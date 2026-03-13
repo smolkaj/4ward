@@ -1,0 +1,7 @@
+# PSA Register: write metadata to register (512-entry variant).
+# Tests: Register.write() with different register size.
+# No send_to_port → packets dropped by PSA default.
+
+add tbl hdr.ethernet.srcAddr:0x00aabbccddee execute_register(idx:0)
+
+packet 0 001122334455 00aabbccddee 0800

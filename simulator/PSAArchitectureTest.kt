@@ -518,8 +518,8 @@ class PSAArchitectureTest {
       )
       .build()
 
-  /** Hash.get_hash(data) — 1-arg form, result assigned to nothing (just exercises the path). */
-  private fun hashGetHash1Arg(instanceName: String, fieldValue: Long, fieldWidth: Int): Stmt =
+  /** Hash.get_hash(args...) statement — builds the shared MethodCall proto scaffold. */
+  private fun hashGetHashStmt(instanceName: String, args: List<Expr>, resultWidth: Int = 16): Stmt =
     Stmt.newBuilder()
       .setMethodCall(
         MethodCallStmt.newBuilder()
@@ -529,23 +529,26 @@ class PSAArchitectureTest {
                 MethodCall.newBuilder()
                   .setTarget(nameRef(instanceName, namedType("Hash")))
                   .setMethod("get_hash")
-                  .addArgs(
-                    Expr.newBuilder()
-                      .setStructExpr(
-                        StructExpr.newBuilder()
-                          .addFields(
-                            StructExprField.newBuilder()
-                              .setName("f0")
-                              .setValue(bit(fieldValue, fieldWidth))
-                          )
-                      )
-                      .setType(namedType("tuple_0"))
-                  )
+                  .addAllArgs(args)
               )
-              .setType(bitType(16))
+              .setType(bitType(resultWidth))
           )
       )
       .build()
+
+  /** A struct expression wrapping a single field — the common hash data argument shape. */
+  private fun structField(name: String, value: Long, width: Int): Expr =
+    Expr.newBuilder()
+      .setStructExpr(
+        StructExpr.newBuilder()
+          .addFields(StructExprField.newBuilder().setName(name).setValue(bit(value, width)))
+      )
+      .setType(namedType("tuple_0"))
+      .build()
+
+  /** Hash.get_hash({f0 = value}) — 1-arg form with struct-wrapped data. */
+  private fun hashGetHash1Arg(instanceName: String, fieldValue: Long, fieldWidth: Int): Stmt =
+    hashGetHashStmt(instanceName, listOf(structField("f0", fieldValue, fieldWidth)))
 
   /** Meter.execute(index) — returns PSA_MeterColor_t. */
   private fun meterExecute(instanceName: String, index: Long): Stmt =
@@ -592,6 +595,162 @@ class PSAArchitectureTest {
     val out1 = collectOutputsFromTrace(result1.trace)
     val out2 = collectOutputsFromTrace(result2.trace)
     assertEquals(out1[0].payload, out2[0].payload)
+  }
+
+  /**
+   * Hash.get_hash(data) with a bare bit<N> arg (not wrapped in a struct expression).
+   *
+   * The p4c midend usually wraps hash inputs in a StructExpression, but single-field inputs like
+   * `get_hash(hdr.ethernet.srcAddr)` arrive as bare bit values. Bug #4 in this PR.
+   */
+  private fun hashGetHash1ArgBareBit(instanceName: String, value: Long, width: Int): Stmt =
+    hashGetHashStmt(instanceName, listOf(bit(value, width)))
+
+  /** Hash.get_hash(base, data, max) — 3-arg form: (base + hash(data)) mod max. */
+  private fun hashGetHash3Arg(
+    instanceName: String,
+    base: Long,
+    fieldValue: Long,
+    fieldWidth: Int,
+    max: Long,
+    resultWidth: Int,
+  ): Stmt =
+    hashGetHashStmt(
+      instanceName,
+      listOf(
+        bit(base, resultWidth),
+        structField("f0", fieldValue, fieldWidth),
+        bit(max, resultWidth),
+      ),
+      resultWidth,
+    )
+
+  /** Creates an ExternInstanceDecl for a Random with [lo, hi] constructor args. */
+  private fun randomInstance(name: String, lo: Long, hi: Long): ExternInstanceDecl =
+    ExternInstanceDecl.newBuilder()
+      .setTypeName("Random")
+      .setName(name)
+      .addConstructorArgs(bit(lo, 16))
+      .addConstructorArgs(bit(hi, 16))
+      .build()
+
+  /** Random.read() — 0-arg method call, returns bit<N>. */
+  private fun randomRead(instanceName: String, resultWidth: Int): Stmt =
+    Stmt.newBuilder()
+      .setMethodCall(
+        MethodCallStmt.newBuilder()
+          .setCall(
+            Expr.newBuilder()
+              .setMethodCall(
+                MethodCall.newBuilder()
+                  .setTarget(nameRef(instanceName, namedType("Random")))
+                  .setMethod("read")
+              )
+              .setType(bitType(resultWidth))
+          )
+      )
+      .build()
+
+  /** Creates an ExternInstanceDecl for a Digest. */
+  private fun digestInstance(name: String): ExternInstanceDecl =
+    ExternInstanceDecl.newBuilder().setTypeName("Digest").setName(name).build()
+
+  /** Digest.pack(data) — void method call. */
+  private fun digestPack(instanceName: String, fieldValue: Long, fieldWidth: Int): Stmt =
+    Stmt.newBuilder()
+      .setMethodCall(
+        MethodCallStmt.newBuilder()
+          .setCall(
+            Expr.newBuilder()
+              .setMethodCall(
+                MethodCall.newBuilder()
+                  .setTarget(nameRef(instanceName, namedType("Digest")))
+                  .setMethod("pack")
+                  .addArgs(
+                    Expr.newBuilder()
+                      .setStructExpr(
+                        StructExpr.newBuilder()
+                          .addFields(
+                            StructExprField.newBuilder()
+                              .setName("f0")
+                              .setValue(bit(fieldValue, fieldWidth))
+                          )
+                      )
+                      .setType(namedType("digest_t"))
+                  )
+              )
+          )
+      )
+      .build()
+
+  @Test
+  fun `hash get_hash with bare BitVal input does not crash`() {
+    // Regression test for bug #4: Hash.get_hash(hdr.ethernet.srcAddr) where the argument
+    // is a bare BitVal, not wrapped in a StructExpression.
+    val config =
+      psaConfig(
+        ingressStmts = listOf(hashGetHash1ArgBareBit("h_0", 0xAABBCCDD, 32), sendToPort(1)),
+        ingressExterns = listOf(hashInstance("h_0", "CRC16")),
+      )
+    val result = PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val outputs = collectOutputsFromTrace(result.trace)
+    assertEquals(1, outputs.size)
+  }
+
+  @Test
+  fun `hash IDENTITY truncates to result width`() {
+    // Regression test for bug #5: IDENTITY hash of a wide input overflows the result width.
+    // Input: 0xAABBCCDD (32 bits). IDENTITY returns raw concatenated bytes.
+    // Result type: bit<16>. Must truncate to 16 bits (0xCCDD).
+    val config =
+      psaConfig(
+        ingressStmts = listOf(hashGetHash1ArgBareBit("h_0", 0xAABBCCDD, 32), sendToPort(1)),
+        ingressExterns = listOf(hashInstance("h_0", "IDENTITY")),
+      )
+    val result = PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val outputs = collectOutputsFromTrace(result.trace)
+    assertEquals(1, outputs.size)
+  }
+
+  @Test
+  fun `hash get_hash 3-arg form does not crash`() {
+    // Hash.get_hash(base=0, {f0=0x456}, max=1000) with CRC16.
+    val config =
+      psaConfig(
+        ingressStmts = listOf(hashGetHash3Arg("h_0", 0, 0x456, 12, 1000, 16), sendToPort(1)),
+        ingressExterns = listOf(hashInstance("h_0", "CRC16")),
+      )
+    val result = PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val outputs = collectOutputsFromTrace(result.trace)
+    assertEquals(1, outputs.size)
+  }
+
+  @Test
+  fun `random read does not crash`() {
+    // Regression test for bug #2: Random.read() has 0 args, but the shared "read" handler
+    // unconditionally called evalArg(0), crashing with IndexOutOfBoundsException.
+    val config =
+      psaConfig(
+        ingressStmts = listOf(randomRead("rng_0", 16), sendToPort(1)),
+        ingressExterns = listOf(randomInstance("rng_0", 0, 100)),
+      )
+    val result = PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val outputs = collectOutputsFromTrace(result.trace)
+    assertEquals(1, outputs.size)
+  }
+
+  @Test
+  fun `digest pack does not crash`() {
+    // Regression test for bug #3: Digest.pack() was unhandled, throwing
+    // "unhandled PSA extern method: Digest.pack".
+    val config =
+      psaConfig(
+        ingressStmts = listOf(digestPack("digest_0", 0xBEEF, 16), sendToPort(1)),
+        ingressExterns = listOf(digestInstance("digest_0")),
+      )
+    val result = PSAArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val outputs = collectOutputsFromTrace(result.trace)
+    assertEquals(1, outputs.size)
   }
 
   @Test

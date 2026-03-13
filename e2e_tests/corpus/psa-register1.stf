@@ -1,0 +1,8 @@
+# PSA Register: read register value by action parameter index.
+# Tests: Register extern instantiation and read().
+# No send_to_port → packets dropped by PSA default.
+
+add tbl hdr.ethernet.srcAddr:0x00aabbccddee execute_register(idx:5)
+
+# Table hit → execute_register reads register[5]
+packet 0 001122334455 00aabbccddee 0800

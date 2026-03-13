@@ -1,0 +1,7 @@
+# PSA Hash: 3-arg get_hash(base, hdr.ethernet, max) — whole header as input.
+# Tests: Hash.get_hash() with a header (not field list) as data argument.
+# No send_to_port → packets dropped by PSA default.
+
+add tbl hdr.ethernet.srcAddr:0x00aabbccddee a1()
+
+packet 0 001122334455 00aabbccddee 0800

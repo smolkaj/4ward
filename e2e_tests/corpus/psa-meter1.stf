@@ -1,0 +1,8 @@
+# PSA Meter: packet meter with parameterized index and color.
+# Tests: Meter extern instantiation and execute().
+# No send_to_port → packets dropped by PSA default.
+
+add tbl hdr.ethernet.srcAddr:0x00aabbccddee execute(index:0, color:0)
+
+# Table hit → execute action invokes meter at index 0 with GREEN color
+packet 0 001122334455 00aabbccddee 0800

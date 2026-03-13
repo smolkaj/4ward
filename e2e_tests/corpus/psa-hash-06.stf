@@ -1,0 +1,9 @@
+# PSA Hash: 3-arg get_hash(base, {fields}, max) with CRC16.
+# Note: EthernetAddress is bit<16> in this program (6-byte ethernet header).
+# Tests: Hash.get_hash() 3-argument form (base + hash(data) mod max).
+# No send_to_port → packets dropped by PSA default.
+
+add tbl hdr.ethernet.srcAddr:0xaabb a1()
+
+# 6-byte ethernet: dstAddr(2B) + srcAddr(2B) + etherType(2B)
+packet 0 1122 aabb 0800

@@ -1,0 +1,5 @@
+# PSA isValid: table gated by !hdr.ethernet.isValid() — never reached.
+# Tests: Parser extract makes header valid; isValid() check in control.
+# No send_to_port → packets dropped by PSA default.
+
+packet 0 001122334455 00aabbccddee 0800

@@ -1,0 +1,8 @@
+# PSA ActionProfile: shared across two tables (tbl, tbl2).
+# Tests: ActionProfile extern with shared implementation property.
+# No send_to_port → packets dropped by PSA default.
+
+add tbl hdr.ethernet.srcAddr:0x00aabbccddee a1(param:0x112233445566)
+add tbl2 hdr.ethernet.srcAddr:0x00aabbccddee a2(param:0x0800)
+
+packet 0 001122334455 00aabbccddee 0800

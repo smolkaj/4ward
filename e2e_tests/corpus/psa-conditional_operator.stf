@@ -1,0 +1,11 @@
+# PSA conditional operator: ternary expressions on metadata.
+# Tests: conditional (? :) operator, metadata computation.
+# No send_to_port → packets dropped by PSA default.
+
+add tbl hdr.ethernet.srcAddr:0x00aabbccddee execute()
+
+# Table hit → execute action applies ternary operators on metadata
+packet 0 001122334455 00aabbccddee 0800
+
+# Table miss → metadata computed but action not executed
+packet 0 001122334455 00ffeeddccbb 0800

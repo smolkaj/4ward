@@ -1,0 +1,9 @@
+# PSA idle timeout: three tables with different idle timeout settings.
+# Non-standard ethernet: dstAddr(6B) + srcAddr(6B) + srcAddr2(6B) + srcAddr3(6B) + etherType(2B).
+# Tests: psa_idle_timeout table property parsing and table apply.
+# No send_to_port → packets dropped by PSA default.
+
+add tbl_idle_timeout hdr.ethernet.srcAddr:0x00aabbccddee NoAction()
+
+# 26-byte ethernet: dst + src + src2 + src3 + etherType
+packet 0 001122334455 00aabbccddee 112233445566 aabbccddeeff 0800

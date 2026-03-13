@@ -1,0 +1,20 @@
+# PSA counters example: LPM forwarding with indexed and direct counters.
+# Tests: LPM table, send_to_port, ingress_drop, Counter.count, DirectCounter.
+
+# Forward 10.0.1.0/24 → port 2
+add ipv4_da_lpm hdr.ipv4.dstAddr:0x0a000100/24 next_hop(oport:2)
+
+# IPv4 packet matching LPM entry → forwarded to port 2
+# Ethernet(14) + IPv4(20) = 34 bytes
+packet 0 001122334455 00aabbccddee 0800 45000014000100004006000a 0a000001 0a000101
+expect 2 001122334455 00aabbccddee 0800 45000014000100004006000a 0a000001 0a000101 $
+
+# Second matching packet (exercises counter increment)
+packet 1 001122334455 00aabbccddee 0800 45000014000100004006000a 0a000001 0a000164
+expect 2 001122334455 00aabbccddee 0800 45000014000100004006000a 0a000001 0a000164 $
+
+# IPv4 packet NOT matching any LPM entry → default_route_drop
+packet 0 001122334455 00aabbccddee 0800 45000014000100004006000a 0a000001 c0a80101
+
+# Non-IPv4 packet (etherType=0xffff) → skip table → PSA default drop
+packet 0 001122334455 00aabbccddee ffff deadbeef

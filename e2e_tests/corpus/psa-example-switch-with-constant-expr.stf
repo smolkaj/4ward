@@ -1,0 +1,6 @@
+# PSA switch on constant expression: switch(16w16) falls through to set metadata.
+# Then applies table conditionally based on metadata value.
+# Tests: Constant-expression switch with fall-through, action_run switch.
+# No send_to_port → packets dropped by PSA default.
+
+packet 0 001122334455 00aabbccddee 0800

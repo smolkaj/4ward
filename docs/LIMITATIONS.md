@@ -12,13 +12,17 @@ guilt — just write it down so someone can find it later.
 
 ## Architecture support
 
-- **PSA: all 26 corpus tests pass.** The PSA two-pipeline architecture
-  (ingress + egress) is implemented with support for `send_to_port`,
-  `ingress_drop`, `egress_drop`, `multicast`, I2E/E2E cloning (via
-  `ostd.clone` + `clone_session_id`), recirculate (`PSA_PORT_RECIRCULATE`),
-  resubmit (`ostd.resubmit`), registers, `Hash.get_hash`, `Meter.execute`
-  (stub GREEN), `InternetChecksum` (clear/add/subtract/get/get_state/set_state),
-  basic counters, and top-level assignments. PNA and TNA are not implemented.
+- **PSA: 73 corpus STF tests pass + 7 compile-only tests.** The PSA
+  two-pipeline architecture (ingress + egress) is implemented with support for
+  `send_to_port`, `ingress_drop`, `egress_drop`, `multicast`, I2E/E2E cloning
+  (via `ostd.clone` + `clone_session_id`), recirculate (`PSA_PORT_RECIRCULATE`),
+  resubmit (`ostd.resubmit`), registers, `Hash.get_hash` (headers, structs,
+  bare fields, 1-arg and 3-arg forms), `Meter.execute` (stub GREEN),
+  `Random.read()`, `InternetChecksum` (clear/add/subtract/get/get_state/set_state),
+  `Digest.pack` (stub no-op), counters (indirect + direct), action profiles,
+  action selectors, header stacks, and top-level assignments. An additional 7
+  DPDK-target PSA programs are verified to compile. Parser `value_set` is not
+  implemented. PNA and TNA are not implemented.
 
 ## Externs
 
@@ -29,7 +33,8 @@ guilt — just write it down so someone can find it later.
 - **Meters always return GREEN.** `meter.execute_meter()` and
   `direct_meter.read()` always return GREEN (0). Rate limiting is not
   simulated — there are no real packet rates in STF tests.
-- **`digest` not implemented.** No corpus tests depend on it.
+- **`digest` is a no-op stub.** PSA `Digest.pack()` is accepted but doesn't
+  deliver messages to the control plane. v1model `digest()` is not implemented.
 
 ## P4Runtime server
 
@@ -108,3 +113,5 @@ guilt — just write it down so someone can find it later.
 - **`gauntlet_various_ops-bmv2` compilation timeout.** p4c-4ward takes 10+
   minutes on this program. Performance issue, not a missing feature. Blocks
   1 corpus test.
+- **`psa-subtract-inst1` OOM during compilation.** p4c-4ward is killed by the
+  OS during compilation. Same class of issue as `gauntlet_various_ops-bmv2`.

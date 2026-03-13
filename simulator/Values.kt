@@ -144,3 +144,18 @@ data class HeaderStackVal(
 
 /** Sentinel for void returns and uninitialised variables. */
 object UnitVal : Value()
+
+/**
+ * Views a [HeaderVal] or [StructVal] as a [StructVal] for read-only field-based operations
+ * (hashing, checksums). Headers have the same `fields` map but carry an extra validity bit that
+ * these operations don't need.
+ *
+ * The returned [StructVal] shares the original [HeaderVal]'s mutable field map — callers must not
+ * mutate the returned struct's fields.
+ */
+fun Value.asStructVal(): StructVal =
+  when (this) {
+    is StructVal -> this
+    is HeaderVal -> StructVal(typeName, fields)
+    else -> error("expected struct or header, got ${this::class.simpleName}")
+  }

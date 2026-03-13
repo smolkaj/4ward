@@ -677,12 +677,24 @@ class PSAArchitecture : Architecture {
           }
         is ExternCall.Method ->
           when (call.method) {
-            // PSA register.read(index) returns T directly (unlike v1model's void + out param).
-            "read" -> {
-              val index = (eval.evalArg(0) as BitVal).bits.value.toInt()
-              pipeline.tableStore.registerRead(call.instanceName, index)
-                ?: eval.defaultValue(eval.returnType())
-            }
+            // Register.read(index) returns T directly (unlike v1model's void + out param).
+            "read" ->
+              when (call.externType) {
+                "Register" -> {
+                  val index = (eval.evalArg(0) as BitVal).bits.value.toInt()
+                  pipeline.tableStore.registerRead(call.instanceName, index)
+                    ?: eval.defaultValue(eval.returnType())
+                }
+                // PSA Random.read() — 0 args, returns a random value in [min, max] (PSA spec §7.5).
+                "Random" -> {
+                  val instance = pipeline.externInstances[call.instanceName]
+                  val lo = instance?.constructorArgsList?.getOrNull(0)?.literal?.integer ?: 0L
+                  val hi = instance?.constructorArgsList?.getOrNull(1)?.literal?.integer ?: 0L
+                  val value = if (hi > lo) kotlin.random.Random.nextLong(lo, hi + 1) else lo
+                  BitVal(BitVector(BigInteger.valueOf(value), eval.returnType().bit.width))
+                }
+                else -> error("unhandled PSA extern read: ${call.externType}.read")
+              }
             "write" -> {
               val index = (eval.evalArg(0) as BitVal).bits.value.toInt()
               pipeline.tableStore.registerWrite(call.instanceName, index, eval.evalArg(1))
@@ -701,14 +713,14 @@ class PSAArchitecture : Architecture {
               UnitVal
             }
             "add" -> {
-              val data = eval.evalArg(0) as StructVal
+              val data = eval.evalArg(0).asStructVal()
               val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)
               checksumState[call.instanceName] = onesComplementAdd(sum, sumWords(data))
               UnitVal
             }
             "subtract" -> {
               // RFC 1624: subtract by adding the ones' complement of the data's word sum.
-              val data = eval.evalArg(0) as StructVal
+              val data = eval.evalArg(0).asStructVal()
               val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)
               val dataSumComplement = CSUM_MASK.subtract(sumWords(data))
               checksumState[call.instanceName] = onesComplementAdd(sum, dataSumComplement)
@@ -726,6 +738,10 @@ class PSAArchitecture : Architecture {
               checksumState[call.instanceName] = (eval.evalArg(0) as BitVal).bits.value
               UnitVal
             }
+            // Digest.pack() queues a digest message for the control plane. No-op in STF
+            // testing since there's no control-plane receiver.
+            // TODO(PSA): implement digest delivery via P4Runtime StreamChannel.
+            "pack" -> UnitVal
             else ->
               error(
                 "unhandled PSA extern method: ${call.externType}.${call.method}" +
@@ -751,51 +767,40 @@ class PSAArchitecture : Architecture {
       PSA_HASH_ALGORITHMS[psaAlgorithm] ?: error("unsupported PSA hash algorithm: $psaAlgorithm")
     val resultWidth = eval.returnType().bit.width
 
+    val resultMask = BigInteger.TWO.pow(resultWidth) - BigInteger.ONE
+
     return if (eval.argCount() == 1) {
       // 1-arg form: get_hash(data) → hash(data) truncated to result width
-      val data = eval.evalArg(0) as StructVal
-      val hash = computeHash(algorithm, data)
+      val data = hashDataArg(eval.evalArg(0))
+      val hash = computeHash(algorithm, data).and(resultMask)
       BitVal(BitVector(hash, resultWidth))
     } else {
       // 3-arg form: get_hash(base, data, max) → (base + hash(data)) mod max
       val base = (eval.evalArg(0) as BitVal).bits.value
-      val data = eval.evalArg(1) as StructVal
+      val data = hashDataArg(eval.evalArg(1))
       val max = (eval.evalArg(2) as BitVal).bits.value
       val hash = computeHash(algorithm, data)
-      val result = if (max > BigInteger.ZERO) base + hash.mod(max) else base
+      val result = if (max > BigInteger.ZERO) (base + hash.mod(max)).and(resultMask) else base
       BitVal(BitVector(result, resultWidth))
     }
   }
 
   /**
-   * Sums all 16-bit words in [data]'s concatenated fields using ones' complement addition.
-   *
-   * Pads to a 16-bit boundary. Returns the raw sum (not complemented).
+   * Coerces a hash data argument to [StructVal]. The p4c midend usually wraps hash inputs in a
+   * StructExpression, but single-field inputs (e.g. `get_hash(hdr.ethernet.srcAddr)`) arrive as
+   * bare [BitVal]. Headers arrive as [HeaderVal].
    */
-  private fun sumWords(data: StructVal): BigInteger {
-    val combined = concatFields(data) ?: return BigInteger.ZERO
-    val totalWidth = combined.width
-    val padded = ((totalWidth + CSUM_WORD_BITS - 1) / CSUM_WORD_BITS) * CSUM_WORD_BITS
-    var bits = combined.value.shiftLeft(padded - totalWidth)
-    var sum = BigInteger.ZERO
-    for (i in 0 until padded / CSUM_WORD_BITS) {
-      val word = bits.shiftRight(padded - (i + 1) * CSUM_WORD_BITS).and(CSUM_MASK)
-      sum = sum.add(word)
+  private fun hashDataArg(value: Value): StructVal =
+    when (value) {
+      is BitVal -> StructVal("", mutableMapOf("_0" to value))
+      else -> value.asStructVal()
     }
-    return foldCarries(sum)
-  }
 
-  /** Folds carries back into a 16-bit ones' complement value. */
-  private fun foldCarries(value: BigInteger): BigInteger {
-    var sum = value
-    while (sum > CSUM_MASK) {
-      sum = sum.and(CSUM_MASK).add(sum.shiftRight(CSUM_WORD_BITS))
-    }
-    return sum
-  }
-
-  /** Ones' complement addition of two 16-bit values with carry folding. */
-  private fun onesComplementAdd(a: BigInteger, b: BigInteger): BigInteger = foldCarries(a.add(b))
+  /**
+   * Sums all 16-bit words in [data]'s concatenated fields. Returns the raw sum (not complemented).
+   */
+  private fun sumWords(data: StructVal): BigInteger =
+    concatFields(data)?.let { sumBitWords(it) } ?: BigInteger.ZERO
 
   /** Builds a flat map from extern instance name → declaration across all parsers and controls. */
   private fun buildExternInstancesMap(config: BehavioralConfig): Map<String, ExternInstanceDecl> =

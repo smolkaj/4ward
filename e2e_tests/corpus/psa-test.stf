@@ -1,0 +1,5 @@
+# PSA test: minimal parser with value_set. No tables, empty controls.
+# Tests: Parser value_set declaration and basic parsing.
+# No send_to_port → packets dropped by PSA default.
+
+packet 0 001122334455 00aabbccddee 0800

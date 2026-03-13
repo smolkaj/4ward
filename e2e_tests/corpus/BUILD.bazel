@@ -1,3 +1,4 @@
+load("//e2e_tests:compile_test.bzl", "compile_test_suite")
 load("//e2e_tests:corpus.bzl", "corpus_test_suite")
 
 # p4c corpus STF tests run in CI. All entries must pass.
@@ -230,33 +231,129 @@ corpus_test_suite(
 # registers, multicast, Hash, Meter, and InternetChecksum externs.
 corpus_test_suite(
     name = "psa_stf_corpus_test",
+    stf_overrides = {
+        "psa-action-profile1": "//e2e_tests/corpus:psa-action-profile1.stf",
+        "psa-action-profile3": "//e2e_tests/corpus:psa-action-profile3.stf",
+        "psa-action-profile4": "//e2e_tests/corpus:psa-action-profile4.stf",
+        "psa-action-selector1": "//e2e_tests/corpus:psa-action-selector1.stf",
+        "psa-action-selector2": "//e2e_tests/corpus:psa-action-selector2.stf",
+        "psa-action-selector3": "//e2e_tests/corpus:psa-action-selector3.stf",
+        "psa-conditional_operator": "//e2e_tests/corpus:psa-conditional_operator.stf",
+        "psa-counter1": "//e2e_tests/corpus:psa-counter1.stf",
+        "psa-counter2": "//e2e_tests/corpus:psa-counter2.stf",
+        "psa-counter3": "//e2e_tests/corpus:psa-counter3.stf",
+        "psa-counter4": "//e2e_tests/corpus:psa-counter4.stf",
+        "psa-custom-type-counter-index": "//e2e_tests/corpus:psa-custom-type-counter-index.stf",
+        "psa-example-counters-bmv2": "//e2e_tests/corpus:psa-example-counters-bmv2.stf",
+        "psa-example-digest-bmv2": "//e2e_tests/corpus:psa-example-digest-bmv2.stf",
+        "psa-example-incremental-checksum": "//e2e_tests/corpus:psa-example-incremental-checksum.stf",
+        "psa-example-logical-operations": "//e2e_tests/corpus:psa-example-logical-operations.stf",
+        "psa-example-mask-range": "//e2e_tests/corpus:psa-example-mask-range.stf",
+        "psa-example-mask-range1": "//e2e_tests/corpus:psa-example-mask-range1.stf",
+        "psa-example-optional-match": "//e2e_tests/corpus:psa-example-optional-match.stf",
+        "psa-example-parser-checksum": "//e2e_tests/corpus:psa-example-parser-checksum.stf",
+        "psa-example-range-match": "//e2e_tests/corpus:psa-example-range-match.stf",
+        "psa-example-switch-with-constant-expr": "//e2e_tests/corpus:psa-example-switch-with-constant-expr.stf",
+        "psa-hash": "//e2e_tests/corpus:psa-hash.stf",
+        "psa-hash-02": "//e2e_tests/corpus:psa-hash-02.stf",
+        "psa-hash-03": "//e2e_tests/corpus:psa-hash-03.stf",
+        "psa-hash-04": "//e2e_tests/corpus:psa-hash-04.stf",
+        "psa-hash-05": "//e2e_tests/corpus:psa-hash-05.stf",
+        "psa-hash-06": "//e2e_tests/corpus:psa-hash-06.stf",
+        "psa-hash-07": "//e2e_tests/corpus:psa-hash-07.stf",
+        "psa-hash-08": "//e2e_tests/corpus:psa-hash-08.stf",
+        "psa-hash-09": "//e2e_tests/corpus:psa-hash-09.stf",
+        "psa-hash-10": "//e2e_tests/corpus:psa-hash-10.stf",
+        "psa-header-stack": "//e2e_tests/corpus:psa-header-stack.stf",
+        "psa-idle-timeout": "//e2e_tests/corpus:psa-idle-timeout.stf",
+        "psa-isvalid": "//e2e_tests/corpus:psa-isvalid.stf",
+        "psa-meter1": "//e2e_tests/corpus:psa-meter1.stf",
+        "psa-meter3": "//e2e_tests/corpus:psa-meter3.stf",
+        "psa-meter4": "//e2e_tests/corpus:psa-meter4.stf",
+        "psa-meter5": "//e2e_tests/corpus:psa-meter5.stf",
+        "psa-random": "//e2e_tests/corpus:psa-random.stf",
+        "psa-register1": "//e2e_tests/corpus:psa-register1.stf",
+        "psa-register2": "//e2e_tests/corpus:psa-register2.stf",
+        "psa-register3": "//e2e_tests/corpus:psa-register3.stf",
+        "psa-remove-header": "//e2e_tests/corpus:psa-remove-header.stf",
+        "psa-switch-expression-without-default": "//e2e_tests/corpus:psa-switch-expression-without-default.stf",
+        "psa-table-hit-miss": "//e2e_tests/corpus:psa-table-hit-miss.stf",
+        "psa-variable-index": "//e2e_tests/corpus:psa-variable-index.stf",
+    },
     tests = [
         "hash-extern-bmv2",
         "internet_checksum1-bmv2",
+        "psa-action-profile1",
+        "psa-action-profile3",
+        "psa-action-profile4",
+        "psa-action-selector1",
+        "psa-action-selector2",
+        "psa-action-selector3",
         "psa-basic-counter-bmv2",
         "psa-bool-ternary-const-entry-bmv2",
+        "psa-conditional_operator",
+        "psa-counter1",
+        "psa-counter2",
+        "psa-counter3",
+        "psa-counter4",
+        "psa-custom-type-counter-index",
         "psa-drop-all-bmv2",
         "psa-drop-all-corrected-bmv2",
         "psa-e2e-cloning-basic-bmv2",
         "psa-end-of-ingress-test-bmv2",
+        "psa-example-counters-bmv2",
+        "psa-example-digest-bmv2",
         "psa-example-dpdk-varbit-bmv2",
+        "psa-example-incremental-checksum",
+        "psa-example-logical-operations",
+        "psa-example-mask-range",
+        "psa-example-mask-range1",
+        "psa-example-optional-match",
+        "psa-example-parser-checksum",
+        "psa-example-range-match",
         "psa-example-register2-bmv2",
+        "psa-example-switch-with-constant-expr",
         "psa-fwd-bmv2",
+        "psa-hash",
+        "psa-hash-02",
+        "psa-hash-03",
+        "psa-hash-04",
+        "psa-hash-05",
+        "psa-hash-06",
+        "psa-hash-07",
+        "psa-hash-08",
+        "psa-hash-09",
+        "psa-hash-10",
+        "psa-header-stack",
         "psa-i2e-cloning-basic-bmv2",
+        "psa-idle-timeout",
+        "psa-isvalid",
         "psa-metadata-bmv2",
+        "psa-meter1",
+        "psa-meter3",
+        "psa-meter4",
+        "psa-meter5",
         "psa-meter7-bmv2",
         "psa-multicast-basic-2-bmv2",
         "psa-multicast-basic-bmv2",
         "psa-multicast-basic-corrected-bmv2",
         "psa-parser-error-test-bmv2",
+        "psa-random",
         "psa-recirculate-no-meta-bmv2",
         "psa-register-complex-bmv2",
         "psa-register-read-write-2-bmv2",
         "psa-register-read-write-bmv2",
+        "psa-register1",
+        "psa-register2",
+        "psa-register3",
+        "psa-remove-header",
         "psa-resubmit-bmv2",
+        "psa-switch-expression-without-default",
+        "psa-table-hit-miss",
         "psa-top-level-assignments-bmv2",
         "psa-unicast-or-drop-bmv2",
         "psa-unicast-or-drop-corrected-bmv2",
+        "psa-variable-index",
     ],
 )
 
@@ -269,6 +366,15 @@ corpus_test_suite(
     ],
 )
 
+# PSA programs that take excessively long to compile with p4c-4ward.
+compile_test_suite(
+    name = "psa_slow_compile_test",
+    tags = ["manual"],
+    tests = [
+        "psa-subtract-inst1",  # OOM-killed during compilation
+    ],
+)
+
 # Tests blocked on unsupported non-v1model/non-PSA architectures.
 # These fail at p4c-4ward compile time.
 corpus_test_suite(
@@ -276,5 +382,32 @@ corpus_test_suite(
     tags = ["manual"],
     tests = [
         "gauntlet_optional-bmv2",  # unsupported architecture 'top'
+    ],
+)
+
+# PSA tests blocked on unimplemented simulator features.
+corpus_test_suite(
+    name = "psa_blocked_stf_corpus_test",
+    stf_overrides = {
+        "psa-test": "//e2e_tests/corpus:psa-test.stf",
+    },
+    tags = ["manual"],
+    tests = [
+        "psa-test",  # parser value_set not implemented
+    ],
+)
+
+# PSA compile-only tests for DPDK-target programs. These use #include <dpdk/psa.p4>
+# (not BMv2), so they can't run through the simulator — just verify compilation.
+compile_test_suite(
+    name = "psa_compile_test",
+    tests = [
+        "psa-action-selector4",
+        "psa-action-selector5",
+        "psa-action-selector6",
+        "psa-example-select_tuple",
+        "psa-example-select_tuple-1",
+        "psa-example-select_tuple-mask",
+        "psa-example-select_tuple-wc",
     ],
 )

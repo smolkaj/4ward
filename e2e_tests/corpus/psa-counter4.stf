@@ -1,0 +1,7 @@
+# PSA DirectCounter: direct counter attached to table via psa_direct_counter.
+# Tests: DirectCounter extern binding to table.
+# No send_to_port → packets dropped by PSA default.
+
+add tbl hdr.ethernet.srcAddr:0x00aabbccddee NoAction()
+
+packet 0 001122334455 00aabbccddee 0800
