@@ -476,12 +476,24 @@ class P4RuntimeConformanceTest {
   // Action profile members (scenarios 26-28)
   // =========================================================================
 
+  // Uses action_selector_3.p4 which defines an action profile with set_port and drop actions.
+  private data class ActionSelectorFixture(val profileId: Int, val dropId: Int)
+
+  private fun loadActionSelector(): ActionSelectorFixture {
+    val config = loadConfig("e2e_tests/trace_tree/action_selector_3.txtpb")
+    harness.loadPipeline(config)
+    return ActionSelectorFixture(
+      profileId = config.p4Info.actionProfilesList.first().preamble.id,
+      dropId = P4RuntimeTestHarness.findAction(config, "drop").preamble.id,
+    )
+  }
+
   @Test
   fun `26 - write and read back action profile member`() {
-    harness.loadPipeline(loadBasicTableConfig())
-    val member = buildMemberEntity(actionProfileId = 1, memberId = 1, actionId = 1)
+    val (profileId, dropId) = loadActionSelector()
+    val member = buildMemberEntity(actionProfileId = profileId, memberId = 1, actionId = dropId)
     harness.installEntry(member)
-    val results = harness.readProfileMembers(actionProfileId = 1)
+    val results = harness.readProfileMembers(actionProfileId = profileId)
     assertEquals(1, results.size)
     assertTrue(results[0].hasActionProfileMember())
     assertEquals(1, results[0].actionProfileMember.memberId)
@@ -489,19 +501,19 @@ class P4RuntimeConformanceTest {
 
   @Test
   fun `27 - insert duplicate member returns ALREADY_EXISTS`() {
-    harness.loadPipeline(loadBasicTableConfig())
-    val member = buildMemberEntity(actionProfileId = 1, memberId = 1, actionId = 1)
+    val (profileId, dropId) = loadActionSelector()
+    val member = buildMemberEntity(actionProfileId = profileId, memberId = 1, actionId = dropId)
     harness.installEntry(member)
     assertGrpcError(Status.Code.ALREADY_EXISTS) { harness.installEntry(member) }
   }
 
   @Test
   fun `28 - delete member then read returns empty`() {
-    harness.loadPipeline(loadBasicTableConfig())
-    val member = buildMemberEntity(actionProfileId = 1, memberId = 1, actionId = 1)
+    val (profileId, dropId) = loadActionSelector()
+    val member = buildMemberEntity(actionProfileId = profileId, memberId = 1, actionId = dropId)
     harness.installEntry(member)
     harness.deleteEntry(member)
-    assertTrue(harness.readProfileMembers(actionProfileId = 1).isEmpty())
+    assertTrue(harness.readProfileMembers(actionProfileId = profileId).isEmpty())
   }
 
   // =========================================================================
@@ -510,10 +522,10 @@ class P4RuntimeConformanceTest {
 
   @Test
   fun `29 - write and read back action profile group`() {
-    harness.loadPipeline(loadBasicTableConfig())
-    val group = buildGroupEntity(actionProfileId = 1, groupId = 1, memberIds = listOf(1, 2))
+    val (profileId, _) = loadActionSelector()
+    val group = buildGroupEntity(actionProfileId = profileId, groupId = 1, memberIds = listOf(1, 2))
     harness.installEntry(group)
-    val results = harness.readProfileGroups(actionProfileId = 1)
+    val results = harness.readProfileGroups(actionProfileId = profileId)
     assertEquals(1, results.size)
     assertTrue(results[0].hasActionProfileGroup())
     assertEquals(1, results[0].actionProfileGroup.groupId)
@@ -522,28 +534,29 @@ class P4RuntimeConformanceTest {
 
   @Test
   fun `30 - modify group with different members succeeds`() {
-    harness.loadPipeline(loadBasicTableConfig())
-    val group = buildGroupEntity(actionProfileId = 1, groupId = 1, memberIds = listOf(1))
+    val (profileId, _) = loadActionSelector()
+    val group = buildGroupEntity(actionProfileId = profileId, groupId = 1, memberIds = listOf(1))
     harness.installEntry(group)
-    val modified = buildGroupEntity(actionProfileId = 1, groupId = 1, memberIds = listOf(1, 2, 3))
+    val modified =
+      buildGroupEntity(actionProfileId = profileId, groupId = 1, memberIds = listOf(1, 2, 3))
     harness.modifyEntry(modified)
-    val results = harness.readProfileGroups(actionProfileId = 1)
+    val results = harness.readProfileGroups(actionProfileId = profileId)
     assertEquals(1, results.size)
     assertEquals(3, results[0].actionProfileGroup.membersCount)
   }
 
   @Test
   fun `31 - delete non-existent group returns NOT_FOUND`() {
-    harness.loadPipeline(loadBasicTableConfig())
-    val group = buildGroupEntity(actionProfileId = 1, groupId = 99, memberIds = listOf(1))
+    val (profileId, _) = loadActionSelector()
+    val group = buildGroupEntity(actionProfileId = profileId, groupId = 99, memberIds = listOf(1))
     assertGrpcError(Status.Code.NOT_FOUND) { harness.deleteEntry(group) }
   }
 
   @Test
   fun `35 - wildcard read returns members across all action profiles`() {
-    harness.loadPipeline(loadBasicTableConfig())
-    val member1 = buildMemberEntity(actionProfileId = 1, memberId = 1, actionId = 1)
-    val member2 = buildMemberEntity(actionProfileId = 1, memberId = 2, actionId = 1)
+    val (profileId, dropId) = loadActionSelector()
+    val member1 = buildMemberEntity(actionProfileId = profileId, memberId = 1, actionId = dropId)
+    val member2 = buildMemberEntity(actionProfileId = profileId, memberId = 2, actionId = dropId)
     harness.installEntry(member1)
     harness.installEntry(member2)
     // Wildcard read: actionProfileId = 0 returns all members.

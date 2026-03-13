@@ -557,6 +557,167 @@ class WriteValidatorTest {
   }
 
   // =========================================================================
+  // Range semantic validation (§9.1.1)
+  // =========================================================================
+
+  @Test
+  fun `range match with low less than high passes`() {
+    val v = validator()
+    v.validate(
+      insertUpdate(
+        RANGE_TABLE_ID,
+        rangeMatch(low = byteArrayOf(0x00, 0x10), high = byteArrayOf(0x00, 0x20)),
+        ternaryAction(),
+        priority = 1,
+      )
+    )
+  }
+
+  @Test
+  fun `range match with low equal to high passes`() {
+    val v = validator()
+    v.validate(
+      insertUpdate(
+        RANGE_TABLE_ID,
+        rangeMatch(low = byteArrayOf(0x00, 0x10), high = byteArrayOf(0x00, 0x10)),
+        ternaryAction(),
+        priority = 1,
+      )
+    )
+  }
+
+  @Test
+  fun `range match with low greater than high returns INVALID_ARGUMENT`() {
+    val v = validator()
+    val e =
+      assertThrows(StatusException::class.java) {
+        v.validate(
+          insertUpdate(
+            RANGE_TABLE_ID,
+            rangeMatch(low = byteArrayOf(0x00, 0x20), high = byteArrayOf(0x00, 0x10)),
+            ternaryAction(),
+            priority = 1,
+          )
+        )
+      }
+    assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code)
+    assert(e.status.description!!.contains("low > high"))
+  }
+
+  @Test
+  fun `range match with first byte determining result passes`() {
+    val v = validator()
+    // low = {0x01, 0xFF}, high = {0x02, 0x00}: first byte decides (1 < 2).
+    v.validate(
+      insertUpdate(
+        RANGE_TABLE_ID,
+        rangeMatch(low = byteArrayOf(0x01, 0xFF.toByte()), high = byteArrayOf(0x02, 0x00)),
+        ternaryAction(),
+        priority = 1,
+      )
+    )
+  }
+
+  @Test
+  fun `range match with first byte greater rejects`() {
+    val v = validator()
+    // low = {0x02, 0x00}, high = {0x01, 0xFF}: first byte decides (2 > 1).
+    val e =
+      assertThrows(StatusException::class.java) {
+        v.validate(
+          insertUpdate(
+            RANGE_TABLE_ID,
+            rangeMatch(low = byteArrayOf(0x02, 0x00), high = byteArrayOf(0x01, 0xFF.toByte())),
+            ternaryAction(),
+            priority = 1,
+          )
+        )
+      }
+    assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code)
+    assert(e.status.description!!.contains("low > high"))
+  }
+
+  @Test
+  fun `range match width validated`() {
+    val v = validator()
+    val e =
+      assertThrows(StatusException::class.java) {
+        v.validate(
+          insertUpdate(
+            RANGE_TABLE_ID,
+            rangeMatch(low = bytes(1), high = bytes(2)),
+            ternaryAction(),
+            priority = 1,
+          )
+        )
+      }
+    assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code)
+    assert(e.status.description!!.contains("bytes"))
+  }
+
+  // =========================================================================
+  // Optional match validation
+  // =========================================================================
+
+  @Test
+  fun `optional match passes validation`() {
+    val v = validator()
+    v.validate(
+      insertUpdate(
+        OPTIONAL_TABLE_ID,
+        optionalMatch(value = bytes(2)),
+        ternaryAction(),
+        priority = 1,
+      )
+    )
+  }
+
+  @Test
+  fun `optional match wrong width returns INVALID_ARGUMENT`() {
+    val v = validator()
+    val e =
+      assertThrows(StatusException::class.java) {
+        v.validate(
+          insertUpdate(
+            OPTIONAL_TABLE_ID,
+            optionalMatch(value = bytes(1)),
+            ternaryAction(),
+            priority = 1,
+          )
+        )
+      }
+    assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code)
+    assert(e.status.description!!.contains("bytes"))
+  }
+
+  @Test
+  fun `optional table requires priority`() {
+    val v = validator()
+    val e =
+      assertThrows(StatusException::class.java) {
+        v.validate(
+          insertUpdate(
+            OPTIONAL_TABLE_ID,
+            optionalMatch(value = bytes(2)),
+            ternaryAction(),
+            priority = 0,
+          )
+        )
+      }
+    assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code)
+    assert(e.status.description!!.contains("priority"))
+  }
+
+  @Test
+  fun `optional field can be omitted`() {
+    val v = validator()
+    // Optional fields can be omitted — unlike exact fields, they are not required.
+    v.validate(
+      insertUpdate(OPTIONAL_TABLE_ID, matches = emptyList(), action = ternaryAction(), priority = 1)
+    )
+  }
+
+  // =========================================================================
   // Priority validation (§9.1.1)
   // =========================================================================
 
@@ -574,6 +735,142 @@ class WriteValidatorTest {
   }
 
   // =========================================================================
+  // Action profile member validation (§9.2.1)
+  // =========================================================================
+
+  @Test
+  fun `valid member insert passes validation`() {
+    val v = validator()
+    v.validate(memberUpdate(P4RuntimeOuterClass.Update.Type.INSERT, action()))
+  }
+
+  @Test
+  fun `member delete skips content validation`() {
+    val v = validator()
+    // DELETE with a bogus action — should pass because DELETE only needs the key.
+    v.validate(memberUpdate(P4RuntimeOuterClass.Update.Type.DELETE, action(actionId = 99999)))
+  }
+
+  @Test
+  fun `member modify validates content`() {
+    val v = validator()
+    // MODIFY should validate action just like INSERT.
+    val e =
+      assertThrows(StatusException::class.java) {
+        v.validate(memberUpdate(P4RuntimeOuterClass.Update.Type.MODIFY, action(actionId = 99)))
+      }
+    assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code)
+    assert(e.status.description!!.contains("unknown action ID"))
+  }
+
+  @Test
+  fun `member with unknown profile ID returns NOT_FOUND`() {
+    val v = validator()
+    val e =
+      assertThrows(StatusException::class.java) {
+        v.validate(memberUpdate(P4RuntimeOuterClass.Update.Type.INSERT, action(), profileId = 99))
+      }
+    assertEquals(Status.Code.NOT_FOUND, e.status.code)
+    assert(e.status.description!!.contains("action_profile_id"))
+  }
+
+  @Test
+  fun `member with unknown action ID returns INVALID_ARGUMENT`() {
+    val v = validator()
+    val e =
+      assertThrows(StatusException::class.java) {
+        v.validate(memberUpdate(P4RuntimeOuterClass.Update.Type.INSERT, action(actionId = 99)))
+      }
+    assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code)
+    assert(e.status.description!!.contains("unknown action ID"))
+  }
+
+  @Test
+  fun `member with action not in profile returns INVALID_ARGUMENT`() {
+    val v = validator()
+    // TERNARY_ACTION_ID exists in p4info but is not in the profile's associated tables'
+    // action_refs.
+    val e =
+      assertThrows(StatusException::class.java) {
+        v.validate(
+          memberUpdate(
+            P4RuntimeOuterClass.Update.Type.INSERT,
+            action(actionId = TERNARY_ACTION_ID, params = emptyList()),
+          )
+        )
+      }
+    assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code)
+    assert(e.status.description!!.contains("not valid for action profile"))
+  }
+
+  @Test
+  fun `member with wrong param count returns INVALID_ARGUMENT`() {
+    val v = validator()
+    val e =
+      assertThrows(StatusException::class.java) {
+        v.validate(
+          memberUpdate(P4RuntimeOuterClass.Update.Type.INSERT, action(params = emptyList()))
+        )
+      }
+    assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code)
+    assert(e.status.description!!.contains("expects"))
+  }
+
+  @Test
+  fun `member with wrong param width returns INVALID_ARGUMENT`() {
+    val v = validator()
+    val e =
+      assertThrows(StatusException::class.java) {
+        v.validate(
+          memberUpdate(
+            P4RuntimeOuterClass.Update.Type.INSERT,
+            action(params = listOf(param(value = bytes(1)))),
+          )
+        )
+      }
+    assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code)
+    assert(e.status.description!!.contains("bytes"))
+  }
+
+  // =========================================================================
+  // Action profile group validation (§9.2.2)
+  // =========================================================================
+
+  @Test
+  fun `valid group insert passes validation`() {
+    val v = validator()
+    v.validate(groupUpdate(P4RuntimeOuterClass.Update.Type.INSERT))
+  }
+
+  @Test
+  fun `group with unknown profile ID returns NOT_FOUND`() {
+    val v = validator()
+    val e =
+      assertThrows(StatusException::class.java) {
+        v.validate(groupUpdate(P4RuntimeOuterClass.Update.Type.INSERT, profileId = 99))
+      }
+    assertEquals(Status.Code.NOT_FOUND, e.status.code)
+    assert(e.status.description!!.contains("action_profile_id"))
+  }
+
+  @Test
+  fun `group delete with valid profile ID passes`() {
+    val v = validator()
+    v.validate(groupUpdate(P4RuntimeOuterClass.Update.Type.DELETE))
+  }
+
+  @Test
+  fun `group delete with unknown profile ID returns NOT_FOUND`() {
+    val v = validator()
+    val e =
+      assertThrows(StatusException::class.java) {
+        v.validate(groupUpdate(P4RuntimeOuterClass.Update.Type.DELETE, profileId = 99))
+      }
+    assertEquals(Status.Code.NOT_FOUND, e.status.code)
+    assert(e.status.description!!.contains("action_profile_id"))
+  }
+
+  // =========================================================================
   // Test fixtures
   // =========================================================================
 
@@ -582,13 +879,18 @@ class WriteValidatorTest {
     private const val TERNARY_TABLE_ID = 2
     private const val LPM_TABLE_ID = 3
     private const val CONST_TABLE_ID = 4
+    private const val RANGE_TABLE_ID = 5
+    private const val OPTIONAL_TABLE_ID = 6
     private const val MATCH_FIELD_ID = 1
     private const val TERNARY_FIELD_ID = 2
     private const val LPM_FIELD_ID = 3
     private const val CONST_FIELD_ID = 4
+    private const val RANGE_FIELD_ID = 5
+    private const val OPTIONAL_FIELD_ID = 6
     private const val ACTION_ID = 10
     private const val OTHER_ACTION_ID = 11
     private const val TERNARY_ACTION_ID = 12
+    private const val ACTION_PROFILE_ID = 20
     private const val PARAM_ID = 1
     private const val MATCH_BITWIDTH = 16
     private const val PARAM_BITWIDTH = 16
@@ -658,6 +960,36 @@ class WriteValidatorTest {
           .addActionRefs(P4InfoOuterClass.ActionRef.newBuilder().setId(ACTION_ID))
           .setIsConstTable(true)
       )
+      .addTables(
+        P4InfoOuterClass.Table.newBuilder()
+          .setPreamble(
+            P4InfoOuterClass.Preamble.newBuilder().setId(RANGE_TABLE_ID).setName("range_table")
+          )
+          .addMatchFields(
+            P4InfoOuterClass.MatchField.newBuilder()
+              .setId(RANGE_FIELD_ID)
+              .setName("f5")
+              .setBitwidth(MATCH_BITWIDTH)
+              .setMatchType(P4InfoOuterClass.MatchField.MatchType.RANGE)
+          )
+          .addActionRefs(P4InfoOuterClass.ActionRef.newBuilder().setId(TERNARY_ACTION_ID))
+      )
+      .addTables(
+        P4InfoOuterClass.Table.newBuilder()
+          .setPreamble(
+            P4InfoOuterClass.Preamble.newBuilder()
+              .setId(OPTIONAL_TABLE_ID)
+              .setName("optional_table")
+          )
+          .addMatchFields(
+            P4InfoOuterClass.MatchField.newBuilder()
+              .setId(OPTIONAL_FIELD_ID)
+              .setName("f6")
+              .setBitwidth(MATCH_BITWIDTH)
+              .setMatchType(P4InfoOuterClass.MatchField.MatchType.OPTIONAL)
+          )
+          .addActionRefs(P4InfoOuterClass.ActionRef.newBuilder().setId(TERNARY_ACTION_ID))
+      )
       .addActions(
         P4InfoOuterClass.Action.newBuilder()
           .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(ACTION_ID).setName("forward"))
@@ -679,6 +1011,15 @@ class WriteValidatorTest {
           .setPreamble(
             P4InfoOuterClass.Preamble.newBuilder().setId(TERNARY_ACTION_ID).setName("drop")
           )
+      )
+      .addActionProfiles(
+        P4InfoOuterClass.ActionProfile.newBuilder()
+          .setPreamble(
+            P4InfoOuterClass.Preamble.newBuilder().setId(ACTION_PROFILE_ID).setName("test_profile")
+          )
+          // Associated with exact_table — valid actions are ACTION_ID only.
+          .addTableIds(EXACT_TABLE_ID)
+          .setSize(64)
       )
       .build()
 
@@ -755,6 +1096,31 @@ class WriteValidatorTest {
       )
       .build()
 
+  private fun rangeMatch(
+    fieldId: Int = RANGE_FIELD_ID,
+    low: ByteArray,
+    high: ByteArray,
+  ): P4RuntimeOuterClass.FieldMatch =
+    P4RuntimeOuterClass.FieldMatch.newBuilder()
+      .setFieldId(fieldId)
+      .setRange(
+        P4RuntimeOuterClass.FieldMatch.Range.newBuilder()
+          .setLow(ByteString.copyFrom(low))
+          .setHigh(ByteString.copyFrom(high))
+      )
+      .build()
+
+  private fun optionalMatch(
+    fieldId: Int = OPTIONAL_FIELD_ID,
+    value: ByteArray,
+  ): P4RuntimeOuterClass.FieldMatch =
+    P4RuntimeOuterClass.FieldMatch.newBuilder()
+      .setFieldId(fieldId)
+      .setOptional(
+        P4RuntimeOuterClass.FieldMatch.Optional.newBuilder().setValue(ByteString.copyFrom(value))
+      )
+      .build()
+
   private fun param(
     paramId: Int = PARAM_ID,
     value: ByteArray = bytes(PARAM_BITWIDTH / 8),
@@ -812,6 +1178,42 @@ class WriteValidatorTest {
     priority: Int = 0,
   ): P4RuntimeOuterClass.Update =
     tableUpdate(P4RuntimeOuterClass.Update.Type.INSERT, tableId, matches, action, priority)
+
+  private fun memberUpdate(
+    type: P4RuntimeOuterClass.Update.Type,
+    action: P4RuntimeOuterClass.Action,
+    profileId: Int = ACTION_PROFILE_ID,
+    memberId: Int = 1,
+  ): P4RuntimeOuterClass.Update =
+    P4RuntimeOuterClass.Update.newBuilder()
+      .setType(type)
+      .setEntity(
+        P4RuntimeOuterClass.Entity.newBuilder()
+          .setActionProfileMember(
+            P4RuntimeOuterClass.ActionProfileMember.newBuilder()
+              .setActionProfileId(profileId)
+              .setMemberId(memberId)
+              .setAction(action)
+          )
+      )
+      .build()
+
+  private fun groupUpdate(
+    type: P4RuntimeOuterClass.Update.Type,
+    profileId: Int = ACTION_PROFILE_ID,
+    groupId: Int = 1,
+  ): P4RuntimeOuterClass.Update =
+    P4RuntimeOuterClass.Update.newBuilder()
+      .setType(type)
+      .setEntity(
+        P4RuntimeOuterClass.Entity.newBuilder()
+          .setActionProfileGroup(
+            P4RuntimeOuterClass.ActionProfileGroup.newBuilder()
+              .setActionProfileId(profileId)
+              .setGroupId(groupId)
+          )
+      )
+      .build()
 
   /** Builds an INSERT update with a one-shot ActionProfileActionSet. */
   private fun oneShotUpdate(

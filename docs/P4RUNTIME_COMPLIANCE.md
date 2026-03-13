@@ -46,6 +46,7 @@ UNIMPLEMENTED (rejection is tested), **N/A** = out of scope
 | 8.2 | Ternary value and mask must have equal byte width | Y | WriteValidatorTest |
 | 8.3 | LPM value byte width matches field bitwidth | Y | WriteValidatorTest |
 | 8.4 | Range low/high byte width matches field bitwidth | Y | WriteValidatorTest |
+| 8.4a | Range low must be ≤ high | Y | WriteValidatorTest |
 | 8.5 | Ternary: masked bits must be zero in value | Y | WriteValidatorTest |
 | 8.6 | LPM: bits beyond prefix_len must be zero | Y | WriteValidatorTest |
 | 8.7 | Read responses zero-pad bytestrings to ceil(bitwidth/8) | Y | ConformanceTest #63 |
@@ -96,6 +97,11 @@ UNIMPLEMENTED (rejection is tested), **N/A** = out of scope
 | 9.35 | Delete non-existent group → NOT_FOUND | Y | ConformanceTest #31 |
 | 9.36 | One-shot action selector | Y | TableStoreTest, WriteValidatorTest |
 | 9.37 | Group max_size enforcement | Y | TableStoreTest |
+| 9.38 | Unknown action_profile_id on member → NOT_FOUND | Y | WriteValidatorTest, WriteErrorTest |
+| 9.39 | Member action_id validated against profile's tables | Y | WriteValidatorTest, WriteErrorTest |
+| 9.40 | Member action params validated | Y | WriteValidatorTest |
+| 9.41 | Unknown action_profile_id on group → NOT_FOUND | Y | WriteValidatorTest, WriteErrorTest |
+| 9.42 | Profile size (total members+groups) enforcement | Y | TableStoreTest |
 
 ### Counters & meters (spec §9.3, §9.4)
 
@@ -284,9 +290,9 @@ of the P4Runtime spec. They are counted separately from spec compliance.
 | Category | Y | R | N | N/A |
 |----------|---|---|---|-----|
 | Client arbitration (§5) | 12 | 1 | 0 | 0 |
-| Bytestring encoding (§8.3) | 7 | 0 | 0 | 0 |
+| Bytestring encoding (§8.3) | 8 | 0 | 0 | 0 |
 | Table entries (§9.1) | 29 | 0 | 0 | 0 |
-| Action profiles (§9.2) | 8 | 0 | 0 | 0 |
+| Action profiles (§9.2) | 13 | 0 | 0 | 0 |
 | Counters & meters (§9.3, §9.4) | 4 | 0 | 0 | 0 |
 | Packet replication engine (§9.5) | 6 | 0 | 0 | 0 |
 | Other entity types (§9.6–§9.9) | 5 | 3 | 0 | 0 |
@@ -297,7 +303,7 @@ of the P4Runtime spec. They are counted separately from spec compliance.
 | StreamChannel (§16) | 5 | 0 | 0 | 3 |
 | Capabilities (§17) | 1 | 0 | 0 | 0 |
 | @p4runtime_translation (§8.4.6, §18) | 6 | 0 | 0 | 0 |
-| **Spec total** | **118** | **5** | **0** | **3** |
+| **Spec total** | **124** | **5** | **0** | **3** |
 
 ### Project extensions (not in P4Runtime spec)
 
@@ -318,8 +324,9 @@ catalogued, plus 16 uncatalogued spec sections.**
   reads during pipeline reload, and multi-controller races are untested.
 - **Single-table test fixtures.** Most ConformanceTest and WriteErrorTest
   scenarios use `basic_table.p4` (one table, one exact match field, two
-  actions). Multi-table programs with different match types are not exercised
-  at the P4Runtime level. SAI P4 E2E tests partially compensate for this.
+  actions). Action profile tests use `action_selector_3.p4`. Multi-table
+  programs with different match types are not exercised at the P4Runtime
+  level. SAI P4 E2E tests partially compensate for this.
 - **Error detail verification is shallow.** Only 1 test (CONTINUE_ON_ERROR)
   inspects the structured `p4.v1.Error` protos in `grpc-status-details-bin`.
   The other ~100 tests check gRPC status codes only, not P4Runtime-specific

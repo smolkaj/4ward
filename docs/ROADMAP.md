@@ -408,22 +408,18 @@ scorecard.
 extensions from spec requirements, and every spec section with testable
 requirements is either represented or explicitly scoped out.
 
-#### Phase 2: close implementation gaps
+#### Phase 2: close implementation gaps ✅
 
-Fix the concrete gaps found in the audit, each with a test.
+All five gaps found in the Phase 1 audit are fixed, each with unit + E2E tests:
 
-- **`WriteValidator` for action profile entities.** Validate `action_id`,
-  params, and byte widths on `ActionProfileMember` writes (same rigor as table
-  entries). Validate `ActionProfileGroup` member references.
-- **`action_profile.size` enforcement.** Enforce the p4info `size` limit on
-  total member+group count.
-- **`UNRECOGNIZED` enum rejection.** Return `INVALID_ARGUMENT` for unrecognized
-  `Atomicity` and `ResponseType` values instead of falling through to defaults.
-- **Optional match type E2E test.** Add a test fixture with an optional match
-  field and exercise it end-to-end.
-- **Range match semantic validation.** Reject `low > high`. Add test.
-
-**Done when:** every item above has a failing test written first, then the fix.
+- `WriteValidator` extended to validate `ActionProfileMember` (action_id,
+  params, byte widths) and `ActionProfileGroup` (profile_id) writes.
+- `action_profile.size` enforcement: total member+group count checked on INSERT.
+- `UNRECOGNIZED` enum rejection: `Atomicity` and `ResponseType` return
+  `INVALID_ARGUMENT` instead of falling through to defaults.
+- Optional match type: test fixture and 4 unit tests (validation, width, priority,
+  omission).
+- Range match `low > high` semantic validation: rejected with `INVALID_ARGUMENT`.
 
 #### Phase 3: deepen test coverage
 

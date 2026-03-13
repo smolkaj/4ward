@@ -237,6 +237,52 @@ class P4RuntimeWriteErrorTest {
   }
 
   // =========================================================================
+  // Action profile member validation (§9.2.1)
+  // =========================================================================
+
+  private fun loadActionSelectorConfig(): PipelineConfig =
+    P4RuntimeTestHarness.loadConfig("e2e_tests/trace_tree/action_selector_3.txtpb")
+
+  // P4Runtime spec §9.2.1: member with unknown action_profile_id must return NOT_FOUND.
+  @Test
+  fun `insert member with unknown profile ID returns NOT_FOUND`() {
+    harness.loadPipeline(loadActionSelectorConfig())
+    val member =
+      P4RuntimeTestHarness.buildMemberEntity(actionProfileId = 99, memberId = 1, actionId = 1)
+    assertGrpcError(Status.Code.NOT_FOUND, "action_profile_id") { harness.installEntry(member) }
+  }
+
+  // P4Runtime spec §9.2.1: member with unknown action_id must return INVALID_ARGUMENT.
+  @Test
+  fun `insert member with unknown action ID returns INVALID_ARGUMENT`() {
+    val config = loadActionSelectorConfig()
+    harness.loadPipeline(config)
+    val profileId = config.p4Info.actionProfilesList.first().preamble.id
+    val member =
+      P4RuntimeTestHarness.buildMemberEntity(
+        actionProfileId = profileId,
+        memberId = 1,
+        actionId = 99,
+      )
+    assertGrpcError(Status.Code.INVALID_ARGUMENT, "unknown action ID") {
+      harness.installEntry(member)
+    }
+  }
+
+  // P4Runtime spec §9.2.2: group with unknown action_profile_id must return NOT_FOUND.
+  @Test
+  fun `insert group with unknown profile ID returns NOT_FOUND`() {
+    harness.loadPipeline(loadActionSelectorConfig())
+    val group =
+      P4RuntimeTestHarness.buildGroupEntity(
+        actionProfileId = 99,
+        groupId = 1,
+        memberIds = listOf(1),
+      )
+    assertGrpcError(Status.Code.NOT_FOUND, "action_profile_id") { harness.installEntry(group) }
+  }
+
+  // =========================================================================
   // Write atomicity (P4Runtime spec §12.2)
   // =========================================================================
 

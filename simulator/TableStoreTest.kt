@@ -1157,8 +1157,57 @@ class TableStoreTest {
     assertTrue("expected ResourceExhausted", result is WriteResult.ResourceExhausted)
   }
 
-  /** Creates a TableStore with an action profile that has a max_group_size limit. */
-  private fun storeWithProfileMaxGroupSize(maxGroupSize: Int): TableStore {
+  // ---------------------------------------------------------------------------
+  // Profile size enforcement (P4Runtime spec §9.2)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `member insert at profile size limit returns ResourceExhausted`() {
+    val s = storeWithProfileSizeLimit(2)
+    writeMember(s, memberId = 1, actionId = 10, paramValue = 1)
+    writeMember(s, memberId = 2, actionId = 10, paramValue = 2)
+    val result = writeMember(s, memberId = 3, actionId = 10, paramValue = 3)
+    assertTrue("expected ResourceExhausted", result is WriteResult.ResourceExhausted)
+  }
+
+  @Test
+  fun `member insert below profile size limit succeeds`() {
+    val s = storeWithProfileSizeLimit(3)
+    writeMember(s, memberId = 1, actionId = 10, paramValue = 1)
+    assertEquals(WriteResult.Success, writeMember(s, memberId = 2, actionId = 10, paramValue = 2))
+  }
+
+  @Test
+  fun `group insert at profile size limit returns ResourceExhausted`() {
+    val s = storeWithProfileSizeLimit(1)
+    writeGroup(s, groupId = 1, memberIds = listOf(1))
+    val result = writeGroup(s, groupId = 2, memberIds = listOf(2))
+    assertTrue("expected ResourceExhausted", result is WriteResult.ResourceExhausted)
+  }
+
+  @Test
+  fun `mixed members and groups count toward profile size limit`() {
+    val s = storeWithProfileSizeLimit(2)
+    writeMember(s, memberId = 1, actionId = 10, paramValue = 1)
+    writeGroup(s, groupId = 1, memberIds = listOf(1))
+    // 2 entities (1 member + 1 group) = at capacity.
+    val result = writeMember(s, memberId = 2, actionId = 10, paramValue = 2)
+    assertTrue("expected ResourceExhausted", result is WriteResult.ResourceExhausted)
+  }
+
+  @Test
+  fun `delete frees capacity for new inserts`() {
+    val s = storeWithProfileSizeLimit(2)
+    writeMember(s, memberId = 1, actionId = 10, paramValue = 1)
+    writeMember(s, memberId = 2, actionId = 10, paramValue = 2)
+    writeMember(s, memberId = 1, actionId = 10, paramValue = 1, type = Update.Type.DELETE)
+    assertEquals(WriteResult.Success, writeMember(s, memberId = 3, actionId = 10, paramValue = 3))
+  }
+
+  /** Creates a TableStore with an action profile configured via [configure]. */
+  private fun storeWithProfileConfig(
+    configure: P4InfoOuterClass.ActionProfile.Builder.() -> Unit
+  ): TableStore {
     val store = TableStore()
     store.loadMappings(
       p4info =
@@ -1172,12 +1221,20 @@ class TableStoreTest {
             listOf(
               P4InfoOuterClass.ActionProfile.newBuilder()
                 .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(PROFILE_ID))
-                .setMaxGroupSize(maxGroupSize)
+                .apply(configure)
                 .build()
             ),
         )
     )
     return store
+  }
+
+  private fun storeWithProfileSizeLimit(size: Int) = storeWithProfileConfig {
+    setSize(size.toLong())
+  }
+
+  private fun storeWithProfileMaxGroupSize(maxGroupSize: Int) = storeWithProfileConfig {
+    setMaxGroupSize(maxGroupSize)
   }
 
   // ---------------------------------------------------------------------------
