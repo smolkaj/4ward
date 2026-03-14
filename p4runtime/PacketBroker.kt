@@ -5,22 +5,20 @@ import fourward.sim.v1.SimulatorProto.TraceTree
 import fourward.simulator.ProcessPacketResult
 
 /**
- * Sits between all packet sources and the simulator. Owns CPU port routing and result distribution.
+ * Fan-out layer between packet sources and the simulator.
  *
  * All callers — [DataplaneService.injectPacket], [P4RuntimeService] PacketOut — go through
- * [processPacket]. The broker:
- * 1. Delegates to the simulator.
- * 2. Delivers the result to all [subscribe] subscribers.
- * 3. Routes CPU-port outputs to the [PacketIn listener][setPacketInListener].
- * 4. Returns the outputs and trace to the caller.
+ * [processPacket]. The broker delegates to the simulator and delivers the result to all [subscribe]
+ * subscribers (powering the [DataplaneService.subscribeResults] RPC).
  *
- * @param simulator function that processes a single packet (wraps
+ * CPU-port routing (PacketOut → PacketIn) is handled by [P4RuntimeService.handlePacketOut], not
+ * here, because it requires pipeline state (codec, translator) that only P4RuntimeService has.
+ *
+ * @param processPacketFn function that processes a single packet (wraps
  *   [fourward.simulator.Simulator.processPacket]).
- * @param cpuPort the data-plane CPU port number, or null if the CPU port is disabled.
  */
 class PacketBroker(
-  private val simulator: (ingressPort: Int, payload: ByteArray) -> ProcessPacketResult,
-  private val cpuPort: Int?,
+  private val processPacketFn: (ingressPort: Int, payload: ByteArray) -> ProcessPacketResult
 ) {
 
   /** Delivered to each [subscribe] subscriber for every processed packet. */
@@ -37,33 +35,20 @@ class PacketBroker(
   }
 
   private val subscribers = mutableListOf<(SubscriptionResult) -> Unit>()
-  private var packetInListener: ((OutputPacket) -> Unit)? = null
 
   /**
    * Processes a packet through the simulator and dispatches results.
    * 1. Calls the simulator.
    * 2. Delivers the result to all subscribers.
-   * 3. Routes CPU-port outputs to the PacketIn listener.
-   * 4. Returns the result to the caller.
+   * 3. Returns the result to the caller.
    */
   fun processPacket(ingressPort: Int, payload: ByteArray): ProcessPacketResult {
-    val result = simulator(ingressPort, payload)
+    val result = processPacketFn(ingressPort, payload)
 
-    // Deliver to all subscribers.
     if (subscribers.isNotEmpty()) {
       val subResult = SubscriptionResult(ingressPort, payload, result.outputPackets, result.trace)
       for (subscriber in subscribers) {
         subscriber(subResult)
-      }
-    }
-
-    // Route CPU-port outputs to the PacketIn listener.
-    val listener = packetInListener
-    if (listener != null && cpuPort != null) {
-      for (outputPacket in result.outputPackets) {
-        if (outputPacket.egressPort == cpuPort) {
-          listener(outputPacket)
-        }
       }
     }
 
@@ -74,15 +59,5 @@ class PacketBroker(
   fun subscribe(callback: (SubscriptionResult) -> Unit): SubscriptionHandle {
     subscribers.add(callback)
     return SubscriptionHandle { subscribers.remove(callback) }
-  }
-
-  /** Sets the listener for packets egressing on the CPU port (PacketIn). */
-  fun setPacketInListener(listener: (OutputPacket) -> Unit) {
-    packetInListener = listener
-  }
-
-  /** Clears the PacketIn listener. CPU-port outputs will be silently dropped. */
-  fun clearPacketInListener() {
-    packetInListener = null
   }
 }

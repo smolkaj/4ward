@@ -58,8 +58,8 @@ fun compareUint128(a: Uint128, b: Uint128): Int {
  */
 class P4RuntimeService(
   private val simulator: Simulator,
+  private val broker: PacketBroker,
   private val constraintValidatorBinary: Path? = null,
-  private val broker: PacketBroker? = null,
   private val lock: Mutex = Mutex(),
   private val deviceId: Long = DEFAULT_DEVICE_ID,
 ) : P4RuntimeGrpcKt.P4RuntimeCoroutineImplBase(), Closeable {
@@ -443,8 +443,7 @@ class P4RuntimeService(
         extractIngressPort(packetOut.metadataList) to packetOut.payload.toByteArray()
       }
 
-    val result =
-      broker?.processPacket(ingressPort, payload) ?: simulator.processPacket(ingressPort, payload)
+    val result = broker.processPacket(ingressPort, payload)
 
     // Only outputs egressing on the CPU port become PacketIn (P4Runtime spec §16.1).
     // Without a codec (@controller_header), there is no CPU port and no PacketIn is produced.

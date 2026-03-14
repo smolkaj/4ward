@@ -10,8 +10,8 @@ class P4RuntimeServer(private val port: Int = DEFAULT_PORT) {
 
   private val simulator = Simulator()
   private val lock = Mutex()
-  private val broker = PacketBroker(simulator::processPacket, cpuPort = null)
-  private val service = P4RuntimeService(simulator, broker = broker, lock = lock)
+  private val broker = PacketBroker(simulator::processPacket)
+  private val service = P4RuntimeService(simulator, broker, lock = lock)
   private val dataplaneService = DataplaneService(broker, lock)
   private lateinit var server: Server
 

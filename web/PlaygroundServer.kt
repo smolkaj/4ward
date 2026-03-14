@@ -25,8 +25,8 @@ fun main(args: Array<String>) {
 
   val simulator = Simulator()
   val lock = Mutex()
-  val broker = PacketBroker(simulator::processPacket, cpuPort = null)
-  val service = P4RuntimeService(simulator, broker = broker, lock = lock)
+  val broker = PacketBroker(simulator::processPacket)
+  val service = P4RuntimeService(simulator, broker, lock = lock)
   val dataplaneService = DataplaneService(broker, lock)
 
   // Start gRPC server.
