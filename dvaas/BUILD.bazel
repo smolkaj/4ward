@@ -105,3 +105,31 @@ kt_jvm_test(
         "@maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
     ],
 )
+
+kt_jvm_test(
+    name = "MirrorTestbedTest",
+    srcs = ["MirrorTestbedTest.kt"],
+    data = [
+        "//e2e_tests/sai_p4:sai_middleblock_pb",
+    ],
+    test_class = "fourward.dvaas.MirrorTestbedTest",
+    deps = [
+        ":dvaas_java_proto",
+        ":dvaas_kt_grpc",
+        ":dvaas_lib",
+        "//gnmi:gnmi_java_proto",
+        "//gnmi:gnmi_kt_grpc",
+        "//p4runtime:p4runtime_kt_grpc",
+        "//p4runtime:p4runtime_lib",
+        "//simulator:ir_java_proto",
+        "//simulator:p4runtime_java_proto",
+        "//simulator:simulator_java_proto",
+        "//simulator:simulator_lib",
+        "@grpc-java//api",
+        "@grpc-java//inprocess",
+        "@maven//:com_google_protobuf_protobuf_java",
+        "@maven//:io_grpc_grpc_kotlin_stub",
+        "@maven//:junit_junit",
+        "@maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
+    ],
+)

@@ -16,7 +16,6 @@ package fourward.p4runtime
 
 import com.github.gnmi.proto.CapabilityRequest
 import com.github.gnmi.proto.CapabilityResponse
-import com.github.gnmi.proto.gNMIGrpcKt
 import com.github.gnmi.proto.GetRequest
 import com.github.gnmi.proto.GetResponse
 import com.github.gnmi.proto.Notification
@@ -28,6 +27,7 @@ import com.github.gnmi.proto.SubscribeResponse
 import com.github.gnmi.proto.TypedValue
 import com.github.gnmi.proto.Update
 import com.github.gnmi.proto.UpdateResult
+import com.github.gnmi.proto.gNMIGrpcKt
 import com.google.protobuf.ByteString
 import io.grpc.Status
 import io.grpc.StatusException
@@ -53,9 +53,8 @@ import kotlinx.coroutines.flow.Flow
  * @param interfaces Initial interface configurations. If empty, a default set of 8 Ethernet
  *   interfaces is created.
  */
-class GnmiService(
-  interfaces: List<InterfaceConfig> = defaultInterfaces(),
-) : gNMIGrpcKt.gNMICoroutineImplBase() {
+class GnmiService(interfaces: List<InterfaceConfig> = defaultInterfaces()) :
+  gNMIGrpcKt.gNMICoroutineImplBase() {
 
   /** Mutable interface state. Thread-safe: gRPC serializes calls. */
   private val interfaces = interfaces.map { it.copy() }.associateBy { it.name }.toMutableMap()
@@ -119,10 +118,7 @@ class GnmiService(
       if (ifaceName != null && pathStr.endsWith("openconfig-p4rt:id")) {
         interfaces[ifaceName]?.let { interfaces[ifaceName] = it.copy(p4rtId = null) }
         results.add(
-          UpdateResult.newBuilder()
-            .setPath(delete)
-            .setOp(UpdateResult.Operation.DELETE)
-            .build()
+          UpdateResult.newBuilder().setPath(delete).setOp(UpdateResult.Operation.DELETE).build()
         )
       }
     }
