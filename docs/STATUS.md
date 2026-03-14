@@ -6,6 +6,90 @@
 > Reverse-chronological log. Add new entries at the top (below this header).
 > See [ROADMAP.md](ROADMAP.md) for the big picture.
 
+## 2026-03-14
+
+|                | Delta      | Total     |
+|----------------|------------|-----------|
+| PRs merged     | 36         | 315       |
+| Kotlin prod    | +2.5k      | 11.0k     |
+| Kotlin test    | +5.9k      | 21.6k     |
+| C++ prod       | +0.1k      | 1.6k      |
+| C++ test       | +0         | 1.3k      |
+| Proto          | +0.1k      | 1.0k      |
+| Web frontend   | +0.3k      | 3.8k      |
+| **Total**      | **+8.9k**  | **40.3k** |
+
+**PSA goes from partial to production-grade, P4Runtime survives a full audit,
+and the packet I/O design lands — the last major infrastructure piece before
+DVaaS integration.**
+
+### PSA: 26/26 corpus + 139 additional tests
+
+Two days ago PSA had 20/26 corpus tests. Now all 26 pass, plus 73 hand-written
+STF tests from a dedicated coverage blitz and 66 compile-only tests for action
+selector programs.
+
+The final six corpus tests fell in three PRs: I2E/E2E cloning and recirculate
+(#301), resubmit (#308), and `lookahead<bit<N>>` (#311). The coverage blitz
+(#314) then stress-tested 7 previously-untested code paths, fixing 7 bugs along
+the way. Action selector fork support (#321) adds trace-tree forking for PSA
+programs. New language features: `value_set` (P4 spec §12.14, #324),
+`assert`/`assume`/`log_msg` (#303).
+
+### Track 9: P4Runtime hardening — 141/142 requirements
+
+A systematic audit (#319) found gaps and defined a 4-phase hardening plan. All
+four phases landed:
+
+- **Phase 1** (#320) — restructured the compliance matrix (120 → 142
+  requirements)
+- **Phase 2** (#322) — closed implementation gaps found by the audit
+- **Phase 3** (#323) — deepened test coverage across all RPC surfaces
+- **Phase 4** (#326) — coverage-guided tests targeting uncovered code paths
+
+Also: role-based access control per §15 (#304), all
+`SetForwardingPipelineConfig` actions per §7.2 (#296), explicit rejection of
+unsupported features (#300), and SAI P4 translation coverage for all 25
+middleblock tables (#313). One gap remains (down from 119/120 → 141/142 by
+expanding the matrix and filling it simultaneously).
+
+### Packet I/O: design + implementation
+
+The packet I/O subsystem went from design to fully wired end-to-end:
+
+- **Design docs** (#327) — `packet_io.md` covering PacketBroker architecture,
+  fan-out model, and subscription-based PacketIn delivery
+- **Intrinsic ports** (#328) — defaults, layering, and overrides for CPU port,
+  drop port, and recirculate port across architectures
+- **PacketBroker** (#329, #330, #331) — broker pattern, data-plane listener,
+  Dataplane gRPC service naming cleanup, proto gap-filling
+- **Implementation** (#332) — `PacketBroker` with fan-out to multiple
+  subscribers, `DataplaneService` wiring, subscription-based `PacketIn`
+  streaming
+
+This is the last major infrastructure piece before DVaaS integration: the
+simulator now routes packets between P4Runtime (PacketOut/In), the Dataplane
+gRPC service, and internal forwarding — all through a single broker.
+
+### Proto namespace cleanup
+
+Dropped the `v1` suffix from all proto package names (#333) — `simulator.v1` →
+`simulator`, `p4_simulator.v1` → `p4_simulator`. The IR evolves in place with
+additive changes; versioned packages added ceremony without protection.
+
+### Build & infra
+
+- **BCR readiness** (#315) — real p4c version, behavioral_model as
+  dev_dependency
+- **p4c `//p4include` migration** (#316) — dropped custom `//:core_p4` target
+
+### What's next
+
+- **DVaaS integration** — all building blocks are in place (P4Runtime,
+  Dataplane gRPC with PacketBroker, trace trees, SAI P4 with full middleblock
+  coverage, multi-architecture support)
+- **PNA architecture** — validates that a third architecture is easy to add
+
 ## 2026-03-12
 
 |                | Delta     | Total    |
