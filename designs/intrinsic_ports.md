@@ -36,10 +36,10 @@ port is derived from port width in the P4Runtime layer. Neither is configurable.
 Both intrinsic ports are data-plane values. Default values are derived from the
 data-plane port width (`N`), following BMv2 conventions:
 
-| Port | Default data-plane value | Port width source |
-|------|--------------------------|-------------------|
-| Drop port | `2^N - 1` (511 for `N=9`) | IR's `standard_metadata` port field width |
-| CPU port | `2^N - 2` (510 for `N=9`) | IR's `controller_packet_metadata` header field width |
+| Port | Default data-plane value | Port width source | Enabled by default |
+|------|--------------------------|-------------------|--------------------|
+| Drop port | `2^N - 1` (511 for `N=9`) | IR's `standard_metadata` port field width | Always |
+| CPU port | `2^N - 2` (510 for `N=9`) | IR's `controller_packet_metadata` header field width | Only when p4info has `ControllerPacketMetadata` |
 
 When `@p4runtime_translation` is in use, the control-plane representation of
 these ports (e.g., SDN strings) is a separate concern handled by the
