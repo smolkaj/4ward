@@ -136,11 +136,17 @@ class TestVectorValidator(
     }
   }
 
-  /** Returns the effective ingress port for PacketIn metadata construction. */
+  /**
+   * Returns the effective ingress port for PacketIn metadata construction.
+   *
+   * For CPU-bound injection modes, the ingress port is the CPU port. This is always non-null here
+   * because [injectPacket] already validated the CPU port.
+   */
   private fun resolveIngressPort(input: DvaasProto.SwitchInput): Int =
     when (input.type) {
       InputType.INPUT_TYPE_SUBMIT_TO_INGRESS,
-      InputType.INPUT_TYPE_PACKET_OUT -> cpuPortFn() ?: 0
+      InputType.INPUT_TYPE_PACKET_OUT ->
+        cpuPortFn() ?: error("CPU port resolved to null after successful injection")
       else -> parsePort(input.packet.port)
     }
 
