@@ -66,6 +66,8 @@ message InjectPacketRequest {
   InputPacket packet = 1;
 }
 
+message InjectPacketResponse {}
+
 message ProcessPacketResult {
   InputPacket input = 1;
   repeated OutputPacket output_packets = 2;
