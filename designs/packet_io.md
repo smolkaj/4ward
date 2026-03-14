@@ -189,11 +189,11 @@ PacketIn is not tied to PacketOut. It is a side effect of *any*
 
 When no StreamChannel is active, CPU-port outputs are silently dropped.
 
-> **Current limitation:** only PacketOut (via `handlePacketOut`) currently
-> produces PacketIn. Data-plane injections via `InjectPacket` that egress on
-> the CPU port do not produce PacketIn — the broker needs a listener mechanism
-> to route CPU-port outputs to the StreamChannel regardless of injection
-> source. See LIMITATIONS.md.
+Implementation: each active `streamChannel` subscribes to the broker. The
+subscription callback filters CPU-port outputs, builds PacketIn metadata via
+`PacketHeaderCodec`, translates via `TypeTranslator`, and delivers PacketIn
+on the stream. Per P4Runtime spec §16.1, PacketIn is sent to all controllers
+with an open stream.
 
 ### Completion
 

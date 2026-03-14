@@ -389,15 +389,22 @@ class P4RuntimeService(
       // Forward async notifications (demotion/promotion) to the stream output.
       launch { for (msg in notifications) send(msg) }
 
+      // Subscribe to the broker so that ANY packet egressing on the CPU port — regardless of
+      // injection source (PacketOut, InjectPacket, etc.) — becomes PacketIn on this stream.
+      // Per P4Runtime spec §16.1, PacketIn is sent to all controllers with an open stream.
+      val packetInHandle =
+        broker.subscribe { subResult ->
+          for (response in buildPacketInResponses(subResult.outputPackets, subResult.ingressPort)) {
+            trySend(response)
+          }
+        }
+
       try {
         requests.collect { msg ->
           when {
             msg.hasArbitration() ->
               send(handleArbitration(streamId, msg.arbitration, notifications))
-            msg.hasPacket() -> {
-              val packetIns = lock.withLock { handlePacketOut(msg.packet) }
-              packetIns?.forEach { send(it) }
-            }
+            msg.hasPacket() -> lock.withLock { handlePacketOut(msg.packet) }
             msg.hasDigestAck() ->
               throw Status.UNIMPLEMENTED.withDescription(DIGEST_NOT_SUPPORTED).asException()
             // P4Runtime spec §16: unrecognized stream messages get an error response.
@@ -415,19 +422,19 @@ class P4RuntimeService(
           }
         }
       } finally {
+        packetInHandle.unsubscribe()
         notifications.close()
         handleDisconnect(streamId)
       }
     }
 
   /**
-   * Processes a PacketOut: translates metadata, simulates, and returns PacketIn responses. Must be
-   * called under [lock].
+   * Processes a PacketOut: translates metadata, serializes the packet header, and runs the packet
+   * through the broker. PacketIn delivery is handled by the broker subscription in [streamChannel],
+   * not here. Must be called under [lock].
    */
-  private fun handlePacketOut(
-    packet: p4.v1.P4RuntimeOuterClass.PacketOut
-  ): List<StreamMessageResponse>? {
-    val state = pipeline ?: return null
+  private fun handlePacketOut(packet: p4.v1.P4RuntimeOuterClass.PacketOut) {
+    val state = pipeline ?: return
     val translator = state.typeTranslator?.takeIf { it.hasTranslations }
     val codec = state.packetHeaderCodec
     val packetOut = translator?.translatePacketOut(packet) ?: packet
@@ -443,12 +450,22 @@ class P4RuntimeService(
         extractIngressPort(packetOut.metadataList) to packetOut.payload.toByteArray()
       }
 
-    val result = broker.processPacket(ingressPort, payload)
+    broker.processPacket(ingressPort, payload)
+  }
 
-    // Only outputs egressing on the CPU port become PacketIn (P4Runtime spec §16.1).
-    // Without a codec (@controller_header), there is no CPU port and no PacketIn is produced.
-    val cpuPort = codec?.cpuPort ?: return emptyList()
-    return result.outputPackets
+  /**
+   * Builds PacketIn [StreamMessageResponse]s for any outputs egressing on the CPU port. Returns an
+   * empty list if there is no pipeline, no codec (`@controller_header`), or no CPU-port outputs.
+   */
+  private fun buildPacketInResponses(
+    outputPackets: List<fourward.sim.v1.SimulatorProto.OutputPacket>,
+    ingressPort: Int,
+  ): List<StreamMessageResponse> {
+    val state = pipeline ?: return emptyList()
+    val codec = state.packetHeaderCodec ?: return emptyList()
+    val translator = state.typeTranslator?.takeIf { it.hasTranslations }
+    val cpuPort = codec.cpuPort
+    return outputPackets
       .filter { it.egressPort == cpuPort }
       .map { outputPacket ->
         val metadata = codec.buildPacketInMetadata(ingressPort, outputPacket.egressPort)

@@ -447,6 +447,26 @@ class SaiP4E2ETest {
     }
   }
 
+  @Test
+  @Suppress("MagicNumber")
+  fun `InjectPacket that egresses on CPU port produces PacketIn on StreamChannel`() {
+    installRoutingChain()
+    installAclEntry(findAction("acl_trap"))
+    installCopyToCpuCloneSession()
+
+    // Open StreamChannel first so the PacketIn subscription is active.
+    harness.openStream().use { session ->
+      session.arbitrate()
+      // Inject via DataplaneService — NOT PacketOut. The ACL trap clones to CPU port.
+      val packet = buildIpv4Packet(dstMac = UNICAST_MAC, srcMac = SRC_MAC, ttl = 64)
+      harness.injectPacket(ingressPort = 0, payload = packet)
+      // The CPU-port output should become PacketIn on the active stream.
+      val response = session.receiveNext()
+      assertNotNull("data-plane injection should produce PacketIn via ACL trap", response)
+      assertTrue("response should be PacketIn", response!!.hasPacket())
+    }
+  }
+
   // =========================================================================
   // ACL ingress: drop
   // =========================================================================
