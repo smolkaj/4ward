@@ -317,6 +317,7 @@ report in about 5. No flakes, no "works on my machine." See for yourself on the
 |---|---|
 | [Tutorial](examples/tutorial.t) | Getting started — from hello world to machine-readable output |
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Design rationale and component overview |
+| [ENTRY_POINTS.md](docs/ENTRY_POINTS.md) | CLI, P4Runtime server, web playground, test APIs |
 | [ROADMAP.md](docs/ROADMAP.md) | Development tracks, priorities, and sequencing |
 | [STATUS.md](docs/STATUS.md) | Append-only log of daily progress |
 | [CONTRIBUTING.md](docs/CONTRIBUTING.md) | How to get involved |
