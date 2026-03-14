@@ -43,6 +43,7 @@ class P4RuntimeServer(
       cpuPortConfig = cpuPortConfig,
     )
   private val dataplaneService = DataplaneService(broker, lock)
+  private val gnmiService = GnmiService()
   private lateinit var server: Server
 
   fun start(): P4RuntimeServer {
@@ -50,6 +51,7 @@ class P4RuntimeServer(
       NettyServerBuilder.forPort(port)
         .addService(service)
         .addService(dataplaneService)
+        .addService(gnmiService)
         .build()
         .start()
     Runtime.getRuntime().addShutdownHook(Thread { stop() })

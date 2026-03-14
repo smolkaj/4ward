@@ -91,6 +91,8 @@ kt_jvm_library(
         ":p4runtime_java_grpc",
         ":p4runtime_java_proto",
         ":p4runtime_kt_grpc",
+        "//gnmi:gnmi_java_proto",
+        "//gnmi:gnmi_kt_grpc",
         "//simulator:ir_java_proto",
         "//simulator:p4runtime_java_proto",
         "//simulator:simulator_java_proto",
@@ -397,6 +399,24 @@ kt_jvm_test(
         "//simulator:simulator_java_proto",
         "@grpc-java//api",
         "@grpc-java//inprocess",
+        "@maven//:com_google_protobuf_protobuf_java",
+        "@maven//:io_grpc_grpc_kotlin_stub",
+        "@maven//:junit_junit",
+        "@maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
+    ],
+)
+
+kt_jvm_test(
+    name = "GnmiServiceTest",
+    srcs = ["GnmiServiceTest.kt"],
+    test_class = "fourward.p4runtime.GnmiServiceTest",
+    deps = [
+        ":p4runtime_lib",
+        "//gnmi:gnmi_java_proto",
+        "//gnmi:gnmi_kt_grpc",
+        "@grpc-java//api",
+        "@grpc-java//inprocess",
+        "@grpc-java//testing",
         "@maven//:com_google_protobuf_protobuf_java",
         "@maven//:io_grpc_grpc_kotlin_stub",
         "@maven//:junit_junit",

@@ -1,0 +1,56 @@
+load("@grpc-java//:java_grpc_library.bzl", "java_grpc_library")
+load("@grpc_kotlin//:kt_jvm_grpc.bzl", "kt_jvm_grpc_library")
+load("@protobuf//bazel:java_proto_library.bzl", "java_proto_library")
+load("@protobuf//bazel:proto_library.bzl", "proto_library")
+
+# =============================================================================
+# gNMI proto (vendored from github.com/openconfig/gnmi v0.10.0)
+#
+# The two proto files are vendored with minimal modifications:
+#   - gnmi.proto: import path for gnmi_ext patched to local path
+#   - gnmi_ext.proto: added java_package/java_outer_classname options
+# =============================================================================
+
+proto_library(
+    name = "gnmi_ext_proto",
+    srcs = ["gnmi_ext.proto"],
+    strip_import_prefix = "/gnmi",
+    deps = ["@protobuf//:duration_proto"],
+)
+
+proto_library(
+    name = "gnmi_proto",
+    srcs = ["gnmi.proto"],
+    strip_import_prefix = "/gnmi",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":gnmi_ext_proto",
+        "@protobuf//:any_proto",
+        "@protobuf//:descriptor_proto",
+    ],
+)
+
+java_proto_library(
+    name = "gnmi_java_proto",
+    visibility = ["//visibility:public"],
+    deps = [":gnmi_proto"],
+)
+
+java_proto_library(
+    name = "gnmi_ext_java_proto",
+    deps = [":gnmi_ext_proto"],
+)
+
+java_grpc_library(
+    name = "gnmi_java_grpc",
+    srcs = [":gnmi_proto"],
+    visibility = ["//visibility:public"],
+    deps = [":gnmi_java_proto"],
+)
+
+kt_jvm_grpc_library(
+    name = "gnmi_kt_grpc",
+    srcs = [":gnmi_proto"],
+    visibility = ["//visibility:public"],
+    deps = [":gnmi_java_proto"],
+)
