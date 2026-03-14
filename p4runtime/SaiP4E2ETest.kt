@@ -467,6 +467,33 @@ class SaiP4E2ETest {
     }
   }
 
+  @Test
+  @Suppress("MagicNumber")
+  fun `multiple streams each receive PacketIn (P4Runtime spec 16_1)`() {
+    installRoutingChain()
+    installAclEntry(findAction("acl_trap"))
+    installCopyToCpuCloneSession()
+
+    // Two controllers with different election IDs — both should receive PacketIn per §16.1.
+    harness.openStream().use { session1 ->
+      session1.arbitrate(electionId = 2)
+      harness.openStream().use { session2 ->
+        session2.arbitrate(electionId = 1)
+
+        // Inject via DataplaneService. Both streams should observe PacketIn.
+        val packet = buildIpv4Packet(dstMac = UNICAST_MAC, srcMac = SRC_MAC, ttl = 64)
+        harness.injectPacket(ingressPort = 0, payload = packet)
+
+        val response1 = session1.receiveNext()
+        val response2 = session2.receiveNext()
+        assertNotNull("primary stream should receive PacketIn", response1)
+        assertNotNull("backup stream should receive PacketIn", response2)
+        assertTrue("primary response should be PacketIn", response1!!.hasPacket())
+        assertTrue("backup response should be PacketIn", response2!!.hasPacket())
+      }
+    }
+  }
+
   // =========================================================================
   // ACL ingress: drop
   // =========================================================================
