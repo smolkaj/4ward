@@ -5,18 +5,14 @@ import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildEthernetFrame
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildExactEntry
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.loadConfig
 import fourward.sim.v1.DataplaneGrpcKt.DataplaneCoroutineStub
-import fourward.sim.v1.SimulatorProto.InjectPacketRequest
-import fourward.sim.v1.SimulatorProto.InputPacket
 import fourward.sim.v1.SimulatorProto.SubscribeResultsRequest
-import fourward.sim.v1.SimulatorProto.SubscribeResultsResponse
-import io.grpc.inprocess.InProcessChannelBuilder
-import io.grpc.inprocess.InProcessServerBuilder
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -38,11 +34,9 @@ class DataplaneServiceTest {
     harness.close()
   }
 
-  private fun loadPassthroughConfig() =
-    loadConfig("e2e_tests/passthrough/passthrough.txtpb")
+  private fun loadPassthroughConfig() = loadConfig("e2e_tests/passthrough/passthrough.txtpb")
 
-  private fun loadBasicTableConfig() =
-    loadConfig("e2e_tests/basic_table/basic_table.txtpb")
+  private fun loadBasicTableConfig() = loadConfig("e2e_tests/basic_table/basic_table.txtpb")
 
   // =========================================================================
   // InjectPacket
@@ -114,7 +108,7 @@ class DataplaneServiceTest {
 
     // Wait for subscription to be active, then inject.
     // Small yield to let the subscription start.
-    kotlinx.coroutines.delay(100)
+    delay(100)
     harness.injectPacket(ingressPort = 0, payload = byteArrayOf(0x01))
 
     val result = messages.await()
@@ -122,9 +116,94 @@ class DataplaneServiceTest {
     assertTrue("first is SubscriptionActive", result[0].hasActive())
     assertTrue("second is ProcessPacketResult", result[1].hasResult())
     assertEquals(0, result[1].result.input.ingressPort)
-    assertEquals(
-      ByteString.copyFrom(byteArrayOf(0x01)),
-      result[1].result.input.payload,
-    )
+    assertEquals(ByteString.copyFrom(byteArrayOf(0x01)), result[1].result.input.payload)
+  }
+
+  // =========================================================================
+  // Cross-source SubscribeResults
+  // =========================================================================
+
+  @Test
+  fun `SubscribeResults receives results from both InjectPacket and PacketOut`() = runBlocking {
+    harness.loadPipeline(loadPassthroughConfig())
+    val stub = DataplaneCoroutineStub(harness.channel)
+
+    // Collect 3 messages: SubscriptionActive + 2 results (one from each source).
+    val messages = async {
+      withTimeout(5000) {
+        stub.subscribeResults(SubscribeResultsRequest.getDefaultInstance()).take(3).toList()
+      }
+    }
+
+    delay(100) // Let the subscription start.
+
+    // Source 1: InjectPacket via DataplaneService.
+    harness.injectPacket(ingressPort = 0, payload = byteArrayOf(0xAA.toByte()))
+
+    // Source 2: PacketOut via P4RuntimeService StreamChannel.
+    // Passthrough has no @controller_header, so no PacketIn is produced — but the packet
+    // still flows through the broker and should reach the SubscribeResults subscriber.
+    harness.openStream().use { session ->
+      session.arbitrate()
+      session.sendPacket(byteArrayOf(0xBB.toByte()), timeoutMs = 500)
+    }
+
+    val result = messages.await()
+    assertEquals("expected 3 messages", 3, result.size)
+    assertTrue("first is SubscriptionActive", result[0].hasActive())
+    assertTrue("second is a result", result[1].hasResult())
+    assertTrue("third is a result", result[2].hasResult())
+  }
+
+  // =========================================================================
+  // Concurrency
+  // =========================================================================
+
+  @Test
+  fun `concurrent InjectPacket calls all produce correct results`() = runBlocking {
+    harness.loadPipeline(loadPassthroughConfig())
+    val count = 10
+
+    val results =
+      (0 until count).map { i ->
+        async(Dispatchers.IO) {
+          harness.injectPacket(ingressPort = 0, payload = byteArrayOf(i.toByte()))
+        }
+      }
+
+    val responses = results.map { it.await() }
+    assertEquals("all $count should complete", count, responses.size)
+    responses.forEach { response ->
+      assertEquals("each should produce 1 output", 1, response.outputPacketsCount)
+    }
+  }
+
+  @Test
+  fun `SubscribeResults receives all results from concurrent injections`() = runBlocking {
+    harness.loadPipeline(loadPassthroughConfig())
+    val stub = DataplaneCoroutineStub(harness.channel)
+    val count = 5
+
+    // Collect SubscriptionActive + count results.
+    val messages = async {
+      withTimeout(10000) {
+        stub.subscribeResults(SubscribeResultsRequest.getDefaultInstance()).take(count + 1).toList()
+      }
+    }
+
+    delay(100)
+
+    val injections =
+      (0 until count).map { i ->
+        async(Dispatchers.IO) {
+          harness.injectPacket(ingressPort = 0, payload = byteArrayOf(i.toByte()))
+        }
+      }
+    injections.forEach { it.await() }
+
+    val result = messages.await()
+    assertEquals("expected SubscriptionActive + $count results", count + 1, result.size)
+    assertTrue("first is SubscriptionActive", result[0].hasActive())
+    result.drop(1).forEach { msg -> assertTrue("should be a result", msg.hasResult()) }
   }
 }

@@ -14,8 +14,8 @@ import fourward.simulator.ProcessPacketResult
  * 3. Routes CPU-port outputs to the [PacketIn listener][setPacketInListener].
  * 4. Returns the outputs and trace to the caller.
  *
- * @param simulator function that processes a single packet
- *   (wraps [fourward.simulator.Simulator.processPacket]).
+ * @param simulator function that processes a single packet (wraps
+ *   [fourward.simulator.Simulator.processPacket]).
  * @param cpuPort the data-plane CPU port number, or null if the CPU port is disabled.
  */
 class PacketBroker(
@@ -41,7 +41,6 @@ class PacketBroker(
 
   /**
    * Processes a packet through the simulator and dispatches results.
-   *
    * 1. Calls the simulator.
    * 2. Delivers the result to all subscribers.
    * 3. Routes CPU-port outputs to the PacketIn listener.

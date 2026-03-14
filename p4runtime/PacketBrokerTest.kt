@@ -19,7 +19,7 @@ class PacketBrokerTest {
     ProcessPacketResult(outputs.toList(), TraceTree.getDefaultInstance())
 
   private fun fakeProcessor(
-    vararg results: Pair<Int, ProcessPacketResult>,
+    vararg results: Pair<Int, ProcessPacketResult>
   ): (Int, ByteArray) -> ProcessPacketResult {
     val map = results.toMap()
     return { port, _ -> map[port] ?: result() }
@@ -37,10 +37,7 @@ class PacketBrokerTest {
   @Test
   fun `subscriber receives result with input and outputs`() {
     val outputs = listOf(outputPacket(1))
-    val broker = PacketBroker(
-      fakeProcessor(0 to result(outputPacket(1))),
-      cpuPort = null,
-    )
+    val broker = PacketBroker(fakeProcessor(0 to result(outputPacket(1))), cpuPort = null)
 
     val received = mutableListOf<PacketBroker.SubscriptionResult>()
     broker.subscribe { received.add(it) }
@@ -54,10 +51,7 @@ class PacketBrokerTest {
 
   @Test
   fun `multiple subscribers each receive results`() {
-    val broker = PacketBroker(
-      fakeProcessor(0 to result(outputPacket(1))),
-      cpuPort = null,
-    )
+    val broker = PacketBroker(fakeProcessor(0 to result(outputPacket(1))), cpuPort = null)
 
     val received1 = mutableListOf<PacketBroker.SubscriptionResult>()
     val received2 = mutableListOf<PacketBroker.SubscriptionResult>()
@@ -72,10 +66,7 @@ class PacketBrokerTest {
 
   @Test
   fun `no subscribers does not cause errors`() {
-    val broker = PacketBroker(
-      fakeProcessor(0 to result(outputPacket(1))),
-      cpuPort = null,
-    )
+    val broker = PacketBroker(fakeProcessor(0 to result(outputPacket(1))), cpuPort = null)
     broker.processPacket(0, byteArrayOf())
   }
 
@@ -83,10 +74,11 @@ class PacketBrokerTest {
   fun `CPU-port outputs are reported to PacketIn listener`() {
     val cpuPort = 510
     val outputs = listOf(outputPacket(cpuPort), outputPacket(1))
-    val broker = PacketBroker(
-      fakeProcessor(0 to ProcessPacketResult(outputs, TraceTree.getDefaultInstance())),
-      cpuPort = cpuPort,
-    )
+    val broker =
+      PacketBroker(
+        fakeProcessor(0 to ProcessPacketResult(outputs, TraceTree.getDefaultInstance())),
+        cpuPort = cpuPort,
+      )
 
     val packetIns = mutableListOf<OutputPacket>()
     broker.setPacketInListener { packetIns.add(it) }
@@ -101,10 +93,11 @@ class PacketBrokerTest {
   fun `non-CPU-port outputs do not trigger PacketIn`() {
     val cpuPort = 510
     val outputs = listOf(outputPacket(1), outputPacket(2))
-    val broker = PacketBroker(
-      fakeProcessor(0 to ProcessPacketResult(outputs, TraceTree.getDefaultInstance())),
-      cpuPort = cpuPort,
-    )
+    val broker =
+      PacketBroker(
+        fakeProcessor(0 to ProcessPacketResult(outputs, TraceTree.getDefaultInstance())),
+        cpuPort = cpuPort,
+      )
 
     val packetIns = mutableListOf<OutputPacket>()
     broker.setPacketInListener { packetIns.add(it) }
@@ -117,19 +110,13 @@ class PacketBrokerTest {
   @Test
   fun `no PacketIn listener does not cause errors`() {
     val cpuPort = 510
-    val broker = PacketBroker(
-      fakeProcessor(0 to result(outputPacket(cpuPort))),
-      cpuPort = cpuPort,
-    )
+    val broker = PacketBroker(fakeProcessor(0 to result(outputPacket(cpuPort))), cpuPort = cpuPort)
     broker.processPacket(0, byteArrayOf())
   }
 
   @Test
   fun `unsubscribe stops delivery`() {
-    val broker = PacketBroker(
-      fakeProcessor(0 to result(outputPacket(1))),
-      cpuPort = null,
-    )
+    val broker = PacketBroker(fakeProcessor(0 to result(outputPacket(1))), cpuPort = null)
 
     val received = mutableListOf<PacketBroker.SubscriptionResult>()
     val handle = broker.subscribe { received.add(it) }
@@ -145,10 +132,7 @@ class PacketBrokerTest {
   @Test
   fun `clearPacketInListener stops PacketIn delivery`() {
     val cpuPort = 510
-    val broker = PacketBroker(
-      fakeProcessor(0 to result(outputPacket(cpuPort))),
-      cpuPort = cpuPort,
-    )
+    val broker = PacketBroker(fakeProcessor(0 to result(outputPacket(cpuPort))), cpuPort = cpuPort)
 
     val packetIns = mutableListOf<OutputPacket>()
     broker.setPacketInListener { packetIns.add(it) }

@@ -55,8 +55,9 @@ class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable 
   private val serverName = InProcessServerBuilder.generateName()
   private val simulator = Simulator()
   private val lock = Mutex()
-  private val service = P4RuntimeService(simulator, constraintValidatorBinary, lock)
   private val broker = PacketBroker(simulator::processPacket, cpuPort = null)
+  private val service =
+    P4RuntimeService(simulator, constraintValidatorBinary, broker = broker, lock = lock)
   private val dataplaneService = DataplaneService(broker, lock)
 
   private val server =
