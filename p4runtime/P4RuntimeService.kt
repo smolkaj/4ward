@@ -444,25 +444,19 @@ class P4RuntimeService(
 
     val result = simulator.processPacket(ingressPort, payload)
 
-    return result.outputPackets.map { outputPacket ->
-      val rawPacketIn =
-        if (codec != null) {
-          val metadata = codec.buildPacketInMetadata(ingressPort, outputPacket.egressPort)
+    // Only outputs egressing on the CPU port become PacketIn (P4Runtime spec §16.1).
+    // Without a codec (@controller_header), there is no CPU port and no PacketIn is produced.
+    val cpuPort = codec?.cpuPort ?: return emptyList()
+    return result.outputPackets
+      .filter { it.egressPort == cpuPort }
+      .map { outputPacket ->
+        val metadata = codec.buildPacketInMetadata(ingressPort, outputPacket.egressPort)
+        val rawPacketIn =
           PacketIn.newBuilder().setPayload(outputPacket.payload).addAllMetadata(metadata).build()
-        } else {
-          PacketIn.newBuilder()
-            .setPayload(outputPacket.payload)
-            .addMetadata(
-              p4.v1.P4RuntimeOuterClass.PacketMetadata.newBuilder()
-                .setMetadataId(EGRESS_PORT_METADATA_ID)
-                .setValue(encodeMinWidth(outputPacket.egressPort))
-            )
-            .build()
-        }
-      StreamMessageResponse.newBuilder()
-        .setPacket(translator?.translatePacketIn(rawPacketIn) ?: rawPacketIn)
-        .build()
-    }
+        StreamMessageResponse.newBuilder()
+          .setPacket(translator?.translatePacketIn(rawPacketIn) ?: rawPacketIn)
+          .build()
+      }
   }
 
   /** Extracts ingress port from PacketOut metadata, defaulting to port 0. */
@@ -798,9 +792,8 @@ class P4RuntimeService(
   companion object {
     private const val DEFAULT_DEVICE_ID = 1L
 
-    // Well-known metadata IDs for v1model packet_in/packet_out headers.
+    // Well-known metadata ID for the fallback (no @controller_header) PacketOut path.
     private const val INGRESS_PORT_METADATA_ID = 1
-    private const val EGRESS_PORT_METADATA_ID = 2
 
     // Matches the p4runtime proto version declared in MODULE.bazel.
     private const val P4RUNTIME_API_VERSION = "1.5.0"

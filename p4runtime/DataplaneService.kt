@@ -1,10 +1,15 @@
 package fourward.p4runtime
 
 import fourward.sim.v1.DataplaneGrpcKt
-import fourward.sim.v1.SimulatorProto.ProcessPacketRequest
-import fourward.sim.v1.SimulatorProto.ProcessPacketResponse
-import fourward.sim.v1.SimulatorProto.ProcessPacketWithTraceTreeResponse
-import fourward.simulator.Simulator
+import fourward.sim.v1.SimulatorProto.InjectPacketRequest
+import fourward.sim.v1.SimulatorProto.InjectPacketResponse
+import fourward.sim.v1.SimulatorProto.InputPacket
+import fourward.sim.v1.SimulatorProto.SubscribeResultsRequest
+import fourward.sim.v1.SimulatorProto.SubscribeResultsResponse
+import fourward.sim.v1.SimulatorProto.SubscriptionActive
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -18,23 +23,43 @@ import kotlinx.coroutines.sync.withLock
  * translation is performed. Callers should use simulator-native port numbers and field widths, not
  * SDN-translated values.
  */
-class DataplaneService(private val simulator: Simulator, private val lock: Mutex) :
+class DataplaneService(private val broker: PacketBroker, private val lock: Mutex) :
   DataplaneGrpcKt.DataplaneCoroutineImplBase() {
 
-  override suspend fun processPacket(request: ProcessPacketRequest): ProcessPacketResponse {
+  override suspend fun injectPacket(request: InjectPacketRequest): InjectPacketResponse {
+    val packet = request.packet
     val result =
-      lock.withLock { simulator.processPacket(request.ingressPort, request.payload.toByteArray()) }
-    return ProcessPacketResponse.newBuilder().addAllOutputPackets(result.outputPackets).build()
-  }
-
-  override suspend fun processPacketWithTraceTree(
-    request: ProcessPacketRequest
-  ): ProcessPacketWithTraceTreeResponse {
-    val result =
-      lock.withLock { simulator.processPacket(request.ingressPort, request.payload.toByteArray()) }
-    return ProcessPacketWithTraceTreeResponse.newBuilder()
+      lock.withLock { broker.processPacket(packet.ingressPort, packet.payload.toByteArray()) }
+    return InjectPacketResponse.newBuilder()
       .addAllOutputPackets(result.outputPackets)
       .setTrace(result.trace)
       .build()
   }
+
+  override fun subscribeResults(request: SubscribeResultsRequest): Flow<SubscribeResultsResponse> =
+    callbackFlow {
+      // Send the handshake message confirming the subscription is active.
+      send(
+        SubscribeResultsResponse.newBuilder()
+          .setActive(SubscriptionActive.getDefaultInstance())
+          .build()
+      )
+
+      val handle =
+        broker.subscribe { subResult ->
+          val result =
+            fourward.sim.v1.SimulatorProto.ProcessPacketResult.newBuilder()
+              .setInput(
+                InputPacket.newBuilder()
+                  .setIngressPort(subResult.ingressPort)
+                  .setPayload(com.google.protobuf.ByteString.copyFrom(subResult.payload))
+              )
+              .addAllOutputPackets(subResult.outputPackets)
+              .setTrace(subResult.trace)
+              .build()
+          trySend(SubscribeResultsResponse.newBuilder().setResult(result).build())
+        }
+
+      awaitClose { handle.unsubscribe() }
+    }
 }

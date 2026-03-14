@@ -5,6 +5,7 @@ import fourward.ir.v1.PipelineConfig
 import io.grpc.Status
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -352,20 +353,20 @@ class SaiP4E2ETest {
   // =========================================================================
 
   @Test
-  fun `PacketOut with submit_to_ingress=0 exits on specified port`() {
+  fun `PacketOut with submit_to_ingress=0 exits on data-plane port, no PacketIn`() {
     // Look up packet_out metadata IDs from p4info.
     val packetOutMeta =
       config.p4Info.controllerPacketMetadataList.find { it.preamble.name == "packet_out" }!!
     val egressPortId = packetOutMeta.metadataList.find { it.name == "egress_port" }!!.id
     val submitToIngressId = packetOutMeta.metadataList.find { it.name == "submit_to_ingress" }!!.id
 
-    // Build a simple Ethernet payload.
-    val payload = buildIpv4Packet(dstMac = UNICAST_MAC, srcMac = SRC_MAC, ttl = 64)
-
-    // Build PacketOut with egress_port as a string (port_id_t is sdn_string).
+    // Build PacketOut with egress_port=Ethernet1, submit_to_ingress=0.
+    // The packet bypasses ingress and exits on Ethernet1 — a data-plane port, not the CPU port.
     val packetOut =
       p4.v1.P4RuntimeOuterClass.PacketOut.newBuilder()
-        .setPayload(ByteString.copyFrom(payload))
+        .setPayload(
+          ByteString.copyFrom(buildIpv4Packet(dstMac = UNICAST_MAC, srcMac = SRC_MAC, ttl = 64))
+        )
         .addMetadata(
           p4.v1.P4RuntimeOuterClass.PacketMetadata.newBuilder()
             .setMetadataId(egressPortId)
@@ -378,34 +379,12 @@ class SaiP4E2ETest {
         )
         .build()
 
-    // Open stream, arbitrate, and send.
+    // Only CPU-port outputs become PacketIn. Data-plane outputs (like Ethernet1) do not.
+    // TODO(packet-io): verify data-plane outputs via SubscribeResults once implemented.
     harness.openStream().use { session ->
       session.arbitrate()
-      val response = session.sendPacketOut(packetOut)
-
-      // Should receive a PacketIn with the original payload.
-      assertTrue("expected a PacketIn response", response != null && response.hasPacket())
-      val packetIn = response!!.packet
-
-      // Payload should match the original Ethernet frame (except IPv4 checksum
-      // which the deparser computes). Verify key fields individually.
-      val output = packetIn.payload.toByteArray()
-      assertEquals("payload size should match", payload.size, output.size)
-      // Ethernet header unchanged.
-      assertBytesEqual("dst_mac", UNICAST_MAC, output, 0)
-      assertBytesEqual("src_mac", SRC_MAC, output, MAC_LEN)
-      // TTL unchanged (bypass_ingress skips routing, no decrement).
-      assertEquals("TTL", 64, output[TTL_OFFSET].toInt() and 0xFF)
-
-      // Should have PacketIn metadata (ingress_port + target_egress_port).
-      val packetInMeta =
-        config.p4Info.controllerPacketMetadataList.find { it.preamble.name == "packet_in" }!!
-      val targetEgressPortId =
-        packetInMeta.metadataList.find { it.name == "target_egress_port" }!!.id
-      val egressMeta = packetIn.metadataList.find { it.metadataId == targetEgressPortId }
-      assertTrue("expected target_egress_port metadata", egressMeta != null)
-      // The target_egress_port should reverse-translate to "Ethernet1".
-      assertEquals("Ethernet1", egressMeta!!.value.toStringUtf8())
+      val response = session.sendPacketOut(packetOut, timeoutMs = 500)
+      assertNull("data-plane output should not become PacketIn", response)
     }
   }
 

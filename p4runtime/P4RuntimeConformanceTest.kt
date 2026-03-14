@@ -16,6 +16,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -223,45 +224,40 @@ class P4RuntimeConformanceTest {
   }
 
   @Test
-  fun `13 - PacketOut processed by simulator, PacketIn returned`() {
-    harness.loadPipeline(loadPassthroughConfig())
-    val payload = byteArrayOf(0xCA.toByte(), 0xFE.toByte())
-    val responses = harness.sendPacketViaStream(payload)
-    assertTrue("expected at least 2 responses", responses.size >= 2)
-    // First response is arbitration ack, second is PacketIn.
-    assertTrue("expected packet_in", responses[1].hasPacket())
-    assertEquals(com.google.protobuf.ByteString.copyFrom(payload), responses[1].packet.payload)
-  }
-
-  @Test
-  fun `14 - PacketOut with table entries has correct forwarding`() {
-    val config = loadBasicTableConfig()
-    harness.loadPipeline(config)
-    // basic_table.p4 matches on etherType: install forward(port=1) for IPv4.
-    val entry = buildExactEntry(config, matchValue = 0x0800, port = 1)
-    harness.installEntry(entry)
-    // Ethernet frame: dst=ff:ff:ff:ff:ff:ff src=00:00:00:00:00:01 etherType=0x0800 payload=DEAD
-    val payload = buildEthernetFrame(etherType = 0x0800)
-    val responses = harness.sendPacketViaStream(payload)
-    assertTrue("expected at least 2 responses", responses.size >= 2)
-    assertTrue("expected packet_in", responses[1].hasPacket())
-  }
-
-  @Test
-  fun `15 - multiple packets preserve ordering`() {
+  fun `13 - PacketOut without controller_header produces no PacketIn`() {
+    // passthrough.p4 has no @controller_header, so there is no CPU port.
+    // PacketOut is still processed by the simulator, but no outputs become PacketIn.
     harness.loadPipeline(loadPassthroughConfig())
     harness.openStream().use { stream ->
       stream.arbitrate()
-      val payload1 = byteArrayOf(0x01, 0x02)
-      val payload2 = byteArrayOf(0x03, 0x04)
-      val pkt1 = stream.sendPacket(payload1)
-      val pkt2 = stream.sendPacket(payload2)
-      assertNotNull("first packet returned", pkt1)
-      assertNotNull("second packet returned", pkt2)
-      assertTrue("first is packet_in", pkt1!!.hasPacket())
-      assertTrue("second is packet_in", pkt2!!.hasPacket())
-      assertEquals(com.google.protobuf.ByteString.copyFrom(payload1), pkt1.packet.payload)
-      assertEquals(com.google.protobuf.ByteString.copyFrom(payload2), pkt2.packet.payload)
+      val response = stream.sendPacket(byteArrayOf(0xCA.toByte(), 0xFE.toByte()), timeoutMs = 500)
+      assertNull("no PacketIn without @controller_header", response)
+    }
+  }
+
+  @Test
+  fun `14 - PacketOut with table entries but no controller_header produces no PacketIn`() {
+    // basic_table.p4 has no @controller_header; PacketOut is processed but no PacketIn is returned.
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    val entry = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    harness.installEntry(entry)
+    harness.openStream().use { stream ->
+      stream.arbitrate()
+      val payload = buildEthernetFrame(etherType = 0x0800)
+      val response = stream.sendPacket(payload, timeoutMs = 500)
+      assertNull("no PacketIn without @controller_header", response)
+    }
+  }
+
+  @Test
+  fun `15 - multiple PacketOut without controller_header produce no PacketIn`() {
+    // passthrough.p4 has no @controller_header; no PacketIn for any PacketOut.
+    harness.loadPipeline(loadPassthroughConfig())
+    harness.openStream().use { stream ->
+      stream.arbitrate()
+      assertNull(stream.sendPacket(byteArrayOf(0x01, 0x02), timeoutMs = 500))
+      assertNull(stream.sendPacket(byteArrayOf(0x03, 0x04), timeoutMs = 500))
     }
   }
 
@@ -1949,11 +1945,11 @@ class P4RuntimeConformanceTest {
     assertEquals("named-role read of unscoped counter should succeed", CTR_SIZE, results.size)
   }
 
-  /** DataplaneService: processPacketWithTraceTree returns both output packets and trace. */
+  /** DataplaneService: InjectPacket returns both output packets and trace. */
   @Test
-  fun `106 - processPacketWithTraceTree returns output and trace`() {
+  fun `106 - InjectPacket returns output and trace`() {
     harness.loadPipeline(loadPassthroughConfig())
-    val resp = harness.simulatePacketWithTrace(0, byteArrayOf(0x01, 0x02))
+    val resp = harness.injectPacket(0, byteArrayOf(0x01, 0x02))
     assertTrue("should have output packets", resp.outputPacketsList.isNotEmpty())
     assertTrue("trace should be present", resp.hasTrace())
   }

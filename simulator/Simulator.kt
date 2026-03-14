@@ -8,7 +8,7 @@ import fourward.sim.v1.SimulatorProto.TraceTree
  * Result of processing a single packet through the pipeline.
  *
  * Decouples the simulator from the gRPC wire format ([fourward.sim.v1.SimulatorProto
- * .ProcessPacketResponse]). Each RPC method builds its own wire proto from this data class.
+ * .InjectPacketResponse]). Each RPC method builds its own wire proto from this data class.
  */
 data class ProcessPacketResult(val outputPackets: List<OutputPacket>, val trace: TraceTree)
 

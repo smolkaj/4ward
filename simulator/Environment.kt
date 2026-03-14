@@ -7,7 +7,7 @@ import java.io.ByteArrayOutputStream
  * Variable scope stack for a single packet traversal.
  *
  * Holds variable bindings (headers, metadata, local variables) organised as a stack of scopes to
- * handle nested control blocks. A new Environment is created for each [ProcessPacketRequest] and
+ * handle nested control blocks. A new Environment is created for each [InjectPacketRequest] and
  * discarded afterwards.
  *
  * Packet-level state (input buffer, output buffer, execution trace) lives in [PacketContext].
@@ -62,7 +62,7 @@ class Environment {
 }
 
 /**
- * Packet-level state for a single [ProcessPacketRequest].
+ * Packet-level state for a single [InjectPacketRequest].
  *
  * Holds the input packet buffer, the output (emit) buffer, and the execution trace. Created once
  * per packet in the architecture's [processPacket] and threaded through the interpreter.
