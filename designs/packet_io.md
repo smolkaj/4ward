@@ -82,22 +82,32 @@ message ProcessPacketResult {
   TraceTree trace = 3;
 }
 
+message SubscribeResultsRequest {}
+
 message SubscribeResultsResponse {
   oneof event {
     // Sent exactly once as the first message. Confirms the subscription
-    // callback is registered and no results will be missed. The client
-    // must wait for this before injecting packets.
+    // is registered and no results will be missed. The client must wait
+    // for this before injecting packets.
     SubscriptionActive active = 1;
     ProcessPacketResult result = 2;
   }
 }
+
+message SubscriptionActive {}
 ```
+
+`TraceTree` is defined in `simulator.proto`.
 
 `InjectPacket` is a simple unary RPC that returns the result inline. The
 simulator is synchronous, so the result is available before the RPC returns.
 This makes the simple case — inject a packet, see what happened — trivial,
 with no need for a `SubscribeResults` subscription. The same result is also
 delivered to `SubscribeResults` subscribers for fan-out.
+
+There are two result shapes: `InjectPacketResponse` omits the input (the
+caller already has it), while `ProcessPacketResult` includes it (subscribers
+need to know which input produced the result).
 
 Key properties:
 
@@ -116,7 +126,7 @@ Key properties:
 #### Subscription handshake
 
 The `SubscriptionActive` message solves a race condition: the client must
-know the callback is registered before injecting packets (via any source),
+know the subscription is registered before injecting packets (via any source),
 otherwise results could be missed. The protocol contract is: exactly one
 `SubscriptionActive` first, then zero or more `ProcessPacketResult`. This
 ordering is documented but cannot be expressed in the proto type system.
@@ -197,7 +207,7 @@ returns all output packets atomically.
 | Component | Today | After |
 |---|---|---|
 | `Dataplane` service | Two unary RPCs (`ProcessPacket`, `ProcessPacketWithTraceTree`) | Unary `InjectPacket` + server-streaming `SubscribeResults` |
-| `P4RuntimeService` | Calls simulator directly; wraps all outputs as PacketIn | Calls broker; registers PacketIn callback on StreamChannel open |
+| `P4RuntimeService` | Calls simulator directly; wraps all outputs as PacketIn | Calls broker; wires PacketIn delivery on StreamChannel open |
 | `PacketBroker` | Does not exist | New: wraps simulator, routes outputs, manages subscriptions |
 | `PacketHeaderCodec` | Owned by P4RuntimeService | Moved into broker |
 | `TypeTranslator` | Owned by P4RuntimeService | PacketIn/Out translation moved into broker |
