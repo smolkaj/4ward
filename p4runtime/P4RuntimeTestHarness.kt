@@ -327,25 +327,6 @@ class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable 
   fun openStream(): StreamSession = StreamSession()
 
   /**
-   * Convenience: opens a stream, arbitrates, sends one PacketOut, and returns the responses.
-   *
-   * Use [openStream] for multi-packet scenarios.
-   */
-  fun sendPacketViaStream(
-    payload: ByteArray,
-    ingressPort: Int = 0,
-    expectedResponses: Int = 2,
-  ): List<StreamMessageResponse> =
-    openStream().use { session ->
-      val responses = mutableListOf<StreamMessageResponse>()
-      responses.add(session.arbitrate())
-      if (expectedResponses > 1 && payload.isNotEmpty()) {
-        session.sendPacket(payload, ingressPort)?.let { responses.add(it) }
-      }
-      responses
-    }
-
-  /**
    * A persistent bidirectional StreamChannel session.
    *
    * Call [arbitrate] once to become master, then [sendPacket] for each packet. The session

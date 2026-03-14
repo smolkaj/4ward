@@ -218,9 +218,10 @@ class P4RuntimeConformanceTest {
 
   @Test
   fun `12 - arbitration establishes master`() {
-    val responses = harness.sendPacketViaStream(byteArrayOf(), expectedResponses = 1)
-    assertTrue("expected arbitration response", responses.isNotEmpty())
-    assertTrue("expected arbitration ack", responses[0].hasArbitration())
+    harness.openStream().use { session ->
+      val response = session.arbitrate()
+      assertTrue("expected arbitration ack", response.hasArbitration())
+    }
   }
 
   @Test

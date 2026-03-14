@@ -355,36 +355,12 @@ class SaiP4E2ETest {
 
   @Test
   fun `PacketOut with submit_to_ingress=0 exits on data-plane port, no PacketIn`() {
-    // Look up packet_out metadata IDs from p4info.
-    val packetOutMeta =
-      config.p4Info.controllerPacketMetadataList.find { it.preamble.name == "packet_out" }!!
-    val egressPortId = packetOutMeta.metadataList.find { it.name == "egress_port" }!!.id
-    val submitToIngressId = packetOutMeta.metadataList.find { it.name == "submit_to_ingress" }!!.id
-
-    // Build PacketOut with egress_port=Ethernet1, submit_to_ingress=0.
     // The packet bypasses ingress and exits on Ethernet1 — a data-plane port, not the CPU port.
-    val packetOut =
-      p4.v1.P4RuntimeOuterClass.PacketOut.newBuilder()
-        .setPayload(
-          ByteString.copyFrom(buildIpv4Packet(dstMac = UNICAST_MAC, srcMac = SRC_MAC, ttl = 64))
-        )
-        .addMetadata(
-          p4.v1.P4RuntimeOuterClass.PacketMetadata.newBuilder()
-            .setMetadataId(egressPortId)
-            .setValue(ByteString.copyFromUtf8("Ethernet1"))
-        )
-        .addMetadata(
-          p4.v1.P4RuntimeOuterClass.PacketMetadata.newBuilder()
-            .setMetadataId(submitToIngressId)
-            .setValue(ByteString.copyFrom(byteArrayOf(0)))
-        )
-        .build()
-
-    // Only CPU-port outputs become PacketIn. Data-plane outputs (like Ethernet1) do not.
-    // Data-plane outputs are verified via SubscribeResults in DataplaneServiceTest.
+    // Only CPU-port outputs become PacketIn. Data-plane outputs do not.
     harness.openStream().use { session ->
       session.arbitrate()
-      val response = session.sendPacketOut(packetOut, timeoutMs = 500)
+      val response =
+        session.sendPacketOut(buildCpuPacketOut(submitToIngress = false), timeoutMs = 500)
       assertNull("data-plane output should not become PacketIn", response)
     }
   }
