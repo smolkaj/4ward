@@ -83,11 +83,15 @@ enum InputType {
   // Normal data-plane packet arriving on a front-panel port.
   INPUT_TYPE_DATAPLANE = 1;
 
-  // Control-plane packet sent via P4Runtime PacketOut.
-  // Enters the pipeline on the CPU port.
+  // Control-plane packet sent via P4Runtime PacketOut with an explicit
+  // egress port. The packet_out header is serialized and prepended to the
+  // payload; the P4 program's parser extracts the egress_port field.
+  // Packet.port is the target egress port.
   INPUT_TYPE_PACKET_OUT = 2;
 
-  // Directly submitted to the ingress pipeline (bypasses parser).
+  // Control-plane packet submitted to the ingress pipeline via
+  // P4Runtime PacketOut. Enters the parser on the CPU port without
+  // a packet_out header. Packet.port is ignored.
   INPUT_TYPE_SUBMIT_TO_INGRESS = 3;
 }
 
@@ -115,6 +119,20 @@ message SwitchOutput {
 message PacketIn {
   // Raw packet payload (as emitted by the deparser on the CPU port).
   bytes payload = 1;
+
+  // PacketIn metadata from @controller_header("packet_in"), e.g. ingress_port.
+  // Aligned with pdpi.IrPacketMetadata but self-contained.
+  repeated PacketMetadata metadata = 2;
+}
+
+// A single metadata field from a PacketIn or PacketOut header.
+// Corresponds to pdpi.IrPacketMetadata in sonic-pins.
+message PacketMetadata {
+  // Field name from p4info controller_packet_metadata (e.g. "ingress_port").
+  string name = 1;
+
+  // Field value as raw bytes (network byte order).
+  bytes value = 2;
 }
 
 // =============================================================================

@@ -19,8 +19,14 @@ class P4RuntimeServer(
   private val service =
     P4RuntimeService(simulator, broker, lock = lock, cpuPortConfig = cpuPortConfig)
   private val dataplaneService = DataplaneService(broker, lock)
-  // TODO(DVaaS): thread cpuPortConfig through to DvaasService for PacketIn classification.
-  private val dvaasService = DvaasService(broker::processPacket, lock)
+  private val dvaasService =
+    DvaasService(
+      processPacketFn = broker::processPacket,
+      lock = lock,
+      cpuPortFn = service::currentCpuPort,
+      packetOutInjectorFn = service::injectPacketOut,
+      packetInMetadataFn = service::buildDvaasPacketInMetadata,
+    )
   private lateinit var server: Server
 
   fun start(): P4RuntimeServer {

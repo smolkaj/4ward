@@ -60,9 +60,12 @@ guilt — just write it down so someone can find it later.
 
 ## DVaaS validation service
 
-- **Only `INPUT_TYPE_DATAPLANE` supported.** `INPUT_TYPE_PACKET_OUT` and
-  `INPUT_TYPE_SUBMIT_TO_INGRESS` are not yet implemented — the service
-  rejects them with `INVALID_ARGUMENT`.
+- **All three injection modes supported.** `INPUT_TYPE_DATAPLANE`,
+  `INPUT_TYPE_PACKET_OUT`, and `INPUT_TYPE_SUBMIT_TO_INGRESS` are fully
+  implemented. `PACKET_OUT` requires a pipeline with `@controller_header`;
+  `SUBMIT_TO_INGRESS` requires a configured CPU port.
+- **PacketIn metadata populated.** Outputs on the CPU port are classified as
+  `PacketIn` with metadata fields (e.g. `ingress_port`) derived from p4info.
 - **Non-numeric port strings not supported.** SAI P4 programs using
   `@p4runtime_translation` with string port identifiers (e.g. "Ethernet0")
   require type translation that isn't wired into the DVaaS service yet.

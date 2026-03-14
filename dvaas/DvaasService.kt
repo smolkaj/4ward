@@ -14,6 +14,7 @@
 
 package fourward.dvaas
 
+import fourward.dvaas.DvaasProto.PacketMetadata
 import fourward.dvaas.DvaasProto.ValidateTestVectorsRequest
 import fourward.dvaas.DvaasProto.ValidateTestVectorsResponse
 import fourward.simulator.ProcessPacketResult
@@ -28,17 +29,26 @@ import kotlinx.coroutines.sync.withLock
  * Serialized via a shared [lock] with P4RuntimeService and DataplaneService to prevent races
  * between control-plane writes and data-plane packet processing.
  *
- * @param processPacketFn Packet processing function (typically [PacketBroker.processPacket]).
- *   Using a function reference rather than a direct PacketBroker dependency avoids a circular
- *   build dependency between the dvaas and p4runtime packages.
+ * @param processPacketFn Packet processing function (typically [PacketBroker.processPacket]). Using
+ *   a function reference rather than a direct PacketBroker dependency avoids a circular build
+ *   dependency between the dvaas and p4runtime packages.
+ * @param cpuPortFn Returns the current CPU port number, or null if CPU port is not configured.
+ *   Resolved dynamically per-request to track pipeline changes.
+ * @param packetOutInjectorFn Injects a PacketOut with the given egress port and payload. Null if
+ *   the pipeline has no `@controller_header("packet_out")`.
+ * @param packetInMetadataFn Builds PacketIn metadata for an output packet on the CPU port. Takes
+ *   (ingressPort, egressPort) and returns metadata fields.
  */
 class DvaasService(
   processPacketFn: (ingressPort: Int, payload: ByteArray) -> ProcessPacketResult,
   private val lock: Mutex,
-  cpuPort: Int? = null,
+  cpuPortFn: () -> Int? = { null },
+  packetOutInjectorFn: ((egressPort: Int, payload: ByteArray) -> ProcessPacketResult)? = null,
+  packetInMetadataFn: ((ingressPort: Int, egressPort: Int) -> List<PacketMetadata>)? = null,
 ) : DvaasValidationGrpcKt.DvaasValidationCoroutineImplBase() {
 
-  private val validator = TestVectorValidator(processPacketFn, cpuPort)
+  private val validator =
+    TestVectorValidator(processPacketFn, cpuPortFn, packetOutInjectorFn, packetInMetadataFn)
 
   override suspend fun validateTestVectors(
     request: ValidateTestVectorsRequest

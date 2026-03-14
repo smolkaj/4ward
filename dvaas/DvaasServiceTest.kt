@@ -22,6 +22,7 @@ import fourward.dvaas.DvaasProto.SwitchInput
 import fourward.dvaas.DvaasProto.SwitchOutput
 import fourward.dvaas.DvaasProto.ValidateTestVectorsRequest
 import fourward.ir.PipelineConfig
+import fourward.p4runtime.P4RuntimeService
 import fourward.p4runtime.PacketBroker
 import fourward.simulator.Simulator
 import io.grpc.Status
@@ -35,35 +36,66 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import p4.v1.P4RuntimeOuterClass.ForwardingPipelineConfig
+import p4.v1.P4RuntimeOuterClass.SetForwardingPipelineConfigRequest
 
-/**
- * Integration tests for [DvaasService]. Uses in-process gRPC transport with a real [Simulator].
- */
+/** Integration tests for [DvaasService]. Uses in-process gRPC transport with a real [Simulator]. */
 class DvaasServiceTest {
 
-  /** Lightweight test harness wrapping a DvaasService with in-process gRPC. */
-  private class Harness : Closeable {
+  /**
+   * Test harness wrapping DvaasService + P4RuntimeService with in-process gRPC.
+   *
+   * Includes a full P4RuntimeService so the DVaaS service has access to codec-based PacketOut
+   * injection and PacketIn metadata — mirroring the real server wiring.
+   */
+  private class Harness(cpuPortOverride: Int? = null) : Closeable {
     private val serverName = InProcessServerBuilder.generateName()
     private val simulator = Simulator()
     private val lock = Mutex()
     private val broker = PacketBroker(simulator::processPacket)
-    private val service = DvaasService(broker::processPacket, lock)
+    private val p4rtService = P4RuntimeService(simulator, broker, lock = lock)
+    private val dvaasService =
+      DvaasService(
+        processPacketFn = broker::processPacket,
+        lock = lock,
+        // Fall back to cpuPortOverride for programs without @controller_header("packet_out").
+        cpuPortFn = { p4rtService.currentCpuPort() ?: cpuPortOverride },
+        packetOutInjectorFn = p4rtService::injectPacketOut,
+        packetInMetadataFn = p4rtService::buildDvaasPacketInMetadata,
+      )
 
     private val server =
       InProcessServerBuilder.forName(serverName)
         .directExecutor()
-        .addService(service)
+        .addService(dvaasService)
+        .addService(p4rtService)
         .build()
         .start()
 
     val channel = InProcessChannelBuilder.forName(serverName).directExecutor().build()
     val stub = DvaasValidationGrpcKt.DvaasValidationCoroutineStub(channel)
 
+    /** Loads a pipeline via the P4RuntimeService (so the codec gets created). */
     fun loadPipeline(config: PipelineConfig) {
-      simulator.loadPipeline(config)
+      val p4rtStub = p4.v1.P4RuntimeGrpcKt.P4RuntimeCoroutineStub(channel)
+      val fwdConfig =
+        ForwardingPipelineConfig.newBuilder()
+          .setP4Info(config.p4Info)
+          .setP4DeviceConfig(config.device.toByteString())
+          .build()
+      runBlocking {
+        p4rtStub.setForwardingPipelineConfig(
+          SetForwardingPipelineConfigRequest.newBuilder()
+            .setDeviceId(1)
+            .setAction(SetForwardingPipelineConfigRequest.Action.VERIFY_AND_COMMIT)
+            .setConfig(fwdConfig)
+            .build()
+        )
+      }
     }
 
     override fun close() {
+      p4rtService.close()
       channel.shutdownNow()
       server.shutdownNow()
     }
@@ -96,10 +128,14 @@ class DvaasServiceTest {
     SwitchInput.newBuilder()
       .setType(InputType.INPUT_TYPE_DATAPLANE)
       .setPacket(
-        Packet.newBuilder()
-          .setPort(port.toString())
-          .setPayload(ByteString.copyFrom(payload))
+        Packet.newBuilder().setPort(port.toString()).setPayload(ByteString.copyFrom(payload))
       )
+      .build()
+
+  private fun submitToIngressInput(payload: ByteArray): SwitchInput =
+    SwitchInput.newBuilder()
+      .setType(InputType.INPUT_TYPE_SUBMIT_TO_INGRESS)
+      .setPacket(Packet.newBuilder().setPayload(ByteString.copyFrom(payload)))
       .build()
 
   // ---------------------------------------------------------------------------
@@ -112,8 +148,7 @@ class DvaasServiceTest {
       val request =
         ValidateTestVectorsRequest.newBuilder()
           .addTestVectors(
-            PacketTestVector.newBuilder()
-              .setInput(dataplaneSwitchInput(0, byteArrayOf(0x01)))
+            PacketTestVector.newBuilder().setInput(dataplaneSwitchInput(0, byteArrayOf(0x01)))
           )
           .build()
 
@@ -159,9 +194,7 @@ class DvaasServiceTest {
               .addAcceptableOutputs(
                 SwitchOutput.newBuilder()
                   .addPackets(
-                    Packet.newBuilder()
-                      .setPort("1")
-                      .setPayload(ByteString.copyFrom(payload))
+                    Packet.newBuilder().setPort("1").setPayload(ByteString.copyFrom(payload))
                   )
               )
           )
@@ -190,9 +223,7 @@ class DvaasServiceTest {
               .addAcceptableOutputs(
                 SwitchOutput.newBuilder()
                   .addPackets(
-                    Packet.newBuilder()
-                      .setPort("42")
-                      .setPayload(ByteString.copyFrom(payload))
+                    Packet.newBuilder().setPort("42").setPayload(ByteString.copyFrom(payload))
                   )
               )
           )
@@ -214,9 +245,7 @@ class DvaasServiceTest {
       val request =
         ValidateTestVectorsRequest.newBuilder()
           .addTestVectors(
-            PacketTestVector.newBuilder()
-              .setId(1)
-              .setInput(dataplaneSwitchInput(0, payload))
+            PacketTestVector.newBuilder().setId(1).setInput(dataplaneSwitchInput(0, payload))
             // No acceptable_outputs → recording mode.
           )
           .build()
@@ -249,7 +278,9 @@ class DvaasServiceTest {
               .setInput(dataplaneSwitchInput(0, payload))
               .addAcceptableOutputs(
                 SwitchOutput.newBuilder()
-                  .addPackets(Packet.newBuilder().setPort("1").setPayload(ByteString.copyFrom(payload)))
+                  .addPackets(
+                    Packet.newBuilder().setPort("1").setPayload(ByteString.copyFrom(payload))
+                  )
               )
           )
           .addTestVectors(
@@ -258,7 +289,9 @@ class DvaasServiceTest {
               .setInput(dataplaneSwitchInput(5, payload))
               .addAcceptableOutputs(
                 SwitchOutput.newBuilder()
-                  .addPackets(Packet.newBuilder().setPort("1").setPayload(ByteString.copyFrom(payload)))
+                  .addPackets(
+                    Packet.newBuilder().setPort("1").setPayload(ByteString.copyFrom(payload))
+                  )
               )
           )
           .build()
@@ -312,9 +345,7 @@ class DvaasServiceTest {
       val payload = buildEthernetFrame()
       val request =
         ValidateTestVectorsRequest.newBuilder()
-          .addTestVectors(
-            PacketTestVector.newBuilder().setInput(dataplaneSwitchInput(0, payload))
-          )
+          .addTestVectors(PacketTestVector.newBuilder().setInput(dataplaneSwitchInput(0, payload)))
           .build()
 
       val response = runBlocking { harness.stub.validateTestVectors(request) }
@@ -325,5 +356,65 @@ class DvaasServiceTest {
       // The trace should terminate with a packet outcome.
       assertTrue("trace should have packet outcome", trace.hasPacketOutcome())
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // SUBMIT_TO_INGRESS injection mode
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `SUBMIT_TO_INGRESS injects on CPU port`() {
+    // Passthrough has no @controller_header, so we override the CPU port for this test.
+    Harness(cpuPortOverride = CPU_PORT_OVERRIDE).use { harness ->
+      val config = loadConfig("e2e_tests/passthrough/passthrough.txtpb")
+      harness.loadPipeline(config)
+
+      val payload = buildEthernetFrame()
+      val request =
+        ValidateTestVectorsRequest.newBuilder()
+          .addTestVectors(
+            PacketTestVector.newBuilder().setId(1).setInput(submitToIngressInput(payload))
+          )
+          .build()
+
+      val response = runBlocking { harness.stub.validateTestVectors(request) }
+      assertEquals(1, response.outcomesCount)
+      // The passthrough program forwards to port 1 regardless of ingress port.
+      assertTrue(response.getOutcomes(0).result.passed)
+      assertEquals(1, response.getOutcomes(0).actualOutput.packetsCount)
+      assertEquals("1", response.getOutcomes(0).actualOutput.getPackets(0).port)
+    }
+  }
+
+  @Test
+  fun `SUBMIT_TO_INGRESS fails without CPU port`() {
+    // Default Harness with no CPU port override and passthrough (no @controller_header).
+    Harness().use { harness ->
+      val config = loadConfig("e2e_tests/passthrough/passthrough.txtpb")
+      harness.loadPipeline(config)
+
+      val payload = buildEthernetFrame()
+      val request =
+        ValidateTestVectorsRequest.newBuilder()
+          .addTestVectors(
+            PacketTestVector.newBuilder().setId(1).setInput(submitToIngressInput(payload))
+          )
+          .build()
+
+      val e =
+        try {
+          runBlocking { harness.stub.validateTestVectors(request) }
+          null
+        } catch (ex: StatusException) {
+          ex
+        }
+
+      assertEquals(Status.Code.FAILED_PRECONDITION, e?.status?.code)
+    }
+  }
+
+  companion object {
+    /** Arbitrary CPU port for programs without @controller_header. */
+    @Suppress("MagicNumber") private const val CPU_PORT_OVERRIDE = 510
   }
 }

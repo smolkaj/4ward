@@ -4,6 +4,7 @@ import com.google.protobuf.Any as ProtoAny
 import fourward.ir.DeviceConfig
 import fourward.ir.PipelineConfig
 import fourward.sim.SimulatorProto.OutputPacket
+import fourward.simulator.ProcessPacketResult
 import fourward.simulator.Simulator
 import fourward.simulator.WriteResult
 import io.grpc.Metadata
@@ -111,6 +112,74 @@ class P4RuntimeService(
 
   private fun requirePipeline(): PipelineState =
     pipeline ?: throw Status.FAILED_PRECONDITION.withDescription(NO_PIPELINE_MESSAGE).asException()
+
+  // ---------------------------------------------------------------------------
+  // DVaaS integration — dynamic pipeline state accessors
+  // ---------------------------------------------------------------------------
+
+  /** Returns the current CPU port, or null if no pipeline is loaded or CPU port is disabled. */
+  fun currentCpuPort(): Int? = pipeline?.packetHeaderCodec?.cpuPort
+
+  /**
+   * Injects a PacketOut with the given egress port: serializes the packet_out header and runs the
+   * packet through the broker on the CPU port.
+   *
+   * Must be called under the shared lock.
+   */
+  fun injectPacketOut(egressPort: Int, payload: ByteArray): ProcessPacketResult {
+    val state = pipeline ?: error("no pipeline loaded")
+    val codec =
+      state.packetHeaderCodec ?: error("pipeline has no @controller_header(\"packet_out\")")
+
+    // Build PacketOut metadata with all fields. Set egress_port to the target port;
+    // all other fields default to 0. The codec serializes by field ID from p4info.
+    val metadata =
+      state.config.p4Info.controllerPacketMetadataList
+        .find { it.preamble.name == "packet_out" }
+        ?.metadataList
+        ?.map { field ->
+          val value = if (field.name == "egress_port") egressPort.toLong() else 0L
+          p4.v1.P4RuntimeOuterClass.PacketMetadata.newBuilder()
+            .setMetadataId(field.id)
+            .setValue(encodeBigEndian(value, field.bitwidth))
+            .build()
+        } ?: emptyList()
+
+    val header = codec.serializePacketOut(metadata)
+    return broker.processPacket(codec.cpuPort, header + payload)
+  }
+
+  /**
+   * Builds DVaaS PacketIn metadata for an output on the CPU port. Returns an empty list if no
+   * pipeline is loaded or no packet_in metadata is defined.
+   */
+  fun buildDvaasPacketInMetadata(
+    ingressPort: Int,
+    egressPort: Int,
+  ): List<fourward.dvaas.DvaasProto.PacketMetadata> {
+    val state = pipeline ?: return emptyList()
+    val codec = state.packetHeaderCodec ?: return emptyList()
+    return codec.buildPacketInMetadata(ingressPort, egressPort).map { p4rtMeta ->
+      fourward.dvaas.DvaasProto.PacketMetadata.newBuilder()
+        .setName(lookupMetadataName(state, p4rtMeta.metadataId, "packet_in"))
+        .setValue(p4rtMeta.value)
+        .build()
+    }
+  }
+
+  /** Looks up the metadata field name by ID from the p4info. */
+  private fun lookupMetadataName(
+    state: PipelineState,
+    metadataId: Int,
+    headerName: String,
+  ): String {
+    val meta =
+      state.config.p4Info.controllerPacketMetadataList
+        .find { it.preamble.name == headerName }
+        ?.metadataList
+        ?.find { it.id == metadataId }
+    return meta?.name ?: "field_$metadataId"
+  }
 
   // ---------------------------------------------------------------------------
   // SetForwardingPipelineConfig
@@ -834,6 +903,18 @@ class P4RuntimeService(
       "Role.config is not supported; use @p4runtime_role annotations in p4info instead"
 
     private const val OK_CODE = com.google.rpc.Code.OK_VALUE
+
+    /** Encodes [value] as a big-endian ByteString with ceil(bitwidth/8) bytes. */
+    private fun encodeBigEndian(value: Long, bitwidth: Int): com.google.protobuf.ByteString {
+      val byteCount = (bitwidth + 7) / 8
+      val bytes = ByteArray(byteCount)
+      var v = value
+      for (i in byteCount - 1 downTo 0) {
+        bytes[i] = (v and 0xFF).toByte()
+        v = v shr 8
+      }
+      return com.google.protobuf.ByteString.copyFrom(bytes)
+    }
 
     private fun isZeroElectionId(id: Uint128): Boolean = id.high == 0L && id.low == 0L
 

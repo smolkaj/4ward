@@ -66,6 +66,7 @@ java_grpc_library(
 kt_jvm_grpc_library(
     name = "p4runtime_kt_grpc",
     srcs = ["@p4runtime//proto/p4/v1:p4runtime_proto"],
+    visibility = ["//dvaas:__pkg__"],
     deps = [":p4runtime_java_proto"],
 )
 

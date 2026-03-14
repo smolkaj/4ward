@@ -80,14 +80,11 @@ class TestVectorValidatorTest {
           }
         ProcessPacketResult(outputs.toList(), trace)
       },
-      cpuPort = cpuPort,
+      cpuPortFn = { cpuPort },
     )
 
   private fun output(port: Int, payload: ByteArray = byteArrayOf(0x01)): OutputPacket =
-    OutputPacket.newBuilder()
-      .setEgressPort(port)
-      .setPayload(ByteString.copyFrom(payload))
-      .build()
+    OutputPacket.newBuilder().setEgressPort(port).setPayload(ByteString.copyFrom(payload)).build()
 
   private fun testVector(
     ingressPort: Int,
@@ -116,10 +113,7 @@ class TestVectorValidatorTest {
     SwitchOutput.newBuilder().addAllPacketIns(packetIns.toList()).build()
 
   private fun packet(port: Int, payload: ByteArray = byteArrayOf(0x01)): Packet =
-    Packet.newBuilder()
-      .setPort(port.toString())
-      .setPayload(ByteString.copyFrom(payload))
-      .build()
+    Packet.newBuilder().setPort(port.toString()).setPayload(ByteString.copyFrom(payload)).build()
 
   private fun packetIn(payload: ByteArray = byteArrayOf(0x01)): PacketIn =
     PacketIn.newBuilder().setPayload(ByteString.copyFrom(payload)).build()
@@ -235,11 +229,7 @@ class TestVectorValidatorTest {
   fun `validate passes when actual matches second acceptable output`() {
     val validator = validatorReturning(output(2))
     val vector =
-      testVector(
-        0,
-        byteArrayOf(0x01),
-        listOf(switchOutput(packet(1)), switchOutput(packet(2))),
-      )
+      testVector(0, byteArrayOf(0x01), listOf(switchOutput(packet(1)), switchOutput(packet(2))))
     val outcome = validator.validate(vector)
     assertTrue(outcome.result.passed)
   }
@@ -248,11 +238,7 @@ class TestVectorValidatorTest {
   fun `validate fails when actual matches none of the acceptable outputs`() {
     val validator = validatorReturning(output(3))
     val vector =
-      testVector(
-        0,
-        byteArrayOf(0x01),
-        listOf(switchOutput(packet(1)), switchOutput(packet(2))),
-      )
+      testVector(0, byteArrayOf(0x01), listOf(switchOutput(packet(1)), switchOutput(packet(2))))
     val outcome = validator.validate(vector)
     assertFalse(outcome.result.passed)
   }
@@ -276,7 +262,8 @@ class TestVectorValidatorTest {
   @Test
   fun `outputs on CPU port are classified as packet_ins`() {
     val cpuPort = 510
-    val validator = validatorReturning(output(cpuPort, byteArrayOf(0xAA.toByte())), cpuPort = cpuPort)
+    val validator =
+      validatorReturning(output(cpuPort, byteArrayOf(0xAA.toByte())), cpuPort = cpuPort)
     val vector =
       testVector(
         0,
@@ -310,7 +297,8 @@ class TestVectorValidatorTest {
   @Test
   fun `validateAll returns one outcome per vector`() {
     val validator = validatorReturning(output(1))
-    val vectors = listOf(testVector(0, byteArrayOf(0x01), id = 1), testVector(0, byteArrayOf(0x02), id = 2))
+    val vectors =
+      listOf(testVector(0, byteArrayOf(0x01), id = 1), testVector(0, byteArrayOf(0x02), id = 2))
     val outcomes = validator.validateAll(vectors)
     assertEquals(2, outcomes.size)
     assertEquals(1L, outcomes[0].testVector.id)
@@ -339,11 +327,7 @@ class TestVectorValidatorTest {
     // Two branches: port 1 and port 2. Both must be acceptable.
     val validator = validatorReturning(output(1), output(2))
     val vector =
-      testVector(
-        0,
-        byteArrayOf(0x01),
-        listOf(switchOutput(packet(1)), switchOutput(packet(2))),
-      )
+      testVector(0, byteArrayOf(0x01), listOf(switchOutput(packet(1)), switchOutput(packet(2))))
     val outcome = validator.validate(vector)
     assertTrue(outcome.result.passed)
   }
@@ -352,8 +336,7 @@ class TestVectorValidatorTest {
   fun `forking trace fails when a branch has no matching acceptable output`() {
     // Branch outputs: port 2 and port 3. Only port 1 is acceptable.
     val validator = validatorReturning(output(2), output(3))
-    val vector =
-      testVector(0, byteArrayOf(0x01), listOf(switchOutput(packet(1))))
+    val vector = testVector(0, byteArrayOf(0x01), listOf(switchOutput(packet(1))))
     val outcome = validator.validate(vector)
     assertFalse(outcome.result.passed)
     assertTrue(outcome.result.failureDescription.contains("fork branch"))
@@ -396,17 +379,155 @@ class TestVectorValidatorTest {
   // ---------------------------------------------------------------------------
 
   @Test
-  fun `validate rejects unsupported input type`() {
+  fun `PACKET_OUT fails when no injector is provided`() {
     val validator = validatorReturning(output(1))
     val vector =
       PacketTestVector.newBuilder()
         .setInput(
           SwitchInput.newBuilder()
             .setType(InputType.INPUT_TYPE_PACKET_OUT)
-            .setPacket(Packet.newBuilder().setPort("0").setPayload(ByteString.copyFrom(byteArrayOf(0x01))))
+            .setPacket(
+              Packet.newBuilder().setPort("0").setPayload(ByteString.copyFrom(byteArrayOf(0x01)))
+            )
         )
         .build()
-    val e = org.junit.Assert.assertThrows(IllegalArgumentException::class.java) { validator.validate(vector) }
-    assertTrue(e.message!!.contains("unsupported input type"))
+    val e =
+      org.junit.Assert.assertThrows(IllegalStateException::class.java) {
+        validator.validate(vector)
+      }
+    assertTrue(e.message!!.contains("packet_out codec"))
+  }
+
+  @Test
+  fun `SUBMIT_TO_INGRESS fails when no CPU port is configured`() {
+    val validator = validatorReturning(output(1))
+    val vector =
+      PacketTestVector.newBuilder()
+        .setInput(
+          SwitchInput.newBuilder()
+            .setType(InputType.INPUT_TYPE_SUBMIT_TO_INGRESS)
+            .setPacket(Packet.newBuilder().setPayload(ByteString.copyFrom(byteArrayOf(0x01))))
+        )
+        .build()
+    val e =
+      org.junit.Assert.assertThrows(IllegalStateException::class.java) {
+        validator.validate(vector)
+      }
+    assertTrue(e.message!!.contains("CPU port"))
+  }
+
+  // ---------------------------------------------------------------------------
+  // SUBMIT_TO_INGRESS mode
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `SUBMIT_TO_INGRESS injects on CPU port`() {
+    val cpuPort = 510
+    var capturedIngressPort = -1
+    val validator =
+      TestVectorValidator(
+        processPacketFn = { ingressPort, _ ->
+          capturedIngressPort = ingressPort
+          ProcessPacketResult(
+            listOf(output(1)),
+            TraceTree.newBuilder()
+              .setPacketOutcome(
+                fourward.sim.SimulatorProto.PacketOutcome.newBuilder().setOutput(output(1))
+              )
+              .build(),
+          )
+        },
+        cpuPortFn = { cpuPort },
+      )
+    val vector =
+      PacketTestVector.newBuilder()
+        .setInput(
+          SwitchInput.newBuilder()
+            .setType(InputType.INPUT_TYPE_SUBMIT_TO_INGRESS)
+            .setPacket(Packet.newBuilder().setPayload(ByteString.copyFrom(byteArrayOf(0x01))))
+        )
+        .build()
+    val outcome = validator.validate(vector)
+    assertTrue(outcome.result.passed)
+    assertEquals(cpuPort, capturedIngressPort)
+  }
+
+  // ---------------------------------------------------------------------------
+  // PACKET_OUT mode
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `PACKET_OUT invokes injector with egress port`() {
+    val cpuPort = 510
+    var capturedEgressPort = -1
+    val validator =
+      TestVectorValidator(
+        processPacketFn = { _, _ -> error("should not be called for PACKET_OUT") },
+        cpuPortFn = { cpuPort },
+        packetOutInjectorFn = { egressPort, _ ->
+          capturedEgressPort = egressPort
+          ProcessPacketResult(
+            listOf(output(1)),
+            TraceTree.newBuilder()
+              .setPacketOutcome(
+                fourward.sim.SimulatorProto.PacketOutcome.newBuilder().setOutput(output(1))
+              )
+              .build(),
+          )
+        },
+      )
+    val vector =
+      PacketTestVector.newBuilder()
+        .setInput(
+          SwitchInput.newBuilder()
+            .setType(InputType.INPUT_TYPE_PACKET_OUT)
+            .setPacket(
+              Packet.newBuilder().setPort("42").setPayload(ByteString.copyFrom(byteArrayOf(0x01)))
+            )
+        )
+        .build()
+    val outcome = validator.validate(vector)
+    assertTrue(outcome.result.passed)
+    assertEquals(42, capturedEgressPort)
+  }
+
+  // ---------------------------------------------------------------------------
+  // PacketIn metadata
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `PacketIn metadata is populated when metadataFn is provided`() {
+    val cpuPort = 510
+    val validator =
+      TestVectorValidator(
+        processPacketFn = { _, _ ->
+          ProcessPacketResult(
+            listOf(output(cpuPort, byteArrayOf(0xAA.toByte()))),
+            TraceTree.newBuilder()
+              .setPacketOutcome(
+                fourward.sim.SimulatorProto.PacketOutcome.newBuilder()
+                  .setOutput(output(cpuPort, byteArrayOf(0xAA.toByte())))
+              )
+              .build(),
+          )
+        },
+        cpuPortFn = { cpuPort },
+        packetInMetadataFn = { ingressPort, _ ->
+          listOf(
+            DvaasProto.PacketMetadata.newBuilder()
+              .setName("ingress_port")
+              .setValue(ByteString.copyFrom(byteArrayOf(ingressPort.toByte())))
+              .build()
+          )
+        },
+      )
+    val vector = testVector(7, byteArrayOf(0x01))
+    val outcome = validator.validate(vector)
+    // Output should be classified as PacketIn with metadata.
+    assertEquals(1, outcome.actualOutput.packetInsCount)
+    assertEquals(0, outcome.actualOutput.packetsCount)
+    val pi = outcome.actualOutput.getPacketIns(0)
+    assertEquals(1, pi.metadataCount)
+    assertEquals("ingress_port", pi.getMetadata(0).name)
   }
 }

@@ -32,8 +32,14 @@ fun main(args: Array<String>) {
   val broker = PacketBroker(simulator::processPacket)
   val service = P4RuntimeService(simulator, broker, lock = lock, cpuPortConfig = cpuPortConfig)
   val dataplaneService = DataplaneService(broker, lock)
-  // TODO(DVaaS): thread cpuPortConfig through to DvaasService for PacketIn classification.
-  val dvaasService = DvaasService(broker::processPacket, lock)
+  val dvaasService =
+    DvaasService(
+      processPacketFn = broker::processPacket,
+      lock = lock,
+      cpuPortFn = service::currentCpuPort,
+      packetOutInjectorFn = service::injectPacketOut,
+      packetInMetadataFn = service::buildDvaasPacketInMetadata,
+    )
 
   // Start gRPC server.
   val grpcServer =
