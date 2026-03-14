@@ -62,8 +62,11 @@ class DvaasService(
         try {
           validator.validateAll(request.testVectorsList)
         } catch (e: IllegalStateException) {
-          // Simulator throws IllegalStateException if no pipeline is loaded.
+          // Simulator and TestVectorValidator throw IllegalStateException for
+          // configuration errors (no pipeline loaded, no CPU port, no codec).
           throw StatusException(Status.FAILED_PRECONDITION.withDescription(e.message))
+        } catch (e: IllegalArgumentException) {
+          throw StatusException(Status.INVALID_ARGUMENT.withDescription(e.message))
         }
       }
 

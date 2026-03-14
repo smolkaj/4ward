@@ -299,9 +299,15 @@ class TestVectorValidator(
       return true
     }
 
-    /** Parses a port string as a decimal integer. */
+    /**
+     * Parses a port string as a decimal integer.
+     *
+     * TODO(SAI P4): support @p4runtime_translation string port identifiers (e.g. "Ethernet0") by
+     *   wiring the TypeTranslator into the DVaaS service.
+     */
     private fun parsePort(port: String): Int =
-      port.toIntOrNull() ?: error("non-numeric port '$port' not yet supported")
+      port.toIntOrNull()
+        ?: throw IllegalArgumentException("non-numeric port '$port' not yet supported")
 
     /** Builds a failure description for non-forking traces. */
     private fun buildFailureDescription(

@@ -78,6 +78,7 @@ message SwitchInput {
 
 // How a packet enters the switch pipeline.
 enum InputType {
+  // Treated as INPUT_TYPE_DATAPLANE when set (proto3 default value).
   INPUT_TYPE_UNSPECIFIED = 0;
 
   // Normal data-plane packet arriving on a front-panel port.
