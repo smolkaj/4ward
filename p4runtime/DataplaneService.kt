@@ -1,9 +1,11 @@
 package fourward.p4runtime
 
+import com.google.protobuf.ByteString
 import fourward.sim.v1.DataplaneGrpcKt
 import fourward.sim.v1.SimulatorProto.InjectPacketRequest
 import fourward.sim.v1.SimulatorProto.InjectPacketResponse
 import fourward.sim.v1.SimulatorProto.InputPacket
+import fourward.sim.v1.SimulatorProto.ProcessPacketResult as ProcessPacketResultProto
 import fourward.sim.v1.SimulatorProto.SubscribeResultsRequest
 import fourward.sim.v1.SimulatorProto.SubscribeResultsResponse
 import fourward.sim.v1.SimulatorProto.SubscriptionActive
@@ -48,11 +50,11 @@ class DataplaneService(private val broker: PacketBroker, private val lock: Mutex
       val handle =
         broker.subscribe { subResult ->
           val result =
-            fourward.sim.v1.SimulatorProto.ProcessPacketResult.newBuilder()
+            ProcessPacketResultProto.newBuilder()
               .setInput(
                 InputPacket.newBuilder()
                   .setIngressPort(subResult.ingressPort)
-                  .setPayload(com.google.protobuf.ByteString.copyFrom(subResult.payload))
+                  .setPayload(ByteString.copyFrom(subResult.payload))
               )
               .addAllOutputPackets(subResult.outputPackets)
               .setTrace(subResult.trace)

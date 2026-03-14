@@ -34,7 +34,8 @@ class PacketBroker(
     fun unsubscribe()
   }
 
-  private val subscribers = mutableListOf<(SubscriptionResult) -> Unit>()
+  private val subscribers =
+    java.util.concurrent.CopyOnWriteArrayList<(SubscriptionResult) -> Unit>()
 
   /**
    * Processes a packet through the simulator and dispatches results.
