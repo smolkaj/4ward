@@ -91,7 +91,7 @@ The simulator never guesses bit widths; p4c already figured that out.
 ### Simulator shared types (`simulator/simulator.proto`)
 
 Proto definitions shared between the simulator library and its callers (P4Runtime
-server, STF runner, trace tree tests). Defines `ProcessPacketRequest`/`Response`,
+server, STF runner, trace tree tests). Defines `InjectPacketRequest`/`Response`,
 output packets, trace trees, and the Dataplane gRPC service.
 
 ### Simulator (`simulator/`) — where the magic happens

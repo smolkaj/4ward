@@ -1,11 +1,11 @@
 package fourward.p4runtime
 
 import com.google.protobuf.ByteString
+import fourward.dataplane.v1.DataplaneGrpcKt.DataplaneCoroutineStub
+import fourward.dataplane.v1.DataplaneProto
 import fourward.ir.v1.PipelineConfig
-import fourward.sim.v1.DataplaneGrpcKt.DataplaneCoroutineStub
+import fourward.sim.v1.SimulatorProto.InputPacket
 import fourward.sim.v1.SimulatorProto.OutputPacket
-import fourward.sim.v1.SimulatorProto.ProcessPacketRequest
-import fourward.sim.v1.SimulatorProto.ProcessPacketWithTraceTreeResponse
 import fourward.simulator.Simulator
 import io.grpc.ManagedChannel
 import io.grpc.Status
@@ -56,8 +56,9 @@ class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable 
   private val serverName = InProcessServerBuilder.generateName()
   private val simulator = Simulator()
   private val lock = Mutex()
-  private val service = P4RuntimeService(simulator, constraintValidatorBinary, lock)
-  private val dataplaneService = DataplaneService(simulator, lock)
+  private val broker = PacketBroker(simulator::processPacket)
+  private val service = P4RuntimeService(simulator, broker, constraintValidatorBinary, lock)
+  private val dataplaneService = DataplaneService(broker, lock)
 
   private val server =
     InProcessServerBuilder.forName(serverName)
@@ -67,8 +68,7 @@ class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable 
       .build()
       .start()
 
-  private val channel: ManagedChannel =
-    InProcessChannelBuilder.forName(serverName).directExecutor().build()
+  val channel: ManagedChannel = InProcessChannelBuilder.forName(serverName).directExecutor().build()
 
   val stub: P4RuntimeCoroutineStub = P4RuntimeCoroutineStub(channel)
   private val dataplaneStub: DataplaneCoroutineStub = DataplaneCoroutineStub(channel)
@@ -127,30 +127,23 @@ class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable 
   // Dataplane
   // ---------------------------------------------------------------------------
 
-  /** Sends a packet through the simulator via the Dataplane gRPC service. */
-  fun simulatePacket(ingressPort: Int, payload: ByteArray): List<OutputPacket> = runBlocking {
-    dataplaneStub
-      .processPacket(
-        ProcessPacketRequest.newBuilder()
-          .setIngressPort(ingressPort)
-          .setPayload(ByteString.copyFrom(payload))
+  /** Injects a packet via the InjectPacket RPC. Returns outputs + trace. */
+  fun injectPacket(ingressPort: Int, payload: ByteArray): DataplaneProto.InjectPacketResponse =
+    runBlocking {
+      dataplaneStub.injectPacket(
+        DataplaneProto.InjectPacketRequest.newBuilder()
+          .setPacket(
+            InputPacket.newBuilder()
+              .setIngressPort(ingressPort)
+              .setPayload(ByteString.copyFrom(payload))
+          )
           .build()
       )
-      .outputPacketsList
-  }
+    }
 
-  /** Sends a packet and returns both output packets and the trace tree. */
-  fun simulatePacketWithTrace(
-    ingressPort: Int,
-    payload: ByteArray,
-  ): ProcessPacketWithTraceTreeResponse = runBlocking {
-    dataplaneStub.processPacketWithTraceTree(
-      ProcessPacketRequest.newBuilder()
-        .setIngressPort(ingressPort)
-        .setPayload(ByteString.copyFrom(payload))
-        .build()
-    )
-  }
+  /** Injects a packet and returns only the output packets. */
+  fun simulatePacket(ingressPort: Int, payload: ByteArray): List<OutputPacket> =
+    injectPacket(ingressPort, payload).outputPacketsList
 
   // ---------------------------------------------------------------------------
   // Table entry management
@@ -335,25 +328,6 @@ class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable 
   fun openStream(): StreamSession = StreamSession()
 
   /**
-   * Convenience: opens a stream, arbitrates, sends one PacketOut, and returns the responses.
-   *
-   * Use [openStream] for multi-packet scenarios.
-   */
-  fun sendPacketViaStream(
-    payload: ByteArray,
-    ingressPort: Int = 0,
-    expectedResponses: Int = 2,
-  ): List<StreamMessageResponse> =
-    openStream().use { session ->
-      val responses = mutableListOf<StreamMessageResponse>()
-      responses.add(session.arbitrate())
-      if (expectedResponses > 1 && payload.isNotEmpty()) {
-        session.sendPacket(payload, ingressPort)?.let { responses.add(it) }
-      }
-      responses
-    }
-
-  /**
    * A persistent bidirectional StreamChannel session.
    *
    * Call [arbitrate] once to become master, then [sendPacket] for each packet. The session
@@ -388,13 +362,20 @@ class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable 
     }
 
     /** Sends a fully-constructed PacketOut and waits for a response. */
-    fun sendPacketOut(packetOut: PacketOut): StreamMessageResponse? = runBlocking {
+    fun sendPacketOut(
+      packetOut: PacketOut,
+      timeoutMs: Long = STREAM_TIMEOUT_MS,
+    ): StreamMessageResponse? = runBlocking {
       requestChannel.send(StreamMessageRequest.newBuilder().setPacket(packetOut).build())
-      withTimeoutOrNull(STREAM_TIMEOUT_MS) { responseChannel.receive() }
+      withTimeoutOrNull(timeoutMs) { responseChannel.receive() }
     }
 
     @Suppress("MagicNumber")
-    fun sendPacket(payload: ByteArray, ingressPort: Int = 0): StreamMessageResponse? = runBlocking {
+    fun sendPacket(
+      payload: ByteArray,
+      ingressPort: Int = 0,
+      timeoutMs: Long = STREAM_TIMEOUT_MS,
+    ): StreamMessageResponse? = runBlocking {
       requestChannel.send(
         StreamMessageRequest.newBuilder()
           .setPacket(
@@ -408,7 +389,7 @@ class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable 
           )
           .build()
       )
-      withTimeoutOrNull(STREAM_TIMEOUT_MS) { responseChannel.receive() }
+      withTimeoutOrNull(timeoutMs) { responseChannel.receive() }
     }
 
     /** Sends an arbitrary stream message and waits for a response. */
@@ -436,6 +417,9 @@ class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable 
 
   companion object {
     private const val STREAM_TIMEOUT_MS = 5000L
+
+    /** Short timeout for calls where no response is expected (avoids 5s waits in tests). */
+    const val NO_RESPONSE_TIMEOUT_MS = 500L
 
     /** Builds a [Uint128] from high and low parts. */
     fun uint128(high: Long = 0, low: Long): Uint128 =

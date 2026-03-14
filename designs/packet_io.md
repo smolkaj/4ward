@@ -1,6 +1,6 @@
 # Packet I/O Design
 
-**Status: proposed**
+**Status: implemented**
 
 ## Assumptions
 
@@ -36,8 +36,8 @@
 6. **Strictly P4Runtime compliant.** The StreamChannel PacketIn/PacketOut
    behavior must conform to the
    [P4Runtime spec](https://p4lang.github.io/p4runtime/spec/v1.5.0/P4Runtime-Spec.html).
-   Non-standard extensions (DataplaneService, data-plane listener) are
-   additive — they must not alter the spec-defined behavior.
+   Non-standard extensions (DataplaneService) are additive — they must not
+   alter the spec-defined behavior.
 
 ## Design
 
@@ -45,6 +45,9 @@
 
 The Dataplane service is redesigned around two independent RPCs — one for
 injection, one for observation:
+
+Defined in `p4runtime/dataplane.proto`; `InputPacket`, `OutputPacket`, and
+`TraceTree` are shared types from `simulator/simulator.proto`.
 
 ```proto
 service Dataplane {
@@ -97,8 +100,6 @@ message SubscribeResultsResponse {
 message SubscriptionActive {}
 ```
 
-`TraceTree` is defined in `simulator.proto`.
-
 `InjectPacket` is a simple unary RPC that returns the result inline. The
 simulator is synchronous, so the result is available before the RPC returns.
 This makes the simple case — inject a packet, see what happened — trivial,
@@ -133,8 +134,18 @@ ordering is documented but cannot be expressed in the proto type system.
 
 ### PacketBroker
 
-A new internal component that sits between all packet sources and the
-simulator. It owns CPU port routing and result distribution.
+Fan-out layer between packet sources and the simulator. All callers —
+`DataplaneService.injectPacket`, `P4RuntimeService` PacketOut — go through
+`broker.processPacket()`. The broker delegates to the simulator and delivers
+results to all subscribers.
+
+The broker has no knowledge of CPU ports, PacketIn, or P4Runtime concepts —
+it is a generic fan-out mechanism. Each consumer subscribes and decides what
+to do with the results:
+
+- `DataplaneService` subscribes to power `SubscribeResults`.
+- Each active `streamChannel` subscribes to filter CPU-port outputs into
+  PacketIn (using pipeline state that only `P4RuntimeService` has).
 
 ```
   P4Runtime StreamChannel                   Dataplane gRPC
@@ -146,10 +157,8 @@ simulator. It owns CPU port routing and result distribution.
   │                    PacketBroker                     │
   │                                                     │
   │  1. Call simulator.processPacket()                  │
-  │  2. Build ProcessPacketResult (input + outputs)     │
-  │  3. Deliver result to SubscribeResults subscribers  │
-  │  4. Route CPU-port outputs:                         │
-  │     • egressPort == cpuPort → PacketIn on stream    │
+  │  2. Deliver result to all subscribers               │
+  │  3. Return result to caller                         │
   └─────────────────────┬───────────────────────────────┘
                         │
               simulator.processPacket()
@@ -158,22 +167,20 @@ simulator. It owns CPU port routing and result distribution.
 `broker.processPacket(ingressPort, payload)` does:
 
 1. Call `simulator.processPacket(ingressPort, payload)`.
-2. Bundle the input and all outputs into a `ProcessPacketResult`.
-3. Deliver the result to all `SubscribeResults` subscribers.
-4. For each output where `egressPort == cpuPort`, build a PacketIn message
-   (metadata via `PacketHeaderCodec`, translation via `TypeTranslator`)
-   and send it on the active StreamChannel.
-5. Return the outputs and trace to the caller.
+2. Deliver the result to all subscribers (synchronously, during this call).
+3. Return the outputs and trace to the caller.
 
 ### PacketOut
 
 1. Controller sends PacketOut on the StreamChannel.
-2. P4RuntimeService translates metadata and serializes the packet header.
-3. P4RuntimeService calls `broker.processPacket(cpuPort, payload)`.
-4. The broker processes the packet:
-   - All subscribers receive a `ProcessPacketResult` (requirement 4).
-   - CPU-port outputs become PacketIn on the StreamChannel (requirement 6 —
-     only CPU-port outputs appear on the StreamChannel).
+2. `handlePacketOut` translates metadata and serializes the packet header.
+3. `handlePacketOut` calls `broker.processPacket(cpuPort, payload)`.
+4. During the broker call, all subscribers fire synchronously:
+   - The `streamChannel` subscriber filters CPU-port outputs into PacketIn
+     and delivers them on the stream (requirement 6 — P4Runtime spec §16.1).
+   - The `DataplaneService` subscriber delivers the result to
+     `SubscribeResults` clients (requirement 4 — PacketOut outputs visible
+     to data-plane observers).
 5. The broker call returns. All outputs have been dispatched.
 
 ### PacketIn
@@ -185,7 +192,13 @@ PacketIn is not tied to PacketOut. It is a side effect of *any*
   PacketIn on StreamChannel.
 - A PacketOut produces a clone to CPU → same path.
 
-When no StreamChannel is active, CPU-port outputs are logged and dropped.
+When no StreamChannel is active, CPU-port outputs are silently dropped.
+
+Implementation: each active `streamChannel` subscribes to the broker. The
+subscription callback filters CPU-port outputs, builds PacketIn metadata via
+`PacketHeaderCodec`, translates via `TypeTranslator`, and delivers PacketIn
+on the stream. Per P4Runtime spec §16.1, PacketIn is sent to all controllers
+with an open stream.
 
 ### Completion
 
@@ -207,8 +220,8 @@ returns all output packets atomically.
 | Component | Today | After |
 |---|---|---|
 | `Dataplane` service | Two unary RPCs (`ProcessPacket`, `ProcessPacketWithTraceTree`) | Unary `InjectPacket` + server-streaming `SubscribeResults` |
-| `P4RuntimeService` | Calls simulator directly; wraps all outputs as PacketIn | Calls broker; wires PacketIn delivery on StreamChannel open |
-| `PacketBroker` | Does not exist | New: wraps simulator, routes outputs, manages subscriptions |
-| `PacketHeaderCodec` | Owned by P4RuntimeService | Moved into broker |
-| `TypeTranslator` | Owned by P4RuntimeService | PacketIn/Out translation moved into broker |
+| `P4RuntimeService` | Calls simulator directly; wraps all outputs as PacketIn | Calls broker; filters CPU-port outputs into PacketIn |
+| `PacketBroker` | Does not exist | New: wraps simulator, fan-out to SubscribeResults subscribers |
+| `PacketHeaderCodec` | Owned by P4RuntimeService | No change — stays in P4RuntimeService |
+| `TypeTranslator` | Owned by P4RuntimeService | No change — stays in P4RuntimeService |
 | `Simulator` | No changes | No changes |

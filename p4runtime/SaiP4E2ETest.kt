@@ -5,6 +5,8 @@ import fourward.ir.v1.PipelineConfig
 import io.grpc.Status
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -352,60 +354,122 @@ class SaiP4E2ETest {
   // =========================================================================
 
   @Test
-  fun `PacketOut with submit_to_ingress=0 exits on specified port`() {
-    // Look up packet_out metadata IDs from p4info.
-    val packetOutMeta =
-      config.p4Info.controllerPacketMetadataList.find { it.preamble.name == "packet_out" }!!
-    val egressPortId = packetOutMeta.metadataList.find { it.name == "egress_port" }!!.id
-    val submitToIngressId = packetOutMeta.metadataList.find { it.name == "submit_to_ingress" }!!.id
-
-    // Build a simple Ethernet payload.
-    val payload = buildIpv4Packet(dstMac = UNICAST_MAC, srcMac = SRC_MAC, ttl = 64)
-
-    // Build PacketOut with egress_port as a string (port_id_t is sdn_string).
-    val packetOut =
-      p4.v1.P4RuntimeOuterClass.PacketOut.newBuilder()
-        .setPayload(ByteString.copyFrom(payload))
-        .addMetadata(
-          p4.v1.P4RuntimeOuterClass.PacketMetadata.newBuilder()
-            .setMetadataId(egressPortId)
-            .setValue(ByteString.copyFromUtf8("Ethernet1"))
-        )
-        .addMetadata(
-          p4.v1.P4RuntimeOuterClass.PacketMetadata.newBuilder()
-            .setMetadataId(submitToIngressId)
-            .setValue(ByteString.copyFrom(byteArrayOf(0)))
-        )
-        .build()
-
-    // Open stream, arbitrate, and send.
+  fun `PacketOut with submit_to_ingress=0 exits on data-plane port, no PacketIn`() {
+    // The packet bypasses ingress and exits on Ethernet1 — a data-plane port, not the CPU port.
+    // Only CPU-port outputs become PacketIn. Data-plane outputs do not.
     harness.openStream().use { session ->
       session.arbitrate()
+      val response =
+        session.sendPacketOut(
+          buildCpuPacketOut(submitToIngress = false),
+          timeoutMs = P4RuntimeTestHarness.NO_RESPONSE_TIMEOUT_MS,
+        )
+      assertNull("data-plane output should not become PacketIn", response)
+    }
+  }
+
+  // =========================================================================
+  // PacketIO: ACL trap/copy → PacketIn via StreamChannel
+  // =========================================================================
+
+  @Test
+  @Suppress("MagicNumber")
+  fun `ACL trap produces PacketIn on StreamChannel`() {
+    // Full routing chain so the packet has a destination before ACL intervenes.
+    installRoutingChain()
+    // ACL: trap packets to dst_ip=10.0.0.1 → copy to CPU + drop original.
+    installAclEntry(findAction("acl_trap"))
+    // Clone infrastructure: marked_to_copy → clone session 255 → CPU port 510.
+    installCopyToCpuCloneSession()
+
+    // PacketOut with submit_to_ingress=1: enters ingress, gets trapped by ACL.
+    harness.openStream().use { session ->
+      session.arbitrate()
+      val packetOut = buildCpuPacketOut(submitToIngress = true)
       val response = session.sendPacketOut(packetOut)
+      assertNotNull("ACL trap should produce PacketIn on StreamChannel", response)
+      assertTrue("response should be PacketIn", response!!.hasPacket())
+    }
+  }
 
-      // Should receive a PacketIn with the original payload.
-      assertTrue("expected a PacketIn response", response != null && response.hasPacket())
-      val packetIn = response!!.packet
+  @Test
+  @Suppress("MagicNumber")
+  fun `ACL copy produces both outputs but only CPU clone becomes PacketIn`() {
+    installRoutingChain()
+    // ACL: copy packets to CPU without dropping (forward normally + clone to CPU).
+    installAclEntry(findAction("acl_copy"))
+    installCopyToCpuCloneSession()
 
-      // Payload should match the original Ethernet frame (except IPv4 checksum
-      // which the deparser computes). Verify key fields individually.
-      val output = packetIn.payload.toByteArray()
-      assertEquals("payload size should match", payload.size, output.size)
-      // Ethernet header unchanged.
-      assertBytesEqual("dst_mac", UNICAST_MAC, output, 0)
-      assertBytesEqual("src_mac", SRC_MAC, output, MAC_LEN)
-      // TTL unchanged (bypass_ingress skips routing, no decrement).
-      assertEquals("TTL", 64, output[TTL_OFFSET].toInt() and 0xFF)
+    // Via InjectPacket: verify both data-plane and CPU outputs exist.
+    val packet = buildIpv4Packet(dstMac = UNICAST_MAC, srcMac = SRC_MAC, ttl = 64)
+    val result = harness.injectPacket(ingressPort = 0, payload = packet)
+    assertTrue(
+      "acl_copy should produce multiple outputs (forwarded + CPU clone)",
+      result.outputPacketsCount >= 2,
+    )
+    assertTrue(
+      "expected CPU-port output",
+      result.outputPacketsList.any { it.egressPort == CPU_PORT },
+    )
+    assertTrue(
+      "expected data-plane output",
+      result.outputPacketsList.any { it.egressPort != CPU_PORT },
+    )
 
-      // Should have PacketIn metadata (ingress_port + target_egress_port).
-      val packetInMeta =
-        config.p4Info.controllerPacketMetadataList.find { it.preamble.name == "packet_in" }!!
-      val targetEgressPortId =
-        packetInMeta.metadataList.find { it.name == "target_egress_port" }!!.id
-      val egressMeta = packetIn.metadataList.find { it.metadataId == targetEgressPortId }
-      assertTrue("expected target_egress_port metadata", egressMeta != null)
-      // The target_egress_port should reverse-translate to "Ethernet1".
-      assertEquals("Ethernet1", egressMeta!!.value.toStringUtf8())
+    // Via StreamChannel: only the CPU clone becomes PacketIn.
+    harness.openStream().use { session ->
+      session.arbitrate()
+      val packetOut = buildCpuPacketOut(submitToIngress = true)
+      val response = session.sendPacketOut(packetOut)
+      assertNotNull("CPU clone should become PacketIn", response)
+      assertTrue("response should be PacketIn", response!!.hasPacket())
+    }
+  }
+
+  @Test
+  @Suppress("MagicNumber")
+  fun `InjectPacket that egresses on CPU port produces PacketIn on StreamChannel`() {
+    installRoutingChain()
+    installAclEntry(findAction("acl_trap"))
+    installCopyToCpuCloneSession()
+
+    // Open StreamChannel first so the PacketIn subscription is active.
+    harness.openStream().use { session ->
+      session.arbitrate()
+      // Inject via DataplaneService — NOT PacketOut. The ACL trap clones to CPU port.
+      val packet = buildIpv4Packet(dstMac = UNICAST_MAC, srcMac = SRC_MAC, ttl = 64)
+      harness.injectPacket(ingressPort = 0, payload = packet)
+      // The CPU-port output should become PacketIn on the active stream.
+      val response = session.receiveNext()
+      assertNotNull("data-plane injection should produce PacketIn via ACL trap", response)
+      assertTrue("response should be PacketIn", response!!.hasPacket())
+    }
+  }
+
+  @Test
+  @Suppress("MagicNumber")
+  fun `multiple streams each receive PacketIn (P4Runtime spec 16_1)`() {
+    installRoutingChain()
+    installAclEntry(findAction("acl_trap"))
+    installCopyToCpuCloneSession()
+
+    // Two controllers with different election IDs — both should receive PacketIn per §16.1.
+    harness.openStream().use { session1 ->
+      session1.arbitrate(electionId = 2)
+      harness.openStream().use { session2 ->
+        session2.arbitrate(electionId = 1)
+
+        // Inject via DataplaneService. Both streams should observe PacketIn.
+        val packet = buildIpv4Packet(dstMac = UNICAST_MAC, srcMac = SRC_MAC, ttl = 64)
+        harness.injectPacket(ingressPort = 0, payload = packet)
+
+        val response1 = session1.receiveNext()
+        val response2 = session2.receiveNext()
+        assertNotNull("primary stream should receive PacketIn", response1)
+        assertNotNull("backup stream should receive PacketIn", response2)
+        assertTrue("primary response should be PacketIn", response1!!.hasPacket())
+        assertTrue("backup response should be PacketIn", response2!!.hasPacket())
+      }
     }
   }
 
@@ -1365,6 +1429,31 @@ class SaiP4E2ETest {
     return packet
   }
 
+  /** Builds a PacketOut with SAI P4 metadata for CPU-port injection. */
+  @Suppress("MagicNumber")
+  private fun buildCpuPacketOut(submitToIngress: Boolean): P4RuntimeOuterClass.PacketOut {
+    val packetOutMeta =
+      config.p4Info.controllerPacketMetadataList.find { it.preamble.name == "packet_out" }!!
+    val egressPortId = packetOutMeta.metadataList.find { it.name == "egress_port" }!!.id
+    val submitToIngressId = packetOutMeta.metadataList.find { it.name == "submit_to_ingress" }!!.id
+
+    return P4RuntimeOuterClass.PacketOut.newBuilder()
+      .setPayload(
+        ByteString.copyFrom(buildIpv4Packet(dstMac = UNICAST_MAC, srcMac = SRC_MAC, ttl = 64))
+      )
+      .addMetadata(
+        P4RuntimeOuterClass.PacketMetadata.newBuilder()
+          .setMetadataId(egressPortId)
+          .setValue(ByteString.copyFromUtf8("Ethernet1"))
+      )
+      .addMetadata(
+        P4RuntimeOuterClass.PacketMetadata.newBuilder()
+          .setMetadataId(submitToIngressId)
+          .setValue(ByteString.copyFrom(byteArrayOf(if (submitToIngress) 1 else 0)))
+      )
+      .build()
+  }
+
   /** Installs the standard routing chain in @refers_to dependency order. */
   private fun installRoutingChain() {
     harness.installEntry(buildVrfEntry(""))
@@ -1372,6 +1461,77 @@ class SaiP4E2ETest {
     harness.installEntry(buildNeighborEntry("rif-1", NEIGHBOR_ID, NEIGHBOR_MAC))
     harness.installEntry(buildNexthopEntry(nexthopId = "nhop-1", routerInterfaceId = "rif-1"))
     harness.installEntry(buildIpv4RouteEntry(vrfId = "", nexthopId = "nhop-1"))
+  }
+
+  /** Installs an ACL ingress entry matching dst_ip=10.0.0.1 with the given action. */
+  @Suppress("MagicNumber")
+  private fun installAclEntry(action: P4InfoOuterClass.Action) {
+    val aclTable = findTable("acl_ingress_table")
+    harness.installEntry(
+      buildEntry(
+        aclTable,
+        action,
+        matches =
+          listOf(
+            optionalMatch(aclTable, "is_ipv4", byteArrayOf(1)),
+            ternaryMatch(aclTable, "dst_ip", DST_IP, byteArrayOf(-1, -1, -1, -1)),
+          ),
+        params = listOf(bytesParam(action, "qos_queue", byteArrayOf(0))),
+        priority = 1,
+      )
+    )
+  }
+
+  /**
+   * Installs the clone infrastructure for copy-to-CPU:
+   * 1. ingress_clone_table entry matching marked_to_copy=true → clone session 255.
+   * 2. CloneSessionEntry 255 → CPU port 510.
+   */
+  @Suppress("MagicNumber")
+  private fun installCopyToCpuCloneSession() {
+    val cloneTable = findTable("ingress_clone_table")
+    val ingressClone = findAction("ingress_clone")
+    harness.installEntry(
+      buildEntry(
+        cloneTable,
+        ingressClone,
+        matches =
+          listOf(
+            exactMatch(cloneTable, "marked_to_copy", byteArrayOf(1)),
+            exactMatch(cloneTable, "marked_to_mirror", byteArrayOf(0)),
+          ),
+        params =
+          listOf(
+            bytesParam(
+              ingressClone,
+              "clone_session",
+              P4RuntimeTestHarness.longToBytes(COPY_TO_CPU_SESSION_ID.toLong(), 4),
+            )
+          ),
+        priority = 1,
+      )
+    )
+    installCloneSession(COPY_TO_CPU_SESSION_ID, CPU_PORT)
+  }
+
+  /** Installs a PRE clone session entry with a single replica. */
+  @Suppress("MagicNumber", "SameParameterValue")
+  private fun installCloneSession(sessionId: Int, egressPort: Int) {
+    val entry =
+      P4RuntimeOuterClass.CloneSessionEntry.newBuilder()
+        .setSessionId(sessionId)
+        .addReplicas(
+          @Suppress("DEPRECATION")
+          P4RuntimeOuterClass.Replica.newBuilder().setEgressPort(egressPort).setInstance(1)
+        )
+        .build()
+    harness.installEntry(
+      Entity.newBuilder()
+        .setPacketReplicationEngineEntry(
+          P4RuntimeOuterClass.PacketReplicationEngineEntry.newBuilder().setCloneSessionEntry(entry)
+        )
+        .build()
+    )
   }
 
   /** Installs a PRE multicast group with one replica per port. */
@@ -1446,6 +1606,10 @@ class SaiP4E2ETest {
   }
 
   companion object {
+    // CPU port = 2^9 - 2 = 510 for 9-bit ports (SAI P4 ids.h: SAI_P4_CPU_PORT).
+    private const val CPU_PORT = 510
+    private const val COPY_TO_CPU_SESSION_ID = 255
+
     private const val MAC_LEN = 6
     private const val ETHERNET_HEADER_LEN = 14
     private const val IPV4_HEADER_LEN = 20

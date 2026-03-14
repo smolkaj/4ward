@@ -3,6 +3,7 @@ package fourward.p4runtime
 import com.google.protobuf.Any as ProtoAny
 import fourward.ir.v1.DeviceConfig
 import fourward.ir.v1.PipelineConfig
+import fourward.sim.v1.SimulatorProto.OutputPacket
 import fourward.simulator.Simulator
 import fourward.simulator.WriteResult
 import io.grpc.Metadata
@@ -58,6 +59,7 @@ fun compareUint128(a: Uint128, b: Uint128): Int {
  */
 class P4RuntimeService(
   private val simulator: Simulator,
+  private val broker: PacketBroker,
   private val constraintValidatorBinary: Path? = null,
   private val lock: Mutex = Mutex(),
   private val deviceId: Long = DEFAULT_DEVICE_ID,
@@ -388,15 +390,22 @@ class P4RuntimeService(
       // Forward async notifications (demotion/promotion) to the stream output.
       launch { for (msg in notifications) send(msg) }
 
+      // Subscribe to the broker so that ANY packet egressing on the CPU port — regardless of
+      // injection source (PacketOut, InjectPacket, etc.) — becomes PacketIn on this stream.
+      // Per P4Runtime spec §16.1, PacketIn is sent to all controllers with an open stream.
+      val packetInHandle =
+        broker.subscribe { subResult ->
+          for (response in buildPacketInResponses(subResult.outputPackets, subResult.ingressPort)) {
+            trySend(response)
+          }
+        }
+
       try {
         requests.collect { msg ->
           when {
             msg.hasArbitration() ->
               send(handleArbitration(streamId, msg.arbitration, notifications))
-            msg.hasPacket() -> {
-              val packetIns = lock.withLock { handlePacketOut(msg.packet) }
-              packetIns?.forEach { send(it) }
-            }
+            msg.hasPacket() -> lock.withLock { handlePacketOut(msg.packet) }
             msg.hasDigestAck() ->
               throw Status.UNIMPLEMENTED.withDescription(DIGEST_NOT_SUPPORTED).asException()
             // P4Runtime spec §16: unrecognized stream messages get an error response.
@@ -414,19 +423,19 @@ class P4RuntimeService(
           }
         }
       } finally {
+        packetInHandle.unsubscribe()
         notifications.close()
         handleDisconnect(streamId)
       }
     }
 
   /**
-   * Processes a PacketOut: translates metadata, simulates, and returns PacketIn responses. Must be
-   * called under [lock].
+   * Processes a PacketOut: translates metadata, serializes the packet header, and runs the packet
+   * through the broker. PacketIn delivery is handled by the broker subscription in [streamChannel],
+   * not here. Must be called under [lock].
    */
-  private fun handlePacketOut(
-    packet: p4.v1.P4RuntimeOuterClass.PacketOut
-  ): List<StreamMessageResponse>? {
-    val state = pipeline ?: return null
+  private fun handlePacketOut(packet: p4.v1.P4RuntimeOuterClass.PacketOut) {
+    val state = pipeline ?: return
     val translator = state.typeTranslator?.takeIf { it.hasTranslations }
     val codec = state.packetHeaderCodec
     val packetOut = translator?.translatePacketOut(packet) ?: packet
@@ -442,27 +451,31 @@ class P4RuntimeService(
         extractIngressPort(packetOut.metadataList) to packetOut.payload.toByteArray()
       }
 
-    val result = simulator.processPacket(ingressPort, payload)
+    broker.processPacket(ingressPort, payload)
+  }
 
-    return result.outputPackets.map { outputPacket ->
-      val rawPacketIn =
-        if (codec != null) {
-          val metadata = codec.buildPacketInMetadata(ingressPort, outputPacket.egressPort)
+  /**
+   * Builds PacketIn [StreamMessageResponse]s for any outputs egressing on the CPU port. Returns an
+   * empty list if there is no pipeline, no codec (`@controller_header`), or no CPU-port outputs.
+   */
+  private fun buildPacketInResponses(
+    outputPackets: List<OutputPacket>,
+    ingressPort: Int,
+  ): List<StreamMessageResponse> {
+    val state = pipeline ?: return emptyList()
+    val codec = state.packetHeaderCodec ?: return emptyList()
+    val translator = state.typeTranslator?.takeIf { it.hasTranslations }
+    val cpuPort = codec.cpuPort
+    return outputPackets
+      .filter { it.egressPort == cpuPort }
+      .map { outputPacket ->
+        val metadata = codec.buildPacketInMetadata(ingressPort, outputPacket.egressPort)
+        val rawPacketIn =
           PacketIn.newBuilder().setPayload(outputPacket.payload).addAllMetadata(metadata).build()
-        } else {
-          PacketIn.newBuilder()
-            .setPayload(outputPacket.payload)
-            .addMetadata(
-              p4.v1.P4RuntimeOuterClass.PacketMetadata.newBuilder()
-                .setMetadataId(EGRESS_PORT_METADATA_ID)
-                .setValue(encodeMinWidth(outputPacket.egressPort))
-            )
-            .build()
-        }
-      StreamMessageResponse.newBuilder()
-        .setPacket(translator?.translatePacketIn(rawPacketIn) ?: rawPacketIn)
-        .build()
-    }
+        StreamMessageResponse.newBuilder()
+          .setPacket(translator?.translatePacketIn(rawPacketIn) ?: rawPacketIn)
+          .build()
+      }
   }
 
   /** Extracts ingress port from PacketOut metadata, defaulting to port 0. */
@@ -798,9 +811,8 @@ class P4RuntimeService(
   companion object {
     private const val DEFAULT_DEVICE_ID = 1L
 
-    // Well-known metadata IDs for v1model packet_in/packet_out headers.
+    // Well-known metadata ID for the fallback (no @controller_header) PacketOut path.
     private const val INGRESS_PORT_METADATA_ID = 1
-    private const val EGRESS_PORT_METADATA_ID = 2
 
     // Matches the p4runtime proto version declared in MODULE.bazel.
     private const val P4RUNTIME_API_VERSION = "1.5.0"

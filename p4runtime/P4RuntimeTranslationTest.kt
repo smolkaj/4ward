@@ -7,7 +7,6 @@ import fourward.p4runtime.P4RuntimeTestHarness.Companion.loadConfig
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.longToBytes
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import p4.v1.P4RuntimeOuterClass.Entity
@@ -125,16 +124,14 @@ class P4RuntimeTranslationTest {
     val entry = buildEntry(matchValue = 0x0800, portValue = byteArrayOf(0, 0, 0, 1))
     harness.installEntry(entry)
 
-    // Send an Ethernet frame with etherType=0x0800.
+    // Send an Ethernet frame with etherType=0x0800 through the simulator directly.
+    // translated_type.p4 has no @controller_header, so PacketOut would not produce PacketIn.
     val payload = buildEthernetFrame(etherType = 0x0800)
-    val responses = harness.sendPacketViaStream(payload)
-    assertTrue("expected at least 2 responses (arb + packet_in)", responses.size >= 2)
-    assertTrue("expected packet_in", responses[1].hasPacket())
+    val outputs = harness.simulatePacket(ingressPort = 0, payload = payload)
 
-    // The packet should be forwarded — verify we get it back.
-    // (The egress port is in packet_in metadata, but we primarily care that forwarding happened.)
-    val packetIn = responses[1].packet
-    assertEquals("payload should match", ByteString.copyFrom(payload), packetIn.payload)
+    // SDN port 1 is auto-allocated to data-plane port 0 (first available).
+    assertEquals("expected 1 output packet", 1, outputs.size)
+    assertEquals("should exit on auto-allocated dp port", 0, outputs[0].egressPort)
   }
 
   @Test
@@ -144,13 +141,12 @@ class P4RuntimeTranslationTest {
     val entry = buildEntry(matchValue = 0x0800, portValue = byteArrayOf(0, 0, 0, 2))
     harness.installEntry(entry)
 
+    // Verify forwarding through the simulator — no @controller_header, so no PacketIn.
     val payload = buildEthernetFrame(etherType = 0x0800)
-    val responses = harness.sendPacketViaStream(payload)
-    assertTrue("expected packet_in", responses.size >= 2 && responses[1].hasPacket())
+    val outputs = harness.simulatePacket(ingressPort = 0, payload = payload)
 
-    val egressMeta = responses[1].packet.metadataList.find { it.metadataId == 2 }
-    val egressPort = egressMeta?.value?.toUnsignedInt()
-    assertEquals("egress port should be auto-allocated dp value", 0, egressPort)
+    assertEquals("expected 1 output packet", 1, outputs.size)
+    assertEquals("egress port should be auto-allocated dp value 0", 0, outputs[0].egressPort)
   }
 
   // =========================================================================

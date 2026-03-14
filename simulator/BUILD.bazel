@@ -1,5 +1,3 @@
-load("@grpc-java//:java_grpc_library.bzl", "java_grpc_library")
-load("@grpc_kotlin//:kt_jvm_grpc.bzl", "kt_jvm_grpc_library")
 load("@protobuf//bazel:cc_proto_library.bzl", "cc_proto_library")
 load("@protobuf//bazel:java_proto_library.bzl", "java_proto_library")
 load("@protobuf//bazel:proto_library.bzl", "proto_library")
@@ -49,21 +47,6 @@ java_proto_library(
     name = "simulator_java_proto",
     visibility = ["//visibility:public"],
     deps = [":simulator_proto"],
-)
-
-# Java gRPC stubs for Dataplane service (defined in simulator.proto).
-java_grpc_library(
-    name = "simulator_java_grpc",
-    srcs = [":simulator_proto"],
-    visibility = ["//visibility:public"],
-    deps = [":simulator_java_proto"],
-)
-
-kt_jvm_grpc_library(
-    name = "simulator_kt_grpc",
-    srcs = [":simulator_proto"],
-    visibility = ["//visibility:public"],
-    deps = [":simulator_java_proto"],
 )
 
 # The p4runtime BCR module only ships cc/go/py proto targets; we generate the

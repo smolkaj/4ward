@@ -1,10 +1,10 @@
 // 4ward Simulator
 //
-// Proto definitions shared between the simulator library and its clients
-// (P4Runtime server, STF runner, trace tree tests, BMv2 differential tests).
+// Shared types used by the simulator library and its clients (P4Runtime
+// server, STF runner, trace tree tests, BMv2 differential tests).
 //
-// Concurrency: the simulator processes one request at a time. Clients that need
-// concurrent access must serialise requests (e.g. with a mutex).
+// The Dataplane gRPC service is defined separately in
+// p4runtime/dataplane.proto.
 
 syntax = "proto3";
 
@@ -17,41 +17,12 @@ option java_package = "fourward.sim.v1";
 option java_outer_classname = "SimulatorProto";
 
 // =============================================================================
-// Dataplane gRPC service
+// Packet types (shared between trace trees and the Dataplane service)
 // =============================================================================
 
-service Dataplane {
-  // Inject a packet, return output packets only.
-  rpc ProcessPacket(ProcessPacketRequest) returns (ProcessPacketResponse);
-  // Inject a packet, return output packets + full trace tree.
-  rpc ProcessPacketWithTraceTree(ProcessPacketRequest)
-      returns (ProcessPacketWithTraceTreeResponse);
-}
-
-message ProcessPacketWithTraceTreeResponse {
-  repeated OutputPacket output_packets = 1;
-  TraceTree trace = 2;
-}
-
-// =============================================================================
-// Packet processing
-// =============================================================================
-
-message ProcessPacketRequest {
+message InputPacket {
   uint32 ingress_port = 1;
   bytes payload = 2;
-}
-
-// The primary output of the simulator: output packets (what a real device would
-// emit) plus a complete execution trace tree (what 4ward uniquely provides).
-//
-// At non-deterministic choice points (action selectors, clone, multicast) the
-// tree forks into branches — one per possible outcome.  A program with no
-// non-determinism produces a zero-fork tree that is structurally equivalent to
-// a flat trace.
-message ProcessPacketResponse {
-  repeated OutputPacket output_packets = 1;
-  TraceTree trace = 2;
 }
 
 message OutputPacket {
