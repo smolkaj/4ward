@@ -102,13 +102,7 @@ class DvaasServiceTest {
     }
   }
 
-  private fun loadConfig(relativePath: String): PipelineConfig {
-    val r = System.getenv("JAVA_RUNFILES") ?: "."
-    val path = java.nio.file.Paths.get(r, "_main/$relativePath")
-    val builder = PipelineConfig.newBuilder()
-    com.google.protobuf.TextFormat.merge(path.toFile().readText(), builder)
-    return builder.build()
-  }
+  private fun loadConfig(relativePath: String) = DvaasTestUtil.loadConfig(relativePath)
 
   /** Builds a minimal Ethernet frame: dst=FF:FF:FF:FF:FF:FF src=00:00:00:00:00:01. */
   @Suppress("MagicNumber")

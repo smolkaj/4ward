@@ -44,7 +44,10 @@ kt_jvm_library(
     name = "dvaas_lib",
     srcs = glob(
         ["*.kt"],
-        exclude = ["*Test.kt"],
+        exclude = [
+            "*Test.kt",
+            "DvaasTestHarness.kt",
+        ],
     ),
     visibility = ["//visibility:public"],
     deps = [
@@ -81,6 +84,7 @@ kt_jvm_test(
     name = "DvaasServiceTest",
     srcs = [
         "DvaasServiceTest.kt",
+        "DvaasTestHarness.kt",
     ],
     data = [
         "//e2e_tests/basic_table:basic_table_pb",
@@ -108,7 +112,10 @@ kt_jvm_test(
 
 kt_jvm_test(
     name = "SonicPinsAdapterTest",
-    srcs = ["SonicPinsAdapterTest.kt"],
+    srcs = [
+        "DvaasTestHarness.kt",
+        "SonicPinsAdapterTest.kt",
+    ],
     data = [
         "//e2e_tests/passthrough:passthrough_pb",
     ],
@@ -133,7 +140,10 @@ kt_jvm_test(
 
 kt_jvm_test(
     name = "MirrorTestbedTest",
-    srcs = ["MirrorTestbedTest.kt"],
+    srcs = [
+        "DvaasTestHarness.kt",
+        "MirrorTestbedTest.kt",
+    ],
     data = [
         "//e2e_tests/sai_p4:sai_middleblock_pb",
     ],

@@ -19,9 +19,7 @@ import fourward.dvaas.DvaasProto.GenerateTestVectorsRequest
 import fourward.dvaas.DvaasProto.InputType
 import fourward.dvaas.DvaasProto.Packet
 import fourward.dvaas.DvaasProto.PacketTestVector
-import fourward.dvaas.DvaasProto.SwitchInput
 import fourward.ir.PipelineConfig
-import fourward.p4runtime.GnmiService
 import fourward.p4runtime.P4RuntimeService
 import fourward.p4runtime.PacketBroker
 import fourward.simulator.Simulator
@@ -167,14 +165,24 @@ class SonicPinsAdapterTest {
   @Test
   fun `toTestVector creates SUBMIT_TO_INGRESS test vector`() {
     val vector =
-      SonicPinsAdapter.toTestVector(id = 1, port = "", hex = "aabb", injectionType = "SUBMIT_TO_INGRESS")
+      SonicPinsAdapter.toTestVector(
+        id = 1,
+        port = "",
+        hex = "aabb",
+        type = InputType.INPUT_TYPE_SUBMIT_TO_INGRESS,
+      )
     assertEquals(InputType.INPUT_TYPE_SUBMIT_TO_INGRESS, vector.input.type)
   }
 
   @Test
   fun `toTestVector creates PACKET_OUT test vector`() {
     val vector =
-      SonicPinsAdapter.toTestVector(id = 1, port = "3", hex = "aabb", injectionType = "PACKET_OUT")
+      SonicPinsAdapter.toTestVector(
+        id = 1,
+        port = "3",
+        hex = "aabb",
+        type = InputType.INPUT_TYPE_PACKET_OUT,
+      )
     assertEquals(InputType.INPUT_TYPE_PACKET_OUT, vector.input.type)
     assertEquals("3", vector.input.packet.port)
   }
@@ -189,7 +197,7 @@ class SonicPinsAdapterTest {
   // ---------------------------------------------------------------------------
 
   @Test
-  fun `outcomeToMap converts forwarded packet`() {
+  fun `outcomeToSonicPins converts forwarded packet`() {
     val outcome =
       DvaasProto.PacketTestOutcome.newBuilder()
         .setTestVector(PacketTestVector.newBuilder().setId(7))
@@ -205,14 +213,12 @@ class SonicPinsAdapterTest {
         .setResult(DvaasProto.ValidationResult.newBuilder().setPassed(true))
         .build()
 
-    val map = SonicPinsAdapter.outcomeToMap(outcome)
-    assertEquals(7L, map["id"])
-    assertTrue(map["passed"] as Boolean)
-    @Suppress("UNCHECKED_CAST")
-    val packets = map["packets"] as List<Map<String, String>>
-    assertEquals(1, packets.size)
-    assertEquals("2", packets[0]["port"])
-    assertEquals("aabb", packets[0]["hex"])
+    val result = SonicPinsAdapter.outcomeToSonicPins(outcome)
+    assertEquals(7L, result.id)
+    assertTrue(result.passed)
+    assertEquals(1, result.output.packets.size)
+    assertEquals("2", result.output.packets[0].port)
+    assertEquals("aabb", result.output.packets[0].hex)
   }
 
   @Test
@@ -220,9 +226,7 @@ class SonicPinsAdapterTest {
     val output =
       DvaasProto.SwitchOutput.newBuilder()
         .addPackets(
-          Packet.newBuilder()
-            .setPort("1")
-            .setPayload(ByteString.copyFrom(byteArrayOf(0x01, 0x02)))
+          Packet.newBuilder().setPort("1").setPayload(ByteString.copyFrom(byteArrayOf(0x01, 0x02)))
         )
         .addPacketIns(
           DvaasProto.PacketIn.newBuilder()
@@ -251,7 +255,6 @@ class SonicPinsAdapterTest {
 
   /**
    * Demonstrates the complete DVaaS reference model flow from sonic-pins' perspective:
-   *
    * 1. Start with hex-encoded packets (sonic-pins format)
    * 2. Convert to 4ward format via [SonicPinsAdapter]
    * 3. Call [GenerateTestVectors] to compute expected outputs
@@ -284,10 +287,10 @@ class SonicPinsAdapterTest {
       assertEquals("1", hexOutput.packets[0].port)
       assertEquals(ethernetHex, hexOutput.packets[0].hex)
 
-      // Also verify the map-based conversion works.
-      val map = SonicPinsAdapter.outcomeToMap(outcome)
-      assertTrue(map["passed"] as Boolean)
-      assertEquals(1L, map["id"])
+      // Also verify the typed outcome conversion works.
+      val sonicPinsOutcome = SonicPinsAdapter.outcomeToSonicPins(outcome)
+      assertTrue(sonicPinsOutcome.passed)
+      assertEquals(1L, sonicPinsOutcome.id)
     }
   }
 
@@ -345,13 +348,7 @@ class SonicPinsAdapterTest {
     }
   }
 
-  private fun loadConfig(relativePath: String): PipelineConfig {
-    val r = System.getenv("JAVA_RUNFILES") ?: "."
-    val path = java.nio.file.Paths.get(r, "_main/$relativePath")
-    val builder = PipelineConfig.newBuilder()
-    com.google.protobuf.TextFormat.merge(path.toFile().readText(), builder)
-    return builder.build()
-  }
+  private fun loadConfig(relativePath: String) = DvaasTestUtil.loadConfig(relativePath)
 
   /** Builds a minimal Ethernet frame as a hex string (sonic-pins format). */
   @Suppress("MagicNumber")

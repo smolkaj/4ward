@@ -69,14 +69,8 @@ class TestVectorValidator(
 
   /** Validates a single test vector and returns the outcome. */
   fun validate(vector: PacketTestVector): PacketTestOutcome {
-    val input = vector.input
-    val result = injectPacket(input)
-    val ingressPort = resolveIngressPort(input)
+    val (result, ingressPort, actualOutput) = simulateVector(vector)
 
-    // Build the "actual output" from all outputs across all branches (for reporting).
-    val actualOutput = buildSwitchOutput(result.outputPackets, ingressPort)
-
-    // Validate: for forking traces, check each leaf independently.
     val validationResult =
       if (result.trace.hasForkOutcome()) {
         validateForking(vector, result.trace, ingressPort)
@@ -104,13 +98,11 @@ class TestVectorValidator(
    * (replacing BMv2 in sonic-pins' DataplaneValidationBackend::GeneratePacketTestVectors).
    */
   fun generate(vector: PacketTestVector): PacketTestOutcome {
-    val input = vector.input
-    val result = injectPacket(input)
-    val ingressPort = resolveIngressPort(input)
-    val actualOutput = buildSwitchOutput(result.outputPackets, ingressPort)
+    val (result, _, actualOutput) = simulateVector(vector)
 
-    // Strip acceptable_outputs from the original vector (generate mode — no expectations).
-    val cleanVector = vector.toBuilder().clearAcceptableOutputs().build()
+    val cleanVector =
+      if (vector.acceptableOutputsCount == 0) vector
+      else vector.toBuilder().clearAcceptableOutputs().build()
 
     return PacketTestOutcome.newBuilder()
       .setTestVector(cleanVector)
@@ -125,6 +117,17 @@ class TestVectorValidator(
    */
   fun generateAll(vectors: List<PacketTestVector>): List<PacketTestOutcome> =
     vectors.map { generate(it) }
+
+  /** Injects a packet and builds the output — shared by [validate] and [generate]. */
+  private fun simulateVector(
+    vector: PacketTestVector
+  ): Triple<ProcessPacketResult, Int, SwitchOutput> {
+    val input = vector.input
+    val result = injectPacket(input)
+    val ingressPort = resolveIngressPort(input)
+    val actualOutput = buildSwitchOutput(result.outputPackets, ingressPort)
+    return Triple(result, ingressPort, actualOutput)
+  }
 
   // ---------------------------------------------------------------------------
   // Packet injection

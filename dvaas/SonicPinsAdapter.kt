@@ -17,8 +17,6 @@ package fourward.dvaas
 import com.google.protobuf.ByteString
 import fourward.dvaas.DvaasProto.InputType
 import fourward.dvaas.DvaasProto.Packet
-import fourward.dvaas.DvaasProto.PacketIn
-import fourward.dvaas.DvaasProto.PacketMetadata
 import fourward.dvaas.DvaasProto.PacketTestOutcome
 import fourward.dvaas.DvaasProto.PacketTestVector
 import fourward.dvaas.DvaasProto.SwitchInput
@@ -27,14 +25,15 @@ import fourward.dvaas.DvaasProto.SwitchOutput
 /**
  * Translates between sonic-pins DVaaS format and 4ward's native format.
  *
- * Sonic-pins represents packets as hex strings (e.g. "0a0b0c0d") with structured
- * `packetlib.Packet` headers, and metadata as typed `IrValue` oneof fields (hex_str, ipv4, ipv6,
- * mac, str). 4ward uses raw bytes for payloads and metadata values.
+ * Sonic-pins represents packets as hex strings (e.g. "0a0b0c0d") with structured `packetlib.Packet`
+ * headers, and metadata as typed `IrValue` oneof fields (hex_str, ipv4, ipv6, mac, str). 4ward uses
+ * raw bytes for payloads and metadata values.
  *
  * This adapter handles the format conversion so upstream sonic-pins DVaaS can call 4ward's
  * `GenerateTestVectors` / `ValidateTestVectors` RPCs and interpret the results.
  *
  * **Usage in a sonic-pins fork:**
+ *
  * ```
  * // C++ DataplaneValidationBackend implementation:
  * // 1. Convert sonic-pins PacketTestVectors to 4ward format via hex→bytes
@@ -53,15 +52,23 @@ object SonicPinsAdapter {
     val cleanHex = hex.removePrefix("0x").removePrefix("0X")
     require(cleanHex.length % 2 == 0) { "hex string must have even length: '$hex'" }
     return ByteArray(cleanHex.length / 2) { i ->
-      cleanHex.substring(2 * i, 2 * i + 2).toInt(16).toByte()
+      (cleanHex[2 * i].digitToInt(16) shl 4 or cleanHex[2 * i + 1].digitToInt(16)).toByte()
     }
   }
 
   /** Encodes raw bytes as a lowercase hex string (no 0x prefix). */
-  fun bytesToHex(bytes: ByteArray): String = bytes.joinToString("") { "%02x".format(it) }
+  fun bytesToHex(bytes: ByteArray): String {
+    val sb = StringBuilder(bytes.size * 2)
+    for (b in bytes) sb.append("%02x".format(b))
+    return sb.toString()
+  }
 
-  /** Encodes a ByteString as a lowercase hex string (no 0x prefix). */
-  fun bytesToHex(bytes: ByteString): String = bytesToHex(bytes.toByteArray())
+  /** Encodes a ByteString as a lowercase hex string (no 0x prefix), without copying. */
+  fun bytesToHex(bytes: ByteString): String {
+    val sb = StringBuilder(bytes.size() * 2)
+    for (i in 0 until bytes.size()) sb.append("%02x".format(bytes.byteAt(i)))
+    return sb.toString()
+  }
 
   // ---------------------------------------------------------------------------
   // Sonic-pins → 4ward conversion
@@ -73,32 +80,33 @@ object SonicPinsAdapter {
    * @param id Test vector ID (from sonic-pins' `packet_test_vector_by_id` map key).
    * @param port Ingress port string (from sonic-pins `Packet.port`).
    * @param hex Raw packet bytes as hex string (from sonic-pins `Packet.hex`).
-   * @param injectionType Injection type string: "DATAPLANE", "PACKET_OUT", or
-   *   "SUBMIT_TO_INGRESS".
+   * @param type Injection type (default: DATAPLANE).
    */
   fun toTestVector(
     id: Long,
     port: String,
     hex: String,
-    injectionType: String = "DATAPLANE",
+    type: InputType = InputType.INPUT_TYPE_DATAPLANE,
   ): PacketTestVector =
     PacketTestVector.newBuilder()
       .setId(id)
       .setInput(
         SwitchInput.newBuilder()
-          .setType(parseInjectionType(injectionType))
+          .setType(type)
           .setPacket(
-            Packet.newBuilder()
-              .setPort(port)
-              .setPayload(ByteString.copyFrom(hexToBytes(hex)))
+            Packet.newBuilder().setPort(port).setPayload(ByteString.copyFrom(hexToBytes(hex)))
           )
       )
       .build()
 
-  /** Converts a sonic-pins injection type string to 4ward's InputType enum. */
+  /**
+   * Converts a sonic-pins injection type string to 4ward's InputType enum. Useful when
+   * deserializing from external configs or JSON.
+   */
   fun parseInjectionType(type: String): InputType =
     when (type.uppercase()) {
-      "DEFAULT", "DATAPLANE" -> InputType.INPUT_TYPE_DATAPLANE
+      "DEFAULT",
+      "DATAPLANE" -> InputType.INPUT_TYPE_DATAPLANE
       "PACKET_OUT" -> InputType.INPUT_TYPE_PACKET_OUT
       "SUBMIT_TO_INGRESS" -> InputType.INPUT_TYPE_SUBMIT_TO_INGRESS
       else -> error("unknown injection type: $type")
@@ -108,36 +116,14 @@ object SonicPinsAdapter {
   // 4ward → sonic-pins conversion
   // ---------------------------------------------------------------------------
 
-  /**
-   * Converts a 4ward test outcome to sonic-pins-compatible format.
-   *
-   * Returns a map with:
-   * - `"id"`: test vector ID (Long)
-   * - `"packets"`: list of `(port: String, hex: String)` pairs for forwarded packets
-   * - `"packet_ins"`: list of `(hex: String, metadata: Map<String, String>)` for PacketIns
-   * - `"trace_events"`: number of trace events (Int)
-   * - `"passed"`: validation result (Boolean)
-   */
-  fun outcomeToMap(outcome: PacketTestOutcome): Map<String, Any> {
-    val packets =
-      outcome.actualOutput.packetsList.map { pkt ->
-        mapOf("port" to pkt.port, "hex" to bytesToHex(pkt.payload))
-      }
-    val packetIns =
-      outcome.actualOutput.packetInsList.map { pi ->
-        mapOf(
-          "hex" to bytesToHex(pi.payload),
-          "metadata" to pi.metadataList.associate { md -> md.name to bytesToHex(md.value) },
-        )
-      }
-    return mapOf(
-      "id" to outcome.testVector.id,
-      "packets" to packets,
-      "packet_ins" to packetIns,
-      "trace_events" to outcome.trace.eventsCount,
-      "passed" to outcome.result.passed,
+  /** Converts a 4ward test outcome to sonic-pins-compatible typed format. */
+  fun outcomeToSonicPins(outcome: PacketTestOutcome): SonicPinsOutcome =
+    SonicPinsOutcome(
+      id = outcome.testVector.id,
+      output = switchOutputToHex(outcome.actualOutput),
+      traceEvents = outcome.trace.eventsCount,
+      passed = outcome.result.passed,
     )
-  }
 
   /**
    * Converts a 4ward SwitchOutput to a sonic-pins-compatible hex-based output.
@@ -213,8 +199,13 @@ object SonicPinsAdapter {
   data class MetadataField(val name: String, val hexValue: String)
 
   /** A switch output in sonic-pins hex format. */
-  data class SonicPinsSwitchOutput(
-    val packets: List<HexPacket>,
-    val packetIns: List<HexPacketIn>,
+  data class SonicPinsSwitchOutput(val packets: List<HexPacket>, val packetIns: List<HexPacketIn>)
+
+  /** A full test outcome in sonic-pins format. */
+  data class SonicPinsOutcome(
+    val id: Long,
+    val output: SonicPinsSwitchOutput,
+    val traceEvents: Int,
+    val passed: Boolean,
   )
 }

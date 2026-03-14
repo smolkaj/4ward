@@ -17,6 +17,8 @@ package fourward.dvaas
 import fourward.dvaas.DvaasProto.GenerateTestVectorsRequest
 import fourward.dvaas.DvaasProto.GenerateTestVectorsResponse
 import fourward.dvaas.DvaasProto.PacketMetadata
+import fourward.dvaas.DvaasProto.PacketTestOutcome
+import fourward.dvaas.DvaasProto.PacketTestVector
 import fourward.dvaas.DvaasProto.ValidateTestVectorsRequest
 import fourward.dvaas.DvaasProto.ValidateTestVectorsResponse
 import fourward.simulator.ProcessPacketResult
@@ -59,20 +61,7 @@ class DvaasService(
     if (request.testVectorsCount == 0) {
       return ValidateTestVectorsResponse.getDefaultInstance()
     }
-
-    val outcomes =
-      lock.withLock {
-        try {
-          validator.validateAll(request.testVectorsList)
-        } catch (e: IllegalStateException) {
-          // Simulator and TestVectorValidator throw IllegalStateException for
-          // configuration errors (no pipeline loaded, no CPU port, no codec).
-          throw StatusException(Status.FAILED_PRECONDITION.withDescription(e.message))
-        } catch (e: IllegalArgumentException) {
-          throw StatusException(Status.INVALID_ARGUMENT.withDescription(e.message))
-        }
-      }
-
+    val outcomes = processVectors(request.testVectorsList, validator::validateAll)
     return ValidateTestVectorsResponse.newBuilder().addAllOutcomes(outcomes).build()
   }
 
@@ -82,18 +71,24 @@ class DvaasService(
     if (request.testVectorsCount == 0) {
       return GenerateTestVectorsResponse.getDefaultInstance()
     }
-
-    val outcomes =
-      lock.withLock {
-        try {
-          validator.generateAll(request.testVectorsList)
-        } catch (e: IllegalStateException) {
-          throw StatusException(Status.FAILED_PRECONDITION.withDescription(e.message))
-        } catch (e: IllegalArgumentException) {
-          throw StatusException(Status.INVALID_ARGUMENT.withDescription(e.message))
-        }
-      }
-
+    val outcomes = processVectors(request.testVectorsList, validator::generateAll)
     return GenerateTestVectorsResponse.newBuilder().addAllOutcomes(outcomes).build()
   }
+
+  /** Runs a validator function under the shared lock with gRPC error mapping. */
+  private suspend fun processVectors(
+    vectors: List<PacketTestVector>,
+    action: (List<PacketTestVector>) -> List<PacketTestOutcome>,
+  ): List<PacketTestOutcome> =
+    lock.withLock {
+      try {
+        action(vectors)
+      } catch (e: IllegalStateException) {
+        // Simulator and TestVectorValidator throw IllegalStateException for
+        // configuration errors (no pipeline loaded, no CPU port, no codec).
+        throw StatusException(Status.FAILED_PRECONDITION.withDescription(e.message))
+      } catch (e: IllegalArgumentException) {
+        throw StatusException(Status.INVALID_ARGUMENT.withDescription(e.message))
+      }
+    }
 }

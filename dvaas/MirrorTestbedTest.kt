@@ -473,13 +473,7 @@ class MirrorTestbedTest {
   // Helpers
   // ===========================================================================
 
-  private fun loadConfig(relativePath: String): PipelineConfig {
-    val r = System.getenv("JAVA_RUNFILES") ?: "."
-    val path = java.nio.file.Paths.get(r, "_main/$relativePath")
-    val builder = PipelineConfig.newBuilder()
-    com.google.protobuf.TextFormat.merge(path.toFile().readText(), builder)
-    return builder.build()
-  }
+  private fun loadConfig(relativePath: String) = DvaasTestUtil.loadConfig(relativePath)
 
   private suspend fun loadPipeline(sw: SwitchHarness, config: PipelineConfig) {
     val fwdConfig =
@@ -538,21 +532,17 @@ class MirrorTestbedTest {
     return entities.filter { !it.tableEntry.isDefaultAction }
   }
 
-  private fun findTable(config: PipelineConfig, alias: String): P4InfoOuterClass.Table =
-    config.p4Info.tablesList.find { it.preamble.alias == alias }
-      ?: error("table '$alias' not found in p4info")
+  private fun findTable(config: PipelineConfig, alias: String) =
+    DvaasTestUtil.findTable(config, alias)
 
-  private fun findAction(config: PipelineConfig, alias: String): P4InfoOuterClass.Action =
-    config.p4Info.actionsList.find { it.preamble.alias == alias }
-      ?: error("action '$alias' not found in p4info")
+  private fun findAction(config: PipelineConfig, alias: String) =
+    DvaasTestUtil.findAction(config, alias)
 
-  private fun matchFieldId(table: P4InfoOuterClass.Table, name: String): Int =
-    table.matchFieldsList.find { it.name == name }?.id
-      ?: error("match field '$name' not found in table '${table.preamble.alias}'")
+  private fun matchFieldId(table: P4InfoOuterClass.Table, name: String) =
+    DvaasTestUtil.matchFieldId(table, name)
 
-  private fun paramId(action: P4InfoOuterClass.Action, name: String): Int =
-    action.paramsList.find { it.name == name }?.id
-      ?: error("param '$name' not found in action '${action.preamble.alias}'")
+  private fun paramId(action: P4InfoOuterClass.Action, name: String) =
+    DvaasTestUtil.paramId(action, name)
 
   @Suppress("MagicNumber")
   private fun buildVrfEntry(config: PipelineConfig, vrfId: String): Entity {
