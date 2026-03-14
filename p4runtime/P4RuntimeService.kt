@@ -3,6 +3,7 @@ package fourward.p4runtime
 import com.google.protobuf.Any as ProtoAny
 import fourward.ir.v1.DeviceConfig
 import fourward.ir.v1.PipelineConfig
+import fourward.sim.v1.SimulatorProto.OutputPacket
 import fourward.simulator.Simulator
 import fourward.simulator.WriteResult
 import io.grpc.Metadata
@@ -458,7 +459,7 @@ class P4RuntimeService(
    * empty list if there is no pipeline, no codec (`@controller_header`), or no CPU-port outputs.
    */
   private fun buildPacketInResponses(
-    outputPackets: List<fourward.sim.v1.SimulatorProto.OutputPacket>,
+    outputPackets: List<OutputPacket>,
     ingressPort: Int,
   ): List<StreamMessageResponse> {
     val state = pipeline ?: return emptyList()
