@@ -261,6 +261,16 @@ class P4RuntimeConformanceTest {
     }
   }
 
+  @Test
+  fun `15b - PacketOut before pipeline loaded silently drops`() {
+    // No pipeline loaded — handlePacketOut returns null, no response on stream.
+    harness.openStream().use { stream ->
+      stream.arbitrate()
+      val response = stream.sendPacket(byteArrayOf(0xCA.toByte(), 0xFE.toByte()), timeoutMs = 500)
+      assertNull("no response when pipeline not loaded", response)
+    }
+  }
+
   // =========================================================================
   // GetForwardingPipelineConfig (scenarios 16-18)
   // =========================================================================

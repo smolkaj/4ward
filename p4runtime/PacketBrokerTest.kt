@@ -130,6 +130,25 @@ class PacketBrokerTest {
   }
 
   @Test
+  fun `multiple CPU-port outputs each trigger PacketIn listener`() {
+    val cpuPort = 510
+    val outputs = listOf(outputPacket(cpuPort), outputPacket(1), outputPacket(cpuPort))
+    val broker =
+      PacketBroker(
+        fakeProcessor(0 to ProcessPacketResult(outputs, TraceTree.getDefaultInstance())),
+        cpuPort = cpuPort,
+      )
+
+    val packetIns = mutableListOf<OutputPacket>()
+    broker.setPacketInListener { packetIns.add(it) }
+
+    broker.processPacket(0, byteArrayOf())
+
+    assertEquals("both CPU-port outputs should trigger listener", 2, packetIns.size)
+    packetIns.forEach { assertEquals(cpuPort, it.egressPort) }
+  }
+
+  @Test
   fun `clearPacketInListener stops PacketIn delivery`() {
     val cpuPort = 510
     val broker = PacketBroker(fakeProcessor(0 to result(outputPacket(cpuPort))), cpuPort = cpuPort)
