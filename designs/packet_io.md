@@ -67,7 +67,8 @@ message InjectPacketRequest {
 }
 
 message InjectPacketResponse {
-  ProcessPacketResult result = 1;
+  repeated OutputPacket output_packets = 1;
+  TraceTree trace = 2;
 }
 
 message ProcessPacketResult {
@@ -186,7 +187,7 @@ before returning — no asynchrony.
   The controller itself has no completion signal for data-plane outputs —
   but a test harness subscribed via `SubscribeResults` does.
 - **Direct injection via `InjectPacket`**: the RPC response contains the
-  `ProcessPacketResult` directly. Completion is implicit — when the call
+  outputs and trace directly. Completion is implicit — when the call
   returns, all outputs have been produced.
 
 ### What changes where
