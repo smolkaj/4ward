@@ -1,9 +1,10 @@
 package fourward.p4runtime
 
 import com.google.protobuf.ByteString
+import fourward.dataplane.v1.DataplaneGrpcKt.DataplaneCoroutineStub
+import fourward.dataplane.v1.DataplaneProto
 import fourward.ir.v1.PipelineConfig
-import fourward.sim.v1.DataplaneGrpcKt.DataplaneCoroutineStub
-import fourward.sim.v1.SimulatorProto
+import fourward.sim.v1.SimulatorProto.InputPacket
 import fourward.sim.v1.SimulatorProto.OutputPacket
 import fourward.simulator.Simulator
 import io.grpc.ManagedChannel
@@ -127,12 +128,12 @@ class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable 
   // ---------------------------------------------------------------------------
 
   /** Injects a packet via the InjectPacket RPC. Returns outputs + trace. */
-  fun injectPacket(ingressPort: Int, payload: ByteArray): SimulatorProto.InjectPacketResponse =
+  fun injectPacket(ingressPort: Int, payload: ByteArray): DataplaneProto.InjectPacketResponse =
     runBlocking {
       dataplaneStub.injectPacket(
-        SimulatorProto.InjectPacketRequest.newBuilder()
+        DataplaneProto.InjectPacketRequest.newBuilder()
           .setPacket(
-            SimulatorProto.InputPacket.newBuilder()
+            InputPacket.newBuilder()
               .setIngressPort(ingressPort)
               .setPayload(ByteString.copyFrom(payload))
           )

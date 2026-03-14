@@ -1,11 +1,11 @@
 package fourward.p4runtime
 
 import com.google.protobuf.ByteString
+import fourward.dataplane.v1.DataplaneGrpcKt.DataplaneCoroutineStub
+import fourward.dataplane.v1.DataplaneProto.SubscribeResultsRequest
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildEthernetFrame
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildExactEntry
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.loadConfig
-import fourward.sim.v1.DataplaneGrpcKt.DataplaneCoroutineStub
-import fourward.sim.v1.SimulatorProto.SubscribeResultsRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay

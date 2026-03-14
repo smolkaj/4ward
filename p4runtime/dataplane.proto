@@ -1,0 +1,54 @@
+// Dataplane gRPC service: packet injection and result observation.
+//
+// Implemented by DataplaneService (p4runtime/DataplaneService.kt).
+// Serialized via a shared lock with P4RuntimeService to prevent races
+// between control-plane writes and data-plane packet processing.
+
+syntax = "proto3";
+
+package fourward.dataplane.v1;
+
+import "simulator.proto";
+
+option java_package = "fourward.dataplane.v1";
+option java_outer_classname = "DataplaneProto";
+
+service Dataplane {
+  // Inject a single packet into the data plane. Returns the result inline.
+  rpc InjectPacket(InjectPacketRequest) returns (InjectPacketResponse);
+
+  // Observe results from ALL injection sources (InjectPacket, PacketOut,
+  // other callers). Each result bundles the input with all its outputs.
+  rpc SubscribeResults(SubscribeResultsRequest)
+      returns (stream SubscribeResultsResponse);
+}
+
+message InjectPacketRequest {
+  fourward.sim.v1.InputPacket packet = 1;
+}
+
+// InjectPacket response. Omits the input (the caller already has it).
+message InjectPacketResponse {
+  repeated fourward.sim.v1.OutputPacket output_packets = 1;
+  fourward.sim.v1.TraceTree trace = 2;
+}
+
+// Result bundle for SubscribeResults: input + outputs + trace.
+message ProcessPacketResult {
+  fourward.sim.v1.InputPacket input = 1;
+  repeated fourward.sim.v1.OutputPacket output_packets = 2;
+  fourward.sim.v1.TraceTree trace = 3;
+}
+
+message SubscribeResultsRequest {}
+
+message SubscribeResultsResponse {
+  oneof event {
+    // Sent exactly once as the first message. Confirms the subscription is
+    // registered and no results will be missed.
+    SubscriptionActive active = 1;
+    ProcessPacketResult result = 2;
+  }
+}
+
+message SubscriptionActive {}

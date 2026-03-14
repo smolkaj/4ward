@@ -7,6 +7,38 @@ load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_binary", "kt_jvm_library", "kt_jvm_test")
 
 # =============================================================================
+# Dataplane gRPC service (packet injection + result observation)
+# =============================================================================
+
+proto_library(
+    name = "dataplane_proto",
+    srcs = ["dataplane.proto"],
+    strip_import_prefix = "/p4runtime",
+    visibility = ["//visibility:public"],
+    deps = ["//simulator:simulator_proto"],
+)
+
+java_proto_library(
+    name = "dataplane_java_proto",
+    visibility = ["//visibility:public"],
+    deps = [":dataplane_proto"],
+)
+
+java_grpc_library(
+    name = "dataplane_java_grpc",
+    srcs = [":dataplane_proto"],
+    visibility = ["//visibility:public"],
+    deps = [":dataplane_java_proto"],
+)
+
+kt_jvm_grpc_library(
+    name = "dataplane_kt_grpc",
+    srcs = [":dataplane_proto"],
+    visibility = ["//visibility:public"],
+    deps = [":dataplane_java_proto"],
+)
+
+# =============================================================================
 # P4Runtime gRPC stubs (Kotlin)
 # =============================================================================
 
@@ -53,6 +85,8 @@ kt_jvm_library(
     visibility = ["//visibility:public"],
     deps = [
         ":constraint_validator_java_proto",
+        ":dataplane_java_proto",
+        ":dataplane_kt_grpc",
         ":p4info_java_proto",
         ":p4runtime_java_grpc",
         ":p4runtime_java_proto",
@@ -60,7 +94,6 @@ kt_jvm_library(
         "//simulator:ir_java_proto",
         "//simulator:p4runtime_java_proto",
         "//simulator:simulator_java_proto",
-        "//simulator:simulator_kt_grpc",
         "//simulator:simulator_lib",
         "@grpc-java//api",
         "@grpc-java//netty",
@@ -99,10 +132,10 @@ kt_jvm_test(
     ],
     test_class = "fourward.p4runtime.P4RuntimeConformanceTest",
     deps = [
+        ":dataplane_kt_grpc",
         ":p4runtime_lib",
         "//simulator:ir_java_proto",
         "//simulator:simulator_java_proto",
-        "//simulator:simulator_kt_grpc",
         "@grpc-java//api",
         "@grpc-java//inprocess",
         "@maven//:com_google_protobuf_protobuf_java",
@@ -124,11 +157,11 @@ kt_jvm_test(
     ],
     test_class = "fourward.p4runtime.P4RuntimeWriteErrorTest",
     deps = [
+        ":dataplane_kt_grpc",
         ":p4runtime_java_proto",
         ":p4runtime_lib",
         "//simulator:ir_java_proto",
         "//simulator:simulator_java_proto",
-        "//simulator:simulator_kt_grpc",
         "@grpc-java//api",
         "@grpc-java//inprocess",
         "@maven//:com_google_protobuf_protobuf_java",
@@ -271,6 +304,7 @@ kt_jvm_test(
     ],
     test_class = "fourward.p4runtime.P4RuntimeServiceTest",
     deps = [
+        ":dataplane_kt_grpc",
         ":p4runtime_lib",
         "//simulator:ir_java_proto",
         "@grpc-java//api",
@@ -295,10 +329,10 @@ kt_jvm_test(
     ],
     test_class = "fourward.p4runtime.P4RuntimeConstraintTest",
     deps = [
+        ":dataplane_kt_grpc",
         ":p4runtime_lib",
         "//simulator:ir_java_proto",
         "//simulator:simulator_java_proto",
-        "//simulator:simulator_kt_grpc",
         "@grpc-java//api",
         "@grpc-java//inprocess",
         "@maven//:com_google_protobuf_protobuf_java",
@@ -319,10 +353,10 @@ kt_jvm_test(
     ],
     test_class = "fourward.p4runtime.P4RuntimeTranslationTest",
     deps = [
+        ":dataplane_kt_grpc",
         ":p4runtime_lib",
         "//simulator:ir_java_proto",
         "//simulator:simulator_java_proto",
-        "//simulator:simulator_kt_grpc",
         "@grpc-java//api",
         "@grpc-java//inprocess",
         "@maven//:com_google_protobuf_protobuf_java",
@@ -357,10 +391,10 @@ kt_jvm_test(
     ],
     test_class = "fourward.p4runtime.DataplaneServiceTest",
     deps = [
+        ":dataplane_kt_grpc",
         ":p4runtime_lib",
         "//simulator:ir_java_proto",
         "//simulator:simulator_java_proto",
-        "//simulator:simulator_kt_grpc",
         "@grpc-java//api",
         "@grpc-java//inprocess",
         "@maven//:com_google_protobuf_protobuf_java",
@@ -395,10 +429,10 @@ kt_jvm_test(
     ],
     test_class = "fourward.p4runtime.SaiP4E2ETest",
     deps = [
+        ":dataplane_kt_grpc",
         ":p4runtime_lib",
         "//simulator:ir_java_proto",
         "//simulator:simulator_java_proto",
-        "//simulator:simulator_kt_grpc",
         "@grpc-java//api",
         "@grpc-java//inprocess",
         "@maven//:com_google_protobuf_protobuf_java",
@@ -420,10 +454,10 @@ kt_jvm_test(
     ],
     test_class = "fourward.p4runtime.SaiP4ConstraintTest",
     deps = [
+        ":dataplane_kt_grpc",
         ":p4runtime_lib",
         "//simulator:ir_java_proto",
         "//simulator:simulator_java_proto",
-        "//simulator:simulator_kt_grpc",
         "@grpc-java//api",
         "@grpc-java//inprocess",
         "@maven//:com_google_protobuf_protobuf_java",
