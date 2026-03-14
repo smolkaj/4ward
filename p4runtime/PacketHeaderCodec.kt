@@ -12,6 +12,35 @@ import p4.config.v1.P4InfoOuterClass.P4Info
 import p4.v1.P4RuntimeOuterClass.PacketMetadata
 
 /**
+ * Three-state configuration for the CPU port.
+ * - [Auto]: derive from p4info (`2^portBits - 2`). This is the default.
+ * - [Override]: use an explicit data-plane port value.
+ * - [Disabled]: no CPU port, even if the p4info has `ControllerPacketMetadata`. Packets egressing
+ *   on what would have been the CPU port are treated as regular output; PacketOut is rejected.
+ */
+sealed interface CpuPortConfig {
+  data object Auto : CpuPortConfig
+
+  data class Override(val port: Int) : CpuPortConfig
+
+  data object Disabled : CpuPortConfig
+
+  companion object {
+    /** Parses a CLI flag value: null → [Auto], "none" → [Disabled], integer → [Override]. */
+    fun fromFlag(value: String?): CpuPortConfig =
+      when {
+        value == null -> Auto
+        value.equals("none", ignoreCase = true) -> Disabled
+        else ->
+          Override(
+            value.toIntOrNull()
+              ?: throw IllegalArgumentException("invalid --cpu-port value: $value")
+          )
+      }
+  }
+}
+
+/**
  * Converts P4Runtime PacketOut/PacketIn metadata to/from the bit-packed binary headers expected by
  * the P4 parser and deparser.
  *
@@ -83,8 +112,14 @@ private constructor(
     /**
      * Creates a codec from the pipeline config, or null if no `controller_packet_metadata` is
      * defined (programs without `@controller_header`).
+     *
+     * @param cpuPortOverride If non-null, uses this value instead of deriving `2^portBits - 2`.
      */
-    fun create(p4info: P4Info, behavioral: BehavioralConfig): PacketHeaderCodec? {
+    fun create(
+      p4info: P4Info,
+      behavioral: BehavioralConfig,
+      cpuPortOverride: Int? = null,
+    ): PacketHeaderCodec? {
       val packetOutMeta =
         p4info.controllerPacketMetadataList.find { it.preamble.name == "packet_out" } ?: return null
 
@@ -114,7 +149,7 @@ private constructor(
       // CPU port = 2^portBits - 2 (v1model convention; drop port is 2^W - 1).
       val portBits =
         packetOutFields.find { it.name == "egress_port" }?.bitWidth ?: DEFAULT_PORT_BITS
-      val cpuPort = (1 shl portBits) - 2
+      val cpuPort = cpuPortOverride ?: ((1 shl portBits) - 2)
 
       val packetInMeta =
         p4info.controllerPacketMetadataList.find { it.preamble.name == "packet_in" }

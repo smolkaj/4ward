@@ -17,11 +17,19 @@ package fourward.simulator
 import fourward.ir.ActionDecl
 import fourward.ir.Architecture
 import fourward.ir.BehavioralConfig
+import fourward.ir.ControlDecl
 import fourward.ir.DeviceConfig
+import fourward.ir.ParamDecl
+import fourward.ir.ParserDecl
+import fourward.ir.ParserState
 import fourward.ir.PipelineConfig
 import fourward.ir.PipelineStage
 import fourward.ir.StageKind
+import fourward.ir.StructDecl
 import fourward.ir.TableBehavior
+import fourward.ir.Transition
+import fourward.ir.TypeDecl
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -150,5 +158,127 @@ class SimulatorTest {
     assertThrows(IllegalStateException::class.java) {
       sim.writeEntry(p4.v1.P4RuntimeOuterClass.Update.getDefaultInstance())
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Drop port override integration (wiring through to V1ModelArchitecture)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Builds a complete v1model [PipelineConfig] that can process packets.
+   *
+   * Ingress sets `egress_spec` to [egressPort], producing a unicast output (or drop if the port
+   * matches the architecture's drop port).
+   */
+  @Suppress("LongMethod")
+  private fun v1modelPipelineConfig(egressPort: Long): PipelineConfig {
+    val portBits = V1ModelArchitecture.DEFAULT_PORT_BITS
+    val smType =
+      TypeDecl.newBuilder()
+        .setName("standard_metadata_t")
+        .setStruct(
+          StructDecl.newBuilder()
+            .addFields(field("ingress_port", portBits))
+            .addFields(field("egress_spec", portBits))
+            .addFields(field("egress_port", portBits))
+            .addFields(field("instance_type", 32))
+            .addFields(field("packet_length", 32))
+            .addFields(field("mcast_grp", 16))
+            .addFields(field("egress_rid", 16))
+            .addFields(field("checksum_error", 1))
+            .addFields(field("parser_error", 32))
+        )
+        .build()
+    val headersType =
+      TypeDecl.newBuilder().setName("headers_t").setStruct(StructDecl.getDefaultInstance()).build()
+    val metaType =
+      TypeDecl.newBuilder().setName("meta_t").setStruct(StructDecl.getDefaultInstance()).build()
+
+    fun param(name: String, typeName: String): ParamDecl =
+      ParamDecl.newBuilder().setName(name).setType(namedType(typeName)).build()
+
+    val controlParams =
+      listOf(param("hdr", "headers_t"), param("meta", "meta_t"), param("sm", "standard_metadata_t"))
+    fun noopControl(name: String): ControlDecl =
+      ControlDecl.newBuilder().setName(name).addAllParams(controlParams).build()
+
+    val parser =
+      ParserDecl.newBuilder()
+        .setName("MyParser")
+        .addParams(ParamDecl.newBuilder().setName("pkt").setType(namedType("packet_in")))
+        .addParams(param("hdr", "headers_t"))
+        .addParams(param("meta", "meta_t"))
+        .addParams(param("sm", "standard_metadata_t"))
+        .addStates(
+          ParserState.newBuilder()
+            .setName("start")
+            .setTransition(Transition.newBuilder().setNextState("accept"))
+        )
+        .build()
+
+    val ingress =
+      ControlDecl.newBuilder()
+        .setName("MyIngress")
+        .addAllParams(controlParams)
+        .addApplyBody(assignField("sm", "egress_spec", egressPort, portBits))
+        .build()
+
+    val arch =
+      Architecture.newBuilder()
+        .setName("v1model")
+        .addStages(stage("parser", StageKind.PARSER, "MyParser"))
+        .addStages(stage("verify_checksum", StageKind.CONTROL, "MyVerifyChecksum"))
+        .addStages(stage("ingress", StageKind.CONTROL, "MyIngress"))
+        .addStages(stage("egress", StageKind.CONTROL, "MyEgress"))
+        .addStages(stage("compute_checksum", StageKind.CONTROL, "MyComputeChecksum"))
+        .addStages(stage("deparser", StageKind.DEPARSER, "MyDeparser"))
+        .build()
+
+    val behavioral =
+      BehavioralConfig.newBuilder()
+        .setArchitecture(arch)
+        .addTypes(smType)
+        .addTypes(headersType)
+        .addTypes(metaType)
+        .addParsers(parser)
+        .addControls(noopControl("MyVerifyChecksum"))
+        .addControls(ingress)
+        .addControls(noopControl("MyEgress"))
+        .addControls(noopControl("MyComputeChecksum"))
+        .addControls(noopControl("MyDeparser"))
+        .build()
+
+    return PipelineConfig.newBuilder()
+      .setDevice(DeviceConfig.newBuilder().setBehavioral(behavioral))
+      .setP4Info(P4InfoOuterClass.P4Info.getDefaultInstance())
+      .build()
+  }
+
+  private fun stage(name: String, kind: StageKind, blockName: String): PipelineStage =
+    PipelineStage.newBuilder().setName(name).setKind(kind).setBlockName(blockName).build()
+
+  @Test
+  fun `drop port override flows through to architecture`() {
+    // Port 42 is not normally a drop port. With dropPortOverride=42, it should be.
+    val config = v1modelPipelineConfig(egressPort = 42)
+    val sim = Simulator(dropPortOverride = 42)
+    sim.loadPipeline(config)
+
+    val result = sim.processPacket(ingressPort = 0, payload = byteArrayOf(0x01))
+    assertTrue(result.trace.hasPacketOutcome())
+    assertTrue(result.trace.packetOutcome.hasDrop())
+  }
+
+  @Test
+  fun `drop port override lets default drop port forward normally`() {
+    // With dropPortOverride=42, port 511 (the default drop port) should forward normally.
+    val config = v1modelPipelineConfig(egressPort = V1ModelArchitecture.DEFAULT_DROP_PORT.toLong())
+    val sim = Simulator(dropPortOverride = 42)
+    sim.loadPipeline(config)
+
+    val result = sim.processPacket(ingressPort = 0, payload = byteArrayOf(0x01))
+    val outputs = collectOutputsFromTrace(result.trace)
+    assertEquals(1, outputs.size)
+    assertEquals(V1ModelArchitecture.DEFAULT_DROP_PORT, outputs[0].egressPort)
   }
 }

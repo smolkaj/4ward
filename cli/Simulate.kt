@@ -17,7 +17,7 @@ import java.nio.file.Path
  * Loads the pipeline, installs table entries, sends packets, verifies expectations, and prints the
  * trace tree for each packet. Returns an exit code (does not call `exitProcess`).
  */
-fun simulate(pipelinePath: Path, stfPath: Path, format: OutputFormat): Int {
+fun simulate(pipelinePath: Path, stfPath: Path, format: OutputFormat, dropPort: Int? = null): Int {
   val config =
     try {
       loadPipelineConfig(pipelinePath)
@@ -38,7 +38,7 @@ fun simulate(pipelinePath: Path, stfPath: Path, format: OutputFormat): Int {
       System.err.println("error: $stfPath: no such file")
       return ExitCode.USAGE_ERROR
     }
-  val sim = Simulator()
+  val sim = Simulator(dropPort)
 
   try {
     sim.loadPipeline(config)

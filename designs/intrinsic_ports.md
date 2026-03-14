@@ -1,6 +1,6 @@
 # Intrinsic Ports Design
 
-**Status: proposed**
+**Status: implemented**
 
 ## What makes a port intrinsic?
 

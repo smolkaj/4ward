@@ -233,7 +233,7 @@ Every subcommand has --help:
   Usage: 4ward compile [options] <program.p4>
 
   $ 4ward sim --help | head -1
-  Usage: 4ward sim [--format=human|textproto] <pipeline.txtpb> <test.stf>
+  Usage: 4ward sim [--format=human|textproto] [--drop-port=N] <pipeline.txtpb> <test.stf>
 
   $ 4ward run --help | head -1
-  Usage: 4ward run [--format=human|textproto] <program.p4> <test.stf>
+  Usage: 4ward run [--format=human|textproto] [--drop-port=N] <program.p4> <test.stf>

@@ -29,7 +29,7 @@ private val INTEGER_REGEX = Regex("\\d+")
  * 3. Sends each input packet and compares output to expected.
  * 4. Reports pass/fail.
  */
-class StfRunner(private val pipelineConfigPath: Path) {
+class StfRunner(private val pipelineConfigPath: Path, private val dropPortOverride: Int? = null) {
 
   /**
    * Runs an STF test: loads the pipeline, installs entries, sends packets, and compares output.
@@ -45,7 +45,7 @@ class StfRunner(private val pipelineConfigPath: Path) {
     val stf = StfFile.parse(stfPath)
     val config = loadPipelineConfig(pipelineConfigPath)
 
-    val sim = Simulator()
+    val sim = Simulator(dropPortOverride)
     try {
       sim.loadPipeline(config)
     } catch (e: IllegalArgumentException) {

@@ -6,12 +6,17 @@ import io.grpc.netty.NettyServerBuilder
 import kotlinx.coroutines.sync.Mutex
 
 /** Wraps a P4Runtime + Dataplane gRPC server backed by a 4ward [Simulator]. */
-class P4RuntimeServer(private val port: Int = DEFAULT_PORT) {
+class P4RuntimeServer(
+  private val port: Int = DEFAULT_PORT,
+  dropPortOverride: Int? = null,
+  cpuPortConfig: CpuPortConfig = CpuPortConfig.Auto,
+) {
 
-  private val simulator = Simulator()
+  private val simulator = Simulator(dropPortOverride)
   private val lock = Mutex()
   private val broker = PacketBroker(simulator::processPacket)
-  private val service = P4RuntimeService(simulator, broker, lock = lock)
+  private val service =
+    P4RuntimeService(simulator, broker, lock = lock, cpuPortConfig = cpuPortConfig)
   private val dataplaneService = DataplaneService(broker, lock)
   private lateinit var server: Server
 
@@ -44,9 +49,13 @@ class P4RuntimeServer(private val port: Int = DEFAULT_PORT) {
 }
 
 fun main(args: Array<String>) {
-  val port =
-    args.firstOrNull()?.removePrefix("--port=")?.toIntOrNull() ?: P4RuntimeServer.DEFAULT_PORT
-  val server = P4RuntimeServer(port).start()
+  val port = flagValue(args, "--port")?.toIntOrNull() ?: P4RuntimeServer.DEFAULT_PORT
+  val dropPort = flagValue(args, "--drop-port")?.toIntOrNull()
+  val cpuPortConfig = CpuPortConfig.fromFlag(flagValue(args, "--cpu-port"))
+  val server = P4RuntimeServer(port, dropPort, cpuPortConfig).start()
   println("P4Runtime server listening on port ${server.port()}")
   server.blockUntilShutdown()
 }
+
+private fun flagValue(args: Array<String>, flag: String): String? =
+  args.find { it.startsWith("$flag=") }?.substringAfter("=")

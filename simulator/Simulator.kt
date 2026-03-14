@@ -24,7 +24,13 @@ data class ProcessPacketResult(val outputPackets: List<OutputPacket>, val trace:
  * One [Simulator] instance runs for the lifetime of the process; it is single-threaded (callers
  * must serialise concurrent requests).
  */
-class Simulator : TableDataReader {
+class Simulator(
+  /**
+   * Override for the v1model drop port. When null (default), derived from `standard_metadata` port
+   * width: `2^N - 1` (511 for 9-bit ports). Passed through to [V1ModelArchitecture].
+   */
+  private val dropPortOverride: Int? = null
+) : TableDataReader {
 
   private var pipeline: PipelineConfig? = null
   private var architecture: Architecture? = null
@@ -44,7 +50,7 @@ class Simulator : TableDataReader {
 
     architecture =
       when (val archName = config.device.behavioral.architecture.name) {
-        "v1model" -> V1ModelArchitecture()
+        "v1model" -> V1ModelArchitecture(dropPortOverride)
         "psa" -> PSAArchitecture()
         else -> throw IllegalArgumentException("unsupported architecture: $archName")
       }

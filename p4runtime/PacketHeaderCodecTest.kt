@@ -224,4 +224,51 @@ class PacketHeaderCodecTest {
       .setName(name)
       .setType(Type.newBuilder().setBit(BitType.newBuilder().setWidth(width)))
       .build()
+
+  // =========================================================================
+  // CPU port override
+  // =========================================================================
+
+  @Test
+  fun `cpu port override replaces derived value`() {
+    val (p4info, behavioral) = buildSaiLikeConfig()
+    val codec = PacketHeaderCodec.create(p4info, behavioral, cpuPortOverride = 42)
+    assertNotNull(codec)
+    assertEquals(42, codec!!.cpuPort)
+  }
+
+  @Test
+  fun `cpu port override null uses default derivation`() {
+    val (p4info, behavioral) = buildSaiLikeConfig()
+    val codec = PacketHeaderCodec.create(p4info, behavioral, cpuPortOverride = null)
+    assertNotNull(codec)
+    // Default: 2^9 - 2 = 510
+    assertEquals(510, codec!!.cpuPort)
+  }
+
+  // =========================================================================
+  // CpuPortConfig.fromFlag
+  // =========================================================================
+
+  @Test
+  fun `fromFlag null returns Auto`() {
+    assertEquals(CpuPortConfig.Auto, CpuPortConfig.fromFlag(null))
+  }
+
+  @Test
+  fun `fromFlag none returns Disabled`() {
+    assertEquals(CpuPortConfig.Disabled, CpuPortConfig.fromFlag("none"))
+    assertEquals(CpuPortConfig.Disabled, CpuPortConfig.fromFlag("NONE"))
+  }
+
+  @Test
+  fun `fromFlag integer returns Override`() {
+    assertEquals(CpuPortConfig.Override(510), CpuPortConfig.fromFlag("510"))
+    assertEquals(CpuPortConfig.Override(0), CpuPortConfig.fromFlag("0"))
+  }
+
+  @Test(expected = IllegalArgumentException::class)
+  fun `fromFlag invalid value throws`() {
+    CpuPortConfig.fromFlag("abc")
+  }
 }
