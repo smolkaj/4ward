@@ -124,7 +124,7 @@ ordering is documented but cannot be expressed in the proto type system.
 ### PacketBroker
 
 A new internal component that sits between all packet sources and the
-simulator. It owns the CPU port routing logic and callback dispatch.
+simulator. It owns CPU port routing and result distribution.
 
 ```
   P4Runtime StreamChannel                   Dataplane gRPC
@@ -153,8 +153,7 @@ simulator. It owns the CPU port routing logic and callback dispatch.
 4. For each output where `egressPort == cpuPort`, build a PacketIn message
    (metadata via `PacketHeaderCodec`, translation via `TypeTranslator`)
    and send it on the active StreamChannel.
-5. Return. All dispatch is synchronous — callbacks fire before the call
-   returns.
+5. Return the outputs and trace to the caller.
 
 ### PacketOut
 
@@ -172,18 +171,16 @@ simulator. It owns the CPU port routing logic and callback dispatch.
 PacketIn is not tied to PacketOut. It is a side effect of *any*
 `broker.processPacket()` call that produces output on the CPU port:
 
-- A data-plane injection produces a punt to CPU port → PacketIn callback
-  fires → controller receives PacketIn on StreamChannel.
+- A data-plane injection produces a punt to CPU port → controller receives
+  PacketIn on StreamChannel.
 - A PacketOut produces a clone to CPU → same path.
 
-When no StreamChannel is active (no PacketIn callback registered), CPU-port
-outputs are logged and dropped.
+When no StreamChannel is active, CPU-port outputs are logged and dropped.
 
 ### Completion
 
 The simulator is synchronous: `processPacket()` runs the full pipeline and
-returns all output packets atomically. The broker dispatches all callbacks
-before returning — no asynchrony.
+returns all output packets atomically.
 
 - **`SubscribeResults` subscriber**: receives a `ProcessPacketResult` with
   all outputs bundled. Receiving the message IS the completion signal.
