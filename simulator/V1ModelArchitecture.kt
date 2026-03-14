@@ -76,7 +76,7 @@ class V1ModelArchitecture(
     val metaParamName: String,
     val metaStructDecl: StructDecl?,
     config: BehavioralConfig,
-    dropPortOverride: Int?,
+    val dropPort: Long,
   ) {
     private val stages = config.architecture.stagesList
     val parserStage: PipelineStage? = stages.find { it.kind == StageKind.PARSER }
@@ -88,10 +88,8 @@ class V1ModelArchitecture(
     val ingressControls: List<PipelineStage> = controlStages.take(INGRESS_CONTROL_COUNT)
     val egressControls: List<PipelineStage> = controlStages.drop(INGRESS_CONTROL_COUNT)
 
-    // Port width and drop port derived from the IR's standard_metadata struct definition,
-    // not hardcoded. This allows modified v1model architectures with wider PortId_t.
+    // Derived from the IR's standard_metadata struct definition, not hardcoded.
     val portBits: Int = standardMetadata.bitWidth("ingress_port")
-    val dropPort: Long = dropPortOverride?.toLong() ?: ((1L shl portBits) - 1)
   }
 
   override fun processPacket(
@@ -323,6 +321,10 @@ class V1ModelArchitecture(
       standardMetadata.setBitField("instance_type", decisions.instanceTypeOverride)
     }
 
+    // Resolve drop port once: override takes precedence, otherwise derive from port width.
+    val portBits = standardMetadata.bitWidth("ingress_port")
+    val dropPort = dropPortOverride?.toLong() ?: ((1L shl portBits) - 1)
+
     val pendingOps = V1ModelPendingOps()
     val interpreter =
       Interpreter(
@@ -330,7 +332,7 @@ class V1ModelArchitecture(
         ctx.tableStore,
         packetCtx,
         decisions.selectorMembers,
-        createExternHandler(standardMetadata, pendingOps, ctx.tableStore),
+        createExternHandler(standardMetadata, pendingOps, ctx.tableStore, dropPort),
       )
 
     val metaValue = defaultValue(metaTypeName, typesByName)
@@ -370,7 +372,7 @@ class V1ModelArchitecture(
       metaParamName,
       metaStructDecl,
       config,
-      dropPortOverride,
+      dropPort,
     )
   }
 
@@ -674,9 +676,11 @@ class V1ModelArchitecture(
     standardMetadata: StructVal,
     pendingOps: V1ModelPendingOps,
     tableStore: TableStore,
+    dropPort: Long,
   ): ExternHandler = ExternHandler { call, eval ->
     when (call) {
-      is ExternCall.FreeFunction -> v1modelExternCall(call.name, eval, standardMetadata, pendingOps)
+      is ExternCall.FreeFunction ->
+        v1modelExternCall(call.name, eval, standardMetadata, pendingOps, dropPort)
       is ExternCall.Method -> v1modelExternMethodCall(call, eval, tableStore)
     }
   }
@@ -695,6 +699,7 @@ class V1ModelArchitecture(
     eval: ExternEvaluator,
     standardMetadata: StructVal,
     pendingOps: V1ModelPendingOps,
+    dropPort: Long,
   ): Value =
     when (name) {
       // mark_to_drop(standard_metadata): sets egress_spec to the drop port.
@@ -706,9 +711,7 @@ class V1ModelArchitecture(
             .build()
         )
         val smeta = eval.evalArg(0) as StructVal
-        val portBits = smeta.bitWidth("egress_spec")
-        val dropPort = dropPortOverride?.toLong() ?: ((1L shl portBits) - 1)
-        smeta.fields["egress_spec"] = BitVal(dropPort, portBits)
+        smeta.fields["egress_spec"] = BitVal(dropPort, smeta.bitWidth("egress_spec"))
         UnitVal
       }
       // clone(type, session) / clone3(type, session, data): I2E/E2E clone.
