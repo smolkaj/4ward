@@ -54,9 +54,9 @@ using namespace P4;
 //
 // Returns one TypeTranslation per annotated type, with auto_allocate=true
 // (hybrid mode: explicit pins + auto-allocate unknown values).
-static std::vector<fourward::ir::v1::TypeTranslation> extractTypeTranslations(
+static std::vector<fourward::ir::TypeTranslation> extractTypeTranslations(
     const IR::P4Program* program, const p4::config::v1::P4Info& p4Info) {
-  std::vector<fourward::ir::v1::TypeTranslation> result;
+  std::vector<fourward::ir::TypeTranslation> result;
   const auto& newTypes = p4Info.type_info().new_types();
 
   forAllMatching<IR::Type_Newtype>(program, [&](const IR::Type_Newtype* nt) {
@@ -76,7 +76,7 @@ static std::vector<fourward::ir::v1::TypeTranslation> extractTypeTranslations(
     const auto& translatedType = it->second.translated_type();
     bool isSdnString = translatedType.has_sdn_string();
 
-    fourward::ir::v1::TypeTranslation translation;
+    fourward::ir::TypeTranslation translation;
     translation.set_uri(translatedType.uri());
     translation.set_auto_allocate(true);
 

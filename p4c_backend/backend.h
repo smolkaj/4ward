@@ -54,7 +54,7 @@ class FourWardBackend : public Inspector {
   // Injects type translation mappings extracted from
   // @p4runtime_translation_mappings annotations.
   void setTypeTranslations(
-      std::vector<fourward::ir::v1::TypeTranslation> translations);
+      std::vector<fourward::ir::TypeTranslation> translations);
 
   // Writes the accumulated PipelineConfig proto to the output file.
   // Returns true on success.
@@ -65,8 +65,8 @@ class FourWardBackend : public Inspector {
   const ReferenceMap& refMap_;
   const TypeMap& typeMap_;
 
-  fourward::ir::v1::PipelineConfig pipelineConfig_;
-  fourward::ir::v1::BehavioralConfig* behavioral_;
+  fourward::ir::PipelineConfig pipelineConfig_;
+  fourward::ir::BehavioralConfig* behavioral_;
 
   // Set by emitControl so nested emitters can use the enclosing control name.
   std::string controlName_;
@@ -74,19 +74,18 @@ class FourWardBackend : public Inspector {
   void emitTypeDecls(const IR::P4Program* program);
   void emitParser(const IR::P4Parser* parser);
   void emitControl(const IR::P4Control* control);
-  void emitAction(const IR::P4Action* action,
-                  fourward::ir::v1::ActionDecl* out);
+  void emitAction(const IR::P4Action* action, fourward::ir::ActionDecl* out);
   void emitTable(const IR::P4Table* table);
   void emitArchitecture(const IR::ToplevelBlock* toplevel);
 
   // IR-to-proto converters. These are member functions so they can access
   // refMap_ (needed to resolve PathExpression declarations for table apply
   // detection) and typeMap_ directly.
-  fourward::ir::v1::Type emitType(const IR::Type* type);
-  fourward::ir::v1::Expr emitExpr(const IR::Expression* expr);
-  fourward::ir::v1::Stmt emitStmt(const IR::StatOrDecl* stmt);
-  fourward::ir::v1::BlockStmt emitBlock(const IR::BlockStatement* block);
-  static fourward::ir::v1::SourceInfo emitSourceInfo(const IR::Node* node);
+  fourward::ir::Type emitType(const IR::Type* type);
+  fourward::ir::Expr emitExpr(const IR::Expression* expr);
+  fourward::ir::Stmt emitStmt(const IR::StatOrDecl* stmt);
+  fourward::ir::BlockStmt emitBlock(const IR::BlockStatement* block);
+  static fourward::ir::SourceInfo emitSourceInfo(const IR::Node* node);
 
   std::string outputFilePath() const;
 };

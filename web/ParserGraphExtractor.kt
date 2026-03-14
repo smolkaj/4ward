@@ -1,8 +1,8 @@
 package fourward.web
 
-import fourward.ir.v1.BehavioralConfig
-import fourward.ir.v1.Expr
-import fourward.ir.v1.ParserDecl
+import fourward.ir.BehavioralConfig
+import fourward.ir.Expr
+import fourward.ir.ParserDecl
 import fourward.web.ControlGraphExtractor.ControlGraph
 import fourward.web.ControlGraphExtractor.Edge
 import fourward.web.ControlGraphExtractor.Node
@@ -69,7 +69,7 @@ object ParserGraphExtractor {
   }
 
   /** Human-readable label for a keyset expression. */
-  private fun keysetLabel(keyset: fourward.ir.v1.KeysetExpr): String =
+  private fun keysetLabel(keyset: fourward.ir.KeysetExpr): String =
     when {
       keyset.hasExact() -> exprLabel(keyset.exact)
       keyset.hasMask() -> "${exprLabel(keyset.mask.value)} &&& ${exprLabel(keyset.mask.mask)}"

@@ -1,9 +1,9 @@
 package fourward.p4runtime
 
-import fourward.constraints.v1.ConstraintRequest
-import fourward.constraints.v1.ConstraintResponse
-import fourward.constraints.v1.LoadP4InfoRequest
-import fourward.constraints.v1.ValidateEntryRequest
+import fourward.constraints.ConstraintRequest
+import fourward.constraints.ConstraintResponse
+import fourward.constraints.LoadP4InfoRequest
+import fourward.constraints.ValidateEntryRequest
 import java.io.Closeable
 import java.io.DataInputStream
 import java.io.DataOutputStream

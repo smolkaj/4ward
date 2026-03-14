@@ -33,8 +33,8 @@ namespace P4::FourWard {
 // Type emission
 // =============================================================================
 
-fourward::ir::v1::Type FourWardBackend::emitType(const IR::Type* type) {
-  fourward::ir::v1::Type out;
+fourward::ir::Type FourWardBackend::emitType(const IR::Type* type) {
+  fourward::ir::Type out;
 
   if (const auto* bits = type->to<IR::Type_Bits>()) {
     if (bits->isSigned) {
@@ -113,8 +113,8 @@ static bool isTableApply(const IR::Expression* expr, const ReferenceMap& refMap,
   return true;
 }
 
-fourward::ir::v1::Expr FourWardBackend::emitExpr(const IR::Expression* expr) {
-  fourward::ir::v1::Expr out;
+fourward::ir::Expr FourWardBackend::emitExpr(const IR::Expression* expr) {
+  fourward::ir::Expr out;
 
   if (const auto* cnst = expr->to<IR::Constant>()) {
     auto* lit = out.mutable_literal();
@@ -151,8 +151,8 @@ fourward::ir::v1::Expr FourWardBackend::emitExpr(const IR::Expression* expr) {
       ta->set_table_name(tableName);
       if (mem->member == "hit" || mem->member == "miss") {
         ta->set_access_kind(mem->member == "hit"
-                                ? fourward::ir::v1::TableApplyExpr::HIT
-                                : fourward::ir::v1::TableApplyExpr::MISS);
+                                ? fourward::ir::TableApplyExpr::HIT
+                                : fourward::ir::TableApplyExpr::MISS);
       }
     } else if (mem->expr->is<IR::TypeNameExpression>()) {
       // Qualified enum/error member access: `error.NoError` or `MyEnum.Val`.
@@ -221,56 +221,56 @@ fourward::ir::v1::Expr FourWardBackend::emitExpr(const IR::Expression* expr) {
     *b->mutable_right() = emitExpr(binop->right);
 
     if (binop->is<IR::Add>())
-      b->set_op(fourward::ir::v1::BinaryOperator::ADD);
+      b->set_op(fourward::ir::BinaryOperator::ADD);
     else if (binop->is<IR::Sub>())
-      b->set_op(fourward::ir::v1::BinaryOperator::SUB);
+      b->set_op(fourward::ir::BinaryOperator::SUB);
     else if (binop->is<IR::Mul>())
-      b->set_op(fourward::ir::v1::BinaryOperator::MUL);
+      b->set_op(fourward::ir::BinaryOperator::MUL);
     else if (binop->is<IR::Div>())
-      b->set_op(fourward::ir::v1::BinaryOperator::DIV);
+      b->set_op(fourward::ir::BinaryOperator::DIV);
     else if (binop->is<IR::Mod>())
-      b->set_op(fourward::ir::v1::BinaryOperator::MOD);
+      b->set_op(fourward::ir::BinaryOperator::MOD);
     else if (binop->is<IR::AddSat>())
-      b->set_op(fourward::ir::v1::BinaryOperator::ADD_SAT);
+      b->set_op(fourward::ir::BinaryOperator::ADD_SAT);
     else if (binop->is<IR::SubSat>())
-      b->set_op(fourward::ir::v1::BinaryOperator::SUB_SAT);
+      b->set_op(fourward::ir::BinaryOperator::SUB_SAT);
     else if (binop->is<IR::BAnd>())
-      b->set_op(fourward::ir::v1::BinaryOperator::BIT_AND);
+      b->set_op(fourward::ir::BinaryOperator::BIT_AND);
     else if (binop->is<IR::BOr>())
-      b->set_op(fourward::ir::v1::BinaryOperator::BIT_OR);
+      b->set_op(fourward::ir::BinaryOperator::BIT_OR);
     else if (binop->is<IR::BXor>())
-      b->set_op(fourward::ir::v1::BinaryOperator::BIT_XOR);
+      b->set_op(fourward::ir::BinaryOperator::BIT_XOR);
     else if (binop->is<IR::Shl>())
-      b->set_op(fourward::ir::v1::BinaryOperator::SHL);
+      b->set_op(fourward::ir::BinaryOperator::SHL);
     else if (binop->is<IR::Shr>())
-      b->set_op(fourward::ir::v1::BinaryOperator::SHR);
+      b->set_op(fourward::ir::BinaryOperator::SHR);
     else if (binop->is<IR::Equ>())
-      b->set_op(fourward::ir::v1::BinaryOperator::EQ);
+      b->set_op(fourward::ir::BinaryOperator::EQ);
     else if (binop->is<IR::Neq>())
-      b->set_op(fourward::ir::v1::BinaryOperator::NEQ);
+      b->set_op(fourward::ir::BinaryOperator::NEQ);
     else if (binop->is<IR::Lss>())
-      b->set_op(fourward::ir::v1::BinaryOperator::LT);
+      b->set_op(fourward::ir::BinaryOperator::LT);
     else if (binop->is<IR::Grt>())
-      b->set_op(fourward::ir::v1::BinaryOperator::GT);
+      b->set_op(fourward::ir::BinaryOperator::GT);
     else if (binop->is<IR::Leq>())
-      b->set_op(fourward::ir::v1::BinaryOperator::LE);
+      b->set_op(fourward::ir::BinaryOperator::LE);
     else if (binop->is<IR::Geq>())
-      b->set_op(fourward::ir::v1::BinaryOperator::GE);
+      b->set_op(fourward::ir::BinaryOperator::GE);
     else if (binop->is<IR::LAnd>())
-      b->set_op(fourward::ir::v1::BinaryOperator::AND);
+      b->set_op(fourward::ir::BinaryOperator::AND);
     else if (binop->is<IR::LOr>())
-      b->set_op(fourward::ir::v1::BinaryOperator::OR);
+      b->set_op(fourward::ir::BinaryOperator::OR);
     else
       LOG1("WARNING: unhandled binary operator: " << binop->node_type_name());
   } else if (const auto* unop = expr->to<IR::Operation_Unary>()) {
     auto* u = out.mutable_unary_op();
     *u->mutable_expr() = emitExpr(unop->expr);
     if (unop->is<IR::Neg>())
-      u->set_op(fourward::ir::v1::UnaryOperator::NEG);
+      u->set_op(fourward::ir::UnaryOperator::NEG);
     else if (unop->is<IR::Cmpl>())
-      u->set_op(fourward::ir::v1::UnaryOperator::BIT_NOT);
+      u->set_op(fourward::ir::UnaryOperator::BIT_NOT);
     else if (unop->is<IR::LNot>())
-      u->set_op(fourward::ir::v1::UnaryOperator::NOT);
+      u->set_op(fourward::ir::UnaryOperator::NOT);
     else
       LOG1("WARNING: unhandled unary operator: " << unop->node_type_name());
   } else if (const auto* mux = expr->to<IR::Mux>()) {
@@ -321,9 +321,8 @@ fourward::ir::v1::Expr FourWardBackend::emitExpr(const IR::Expression* expr) {
 // Source location
 // =============================================================================
 
-fourward::ir::v1::SourceInfo FourWardBackend::emitSourceInfo(
-    const IR::Node* node) {
-  fourward::ir::v1::SourceInfo out;
+fourward::ir::SourceInfo FourWardBackend::emitSourceInfo(const IR::Node* node) {
+  fourward::ir::SourceInfo out;
   auto si = node->getSourceInfo();
   if (si.isValid()) {
     out.set_file(si.getSourceFile().c_str());
@@ -338,8 +337,8 @@ fourward::ir::v1::SourceInfo FourWardBackend::emitSourceInfo(
 // Statement emission
 // =============================================================================
 
-fourward::ir::v1::Stmt FourWardBackend::emitStmt(const IR::StatOrDecl* node) {
-  fourward::ir::v1::Stmt out;
+fourward::ir::Stmt FourWardBackend::emitStmt(const IR::StatOrDecl* node) {
+  fourward::ir::Stmt out;
 
   if (const auto* assign = node->to<IR::AssignmentStatement>()) {
     auto* a = out.mutable_assignment();
@@ -354,10 +353,10 @@ fourward::ir::v1::Stmt FourWardBackend::emitStmt(const IR::StatOrDecl* node) {
     // downstream passes (e.g. LocalCopyPropagation) may produce bare
     // statements.
     auto emitBranch =
-        [&](const IR::Statement* stmt) -> fourward::ir::v1::BlockStmt {
+        [&](const IR::Statement* stmt) -> fourward::ir::BlockStmt {
       if (const auto* blk = stmt->to<IR::BlockStatement>())
         return emitBlock(blk);
-      fourward::ir::v1::BlockStmt branch;
+      fourward::ir::BlockStmt branch;
       // IR::EmptyStatement (produced by RemoveReturns for void-return branches)
       // has no IR representation; skip it to avoid an empty Stmt{} in the
       // output.
@@ -384,13 +383,13 @@ fourward::ir::v1::Stmt FourWardBackend::emitStmt(const IR::StatOrDecl* node) {
       // Emit value-based switch as an if-else chain:
       //   if (subject == case1) { ... } else if (subject == case2) { ... } else
       //   { default }
-      fourward::ir::v1::Stmt* cursor = &out;
+      fourward::ir::Stmt* cursor = &out;
       for (const auto* c : sw->cases) {
         if (c->label->is<IR::DefaultExpression>()) continue;
         auto* ifStmt = cursor->mutable_if_stmt();
         // condition: subject == case_value
         auto* cond = ifStmt->mutable_condition()->mutable_binary_op();
-        cond->set_op(fourward::ir::v1::BinaryOperator::EQ);
+        cond->set_op(fourward::ir::BinaryOperator::EQ);
         *cond->mutable_left() = emitExpr(sw->expression);
         *cond->mutable_right() = emitExpr(c->label);
         if (c->statement) {
@@ -462,9 +461,9 @@ fourward::ir::v1::Stmt FourWardBackend::emitStmt(const IR::StatOrDecl* node) {
   return out;
 }
 
-fourward::ir::v1::BlockStmt FourWardBackend::emitBlock(
+fourward::ir::BlockStmt FourWardBackend::emitBlock(
     const IR::BlockStatement* block) {
-  fourward::ir::v1::BlockStmt out;
+  fourward::ir::BlockStmt out;
   for (const auto* stmt : block->components) {
     *out.add_stmts() = emitStmt(stmt);
   }
@@ -507,7 +506,7 @@ void FourWardBackend::setStaticEntries(p4::v1::WriteRequest entries) {
 }
 
 void FourWardBackend::setTypeTranslations(
-    std::vector<fourward::ir::v1::TypeTranslation> translations) {
+    std::vector<fourward::ir::TypeTranslation> translations) {
   auto* device = pipelineConfig_.mutable_device();
   for (auto& t : translations) {
     *device->add_translations() = std::move(t);
@@ -581,13 +580,13 @@ void FourWardBackend::emitParser(const IR::P4Parser* parser) {
     *p->mutable_type() = emitType(param->type);
     switch (param->direction) {
       case IR::Direction::In:
-        p->set_direction(fourward::ir::v1::Direction::IN);
+        p->set_direction(fourward::ir::Direction::IN);
         break;
       case IR::Direction::Out:
-        p->set_direction(fourward::ir::v1::Direction::OUT);
+        p->set_direction(fourward::ir::Direction::OUT);
         break;
       case IR::Direction::InOut:
-        p->set_direction(fourward::ir::v1::Direction::INOUT);
+        p->set_direction(fourward::ir::Direction::INOUT);
         break;
       default:
         break;
@@ -643,7 +642,7 @@ void FourWardBackend::emitParser(const IR::P4Parser* parser) {
         *selectTrans->add_keys() = emitExpr(key);
       }
       // Helper: emit a single keyset expression into a KeysetExpr proto.
-      auto emitKeyset = [this](fourward::ir::v1::KeysetExpr* k,
+      auto emitKeyset = [this](fourward::ir::KeysetExpr* k,
                                const IR::Expression* expr) {
         if (expr->is<IR::DefaultExpression>()) {
           k->set_default_case(true);
@@ -705,13 +704,13 @@ void FourWardBackend::emitControl(const IR::P4Control* control) {
     *p->mutable_type() = emitType(param->type);
     switch (param->direction) {
       case IR::Direction::In:
-        p->set_direction(fourward::ir::v1::Direction::IN);
+        p->set_direction(fourward::ir::Direction::IN);
         break;
       case IR::Direction::Out:
-        p->set_direction(fourward::ir::v1::Direction::OUT);
+        p->set_direction(fourward::ir::Direction::OUT);
         break;
       case IR::Direction::InOut:
-        p->set_direction(fourward::ir::v1::Direction::INOUT);
+        p->set_direction(fourward::ir::Direction::INOUT);
         break;
       default:
         break;
@@ -757,7 +756,7 @@ void FourWardBackend::emitControl(const IR::P4Control* control) {
 }
 
 void FourWardBackend::emitAction(const IR::P4Action* action,
-                                 fourward::ir::v1::ActionDecl* out) {
+                                 fourward::ir::ActionDecl* out) {
   // Use the original (pre-midend) name as the canonical key so it matches the
   // p4info alias and allows table-dispatch lookups to succeed.
   out->set_name(action->name.originalName.c_str());
@@ -851,7 +850,7 @@ void FourWardBackend::emitArchitecture(const IR::ToplevelBlock* toplevel) {
   if (!main) return;
 
   auto addStage = [&](const std::string& name, const std::string& blockName,
-                      fourward::ir::v1::StageKind kind) {
+                      fourward::ir::StageKind kind) {
     auto* stage = arch->add_stages();
     stage->set_name(name);
     stage->set_block_name(blockName);
@@ -881,14 +880,14 @@ void FourWardBackend::emitArchitecture(const IR::ToplevelBlock* toplevel) {
 
     // V1Switch(parser, verify_checksum, ingress, egress, compute_checksum,
     // deparser)
-    const std::vector<std::pair<std::string, fourward::ir::v1::StageKind>>
+    const std::vector<std::pair<std::string, fourward::ir::StageKind>>
         stageSpec = {
-            {"parser", fourward::ir::v1::StageKind::PARSER},
-            {"verify_checksum", fourward::ir::v1::StageKind::CONTROL},
-            {"ingress", fourward::ir::v1::StageKind::CONTROL},
-            {"egress", fourward::ir::v1::StageKind::CONTROL},
-            {"compute_checksum", fourward::ir::v1::StageKind::CONTROL},
-            {"deparser", fourward::ir::v1::StageKind::DEPARSER},
+            {"parser", fourward::ir::StageKind::PARSER},
+            {"verify_checksum", fourward::ir::StageKind::CONTROL},
+            {"ingress", fourward::ir::StageKind::CONTROL},
+            {"egress", fourward::ir::StageKind::CONTROL},
+            {"compute_checksum", fourward::ir::StageKind::CONTROL},
+            {"deparser", fourward::ir::StageKind::DEPARSER},
         };
 
     size_t i = 0;
@@ -942,20 +941,20 @@ void FourWardBackend::emitArchitecture(const IR::ToplevelBlock* toplevel) {
 
     // IngressPipeline(IngressParser ip, Ingress ig, IngressDeparser id)
     addStage("ingress_parser", resolveBlockName((*ingressArgs)[0]->expression),
-             fourward::ir::v1::StageKind::PARSER);
+             fourward::ir::StageKind::PARSER);
     addStage("ingress", resolveBlockName((*ingressArgs)[1]->expression),
-             fourward::ir::v1::StageKind::CONTROL);
+             fourward::ir::StageKind::CONTROL);
     addStage("ingress_deparser",
              resolveBlockName((*ingressArgs)[2]->expression),
-             fourward::ir::v1::StageKind::DEPARSER);
+             fourward::ir::StageKind::DEPARSER);
 
     // EgressPipeline(EgressParser ep, Egress eg, EgressDeparser ed)
     addStage("egress_parser", resolveBlockName((*egressArgs)[0]->expression),
-             fourward::ir::v1::StageKind::PARSER);
+             fourward::ir::StageKind::PARSER);
     addStage("egress", resolveBlockName((*egressArgs)[1]->expression),
-             fourward::ir::v1::StageKind::CONTROL);
+             fourward::ir::StageKind::CONTROL);
     addStage("egress_deparser", resolveBlockName((*egressArgs)[2]->expression),
-             fourward::ir::v1::StageKind::DEPARSER);
+             fourward::ir::StageKind::DEPARSER);
   } else {
     // Unknown architecture: emit the name and leave stages empty.
     // The simulator will reject it with a clear error.

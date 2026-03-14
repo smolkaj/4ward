@@ -1,16 +1,16 @@
 package fourward.simulator
 
-import fourward.ir.v1.BehavioralConfig
-import fourward.ir.v1.ExternInstanceDecl
-import fourward.ir.v1.PipelineStage
-import fourward.ir.v1.TypeDecl
-import fourward.sim.v1.SimulatorProto.DropReason
-import fourward.sim.v1.SimulatorProto.Fork
-import fourward.sim.v1.SimulatorProto.ForkBranch
-import fourward.sim.v1.SimulatorProto.ForkReason
-import fourward.sim.v1.SimulatorProto.PipelineStageEvent
-import fourward.sim.v1.SimulatorProto.TraceEvent
-import fourward.sim.v1.SimulatorProto.TraceTree
+import fourward.ir.BehavioralConfig
+import fourward.ir.ExternInstanceDecl
+import fourward.ir.PipelineStage
+import fourward.ir.TypeDecl
+import fourward.sim.SimulatorProto.DropReason
+import fourward.sim.SimulatorProto.Fork
+import fourward.sim.SimulatorProto.ForkBranch
+import fourward.sim.SimulatorProto.ForkReason
+import fourward.sim.SimulatorProto.PipelineStageEvent
+import fourward.sim.SimulatorProto.TraceEvent
+import fourward.sim.SimulatorProto.TraceTree
 import java.math.BigInteger
 
 /**

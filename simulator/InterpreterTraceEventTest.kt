@@ -1,16 +1,16 @@
 package fourward.simulator
 
-import fourward.ir.v1.BehavioralConfig
-import fourward.ir.v1.Expr
-import fourward.ir.v1.MethodCall
-import fourward.ir.v1.MethodCallStmt
-import fourward.ir.v1.ParserDecl
-import fourward.ir.v1.ParserState
-import fourward.ir.v1.SourceInfo
-import fourward.ir.v1.Stmt
-import fourward.ir.v1.Transition
-import fourward.sim.v1.SimulatorProto.DropReason
-import fourward.sim.v1.SimulatorProto.MarkToDropEvent
+import fourward.ir.BehavioralConfig
+import fourward.ir.Expr
+import fourward.ir.MethodCall
+import fourward.ir.MethodCallStmt
+import fourward.ir.ParserDecl
+import fourward.ir.ParserState
+import fourward.ir.SourceInfo
+import fourward.ir.Stmt
+import fourward.ir.Transition
+import fourward.sim.SimulatorProto.DropReason
+import fourward.sim.SimulatorProto.MarkToDropEvent
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows

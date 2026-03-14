@@ -1,13 +1,13 @@
 package fourward.simulator
 
-import fourward.ir.v1.PipelineConfig
-import fourward.sim.v1.SimulatorProto.OutputPacket
-import fourward.sim.v1.SimulatorProto.TraceTree
+import fourward.ir.PipelineConfig
+import fourward.sim.SimulatorProto.OutputPacket
+import fourward.sim.SimulatorProto.TraceTree
 
 /**
  * Result of processing a single packet through the pipeline.
  *
- * Decouples the simulator from the gRPC wire format ([fourward.sim.v1.SimulatorProto
+ * Decouples the simulator from the gRPC wire format ([fourward.sim.SimulatorProto
  * .InjectPacketResponse]). Each RPC method builds its own wire proto from this data class.
  */
 data class ProcessPacketResult(val outputPackets: List<OutputPacket>, val trace: TraceTree)

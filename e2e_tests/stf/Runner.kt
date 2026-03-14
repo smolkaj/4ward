@@ -2,7 +2,7 @@ package fourward.e2e
 
 import com.google.protobuf.ByteString
 import com.google.protobuf.TextFormat
-import fourward.ir.v1.PipelineConfig
+import fourward.ir.PipelineConfig
 import fourward.simulator.Simulator
 import fourward.simulator.WriteResult
 import java.math.BigInteger

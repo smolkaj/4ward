@@ -14,8 +14,8 @@
 
 package fourward.simulator
 
-import fourward.ir.v1.Type
-import fourward.ir.v1.TypeDecl
+import fourward.ir.Type
+import fourward.ir.TypeDecl
 import java.math.BigInteger
 
 /**
@@ -73,7 +73,7 @@ internal fun defaultValue(typeName: String, types: Map<String, TypeDecl>): Value
 
 private fun defaultStruct(
   typeName: String,
-  fieldDecls: List<fourward.ir.v1.FieldDecl>,
+  fieldDecls: List<fourward.ir.FieldDecl>,
   types: Map<String, TypeDecl>,
 ): StructVal =
   StructVal(

@@ -6,11 +6,11 @@
 
 syntax = "proto3";
 
-package fourward.dataplane.v1;
+package fourward.dataplane;
 
 import "simulator.proto";
 
-option java_package = "fourward.dataplane.v1";
+option java_package = "fourward.dataplane";
 option java_outer_classname = "DataplaneProto";
 
 service Dataplane {
@@ -24,20 +24,20 @@ service Dataplane {
 }
 
 message InjectPacketRequest {
-  fourward.sim.v1.InputPacket packet = 1;
+  fourward.sim.InputPacket packet = 1;
 }
 
 // InjectPacket response. Omits the input (the caller already has it).
 message InjectPacketResponse {
-  repeated fourward.sim.v1.OutputPacket output_packets = 1;
-  fourward.sim.v1.TraceTree trace = 2;
+  repeated fourward.sim.OutputPacket output_packets = 1;
+  fourward.sim.TraceTree trace = 2;
 }
 
 // Result bundle for SubscribeResults: input + outputs + trace.
 message ProcessPacketResult {
-  fourward.sim.v1.InputPacket input = 1;
-  repeated fourward.sim.v1.OutputPacket output_packets = 2;
-  fourward.sim.v1.TraceTree trace = 3;
+  fourward.sim.InputPacket input = 1;
+  repeated fourward.sim.OutputPacket output_packets = 2;
+  fourward.sim.TraceTree trace = 3;
 }
 
 message SubscribeResultsRequest {}

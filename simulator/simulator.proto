@@ -8,12 +8,12 @@
 
 syntax = "proto3";
 
-package fourward.sim.v1;
+package fourward.sim;
 
 import "ir.proto";
 import "p4/v1/p4runtime.proto";
 
-option java_package = "fourward.sim.v1";
+option java_package = "fourward.sim";
 option java_outer_classname = "SimulatorProto";
 
 // =============================================================================
@@ -108,7 +108,7 @@ message TraceEvent {
     DeparserEmitEvent deparser_emit = 13;
   }
 
-  fourward.ir.v1.SourceInfo source_info = 100;
+  fourward.ir.SourceInfo source_info = 100;
 }
 
 // Fired on every parser state transition, including the final transition to
@@ -183,7 +183,7 @@ message PacketIngressEvent {
 // deparser).
 message PipelineStageEvent {
   string stage_name = 1;
-  fourward.ir.v1.StageKind stage_kind = 2;
+  fourward.ir.StageKind stage_kind = 2;
   enum Direction {
     DIRECTION_UNSPECIFIED = 0;
     ENTER = 1;

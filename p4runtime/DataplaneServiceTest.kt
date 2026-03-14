@@ -1,8 +1,8 @@
 package fourward.p4runtime
 
 import com.google.protobuf.ByteString
-import fourward.dataplane.v1.DataplaneGrpcKt.DataplaneCoroutineStub
-import fourward.dataplane.v1.DataplaneProto.SubscribeResultsRequest
+import fourward.dataplane.DataplaneGrpcKt.DataplaneCoroutineStub
+import fourward.dataplane.DataplaneProto.SubscribeResultsRequest
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildEthernetFrame
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildExactEntry
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.loadConfig

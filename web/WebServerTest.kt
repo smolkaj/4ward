@@ -1,13 +1,13 @@
 package fourward.web
 
-import fourward.ir.v1.BehavioralConfig
-import fourward.ir.v1.BitType
-import fourward.ir.v1.FieldDecl
-import fourward.ir.v1.HeaderDecl
-import fourward.ir.v1.IntType
-import fourward.ir.v1.Type
-import fourward.ir.v1.TypeDecl
-import fourward.ir.v1.VarbitType
+import fourward.ir.BehavioralConfig
+import fourward.ir.BitType
+import fourward.ir.FieldDecl
+import fourward.ir.HeaderDecl
+import fourward.ir.IntType
+import fourward.ir.Type
+import fourward.ir.TypeDecl
+import fourward.ir.VarbitType
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -139,7 +139,7 @@ class WebServerTest {
         .addTypes(
           TypeDecl.newBuilder()
             .setName("meta_t")
-            .setStruct(fourward.ir.v1.StructDecl.newBuilder().addFields(field("x", bitType(16))))
+            .setStruct(fourward.ir.StructDecl.newBuilder().addFields(field("x", bitType(16))))
         )
         .build()
     assertEquals(
