@@ -136,12 +136,15 @@ ordering is documented but cannot be expressed in the proto type system.
 Fan-out layer between packet sources and the simulator. All callers —
 `DataplaneService.injectPacket`, `P4RuntimeService` PacketOut — go through
 `broker.processPacket()`. The broker delegates to the simulator and delivers
-results to `SubscribeResults` subscribers.
+results to all subscribers.
 
-CPU-port routing (PacketOut → PacketIn) is handled by
-`P4RuntimeService.handlePacketOut`, not the broker, because it requires
-pipeline state (`PacketHeaderCodec`, `TypeTranslator`) that only
-P4RuntimeService has.
+The broker has no knowledge of CPU ports, PacketIn, or P4Runtime concepts —
+it is a generic fan-out mechanism. Each consumer subscribes and decides what
+to do with the results:
+
+- `DataplaneService` subscribes to power `SubscribeResults`.
+- Each active `streamChannel` subscribes to filter CPU-port outputs into
+  PacketIn (using pipeline state that only `P4RuntimeService` has).
 
 ```
   P4Runtime StreamChannel                   Dataplane gRPC
@@ -153,7 +156,7 @@ P4RuntimeService has.
   │                    PacketBroker                     │
   │                                                     │
   │  1. Call simulator.processPacket()                  │
-  │  2. Deliver result to SubscribeResults subscribers  │
+  │  2. Deliver result to all subscribers               │
   │  3. Return result to caller                         │
   └─────────────────────┬───────────────────────────────┘
                         │
@@ -163,20 +166,21 @@ P4RuntimeService has.
 `broker.processPacket(ingressPort, payload)` does:
 
 1. Call `simulator.processPacket(ingressPort, payload)`.
-2. Deliver the result to all `SubscribeResults` subscribers.
+2. Deliver the result to all subscribers (synchronously, during this call).
 3. Return the outputs and trace to the caller.
 
 ### PacketOut
 
 1. Controller sends PacketOut on the StreamChannel.
-2. P4RuntimeService translates metadata and serializes the packet header.
-3. P4RuntimeService calls `broker.processPacket(cpuPort, payload)`.
-4. The broker processes the packet and delivers results to subscribers
-   (requirement 4 — PacketOut outputs visible to data-plane observers).
-5. P4RuntimeService filters CPU-port outputs from the result and sends them
-   as PacketIn on the StreamChannel (requirement 6 — only CPU-port outputs
-   appear on the StreamChannel, per P4Runtime spec §16.1).
-6. All outputs have been dispatched.
+2. `handlePacketOut` translates metadata and serializes the packet header.
+3. `handlePacketOut` calls `broker.processPacket(cpuPort, payload)`.
+4. During the broker call, all subscribers fire synchronously:
+   - The `streamChannel` subscriber filters CPU-port outputs into PacketIn
+     and delivers them on the stream (requirement 6 — P4Runtime spec §16.1).
+   - The `DataplaneService` subscriber delivers the result to
+     `SubscribeResults` clients (requirement 4 — PacketOut outputs visible
+     to data-plane observers).
+5. The broker call returns. All outputs have been dispatched.
 
 ### PacketIn
 
