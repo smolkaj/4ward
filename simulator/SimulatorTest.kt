@@ -16,21 +16,15 @@ package fourward.simulator
 
 import fourward.ir.ActionDecl
 import fourward.ir.Architecture
-import fourward.ir.AssignmentStmt
 import fourward.ir.BehavioralConfig
 import fourward.ir.ControlDecl
 import fourward.ir.DeviceConfig
-import fourward.ir.Expr
-import fourward.ir.FieldAccess
-import fourward.ir.FieldDecl
-import fourward.ir.Literal
 import fourward.ir.ParamDecl
 import fourward.ir.ParserDecl
 import fourward.ir.ParserState
 import fourward.ir.PipelineConfig
 import fourward.ir.PipelineStage
 import fourward.ir.StageKind
-import fourward.ir.Stmt
 import fourward.ir.StructDecl
 import fourward.ir.TableBehavior
 import fourward.ir.Transition
@@ -184,15 +178,15 @@ class SimulatorTest {
         .setName("standard_metadata_t")
         .setStruct(
           StructDecl.newBuilder()
-            .addFields(bitField("ingress_port", portBits))
-            .addFields(bitField("egress_spec", portBits))
-            .addFields(bitField("egress_port", portBits))
-            .addFields(bitField("instance_type", 32))
-            .addFields(bitField("packet_length", 32))
-            .addFields(bitField("mcast_grp", 16))
-            .addFields(bitField("egress_rid", 16))
-            .addFields(bitField("checksum_error", 1))
-            .addFields(bitField("parser_error", 32))
+            .addFields(field("ingress_port", portBits))
+            .addFields(field("egress_spec", portBits))
+            .addFields(field("egress_port", portBits))
+            .addFields(field("instance_type", 32))
+            .addFields(field("packet_length", 32))
+            .addFields(field("mcast_grp", 16))
+            .addFields(field("egress_rid", 16))
+            .addFields(field("checksum_error", 1))
+            .addFields(field("parser_error", 32))
         )
         .build()
     val headersType =
@@ -262,29 +256,6 @@ class SimulatorTest {
 
   private fun stage(name: String, kind: StageKind, blockName: String): PipelineStage =
     PipelineStage.newBuilder().setName(name).setKind(kind).setBlockName(blockName).build()
-
-  private fun bitField(name: String, width: Int): FieldDecl =
-    FieldDecl.newBuilder().setName(name).setType(bitType(width)).build()
-
-  /** Assignment: `target.fieldName = value` (integer literal). */
-  private fun assignField(target: String, fieldName: String, value: Long, width: Int): Stmt =
-    Stmt.newBuilder()
-      .setAssignment(
-        AssignmentStmt.newBuilder()
-          .setLhs(
-            Expr.newBuilder()
-              .setFieldAccess(
-                FieldAccess.newBuilder().setExpr(nameRef(target)).setFieldName(fieldName)
-              )
-              .setType(bitType(width))
-          )
-          .setRhs(
-            Expr.newBuilder()
-              .setLiteral(Literal.newBuilder().setInteger(value))
-              .setType(bitType(width))
-          )
-      )
-      .build()
 
   @Test
   fun `drop port override flows through to architecture`() {

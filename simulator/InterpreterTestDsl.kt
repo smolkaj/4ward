@@ -6,6 +6,8 @@ import fourward.ir.BitType
 import fourward.ir.BlockStmt
 import fourward.ir.ControlDecl
 import fourward.ir.Expr
+import fourward.ir.FieldAccess
+import fourward.ir.FieldDecl
 import fourward.ir.IfStmt
 import fourward.ir.Literal
 import fourward.ir.MethodCall
@@ -67,6 +69,30 @@ fun ifStmt(
   if (sourceInfo != null) builder.sourceInfo = sourceInfo
   return builder.build()
 }
+
+/** A `bit<[width]>` [FieldDecl] with the given [name]. */
+fun field(name: String, width: Int): FieldDecl =
+  FieldDecl.newBuilder().setName(name).setType(bitType(width)).build()
+
+/** Assignment statement: `target.fieldName = value` (integer literal). */
+fun assignField(target: String, fieldName: String, value: Long, width: Int): Stmt =
+  Stmt.newBuilder()
+    .setAssignment(
+      AssignmentStmt.newBuilder()
+        .setLhs(
+          Expr.newBuilder()
+            .setFieldAccess(
+              FieldAccess.newBuilder().setExpr(nameRef(target)).setFieldName(fieldName)
+            )
+            .setType(bitType(width))
+        )
+        .setRhs(
+          Expr.newBuilder()
+            .setLiteral(Literal.newBuilder().setInteger(value))
+            .setType(bitType(width))
+        )
+    )
+    .build()
 
 /** Assignment statement: `varName = rhs`. */
 fun assign(varName: String, rhs: Expr): Stmt =

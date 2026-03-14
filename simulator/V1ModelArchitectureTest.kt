@@ -2,7 +2,6 @@ package fourward.simulator
 
 import com.google.protobuf.ByteString
 import fourward.ir.Architecture
-import fourward.ir.AssignmentStmt
 import fourward.ir.BehavioralConfig
 import fourward.ir.BinaryOp
 import fourward.ir.BinaryOperator
@@ -47,9 +46,6 @@ class V1ModelArchitectureTest {
   // ---------------------------------------------------------------------------
   // Helpers: minimal v1model config construction
   // ---------------------------------------------------------------------------
-
-  private fun field(name: String, width: Int): FieldDecl =
-    FieldDecl.newBuilder().setName(name).setType(bitType(width)).build()
 
   private fun param(name: String, typeName: String): ParamDecl =
     ParamDecl.newBuilder().setName(name).setType(namedType(typeName)).build()
@@ -129,26 +125,6 @@ class V1ModelArchitectureTest {
           .setName("deparser")
           .setKind(StageKind.DEPARSER)
           .setBlockName("MyDeparser")
-      )
-      .build()
-
-  /** An assignment statement: target.fieldName = value (integer literal). */
-  private fun assignField(target: String, fieldName: String, value: Long, width: Int): Stmt =
-    Stmt.newBuilder()
-      .setAssignment(
-        AssignmentStmt.newBuilder()
-          .setLhs(
-            Expr.newBuilder()
-              .setFieldAccess(
-                FieldAccess.newBuilder().setExpr(nameRef(target)).setFieldName(fieldName)
-              )
-              .setType(bitType(width))
-          )
-          .setRhs(
-            Expr.newBuilder()
-              .setLiteral(Literal.newBuilder().setInteger(value))
-              .setType(bitType(width))
-          )
       )
       .build()
 
