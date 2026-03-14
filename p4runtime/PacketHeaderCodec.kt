@@ -24,6 +24,20 @@ sealed interface CpuPortConfig {
   data class Override(val port: Int) : CpuPortConfig
 
   data object Disabled : CpuPortConfig
+
+  companion object {
+    /** Parses a CLI flag value: null → [Auto], "none" → [Disabled], integer → [Override]. */
+    fun fromFlag(value: String?): CpuPortConfig =
+      when {
+        value == null -> Auto
+        value.equals("none", ignoreCase = true) -> Disabled
+        else ->
+          Override(
+            value.toIntOrNull()
+              ?: throw IllegalArgumentException("invalid --cpu-port value: $value")
+          )
+      }
+  }
 }
 
 /**

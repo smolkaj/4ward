@@ -247,28 +247,28 @@ class PacketHeaderCodecTest {
   }
 
   // =========================================================================
-  // parseCpuPortFlag
+  // CpuPortConfig.fromFlag
   // =========================================================================
 
   @Test
-  fun `parseCpuPortFlag null returns Auto`() {
-    assertEquals(CpuPortConfig.Auto, parseCpuPortFlag(null))
+  fun `fromFlag null returns Auto`() {
+    assertEquals(CpuPortConfig.Auto, CpuPortConfig.fromFlag(null))
   }
 
   @Test
-  fun `parseCpuPortFlag none returns Disabled`() {
-    assertEquals(CpuPortConfig.Disabled, parseCpuPortFlag("none"))
-    assertEquals(CpuPortConfig.Disabled, parseCpuPortFlag("NONE"))
+  fun `fromFlag none returns Disabled`() {
+    assertEquals(CpuPortConfig.Disabled, CpuPortConfig.fromFlag("none"))
+    assertEquals(CpuPortConfig.Disabled, CpuPortConfig.fromFlag("NONE"))
   }
 
   @Test
-  fun `parseCpuPortFlag integer returns Override`() {
-    assertEquals(CpuPortConfig.Override(510), parseCpuPortFlag("510"))
-    assertEquals(CpuPortConfig.Override(0), parseCpuPortFlag("0"))
+  fun `fromFlag integer returns Override`() {
+    assertEquals(CpuPortConfig.Override(510), CpuPortConfig.fromFlag("510"))
+    assertEquals(CpuPortConfig.Override(0), CpuPortConfig.fromFlag("0"))
   }
 
   @Test(expected = IllegalArgumentException::class)
-  fun `parseCpuPortFlag invalid value throws`() {
-    parseCpuPortFlag("abc")
+  fun `fromFlag invalid value throws`() {
+    CpuPortConfig.fromFlag("abc")
   }
 }

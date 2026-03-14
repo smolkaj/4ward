@@ -24,7 +24,7 @@ fun main(args: Array<String>) {
   val staticDir = flagValue(args, "--static-dir")?.let { Path.of(it) }
 
   val dropPort = flagValue(args, "--drop-port")?.toIntOrNull()
-  val cpuPortConfig = fourward.p4runtime.parseCpuPortFlag(flagValue(args, "--cpu-port"))
+  val cpuPortConfig = fourward.p4runtime.CpuPortConfig.fromFlag(flagValue(args, "--cpu-port"))
 
   val simulator = Simulator(dropPort)
   val lock = Mutex()

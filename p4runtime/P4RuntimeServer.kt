@@ -51,7 +51,7 @@ class P4RuntimeServer(
 fun main(args: Array<String>) {
   val port = flagValue(args, "--port")?.toIntOrNull() ?: P4RuntimeServer.DEFAULT_PORT
   val dropPort = flagValue(args, "--drop-port")?.toIntOrNull()
-  val cpuPortConfig = parseCpuPortFlag(flagValue(args, "--cpu-port"))
+  val cpuPortConfig = CpuPortConfig.fromFlag(flagValue(args, "--cpu-port"))
   val server = P4RuntimeServer(port, dropPort, cpuPortConfig).start()
   println("P4Runtime server listening on port ${server.port()}")
   server.blockUntilShutdown()
@@ -59,14 +59,3 @@ fun main(args: Array<String>) {
 
 private fun flagValue(args: Array<String>, flag: String): String? =
   args.find { it.startsWith("$flag=") }?.substringAfter("=")
-
-/** Parses `--cpu-port` flag: null → [CpuPortConfig.Auto], "none" → Disabled, number → Override. */
-fun parseCpuPortFlag(value: String?): CpuPortConfig =
-  when {
-    value == null -> CpuPortConfig.Auto
-    value.equals("none", ignoreCase = true) -> CpuPortConfig.Disabled
-    else ->
-      CpuPortConfig.Override(
-        value.toIntOrNull() ?: throw IllegalArgumentException("invalid --cpu-port value: $value")
-      )
-  }
