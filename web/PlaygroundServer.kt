@@ -1,6 +1,8 @@
 package fourward.web
 
+import fourward.dvaas.DvaasService
 import fourward.p4runtime.DataplaneService
+import fourward.p4runtime.GnmiService
 import fourward.p4runtime.P4RuntimeService
 import fourward.p4runtime.PacketBroker
 import fourward.simulator.Simulator
@@ -31,12 +33,24 @@ fun main(args: Array<String>) {
   val broker = PacketBroker(simulator::processPacket)
   val service = P4RuntimeService(simulator, broker, lock = lock, cpuPortConfig = cpuPortConfig)
   val dataplaneService = DataplaneService(broker, lock)
+  val dvaasService =
+    DvaasService(
+      processPacketFn = broker::processPacket,
+      lock = lock,
+      cpuPortFn = service::currentCpuPort,
+      packetOutInjectorFn = service::injectPacketOut,
+      packetInMetadataFn = service::buildDvaasPacketInMetadata,
+    )
+
+  val gnmiService = GnmiService()
 
   // Start gRPC server.
   val grpcServer =
     NettyServerBuilder.forPort(grpcPort)
       .addService(service)
       .addService(dataplaneService)
+      .addService(dvaasService)
+      .addService(gnmiService)
       .build()
       .start()
 

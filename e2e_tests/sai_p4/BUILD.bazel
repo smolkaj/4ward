@@ -40,5 +40,8 @@ genrule(
         "@p4c//p4include",
         "@p4c//p4include:core.p4",
     ],
-    visibility = ["//p4runtime:__pkg__"],
+    visibility = [
+        "//dvaas:__pkg__",
+        "//p4runtime:__pkg__",
+    ],
 )

@@ -58,6 +58,28 @@ guilt — just write it down so someone can find it later.
   simulator: there are no real packet rates to trigger digests, and no
   wall-clock time to expire idle entries. These are explicitly out of scope.
 
+## DVaaS validation service
+
+- **All three injection modes supported.** `INPUT_TYPE_DATAPLANE`,
+  `INPUT_TYPE_PACKET_OUT`, and `INPUT_TYPE_SUBMIT_TO_INGRESS` are fully
+  implemented. `PACKET_OUT` requires a pipeline with `@controller_header`;
+  `SUBMIT_TO_INGRESS` requires a configured CPU port.
+- **PacketIn metadata populated.** Outputs on the CPU port are classified as
+  `PacketIn` with metadata fields (e.g. `ingress_port`) derived from p4info.
+- **GenerateTestVectors as reference model.** The `GenerateTestVectors` RPC
+  implements the core of sonic-pins' `DataplaneValidationBackend` — computing
+  expected outputs by simulating packets through the loaded pipeline. This
+  replaces BMv2 as the reference model. Upstream integration requires a thin
+  C++ wrapper implementing `DataplaneValidationBackend` that calls this gRPC
+  service.
+- **No packet synthesis (SynthesizePackets).** The backend does not generate
+  interesting test packets automatically. Upstream DVaaS uses p4_symbolic
+  (Z3-based symbolic execution) for this; callers must provide input packets.
+- **Non-numeric port strings not supported.** SAI P4 programs using
+  `@p4runtime_translation` with string port identifiers (e.g. "Ethernet0")
+  require type translation that isn't wired into the DVaaS service yet.
+  Port strings must be parseable as integers.
+
 ## Simulator
 
 - **Multicast: basic replication only.** Multicast group replication works
