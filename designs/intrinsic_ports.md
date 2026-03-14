@@ -1,5 +1,7 @@
 # Intrinsic Ports Design
 
+**Status: proposed**
+
 ## What makes a port intrinsic?
 
 All non-intrinsic ports are equal and interchangeable — the data plane treats
@@ -67,13 +69,17 @@ traffic manager) but not the CPU port. The CPU port has no data-plane semantics
 ### Overrides
 
 Both intrinsic ports are configurable via constructor/config parameters. The
-CPU port override has three states:
+drop port is always present (there is no way to disable dropping). The CPU port
+override has three states:
 
 - **unset** (default) → derive from p4info
 - **explicit value** (e.g., `--cpu-port=510`) → use that data-plane port
 - **disabled** (e.g., `--cpu-port=none`) → no CPU port, even if the p4info has
   `ControllerPacketMetadata`. Useful for testing the data plane in isolation
-  without packet I/O interception.
+  without packet I/O interception. Packets egressing on what would have been
+  the CPU port are treated as regular output. PacketOut is rejected with a
+  `StreamError` / `PacketOutError` response on the StreamChannel (P4Runtime
+  spec §16.6).
 
 Each entry point sources the override however makes sense for its context:
 
