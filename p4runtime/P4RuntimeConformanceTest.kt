@@ -231,7 +231,11 @@ class P4RuntimeConformanceTest {
     harness.loadPipeline(loadPassthroughConfig())
     harness.openStream().use { stream ->
       stream.arbitrate()
-      val response = stream.sendPacket(byteArrayOf(0xCA.toByte(), 0xFE.toByte()), timeoutMs = 500)
+      val response =
+        stream.sendPacket(
+          byteArrayOf(0xCA.toByte(), 0xFE.toByte()),
+          timeoutMs = P4RuntimeTestHarness.NO_RESPONSE_TIMEOUT_MS,
+        )
       assertNull("no PacketIn without @controller_header", response)
     }
   }
@@ -246,7 +250,8 @@ class P4RuntimeConformanceTest {
     harness.openStream().use { stream ->
       stream.arbitrate()
       val payload = buildEthernetFrame(etherType = 0x0800)
-      val response = stream.sendPacket(payload, timeoutMs = 500)
+      val response =
+        stream.sendPacket(payload, timeoutMs = P4RuntimeTestHarness.NO_RESPONSE_TIMEOUT_MS)
       assertNull("no PacketIn without @controller_header", response)
     }
   }
@@ -257,8 +262,18 @@ class P4RuntimeConformanceTest {
     harness.loadPipeline(loadPassthroughConfig())
     harness.openStream().use { stream ->
       stream.arbitrate()
-      assertNull(stream.sendPacket(byteArrayOf(0x01, 0x02), timeoutMs = 500))
-      assertNull(stream.sendPacket(byteArrayOf(0x03, 0x04), timeoutMs = 500))
+      assertNull(
+        stream.sendPacket(
+          byteArrayOf(0x01, 0x02),
+          timeoutMs = P4RuntimeTestHarness.NO_RESPONSE_TIMEOUT_MS,
+        )
+      )
+      assertNull(
+        stream.sendPacket(
+          byteArrayOf(0x03, 0x04),
+          timeoutMs = P4RuntimeTestHarness.NO_RESPONSE_TIMEOUT_MS,
+        )
+      )
     }
   }
 
@@ -267,7 +282,11 @@ class P4RuntimeConformanceTest {
     // No pipeline loaded — handlePacketOut returns null, no response on stream.
     harness.openStream().use { stream ->
       stream.arbitrate()
-      val response = stream.sendPacket(byteArrayOf(0xCA.toByte(), 0xFE.toByte()), timeoutMs = 500)
+      val response =
+        stream.sendPacket(
+          byteArrayOf(0xCA.toByte(), 0xFE.toByte()),
+          timeoutMs = P4RuntimeTestHarness.NO_RESPONSE_TIMEOUT_MS,
+        )
       assertNull("no response when pipeline not loaded", response)
     }
   }

@@ -360,7 +360,10 @@ class SaiP4E2ETest {
     harness.openStream().use { session ->
       session.arbitrate()
       val response =
-        session.sendPacketOut(buildCpuPacketOut(submitToIngress = false), timeoutMs = 500)
+        session.sendPacketOut(
+          buildCpuPacketOut(submitToIngress = false),
+          timeoutMs = P4RuntimeTestHarness.NO_RESPONSE_TIMEOUT_MS,
+        )
       assertNull("data-plane output should not become PacketIn", response)
     }
   }

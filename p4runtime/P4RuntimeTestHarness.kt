@@ -418,6 +418,9 @@ class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable 
   companion object {
     private const val STREAM_TIMEOUT_MS = 5000L
 
+    /** Short timeout for calls where no response is expected (avoids 5s waits in tests). */
+    const val NO_RESPONSE_TIMEOUT_MS = 500L
+
     /** Builds a [Uint128] from high and low parts. */
     fun uint128(high: Long = 0, low: Long): Uint128 =
       Uint128.newBuilder().setHigh(high).setLow(low).build()

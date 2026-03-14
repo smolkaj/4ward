@@ -21,8 +21,13 @@ class PacketBroker(
   private val processPacketFn: (ingressPort: Int, payload: ByteArray) -> ProcessPacketResult
 ) {
 
-  /** Delivered to each [subscribe] subscriber for every processed packet. */
-  data class SubscriptionResult(
+  /**
+   * Delivered to each [subscribe] subscriber for every processed packet.
+   *
+   * Not a `data class` because [ByteArray] has identity-based `equals`/`hashCode`, which would make
+   * the generated `equals` silently wrong.
+   */
+  class SubscriptionResult(
     val ingressPort: Int,
     val payload: ByteArray,
     val outputPackets: List<OutputPacket>,

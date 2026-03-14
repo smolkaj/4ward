@@ -145,7 +145,10 @@ class DataplaneServiceTest {
     // still flows through the broker and should reach the SubscribeResults subscriber.
     harness.openStream().use { session ->
       session.arbitrate()
-      session.sendPacket(byteArrayOf(0xBB.toByte()), timeoutMs = 500)
+      session.sendPacket(
+        byteArrayOf(0xBB.toByte()),
+        timeoutMs = P4RuntimeTestHarness.NO_RESPONSE_TIMEOUT_MS,
+      )
     }
 
     val result = messages.await()
