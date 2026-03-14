@@ -1,5 +1,7 @@
 # Packet I/O Design
 
+**Status: proposed**
+
 ## Assumptions
 
 - There is a designated **CPU port** — see
@@ -18,6 +20,21 @@
 3. **No output packets are lost.** All output packets are deliverable/observable,
    regardless of egress port or how the input packet was injected.
 
-4. **Completion is observable.** After injecting a packet — whether directly on
-   the data plane or indirectly via PacketOut — the caller can determine when
-   all output packets have been produced.
+4. **All output packets from PacketOut are observable.** When a PacketOut
+   produces output on data-plane ports, those packets must be visible to
+   data-plane observers — not silently dropped.
+
+5. **Completion is observable.** After injecting a packet — whether directly on
+   the data plane or indirectly via PacketOut — the injector can determine
+   when it has received all output packets produced as a result of that input
+   packet.
+   - *Motivation*: BMv2 does not have this property — the question "which
+     outputs were produced as a result of my input?" is subject to race
+     conditions, making deterministic testing difficult. As a testing and
+     development tool, 4ward must do better.
+
+6. **Strictly P4Runtime compliant.** The StreamChannel PacketIn/PacketOut
+   behavior must conform to the
+   [P4Runtime spec](https://p4lang.github.io/p4runtime/spec/v1.5.0/P4Runtime-Spec.html).
+   Non-standard extensions (DataplaneService, data-plane listener) are
+   additive — they must not alter the spec-defined behavior.
