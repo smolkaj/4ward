@@ -51,9 +51,23 @@ Defined in `p4runtime/dataplane.proto`; `InputPacket`, `OutputPacket`, and
 
 ```proto
 service Dataplane {
+  // Inject a single packet into the data plane. Returns the result inline.
   rpc InjectPacket(InjectPacketRequest) returns (InjectPacketResponse);
+
+  // Observe results from ALL injection sources (InjectPacket, PacketOut,
+  // other callers). Each result bundles the input with all its outputs.
   rpc SubscribeResults(SubscribeResultsRequest)
       returns (stream SubscribeResultsResponse);
+}
+
+message InputPacket {
+  uint32 ingress_port = 1;
+  bytes payload = 2;
+}
+
+message OutputPacket {
+  uint32 egress_port = 1;
+  bytes payload = 2;
 }
 
 message InjectPacketRequest {
