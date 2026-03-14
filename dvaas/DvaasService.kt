@@ -14,6 +14,8 @@
 
 package fourward.dvaas
 
+import fourward.dvaas.DvaasProto.GenerateTestVectorsRequest
+import fourward.dvaas.DvaasProto.GenerateTestVectorsResponse
 import fourward.dvaas.DvaasProto.PacketMetadata
 import fourward.dvaas.DvaasProto.ValidateTestVectorsRequest
 import fourward.dvaas.DvaasProto.ValidateTestVectorsResponse
@@ -24,7 +26,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /**
- * DVaaS validation gRPC service: validates packet test vectors against the loaded pipeline.
+ * DVaaS validation gRPC service: validates packet test vectors against the loaded pipeline, and
+ * generates expected outputs as a reference model (replacing BMv2).
  *
  * Serialized via a shared [lock] with P4RuntimeService and DataplaneService to prevent races
  * between control-plane writes and data-plane packet processing.
@@ -71,5 +74,26 @@ class DvaasService(
       }
 
     return ValidateTestVectorsResponse.newBuilder().addAllOutcomes(outcomes).build()
+  }
+
+  override suspend fun generateTestVectors(
+    request: GenerateTestVectorsRequest
+  ): GenerateTestVectorsResponse {
+    if (request.testVectorsCount == 0) {
+      return GenerateTestVectorsResponse.getDefaultInstance()
+    }
+
+    val outcomes =
+      lock.withLock {
+        try {
+          validator.generateAll(request.testVectorsList)
+        } catch (e: IllegalStateException) {
+          throw StatusException(Status.FAILED_PRECONDITION.withDescription(e.message))
+        } catch (e: IllegalArgumentException) {
+          throw StatusException(Status.INVALID_ARGUMENT.withDescription(e.message))
+        }
+      }
+
+    return GenerateTestVectorsResponse.newBuilder().addAllOutcomes(outcomes).build()
   }
 }

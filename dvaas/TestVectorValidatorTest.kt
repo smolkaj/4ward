@@ -495,6 +495,81 @@ class TestVectorValidatorTest {
   // PacketIn metadata
   // ---------------------------------------------------------------------------
 
+  // ---------------------------------------------------------------------------
+  // Generate (reference model output computation)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `generate returns actual output without validation`() {
+    val validator = validatorReturning(output(42))
+    val vector = testVector(0, byteArrayOf(0x01), id = 1)
+    val outcome = validator.generate(vector)
+
+    assertTrue(outcome.result.passed)
+    assertEquals(1, outcome.actualOutput.packetsCount)
+    assertEquals("42", outcome.actualOutput.getPackets(0).port)
+    // acceptable_outputs should be cleared.
+    assertEquals(0, outcome.testVector.acceptableOutputsCount)
+    // ID should be preserved.
+    assertEquals(1L, outcome.testVector.id)
+  }
+
+  @Test
+  fun `generate strips acceptable_outputs from input vector`() {
+    val validator = validatorReturning(output(1))
+    // Provide acceptable_outputs that would fail validation — generate should ignore them.
+    val vector = testVector(0, byteArrayOf(0x01), listOf(switchOutput(packet(99))), id = 2)
+    val outcome = validator.generate(vector)
+
+    assertTrue("generate should always pass", outcome.result.passed)
+    assertEquals(0, outcome.testVector.acceptableOutputsCount)
+  }
+
+  @Test
+  fun `generate includes trace tree`() {
+    val validator = validatorReturning(output(1))
+    val vector = testVector(0, byteArrayOf(0x01))
+    val outcome = validator.generate(vector)
+
+    assertTrue(outcome.hasTrace())
+    assertTrue(outcome.trace.hasPacketOutcome())
+  }
+
+  @Test
+  fun `generate records drop`() {
+    val validator = validatorReturning() // No outputs = drop.
+    val vector = testVector(0, byteArrayOf(0x01))
+    val outcome = validator.generate(vector)
+
+    assertTrue(outcome.result.passed)
+    assertEquals(0, outcome.actualOutput.packetsCount)
+    assertEquals(0, outcome.actualOutput.packetInsCount)
+  }
+
+  @Test
+  fun `generateAll returns one outcome per vector`() {
+    val validator = validatorReturning(output(1))
+    val outcomes =
+      validator.generateAll(
+        listOf(testVector(0, byteArrayOf(0x01), id = 10), testVector(0, byteArrayOf(0x02), id = 20))
+      )
+    assertEquals(2, outcomes.size)
+    assertEquals(10L, outcomes[0].testVector.id)
+    assertEquals(20L, outcomes[1].testVector.id)
+  }
+
+  @Test
+  fun `generate classifies CPU port outputs as packet_ins`() {
+    val cpuPort = 510
+    val validator =
+      validatorReturning(output(cpuPort, byteArrayOf(0xCC.toByte())), cpuPort = cpuPort)
+    val vector = testVector(0, byteArrayOf(0x01))
+    val outcome = validator.generate(vector)
+
+    assertEquals(0, outcome.actualOutput.packetsCount)
+    assertEquals(1, outcome.actualOutput.packetInsCount)
+  }
+
   @Test
   fun `PacketIn metadata is populated when metadataFn is provided`() {
     val cpuPort = 510

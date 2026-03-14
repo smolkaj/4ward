@@ -15,6 +15,7 @@
 package fourward.dvaas
 
 import com.google.protobuf.ByteString
+import fourward.dvaas.DvaasProto.GenerateTestVectorsRequest
 import fourward.dvaas.DvaasProto.InputType
 import fourward.dvaas.DvaasProto.Packet
 import fourward.dvaas.DvaasProto.PacketTestVector
@@ -410,6 +411,121 @@ class DvaasServiceTest {
         }
 
       assertEquals(Status.Code.FAILED_PRECONDITION, e?.status?.code)
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // GenerateTestVectors (reference model)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `generateTestVectors computes expected outputs for passthrough`() {
+    Harness().use { harness ->
+      val config = loadConfig("e2e_tests/passthrough/passthrough.txtpb")
+      harness.loadPipeline(config)
+
+      val payload = buildEthernetFrame()
+      val request =
+        GenerateTestVectorsRequest.newBuilder()
+          .addTestVectors(
+            PacketTestVector.newBuilder().setId(1).setInput(dataplaneSwitchInput(0, payload))
+          )
+          .build()
+
+      val response = runBlocking { harness.stub.generateTestVectors(request) }
+      assertEquals(1, response.outcomesCount)
+      val outcome = response.getOutcomes(0)
+
+      // Should always pass (generate mode — no validation).
+      assertTrue(outcome.result.passed)
+      // Passthrough forwards to port 1.
+      assertEquals(1, outcome.actualOutput.packetsCount)
+      assertEquals("1", outcome.actualOutput.getPackets(0).port)
+      // Trace tree should be present.
+      assertTrue(outcome.hasTrace())
+      assertTrue(outcome.trace.eventsCount > 0)
+      // Input vector should have acceptable_outputs cleared.
+      assertEquals(0, outcome.testVector.acceptableOutputsCount)
+    }
+  }
+
+  @Test
+  fun `generateTestVectors returns FAILED_PRECONDITION without pipeline`() {
+    Harness().use { harness ->
+      val request =
+        GenerateTestVectorsRequest.newBuilder()
+          .addTestVectors(
+            PacketTestVector.newBuilder().setInput(dataplaneSwitchInput(0, byteArrayOf(0x01)))
+          )
+          .build()
+
+      val e =
+        try {
+          runBlocking { harness.stub.generateTestVectors(request) }
+          null
+        } catch (ex: StatusException) {
+          ex
+        }
+
+      assertEquals(Status.Code.FAILED_PRECONDITION, e?.status?.code)
+    }
+  }
+
+  @Test
+  fun `generateTestVectors empty request returns empty response`() {
+    Harness().use { harness ->
+      val response = runBlocking {
+        harness.stub.generateTestVectors(GenerateTestVectorsRequest.getDefaultInstance())
+      }
+      assertEquals(0, response.outcomesCount)
+    }
+  }
+
+  @Test
+  fun `generateTestVectors records drop for basic_table`() {
+    Harness().use { harness ->
+      val config = loadConfig("e2e_tests/basic_table/basic_table.txtpb")
+      harness.loadPipeline(config)
+
+      val payload = buildEthernetFrame()
+      val request =
+        GenerateTestVectorsRequest.newBuilder()
+          .addTestVectors(
+            PacketTestVector.newBuilder().setId(1).setInput(dataplaneSwitchInput(0, payload))
+          )
+          .build()
+
+      val response = runBlocking { harness.stub.generateTestVectors(request) }
+      val outcome = response.getOutcomes(0)
+
+      assertTrue(outcome.result.passed)
+      // No table entries → default action = drop.
+      assertEquals(0, outcome.actualOutput.packetsCount)
+      assertEquals(0, outcome.actualOutput.packetInsCount)
+    }
+  }
+
+  @Test
+  fun `generateTestVectors batch returns one outcome per vector`() {
+    Harness().use { harness ->
+      val config = loadConfig("e2e_tests/passthrough/passthrough.txtpb")
+      harness.loadPipeline(config)
+
+      val payload = buildEthernetFrame()
+      val request =
+        GenerateTestVectorsRequest.newBuilder()
+          .addTestVectors(
+            PacketTestVector.newBuilder().setId(1).setInput(dataplaneSwitchInput(0, payload))
+          )
+          .addTestVectors(
+            PacketTestVector.newBuilder().setId(2).setInput(dataplaneSwitchInput(5, payload))
+          )
+          .build()
+
+      val response = runBlocking { harness.stub.generateTestVectors(request) }
+      assertEquals(2, response.outcomesCount)
+      assertEquals(1L, response.getOutcomes(0).testVector.id)
+      assertEquals(2L, response.getOutcomes(1).testVector.id)
     }
   }
 

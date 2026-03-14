@@ -22,6 +22,7 @@ import com.github.gnmi.proto.TypedValue
 import com.github.gnmi.proto.Update
 import com.github.gnmi.proto.gNMIGrpcKt
 import com.google.protobuf.ByteString
+import fourward.dvaas.DvaasProto.GenerateTestVectorsRequest
 import fourward.dvaas.DvaasProto.InputType
 import fourward.dvaas.DvaasProto.Packet
 import fourward.dvaas.DvaasProto.PacketTestVector
@@ -52,7 +53,6 @@ import p4.v1.P4RuntimeOuterClass.SetForwardingPipelineConfigRequest
  * DVaaS mirror testbed integration test.
  *
  * Exercises the complete upstream DVaaS mirror testbed workflow against 4ward:
- *
  * 1. **gNMI interface discovery** — read interfaces, configure P4RT port IDs.
  * 2. **Pipeline loading** — push SAI P4 middleblock via P4Runtime.
  * 3. **Table entry installation** — install L3 forwarding chain (VRF → IPv4 → nexthop → RIF →
@@ -264,9 +264,7 @@ class MirrorTestbedTest {
       val request =
         ValidateTestVectorsRequest.newBuilder()
           .addTestVectors(
-            PacketTestVector.newBuilder()
-              .setId(1)
-              .setInput(submitToIngressInput(payload))
+            PacketTestVector.newBuilder().setId(1).setInput(submitToIngressInput(payload))
           )
           .build()
 
@@ -302,7 +300,114 @@ class MirrorTestbedTest {
   }
 
   // ---------------------------------------------------------------------------
-  // Step 5: Full mirror testbed flow (discovery → config → validate)
+  // Step 5: GenerateTestVectors (reference model — Path A)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `GenerateTestVectors computes expected outputs for L3 forwarding`() = runBlocking {
+    SwitchHarness().use { sw ->
+      val config = loadConfig("e2e_tests/sai_p4/sai_middleblock.txtpb")
+      loadPipeline(sw, config)
+      installL3ForwardingChain(sw, config)
+
+      // Use GenerateTestVectors as a reference model: given inputs, compute expected outputs.
+      // This is the core of Path A — 4ward replacing BMv2 in DVaaS.
+      val payload = buildIpv4Packet(dstIp = byteArrayOf(10, 0, 0, 1))
+      val request =
+        GenerateTestVectorsRequest.newBuilder()
+          .addTestVectors(
+            PacketTestVector.newBuilder()
+              .setId(1)
+              .setInput(dataplaneInput(port = 1, payload = payload))
+          )
+          .build()
+
+      val response = sw.dvaas.generateTestVectors(request)
+      assertEquals(1, response.outcomesCount)
+      val outcome = response.getOutcomes(0)
+
+      // Reference model should always succeed (no validation, just computation).
+      assertTrue("generate should pass", outcome.result.passed)
+      // The trace tree should contain the full execution trace.
+      assertTrue("should have trace events", outcome.trace.eventsCount > 0)
+      assertTrue("should have a packet outcome", outcome.trace.hasPacketOutcome())
+      // Input vector should have acceptable_outputs cleared.
+      assertEquals(0, outcome.testVector.acceptableOutputsCount)
+      assertEquals(1L, outcome.testVector.id)
+    }
+  }
+
+  @Test
+  fun `GenerateTestVectors computes drop for unroutable packet`() = runBlocking {
+    SwitchHarness().use { sw ->
+      val config = loadConfig("e2e_tests/sai_p4/sai_middleblock.txtpb")
+      loadPipeline(sw, config)
+      // Only install VRF, no route → packets should be dropped.
+      installEntry(sw, buildVrfEntry(config, ""))
+
+      val payload = buildIpv4Packet(dstIp = byteArrayOf(192.toByte(), 168.toByte(), 1, 1))
+      val request =
+        GenerateTestVectorsRequest.newBuilder()
+          .addTestVectors(
+            PacketTestVector.newBuilder()
+              .setId(1)
+              .setInput(dataplaneInput(port = 1, payload = payload))
+          )
+          .build()
+
+      val response = sw.dvaas.generateTestVectors(request)
+      val outcome = response.getOutcomes(0)
+
+      assertTrue("generate should pass", outcome.result.passed)
+      // No route → drop.
+      assertEquals(0, outcome.actualOutput.packetsCount)
+      assertEquals(0, outcome.actualOutput.packetInsCount)
+    }
+  }
+
+  @Test
+  fun `GenerateTestVectors used as reference model validates against SUT`() = runBlocking {
+    // Full Path A flow: use 4ward as reference model, then validate against itself as SUT.
+    // (In production, the SUT would be real hardware — here we use the same 4ward instance
+    // to prove the flow works end-to-end.)
+    SwitchHarness().use { sw ->
+      val config = loadConfig("e2e_tests/sai_p4/sai_middleblock.txtpb")
+      loadPipeline(sw, config)
+      installL3ForwardingChain(sw, config)
+
+      // 1. Generate expected outputs (reference model).
+      val payload = buildIpv4Packet(dstIp = byteArrayOf(10, 0, 0, 1))
+      val generateRequest =
+        GenerateTestVectorsRequest.newBuilder()
+          .addTestVectors(
+            PacketTestVector.newBuilder()
+              .setId(1)
+              .setInput(dataplaneInput(port = 1, payload = payload))
+          )
+          .build()
+
+      val generateResponse = sw.dvaas.generateTestVectors(generateRequest)
+      val referenceOutcome = generateResponse.getOutcomes(0)
+
+      // 2. Use the reference output as acceptable_output for validation against the SUT.
+      val validateRequest =
+        ValidateTestVectorsRequest.newBuilder()
+          .addTestVectors(
+            PacketTestVector.newBuilder()
+              .setId(1)
+              .setInput(dataplaneInput(port = 1, payload = payload))
+              .addAcceptableOutputs(referenceOutcome.actualOutput)
+          )
+          .build()
+
+      val validateResponse = sw.dvaas.validateTestVectors(validateRequest)
+      assertEquals(1, validateResponse.outcomesCount)
+      assertTrue("SUT should match reference model", validateResponse.getOutcomes(0).result.passed)
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Step 6: Full mirror testbed flow (discovery → config → validate)
   // ---------------------------------------------------------------------------
 
   @Test
@@ -316,10 +421,7 @@ class MirrorTestbedTest {
             .addPath(interfacesPath())
             .build()
         )
-      assertTrue(
-        "should discover interfaces",
-        discoverResponse.notificationCount > 0,
-      )
+      assertTrue("should discover interfaces", discoverResponse.notificationCount > 0)
 
       // 2. Configure P4RT port IDs via gNMI (mirror testbed assigns sequential IDs).
       sw.gnmi.set(
@@ -356,9 +458,7 @@ class MirrorTestbedTest {
               .setInput(dataplaneInput(port = 1, payload = payload))
           )
           .addTestVectors(
-            PacketTestVector.newBuilder()
-              .setId(2)
-              .setInput(submitToIngressInput(payload))
+            PacketTestVector.newBuilder().setId(2).setInput(submitToIngressInput(payload))
           )
           .build()
 
@@ -472,9 +572,7 @@ class MirrorTestbedTest {
           )
           .setAction(
             P4RuntimeOuterClass.TableAction.newBuilder()
-              .setAction(
-                P4RuntimeOuterClass.Action.newBuilder().setActionId(action.preamble.id)
-              )
+              .setAction(P4RuntimeOuterClass.Action.newBuilder().setActionId(action.preamble.id))
           )
       )
       .build()
@@ -567,11 +665,7 @@ class MirrorTestbedTest {
   }
 
   @Suppress("MagicNumber")
-  private fun buildNexthopEntry(
-    config: PipelineConfig,
-    nexthopId: String,
-    rifId: String,
-  ): Entity {
+  private fun buildNexthopEntry(config: PipelineConfig, nexthopId: String, rifId: String): Entity {
     val table = findTable(config, "nexthop_table")
     val action = findAction(config, "set_ip_nexthop")
     return Entity.newBuilder()
@@ -709,9 +803,7 @@ class MirrorTestbedTest {
     SwitchInput.newBuilder()
       .setType(InputType.INPUT_TYPE_PACKET_OUT)
       .setPacket(
-        Packet.newBuilder()
-          .setPort(egressPort.toString())
-          .setPayload(ByteString.copyFrom(payload))
+        Packet.newBuilder().setPort(egressPort.toString()).setPayload(ByteString.copyFrom(payload))
       )
       .build()
 
@@ -720,9 +812,7 @@ class MirrorTestbedTest {
   // ---------------------------------------------------------------------------
 
   private fun interfacesPath(): Path =
-    Path.newBuilder()
-      .addElem(PathElem.newBuilder().setName("interfaces"))
-      .build()
+    Path.newBuilder().addElem(PathElem.newBuilder().setName("interfaces")).build()
 
   private fun p4rtIdPath(ifaceName: String): Path =
     Path.newBuilder()
@@ -737,19 +827,21 @@ class MirrorTestbedTest {
 
   companion object {
     /** Source MAC used in router_interface_table entries. */
-    @Suppress("MagicNumber")
-    private val SRC_MAC = byteArrayOf(0x00, 0x11, 0x22, 0x33, 0x44, 0x55)
+    @Suppress("MagicNumber") private val SRC_MAC = byteArrayOf(0x00, 0x11, 0x22, 0x33, 0x44, 0x55)
 
     /** Destination MAC used in neighbor_table entries. */
     @Suppress("MagicNumber")
     private val NEIGHBOR_MAC =
       byteArrayOf(
-        0xAA.toByte(), 0xBB.toByte(), 0xCC.toByte(),
-        0xDD.toByte(), 0xEE.toByte(), 0xFF.toByte(),
+        0xAA.toByte(),
+        0xBB.toByte(),
+        0xCC.toByte(),
+        0xDD.toByte(),
+        0xEE.toByte(),
+        0xFF.toByte(),
       )
 
     /** Neighbor ID: IPv6 address ::1 (16 bytes, matching ipv6_addr_t). */
-    @Suppress("MagicNumber")
-    private val NEIGHBOR_IPV6 = ByteArray(16) { if (it == 15) 1 else 0 }
+    @Suppress("MagicNumber") private val NEIGHBOR_IPV6 = ByteArray(16) { if (it == 15) 1 else 0 }
   }
 }

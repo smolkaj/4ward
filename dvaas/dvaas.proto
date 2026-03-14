@@ -33,6 +33,26 @@ service DvaasValidation {
   // Returns FAILED_PRECONDITION if no pipeline is loaded.
   rpc ValidateTestVectors(ValidateTestVectorsRequest)
       returns (ValidateTestVectorsResponse);
+
+  // Computes expected outputs by simulating packets through the loaded
+  // pipeline — the 4ward equivalent of sonic-pins'
+  // DataplaneValidationBackend::GeneratePacketTestVectors.
+  //
+  // Given a set of input packets, runs each through the simulator and returns
+  // test vectors with acceptable_outputs populated from the simulation result.
+  // Callers install table entries via P4Runtime Write before calling this RPC.
+  //
+  // This replaces BMv2 as the reference model in the DVaaS test flow:
+  //   1. Load pipeline via P4Runtime SetForwardingPipelineConfig
+  //   2. Install entries via P4Runtime Write
+  //   3. Call GenerateTestVectors → get expected outputs with trace trees
+  //   4. Send same packets through the SUT
+  //   5. Compare SUT output vs expected output
+  //
+  // Prerequisites: same as ValidateTestVectors.
+  // Returns FAILED_PRECONDITION if no pipeline is loaded.
+  rpc GenerateTestVectors(GenerateTestVectorsRequest)
+      returns (GenerateTestVectorsResponse);
 }
 
 // =============================================================================
@@ -45,6 +65,23 @@ message ValidateTestVectorsRequest {
 
 message ValidateTestVectorsResponse {
   // One outcome per input test vector, in the same order.
+  repeated PacketTestOutcome outcomes = 1;
+}
+
+message GenerateTestVectorsRequest {
+  // Input packets to simulate. Only the input field is used; any
+  // acceptable_outputs are ignored. The id field is preserved for
+  // correlation in the response.
+  repeated PacketTestVector test_vectors = 1;
+}
+
+message GenerateTestVectorsResponse {
+  // One outcome per input test vector, in the same order.
+  // Each outcome has:
+  //   - test_vector: the original input (with acceptable_outputs cleared)
+  //   - actual_output: the computed output from simulation
+  //   - trace: the full execution trace tree
+  //   - result: always passed=true (no validation performed)
   repeated PacketTestOutcome outcomes = 1;
 }
 

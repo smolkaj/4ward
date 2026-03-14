@@ -96,6 +96,36 @@ class TestVectorValidator(
   fun validateAll(vectors: List<PacketTestVector>): List<PacketTestOutcome> =
     vectors.map { validate(it) }
 
+  /**
+   * Generates expected outputs by simulating a packet through the loaded pipeline.
+   *
+   * Like [validate], but does not compare against acceptable_outputs. Instead, the simulation
+   * result becomes the expected output. This is the core of 4ward's role as a reference model
+   * (replacing BMv2 in sonic-pins' DataplaneValidationBackend::GeneratePacketTestVectors).
+   */
+  fun generate(vector: PacketTestVector): PacketTestOutcome {
+    val input = vector.input
+    val result = injectPacket(input)
+    val ingressPort = resolveIngressPort(input)
+    val actualOutput = buildSwitchOutput(result.outputPackets, ingressPort)
+
+    // Strip acceptable_outputs from the original vector (generate mode — no expectations).
+    val cleanVector = vector.toBuilder().clearAcceptableOutputs().build()
+
+    return PacketTestOutcome.newBuilder()
+      .setTestVector(cleanVector)
+      .setActualOutput(actualOutput)
+      .setTrace(result.trace)
+      .setResult(ValidationResult.newBuilder().setPassed(true))
+      .build()
+  }
+
+  /**
+   * Generates expected outputs for a batch of packets. Returns one outcome per vector, in order.
+   */
+  fun generateAll(vectors: List<PacketTestVector>): List<PacketTestOutcome> =
+    vectors.map { generate(it) }
+
   // ---------------------------------------------------------------------------
   // Packet injection
   // ---------------------------------------------------------------------------
