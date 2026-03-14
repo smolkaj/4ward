@@ -180,17 +180,20 @@ P4RuntimeService has.
 
 ### PacketIn
 
-PacketIn is produced by `P4RuntimeService.handlePacketOut` when a PacketOut
-produces output on the CPU port. The service filters the broker's result,
-builds PacketIn metadata via `PacketHeaderCodec`, translates via
-`TypeTranslator`, and sends the PacketIn on the StreamChannel.
+PacketIn is not tied to PacketOut. It is a side effect of *any*
+`broker.processPacket()` call that produces output on the CPU port:
 
-Data-plane injections via `InjectPacket` that happen to egress on the CPU
-port do NOT produce PacketIn — they go through `DataplaneService`, which has
-no access to `PacketHeaderCodec` or the StreamChannel. CPU-port outputs from
-data-plane injections are visible via `SubscribeResults` only.
+- A data-plane injection produces a punt to CPU port → controller receives
+  PacketIn on StreamChannel.
+- A PacketOut produces a clone to CPU → same path.
 
-When no StreamChannel is active, PacketOut is rejected (no primary controller).
+When no StreamChannel is active, CPU-port outputs are silently dropped.
+
+> **Current limitation:** only PacketOut (via `handlePacketOut`) currently
+> produces PacketIn. Data-plane injections via `InjectPacket` that egress on
+> the CPU port do not produce PacketIn — the broker needs a listener mechanism
+> to route CPU-port outputs to the StreamChannel regardless of injection
+> source. See LIMITATIONS.md.
 
 ### Completion
 

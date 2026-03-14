@@ -44,6 +44,12 @@ guilt — just write it down so someone can find it later.
   promotion on disconnect, and `@p4runtime_role` enforcement for reads and
   writes (P4Runtime spec §5, §15). `Role.config` (target-specific policy)
   is rejected with UNIMPLEMENTED.
+- **PacketIn only from PacketOut.** CPU-port outputs only become PacketIn
+  when the packet was injected via StreamChannel PacketOut. Data-plane
+  injections (via `InjectPacket`) that egress on the CPU port do not produce
+  PacketIn — the result is visible via `SubscribeResults` but not on the
+  StreamChannel. A real switch would deliver PacketIn regardless of injection
+  source.
 - **`@p4runtime_translation`: fully integrated for action params, match fields,
   and PacketIO metadata.** The `TypeTranslator` supports `sdn_bitwidth` and
   `sdn_string` with explicit, auto-allocate, and hybrid mapping modes.
