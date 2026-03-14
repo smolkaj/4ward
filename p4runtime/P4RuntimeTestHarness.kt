@@ -51,13 +51,24 @@ import p4.v1.P4RuntimeOuterClass.WriteResponse
  * Starts an in-process gRPC server backed by a real [Simulator] and provides typed helpers for
  * common operations. Uses grpc-java's InProcessTransport so no real network ports are needed.
  */
-class P4RuntimeTestHarness(constraintValidatorBinary: Path? = null) : Closeable {
+class P4RuntimeTestHarness(
+  constraintValidatorBinary: Path? = null,
+  dropPortOverride: Int? = null,
+  cpuPortConfig: CpuPortConfig = CpuPortConfig.Auto,
+) : Closeable {
 
   private val serverName = InProcessServerBuilder.generateName()
-  private val simulator = Simulator()
+  private val simulator = Simulator(dropPortOverride)
   private val lock = Mutex()
   private val broker = PacketBroker(simulator::processPacket)
-  private val service = P4RuntimeService(simulator, broker, constraintValidatorBinary, lock)
+  private val service =
+    P4RuntimeService(
+      simulator,
+      broker,
+      constraintValidatorBinary,
+      lock,
+      cpuPortConfig = cpuPortConfig,
+    )
   private val dataplaneService = DataplaneService(broker, lock)
 
   private val server =

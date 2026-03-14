@@ -63,6 +63,7 @@ class P4RuntimeService(
   private val constraintValidatorBinary: Path? = null,
   private val lock: Mutex = Mutex(),
   private val deviceId: Long = DEFAULT_DEVICE_ID,
+  private val cpuPortConfig: CpuPortConfig = CpuPortConfig.Auto,
 ) : P4RuntimeGrpcKt.P4RuntimeCoroutineImplBase(), Closeable {
 
   /** Bundled pipeline state — atomically swapped on pipeline load to avoid torn reads. */
@@ -187,7 +188,14 @@ class P4RuntimeService(
       referenceValidator = ReferenceValidator.create(fwdConfig.p4Info),
       constraintValidator =
         constraintValidatorBinary?.let { ConstraintValidator.create(fwdConfig.p4Info, it) },
-      packetHeaderCodec = PacketHeaderCodec.create(fwdConfig.p4Info, deviceConfig.behavioral),
+      packetHeaderCodec =
+        when (cpuPortConfig) {
+          is CpuPortConfig.Disabled -> null
+          is CpuPortConfig.Auto ->
+            PacketHeaderCodec.create(fwdConfig.p4Info, deviceConfig.behavioral)
+          is CpuPortConfig.Override ->
+            PacketHeaderCodec.create(fwdConfig.p4Info, deviceConfig.behavioral, cpuPortConfig.port)
+        },
       // Placeholder — EntityReader needs simulator name maps that are only
       // available after loadPipeline; commitPipeline creates the real one.
       entityReader = EntityReader.EMPTY,

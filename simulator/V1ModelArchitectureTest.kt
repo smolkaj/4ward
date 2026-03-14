@@ -1173,4 +1173,65 @@ class V1ModelArchitectureTest {
     assertTrue(result.trace.packetOutcome.hasDrop())
     assertEquals(DropReason.ASSERTION_FAILURE, result.trace.packetOutcome.drop.reason)
   }
+
+  // ---------------------------------------------------------------------------
+  // Drop port override tests
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `drop port override changes which port is considered a drop`() {
+    // Default drop port for 9-bit ports is 511. Override it to 42.
+    // Sending to port 42 should now be a drop.
+    val config = v1modelConfig(assignField("sm", "egress_spec", 42, DEFAULT_PORT_BITS))
+    val result =
+      V1ModelArchitecture(dropPortOverride = 42)
+        .processPacket(0u, byteArrayOf(0x01), config, TableStore())
+
+    assertTrue(result.trace.hasPacketOutcome())
+    assertTrue(result.trace.packetOutcome.hasDrop())
+  }
+
+  @Test
+  fun `drop port override lets default drop port through as regular output`() {
+    // With override=42, port 511 is no longer the drop port — it's a regular port.
+    val config =
+      v1modelConfig(assignField("sm", "egress_spec", DEFAULT_DROP_PORT.toLong(), DEFAULT_PORT_BITS))
+    val result =
+      V1ModelArchitecture(dropPortOverride = 42)
+        .processPacket(0u, byteArrayOf(0x01), config, TableStore())
+
+    val outputs = collectOutputsFromTrace(result.trace)
+    assertEquals(1, outputs.size)
+    assertEquals(DEFAULT_DROP_PORT, outputs[0].egressPort)
+  }
+
+  @Test
+  fun `mark_to_drop uses overridden drop port`() {
+    // mark_to_drop should set egress_spec to the override value, not the default.
+    val config = v1modelConfig(externCall("mark_to_drop", nameRef("sm")))
+    val result =
+      V1ModelArchitecture(dropPortOverride = 42)
+        .processPacket(0u, byteArrayOf(0x01), config, TableStore())
+
+    assertTrue(result.trace.hasPacketOutcome())
+    assertTrue(result.trace.packetOutcome.hasDrop())
+  }
+
+  @Test
+  fun `null drop port override uses default behavior`() {
+    // Explicitly null = derive from port width (same as no-arg constructor).
+    val config =
+      v1modelConfig(assignField("sm", "egress_spec", DEFAULT_DROP_PORT.toLong(), DEFAULT_PORT_BITS))
+    val result =
+      V1ModelArchitecture(dropPortOverride = null)
+        .processPacket(0u, byteArrayOf(0x01), config, TableStore())
+
+    assertTrue(result.trace.hasPacketOutcome())
+    assertTrue(result.trace.packetOutcome.hasDrop())
+  }
+
+  companion object {
+    private const val DEFAULT_PORT_BITS = V1ModelArchitecture.DEFAULT_PORT_BITS
+    private const val DEFAULT_DROP_PORT = V1ModelArchitecture.DEFAULT_DROP_PORT
+  }
 }

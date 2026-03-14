@@ -23,10 +23,13 @@ fun main(args: Array<String>) {
     flagValue(args, "--grpc-port")?.toIntOrNull() ?: fourward.p4runtime.P4RuntimeServer.DEFAULT_PORT
   val staticDir = flagValue(args, "--static-dir")?.let { Path.of(it) }
 
-  val simulator = Simulator()
+  val dropPort = flagValue(args, "--drop-port")?.toIntOrNull()
+  val cpuPortConfig = fourward.p4runtime.parseCpuPortFlag(flagValue(args, "--cpu-port"))
+
+  val simulator = Simulator(dropPort)
   val lock = Mutex()
   val broker = PacketBroker(simulator::processPacket)
-  val service = P4RuntimeService(simulator, broker, lock = lock)
+  val service = P4RuntimeService(simulator, broker, lock = lock, cpuPortConfig = cpuPortConfig)
   val dataplaneService = DataplaneService(broker, lock)
 
   // Start gRPC server.

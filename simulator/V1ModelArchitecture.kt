@@ -49,7 +49,13 @@ private fun evalIntArg(eval: ExternEvaluator, index: Int): Int =
     else -> error("expected integer argument at index $index, got: $arg")
   }
 
-class V1ModelArchitecture : Architecture {
+class V1ModelArchitecture(
+  /**
+   * Override for the drop port. When null (default), derived from `standard_metadata` port width:
+   * `2^N - 1` (511 for 9-bit ports). Applied in [PipelineState] and in the `mark_to_drop` extern.
+   */
+  private val dropPortOverride: Int? = null
+) : Architecture {
 
   /** Invariant inputs to the pipeline, shared across fork re-executions. */
   private data class PipelineContext(
@@ -70,6 +76,7 @@ class V1ModelArchitecture : Architecture {
     val metaParamName: String,
     val metaStructDecl: StructDecl?,
     config: BehavioralConfig,
+    dropPortOverride: Int?,
   ) {
     private val stages = config.architecture.stagesList
     val parserStage: PipelineStage? = stages.find { it.kind == StageKind.PARSER }
@@ -84,7 +91,7 @@ class V1ModelArchitecture : Architecture {
     // Port width and drop port derived from the IR's standard_metadata struct definition,
     // not hardcoded. This allows modified v1model architectures with wider PortId_t.
     val portBits: Int = standardMetadata.bitWidth("ingress_port")
-    val dropPort: Long = (1L shl portBits) - 1
+    val dropPort: Long = dropPortOverride?.toLong() ?: ((1L shl portBits) - 1)
   }
 
   override fun processPacket(
@@ -363,6 +370,7 @@ class V1ModelArchitecture : Architecture {
       metaParamName,
       metaStructDecl,
       config,
+      dropPortOverride,
     )
   }
 
@@ -689,7 +697,7 @@ class V1ModelArchitecture : Architecture {
     pendingOps: V1ModelPendingOps,
   ): Value =
     when (name) {
-      // mark_to_drop(standard_metadata): sets egress_spec to all-ones (the drop port).
+      // mark_to_drop(standard_metadata): sets egress_spec to the drop port.
       "mark_to_drop" -> {
         eval.addTraceEvent(
           eval
@@ -699,7 +707,8 @@ class V1ModelArchitecture : Architecture {
         )
         val smeta = eval.evalArg(0) as StructVal
         val portBits = smeta.bitWidth("egress_spec")
-        smeta.fields["egress_spec"] = BitVal((1L shl portBits) - 1, portBits)
+        val dropPort = dropPortOverride?.toLong() ?: ((1L shl portBits) - 1)
+        smeta.fields["egress_spec"] = BitVal(dropPort, portBits)
         UnitVal
       }
       // clone(type, session) / clone3(type, session, data): I2E/E2E clone.
