@@ -1,14 +1,14 @@
 package fourward.p4runtime
 
 import com.google.protobuf.ByteString
-import fourward.dataplane.v1.DataplaneGrpcKt
-import fourward.dataplane.v1.DataplaneProto.InjectPacketRequest
-import fourward.dataplane.v1.DataplaneProto.InjectPacketResponse
-import fourward.dataplane.v1.DataplaneProto.ProcessPacketResult as ProcessPacketResultProto
-import fourward.dataplane.v1.DataplaneProto.SubscribeResultsRequest
-import fourward.dataplane.v1.DataplaneProto.SubscribeResultsResponse
-import fourward.dataplane.v1.DataplaneProto.SubscriptionActive
-import fourward.sim.v1.SimulatorProto.InputPacket
+import fourward.dataplane.DataplaneGrpcKt
+import fourward.dataplane.DataplaneProto.InjectPacketRequest
+import fourward.dataplane.DataplaneProto.InjectPacketResponse
+import fourward.dataplane.DataplaneProto.ProcessPacketResult as ProcessPacketResultProto
+import fourward.dataplane.DataplaneProto.SubscribeResultsRequest
+import fourward.dataplane.DataplaneProto.SubscribeResultsResponse
+import fourward.dataplane.DataplaneProto.SubscriptionActive
+import fourward.sim.SimulatorProto.InputPacket
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow

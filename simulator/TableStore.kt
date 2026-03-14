@@ -1,7 +1,7 @@
 package fourward.simulator
 
 import com.google.protobuf.ByteString
-import fourward.ir.v1.DeviceConfig
+import fourward.ir.DeviceConfig
 import java.math.BigInteger
 import java.util.IdentityHashMap
 import p4.config.v1.P4InfoOuterClass

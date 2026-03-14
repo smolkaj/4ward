@@ -1,19 +1,19 @@
 package fourward.simulator
 
-import fourward.ir.v1.AssignmentStmt
-import fourward.ir.v1.BehavioralConfig
-import fourward.ir.v1.BitType
-import fourward.ir.v1.BlockStmt
-import fourward.ir.v1.ControlDecl
-import fourward.ir.v1.Expr
-import fourward.ir.v1.IfStmt
-import fourward.ir.v1.Literal
-import fourward.ir.v1.MethodCall
-import fourward.ir.v1.MethodCallStmt
-import fourward.ir.v1.NameRef
-import fourward.ir.v1.SourceInfo
-import fourward.ir.v1.Stmt
-import fourward.ir.v1.Type
+import fourward.ir.AssignmentStmt
+import fourward.ir.BehavioralConfig
+import fourward.ir.BitType
+import fourward.ir.BlockStmt
+import fourward.ir.ControlDecl
+import fourward.ir.Expr
+import fourward.ir.IfStmt
+import fourward.ir.Literal
+import fourward.ir.MethodCall
+import fourward.ir.MethodCallStmt
+import fourward.ir.NameRef
+import fourward.ir.SourceInfo
+import fourward.ir.Stmt
+import fourward.ir.Type
 
 /**
  * Shared proto-building helpers for interpreter unit tests.

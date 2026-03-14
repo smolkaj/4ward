@@ -1,11 +1,11 @@
 package fourward.p4runtime
 
 import com.google.protobuf.ByteString
-import fourward.dataplane.v1.DataplaneGrpcKt.DataplaneCoroutineStub
-import fourward.dataplane.v1.DataplaneProto
-import fourward.ir.v1.PipelineConfig
-import fourward.sim.v1.SimulatorProto.InputPacket
-import fourward.sim.v1.SimulatorProto.OutputPacket
+import fourward.dataplane.DataplaneGrpcKt.DataplaneCoroutineStub
+import fourward.dataplane.DataplaneProto
+import fourward.ir.PipelineConfig
+import fourward.sim.SimulatorProto.InputPacket
+import fourward.sim.SimulatorProto.OutputPacket
 import fourward.simulator.Simulator
 import io.grpc.ManagedChannel
 import io.grpc.Status

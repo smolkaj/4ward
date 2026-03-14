@@ -1,35 +1,35 @@
 package fourward.simulator
 
 import com.google.protobuf.ByteString
-import fourward.ir.v1.Architecture
-import fourward.ir.v1.AssignmentStmt
-import fourward.ir.v1.BehavioralConfig
-import fourward.ir.v1.BinaryOp
-import fourward.ir.v1.BinaryOperator
-import fourward.ir.v1.ControlDecl
-import fourward.ir.v1.EnumDecl
-import fourward.ir.v1.Expr
-import fourward.ir.v1.ExternInstanceDecl
-import fourward.ir.v1.FieldAccess
-import fourward.ir.v1.FieldDecl
-import fourward.ir.v1.Literal
-import fourward.ir.v1.MethodCall
-import fourward.ir.v1.MethodCallStmt
-import fourward.ir.v1.ParamDecl
-import fourward.ir.v1.ParserDecl
-import fourward.ir.v1.ParserState
-import fourward.ir.v1.PipelineStage
-import fourward.ir.v1.StageKind
-import fourward.ir.v1.Stmt
-import fourward.ir.v1.StructDecl
-import fourward.ir.v1.StructExpr
-import fourward.ir.v1.StructExprField
-import fourward.ir.v1.Transition
-import fourward.ir.v1.Type
-import fourward.ir.v1.TypeDecl
-import fourward.sim.v1.SimulatorProto.DropReason
-import fourward.sim.v1.SimulatorProto.ForkReason
-import fourward.sim.v1.SimulatorProto.PipelineStageEvent.Direction
+import fourward.ir.Architecture
+import fourward.ir.AssignmentStmt
+import fourward.ir.BehavioralConfig
+import fourward.ir.BinaryOp
+import fourward.ir.BinaryOperator
+import fourward.ir.ControlDecl
+import fourward.ir.EnumDecl
+import fourward.ir.Expr
+import fourward.ir.ExternInstanceDecl
+import fourward.ir.FieldAccess
+import fourward.ir.FieldDecl
+import fourward.ir.Literal
+import fourward.ir.MethodCall
+import fourward.ir.MethodCallStmt
+import fourward.ir.ParamDecl
+import fourward.ir.ParserDecl
+import fourward.ir.ParserState
+import fourward.ir.PipelineStage
+import fourward.ir.StageKind
+import fourward.ir.Stmt
+import fourward.ir.StructDecl
+import fourward.ir.StructExpr
+import fourward.ir.StructExprField
+import fourward.ir.Transition
+import fourward.ir.Type
+import fourward.ir.TypeDecl
+import fourward.sim.SimulatorProto.DropReason
+import fourward.sim.SimulatorProto.ForkReason
+import fourward.sim.SimulatorProto.PipelineStageEvent.Direction
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -1256,10 +1256,10 @@ class PSAArchitectureTest {
   ): ControlDecl {
     val localActions =
       listOf("actionA", "actionB").map { name ->
-        fourward.ir.v1.ActionDecl.newBuilder().setName(name).build()
+        fourward.ir.ActionDecl.newBuilder().setName(name).build()
       }
     val localVar =
-      fourward.ir.v1.VarDecl.newBuilder()
+      fourward.ir.VarDecl.newBuilder()
         .setName("k")
         .setType(bitType(8))
         .setInitializer(bit(0x0A, 8))
@@ -1270,7 +1270,7 @@ class PSAArchitectureTest {
           MethodCallStmt.newBuilder()
             .setCall(
               Expr.newBuilder()
-                .setTableApply(fourward.ir.v1.TableApplyExpr.newBuilder().setTableName(tableName))
+                .setTableApply(fourward.ir.TableApplyExpr.newBuilder().setTableName(tableName))
             )
         )
         .build()
@@ -1284,11 +1284,11 @@ class PSAArchitectureTest {
   }
 
   /** Table behavior for action selector tests: exact-match key on field "1" reading local `k`. */
-  private fun tableBehavior(tableName: String): fourward.ir.v1.TableBehavior.Builder =
-    fourward.ir.v1.TableBehavior.newBuilder()
+  private fun tableBehavior(tableName: String): fourward.ir.TableBehavior.Builder =
+    fourward.ir.TableBehavior.newBuilder()
       .setName(tableName)
       .addKeys(
-        fourward.ir.v1.TableKey.newBuilder().setFieldName("1").setExpr(nameRef("k", bitType(8)))
+        fourward.ir.TableKey.newBuilder().setFieldName("1").setExpr(nameRef("k", bitType(8)))
       )
 
   /** Builds a PSA config with a table in the ingress control. */

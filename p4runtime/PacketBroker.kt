@@ -1,7 +1,7 @@
 package fourward.p4runtime
 
-import fourward.sim.v1.SimulatorProto.OutputPacket
-import fourward.sim.v1.SimulatorProto.TraceTree
+import fourward.sim.SimulatorProto.OutputPacket
+import fourward.sim.SimulatorProto.TraceTree
 import fourward.simulator.ProcessPacketResult
 
 /**

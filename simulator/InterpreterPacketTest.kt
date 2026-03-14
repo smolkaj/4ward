@@ -14,19 +14,19 @@
 
 package fourward.simulator
 
-import fourward.ir.v1.BehavioralConfig
-import fourward.ir.v1.Expr
-import fourward.ir.v1.FieldAccess
-import fourward.ir.v1.FieldDecl
-import fourward.ir.v1.HeaderDecl
-import fourward.ir.v1.HeaderUnionDecl
-import fourward.ir.v1.Literal
-import fourward.ir.v1.MethodCall
-import fourward.ir.v1.NameRef
-import fourward.ir.v1.StructDecl
-import fourward.ir.v1.Type
-import fourward.ir.v1.TypeDecl
-import fourward.ir.v1.VarbitType
+import fourward.ir.BehavioralConfig
+import fourward.ir.Expr
+import fourward.ir.FieldAccess
+import fourward.ir.FieldDecl
+import fourward.ir.HeaderDecl
+import fourward.ir.HeaderUnionDecl
+import fourward.ir.Literal
+import fourward.ir.MethodCall
+import fourward.ir.NameRef
+import fourward.ir.StructDecl
+import fourward.ir.Type
+import fourward.ir.TypeDecl
+import fourward.ir.VarbitType
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

@@ -1,7 +1,7 @@
 package fourward.simulator
 
-import fourward.ir.v1.BehavioralConfig
-import fourward.sim.v1.SimulatorProto.TraceTree
+import fourward.ir.BehavioralConfig
+import fourward.sim.SimulatorProto.TraceTree
 
 /**
  * Interface for architecture-specific pipeline behaviour.
@@ -11,8 +11,8 @@ import fourward.sim.v1.SimulatorProto.TraceTree
  * 2. Standard metadata: the metadata struct passed between stages.
  * 3. Extern semantics: what clone(), resubmit(), recirculate() etc. actually do.
  *
- * Points 1 and 2 are driven by the [fourward.ir.v1.Architecture] proto in the loaded pipeline
- * config. Point 3 requires code here.
+ * Points 1 and 2 are driven by the [fourward.ir.Architecture] proto in the loaded pipeline config.
+ * Point 3 requires code here.
  *
  * To add a new architecture, implement this interface and register the implementation in
  * [Simulator].

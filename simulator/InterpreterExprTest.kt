@@ -1,23 +1,23 @@
 package fourward.simulator
 
-import fourward.ir.v1.ArrayIndex
-import fourward.ir.v1.BehavioralConfig
-import fourward.ir.v1.BinaryOp
-import fourward.ir.v1.BinaryOperator
-import fourward.ir.v1.BitType
-import fourward.ir.v1.Cast
-import fourward.ir.v1.Concat
-import fourward.ir.v1.Expr
-import fourward.ir.v1.FieldAccess
-import fourward.ir.v1.IntType
-import fourward.ir.v1.Literal
-import fourward.ir.v1.MethodCall
-import fourward.ir.v1.MuxExpr
-import fourward.ir.v1.NameRef
-import fourward.ir.v1.Slice
-import fourward.ir.v1.Type
-import fourward.ir.v1.UnaryOp
-import fourward.ir.v1.UnaryOperator
+import fourward.ir.ArrayIndex
+import fourward.ir.BehavioralConfig
+import fourward.ir.BinaryOp
+import fourward.ir.BinaryOperator
+import fourward.ir.BitType
+import fourward.ir.Cast
+import fourward.ir.Concat
+import fourward.ir.Expr
+import fourward.ir.FieldAccess
+import fourward.ir.IntType
+import fourward.ir.Literal
+import fourward.ir.MethodCall
+import fourward.ir.MuxExpr
+import fourward.ir.NameRef
+import fourward.ir.Slice
+import fourward.ir.Type
+import fourward.ir.UnaryOp
+import fourward.ir.UnaryOperator
 import java.math.BigInteger
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -630,9 +630,9 @@ class InterpreterExprTest {
     val config =
       BehavioralConfig.newBuilder()
         .addTypes(
-          fourward.ir.v1.TypeDecl.newBuilder()
+          fourward.ir.TypeDecl.newBuilder()
             .setName("U")
-            .setHeaderUnion(fourward.ir.v1.HeaderUnionDecl.getDefaultInstance())
+            .setHeaderUnion(fourward.ir.HeaderUnionDecl.getDefaultInstance())
         )
         .build()
     Interpreter(config, TableStore()).evalExpr(expr, env)
@@ -730,13 +730,9 @@ class InterpreterExprTest {
     val expr =
       Expr.newBuilder()
         .setStructExpr(
-          fourward.ir.v1.StructExpr.newBuilder()
-            .addFields(
-              fourward.ir.v1.StructExprField.newBuilder().setName("a").setValue(bit(0xAB, 8))
-            )
-            .addFields(
-              fourward.ir.v1.StructExprField.newBuilder().setName("b").setValue(bit(0xCD, 8))
-            )
+          fourward.ir.StructExpr.newBuilder()
+            .addFields(fourward.ir.StructExprField.newBuilder().setName("a").setValue(bit(0xAB, 8)))
+            .addFields(fourward.ir.StructExprField.newBuilder().setName("b").setValue(bit(0xCD, 8)))
         )
         .setType(Type.newBuilder().setNamed("my_tuple"))
         .build()
@@ -791,10 +787,8 @@ class InterpreterExprTest {
     val data =
       Expr.newBuilder()
         .setStructExpr(
-          fourward.ir.v1.StructExpr.newBuilder()
-            .addFields(
-              fourward.ir.v1.StructExprField.newBuilder().setName("d").setValue(bit(1, 16))
-            )
+          fourward.ir.StructExpr.newBuilder()
+            .addFields(fourward.ir.StructExprField.newBuilder().setName("d").setValue(bit(1, 16)))
         )
         .setType(Type.newBuilder().setNamed("data_t"))
         .build()
@@ -821,10 +815,8 @@ class InterpreterExprTest {
     val data =
       Expr.newBuilder()
         .setStructExpr(
-          fourward.ir.v1.StructExpr.newBuilder()
-            .addFields(
-              fourward.ir.v1.StructExprField.newBuilder().setName("d").setValue(bit(0xFF, 8))
-            )
+          fourward.ir.StructExpr.newBuilder()
+            .addFields(fourward.ir.StructExprField.newBuilder().setName("d").setValue(bit(0xFF, 8)))
         )
         .setType(Type.newBuilder().setNamed("data_t"))
         .build()
@@ -846,12 +838,12 @@ class InterpreterExprTest {
   private val stackTestConfig =
     BehavioralConfig.newBuilder()
       .addTypes(
-        fourward.ir.v1.TypeDecl.newBuilder()
+        fourward.ir.TypeDecl.newBuilder()
           .setName("h_t")
           .setHeader(
-            fourward.ir.v1.HeaderDecl.newBuilder()
+            fourward.ir.HeaderDecl.newBuilder()
               .addFields(
-                fourward.ir.v1.FieldDecl.newBuilder()
+                fourward.ir.FieldDecl.newBuilder()
                   .setName("f")
                   .setType(Type.newBuilder().setBit(BitType.newBuilder().setWidth(8)))
               )

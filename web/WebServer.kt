@@ -4,7 +4,7 @@ import com.google.protobuf.TextFormat
 import com.google.protobuf.util.JsonFormat
 import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
-import fourward.ir.v1.PipelineConfig
+import fourward.ir.PipelineConfig
 import fourward.simulator.Simulator
 import java.net.InetSocketAddress
 import java.nio.file.Files
@@ -208,7 +208,7 @@ class WebServer(
     )
   }
 
-  private fun controlGraphJson(behavioral: fourward.ir.v1.BehavioralConfig): String {
+  private fun controlGraphJson(behavioral: fourward.ir.BehavioralConfig): String {
     // Use the simulator's display-name maps (built during pipeline load from p4info aliases)
     // to show human-readable names in the graph.
     fun displayName(name: String) = simulator.displayName(name)
@@ -243,7 +243,7 @@ class WebServer(
     return """{$entries}"""
   }
 
-  private fun headerTypesJson(behavioral: fourward.ir.v1.BehavioralConfig): String =
+  private fun headerTypesJson(behavioral: fourward.ir.BehavioralConfig): String =
     Companion.headerTypesJson(behavioral)
 
   // ---------------------------------------------------------------------------
@@ -445,7 +445,7 @@ class WebServer(
     /**
      * Serializes header TypeDecls as JSON: {"type_name": [{"name":"f","bitwidth":N}, ...], ...}.
      */
-    fun headerTypesJson(behavioral: fourward.ir.v1.BehavioralConfig): String {
+    fun headerTypesJson(behavioral: fourward.ir.BehavioralConfig): String {
       val entries =
         behavioral.typesList
           .filter { it.hasHeader() }

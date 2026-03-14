@@ -9,12 +9,12 @@
 
 edition = "2024";
 
-package fourward.constraints.v1;
+package fourward.constraints;
 
 import "p4/config/v1/p4info.proto";
 import "p4/v1/p4runtime.proto";
 
-option java_package = "fourward.constraints.v1";
+option java_package = "fourward.constraints";
 
 message ConstraintRequest {
   oneof request {

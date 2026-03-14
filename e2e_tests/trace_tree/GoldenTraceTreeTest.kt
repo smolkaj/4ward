@@ -4,7 +4,7 @@ import com.google.protobuf.TextFormat
 import fourward.e2e.StfFile
 import fourward.e2e.installStfEntries
 import fourward.e2e.loadPipelineConfig
-import fourward.sim.v1.SimulatorProto.TraceTree
+import fourward.sim.SimulatorProto.TraceTree
 import fourward.simulator.Simulator
 import java.nio.file.Path
 import java.nio.file.Paths

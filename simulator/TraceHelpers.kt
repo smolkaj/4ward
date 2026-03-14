@@ -1,13 +1,13 @@
 package fourward.simulator
 
-import fourward.ir.v1.PipelineStage
-import fourward.sim.v1.SimulatorProto.Drop
-import fourward.sim.v1.SimulatorProto.DropReason
-import fourward.sim.v1.SimulatorProto.PacketIngressEvent
-import fourward.sim.v1.SimulatorProto.PacketOutcome
-import fourward.sim.v1.SimulatorProto.PipelineStageEvent
-import fourward.sim.v1.SimulatorProto.TraceEvent
-import fourward.sim.v1.SimulatorProto.TraceTree
+import fourward.ir.PipelineStage
+import fourward.sim.SimulatorProto.Drop
+import fourward.sim.SimulatorProto.DropReason
+import fourward.sim.SimulatorProto.PacketIngressEvent
+import fourward.sim.SimulatorProto.PacketOutcome
+import fourward.sim.SimulatorProto.PipelineStageEvent
+import fourward.sim.SimulatorProto.TraceEvent
+import fourward.sim.SimulatorProto.TraceTree
 
 /** Builds a [TraceTree] representing a dropped packet with the given trace events and reason. */
 internal fun buildDropTrace(
@@ -21,7 +21,7 @@ internal fun buildDropTrace(
 /** Builds a [TraceTree] representing a packet output on the given port. */
 internal fun buildOutputTrace(events: List<TraceEvent>, port: Int, payload: ByteArray): TraceTree {
   val output =
-    fourward.sim.v1.SimulatorProto.OutputPacket.newBuilder()
+    fourward.sim.SimulatorProto.OutputPacket.newBuilder()
       .setEgressPort(port)
       .setPayload(com.google.protobuf.ByteString.copyFrom(payload))
       .build()

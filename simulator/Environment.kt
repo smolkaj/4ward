@@ -1,6 +1,6 @@
 package fourward.simulator
 
-import fourward.sim.v1.SimulatorProto.TraceEvent
+import fourward.sim.SimulatorProto.TraceEvent
 import java.io.ByteArrayOutputStream
 
 /**

@@ -1,7 +1,7 @@
 package fourward.p4runtime
 
 import com.google.protobuf.ByteString
-import fourward.ir.v1.PipelineConfig
+import fourward.ir.PipelineConfig
 import io.grpc.Status
 import org.junit.After
 import org.junit.Assert.assertEquals

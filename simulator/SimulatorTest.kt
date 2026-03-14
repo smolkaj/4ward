@@ -14,14 +14,14 @@
 
 package fourward.simulator
 
-import fourward.ir.v1.ActionDecl
-import fourward.ir.v1.Architecture
-import fourward.ir.v1.BehavioralConfig
-import fourward.ir.v1.DeviceConfig
-import fourward.ir.v1.PipelineConfig
-import fourward.ir.v1.PipelineStage
-import fourward.ir.v1.StageKind
-import fourward.ir.v1.TableBehavior
+import fourward.ir.ActionDecl
+import fourward.ir.Architecture
+import fourward.ir.BehavioralConfig
+import fourward.ir.DeviceConfig
+import fourward.ir.PipelineConfig
+import fourward.ir.PipelineStage
+import fourward.ir.StageKind
+import fourward.ir.TableBehavior
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test

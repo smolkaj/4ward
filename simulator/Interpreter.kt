@@ -1,27 +1,27 @@
 package fourward.simulator
 
-import fourward.ir.v1.BehavioralConfig
-import fourward.ir.v1.BinaryOperator
-import fourward.ir.v1.ControlDecl
-import fourward.ir.v1.Direction
-import fourward.ir.v1.Expr
-import fourward.ir.v1.FieldDecl
-import fourward.ir.v1.Literal
-import fourward.ir.v1.MethodCall
-import fourward.ir.v1.ParserDecl
-import fourward.ir.v1.SourceInfo
-import fourward.ir.v1.Stmt
-import fourward.ir.v1.TableApplyExpr
-import fourward.ir.v1.TableBehavior
-import fourward.ir.v1.Type
-import fourward.ir.v1.UnaryOperator
-import fourward.sim.v1.SimulatorProto.ActionExecutionEvent
-import fourward.sim.v1.SimulatorProto.AssertionEvent
-import fourward.sim.v1.SimulatorProto.BranchEvent
-import fourward.sim.v1.SimulatorProto.DeparserEmitEvent
-import fourward.sim.v1.SimulatorProto.ParserTransitionEvent
-import fourward.sim.v1.SimulatorProto.TableLookupEvent
-import fourward.sim.v1.SimulatorProto.TraceEvent
+import fourward.ir.BehavioralConfig
+import fourward.ir.BinaryOperator
+import fourward.ir.ControlDecl
+import fourward.ir.Direction
+import fourward.ir.Expr
+import fourward.ir.FieldDecl
+import fourward.ir.Literal
+import fourward.ir.MethodCall
+import fourward.ir.ParserDecl
+import fourward.ir.SourceInfo
+import fourward.ir.Stmt
+import fourward.ir.TableApplyExpr
+import fourward.ir.TableBehavior
+import fourward.ir.Type
+import fourward.ir.UnaryOperator
+import fourward.sim.SimulatorProto.ActionExecutionEvent
+import fourward.sim.SimulatorProto.AssertionEvent
+import fourward.sim.SimulatorProto.BranchEvent
+import fourward.sim.SimulatorProto.DeparserEmitEvent
+import fourward.sim.SimulatorProto.ParserTransitionEvent
+import fourward.sim.SimulatorProto.TableLookupEvent
+import fourward.sim.SimulatorProto.TraceEvent
 import java.math.BigInteger
 
 /**
@@ -57,8 +57,8 @@ class Interpreter(
   //   declaration, which carries the actual action body.
   // - If the midend renamed the action (currentName != ""), it is also indexed under
   //   currentName so that direct call sites using the post-midend name can resolve it.
-  private val actions: Map<String, fourward.ir.v1.ActionDecl> = buildMap {
-    fun index(action: fourward.ir.v1.ActionDecl) {
+  private val actions: Map<String, fourward.ir.ActionDecl> = buildMap {
+    fun index(action: fourward.ir.ActionDecl) {
       if (!containsKey(action.name)) put(action.name, action)
       if (action.currentName.isNotEmpty()) put(action.currentName, action)
     }
@@ -134,7 +134,7 @@ class Interpreter(
 
   /** Evaluates a select expression, returning (nextState, formattedValue, formattedExpression). */
   private fun evalSelectWithValue(
-    select: fourward.ir.v1.SelectTransition,
+    select: fourward.ir.SelectTransition,
     env: Environment,
   ): Triple<String, String, String> {
     val keyValues = select.keysList.map { evalExpr(it, env) }
@@ -170,7 +170,7 @@ class Interpreter(
   }
 
   /** Human-readable rendering of an IR expression (best-effort, for trace display). */
-  private fun formatExpr(expr: fourward.ir.v1.Expr): String =
+  private fun formatExpr(expr: fourward.ir.Expr): String =
     when {
       expr.hasNameRef() -> expr.nameRef.name
       expr.hasFieldAccess() -> "${formatExpr(expr.fieldAccess.expr)}.${expr.fieldAccess.fieldName}"
@@ -190,7 +190,7 @@ class Interpreter(
 
   private fun matchesKeyset(
     value: Value,
-    keyset: fourward.ir.v1.KeysetExpr,
+    keyset: fourward.ir.KeysetExpr,
     constEnv: Environment,
   ): Boolean =
     when {
@@ -253,7 +253,7 @@ class Interpreter(
 
   /** Pushes a scope, defines [localVars], runs [body], then pops the scope. */
   private inline fun withLocalScope(
-    localVars: List<fourward.ir.v1.VarDecl>,
+    localVars: List<fourward.ir.VarDecl>,
     env: Environment,
     body: () -> Unit,
   ) {
@@ -294,7 +294,7 @@ class Interpreter(
     }
   }
 
-  private fun execIf(ifStmt: fourward.ir.v1.IfStmt, env: Environment) {
+  private fun execIf(ifStmt: fourward.ir.IfStmt, env: Environment) {
     val condition = (evalExpr(ifStmt.condition, env) as BoolVal).value
 
     packetCtx?.addTraceEvent(
@@ -312,7 +312,7 @@ class Interpreter(
     }
   }
 
-  private fun execSwitch(switchStmt: fourward.ir.v1.SwitchStmt, env: Environment) {
+  private fun execSwitch(switchStmt: fourward.ir.SwitchStmt, env: Environment) {
     val tableResult = applyTable(switchStmt.subject.tableApply.tableName, env)
     val matchedCase = switchStmt.casesList.find { it.actionName == tableResult.actionName }
     if (matchedCase != null) {
@@ -352,7 +352,7 @@ class Interpreter(
       else -> error("unhandled expression kind: $expr")
     }
 
-  private fun evalLiteral(lit: Literal, type: fourward.ir.v1.Type): Value =
+  private fun evalLiteral(lit: Literal, type: fourward.ir.Type): Value =
     when {
       lit.hasBoolean() -> BoolVal(lit.boolean)
       lit.hasErrorMember() -> ErrorVal(lit.errorMember)
@@ -377,7 +377,7 @@ class Interpreter(
       else -> error("unhandled literal kind: $lit")
     }
 
-  private fun evalFieldAccess(fa: fourward.ir.v1.FieldAccess, env: Environment): Value {
+  private fun evalFieldAccess(fa: fourward.ir.FieldAccess, env: Environment): Value {
     // Special case: table.apply().hit / .miss — the p4c midend may restructure
     // the apply call such that the backend emits FieldAccess{TableApplyExpr, "hit"}
     // rather than TableApplyExpr{access_kind=HIT}.
@@ -423,25 +423,25 @@ class Interpreter(
     }
 
   // P4 spec §8.18: out-of-bounds reads return an invalid header with default values.
-  private fun evalArrayIndex(ai: fourward.ir.v1.ArrayIndex, env: Environment): Value {
+  private fun evalArrayIndex(ai: fourward.ir.ArrayIndex, env: Environment): Value {
     val stack = evalExpr(ai.expr, env) as? HeaderStackVal ?: error("array index on non-stack value")
     val index = intValue(evalExpr(ai.index, env))
     if (index !in 0 until stack.size) return defaultValue(stack.elementTypeName, types)
     return stack.headers[index]
   }
 
-  private fun evalSlice(slice: fourward.ir.v1.Slice, env: Environment): Value {
+  private fun evalSlice(slice: fourward.ir.Slice, env: Environment): Value {
     val bits = (evalExpr(slice.expr, env) as BitVal).bits
     return BitVal(bits.slice(slice.hi, slice.lo))
   }
 
-  private fun evalConcat(concat: fourward.ir.v1.Concat, env: Environment): Value {
+  private fun evalConcat(concat: fourward.ir.Concat, env: Environment): Value {
     val left = (evalExpr(concat.left, env) as BitVal).bits
     val right = (evalExpr(concat.right, env) as BitVal).bits
     return BitVal(left.concat(right))
   }
 
-  private fun evalCast(cast: fourward.ir.v1.Cast, env: Environment): Value {
+  private fun evalCast(cast: fourward.ir.Cast, env: Environment): Value {
     val inner = evalExpr(cast.expr, env)
     return when {
       cast.targetType.hasBit() -> {
@@ -497,7 +497,7 @@ class Interpreter(
   }
 
   @Suppress("CyclomaticComplexMethod")
-  private fun evalBinaryOp(op: fourward.ir.v1.BinaryOp, env: Environment): Value {
+  private fun evalBinaryOp(op: fourward.ir.BinaryOp, env: Environment): Value {
     // P4 spec §8.1: compile-time integers adopt the width of the other operand.
     val (left, right) = coerceInfInts(evalExpr(op.left, env), evalExpr(op.right, env))
 
@@ -594,7 +594,7 @@ class Interpreter(
       else -> left to right
     }
 
-  private fun evalUnaryOp(op: fourward.ir.v1.UnaryOp, env: Environment): Value {
+  private fun evalUnaryOp(op: fourward.ir.UnaryOp, env: Environment): Value {
     val inner = evalExpr(op.expr, env)
     return when (op.op) {
       // Two's-complement negation: (2^N - x) mod 2^N = (0 - x) using wrapping subtraction.
@@ -611,13 +611,13 @@ class Interpreter(
     }
   }
 
-  private fun evalMux(mux: fourward.ir.v1.MuxExpr, env: Environment): Value =
+  private fun evalMux(mux: fourward.ir.MuxExpr, env: Environment): Value =
     if ((evalExpr(mux.condition, env) as BoolVal).value) evalExpr(mux.thenExpr, env)
     else evalExpr(mux.elseExpr, env)
 
   private fun evalStructExpr(
-    se: fourward.ir.v1.StructExpr,
-    type: fourward.ir.v1.Type,
+    se: fourward.ir.StructExpr,
+    type: fourward.ir.Type,
     env: Environment,
   ): Value {
     require(type.hasNamed()) { "StructExpr must have a named type, got: $type" }

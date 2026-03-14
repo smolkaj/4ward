@@ -6,12 +6,12 @@
 
 package fourward.p4runtime
 
-import fourward.ir.v1.BehavioralConfig
-import fourward.ir.v1.BitType
-import fourward.ir.v1.FieldDecl
-import fourward.ir.v1.HeaderDecl
-import fourward.ir.v1.Type
-import fourward.ir.v1.TypeDecl
+import fourward.ir.BehavioralConfig
+import fourward.ir.BitType
+import fourward.ir.FieldDecl
+import fourward.ir.HeaderDecl
+import fourward.ir.Type
+import fourward.ir.TypeDecl
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
