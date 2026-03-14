@@ -62,6 +62,11 @@ message InputPacket {
   bytes payload = 2;
 }
 
+message OutputPacket {
+  uint32 egress_port = 1;
+  bytes payload = 2;
+}
+
 message InjectPacketRequest {
   InputPacket packet = 1;
 }
