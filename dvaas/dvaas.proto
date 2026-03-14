@@ -1,0 +1,148 @@
+// DVaaS (Dataplane Validation as a Service) proto API.
+//
+// Validates packet test vectors against a loaded P4 pipeline, returning
+// structured results with 4ward's native trace trees.
+//
+// The message format is aligned with sonic-pins DVaaS (test_vector.proto)
+// for interoperability, but is self-contained — no external dependencies
+// on packetlib, pdpi, or other sonic-pins libraries.
+
+syntax = "proto3";
+
+package fourward.dvaas;
+
+import "simulator.proto";
+
+option java_package = "fourward.dvaas";
+option java_outer_classname = "DvaasProto";
+
+// =============================================================================
+// DVaaS Validation Service
+// =============================================================================
+
+service DvaasValidation {
+  // Validates a batch of packet test vectors against the currently loaded
+  // pipeline. Each test vector specifies an input packet and acceptable
+  // output(s); the service injects the packet, collects actual outputs,
+  // and compares.
+  //
+  // Prerequisites:
+  //   - A pipeline must be loaded (via P4Runtime SetForwardingPipelineConfig).
+  //   - Table entries must be pre-installed (via P4Runtime Write).
+  //
+  // Returns FAILED_PRECONDITION if no pipeline is loaded.
+  rpc ValidateTestVectors(ValidateTestVectorsRequest)
+      returns (ValidateTestVectorsResponse);
+}
+
+// =============================================================================
+// Request / Response
+// =============================================================================
+
+message ValidateTestVectorsRequest {
+  repeated PacketTestVector test_vectors = 1;
+}
+
+message ValidateTestVectorsResponse {
+  // One outcome per input test vector, in the same order.
+  repeated PacketTestOutcome outcomes = 1;
+}
+
+// =============================================================================
+// Test vector format (aligned with sonic-pins dvaas/test_vector.proto)
+// =============================================================================
+
+// A single packet test case: inject a packet and verify the output.
+message PacketTestVector {
+  // Unique identifier for correlation (optional, for the caller's use).
+  int64 id = 1;
+
+  // The input to inject into the switch.
+  SwitchInput input = 2;
+
+  // Acceptable output(s). The test passes if the actual output matches ANY
+  // of these. To test for drop, include a single SwitchOutput with empty
+  // packets and packet_ins. An empty list means "no validation" — the
+  // actual output is recorded but not checked.
+  repeated SwitchOutput acceptable_outputs = 3;
+}
+
+// How a packet enters the switch.
+message SwitchInput {
+  // Injection type. Determines how the packet is delivered to the pipeline.
+  InputType type = 1;
+
+  // The packet to inject.
+  Packet packet = 2;
+}
+
+// How a packet enters the switch pipeline.
+enum InputType {
+  INPUT_TYPE_UNSPECIFIED = 0;
+
+  // Normal data-plane packet arriving on a front-panel port.
+  INPUT_TYPE_DATAPLANE = 1;
+
+  // Control-plane packet sent via P4Runtime PacketOut.
+  // Enters the pipeline on the CPU port.
+  INPUT_TYPE_PACKET_OUT = 2;
+
+  // Directly submitted to the ingress pipeline (bypasses parser).
+  INPUT_TYPE_SUBMIT_TO_INGRESS = 3;
+}
+
+// A packet with port and payload.
+message Packet {
+  // Port identifier. String for SAI P4 @p4runtime_translation compatibility.
+  // For standard v1model programs, use the numeric port as a decimal string
+  // (e.g. "1", "42").
+  string port = 1;
+
+  // Raw packet payload.
+  bytes payload = 2;
+}
+
+// Expected (or actual) switch output: front-panel packets and/or PacketIn.
+message SwitchOutput {
+  // Packets emitted on front-panel ports.
+  repeated Packet packets = 1;
+
+  // Packets punted to the control plane via PacketIn.
+  repeated PacketIn packet_ins = 2;
+}
+
+// A packet punted to the control plane (P4Runtime PacketIn).
+message PacketIn {
+  // Raw packet payload (as emitted by the deparser on the CPU port).
+  bytes payload = 1;
+}
+
+// =============================================================================
+// Validation results
+// =============================================================================
+
+// Result of validating a single test vector.
+message PacketTestOutcome {
+  // The original test vector.
+  PacketTestVector test_vector = 1;
+
+  // The actual output produced by the simulator.
+  SwitchOutput actual_output = 2;
+
+  // The full execution trace tree — 4ward's differentiator over BMv2.
+  // Contains every decision the simulator made, including forking at
+  // non-deterministic choice points (action selectors, clone, multicast).
+  fourward.sim.TraceTree trace = 3;
+
+  // Pass/fail verdict with failure details.
+  ValidationResult result = 4;
+}
+
+// Pass/fail verdict for a single test vector.
+message ValidationResult {
+  bool passed = 1;
+
+  // If not passed, a human-readable description of what went wrong.
+  // Includes expected vs actual output details.
+  string failure_description = 2;
+}

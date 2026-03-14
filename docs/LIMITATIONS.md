@@ -58,6 +58,16 @@ guilt — just write it down so someone can find it later.
   simulator: there are no real packet rates to trigger digests, and no
   wall-clock time to expire idle entries. These are explicitly out of scope.
 
+## DVaaS validation service
+
+- **Only `INPUT_TYPE_DATAPLANE` supported.** `INPUT_TYPE_PACKET_OUT` and
+  `INPUT_TYPE_SUBMIT_TO_INGRESS` are not yet implemented — the service
+  rejects them with `INVALID_ARGUMENT`.
+- **Non-numeric port strings not supported.** SAI P4 programs using
+  `@p4runtime_translation` with string port identifiers (e.g. "Ethernet0")
+  require type translation that isn't wired into the DVaaS service yet.
+  Port strings must be parseable as integers.
+
 ## Simulator
 
 - **Multicast: basic replication only.** Multicast group replication works

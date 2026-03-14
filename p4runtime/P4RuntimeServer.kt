@@ -1,11 +1,12 @@
 package fourward.p4runtime
 
+import fourward.dvaas.DvaasService
 import fourward.simulator.Simulator
 import io.grpc.Server
 import io.grpc.netty.NettyServerBuilder
 import kotlinx.coroutines.sync.Mutex
 
-/** Wraps a P4Runtime + Dataplane gRPC server backed by a 4ward [Simulator]. */
+/** Wraps a P4Runtime + Dataplane + DVaaS gRPC server backed by a 4ward [Simulator]. */
 class P4RuntimeServer(
   private val port: Int = DEFAULT_PORT,
   dropPortOverride: Int? = null,
@@ -18,6 +19,8 @@ class P4RuntimeServer(
   private val service =
     P4RuntimeService(simulator, broker, lock = lock, cpuPortConfig = cpuPortConfig)
   private val dataplaneService = DataplaneService(broker, lock)
+  // TODO(DVaaS): thread cpuPortConfig through to DvaasService for PacketIn classification.
+  private val dvaasService = DvaasService(broker::processPacket, lock)
   private lateinit var server: Server
 
   fun start(): P4RuntimeServer {
@@ -25,6 +28,7 @@ class P4RuntimeServer(
       NettyServerBuilder.forPort(port)
         .addService(service)
         .addService(dataplaneService)
+        .addService(dvaasService)
         .build()
         .start()
     Runtime.getRuntime().addShutdownHook(Thread { stop() })

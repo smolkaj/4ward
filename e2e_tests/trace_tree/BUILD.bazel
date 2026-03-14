@@ -53,7 +53,10 @@ p4c_compile(
 p4c_compile(
     name = "action_selector_3",
     src_p4 = "action_selector_3.p4",
-    visibility = ["//p4runtime:__pkg__"],
+    visibility = [
+        "//dvaas:__pkg__",
+        "//p4runtime:__pkg__",
+    ],
 )
 
 _TEST_DEPS = [

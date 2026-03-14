@@ -1,0 +1,105 @@
+load("@grpc-java//:java_grpc_library.bzl", "java_grpc_library")
+load("@grpc_kotlin//:kt_jvm_grpc.bzl", "kt_jvm_grpc_library")
+load("@protobuf//bazel:java_proto_library.bzl", "java_proto_library")
+load("@protobuf//bazel:proto_library.bzl", "proto_library")
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_library", "kt_jvm_test")
+
+# =============================================================================
+# DVaaS validation service proto
+# =============================================================================
+
+proto_library(
+    name = "dvaas_proto",
+    srcs = ["dvaas.proto"],
+    strip_import_prefix = "/dvaas",
+    visibility = ["//visibility:public"],
+    deps = ["//simulator:simulator_proto"],
+)
+
+java_proto_library(
+    name = "dvaas_java_proto",
+    visibility = ["//visibility:public"],
+    deps = [":dvaas_proto"],
+)
+
+java_grpc_library(
+    name = "dvaas_java_grpc",
+    srcs = [":dvaas_proto"],
+    visibility = ["//visibility:public"],
+    deps = [":dvaas_java_proto"],
+)
+
+kt_jvm_grpc_library(
+    name = "dvaas_kt_grpc",
+    srcs = [":dvaas_proto"],
+    visibility = ["//visibility:public"],
+    deps = [":dvaas_java_proto"],
+)
+
+# =============================================================================
+# DVaaS library
+# =============================================================================
+
+kt_jvm_library(
+    name = "dvaas_lib",
+    srcs = glob(
+        ["*.kt"],
+        exclude = ["*Test.kt"],
+    ),
+    visibility = ["//visibility:public"],
+    deps = [
+        ":dvaas_java_proto",
+        ":dvaas_kt_grpc",
+        "//simulator:simulator_java_proto",
+        "//simulator:simulator_lib",
+        "@grpc-java//api",
+        "@maven//:com_google_protobuf_protobuf_java",
+        "@maven//:io_grpc_grpc_kotlin_stub",
+        "@maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
+    ],
+)
+
+# =============================================================================
+# Tests
+# =============================================================================
+
+kt_jvm_test(
+    name = "TestVectorValidatorTest",
+    srcs = ["TestVectorValidatorTest.kt"],
+    test_class = "fourward.dvaas.TestVectorValidatorTest",
+    deps = [
+        ":dvaas_java_proto",
+        ":dvaas_lib",
+        "//simulator:simulator_java_proto",
+        "//simulator:simulator_lib",
+        "@maven//:com_google_protobuf_protobuf_java",
+        "@maven//:junit_junit",
+    ],
+)
+
+kt_jvm_test(
+    name = "DvaasServiceTest",
+    srcs = [
+        "DvaasServiceTest.kt",
+    ],
+    data = [
+        "//e2e_tests/basic_table:basic_table_pb",
+        "//e2e_tests/passthrough:passthrough_pb",
+    ],
+    test_class = "fourward.dvaas.DvaasServiceTest",
+    deps = [
+        ":dvaas_java_proto",
+        ":dvaas_kt_grpc",
+        ":dvaas_lib",
+        "//p4runtime:p4runtime_lib",
+        "//simulator:ir_java_proto",
+        "//simulator:simulator_java_proto",
+        "//simulator:simulator_lib",
+        "@grpc-java//api",
+        "@grpc-java//inprocess",
+        "@maven//:com_google_protobuf_protobuf_java",
+        "@maven//:io_grpc_grpc_kotlin_stub",
+        "@maven//:junit_junit",
+        "@maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
+    ],
+)
