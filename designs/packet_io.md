@@ -48,7 +48,7 @@ injection, one for observation:
 
 ```proto
 service Dataplane {
-  // Inject a single packet into the data plane.
+  // Inject a single packet into the data plane. Returns the result inline.
   rpc InjectPacket(InjectPacketRequest) returns (InjectPacketResponse);
 
   // Observe results from ALL injection sources (InjectPacket, PacketOut,
@@ -66,7 +66,9 @@ message InjectPacketRequest {
   InputPacket packet = 1;
 }
 
-message InjectPacketResponse {}
+message InjectPacketResponse {
+  ProcessPacketResult result = 1;
+}
 
 message ProcessPacketResult {
   InputPacket input = 1;
@@ -85,10 +87,11 @@ message SubscribeResultsResponse {
 }
 ```
 
-`InjectPacket` is a simple unary RPC rather than a client-streaming RPC.
-A stream buys little here: the response is empty (fire-and-forget), gRPC
-already multiplexes unary calls over HTTP/2, and unary is simpler to use
-from scripts and tools.
+`InjectPacket` is a simple unary RPC that returns the result inline. The
+simulator is synchronous, so the result is available before the RPC returns.
+This makes the simple case — inject a packet, see what happened — trivial,
+with no need for a `SubscribeResults` subscription. The same result is also
+delivered to `SubscribeResults` subscribers for fan-out.
 
 Key properties:
 
@@ -182,9 +185,9 @@ before returning — no asynchrony.
   Data-plane outputs are delivered to `SubscribeResults` subscribers.
   The controller itself has no completion signal for data-plane outputs —
   but a test harness subscribed via `SubscribeResults` does.
-- **Direct injection via `InjectPacket`**: fire-and-forget. The injector
-  observes completion via its `SubscribeResults` subscription by matching
-  the input in the `ProcessPacketResult`.
+- **Direct injection via `InjectPacket`**: the RPC response contains the
+  `ProcessPacketResult` directly. Completion is implicit — when the call
+  returns, all outputs have been produced.
 
 ### What changes where
 
