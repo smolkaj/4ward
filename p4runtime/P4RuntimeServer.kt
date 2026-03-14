@@ -27,6 +27,7 @@ class P4RuntimeServer(
       packetOutInjectorFn = service::injectPacketOut,
       packetInMetadataFn = service::buildDvaasPacketInMetadata,
     )
+  private val gnmiService = GnmiService()
   private lateinit var server: Server
 
   fun start(): P4RuntimeServer {
@@ -35,6 +36,7 @@ class P4RuntimeServer(
         .addService(service)
         .addService(dataplaneService)
         .addService(dvaasService)
+        .addService(gnmiService)
         .build()
         .start()
     Runtime.getRuntime().addShutdownHook(Thread { stop() })
