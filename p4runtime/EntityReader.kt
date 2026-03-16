@@ -47,8 +47,9 @@ private constructor(
         result.add(buildTableEntryEntity(entry, hasDirectCounter, hasDirectMeter, tables))
       }
 
-      // P4Runtime spec §11.1: wildcard and per-table reads include the default entry.
-      if (!hasMatchFilter) {
+      // P4Runtime spec §9.1.2: only return default entries that have been explicitly
+      // configured via Write. Pipeline-loaded defaults are not included in reads.
+      if (!hasMatchFilter && tables.isDefaultModified(tableName)) {
         buildDefaultEntryEntity(tableName, tableId, tables)?.let { result.add(it) }
       }
     }
