@@ -126,6 +126,8 @@ class Simulator(
 
   override fun getDefaultAction(tableName: String) = tableStore.getDefaultAction(tableName)
 
+  override fun isDefaultModified(tableName: String) = tableStore.isDefaultModified(tableName)
+
   override fun getDirectCounterData(entry: p4.v1.P4RuntimeOuterClass.TableEntry) =
     tableStore.getDirectCounterData(entry)
 
