@@ -108,6 +108,8 @@ class TableStore : TableDataReader {
     internal val directCounterData = IdentityHashMap<TableEntry, P4RuntimeOuterClass.CounterData>()
     internal val directMeterData = IdentityHashMap<TableEntry, P4RuntimeOuterClass.MeterConfig>()
     internal val defaultActions: MutableMap<String, DefaultAction> = mutableMapOf()
+    /** Tables whose default action has been explicitly modified via P4Runtime Write. */
+    internal val modifiedDefaults: MutableSet<String> = mutableSetOf()
     internal val profileMembers:
       MutableMap<Int, MutableMap<Int, P4RuntimeOuterClass.ActionProfileMember>> =
       mutableMapOf()
@@ -137,6 +139,7 @@ class TableStore : TableDataReader {
         copy.directCounterData.putAll(directCounterData)
         copy.directMeterData.putAll(directMeterData)
         copy.defaultActions.putAll(defaultActions)
+        copy.modifiedDefaults.addAll(modifiedDefaults)
         profileMembers.forEach { (k, v) -> copy.profileMembers[k] = v.toMutableMap() }
         profileGroups.forEach { (k, v) -> copy.profileGroups[k] = v.toMutableMap() }
         registers.forEach { (k, v) -> copy.registers[k] = v.toMutableMap() }
@@ -374,6 +377,9 @@ class TableStore : TableDataReader {
     tables[tableName] ?: emptyList()
 
   override fun getDefaultAction(tableName: String): DefaultAction? = defaultActions[tableName]
+
+  override fun isDefaultModified(tableName: String): Boolean =
+    tableName in writeState.modifiedDefaults
 
   override fun getDirectCounterData(entry: TableEntry): P4RuntimeOuterClass.CounterData? =
     directCounterData[entry]
@@ -761,6 +767,7 @@ class TableStore : TableDataReader {
     if (entry.isDefaultAction) {
       val actionName = resolveActionName(entry.action.action.actionId)
       defaultActions[tableName] = DefaultAction(actionName, entry.action.action.paramsList)
+      writeState.modifiedDefaults.add(tableName)
       return WriteResult.Success
     }
 

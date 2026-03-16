@@ -13,6 +13,9 @@ interface TableDataReader {
 
   fun getDefaultAction(tableName: String): DefaultAction?
 
+  /** True if the default action for [tableName] was explicitly modified via P4Runtime Write. */
+  fun isDefaultModified(tableName: String): Boolean
+
   fun getDirectCounterData(entry: P4RuntimeOuterClass.TableEntry): P4RuntimeOuterClass.CounterData?
 
   fun getDirectMeterData(entry: P4RuntimeOuterClass.TableEntry): P4RuntimeOuterClass.MeterConfig?
