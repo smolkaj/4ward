@@ -4,8 +4,6 @@ import com.google.protobuf.ByteString
 import fourward.dataplane.DataplaneGrpcKt.DataplaneCoroutineStub
 import fourward.dataplane.DataplaneProto
 import fourward.ir.PipelineConfig
-import fourward.sim.SimulatorProto.InputPacket
-import fourward.sim.SimulatorProto.OutputPacket
 import fourward.simulator.Simulator
 import io.grpc.ManagedChannel
 import io.grpc.Status
@@ -69,7 +67,7 @@ class P4RuntimeTestHarness(
       lock,
       cpuPortConfig = cpuPortConfig,
     )
-  private val dataplaneService = DataplaneService(broker, lock)
+  private val dataplaneService = DataplaneService(broker, lock) { service.portTranslation }
 
   private val server =
     InProcessServerBuilder.forName(serverName)
@@ -143,17 +141,27 @@ class P4RuntimeTestHarness(
     runBlocking {
       dataplaneStub.injectPacket(
         DataplaneProto.InjectPacketRequest.newBuilder()
-          .setPacket(
-            InputPacket.newBuilder()
-              .setIngressPort(ingressPort)
-              .setPayload(ByteString.copyFrom(payload))
-          )
+          .setDataplaneIngressPort(ingressPort)
+          .setPayload(ByteString.copyFrom(payload))
           .build()
       )
     }
 
+  /** Injects a packet using a P4Runtime port ID. Returns outputs + trace. */
+  fun injectPacketP4rt(
+    p4rtPort: ByteString,
+    payload: ByteArray,
+  ): DataplaneProto.InjectPacketResponse = runBlocking {
+    dataplaneStub.injectPacket(
+      DataplaneProto.InjectPacketRequest.newBuilder()
+        .setP4RtIngressPort(p4rtPort)
+        .setPayload(ByteString.copyFrom(payload))
+        .build()
+    )
+  }
+
   /** Injects a packet and returns only the output packets. */
-  fun simulatePacket(ingressPort: Int, payload: ByteArray): List<OutputPacket> =
+  fun simulatePacket(ingressPort: Int, payload: ByteArray): List<DataplaneProto.OutputPacket> =
     injectPacket(ingressPort, payload).outputPacketsList
 
   // ---------------------------------------------------------------------------

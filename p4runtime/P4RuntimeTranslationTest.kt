@@ -131,7 +131,7 @@ class P4RuntimeTranslationTest {
 
     // SDN port 1 is auto-allocated to data-plane port 0 (first available).
     assertEquals("expected 1 output packet", 1, outputs.size)
-    assertEquals("should exit on auto-allocated dp port", 0, outputs[0].egressPort)
+    assertEquals("should exit on auto-allocated dp port", 0, outputs[0].dataplaneEgressPort)
   }
 
   @Test
@@ -146,7 +146,11 @@ class P4RuntimeTranslationTest {
     val outputs = harness.simulatePacket(ingressPort = 0, payload = payload)
 
     assertEquals("expected 1 output packet", 1, outputs.size)
-    assertEquals("egress port should be auto-allocated dp value 0", 0, outputs[0].egressPort)
+    assertEquals(
+      "egress port should be auto-allocated dp value 0",
+      0,
+      outputs[0].dataplaneEgressPort,
+    )
   }
 
   // =========================================================================

@@ -409,11 +409,11 @@ class SaiP4E2ETest {
     )
     assertTrue(
       "expected CPU-port output",
-      result.outputPacketsList.any { it.egressPort == CPU_PORT },
+      result.outputPacketsList.any { it.dataplaneEgressPort == CPU_PORT },
     )
     assertTrue(
       "expected data-plane output",
-      result.outputPacketsList.any { it.egressPort != CPU_PORT },
+      result.outputPacketsList.any { it.dataplaneEgressPort != CPU_PORT },
     )
 
     // Via StreamChannel: only the CPU clone becomes PacketIn.

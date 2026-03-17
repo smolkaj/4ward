@@ -23,20 +23,50 @@ service Dataplane {
       returns (stream SubscribeResultsResponse);
 }
 
+// Input packet with dual port encoding. The P4Runtime field is only
+// populated when port translation is available.
+message InputPacket {
+  uint32 dataplane_ingress_port = 1;
+  // P4Runtime port ID — opaque bytes whose encoding depends on
+  // @p4runtime_translation. Only populated when a pipeline with
+  // port translation is loaded.
+  bytes p4rt_ingress_port = 3;
+  bytes payload = 2;
+}
+
+// Output packet with dual port encoding. The P4Runtime field is only
+// populated when port translation is available.
+message OutputPacket {
+  uint32 dataplane_egress_port = 1;
+  // P4Runtime port ID — opaque bytes whose encoding depends on
+  // @p4runtime_translation. Only populated when a pipeline with
+  // port translation is loaded.
+  bytes p4rt_egress_port = 3;
+  bytes payload = 2;
+}
+
 message InjectPacketRequest {
-  fourward.sim.InputPacket packet = 1;
+  oneof ingress_port {
+    // Dataplane port number (e.g. 0, 1, 510).
+    uint32 dataplane_ingress_port = 2;
+    // P4Runtime port ID — opaque bytes whose encoding depends on
+    // @p4runtime_translation. Requires a loaded pipeline with port
+    // translation; otherwise the RPC fails with FAILED_PRECONDITION.
+    bytes p4rt_ingress_port = 3;
+  }
+  bytes payload = 1;
 }
 
 // InjectPacket response. Omits the input (the caller already has it).
 message InjectPacketResponse {
-  repeated fourward.sim.OutputPacket output_packets = 1;
+  repeated OutputPacket output_packets = 1;
   fourward.sim.TraceTree trace = 2;
 }
 
 // Result bundle for SubscribeResults: input + outputs + trace.
 message ProcessPacketResult {
-  fourward.sim.InputPacket input = 1;
-  repeated fourward.sim.OutputPacket output_packets = 2;
+  InputPacket input_packet = 1;
+  repeated OutputPacket output_packets = 2;
   fourward.sim.TraceTree trace = 3;
 }
 

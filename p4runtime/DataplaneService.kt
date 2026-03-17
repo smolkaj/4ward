@@ -2,13 +2,14 @@ package fourward.p4runtime
 
 import com.google.protobuf.ByteString
 import fourward.dataplane.DataplaneGrpcKt
+import fourward.dataplane.DataplaneProto
 import fourward.dataplane.DataplaneProto.InjectPacketRequest
 import fourward.dataplane.DataplaneProto.InjectPacketResponse
 import fourward.dataplane.DataplaneProto.ProcessPacketResult as ProcessPacketResultProto
 import fourward.dataplane.DataplaneProto.SubscribeResultsRequest
 import fourward.dataplane.DataplaneProto.SubscribeResultsResponse
 import fourward.dataplane.DataplaneProto.SubscriptionActive
-import fourward.sim.SimulatorProto.InputPacket
+import io.grpc.Status
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -16,31 +17,71 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /**
- * Dataplane gRPC service: injects packets into the simulator and returns output packets.
+ * Port translation config for the currently loaded pipeline.
+ *
+ * Derived from the p4info's `controller_packet_metadata` at pipeline load time. Provides the
+ * [TypeTranslator] and the URI + encoding type for port fields, enabling the [DataplaneService] to
+ * translate between dataplane port numbers and P4Runtime port IDs.
+ */
+data class PortTranslation(
+  val translator: TypeTranslator,
+  val portUri: String,
+  val isStringType: Boolean,
+) {
+  /** Translates a P4Runtime port ID to a dataplane port number. */
+  fun p4rtToDataplane(p4rtPort: ByteString): Int {
+    val dp =
+      if (isStringType) {
+        translator.sdnToDataplane(portUri, p4rtPort.toStringUtf8())
+      } else {
+        translator.sdnToDataplane(portUri, p4rtPort.toByteArray())
+      }
+    return ByteString.copyFrom(dp).toUnsignedInt()
+  }
+
+  /** Translates a dataplane port number to a P4Runtime port ID, or null if no mapping exists. */
+  fun dataplaneToP4rt(dataplanePort: Int): ByteString? =
+    try {
+      val dpBytes = encodeMinWidth(dataplanePort).toByteArray()
+      when (val sdn = translator.dataplaneToSdn(portUri, dpBytes)) {
+        is SdnValue.Str -> ByteString.copyFromUtf8(sdn.value)
+        is SdnValue.Bitstring -> sdn.value
+      }
+    } catch (_: TranslationException) {
+      // No reverse mapping (e.g. drop port, internal ports).
+      null
+    }
+}
+
+/**
+ * Dataplane gRPC service: injects packets into the simulator and returns output packets with dual
+ * port encoding (dataplane + P4Runtime).
  *
  * Serialized via a shared [lock] with [P4RuntimeService] to prevent races between control-plane
  * writes and data-plane packet processing.
  *
- * Unlike [P4RuntimeService.streamChannel], this service operates on raw data-plane values — no type
- * translation is performed. Callers should use simulator-native port numbers and field widths, not
- * SDN-translated values.
+ * @param portTranslation provides the current [PortTranslation] from the loaded pipeline, or null
+ *   if no pipeline is loaded or the pipeline has no port translation.
  */
-class DataplaneService(private val broker: PacketBroker, private val lock: Mutex) :
-  DataplaneGrpcKt.DataplaneCoroutineImplBase() {
+class DataplaneService(
+  private val broker: PacketBroker,
+  private val lock: Mutex,
+  private val portTranslation: () -> PortTranslation? = { null },
+) : DataplaneGrpcKt.DataplaneCoroutineImplBase() {
 
   override suspend fun injectPacket(request: InjectPacketRequest): InjectPacketResponse {
-    val packet = request.packet
-    val result =
-      lock.withLock { broker.processPacket(packet.ingressPort, packet.payload.toByteArray()) }
+    val ingressPort = resolveIngressPort(request)
+    val payload = request.payload.toByteArray()
+    val result = lock.withLock { broker.processPacket(ingressPort, payload) }
+    val pt = portTranslation()
     return InjectPacketResponse.newBuilder()
-      .addAllOutputPackets(result.outputPackets)
+      .addAllOutputPackets(result.outputPackets.map { it.toDualEncoded(pt) })
       .setTrace(result.trace)
       .build()
   }
 
   override fun subscribeResults(request: SubscribeResultsRequest): Flow<SubscribeResultsResponse> =
     callbackFlow {
-      // Send the handshake message confirming the subscription is active.
       send(
         SubscribeResultsResponse.newBuilder()
           .setActive(SubscriptionActive.getDefaultInstance())
@@ -49,14 +90,18 @@ class DataplaneService(private val broker: PacketBroker, private val lock: Mutex
 
       val handle =
         broker.subscribe { subResult ->
+          val pt = portTranslation()
           val result =
             ProcessPacketResultProto.newBuilder()
-              .setInput(
-                InputPacket.newBuilder()
-                  .setIngressPort(subResult.ingressPort)
+              .setInputPacket(
+                DataplaneProto.InputPacket.newBuilder()
+                  .setDataplaneIngressPort(subResult.ingressPort)
+                  .apply {
+                    pt?.dataplaneToP4rt(subResult.ingressPort)?.let { setP4RtIngressPort(it) }
+                  }
                   .setPayload(ByteString.copyFrom(subResult.payload))
               )
-              .addAllOutputPackets(subResult.outputPackets)
+              .addAllOutputPackets(subResult.outputPackets.map { it.toDualEncoded(pt) })
               .setTrace(subResult.trace)
               .build()
           trySend(SubscribeResultsResponse.newBuilder().setResult(result).build())
@@ -64,4 +109,35 @@ class DataplaneService(private val broker: PacketBroker, private val lock: Mutex
 
       awaitClose { handle.unsubscribe() }
     }
+
+  /** Resolves the ingress port from the request's oneof. */
+  private fun resolveIngressPort(request: InjectPacketRequest): Int =
+    when (request.ingressPortCase) {
+      InjectPacketRequest.IngressPortCase.DATAPLANE_INGRESS_PORT -> request.dataplaneIngressPort
+      InjectPacketRequest.IngressPortCase.P4RT_INGRESS_PORT -> {
+        val pt =
+          portTranslation()
+            ?: throw Status.FAILED_PRECONDITION.withDescription(
+                "P4Runtime port translation requires a loaded pipeline with " +
+                  "@p4runtime_translation on the port type"
+              )
+              .asException()
+        pt.p4rtToDataplane(request.p4RtIngressPort)
+      }
+      InjectPacketRequest.IngressPortCase.INGRESSPORT_NOT_SET,
+      null -> 0
+    }
 }
+
+/**
+ * Converts a simulator [fourward.sim.SimulatorProto.OutputPacket] to a dual-encoded
+ * [DataplaneProto.OutputPacket].
+ */
+private fun fourward.sim.SimulatorProto.OutputPacket.toDualEncoded(
+  pt: PortTranslation?
+): DataplaneProto.OutputPacket =
+  DataplaneProto.OutputPacket.newBuilder()
+    .setDataplaneEgressPort(egressPort)
+    .apply { pt?.dataplaneToP4rt(egressPort)?.let { setP4RtEgressPort(it) } }
+    .setPayload(payload)
+    .build()
