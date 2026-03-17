@@ -129,18 +129,13 @@ static std::vector<fourward::ir::TypeTranslation> extractTypeTranslations(
 }
 
 // Derives the port type name from controller_packet_metadata in the p4info.
-// Returns the fully qualified type name of the first metadata field whose
-// type_name resolves to a @p4runtime_translation-annotated type, or empty
-// if no such field exists.
+// Returns the fully qualified type name of the first metadata field that has
+// a type_name (i.e., uses a P4 newtype), or empty if ports use bare bit<N>.
 static std::string derivePortTypeName(const p4::config::v1::P4Info& p4Info) {
-  const auto& newTypes = p4Info.type_info().new_types();
   for (const auto& cpMeta : p4Info.controller_packet_metadata()) {
     for (const auto& metadata : cpMeta.metadata()) {
-      if (!metadata.has_type_name()) continue;
-      const auto& typeName = metadata.type_name().name();
-      auto it = newTypes.find(typeName);
-      if (it != newTypes.end() && it->second.has_translated_type()) {
-        return typeName;
+      if (metadata.has_type_name()) {
+        return metadata.type_name().name();
       }
     }
   }

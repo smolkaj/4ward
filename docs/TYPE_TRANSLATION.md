@@ -141,9 +141,11 @@ The `PortTranslator` (a property of `TypeTranslator`) provides this. The
 port type is a property of the architecture — it is determined at compile
 time by the p4c backend (from the architecture's port metadata in
 `controller_packet_metadata`) and stored in the IR's
-`Architecture.port_type_name` field. If the port type has no
-`@p4runtime_translation` (i.e., it's a bare `bit<N>`), the field is empty
-and the DataplaneService operates with dataplane ports only.
+`Architecture.port_type_name` field. This field records the P4
+[newtype](https://p4.org/wp-content/uploads/sites/53/2024/10/P4-16-spec-v1.2.5.html#sec-newtype)
+used for ports (e.g. `port_id_t`), or is empty if ports use a bare
+`bit<N>`. A `PortTranslator` is created only when the port type also has
+`@p4runtime_translation`.
 
 ## Dual port encoding in the DataplaneService
 

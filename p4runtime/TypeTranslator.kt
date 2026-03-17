@@ -436,8 +436,9 @@ private constructor(
      * of action parameters, match fields, and PacketIO metadata in P4Runtime messages.
      *
      * @param portTypeName the fully qualified P4 type name for ports (from
-     *   `Architecture.port_type_name` in the compiled IR). Empty if the port type has no
-     *   `@p4runtime_translation`. When set, a [PortTranslator] is created for dual port encoding.
+     *   `Architecture.port_type_name` in the compiled IR). Empty if ports use a bare `bit<N>` (no
+     *   newtype). A [PortTranslator] is created only when this type also has
+     *   `@p4runtime_translation`.
      */
     fun create(
       p4info: P4Info,

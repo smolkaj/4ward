@@ -146,11 +146,13 @@ message Architecture {
   repeated ExternTypeDecl extern_types = 3;
 
   // Fully qualified P4 type name for port values (e.g. "port_id_t").
-  // Set when the port type has @p4runtime_translation, enabling the
-  // PortTranslator for dual port encoding. Empty when the port type is
-  // a bare bit<N> with no translation (P4Runtime and dataplane
-  // representations are identical). Derived at compile time from the
-  // architecture's port metadata fields in controller_packet_metadata.
+  // Set when the P4 program declares a named type for ports (P4 spec
+  // §7.2.10 "type"), e.g. `type bit<9> port_id_t;`. Empty when ports
+  // use a bare `bit<N>`. Derived at compile time from the architecture's
+  // port metadata fields in controller_packet_metadata.
+  //
+  // If this type also has @p4runtime_translation, the TypeTranslator
+  // creates a PortTranslator for dual port encoding.
   string port_type_name = 4;
 }
 
