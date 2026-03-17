@@ -202,7 +202,7 @@ class P4RuntimeConformanceTest {
   fun `10 - read empty table with unmodified default returns empty`() {
     harness.loadPipeline(loadBasicTableConfig())
     val entities = harness.readEntries()
-    // P4Runtime spec §9.1.2: pipeline-loaded defaults are not included in reads.
+    // P4Runtime spec §9.1.3: pipeline-loaded defaults are not included in reads.
     assertTrue("unmodified defaults should not appear", entities.isEmpty())
   }
 
@@ -405,7 +405,7 @@ class P4RuntimeConformanceTest {
 
     val tableId = config.p4Info.tablesList.first().preamble.id
     val matching = harness.readTableEntries(tableId)
-    // P4Runtime spec §9.1.2: pipeline-loaded defaults are not included in reads.
+    // P4Runtime spec §9.1.3: pipeline-loaded defaults are not included in reads.
     assertEquals("matching table ID (1 regular, no unmodified default)", 1, matching.size)
     assertTrue("non-matching table ID", harness.readTableEntries(99999).isEmpty())
   }
@@ -711,7 +711,7 @@ class P4RuntimeConformanceTest {
     harness.loadPipeline(config)
     val dropId = P4RuntimeTestHarness.findAction(config, "drop").preamble.id
 
-    // P4Runtime spec §9.1.2: only explicitly modified defaults appear in reads.
+    // P4Runtime spec §9.1.3: only explicitly modified defaults appear in reads.
     // MODIFY the default on each table so they show up.
     for (table in config.p4Info.tablesList) {
       harness.modifyEntry(P4RuntimeTestHarness.buildDefaultActionEntity(table.preamble.id, dropId))
@@ -1286,7 +1286,7 @@ class P4RuntimeConformanceTest {
   // =========================================================================
 
   /**
-   * P4Runtime spec §9.1.2: wildcard reads include default entries that have been explicitly
+   * P4Runtime spec §9.1.3: wildcard reads include default entries that have been explicitly
    * modified via Write. Pipeline-loaded defaults are not included.
    */
   @Test
