@@ -77,10 +77,9 @@ static std::vector<fourward::ir::TypeTranslation> extractTypeTranslations(
     bool isSdnString = translatedType.has_sdn_string();
 
     fourward::ir::TypeTranslation translation;
-    // Use type_name (not type_uri) as the key: the TypeTranslator keys
-    // translation tables by type name, and the URI may be empty or shared
-    // across types (SAI P4). The URI is still available in p4info's
-    // type_info if needed for resolution.
+    // Use type_name (not type_uri): the TypeTranslator keys translation
+    // tables by type name, and SAI P4 leaves the URI empty (unset) for
+    // all translated types, relying on type names for disambiguation.
     translation.set_type_name(typeName);
     translation.set_auto_allocate(true);
 
