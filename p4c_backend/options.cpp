@@ -22,9 +22,9 @@ FourWardOptions::FourWardOptions() {
       [this](const char* arg) {
         std::string fmt(arg);
         if (fmt == "native") {
-          format = Format::NATIVE;
+          format = Format::kNative;
         } else if (fmt == "p4runtime") {
-          format = Format::P4RUNTIME;
+          format = Format::kP4runtime;
         } else {
           ::P4::error(
               "4ward: unknown format '%1%' (expected 'native' or 'p4runtime')",

@@ -1004,7 +1004,7 @@ bool FourWardBackend::writePipelineConfig() const {
     return false;
   }
 
-  if (options_.format == FourWardOptions::Format::P4RUNTIME) {
+  if (options_.format == FourWardOptions::Format::kP4runtime) {
     // P4Runtime ForwardingPipelineConfig: p4info + Pipeline serialized into
     // p4_device_config bytes.
     p4::v1::ForwardingPipelineConfig fpc;

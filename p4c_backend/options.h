@@ -17,6 +17,7 @@
 #ifndef P4C_BACKEND_OPTIONS_H_
 #define P4C_BACKEND_OPTIONS_H_
 
+#include <cstdint>
 #include <optional>
 #include <string>
 
@@ -35,8 +36,8 @@ class FourWardOptions : public CompilerOptions {
   //   "native" (default): 4ward-native PipelineConfig.
   //   "p4runtime": P4Runtime ForwardingPipelineConfig (Pipeline proto
   //                serialized into p4_device_config bytes).
-  enum class Format { NATIVE, P4RUNTIME };
-  Format format = Format::NATIVE;
+  enum class Format : std::uint8_t { kNative, kP4runtime };
+  Format format = Format::kNative;
 
   FourWardOptions();
 };
