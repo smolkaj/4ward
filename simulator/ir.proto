@@ -113,9 +113,11 @@ message TypeTranslation {
   bool auto_allocate = 3;
 }
 
-// A single SDN ↔ data-plane value mapping.
+// A single P4Runtime ↔ data-plane value mapping.
+// Field names use "sdn" to match the P4 spec's terminology in
+// P4NewTypeTranslation (sdn_string, sdn_bitwidth).
 message TranslationEntry {
-  // The SDN (controller-facing) value.
+  // The P4Runtime (controller-facing) value.
   oneof sdn_value {
     bytes sdn_bitstring = 1;  // for sdn_bitwidth types
     string sdn_str = 2;       // for sdn_string types
