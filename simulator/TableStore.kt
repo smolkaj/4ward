@@ -166,6 +166,9 @@ class TableStore : TableDataReader {
   private val defaultActions
     get() = writeState.defaultActions
 
+  private val modifiedDefaults
+    get() = writeState.modifiedDefaults
+
   private val profileMembers
     get() = writeState.profileMembers
 
@@ -378,8 +381,7 @@ class TableStore : TableDataReader {
 
   override fun getDefaultAction(tableName: String): DefaultAction? = defaultActions[tableName]
 
-  override fun isDefaultModified(tableName: String): Boolean =
-    tableName in writeState.modifiedDefaults
+  override fun isDefaultModified(tableName: String): Boolean = tableName in modifiedDefaults
 
   override fun getDirectCounterData(entry: TableEntry): P4RuntimeOuterClass.CounterData? =
     directCounterData[entry]
@@ -767,7 +769,7 @@ class TableStore : TableDataReader {
     if (entry.isDefaultAction) {
       val actionName = resolveActionName(entry.action.action.actionId)
       defaultActions[tableName] = DefaultAction(actionName, entry.action.action.paramsList)
-      writeState.modifiedDefaults.add(tableName)
+      modifiedDefaults.add(tableName)
       return WriteResult.Success
     }
 
