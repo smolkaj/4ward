@@ -26,9 +26,17 @@ namespace P4::FourWard {
 
 class FourWardOptions : public CompilerOptions {
  public:
-  // Output file for the serialised PipelineConfig proto. Defaults to
-  // replacing the input file's extension with ".txtpb".
+  // Output file path. Extension determines encoding:
+  //   .txtpb → text-format protobuf
+  //   .binpb → binary protobuf
   std::optional<std::string> outputFile;
+
+  // Output message type.
+  //   "native" (default): 4ward-native PipelineConfig.
+  //   "p4runtime": P4Runtime ForwardingPipelineConfig (Pipeline proto
+  //                serialized into p4_device_config bytes).
+  enum class Format { NATIVE, P4RUNTIME };
+  Format format = Format::NATIVE;
 
   FourWardOptions();
 };

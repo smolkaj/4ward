@@ -15,7 +15,26 @@ FourWardOptions::FourWardOptions() {
         outputFile = arg;
         return true;
       },
-      "write the PipelineConfig proto binary to <file> (default: <input>.pb)");
+      "write the compiled pipeline to <file> "
+      "(.txtpb for text-format, .pb.bin for binary)");
+  registerOption(
+      "--format", "native|p4runtime",
+      [this](const char* arg) {
+        std::string fmt(arg);
+        if (fmt == "native") {
+          format = Format::NATIVE;
+        } else if (fmt == "p4runtime") {
+          format = Format::P4RUNTIME;
+        } else {
+          ::P4::error(
+              "4ward: unknown format '%1%' (expected 'native' or 'p4runtime')",
+              fmt);
+          return false;
+        }
+        return true;
+      },
+      "output message type: 'native' (default, 4ward PipelineConfig) "
+      "or 'p4runtime' (P4Runtime ForwardingPipelineConfig)");
 }
 
 }  // namespace P4::FourWard
