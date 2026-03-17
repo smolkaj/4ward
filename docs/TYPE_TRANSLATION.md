@@ -116,18 +116,20 @@ type are passed through unchanged.
 
 ## Why ports are special
 
-Most translated types (VRF IDs, nexthop IDs, etc.) appear only in
-dynamically-typed table entry fields — match fields and action params —
-where the `TypeTranslator` discovers the type from p4info field-level
-metadata. No special handling is needed.
+Most translated types appear only in dynamically-typed table entry fields
+— match fields and action params — where the `TypeTranslator` discovers
+the type from p4info field-level metadata. No special handling is needed.
+In [SAI P4](https://github.com/sonic-net/sonic-pins/tree/main/sai_p4),
+for example, VRF IDs, nexthop IDs, and router interface IDs are all
+translated this way.
 
 **Ports are different.** They appear in hardcoded proto fields across
 multiple messages:
 
 - `InputPacket.ingress_port` / `OutputPacket.egress_port` (DataplaneService)
 - `PacketIn` / `PacketOut` metadata (P4RuntimeService)
-- `CloneSessionEntry.replicas[].egress_port`
-- `MulticastGroupEntry.replicas[].egress_port`
+- `CloneSessionEntry.replicas[].egress_port` (P4Runtime spec)
+- `MulticastGroupEntry.replicas[].egress_port` (P4Runtime spec)
 
 These fields are not dynamically typed — their port semantics are
 built into the proto schema. The server needs to know the port type as a
@@ -135,10 +137,12 @@ built into the proto schema. The server needs to know the port type as a
 
 The `PortTranslator` (a property of `TypeTranslator`) provides this. It is
 derived at pipeline load time from `controller_packet_metadata` in the
-p4info: any metadata field whose
+p4info, when available: any metadata field whose
 [`type_name`](https://github.com/p4lang/p4runtime/blob/main/proto/p4/config/v1/p4info.proto#L453)
 resolves to a `@p4runtime_translation`-annotated type identifies the port
-type.
+type. If the P4 program has no `controller_packet_metadata` (no
+`@controller_header`), port translation is unavailable and the
+DataplaneService operates with dataplane ports only.
 
 ## Dual port encoding in the DataplaneService
 

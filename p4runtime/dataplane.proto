@@ -23,24 +23,16 @@ service Dataplane {
       returns (stream SubscribeResultsResponse);
 }
 
-// Input packet with dual port encoding. The P4Runtime field is only
-// populated when port translation is available.
 message InputPacket {
   uint32 dataplane_ingress_port = 1;
-  // P4Runtime port ID — opaque bytes whose encoding depends on
-  // @p4runtime_translation. Only populated when a pipeline with
-  // port translation is loaded.
+  // Only populated when port translation is available.
   bytes p4rt_ingress_port = 3;
   bytes payload = 2;
 }
 
-// Output packet with dual port encoding. The P4Runtime field is only
-// populated when port translation is available.
 message OutputPacket {
   uint32 dataplane_egress_port = 1;
-  // P4Runtime port ID — opaque bytes whose encoding depends on
-  // @p4runtime_translation. Only populated when a pipeline with
-  // port translation is loaded.
+  // Only populated when port translation is available.
   bytes p4rt_egress_port = 3;
   bytes payload = 2;
 }
