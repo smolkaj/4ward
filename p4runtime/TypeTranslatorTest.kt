@@ -33,14 +33,14 @@ class TypeTranslatorTest {
     val translator =
       buildTranslator(
         translation {
-          uri = "test.port_id"
+          typeName = "port_id_t"
           addEntries(entry(sdnBytes(1000), dpBytes(1)))
           addEntries(entry(sdnBytes(2000), dpBytes(2)))
         }
       )
 
-    assertArrayEquals(dpBytes(1), translator.sdnToDataplane("test.port_id", sdnBytes(1000)))
-    assertArrayEquals(dpBytes(2), translator.sdnToDataplane("test.port_id", sdnBytes(2000)))
+    assertArrayEquals(dpBytes(1), translator.sdnToDataplane("port_id_t", sdnBytes(1000)))
+    assertArrayEquals(dpBytes(2), translator.sdnToDataplane("port_id_t", sdnBytes(2000)))
   }
 
   @Test
@@ -48,13 +48,13 @@ class TypeTranslatorTest {
     val translator =
       buildTranslator(
         translation {
-          uri = "test.port_id"
+          typeName = "port_id_t"
           addEntries(entry(sdnBytes(1000), dpBytes(1)))
           addEntries(entry(sdnBytes(2000), dpBytes(2)))
         }
       )
 
-    val result = translator.dataplaneToSdn("test.port_id", dpBytes(1))
+    val result = translator.dataplaneToSdn("port_id_t", dpBytes(1))
     assertEquals(SdnValue.Bitstring(bs(sdnBytes(1000))), result)
   }
 
@@ -63,14 +63,14 @@ class TypeTranslatorTest {
     val translator =
       buildTranslator(
         translation {
-          uri = "test.port_id"
+          typeName = "port_id_t"
           autoAllocate = false
           addEntries(entry(sdnBytes(1000), dpBytes(1)))
         }
       )
 
     assertThrows(TranslationException::class.java) {
-      translator.sdnToDataplane("test.port_id", sdnBytes(9999))
+      translator.sdnToDataplane("port_id_t", sdnBytes(9999))
     }
   }
 
@@ -79,14 +79,14 @@ class TypeTranslatorTest {
     val translator =
       buildTranslator(
         translation {
-          uri = "test.port_id"
+          typeName = "port_id_t"
           autoAllocate = false
           addEntries(entry(sdnBytes(1000), dpBytes(1)))
         }
       )
 
     assertThrows(TranslationException::class.java) {
-      translator.dataplaneToSdn("test.port_id", dpBytes(99))
+      translator.dataplaneToSdn("port_id_t", dpBytes(99))
     }
   }
 
@@ -99,15 +99,15 @@ class TypeTranslatorTest {
     val translator =
       buildTranslator(
         translation {
-          uri = "sai.port"
+          typeName = "port_name_t"
           addEntries(stringEntry("Ethernet0", dpBytes(0)))
           addEntries(stringEntry("Ethernet1", dpBytes(1)))
           addEntries(stringEntry("CpuPort", dpBytes(510)))
         }
       )
 
-    assertArrayEquals(dpBytes(0), translator.sdnToDataplane("sai.port", "Ethernet0"))
-    assertArrayEquals(dpBytes(510), translator.sdnToDataplane("sai.port", "CpuPort"))
+    assertArrayEquals(dpBytes(0), translator.sdnToDataplane("port_name_t", "Ethernet0"))
+    assertArrayEquals(dpBytes(510), translator.sdnToDataplane("port_name_t", "CpuPort"))
   }
 
   @Test
@@ -115,12 +115,12 @@ class TypeTranslatorTest {
     val translator =
       buildTranslator(
         translation {
-          uri = "sai.port"
+          typeName = "port_name_t"
           addEntries(stringEntry("Ethernet0", dpBytes(0)))
         }
       )
 
-    val result = translator.dataplaneToSdn("sai.port", dpBytes(0))
+    val result = translator.dataplaneToSdn("port_name_t", dpBytes(0))
     assertEquals(SdnValue.Str("Ethernet0"), result)
   }
 
@@ -133,20 +133,20 @@ class TypeTranslatorTest {
     val translator =
       buildTranslator(
         translation {
-          uri = "test.port_id"
+          typeName = "port_id_t"
           autoAllocate = true
         }
       )
 
     // First value seen gets dataplane value 0, second gets 1, etc.
-    val dp0 = translator.sdnToDataplane("test.port_id", sdnBytes(5000))
-    val dp1 = translator.sdnToDataplane("test.port_id", sdnBytes(6000))
+    val dp0 = translator.sdnToDataplane("port_id_t", sdnBytes(5000))
+    val dp1 = translator.sdnToDataplane("port_id_t", sdnBytes(6000))
 
     assertArrayEquals(dpBytes(0), dp0)
     assertArrayEquals(dpBytes(1), dp1)
 
     // Same SDN value returns same dataplane value (idempotent).
-    assertArrayEquals(dpBytes(0), translator.sdnToDataplane("test.port_id", sdnBytes(5000)))
+    assertArrayEquals(dpBytes(0), translator.sdnToDataplane("port_id_t", sdnBytes(5000)))
   }
 
   @Test
@@ -154,14 +154,14 @@ class TypeTranslatorTest {
     val translator =
       buildTranslator(
         translation {
-          uri = "test.port_id"
+          typeName = "port_id_t"
           autoAllocate = true
         }
       )
 
-    translator.sdnToDataplane("test.port_id", sdnBytes(5000))
+    translator.sdnToDataplane("port_id_t", sdnBytes(5000))
 
-    val result = translator.dataplaneToSdn("test.port_id", dpBytes(0))
+    val result = translator.dataplaneToSdn("port_id_t", dpBytes(0))
     assertEquals(SdnValue.Bitstring(bs(sdnBytes(5000))), result)
   }
 
@@ -174,19 +174,19 @@ class TypeTranslatorTest {
     val translator =
       buildTranslator(
         translation {
-          uri = "sai.port"
+          typeName = "port_name_t"
           autoAllocate = true
         }
       )
 
-    val dp0 = translator.sdnToDataplane("sai.port", "Ethernet0")
-    val dp1 = translator.sdnToDataplane("sai.port", "Ethernet1")
+    val dp0 = translator.sdnToDataplane("port_name_t", "Ethernet0")
+    val dp1 = translator.sdnToDataplane("port_name_t", "Ethernet1")
 
     assertArrayEquals(dpBytes(0), dp0)
     assertArrayEquals(dpBytes(1), dp1)
 
     // Idempotent.
-    assertArrayEquals(dpBytes(0), translator.sdnToDataplane("sai.port", "Ethernet0"))
+    assertArrayEquals(dpBytes(0), translator.sdnToDataplane("port_name_t", "Ethernet0"))
   }
 
   @Test
@@ -194,28 +194,28 @@ class TypeTranslatorTest {
     val translator =
       buildTranslator(
         translation {
-          uri = "sai.port"
+          typeName = "port_name_t"
           autoAllocate = true
         }
       )
 
-    translator.sdnToDataplane("sai.port", "Ethernet0")
+    translator.sdnToDataplane("port_name_t", "Ethernet0")
 
-    val result = translator.dataplaneToSdn("sai.port", dpBytes(0))
+    val result = translator.dataplaneToSdn("port_name_t", dpBytes(0))
     assertEquals(SdnValue.Str("Ethernet0"), result)
   }
 
   // ===========================================================================
-  // Default behavior: no TypeTranslation provided for a URI
+  // Default behavior: no TypeTranslation provided for a type
   // ===========================================================================
 
   @Test
-  fun `missing TypeTranslation defaults to auto-allocate`() {
+  fun `unknown type defaults to auto-allocate`() {
     // No TypeTranslation provided — the translator should still handle the URI
     // by auto-allocating.
     val translator = buildTranslator()
 
-    val dp0 = translator.sdnToDataplane("unknown.uri", sdnBytes(42))
+    val dp0 = translator.sdnToDataplane("unknown_type_t", sdnBytes(42))
     assertArrayEquals(dpBytes(0), dp0)
   }
 
@@ -228,7 +228,7 @@ class TypeTranslatorTest {
     val translator =
       buildTranslator(
         translation {
-          uri = "sai.port"
+          typeName = "port_name_t"
           autoAllocate = true
           addEntries(stringEntry("CpuPort", dpBytes(510)))
           addEntries(stringEntry("DropPort", dpBytes(511)))
@@ -236,12 +236,12 @@ class TypeTranslatorTest {
       )
 
     // Explicit entries work.
-    assertArrayEquals(dpBytes(510), translator.sdnToDataplane("sai.port", "CpuPort"))
-    assertArrayEquals(dpBytes(511), translator.sdnToDataplane("sai.port", "DropPort"))
+    assertArrayEquals(dpBytes(510), translator.sdnToDataplane("port_name_t", "CpuPort"))
+    assertArrayEquals(dpBytes(511), translator.sdnToDataplane("port_name_t", "DropPort"))
 
     // Auto-allocated entries skip reserved dataplane values.
-    val dp0 = translator.sdnToDataplane("sai.port", "Ethernet0")
-    val dp1 = translator.sdnToDataplane("sai.port", "Ethernet1")
+    val dp0 = translator.sdnToDataplane("port_name_t", "Ethernet0")
+    val dp1 = translator.sdnToDataplane("port_name_t", "Ethernet1")
 
     assertArrayEquals(dpBytes(0), dp0)
     assertArrayEquals(dpBytes(1), dp1)
@@ -252,7 +252,7 @@ class TypeTranslatorTest {
     val translator =
       buildTranslator(
         translation {
-          uri = "test.type"
+          typeName = "test_type_t"
           autoAllocate = true
           // Pin dataplane value 0 to SDN value 100.
           addEntries(entry(sdnBytes(100), dpBytes(0)))
@@ -260,7 +260,7 @@ class TypeTranslatorTest {
       )
 
     // Auto-allocate should skip 0 (reserved) and start at 1.
-    val dp = translator.sdnToDataplane("test.type", sdnBytes(200))
+    val dp = translator.sdnToDataplane("test_type_t", sdnBytes(200))
     assertArrayEquals(dpBytes(1), dp)
   }
 
@@ -272,37 +272,37 @@ class TypeTranslatorTest {
     val translator =
       buildTranslator(
         translation {
-          uri = "test.type"
+          typeName = "test_type_t"
           autoAllocate = true
           addEntries(entry(sdnBytes(100), byteArrayOf(0, 0)))
         }
       )
 
     // Auto-allocate must skip 0 (reserved as integer, regardless of byte width).
-    val dp = translator.sdnToDataplane("test.type", sdnBytes(200))
+    val dp = translator.sdnToDataplane("test_type_t", sdnBytes(200))
     assertArrayEquals(dpBytes(1), dp)
   }
 
   // ===========================================================================
-  // Multiple URIs are independent
+  // Multiple types are independent
   // ===========================================================================
 
   @Test
-  fun `different URIs have independent mapping tables`() {
+  fun `different types have independent mapping tables`() {
     val translator =
       buildTranslator(
         translation {
-          uri = "type.a"
+          typeName = "type_a_t"
           autoAllocate = true
         },
         translation {
-          uri = "type.b"
+          typeName = "type_b_t"
           autoAllocate = true
         },
       )
 
-    val dpA = translator.sdnToDataplane("type.a", sdnBytes(42))
-    val dpB = translator.sdnToDataplane("type.b", sdnBytes(42))
+    val dpA = translator.sdnToDataplane("type_a_t", sdnBytes(42))
+    val dpB = translator.sdnToDataplane("type_b_t", sdnBytes(42))
 
     // Both get dataplane value 0 — they're independent.
     assertArrayEquals(dpBytes(0), dpA)
@@ -710,10 +710,10 @@ class TypeTranslatorTest {
     private const val NON_TRANSLATED_METADATA_ID = 2
     private const val ACTION_PROFILE_ID = 300
     private const val TYPE_NAME = "port_id_t"
-    private const val TYPE_URI = "test.port_id"
+    private const val TYPE_URI = "port_id_t"
     private const val BITWIDTH_FIELD_ID = 3
     private const val STRING_TYPE_NAME = "port_name_t"
-    private const val STRING_TYPE_URI = "sai.port"
+    private const val STRING_TYPE_URI = "port_name_t"
   }
 
   /** Builds a single-entry P4TypeInfo for a translated type. */

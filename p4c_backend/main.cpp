@@ -77,7 +77,7 @@ static std::vector<fourward::ir::TypeTranslation> extractTypeTranslations(
     bool isSdnString = translatedType.has_sdn_string();
 
     fourward::ir::TypeTranslation translation;
-    translation.set_uri(translatedType.uri());
+    translation.set_type_name(typeName);
     translation.set_auto_allocate(true);
 
     int bitWidth = nt->type->width_bits();

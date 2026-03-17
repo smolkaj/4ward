@@ -63,8 +63,8 @@ class SaiP4E2ETest {
     val translations = config.device.translationsList
     assertTrue("expected at least one translation", translations.isNotEmpty())
 
-    val vrfTranslation = translations.find { it.uri == "" }
-    assertTrue("expected translation with empty URI (vrf_id_t)", vrfTranslation != null)
+    val vrfTranslation = translations.find { it.typeName == "vrf_id_t" }
+    assertTrue("expected translation for vrf_id_t", vrfTranslation != null)
     assertTrue("expected auto_allocate=true", vrfTranslation!!.autoAllocate)
     assertEquals("expected one explicit entry", 1, vrfTranslation.entriesCount)
 

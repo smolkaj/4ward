@@ -81,20 +81,32 @@ message BehavioralConfig {
 // Type translation
 // =============================================================================
 
-// Configuration for type translation between SDN and data-plane value spaces.
-// One entry per @p4runtime_translation URI used in the P4 program.
+// Configuration for type translation between P4Runtime and data-plane value
+// spaces for a single @p4runtime_translation-annotated type.
 //
-// When no TypeTranslation is provided for a translated URI, the server defaults
-// to auto-allocation (SDN values are assigned the next available data-plane
-// value on first use).
+// Each translated type is identified by its fully qualified type name (from
+// p4info type_info) or by its @p4runtime_translation URI. Type name is
+// preferred; URI is a convenience for callers that don't have the type name.
+// When using URI, it must resolve to exactly one type in the p4info.
+//
+// When no TypeTranslation is provided for a translated type, the server
+// defaults to auto-allocation (P4Runtime values are assigned the next
+// available data-plane value on first use).
 message TypeTranslation {
-  // The URI from @p4runtime_translation that identifies this type.
-  string uri = 1;
+  // Identifies the translated type.
+  oneof type {
+    // Fully qualified P4 type name (e.g. "port_id_t"). Preferred.
+    string type_name = 4;
+    // URI from @p4runtime_translation. Must resolve to exactly one type
+    // in p4info; rejected with an error if ambiguous.
+    string type_uri = 1;
+  }
 
-  // Explicit SDN ↔ data-plane mappings, pre-populated by the controller.
+  // Explicit P4Runtime ↔ data-plane mappings, pre-populated by the
+  // controller.
   repeated TranslationEntry entries = 2;
 
-  // When true, unknown SDN values are automatically assigned the next
+  // When true, unknown P4Runtime values are automatically assigned the next
   // available data-plane value. Combined with entries, this enables hybrid
   // mode (explicit pins + auto-allocate the rest).
   // When false with entries, only explicitly mapped values are accepted.

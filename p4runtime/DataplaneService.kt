@@ -17,43 +17,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /**
- * Port translation config for the currently loaded pipeline.
- *
- * Derived from the p4info's `controller_packet_metadata` at pipeline load time. Provides the
- * [TypeTranslator] and the URI + encoding type for port fields, enabling the [DataplaneService] to
- * translate between dataplane port numbers and P4Runtime port IDs.
- */
-data class PortTranslator(
-  val translator: TypeTranslator,
-  val portUri: String,
-  val isStringType: Boolean,
-) {
-  /** Translates a P4Runtime port ID to a dataplane port number. */
-  fun p4rtToDataplane(p4rtPort: ByteString): Int {
-    val dp =
-      if (isStringType) {
-        translator.sdnToDataplane(portUri, p4rtPort.toStringUtf8())
-      } else {
-        translator.sdnToDataplane(portUri, p4rtPort.toByteArray())
-      }
-    return ByteString.copyFrom(dp).toUnsignedInt()
-  }
-
-  /** Translates a dataplane port number to a P4Runtime port ID, or null if no mapping exists. */
-  fun dataplaneToP4rt(dataplanePort: Int): ByteString? =
-    try {
-      val dpBytes = encodeMinWidth(dataplanePort).toByteArray()
-      when (val sdn = translator.dataplaneToSdn(portUri, dpBytes)) {
-        is SdnValue.Str -> ByteString.copyFromUtf8(sdn.value)
-        is SdnValue.Bitstring -> sdn.value
-      }
-    } catch (_: TranslationException) {
-      // No reverse mapping (e.g. drop port, internal ports).
-      null
-    }
-}
-
-/**
  * Dataplane gRPC service: injects packets into the simulator and returns output packets with dual
  * port encoding (dataplane + P4Runtime).
  *
