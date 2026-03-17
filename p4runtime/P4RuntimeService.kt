@@ -817,7 +817,7 @@ class P4RuntimeService(
   }
 
   companion object {
-    private const val DEFAULT_DEVICE_ID = 1L
+    internal const val DEFAULT_DEVICE_ID = 1L
 
     // Well-known metadata ID for the fallback (no @controller_header) PacketOut path.
     private const val INGRESS_PORT_METADATA_ID = 1

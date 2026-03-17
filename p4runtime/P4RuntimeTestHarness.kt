@@ -640,6 +640,21 @@ class P4RuntimeTestHarness(
         )
         .build()
 
+    /**
+     * Builds a default-action Entity for the given table. Used to MODIFY/INSERT/DELETE defaults.
+     */
+    fun buildDefaultActionEntity(tableId: Int, actionId: Int? = null): Entity {
+      val builder =
+        P4RuntimeOuterClass.TableEntry.newBuilder().setTableId(tableId).setIsDefaultAction(true)
+      if (actionId != null) {
+        builder.setAction(
+          P4RuntimeOuterClass.TableAction.newBuilder()
+            .setAction(P4RuntimeOuterClass.Action.newBuilder().setActionId(actionId))
+        )
+      }
+      return Entity.newBuilder().setTableEntry(builder).build()
+    }
+
     /** Builds an Entity wrapping a RegisterEntry. */
     @Suppress("MagicNumber")
     fun buildRegisterEntry(registerId: Int, index: Long, value: Long, byteLen: Int = 4): Entity =

@@ -8,6 +8,7 @@ import kotlinx.coroutines.sync.Mutex
 /** Wraps a P4Runtime + Dataplane gRPC server backed by a 4ward [Simulator]. */
 class P4RuntimeServer(
   private val port: Int = DEFAULT_PORT,
+  private val deviceId: Long = P4RuntimeService.DEFAULT_DEVICE_ID,
   dropPortOverride: Int? = null,
   cpuPortConfig: CpuPortConfig = CpuPortConfig.Auto,
 ) {
@@ -16,7 +17,13 @@ class P4RuntimeServer(
   private val lock = Mutex()
   private val broker = PacketBroker(simulator::processPacket)
   private val service =
-    P4RuntimeService(simulator, broker, lock = lock, cpuPortConfig = cpuPortConfig)
+    P4RuntimeService(
+      simulator,
+      broker,
+      lock = lock,
+      deviceId = deviceId,
+      cpuPortConfig = cpuPortConfig,
+    )
   private val dataplaneService = DataplaneService(broker, lock)
   private lateinit var server: Server
 
@@ -50,9 +57,12 @@ class P4RuntimeServer(
 
 fun main(args: Array<String>) {
   val port = flagValue(args, "--port")?.toIntOrNull() ?: P4RuntimeServer.DEFAULT_PORT
+  val deviceId =
+    flagValue(args, "--device-id")?.toLongOrNull() ?: P4RuntimeService.DEFAULT_DEVICE_ID
   val dropPort = flagValue(args, "--drop-port")?.toIntOrNull()
   val cpuPortConfig = CpuPortConfig.fromFlag(flagValue(args, "--cpu-port"))
-  val server = P4RuntimeServer(port, dropPort, cpuPortConfig).start()
+
+  val server = P4RuntimeServer(port, deviceId, dropPort, cpuPortConfig).start()
   println("P4Runtime server listening on port ${server.port()}")
   server.blockUntilShutdown()
 }

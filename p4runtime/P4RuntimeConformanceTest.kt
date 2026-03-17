@@ -199,12 +199,11 @@ class P4RuntimeConformanceTest {
   }
 
   @Test
-  fun `10 - read empty table returns only default entry`() {
+  fun `10 - read empty table with unmodified default returns empty`() {
     harness.loadPipeline(loadBasicTableConfig())
     val entities = harness.readEntries()
-    // P4Runtime spec §11.1: wildcard reads include the default entry even when no
-    // regular entries exist.
-    assertTrue("expected only default entries", entities.all { it.tableEntry.isDefaultAction })
+    // P4Runtime spec §9.1.6: pipeline-loaded defaults are not included in reads.
+    assertTrue("unmodified defaults should not appear", entities.isEmpty())
   }
 
   @Test
@@ -406,7 +405,8 @@ class P4RuntimeConformanceTest {
 
     val tableId = config.p4Info.tablesList.first().preamble.id
     val matching = harness.readTableEntries(tableId)
-    assertEquals("matching table ID (1 regular + 1 default)", 2, matching.size)
+    // P4Runtime spec §9.1.6: pipeline-loaded defaults are not included in reads.
+    assertEquals("matching table ID (1 regular, no unmodified default)", 1, matching.size)
     assertTrue("non-matching table ID", harness.readTableEntries(99999).isEmpty())
   }
 
@@ -706,13 +706,19 @@ class P4RuntimeConformanceTest {
   }
 
   @Test
-  fun `96 - wildcard read returns default entries for all tables`() {
+  fun `96 - wildcard read returns modified default entries for all tables`() {
     val config = loadMultiTableConfig()
     harness.loadPipeline(config)
-    // Don't install any regular entries — just check defaults.
+    val dropId = P4RuntimeTestHarness.findAction(config, "drop").preamble.id
+
+    // P4Runtime spec §9.1.6: only explicitly modified defaults appear in reads.
+    // MODIFY the default on each table so they show up.
+    for (table in config.p4Info.tablesList) {
+      harness.modifyEntry(P4RuntimeTestHarness.buildDefaultActionEntity(table.preamble.id, dropId))
+    }
+
     val results = harness.readEntries()
     val defaults = results.filter { it.tableEntry.isDefaultAction }
-    // Each table with a default action contributes one default entry.
     assertTrue("should have multiple default entries", defaults.size >= 2)
     val tableIds = defaults.map { it.tableEntry.tableId }.toSet()
     assertTrue("defaults should span multiple tables", tableIds.size >= 2)
@@ -1279,31 +1285,43 @@ class P4RuntimeConformanceTest {
   // Default entry in wildcard reads (scenario 64)
   // =========================================================================
 
-  /** P4Runtime spec §11.1: wildcard table reads include the default entry. */
+  /**
+   * P4Runtime spec §9.1.6: wildcard reads include default entries that have been explicitly
+   * modified via Write. Pipeline-loaded defaults are not included.
+   */
   @Test
-  fun `64 - wildcard read includes default entry`() {
+  fun `64 - wildcard read includes modified default entry`() {
     val config = loadBasicTableConfig()
     harness.loadPipeline(config)
+    val tableId = config.p4Info.tablesList.first().preamble.id
+    val dropAction = config.p4Info.actionsList.find { it.preamble.name.contains("drop") }!!
 
-    // Install one regular entry so we can verify both are returned.
-    val entry = buildExactEntry(config, matchValue = 0x0800, port = 1)
-    harness.installEntry(entry)
+    // Install one regular entry.
+    harness.installEntry(buildExactEntry(config, matchValue = 0x0800, port = 1))
+
+    // Before modifying the default, it should not appear in reads.
+    val beforeModify = harness.readEntries()
+    assertTrue(
+      "unmodified default should not appear",
+      beforeModify.none { it.tableEntry.isDefaultAction },
+    )
+
+    // MODIFY the default action (re-set it to drop).
+    harness.modifyEntry(
+      P4RuntimeTestHarness.buildDefaultActionEntity(tableId, dropAction.preamble.id)
+    )
 
     val results = harness.readEntries()
     val defaultEntries = results.filter { it.tableEntry.isDefaultAction }
     val regularEntries = results.filter { !it.tableEntry.isDefaultAction }
 
     assertEquals("should have 1 regular entry", 1, regularEntries.size)
-    assertTrue("should have at least 1 default entry", defaultEntries.isNotEmpty())
+    assertTrue("should have 1 modified default entry", defaultEntries.isNotEmpty())
 
-    // The basic_table program has `default_action = drop()`.
     val defaultEntry = defaultEntries.first().tableEntry
-    val tableId = config.p4Info.tablesList.first().preamble.id
     assertEquals("default entry should have correct table_id", tableId, defaultEntry.tableId)
     assertTrue("default entry should have is_default_action set", defaultEntry.isDefaultAction)
     assertTrue("default entry should have an action", defaultEntry.hasAction())
-
-    val dropAction = config.p4Info.actionsList.find { it.preamble.name.contains("drop") }!!
     assertEquals(
       "default action should be drop",
       dropAction.preamble.id,
@@ -1324,19 +1342,7 @@ class P4RuntimeConformanceTest {
     val noActionId = config.p4Info.actionsList.find { it.preamble.name == "NoAction" }!!.preamble.id
 
     // Change default from drop() to NoAction.
-    val defaultEntity =
-      Entity.newBuilder()
-        .setTableEntry(
-          P4RuntimeOuterClass.TableEntry.newBuilder()
-            .setTableId(tableId)
-            .setIsDefaultAction(true)
-            .setAction(
-              P4RuntimeOuterClass.TableAction.newBuilder()
-                .setAction(P4RuntimeOuterClass.Action.newBuilder().setActionId(noActionId))
-            )
-        )
-        .build()
-    harness.modifyEntry(defaultEntity)
+    harness.modifyEntry(P4RuntimeTestHarness.buildDefaultActionEntity(tableId, noActionId))
 
     // Read back and verify.
     val defaults = harness.readEntries().filter { it.tableEntry.isDefaultAction }
@@ -1356,19 +1362,9 @@ class P4RuntimeConformanceTest {
     val tableId = config.p4Info.tablesList.first().preamble.id
     val dropId = P4RuntimeTestHarness.findAction(config, "drop").preamble.id
 
-    val defaultEntity =
-      Entity.newBuilder()
-        .setTableEntry(
-          P4RuntimeOuterClass.TableEntry.newBuilder()
-            .setTableId(tableId)
-            .setIsDefaultAction(true)
-            .setAction(
-              P4RuntimeOuterClass.TableAction.newBuilder()
-                .setAction(P4RuntimeOuterClass.Action.newBuilder().setActionId(dropId))
-            )
-        )
-        .build()
-    assertGrpcError(Status.Code.INVALID_ARGUMENT) { harness.installEntry(defaultEntity) }
+    assertGrpcError(Status.Code.INVALID_ARGUMENT) {
+      harness.installEntry(P4RuntimeTestHarness.buildDefaultActionEntity(tableId, dropId))
+    }
   }
 
   /** P4Runtime spec §9.1: DELETE of a default entry is rejected. */
@@ -1378,13 +1374,9 @@ class P4RuntimeConformanceTest {
     harness.loadPipeline(config)
     val tableId = config.p4Info.tablesList.first().preamble.id
 
-    val defaultEntity =
-      Entity.newBuilder()
-        .setTableEntry(
-          P4RuntimeOuterClass.TableEntry.newBuilder().setTableId(tableId).setIsDefaultAction(true)
-        )
-        .build()
-    assertGrpcError(Status.Code.INVALID_ARGUMENT) { harness.deleteEntry(defaultEntity) }
+    assertGrpcError(Status.Code.INVALID_ARGUMENT) {
+      harness.deleteEntry(P4RuntimeTestHarness.buildDefaultActionEntity(tableId))
+    }
   }
 
   // =========================================================================
