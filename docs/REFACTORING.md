@@ -33,3 +33,12 @@ BCR consumers.
   workaround. Re-check if upstream ever resolves the issue.
 - **behavioral_model** (`6c7c93e` + Bazel build patch): upstream uses Autotools;
   our patch adds native Bazel rules. The patch needs updating when we bump BMv2.
+
+---
+
+## Use dual port encoding in sonic-pins
+
+Once the DataplaneService supports both dataplane (`uint32`) and P4RT (`bytes`)
+port encodings ([design](../designs/dataplane_port_encoding.md)), update the
+sonic-pins `FourwardBackend` to use P4RT ports directly — eliminating the
+manual `SimpleAtoi`/`StrCat` conversions in `fourward_backend.cc`.
