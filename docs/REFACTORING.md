@@ -36,6 +36,17 @@ BCR consumers.
 
 ---
 
+## Rename "SDN" to "P4RT" in TypeTranslator
+
+The `TypeTranslator` API uses "SDN" terminology (`sdnToDataplane`,
+`dataplaneToSdn`, `SdnValue`) inherited from the P4 spec's field names
+(`sdn_string`, `sdn_bitwidth`). The rest of the codebase — including the
+DataplaneService proto and design docs — uses "P4RT", which better reflects
+that `@p4runtime_translation` is a P4Runtime concept. Rename for consistency:
+`sdnToDataplane` → `p4rtToDataplane`, `SdnValue` → `P4rtValue`, etc.
+
+---
+
 ## Use dual port encoding in sonic-pins
 
 Once the DataplaneService supports both dataplane (`uint32`) and P4RT (`bytes`)
