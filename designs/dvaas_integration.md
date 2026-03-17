@@ -90,12 +90,17 @@ We add a third:
 struct P4Specification {
   ForwardingPipelineConfig p4_symbolic_config;  // for packet synthesis
   ForwardingPipelineConfig bmv2_config;         // for BMv2 output prediction
-  std::optional<FourwardPipelineConfig> fourward_config;  // for 4ward
+  std::optional<ForwardingPipelineConfig> fourward_config;  // for 4ward
 };
 ```
 
-`FourwardPipelineConfig` wraps 4ward's compiled `Pipeline` proto (the output
-of `4ward compile`). When present, DVaaS uses 4ward instead of BMv2 for output
+Same type as the other two — `ForwardingPipelineConfig`. The `p4info` field
+carries the P4Info (shared across all compilers for the same P4 program), and
+`p4_device_config` carries 4ward's compiled `Pipeline` proto as serialized
+bytes, just as it carries BMv2 JSON for `bmv2_config`. This keeps 4ward
+dependencies out of the core DVaaS types.
+
+When `fourward_config` is present, DVaaS uses 4ward instead of BMv2 for output
 prediction and traces.
 
 All three configs are produced at **build time** by their respective compilers.
