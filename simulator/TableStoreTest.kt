@@ -588,6 +588,36 @@ class TableStoreTest {
     assertEquals(1, defaultAction.params.size)
   }
 
+  @Test
+  fun `isDefaultModified returns false before any Write`() {
+    assertFalse(store.isDefaultModified(TABLE_NAME))
+  }
+
+  @Test
+  fun `isDefaultModified returns true after MODIFY default entry`() {
+    store.setDefaultAction(TABLE_NAME, "drop")
+    assertFalse("pipeline-loaded default is not 'modified'", store.isDefaultModified(TABLE_NAME))
+
+    store.write(
+      Update.newBuilder()
+        .setType(Update.Type.MODIFY)
+        .setEntity(
+          Entity.newBuilder()
+            .setTableEntry(
+              TableEntry.newBuilder()
+                .setTableId(TABLE_ID)
+                .setIsDefaultAction(true)
+                .setAction(
+                  P4RuntimeOuterClass.TableAction.newBuilder()
+                    .setAction(P4RuntimeOuterClass.Action.newBuilder().setActionId(42))
+                )
+            )
+        )
+        .build()
+    )
+    assertTrue("should be modified after Write", store.isDefaultModified(TABLE_NAME))
+  }
+
   // ---------------------------------------------------------------------------
   // Action profiles
   // ---------------------------------------------------------------------------
@@ -2387,8 +2417,26 @@ class TableStoreTest {
         .build()
     )
 
-    // defaultActions
+    // defaultActions + modifiedDefaults
     s.setDefaultAction(TABLE_NAME, "drop")
+    s.write(
+      Update.newBuilder()
+        .setType(Update.Type.MODIFY)
+        .setEntity(
+          Entity.newBuilder()
+            .setTableEntry(
+              TableEntry.newBuilder()
+                .setTableId(TABLE_ID)
+                .setIsDefaultAction(true)
+                .setAction(
+                  P4RuntimeOuterClass.TableAction.newBuilder()
+                    .setAction(P4RuntimeOuterClass.Action.newBuilder().setActionId(42))
+                )
+            )
+        )
+        .build()
+    )
+    assertTrue("default should be marked modified", s.isDefaultModified(TABLE_NAME))
 
     // profileMembers
     writeMember(s, memberId = 1, actionId = 10, paramValue = 1)
@@ -2471,8 +2519,11 @@ class TableStoreTest {
     val meterData = s.readDirectMeterEntries().single().directMeterEntry.config
     assertEquals(1000, meterData.cir)
 
-    // defaultActions: should be "drop", not "forward"
-    assertEquals("drop", s.lookup(TABLE_NAME, emptyList()).actionName)
+    // defaultActions: should be "action42" (set by Write RPC above), not "forward"
+    assertEquals("action42", s.lookup(TABLE_NAME, emptyList()).actionName)
+
+    // modifiedDefaults: should still be marked modified (was modified before snapshot)
+    assertTrue("modifiedDefaults should survive restore", s.isDefaultModified(TABLE_NAME))
 
     // profileMembers: should have 1 member, not 2
     assertEquals(1, s.readProfileMembers().size)
