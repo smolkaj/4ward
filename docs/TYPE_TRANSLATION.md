@@ -35,13 +35,14 @@ from `p4info.type_info.new_types` (e.g. `port_id_t`, `vrf_id_t`). This is
 the primary key for translation tables.
 
 The `@p4runtime_translation` URI (e.g. `"test.port_id"`) is a secondary
-identifier. It can be used in `DeviceConfig.TypeTranslation` entries as a
-convenience, but must resolve to exactly one type in the p4info. If
-ambiguous, the server rejects it with an error.
+identifier. A non-empty URI is unique per type — there is at most one type
+with any given URI. It can be used in `DeviceConfig.TypeTranslation` entries
+as a convenience, but is rejected if it matches zero or multiple types.
 
-### SAI P4 convention
+### SAI P4 convention: empty URI
 
-SAI P4 uses an empty URI (`""`) for all its translated types:
+SAI P4 uses an empty URI (`""`) for all its translated types, effectively
+leaving the URI unset:
 
 ```p4
 @p4runtime_translation("", string)
@@ -54,10 +55,11 @@ type bit<10> vrf_id_t;
 type bit<16> nexthop_id_t;
 ```
 
-Because the URI is shared, it cannot disambiguate types. 4ward handles
-this by keying translation tables by type name, not URI. When configuring
-translations via `DeviceConfig`, use `type_name` (not `type_uri`) for SAI
-P4 programs.
+An empty URI is a special case: it does not uniquely identify a type, so it
+cannot be used for lookup. 4ward handles this by always keying translation
+tables by type name, not URI. When configuring translations via
+`DeviceConfig`, use `type_name` (not `type_uri`) for programs with empty
+URIs.
 
 ## Translation modes
 
