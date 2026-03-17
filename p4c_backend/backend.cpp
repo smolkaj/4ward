@@ -971,23 +971,23 @@ namespace {
 // Write a proto message to a file. Binary if the path ends with .binpb or
 // .bin; text-format with a proto-file/proto-message header otherwise.
 bool writeProto(const google::protobuf::Message& msg, std::ostream& out,
-                bool binary, const char* proto_file, const char* proto_message,
+                bool binary, const char* protoFile, const char* protoMessage,
                 const std::string& path) {
   if (binary) {
     if (!msg.SerializeToOstream(&out)) {
-      ::P4::error("4ward: failed to serialise %1% to '%2%'", proto_message,
+      ::P4::error("4ward: failed to serialise %1% to '%2%'", protoMessage,
                   path);
       return false;
     }
   } else {
     std::string text;
     if (!google::protobuf::TextFormat::PrintToString(msg, &text)) {
-      ::P4::error("4ward: failed to serialise %1% to '%2%'", proto_message,
+      ::P4::error("4ward: failed to serialise %1% to '%2%'", protoMessage,
                   path);
       return false;
     }
-    out << "# proto-file: " << proto_file << "\n"
-        << "# proto-message: " << proto_message << "\n\n"
+    out << "# proto-file: " << protoFile << "\n"
+        << "# proto-message: " << protoMessage << "\n\n"
         << text;
   }
   return true;
