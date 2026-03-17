@@ -8,7 +8,7 @@ import kotlinx.coroutines.sync.Mutex
 /** Wraps a P4Runtime + Dataplane gRPC server backed by a 4ward [Simulator]. */
 class P4RuntimeServer(
   private val port: Int = DEFAULT_PORT,
-  private val deviceId: Long = DEFAULT_DEVICE_ID,
+  private val deviceId: Long = P4RuntimeService.DEFAULT_DEVICE_ID,
   dropPortOverride: Int? = null,
   cpuPortConfig: CpuPortConfig = CpuPortConfig.Auto,
 ) {
@@ -52,13 +52,13 @@ class P4RuntimeServer(
 
   companion object {
     const val DEFAULT_PORT = 9559
-    const val DEFAULT_DEVICE_ID = 1L
   }
 }
 
 fun main(args: Array<String>) {
   val port = flagValue(args, "--port")?.toIntOrNull() ?: P4RuntimeServer.DEFAULT_PORT
-  val deviceId = flagValue(args, "--device-id")?.toLongOrNull() ?: P4RuntimeServer.DEFAULT_DEVICE_ID
+  val deviceId =
+    flagValue(args, "--device-id")?.toLongOrNull() ?: P4RuntimeService.DEFAULT_DEVICE_ID
   val dropPort = flagValue(args, "--drop-port")?.toIntOrNull()
   val cpuPortConfig = CpuPortConfig.fromFlag(flagValue(args, "--cpu-port"))
 
