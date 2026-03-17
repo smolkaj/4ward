@@ -19,7 +19,9 @@ Ports have two representations in the P4Runtime world:
   `@p4runtime_translation` annotation on the port type. Could be a numeric
   encoding (`bit<32>`), a string encoding (`sdn_string`), or any other `bytes`
   value. The `TypeTranslator` maps between the two representations based on the
-  loaded pipeline.
+  loaded pipeline. If a P4 program does not use `@p4runtime_translation` on its
+  port type, the two encodings are identical — the P4RT port ID is just the
+  dataplane port number in its native binary encoding.
 
 The DataplaneService currently uses `uint32` ports everywhere (via
 `simulator.proto`'s `InputPacket`/`OutputPacket`). This is natural for
