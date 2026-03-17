@@ -264,21 +264,28 @@ It is not the upstream integration itself, but it is valuable long-term:
 
 A working prototype exists on the
 [`fourward-dvaas-integration`](https://github.com/smolkaj/sonic-pins/tree/fourward-dvaas-integration/fourward)
-branch of the sonic-pins fork. It demonstrates:
+branch of the sonic-pins fork
+([PR #1](https://github.com/smolkaj/sonic-pins/pull/1)). It demonstrates:
 
 - `FourwardBackend` implementing `DataplaneValidationBackend` (the backend
   approach — to be replaced by direct integration)
+- `FourwardServer` — RAII subprocess manager that fork/execs 4ward servers,
+  detects readiness via stdout banner, and kills on destruction
 - `FourwardMirrorTestbed` with two 4ward instances + `PacketBridge`
+- `FakeGnmiService` — in-process fake gNMI for DVaaS port discovery
 - Output prediction via `InjectPacket` (1 hardcoded test packet, 100% pass)
 - SAI P4 middleblock pipeline loaded via P4Runtime
-- Runs on Linux x86_64 and ARM64 (Docker), macOS ARM64
+- Self-contained test — starts servers on random ports, loads pipeline, runs
+  DVaaS, tears down cleanly
 
 Not yet implemented:
 - Trace conversion (`TraceTree` → `PacketTrace`)
 - Direct integration into `dataplane_validation.cc` (currently goes through
   backend)
-- `bazel_dep` packaging (currently uses pre-built jars)
+- `bazel_dep` packaging (currently uses pre-built binaries)
 - p4-symbolic packet synthesis (currently hardcoded test packets)
+- Dual port encoding in DataplaneService — see
+  [dataplane_port_encoding.md](dataplane_port_encoding.md)
 
 ## Sequencing
 
