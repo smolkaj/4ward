@@ -53,3 +53,15 @@ Once the DataplaneService supports both dataplane (`uint32`) and P4RT (`bytes`)
 port encodings ([design](../designs/dataplane_port_encoding.md)), update the
 sonic-pins `FourwardBackend` to use P4RT ports directly — eliminating the
 manual `SimpleAtoi`/`StrCat` conversions in `fourward_backend.cc`.
+
+---
+
+## Establish user-facing documentation
+
+`docs/` currently serves developers working on 4ward. As the project
+approaches upstream integration into sonic-pins, API consumers (DVaaS
+integrators, sonic-pins developers) need their own documentation: API
+reference, configuration guide, integration cookbook. Decide on format
+(mdbook, docusaurus, plain markdown) when scope is clearer.
+`docs/TYPE_TRANSLATION.md` is a first step toward user-facing reference
+material.

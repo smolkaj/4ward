@@ -134,27 +134,21 @@ Key decisions:
 
 ### Port translation
 
-A `PortTranslator` wraps the existing `TypeTranslator` with the port-specific
-URI and encoding type, providing bidirectional conversion between P4Runtime
-port IDs and dataplane port numbers. (The `TypeTranslator` API uses "SDN"
-terminology inherited from the P4 spec; renaming to "P4RT" is tracked in
-[REFACTORING.md](../docs/REFACTORING.md#rename-sdn-to-p4rt-in-typetranslator).)
+`PortTranslator` is a property of `TypeTranslator`, derived at pipeline load
+time from `controller_packet_metadata` in the p4info. It provides
+bidirectional conversion between P4Runtime port IDs and dataplane port
+numbers. See [docs/TYPE_TRANSLATION.md](../docs/TYPE_TRANSLATION.md) for
+why ports need special handling (hardcoded proto fields) and how translations
+are keyed by type name.
 
-The port URI is derived at pipeline load time from
-`controller_packet_metadata` in the p4info. Each metadata field has an
-optional
-[`type_name`](https://github.com/p4lang/p4runtime/blob/main/proto/p4/config/v1/p4info.proto#L453)
-that resolves to a type in `type_info`. If that type has a
-`@p4runtime_translation` annotation, its URI and encoding identify the port
-translation. For SAI P4, this is `""` (from
-`@p4runtime_translation("", string)` on `port_id_t`). If no translated port
-type is found in `controller_packet_metadata`, port translation is unavailable
-and the `DataplaneService` operates in dataplane-only mode.
+(The `TypeTranslator` API uses "SDN" terminology inherited from the P4 spec;
+renaming to "P4RT" is tracked in
+[REFACTORING.md](../docs/REFACTORING.md#rename-sdn-to-p4rt-in-typetranslator).)
 
 ### DataplaneService changes
 
-The `DataplaneService` receives a `PortTranslator` provider from
-`P4RuntimeService`:
+The `DataplaneService` accesses `TypeTranslator.portTranslator` via a
+provider from `P4RuntimeService`:
 
 - **`injectPacket`**: resolves the `oneof ingress_port` — either uses the
   dataplane port directly, or translates the P4Runtime port via the
@@ -168,10 +162,10 @@ The `DataplaneService` receives a `PortTranslator` provider from
 
 | Component | Change |
 |---|---|
+| `ir.proto` | `TypeTranslation` uses `oneof type { type_name, type_uri }`, keyed by type name |
 | `dataplane.proto` | New `InputPacket`/`OutputPacket` with dual encoding; `oneof ingress_port` on request |
-| `PortTranslator` | Wraps `TypeTranslator` + port URI for bidirectional port conversion |
+| `TypeTranslator.kt` | Tables keyed by type name; `PortTranslator` derived from `controller_packet_metadata` |
 | `DataplaneService.kt` | Translates ports on inject and populates P4Runtime ports in responses |
-| `P4RuntimeService.kt` | Derives port URI from p4info `controller_packet_metadata` at pipeline load |
 | `P4RuntimeServer.kt` | Wires provider from service to dataplane service |
 
 ## What doesn't change
