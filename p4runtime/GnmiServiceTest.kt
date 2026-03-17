@@ -16,7 +16,6 @@ import io.grpc.inprocess.InProcessServerBuilder
 import io.grpc.testing.GrpcCleanupRule
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -37,9 +36,7 @@ class GnmiServiceTest {
         .start()
     )
     val channel: ManagedChannel =
-      grpcCleanup.register(
-        InProcessChannelBuilder.forName(serverName).directExecutor().build()
-      )
+      grpcCleanup.register(InProcessChannelBuilder.forName(serverName).directExecutor().build())
     return gNMIGrpcKt.gNMICoroutineStub(channel)
   }
 
@@ -86,9 +83,7 @@ class GnmiServiceTest {
   @Test
   fun `get state includes oper-status`() = runBlocking {
     val stub =
-      setup(
-        listOf(GnmiService.InterfaceConfig("Ethernet0", p4rtId = 1, operStatus = "DOWN"))
-      )
+      setup(listOf(GnmiService.InterfaceConfig("Ethernet0", p4rtId = 1, operStatus = "DOWN")))
     val response =
       stub.get(
         GetRequest.newBuilder()
@@ -104,10 +99,7 @@ class GnmiServiceTest {
   @Test
   fun `get full config with empty path`() = runBlocking {
     val stub = setup()
-    val response =
-      stub.get(
-        GetRequest.newBuilder().setType(GetRequest.DataType.CONFIG).build()
-      )
+    val response = stub.get(GetRequest.newBuilder().setType(GetRequest.DataType.CONFIG).build())
 
     val json = response.getNotification(0).getUpdate(0).getVal().jsonIetfVal.toStringUtf8()
     assertTrue("should be full config", json.contains("openconfig-interfaces"))
@@ -117,11 +109,7 @@ class GnmiServiceTest {
   fun `get unsupported path returns UNIMPLEMENTED`() = runBlocking {
     val stub = setup()
     try {
-      stub.get(
-        GetRequest.newBuilder()
-          .addPath(path("system", "config"))
-          .build()
-      )
+      stub.get(GetRequest.newBuilder().addPath(path("system", "config")).build())
       assertTrue("should have thrown", false)
     } catch (e: StatusException) {
       assertEquals(Status.Code.UNIMPLEMENTED, e.status.code)
@@ -169,12 +157,7 @@ class GnmiServiceTest {
     val stub = setup()
 
     // Delete Ethernet0's P4RT ID.
-    val setResponse =
-      stub.set(
-        SetRequest.newBuilder()
-          .addDelete(p4rtIdPath("Ethernet0"))
-          .build()
-      )
+    val setResponse = stub.set(SetRequest.newBuilder().addDelete(p4rtIdPath("Ethernet0")).build())
 
     assertEquals(1, setResponse.responseCount)
 
@@ -287,9 +270,7 @@ class GnmiServiceTest {
   // ---------------------------------------------------------------------------
 
   private fun path(vararg elems: String): Path =
-    Path.newBuilder()
-      .addAllElem(elems.map { PathElem.newBuilder().setName(it).build() })
-      .build()
+    Path.newBuilder().addAllElem(elems.map { PathElem.newBuilder().setName(it).build() }).build()
 
   private fun p4rtIdPath(ifaceName: String): Path =
     Path.newBuilder()

@@ -30,13 +30,14 @@ option java_outer_classname = "GnmiExtProto";
 // The Extension message contains a single gNMI extension.
 message Extension {
   oneof ext {
-    RegisteredExtension registered_ext = 1;     // A registered extension.
+    RegisteredExtension registered_ext = 1;  // A registered extension.
     // Well known extensions.
-    MasterArbitration master_arbitration = 2;   // Master arbitration extension.
-    History history = 3;                        // History extension.
-    Commit commit = 4;                          // Commit confirmed extension.
-    Depth depth = 5;                            // Depth extension.
-    ConfigSubscription config_subscription = 6; // Config Subscription extension.
+    MasterArbitration master_arbitration = 2;  // Master arbitration extension.
+    History history = 3;                       // History extension.
+    Commit commit = 4;                         // Commit confirmed extension.
+    Depth depth = 5;                           // Depth extension.
+    ConfigSubscription config_subscription =
+        6;  // Config Subscription extension.
   }
 }
 
@@ -119,9 +120,9 @@ message Commit {
     // cancel action will cancel an on-going commit, the ID provided during
     // cancel should match the on-going commit ID.
     CommitCancel cancel = 4;
-    // set rollback duration action sets the rollback duration of an on-going commit
-    // to a new value.
-    // The ID provided with the Commit message should match the on-going commit ID.
+    // set rollback duration action sets the rollback duration of an on-going
+    // commit to a new value. The ID provided with the Commit message should
+    // match the on-going commit ID.
     CommitSetRollbackDuration set_rollback_duration = 5;
   }
 }
@@ -188,7 +189,7 @@ message ConfigSubscriptionSyncDone {
   // ID of a commit as might be assigned by the server
   // when registering a commit operation.
   string server_commit_id = 2;
-  // If true indicates that the server is done processing the updates related to the
-  // commit_confirm_id and/or server_commit_id.
+  // If true indicates that the server is done processing the updates related to
+  // the commit_confirm_id and/or server_commit_id.
   bool done = 3;
 }
