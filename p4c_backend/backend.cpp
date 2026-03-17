@@ -966,6 +966,35 @@ void FourWardBackend::emitArchitecture(const IR::ToplevelBlock* toplevel) {
   }
 }
 
+namespace {
+
+// Write a proto message to a file. Binary if the path ends with .binpb or
+// .bin; text-format with a proto-file/proto-message header otherwise.
+bool writeProto(const google::protobuf::Message& msg, std::ostream& out,
+                bool binary, const char* proto_file, const char* proto_message,
+                const std::string& path) {
+  if (binary) {
+    if (!msg.SerializeToOstream(&out)) {
+      ::P4::error("4ward: failed to serialise %1% to '%2%'", proto_message,
+                  path);
+      return false;
+    }
+  } else {
+    std::string text;
+    if (!google::protobuf::TextFormat::PrintToString(msg, &text)) {
+      ::P4::error("4ward: failed to serialise %1% to '%2%'", proto_message,
+                  path);
+      return false;
+    }
+    out << "# proto-file: " << proto_file << "\n"
+        << "# proto-message: " << proto_message << "\n\n"
+        << text;
+  }
+  return true;
+}
+
+}  // namespace
+
 bool FourWardBackend::writePipelineConfig() const {
   const std::string path = outputFilePath();
   const bool binary = path.ends_with(".binpb") || path.ends_with(".bin");
@@ -981,45 +1010,17 @@ bool FourWardBackend::writePipelineConfig() const {
     p4::v1::ForwardingPipelineConfig fpc;
     *fpc.mutable_p4info() = pipelineConfig_.p4info();
     fpc.set_p4_device_config(pipelineConfig_.device().SerializeAsString());
-    if (binary) {
-      if (!fpc.SerializeToOstream(&out)) {
-        ::P4::error(
-            "4ward: failed to serialise ForwardingPipelineConfig to '%1%'",
-            path);
-        return false;
-      }
-    } else {
-      std::string text;
-      if (!google::protobuf::TextFormat::PrintToString(fpc, &text)) {
-        ::P4::error(
-            "4ward: failed to serialise ForwardingPipelineConfig to '%1%'",
-            path);
-        return false;
-      }
-      out << "# proto-file: @p4runtime//p4/v1/p4runtime.proto\n"
-          << "# proto-message: p4.v1.ForwardingPipelineConfig\n\n"
-          << text;
-    }
-    LOG1("4ward: wrote ForwardingPipelineConfig to " << path);
+    if (!writeProto(fpc, out, binary, "@p4runtime//p4/v1/p4runtime.proto",
+                    "p4.v1.ForwardingPipelineConfig", path))
+      return false;
   } else {
-    if (binary) {
-      if (!pipelineConfig_.SerializeToOstream(&out)) {
-        ::P4::error("4ward: failed to serialise PipelineConfig to '%1%'", path);
-        return false;
-      }
-    } else {
-      std::string text;
-      if (!google::protobuf::TextFormat::PrintToString(pipelineConfig_,
-                                                       &text)) {
-        ::P4::error("4ward: failed to serialise PipelineConfig to '%1%'", path);
-        return false;
-      }
-      out << "# proto-file: @fourward//simulator/ir.proto\n"
-          << "# proto-message: fourward.ir.PipelineConfig\n\n"
-          << text;
-    }
-    LOG1("4ward: wrote PipelineConfig to " << path);
+    if (!writeProto(pipelineConfig_, out, binary,
+                    "@fourward//simulator/ir.proto",
+                    "fourward.ir.PipelineConfig", path))
+      return false;
   }
+
+  LOG1("4ward: wrote " << path);
   return true;
 }
 

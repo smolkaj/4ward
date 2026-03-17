@@ -16,7 +16,7 @@ FourWardOptions::FourWardOptions() {
         return true;
       },
       "write the compiled pipeline to <file> "
-      "(.txtpb for text-format, .pb.bin for binary)");
+      "(.txtpb for text-format, .binpb for binary)");
   registerOption(
       "--format", "native|p4runtime",
       [this](const char* arg) {
