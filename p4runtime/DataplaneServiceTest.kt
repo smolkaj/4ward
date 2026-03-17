@@ -7,7 +7,6 @@ import fourward.p4runtime.P4RuntimeTestHarness.Companion.assertGrpcError
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildEthernetFrame
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildExactEntry
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.loadConfig
-import fourward.p4runtime.P4RuntimeTestHarness.Companion.longToBytes
 import io.grpc.Status
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -217,26 +216,6 @@ class DataplaneServiceTest {
   // Dual port encoding
   // =========================================================================
 
-  private fun loadTranslatedTypeConfig() =
-    loadConfig("e2e_tests/translated_type/translated_type.txtpb")
-
-  @Test
-  fun `InjectPacket with P4RT port translates to dataplane port`() {
-    val config = loadTranslatedTypeConfig()
-    harness.loadPipeline(config)
-
-    // Install a table entry forwarding etherType=0x0800 to SDN port 1 (4 bytes, bitstring).
-    val entry = buildExactEntry(config, matchValue = 0x0800, port = 1)
-    harness.installEntry(entry)
-
-    // Inject via P4RT port — SDN port value 1 as 4-byte big-endian.
-    val payload = buildEthernetFrame(etherType = 0x0800)
-    val p4rtPort = ByteString.copyFrom(longToBytes(1, 4))
-    val response = harness.injectPacketP4rt(p4rtPort, payload)
-
-    assertEquals("expected 1 output", 1, response.outputPacketsCount)
-  }
-
   @Test
   fun `InjectPacket with P4RT port fails without pipeline`() {
     val p4rtPort = ByteString.copyFrom(byteArrayOf(0, 0, 0, 1))
@@ -258,57 +237,6 @@ class DataplaneServiceTest {
     )
   }
 
-  @Test
-  fun `response output packets have P4RT port with translation`() {
-    val config = loadTranslatedTypeConfig()
-    harness.loadPipeline(config)
-
-    // Install entry: etherType=0x0800 → forward to SDN port 1.
-    val entry = buildExactEntry(config, matchValue = 0x0800, port = 1)
-    harness.installEntry(entry)
-
-    val payload = buildEthernetFrame(etherType = 0x0800)
-    val response = harness.injectPacket(ingressPort = 0, payload = payload)
-
-    assertEquals("expected 1 output", 1, response.outputPacketsCount)
-    val output = response.getOutputPackets(0)
-    // The dataplane port is auto-allocated (0), and the P4RT port should be
-    // the reverse-translated value.
-    assertTrue(
-      "p4rt_egress_port should be populated with translation",
-      !output.p4RtEgressPort.isEmpty,
-    )
-  }
-
-  @Test
-  fun `SubscribeResults has dual encoding with translation`() = runBlocking {
-    val config = loadTranslatedTypeConfig()
-    harness.loadPipeline(config)
-
-    val entry = buildExactEntry(config, matchValue = 0x0800, port = 1)
-    harness.installEntry(entry)
-
-    val stub = DataplaneCoroutineStub(harness.channel)
-    val messages = async {
-      withTimeout(5000) {
-        stub.subscribeResults(SubscribeResultsRequest.getDefaultInstance()).take(2).toList()
-      }
-    }
-
-    delay(100)
-    val payload = buildEthernetFrame(etherType = 0x0800)
-    harness.injectPacket(ingressPort = 0, payload = payload)
-
-    val result = messages.await()
-    assertTrue("second is ProcessPacketResult", result[1].hasResult())
-    val packetResult = result[1].result
-
-    // Input packet should have dual encoding.
-    assertEquals(0, packetResult.inputPacket.dataplaneIngressPort)
-
-    // Output packets should have dual encoding.
-    assertTrue("should have output packets", packetResult.outputPacketsCount > 0)
-    val output = packetResult.getOutputPackets(0)
-    assertTrue("p4rt_egress_port should be populated", !output.p4RtEgressPort.isEmpty)
-  }
+  // Positive dual-encoding tests (P4RT port injection and response population) are in
+  // SaiP4E2ETest, which uses a program with @controller_header and @p4runtime_translation.
 }

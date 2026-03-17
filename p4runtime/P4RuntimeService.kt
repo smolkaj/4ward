@@ -71,7 +71,7 @@ class P4RuntimeService(
     val config: PipelineConfig,
     val cookie: ForwardingPipelineConfig.Cookie,
     val typeTranslator: TypeTranslator?,
-    val portTranslation: PortTranslation?,
+    val portTranslator: PortTranslator?,
     val writeValidator: WriteValidator,
     val referenceValidator: ReferenceValidator?,
     val constraintValidator: ConstraintValidator?,
@@ -83,8 +83,8 @@ class P4RuntimeService(
   @Volatile private var pipeline: PipelineState? = null
 
   /** Port translation for the currently loaded pipeline, or null if unavailable. */
-  val portTranslation: PortTranslation?
-    get() = pipeline?.portTranslation
+  val portTranslator: PortTranslator?
+    get() = pipeline?.portTranslator
 
   // Only accessed under lock; @Volatile not needed.
   private var savedPipeline: PipelineState? = null
@@ -191,7 +191,7 @@ class P4RuntimeService(
       config = pipelineConfig,
       cookie = fwdConfig.cookie,
       typeTranslator = typeTranslator,
-      portTranslation = derivePortTranslation(fwdConfig.p4Info, typeTranslator),
+      portTranslator = derivePortTranslator(fwdConfig.p4Info, typeTranslator),
       writeValidator = WriteValidator(pipelineConfig.p4Info),
       referenceValidator = ReferenceValidator.create(fwdConfig.p4Info),
       constraintValidator =
@@ -850,49 +850,36 @@ class P4RuntimeService(
       Metadata.Key.of("grpc-status-details-bin", Metadata.BINARY_BYTE_MARSHALLER)
 
     /**
-     * Derives [PortTranslation] from the p4info.
+     * Derives [PortTranslator] from the p4info's `controller_packet_metadata`.
      *
-     * Searches for a `@p4runtime_translation`-annotated type used in a port-like context:
-     * 1. `controller_packet_metadata` fields (strongest signal — SAI P4 uses this).
-     * 2. Action params named "port" (fallback for simpler programs).
+     * Each `controller_packet_metadata` field has an optional `type_name` ([P4Info
+     * Metadata.type_name](https://github.com/p4lang/p4runtime/blob/main/proto/p4/config/v1/p4info.proto#L453)).
+     * If a field's `type_name` resolves to a `@p4runtime_translation`-annotated type in
+     * `type_info`, that type's URI and encoding identify the port translation.
      *
-     * Returns null if no translated port type is found.
+     * Returns null if no translated port type is found (no `controller_packet_metadata`, or no
+     * translated types on its fields).
      */
-    private fun derivePortTranslation(
+    private fun derivePortTranslator(
       p4info: p4.config.v1.P4InfoOuterClass.P4Info,
       typeTranslator: TypeTranslator?,
-    ): PortTranslation? {
+    ): PortTranslator? {
       if (typeTranslator == null || !typeTranslator.hasTranslations) return null
       val translatedTypes =
         p4info.typeInfo.newTypesMap.filter { (_, spec) -> spec.hasTranslatedType() }
       if (translatedTypes.isEmpty()) return null
 
-      // 1. controller_packet_metadata — preferred, unambiguously port-related.
       for (controllerMeta in p4info.controllerPacketMetadataList) {
         for (metadata in controllerMeta.metadataList) {
           if (!metadata.hasTypeName()) continue
           val typeSpec = translatedTypes[metadata.typeName.name] ?: continue
-          return PortTranslation(
+          return PortTranslator(
             typeTranslator,
             typeSpec.translatedType.uri,
             typeSpec.translatedType.hasSdnString(),
           )
         }
       }
-
-      // 2. Action params named "port" with a translated type.
-      for (action in p4info.actionsList) {
-        for (param in action.paramsList) {
-          if (!param.hasTypeName() || !param.name.contains("port", ignoreCase = true)) continue
-          val typeSpec = translatedTypes[param.typeName.name] ?: continue
-          return PortTranslation(
-            typeTranslator,
-            typeSpec.translatedType.uri,
-            typeSpec.translatedType.hasSdnString(),
-          )
-        }
-      }
-
       return null
     }
   }

@@ -350,6 +350,29 @@ class SaiP4E2ETest {
   }
 
   // =========================================================================
+  // Dual port encoding in DataplaneService responses
+  // =========================================================================
+
+  @Test
+  fun `InjectPacket response has dual port encoding`() {
+    harness.installEntry(buildVrfEntry(""))
+    harness.installEntry(buildRouterInterfaceEntry("rif-1", "Ethernet1", RIF_MAC))
+    harness.installEntry(buildNeighborEntry("rif-1", NEIGHBOR_ID, NEIGHBOR_MAC))
+    harness.installEntry(buildNexthopEntry(nexthopId = "nhop-1", routerInterfaceId = "rif-1"))
+    harness.installEntry(buildIpv4RouteEntry(vrfId = "", nexthopId = "nhop-1"))
+
+    val packet = buildIpv4Packet(dstMac = UNICAST_MAC, srcMac = SRC_MAC, ttl = 64)
+    val response = harness.injectPacket(ingressPort = 0, payload = packet)
+
+    assertEquals("expected 1 output", 1, response.outputPacketsCount)
+    val output = response.getOutputPackets(0)
+    // Dataplane port should be populated.
+    assertTrue("dataplane port should be set", output.dataplaneEgressPort >= 0)
+    // P4RT port should be populated (SAI P4 has @p4runtime_translation on port_id_t).
+    assertTrue("p4rt_egress_port should be populated", !output.p4RtEgressPort.isEmpty)
+  }
+
+  // =========================================================================
   // PacketIO: PacketOut via StreamChannel
   // =========================================================================
 

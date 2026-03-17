@@ -48,13 +48,13 @@ message OutputPacket {
 message InjectPacketRequest {
   oneof ingress_port {
     // Dataplane port number (e.g. 0, 1, 510).
-    uint32 dataplane_ingress_port = 2;
+    uint32 dataplane_ingress_port = 1;
     // P4Runtime port ID — opaque bytes whose encoding depends on
     // @p4runtime_translation. Requires a loaded pipeline with port
     // translation; otherwise the RPC fails with FAILED_PRECONDITION.
-    bytes p4rt_ingress_port = 3;
+    bytes p4rt_ingress_port = 2;
   }
-  bytes payload = 1;
+  bytes payload = 3;
 }
 
 // InjectPacket response. Omits the input (the caller already has it).

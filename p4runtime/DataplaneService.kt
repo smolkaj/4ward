@@ -23,7 +23,7 @@ import kotlinx.coroutines.sync.withLock
  * [TypeTranslator] and the URI + encoding type for port fields, enabling the [DataplaneService] to
  * translate between dataplane port numbers and P4Runtime port IDs.
  */
-data class PortTranslation(
+data class PortTranslator(
   val translator: TypeTranslator,
   val portUri: String,
   val isStringType: Boolean,
@@ -60,20 +60,20 @@ data class PortTranslation(
  * Serialized via a shared [lock] with [P4RuntimeService] to prevent races between control-plane
  * writes and data-plane packet processing.
  *
- * @param portTranslation provides the current [PortTranslation] from the loaded pipeline, or null
- *   if no pipeline is loaded or the pipeline has no port translation.
+ * @param portTranslator provides the current [PortTranslator] from the loaded pipeline, or null if
+ *   no pipeline is loaded or the pipeline has no port translation.
  */
 class DataplaneService(
   private val broker: PacketBroker,
   private val lock: Mutex,
-  private val portTranslation: () -> PortTranslation? = { null },
+  private val portTranslator: () -> PortTranslator? = { null },
 ) : DataplaneGrpcKt.DataplaneCoroutineImplBase() {
 
   override suspend fun injectPacket(request: InjectPacketRequest): InjectPacketResponse {
     val ingressPort = resolveIngressPort(request)
     val payload = request.payload.toByteArray()
     val result = lock.withLock { broker.processPacket(ingressPort, payload) }
-    val pt = portTranslation()
+    val pt = portTranslator()
     return InjectPacketResponse.newBuilder()
       .addAllOutputPackets(result.outputPackets.map { it.toDualEncoded(pt) })
       .setTrace(result.trace)
@@ -90,7 +90,7 @@ class DataplaneService(
 
       val handle =
         broker.subscribe { subResult ->
-          val pt = portTranslation()
+          val pt = portTranslator()
           val result =
             ProcessPacketResultProto.newBuilder()
               .setInputPacket(
@@ -116,7 +116,7 @@ class DataplaneService(
       InjectPacketRequest.IngressPortCase.DATAPLANE_INGRESS_PORT -> request.dataplaneIngressPort
       InjectPacketRequest.IngressPortCase.P4RT_INGRESS_PORT -> {
         val pt =
-          portTranslation()
+          portTranslator()
             ?: throw Status.FAILED_PRECONDITION.withDescription(
                 "P4Runtime port translation requires a loaded pipeline with " +
                   "@p4runtime_translation on the port type"
@@ -134,7 +134,7 @@ class DataplaneService(
  * [DataplaneProto.OutputPacket].
  */
 private fun fourward.sim.SimulatorProto.OutputPacket.toDualEncoded(
-  pt: PortTranslation?
+  pt: PortTranslator?
 ): DataplaneProto.OutputPacket =
   DataplaneProto.OutputPacket.newBuilder()
     .setDataplaneEgressPort(egressPort)

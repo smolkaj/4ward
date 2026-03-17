@@ -67,7 +67,7 @@ class P4RuntimeTestHarness(
       lock,
       cpuPortConfig = cpuPortConfig,
     )
-  private val dataplaneService = DataplaneService(broker, lock) { service.portTranslation }
+  private val dataplaneService = DataplaneService(broker, lock) { service.portTranslator }
 
   private val server =
     InProcessServerBuilder.forName(serverName)
