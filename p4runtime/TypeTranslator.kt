@@ -434,8 +434,16 @@ private constructor(
      *
      * Discovers translated types from p4info and maps field IDs to type names, enabling translation
      * of action parameters, match fields, and PacketIO metadata in P4Runtime messages.
+     *
+     * @param portTypeName the fully qualified P4 type name for ports (from
+     *   `Architecture.port_type_name` in the compiled IR). Empty if the port type has no
+     *   `@p4runtime_translation`. When set, a [PortTranslator] is created for dual port encoding.
      */
-    fun create(p4info: P4Info, translations: List<TypeTranslation> = emptyList()): TypeTranslator {
+    fun create(
+      p4info: P4Info,
+      translations: List<TypeTranslation> = emptyList(),
+      portTypeName: String = "",
+    ): TypeTranslator {
       val translatedTypes =
         p4info.typeInfo.newTypesMap.filter { (_, spec) -> spec.hasTranslatedType() }
 
@@ -468,13 +476,12 @@ private constructor(
         }
       }
 
-      // Derive PortTranslator from the port type's translation table.
-      val portType = findPortType(p4info, translatedTypes)
+      // Create PortTranslator if the port type has @p4runtime_translation.
       val portTranslator =
-        if (portType != null) {
-          val (typeName, isStringType) = portType
+        if (portTypeName.isNotEmpty() && portTypeName in translatedTypes) {
+          val isStringType = portTypeName in stringTypeNames
           val portTable =
-            tables.computeIfAbsent(typeName) {
+            tables.computeIfAbsent(portTypeName) {
               TranslationTable(autoAllocate = true, isStringType = isStringType)
             }
           PortTranslator(portTable)
@@ -547,30 +554,6 @@ private constructor(
         }
       }
       return packetOut to packetIn
-    }
-
-    /**
-     * Finds the port type name from the p4info's `controller_packet_metadata`.
-     *
-     * Each `controller_packet_metadata` field has an optional `type_name` ([P4Info
-     * Metadata.type_name](https://github.com/p4lang/p4runtime/blob/main/proto/p4/config/v1/p4info.proto#L453)).
-     * If a field's `type_name` resolves to a `@p4runtime_translation`-annotated type in
-     * `type_info`, that type identifies the port translation.
-     *
-     * Returns (typeName, isStringType) or null if no translated port type is found.
-     */
-    private fun findPortType(
-      p4info: P4Info,
-      translatedTypes: Map<String, P4Types.P4NewTypeSpec>,
-    ): Pair<String, Boolean>? {
-      for (controllerMeta in p4info.controllerPacketMetadataList) {
-        for (metadata in controllerMeta.metadataList) {
-          if (!metadata.hasTypeName()) continue
-          val typeSpec = translatedTypes[metadata.typeName.name] ?: continue
-          return metadata.typeName.name to typeSpec.translatedType.hasSdnString()
-        }
-      }
-      return null
     }
 
     private fun buildTables(

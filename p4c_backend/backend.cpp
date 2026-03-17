@@ -513,6 +513,11 @@ void FourWardBackend::setTypeTranslations(
   }
 }
 
+void FourWardBackend::setPortTypeName(std::string portTypeName) {
+  behavioral_->mutable_architecture()->set_port_type_name(
+      std::move(portTypeName));
+}
+
 void FourWardBackend::emitTypeDecls(const IR::P4Program* program) {
   for (const auto* decl : *program->getDeclarations()) {
     if (const auto* hdr = decl->to<IR::Type_Header>()) {

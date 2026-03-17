@@ -128,6 +128,25 @@ static std::vector<fourward::ir::TypeTranslation> extractTypeTranslations(
   return result;
 }
 
+// Derives the port type name from controller_packet_metadata in the p4info.
+// Returns the fully qualified type name of the first metadata field whose
+// type_name resolves to a @p4runtime_translation-annotated type, or empty
+// if no such field exists.
+static std::string derivePortTypeName(const p4::config::v1::P4Info& p4Info) {
+  const auto& newTypes = p4Info.type_info().new_types();
+  for (const auto& cpMeta : p4Info.controller_packet_metadata()) {
+    for (const auto& metadata : cpMeta.metadata()) {
+      if (!metadata.has_type_name()) continue;
+      const auto& typeName = metadata.type_name().name();
+      auto it = newTypes.find(typeName);
+      if (it != newTypes.end() && it->second.has_translated_type()) {
+        return typeName;
+      }
+    }
+  }
+  return "";
+}
+
 // p4c's P4Runtime serializer auto-assigns descending priorities (N, N-1, …, 1)
 // to const table entries, ignoring @priority annotations.  BMv2's JSON backend
 // respects those annotations, so the STF corpus expects @priority(1) = highest
@@ -228,6 +247,7 @@ int main(int argc, char* const argv[]) {
   backend.setStaticEntries(entries);
   backend.setTypeTranslations(std::move(translations));
   backend.process(toplevel);
+  backend.setPortTypeName(derivePortTypeName(*p4Runtime.p4Info));
 
   if (!backend.writePipelineConfig()) return 1;
   return ::P4::errorCount() > 0 ? 1 : 0;

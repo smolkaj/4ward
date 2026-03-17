@@ -184,7 +184,12 @@ class P4RuntimeService(
     val pipelineConfig =
       PipelineConfig.newBuilder().setP4Info(fwdConfig.p4Info).setDevice(deviceConfig).build()
 
-    val typeTranslator = TypeTranslator.create(fwdConfig.p4Info, deviceConfig.translationsList)
+    val typeTranslator =
+      TypeTranslator.create(
+        fwdConfig.p4Info,
+        deviceConfig.translationsList,
+        portTypeName = deviceConfig.behavioral.architecture.portTypeName,
+      )
 
     return PipelineState(
       config = pipelineConfig,

@@ -137,14 +137,13 @@ These fields are not dynamically typed — their port semantics are
 built into the proto schema. The server needs to know the port type as a
 **pipeline-wide property** to translate these fields.
 
-The `PortTranslator` (a property of `TypeTranslator`) provides this. It is
-derived at pipeline load time from `controller_packet_metadata` in the
-p4info, when available: any metadata field whose
-[`type_name`](https://github.com/p4lang/p4runtime/blob/main/proto/p4/config/v1/p4info.proto#L453)
-resolves to a `@p4runtime_translation`-annotated type identifies the port
-type. If the P4 program has no `controller_packet_metadata` (no
-`@controller_header`), port translation is unavailable and the
-DataplaneService operates with dataplane ports only.
+The `PortTranslator` (a property of `TypeTranslator`) provides this. The
+port type is a property of the architecture — it is determined at compile
+time by the p4c backend (from the architecture's port metadata in
+`controller_packet_metadata`) and stored in the IR's
+`Architecture.port_type_name` field. If the port type has no
+`@p4runtime_translation` (i.e., it's a bare `bit<N>`), the field is empty
+and the DataplaneService operates with dataplane ports only.
 
 ## Dual port encoding in the DataplaneService
 

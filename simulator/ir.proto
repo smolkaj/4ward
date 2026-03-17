@@ -144,6 +144,14 @@ message Architecture {
   // Extern types provided by this architecture. The simulator's architecture
   // implementation provides runtime semantics for each.
   repeated ExternTypeDecl extern_types = 3;
+
+  // Fully qualified P4 type name for port values (e.g. "port_id_t").
+  // Set when the port type has @p4runtime_translation, enabling the
+  // PortTranslator for dual port encoding. Empty when the port type is
+  // a bare bit<N> with no translation (P4Runtime and dataplane
+  // representations are identical). Derived at compile time from the
+  // architecture's port metadata fields in controller_packet_metadata.
+  string port_type_name = 4;
 }
 
 message PipelineStage {

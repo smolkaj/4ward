@@ -134,12 +134,13 @@ Key decisions:
 
 ### Port translation
 
-`PortTranslator` is a property of `TypeTranslator`, derived at pipeline load
-time from `controller_packet_metadata` in the p4info. It provides
-bidirectional conversion between P4Runtime port IDs and dataplane port
-numbers. See [docs/TYPE_TRANSLATION.md](../docs/TYPE_TRANSLATION.md) for
-why ports need special handling (hardcoded proto fields) and how translations
-are keyed by type name.
+`PortTranslator` is a property of `TypeTranslator`, providing bidirectional
+conversion between P4Runtime port IDs and dataplane port numbers. The port
+type is determined at compile time by the p4c backend and stored in
+`Architecture.port_type_name` in the compiled IR. See
+[docs/TYPE_TRANSLATION.md](../docs/TYPE_TRANSLATION.md) for why ports need
+special handling (hardcoded proto fields) and how translations are keyed by
+type name.
 
 
 ### DataplaneService changes
