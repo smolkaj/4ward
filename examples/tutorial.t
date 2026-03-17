@@ -144,6 +144,9 @@ The compiled output is a text-format protobuf containing the full
 program and its P4Info metadata. Here's the top:
 
   $ head -20 pipeline.txtpb
+  # proto-file: @fourward//simulator/ir.proto
+  # proto-message: fourward.ir.PipelineConfig
+
   p4info {
     pkg_info {
       arch: "v1model"
@@ -161,9 +164,6 @@ program and its P4Info metadata. Here's the top:
         stages {
           name: "verify_checksum"
           kind: CONTROL
-          block_name: "MyVerifyChecksum"
-        }
-        stages {
 
 You can see the v1model pipeline stages (parser, verify_checksum,
 ingress, egress, ...) and the block names from the P4 source. The
