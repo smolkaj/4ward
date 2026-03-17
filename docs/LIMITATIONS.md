@@ -58,6 +58,17 @@ guilt — just write it down so someone can find it later.
   simulator: there are no real packet rates to trigger digests, and no
   wall-clock time to expire idle entries. These are explicitly out of scope.
 
+## DataplaneService
+
+- **No P4Runtime port encoding in traces or viewers.** Trace trees, the CLI
+  (`4ward sim`), and the web playground show only raw dataplane port numbers
+  (e.g., `0`, `510`), not P4Runtime representations (e.g., `"Ethernet0"`).
+  The same applies to table entry values, action parameters, and other
+  `@p4runtime_translation`-annotated fields in traces. The DataplaneService
+  supports dual port encoding at the API boundary
+  ([design](../designs/dataplane_port_encoding.md)), but enriching trace
+  trees and viewers is a broader effort.
+
 ## Simulator
 
 - **Multicast: basic replication only.** Multicast group replication works
