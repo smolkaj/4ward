@@ -53,10 +53,12 @@ interface.
   packet fate.
 - **P4Runtime:** standard P4Runtime gRPC for pipeline config, table entries,
   reads, and PacketIn/PacketOut.
-- **gNMI:** a minimal gNMI service for port configuration.
 
 4ward's build is fully hermetic (Bazel). No system dependencies, no Docker. It
 runs on Linux and macOS, x86_64 and ARM64.
+
+DVaaS also needs gNMI for port discovery, but that's a sonic-pins concern — see
+[gNMI](#gnmi-port-discovery) below.
 
 ## Design: direct integration, not a backend
 
@@ -183,8 +185,8 @@ Analogous to how sonic-pins already compiles P4 to BMv2 JSON at build time.
 
 ### 2. P4Runtime server binary
 
-A `java_binary` target that serves P4Runtime + Dataplane + gNMI over gRPC.
-Used at **test time** as a subprocess.
+A `java_binary` target that serves P4Runtime + Dataplane over gRPC. Used at
+**test time** as a subprocess.
 
 ```starlark
 cc_test(
@@ -202,6 +204,44 @@ cc_test(
 `ir.proto`, `simulator.proto`, `dataplane.proto` — the wire format for the
 compiled pipeline and gRPC services. Needed for C++ code in sonic-pins to parse
 4ward's `InjectPacketResponse` (which contains `TraceTree`).
+
+## gNMI and port translation
+
+DVaaS uses gNMI (`SwitchApi.gnmi`) for two things:
+
+1. **Port discovery.** Enumerate interfaces and their admin/oper state.
+2. **Port translation configuration.** gNMI Set assigns P4RT port IDs to
+   interfaces. These IDs are the values that appear in P4Runtime table entries
+   for `@p4runtime_translation`-annotated port types.
+
+The gNMI service itself belongs in sonic-pins, not 4ward:
+
+- sonic-pins **owns the `SwitchApi` interface** and knows exactly which gNMI
+  paths DVaaS queries. Keeping the stub there makes it easier to evolve.
+- Keeping gNMI out of 4ward avoids a **proto dependency on openconfig/gnmi**.
+- 4ward should not be aware of sonic-pins/gNMI semantics.
+
+However, the port translation mappings established via gNMI **must reach
+4ward's `TypeTranslator`** so that `@p4runtime_translation` for port types
+works correctly. This is a P4Runtime concern (spec §16.3), so 4ward exposes
+it through the P4Runtime service — a generic mechanism for configuring
+translation mappings without knowing they came from gNMI. The
+`FourwardPinsSwitch` (sonic-pins side) bridges the two: it receives gNMI Set
+requests and pushes the resulting mappings into 4ward via P4Runtime.
+
+```
+  DVaaS
+    │
+    ▼
+  FourwardPinsSwitch (sonic-pins)
+    ├─ .p4rt ──────────▶ 4ward P4Runtime service
+    │                        ▲
+    ├─ .gnmi ──────────▶ FakeGnmiService (sonic-pins)
+    │                        │
+    │                        │ on port ID change
+    │                        ▼
+    └─ push mapping ───▶ 4ward P4Runtime (translation config)
+```
 
 ## The FourwardMirrorTestbed: development vehicle
 
