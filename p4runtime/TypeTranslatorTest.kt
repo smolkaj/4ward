@@ -444,6 +444,20 @@ class TypeTranslatorTest {
     assertThrows(IllegalArgumentException::class.java) { TypeTranslator.create(translations) }
   }
 
+  @Test
+  fun `type_uri matching zero types is rejected`() {
+    val p4info = P4InfoOuterClass.P4Info.newBuilder().setTypeInfo(bitstringTypeInfo()).build()
+
+    val translations =
+      listOf(
+        TypeTranslation.newBuilder().setTypeUri("nonexistent.uri").setAutoAllocate(true).build()
+      )
+
+    assertThrows(IllegalArgumentException::class.java) {
+      TypeTranslator.create(p4info, translations)
+    }
+  }
+
   // ===========================================================================
   // ActionProfileMember translation via P4Info
   // ===========================================================================

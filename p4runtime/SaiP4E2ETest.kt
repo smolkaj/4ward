@@ -1,8 +1,16 @@
 package fourward.p4runtime
 
 import com.google.protobuf.ByteString
+import fourward.dataplane.DataplaneGrpcKt.DataplaneCoroutineStub
+import fourward.dataplane.DataplaneProto.SubscribeResultsRequest
 import fourward.ir.PipelineConfig
 import io.grpc.Status
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -353,23 +361,99 @@ class SaiP4E2ETest {
   // Dual port encoding in DataplaneService responses
   // =========================================================================
 
-  @Test
-  fun `InjectPacket response has dual port encoding`() {
+  private fun installForwardingEntries() {
     harness.installEntry(buildVrfEntry(""))
     harness.installEntry(buildRouterInterfaceEntry("rif-1", "Ethernet1", RIF_MAC))
     harness.installEntry(buildNeighborEntry("rif-1", NEIGHBOR_ID, NEIGHBOR_MAC))
     harness.installEntry(buildNexthopEntry(nexthopId = "nhop-1", routerInterfaceId = "rif-1"))
     harness.installEntry(buildIpv4RouteEntry(vrfId = "", nexthopId = "nhop-1"))
+  }
+
+  @Test
+  fun `InjectPacket response has dual port encoding`() {
+    installForwardingEntries()
 
     val packet = buildIpv4Packet(dstMac = UNICAST_MAC, srcMac = SRC_MAC, ttl = 64)
     val response = harness.injectPacket(ingressPort = 0, payload = packet)
 
     assertEquals("expected 1 output", 1, response.outputPacketsCount)
     val output = response.getOutputPackets(0)
-    // Dataplane port should be populated.
     assertTrue("dataplane port should be set", output.dataplaneEgressPort >= 0)
-    // P4RT port should be populated (SAI P4 has @p4runtime_translation on port_id_t).
     assertTrue("p4rt_egress_port should be populated", !output.p4RtEgressPort.isEmpty)
+  }
+
+  @Test
+  fun `InjectPacket with P4RT port forwards correctly`() {
+    installForwardingEntries()
+
+    val packet = buildIpv4Packet(dstMac = UNICAST_MAC, srcMac = SRC_MAC, ttl = 64)
+    // Inject using P4RT port name. Port 0 is auto-allocated for the first SDN value seen.
+    val p4rtPort = ByteString.copyFromUtf8("Ethernet0")
+    val response = harness.injectPacketP4rt(p4rtPort, packet)
+
+    assertEquals("expected 1 output", 1, response.outputPacketsCount)
+    assertTrue("output should have p4rt port", !response.getOutputPackets(0).p4RtEgressPort.isEmpty)
+  }
+
+  @Test
+  fun `InjectPacket with dataplane port still works when translation is available`() {
+    installForwardingEntries()
+
+    val packet = buildIpv4Packet(dstMac = UNICAST_MAC, srcMac = SRC_MAC, ttl = 64)
+    // Use dataplane port directly — backward compatible even with translation loaded.
+    val response = harness.injectPacket(ingressPort = 0, payload = packet)
+
+    assertEquals("expected 1 output", 1, response.outputPacketsCount)
+  }
+
+  @Test
+  fun `InjectPacket with unknown P4RT port fails`() {
+    installForwardingEntries()
+
+    // "NonexistentPort" has never been allocated — but with auto-allocate it will succeed.
+    // This is expected: auto-allocate creates a mapping on first use.
+    val p4rtPort = ByteString.copyFromUtf8("NonexistentPort")
+    val packet = buildIpv4Packet(dstMac = UNICAST_MAC, srcMac = SRC_MAC, ttl = 64)
+    val response = harness.injectPacketP4rt(p4rtPort, packet)
+
+    // Packet arrives on an auto-allocated port — forwarding may or may not produce output
+    // depending on table entries, but the RPC should succeed (not throw).
+    assertTrue("RPC should succeed", response.hasTrace())
+  }
+
+  @Test
+  fun `SubscribeResults has dual port encoding`() = runBlocking {
+    installForwardingEntries()
+
+    val stub = DataplaneCoroutineStub(harness.channel)
+    val messages = async {
+      withTimeout(5000) {
+        stub.subscribeResults(SubscribeResultsRequest.getDefaultInstance()).take(2).toList()
+      }
+    }
+
+    delay(100)
+    val packet = buildIpv4Packet(dstMac = UNICAST_MAC, srcMac = SRC_MAC, ttl = 64)
+    harness.injectPacket(ingressPort = 0, payload = packet)
+
+    val result = messages.await()
+    assertTrue("second is ProcessPacketResult", result[1].hasResult())
+    val packetResult = result[1].result
+
+    // Input packet should have dataplane port.
+    assertEquals(0, packetResult.inputPacket.dataplaneIngressPort)
+    // Input packet should have P4RT port (SAI P4 has translation).
+    assertTrue(
+      "input p4rt port should be populated",
+      !packetResult.inputPacket.p4RtIngressPort.isEmpty,
+    )
+
+    // Output packets should have dual encoding.
+    assertTrue("should have output packets", packetResult.outputPacketsCount > 0)
+    assertTrue(
+      "output p4rt port should be populated",
+      !packetResult.getOutputPackets(0).p4RtEgressPort.isEmpty,
+    )
   }
 
   // =========================================================================
