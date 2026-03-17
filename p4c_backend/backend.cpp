@@ -966,26 +966,66 @@ void FourWardBackend::emitArchitecture(const IR::ToplevelBlock* toplevel) {
   }
 }
 
+namespace {
+
+// Write a proto message to a file. Binary if the path ends with .binpb or
+// .bin; text-format with a proto-file/proto-message header otherwise.
+bool writeProto(const google::protobuf::Message& msg, std::ostream& out,
+                bool binary, const char* protoFile, const char* protoMessage,
+                const std::string& path) {
+  if (binary) {
+    if (!msg.SerializeToOstream(&out)) {
+      ::P4::error("4ward: failed to serialise %1% to '%2%'", protoMessage,
+                  path);
+      return false;
+    }
+  } else {
+    std::string text;
+    if (!google::protobuf::TextFormat::PrintToString(msg, &text)) {
+      ::P4::error("4ward: failed to serialise %1% to '%2%'", protoMessage,
+                  path);
+      return false;
+    }
+    out << "# proto-file: " << protoFile << "\n"
+        << "# proto-message: " << protoMessage << "\n\n"
+        << text;
+  }
+  return true;
+}
+
+}  // namespace
+
 bool FourWardBackend::writePipelineConfig() const {
   const std::string path = outputFilePath();
+  const bool binary = path.ends_with(".binpb") || path.ends_with(".bin");
   std::ofstream out(path, std::ios::binary);
   if (!out) {
     ::P4::error("4ward: cannot open output file '%1%'", path);
     return false;
   }
-  std::string text;
-  if (!google::protobuf::TextFormat::PrintToString(pipelineConfig_, &text)) {
-    ::P4::error("4ward: failed to serialise PipelineConfig to '%1%'", path);
-    return false;
+
+  if (options_.format == FourWardOptions::Format::kP4runtime) {
+    // P4Runtime ForwardingPipelineConfig: p4info + Pipeline serialized into
+    // p4_device_config bytes.
+    p4::v1::ForwardingPipelineConfig fpc;
+    *fpc.mutable_p4info() = pipelineConfig_.p4info();
+    fpc.set_p4_device_config(pipelineConfig_.device().SerializeAsString());
+    if (!writeProto(fpc, out, binary, "@p4runtime//p4/v1/p4runtime.proto",
+                    "p4.v1.ForwardingPipelineConfig", path))
+      return false;
+  } else {
+    if (!writeProto(pipelineConfig_, out, binary,
+                    "@fourward//simulator/ir.proto",
+                    "fourward.ir.PipelineConfig", path))
+      return false;
   }
-  out << text;
-  LOG1("4ward: wrote PipelineConfig to " << path);
+
+  LOG1("4ward: wrote " << path);
   return true;
 }
 
 std::string FourWardBackend::outputFilePath() const {
   if (options_.outputFile) return *options_.outputFile;
-  // Default: replace input extension with .txtpb
   return std::filesystem::path(options_.file)
       .replace_extension(".txtpb")
       .string();

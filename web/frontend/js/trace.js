@@ -83,11 +83,11 @@ export function switchTraceView(view) {
 
   if (view === TRACE_VIEW.JSON) {
     rawEl.textContent =
-      '// proto-file: simulator/simulator.proto\n// proto-message: fourward.sim.TraceTree\n\n'
+      '// proto-file: @fourward//simulator/simulator.proto\n// proto-message: fourward.sim.TraceTree\n\n'
       + getTraceJson();
   } else if (view === TRACE_VIEW.PROTO) {
     rawEl.textContent =
-      '# proto-file: simulator/simulator.proto\n# proto-message: fourward.sim.TraceTree\n\n'
+      '# proto-file: @fourward//simulator/simulator.proto\n# proto-message: fourward.sim.TraceTree\n\n'
       + (state.lastTrace?.trace_proto || '');
   }
 }
