@@ -55,13 +55,8 @@ with a hardware switch or BMv2.
 |------|---------|-------------|
 | `--port=<N>` | 9559 | gRPC listen port |
 | `--device-id=<N>` | 1 | P4Runtime device ID |
-| `--pipeline=<path>` | *(none)* | Pre-compiled pipeline to load at startup |
 | `--drop-port=<N>` | *(derived)* | Override the drop port value |
 | `--cpu-port=<N>` | *(derived)* | Override the CPU port value |
-
-When `--pipeline` is given, the server loads it via P4Runtime
-`SetForwardingPipelineConfig` at startup — ready to accept packets immediately.
-Without it, a client must push a pipeline before the server can process packets.
 
 In addition to the standard P4Runtime RPCs, the server exposes a **Dataplane
 service** for direct packet injection:
