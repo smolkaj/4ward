@@ -141,9 +141,6 @@ numbers. See [docs/TYPE_TRANSLATION.md](../docs/TYPE_TRANSLATION.md) for
 why ports need special handling (hardcoded proto fields) and how translations
 are keyed by type name.
 
-(The `TypeTranslator` API uses "SDN" terminology inherited from the P4 spec;
-renaming to "P4RT" is tracked in
-[REFACTORING.md](../docs/REFACTORING.md#rename-sdn-to-p4rt-in-typetranslator).)
 
 ### DataplaneService changes
 

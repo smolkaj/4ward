@@ -14,7 +14,7 @@ import p4.v1.P4RuntimeOuterClass
 /**
  * Unit tests for [TypeTranslator]'s core mapping logic.
  *
- * These test the bidirectional SDN ↔ data-plane value mapping directly, without going through the
+ * These test the bidirectional P4RT ↔ data-plane value mapping directly, without going through the
  * P4Runtime gRPC service or simulator. Three modes are covered:
  * 1. **Explicit** — all mappings provided upfront; unknown values rejected.
  * 2. **Auto-allocate** — mappings created on first use; data-plane values assigned sequentially.
@@ -29,48 +29,48 @@ class TypeTranslatorTest {
   // ===========================================================================
 
   @Test
-  fun `explicit numeric mapping translates SDN to dataplane`() {
+  fun `explicit numeric mapping translates P4RT to dataplane`() {
     val translator =
       buildTranslator(
         translation {
           typeName = "port_id_t"
-          addEntries(entry(sdnBytes(1000), dpBytes(1)))
-          addEntries(entry(sdnBytes(2000), dpBytes(2)))
+          addEntries(entry(p4rtBytes(1000), dpBytes(1)))
+          addEntries(entry(p4rtBytes(2000), dpBytes(2)))
         }
       )
 
-    assertArrayEquals(dpBytes(1), translator.sdnToDataplane("port_id_t", sdnBytes(1000)))
-    assertArrayEquals(dpBytes(2), translator.sdnToDataplane("port_id_t", sdnBytes(2000)))
+    assertArrayEquals(dpBytes(1), translator.p4rtToDataplane("port_id_t", p4rtBytes(1000)))
+    assertArrayEquals(dpBytes(2), translator.p4rtToDataplane("port_id_t", p4rtBytes(2000)))
   }
 
   @Test
-  fun `explicit numeric mapping translates dataplane to SDN`() {
+  fun `explicit numeric mapping translates dataplane to P4RT`() {
     val translator =
       buildTranslator(
         translation {
           typeName = "port_id_t"
-          addEntries(entry(sdnBytes(1000), dpBytes(1)))
-          addEntries(entry(sdnBytes(2000), dpBytes(2)))
+          addEntries(entry(p4rtBytes(1000), dpBytes(1)))
+          addEntries(entry(p4rtBytes(2000), dpBytes(2)))
         }
       )
 
-    val result = translator.dataplaneToSdn("port_id_t", dpBytes(1))
-    assertEquals(SdnValue.Bitstring(bs(sdnBytes(1000))), result)
+    val result = translator.dataplaneToP4rt("port_id_t", dpBytes(1))
+    assertEquals(P4rtValue.Bitstring(bs(p4rtBytes(1000))), result)
   }
 
   @Test
-  fun `explicit mapping rejects unknown SDN value`() {
+  fun `explicit mapping rejects unknown P4RT value`() {
     val translator =
       buildTranslator(
         translation {
           typeName = "port_id_t"
           autoAllocate = false
-          addEntries(entry(sdnBytes(1000), dpBytes(1)))
+          addEntries(entry(p4rtBytes(1000), dpBytes(1)))
         }
       )
 
     assertThrows(TranslationException::class.java) {
-      translator.sdnToDataplane("port_id_t", sdnBytes(9999))
+      translator.p4rtToDataplane("port_id_t", p4rtBytes(9999))
     }
   }
 
@@ -81,12 +81,12 @@ class TypeTranslatorTest {
         translation {
           typeName = "port_id_t"
           autoAllocate = false
-          addEntries(entry(sdnBytes(1000), dpBytes(1)))
+          addEntries(entry(p4rtBytes(1000), dpBytes(1)))
         }
       )
 
     assertThrows(TranslationException::class.java) {
-      translator.dataplaneToSdn("port_id_t", dpBytes(99))
+      translator.dataplaneToP4rt("port_id_t", dpBytes(99))
     }
   }
 
@@ -95,7 +95,7 @@ class TypeTranslatorTest {
   // ===========================================================================
 
   @Test
-  fun `explicit string mapping translates SDN to dataplane`() {
+  fun `explicit string mapping translates P4RT to dataplane`() {
     val translator =
       buildTranslator(
         translation {
@@ -106,12 +106,12 @@ class TypeTranslatorTest {
         }
       )
 
-    assertArrayEquals(dpBytes(0), translator.sdnToDataplane("port_name_t", "Ethernet0"))
-    assertArrayEquals(dpBytes(510), translator.sdnToDataplane("port_name_t", "CpuPort"))
+    assertArrayEquals(dpBytes(0), translator.p4rtToDataplane("port_name_t", "Ethernet0"))
+    assertArrayEquals(dpBytes(510), translator.p4rtToDataplane("port_name_t", "CpuPort"))
   }
 
   @Test
-  fun `explicit string mapping translates dataplane to SDN`() {
+  fun `explicit string mapping translates dataplane to P4RT`() {
     val translator =
       buildTranslator(
         translation {
@@ -120,8 +120,8 @@ class TypeTranslatorTest {
         }
       )
 
-    val result = translator.dataplaneToSdn("port_name_t", dpBytes(0))
-    assertEquals(SdnValue.Str("Ethernet0"), result)
+    val result = translator.dataplaneToP4rt("port_name_t", dpBytes(0))
+    assertEquals(P4rtValue.Str("Ethernet0"), result)
   }
 
   // ===========================================================================
@@ -129,7 +129,7 @@ class TypeTranslatorTest {
   // ===========================================================================
 
   @Test
-  fun `auto-allocate assigns sequential dataplane values for numeric SDN`() {
+  fun `auto-allocate assigns sequential dataplane values for numeric P4RT`() {
     val translator =
       buildTranslator(
         translation {
@@ -139,14 +139,14 @@ class TypeTranslatorTest {
       )
 
     // First value seen gets dataplane value 0, second gets 1, etc.
-    val dp0 = translator.sdnToDataplane("port_id_t", sdnBytes(5000))
-    val dp1 = translator.sdnToDataplane("port_id_t", sdnBytes(6000))
+    val dp0 = translator.p4rtToDataplane("port_id_t", p4rtBytes(5000))
+    val dp1 = translator.p4rtToDataplane("port_id_t", p4rtBytes(6000))
 
     assertArrayEquals(dpBytes(0), dp0)
     assertArrayEquals(dpBytes(1), dp1)
 
-    // Same SDN value returns same dataplane value (idempotent).
-    assertArrayEquals(dpBytes(0), translator.sdnToDataplane("port_id_t", sdnBytes(5000)))
+    // Same P4RT value returns same dataplane value (idempotent).
+    assertArrayEquals(dpBytes(0), translator.p4rtToDataplane("port_id_t", p4rtBytes(5000)))
   }
 
   @Test
@@ -159,10 +159,10 @@ class TypeTranslatorTest {
         }
       )
 
-    translator.sdnToDataplane("port_id_t", sdnBytes(5000))
+    translator.p4rtToDataplane("port_id_t", p4rtBytes(5000))
 
-    val result = translator.dataplaneToSdn("port_id_t", dpBytes(0))
-    assertEquals(SdnValue.Bitstring(bs(sdnBytes(5000))), result)
+    val result = translator.dataplaneToP4rt("port_id_t", dpBytes(0))
+    assertEquals(P4rtValue.Bitstring(bs(p4rtBytes(5000))), result)
   }
 
   // ===========================================================================
@@ -170,7 +170,7 @@ class TypeTranslatorTest {
   // ===========================================================================
 
   @Test
-  fun `auto-allocate assigns sequential dataplane values for string SDN`() {
+  fun `auto-allocate assigns sequential dataplane values for string P4RT`() {
     val translator =
       buildTranslator(
         translation {
@@ -179,14 +179,14 @@ class TypeTranslatorTest {
         }
       )
 
-    val dp0 = translator.sdnToDataplane("port_name_t", "Ethernet0")
-    val dp1 = translator.sdnToDataplane("port_name_t", "Ethernet1")
+    val dp0 = translator.p4rtToDataplane("port_name_t", "Ethernet0")
+    val dp1 = translator.p4rtToDataplane("port_name_t", "Ethernet1")
 
     assertArrayEquals(dpBytes(0), dp0)
     assertArrayEquals(dpBytes(1), dp1)
 
     // Idempotent.
-    assertArrayEquals(dpBytes(0), translator.sdnToDataplane("port_name_t", "Ethernet0"))
+    assertArrayEquals(dpBytes(0), translator.p4rtToDataplane("port_name_t", "Ethernet0"))
   }
 
   @Test
@@ -199,10 +199,10 @@ class TypeTranslatorTest {
         }
       )
 
-    translator.sdnToDataplane("port_name_t", "Ethernet0")
+    translator.p4rtToDataplane("port_name_t", "Ethernet0")
 
-    val result = translator.dataplaneToSdn("port_name_t", dpBytes(0))
-    assertEquals(SdnValue.Str("Ethernet0"), result)
+    val result = translator.dataplaneToP4rt("port_name_t", dpBytes(0))
+    assertEquals(P4rtValue.Str("Ethernet0"), result)
   }
 
   // ===========================================================================
@@ -215,7 +215,7 @@ class TypeTranslatorTest {
     // by auto-allocating.
     val translator = buildTranslator()
 
-    val dp0 = translator.sdnToDataplane("unknown_type_t", sdnBytes(42))
+    val dp0 = translator.p4rtToDataplane("unknown_type_t", p4rtBytes(42))
     assertArrayEquals(dpBytes(0), dp0)
   }
 
@@ -236,12 +236,12 @@ class TypeTranslatorTest {
       )
 
     // Explicit entries work.
-    assertArrayEquals(dpBytes(510), translator.sdnToDataplane("port_name_t", "CpuPort"))
-    assertArrayEquals(dpBytes(511), translator.sdnToDataplane("port_name_t", "DropPort"))
+    assertArrayEquals(dpBytes(510), translator.p4rtToDataplane("port_name_t", "CpuPort"))
+    assertArrayEquals(dpBytes(511), translator.p4rtToDataplane("port_name_t", "DropPort"))
 
     // Auto-allocated entries skip reserved dataplane values.
-    val dp0 = translator.sdnToDataplane("port_name_t", "Ethernet0")
-    val dp1 = translator.sdnToDataplane("port_name_t", "Ethernet1")
+    val dp0 = translator.p4rtToDataplane("port_name_t", "Ethernet0")
+    val dp1 = translator.p4rtToDataplane("port_name_t", "Ethernet1")
 
     assertArrayEquals(dpBytes(0), dp0)
     assertArrayEquals(dpBytes(1), dp1)
@@ -254,13 +254,13 @@ class TypeTranslatorTest {
         translation {
           typeName = "test_type_t"
           autoAllocate = true
-          // Pin dataplane value 0 to SDN value 100.
-          addEntries(entry(sdnBytes(100), dpBytes(0)))
+          // Pin dataplane value 0 to P4RT value 100.
+          addEntries(entry(p4rtBytes(100), dpBytes(0)))
         }
       )
 
     // Auto-allocate should skip 0 (reserved) and start at 1.
-    val dp = translator.sdnToDataplane("test_type_t", sdnBytes(200))
+    val dp = translator.p4rtToDataplane("test_type_t", p4rtBytes(200))
     assertArrayEquals(dpBytes(1), dp)
   }
 
@@ -274,12 +274,12 @@ class TypeTranslatorTest {
         translation {
           typeName = "test_type_t"
           autoAllocate = true
-          addEntries(entry(sdnBytes(100), byteArrayOf(0, 0)))
+          addEntries(entry(p4rtBytes(100), byteArrayOf(0, 0)))
         }
       )
 
     // Auto-allocate must skip 0 (reserved as integer, regardless of byte width).
-    val dp = translator.sdnToDataplane("test_type_t", sdnBytes(200))
+    val dp = translator.p4rtToDataplane("test_type_t", p4rtBytes(200))
     assertArrayEquals(dpBytes(1), dp)
   }
 
@@ -301,12 +301,147 @@ class TypeTranslatorTest {
         },
       )
 
-    val dpA = translator.sdnToDataplane("type_a_t", sdnBytes(42))
-    val dpB = translator.sdnToDataplane("type_b_t", sdnBytes(42))
+    val dpA = translator.p4rtToDataplane("type_a_t", p4rtBytes(42))
+    val dpB = translator.p4rtToDataplane("type_b_t", p4rtBytes(42))
 
     // Both get dataplane value 0 — they're independent.
     assertArrayEquals(dpBytes(0), dpA)
     assertArrayEquals(dpBytes(0), dpB)
+  }
+
+  // ===========================================================================
+  // SAI P4: types sharing empty URI get independent tables
+  // ===========================================================================
+
+  @Test
+  fun `types sharing empty URI are independent when keyed by type name`() {
+    // SAI P4 uses @p4runtime_translation("", string) for all translated types.
+    // They must get independent translation tables despite sharing the same URI.
+    val typeInfo =
+      P4Types.P4TypeInfo.newBuilder()
+        .putNewTypes(
+          "port_id_t",
+          P4Types.P4NewTypeSpec.newBuilder()
+            .setTranslatedType(
+              P4Types.P4NewTypeTranslation.newBuilder()
+                .setUri("")
+                .setSdnString(P4Types.P4NewTypeTranslation.SdnString.getDefaultInstance())
+            )
+            .build(),
+        )
+        .putNewTypes(
+          "vrf_id_t",
+          P4Types.P4NewTypeSpec.newBuilder()
+            .setTranslatedType(
+              P4Types.P4NewTypeTranslation.newBuilder()
+                .setUri("")
+                .setSdnString(P4Types.P4NewTypeTranslation.SdnString.getDefaultInstance())
+            )
+            .build(),
+        )
+        .build()
+    val p4info =
+      P4InfoOuterClass.P4Info.newBuilder()
+        .addActions(
+          P4InfoOuterClass.Action.newBuilder()
+            .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(ACTION_ID))
+            .addParams(
+              P4InfoOuterClass.Action.Param.newBuilder()
+                .setId(1)
+                .setBitwidth(9)
+                .setTypeName(P4Types.P4NamedType.newBuilder().setName("port_id_t"))
+            )
+            .addParams(
+              P4InfoOuterClass.Action.Param.newBuilder()
+                .setId(2)
+                .setBitwidth(10)
+                .setTypeName(P4Types.P4NamedType.newBuilder().setName("vrf_id_t"))
+            )
+        )
+        .setTypeInfo(typeInfo)
+        .build()
+    val translator = TypeTranslator.create(p4info)
+
+    // Both types auto-allocate independently — "Ethernet0" and "default" both get dp value 0.
+    val portDp = translator.p4rtToDataplane("port_id_t", "Ethernet0")
+    val vrfDp = translator.p4rtToDataplane("vrf_id_t", "default")
+    assertArrayEquals("port should get dp value 0", dpBytes(0), portDp)
+    assertArrayEquals("vrf should also get dp value 0 (independent table)", dpBytes(0), vrfDp)
+
+    // Reverse lookups return the correct type's value.
+    assertEquals(P4rtValue.Str("Ethernet0"), translator.dataplaneToP4rt("port_id_t", dpBytes(0)))
+    assertEquals(P4rtValue.Str("default"), translator.dataplaneToP4rt("vrf_id_t", dpBytes(0)))
+  }
+
+  // ===========================================================================
+  // TypeTranslation with type_uri: resolution and ambiguity
+  // ===========================================================================
+
+  @Test
+  fun `type_uri resolves to type name via p4info`() {
+    val p4info =
+      P4InfoOuterClass.P4Info.newBuilder()
+        .addActions(
+          P4InfoOuterClass.Action.newBuilder()
+            .setPreamble(P4InfoOuterClass.Preamble.newBuilder().setId(ACTION_ID))
+            .addParams(
+              P4InfoOuterClass.Action.Param.newBuilder()
+                .setId(PARAM_ID)
+                .setBitwidth(32)
+                .setTypeName(P4Types.P4NamedType.newBuilder().setName(TYPE_NAME))
+            )
+        )
+        .setTypeInfo(bitstringTypeInfo())
+        .build()
+
+    // Provide a TypeTranslation using type_uri instead of type_name.
+    val translations =
+      listOf(TypeTranslation.newBuilder().setTypeUri(TYPE_URI).setAutoAllocate(true).build())
+    val translator = TypeTranslator.create(p4info, translations)
+
+    // Translation should work — type_uri resolved to TYPE_NAME.
+    val dp = translator.p4rtToDataplane(TYPE_NAME, p4rtBytes(5000))
+    assertArrayEquals(dpBytes(0), dp)
+  }
+
+  @Test
+  fun `ambiguous type_uri is rejected`() {
+    // Two types share the same URI — type_uri resolution should fail.
+    val typeInfo =
+      P4Types.P4TypeInfo.newBuilder()
+        .putNewTypes(
+          "type_a",
+          P4Types.P4NewTypeSpec.newBuilder()
+            .setTranslatedType(
+              P4Types.P4NewTypeTranslation.newBuilder().setUri("shared.uri").setSdnBitwidth(32)
+            )
+            .build(),
+        )
+        .putNewTypes(
+          "type_b",
+          P4Types.P4NewTypeSpec.newBuilder()
+            .setTranslatedType(
+              P4Types.P4NewTypeTranslation.newBuilder().setUri("shared.uri").setSdnBitwidth(32)
+            )
+            .build(),
+        )
+        .build()
+    val p4info = P4InfoOuterClass.P4Info.newBuilder().setTypeInfo(typeInfo).build()
+
+    val translations =
+      listOf(TypeTranslation.newBuilder().setTypeUri("shared.uri").setAutoAllocate(true).build())
+
+    assertThrows(IllegalArgumentException::class.java) {
+      TypeTranslator.create(p4info, translations)
+    }
+  }
+
+  @Test
+  fun `type_uri without p4info is rejected`() {
+    val translations =
+      listOf(TypeTranslation.newBuilder().setTypeUri("some.uri").setAutoAllocate(true).build())
+
+    assertThrows(IllegalArgumentException::class.java) { TypeTranslator.create(translations) }
   }
 
   // ===========================================================================
@@ -317,7 +452,7 @@ class TypeTranslatorTest {
   fun `action profile member params are translated on write`() {
     val translator = buildP4InfoTranslator()
 
-    val update = memberUpdate(ACTION_ID, PARAM_ID, sdnBytes(5000))
+    val update = memberUpdate(ACTION_ID, PARAM_ID, p4rtBytes(5000))
     val translated = translator.translateForWrite(update)
     val param = translated.entity.actionProfileMember.action.paramsList.first()
     assertEquals(ByteString.copyFrom(dpBytes(0)), param.value)
@@ -328,7 +463,7 @@ class TypeTranslatorTest {
     val translator = buildP4InfoTranslator()
 
     // Forward translate to install the mapping.
-    translator.translateForWrite(memberUpdate(ACTION_ID, PARAM_ID, sdnBytes(5000)))
+    translator.translateForWrite(memberUpdate(ACTION_ID, PARAM_ID, p4rtBytes(5000)))
 
     // Reverse: simulate reading back a data-plane entity.
     val dpMember =
@@ -348,7 +483,7 @@ class TypeTranslatorTest {
     val dpEntity = P4RuntimeOuterClass.Entity.newBuilder().setActionProfileMember(dpMember).build()
     val sdnEntity = translator.translateForRead(dpEntity)
     val param = sdnEntity.actionProfileMember.action.paramsList.first()
-    assertEquals(ByteString.copyFrom(sdnBytes(5000)), param.value)
+    assertEquals(ByteString.copyFrom(p4rtBytes(5000)), param.value)
   }
 
   // ===========================================================================
@@ -359,9 +494,9 @@ class TypeTranslatorTest {
   fun `match field with translated type is discovered from p4info`() {
     val translator = buildP4InfoTranslator()
 
-    // Forward: SDN exact match value → data-plane value.
+    // Forward: P4RT exact match value → data-plane value.
     val update =
-      writeUpdate(TABLE_ID, MATCH_FIELD_ID, sdnBytes(5000), ACTION_ID, PARAM_ID, sdnBytes(1))
+      writeUpdate(TABLE_ID, MATCH_FIELD_ID, p4rtBytes(5000), ACTION_ID, PARAM_ID, p4rtBytes(1))
     val translated = translator.translateForWrite(update)
     val match = translated.entity.tableEntry.matchList.first()
     assertEquals(ByteString.copyFrom(dpBytes(0)), match.exact.value)
@@ -373,14 +508,14 @@ class TypeTranslatorTest {
 
     // Forward translate to install the mapping.
     translator.translateForWrite(
-      writeUpdate(TABLE_ID, MATCH_FIELD_ID, sdnBytes(5000), ACTION_ID, PARAM_ID, sdnBytes(1))
+      writeUpdate(TABLE_ID, MATCH_FIELD_ID, p4rtBytes(5000), ACTION_ID, PARAM_ID, p4rtBytes(1))
     )
 
     // Reverse: simulate reading back a data-plane entity.
     val dpEntity = readEntity(TABLE_ID, MATCH_FIELD_ID, dpBytes(0), ACTION_ID, PARAM_ID, dpBytes(0))
     val sdnEntity = translator.translateForRead(dpEntity)
     val match = sdnEntity.tableEntry.matchList.first()
-    assertEquals(ByteString.copyFrom(sdnBytes(5000)), match.exact.value)
+    assertEquals(ByteString.copyFrom(p4rtBytes(5000)), match.exact.value)
   }
 
   @Test
@@ -391,10 +526,10 @@ class TypeTranslatorTest {
       writeUpdateOptionalMatch(
         TABLE_ID,
         MATCH_FIELD_ID,
-        sdnBytes(5000),
+        p4rtBytes(5000),
         ACTION_ID,
         PARAM_ID,
-        sdnBytes(1),
+        p4rtBytes(1),
       )
     val translated = translator.translateForWrite(update)
     val match = translated.entity.tableEntry.matchList.first()
@@ -406,9 +541,9 @@ class TypeTranslatorTest {
     val translator = buildP4InfoTranslator()
 
     // Use a match field ID that has no type_name in p4info.
-    val rawValue = sdnBytes(42)
+    val rawValue = p4rtBytes(42)
     val update =
-      writeUpdate(TABLE_ID, NON_TRANSLATED_FIELD_ID, rawValue, ACTION_ID, PARAM_ID, sdnBytes(1))
+      writeUpdate(TABLE_ID, NON_TRANSLATED_FIELD_ID, rawValue, ACTION_ID, PARAM_ID, p4rtBytes(1))
     val translated = translator.translateForWrite(update)
     val match = translated.entity.tableEntry.matchList.first()
     // Match value should be unchanged.
@@ -423,8 +558,8 @@ class TypeTranslatorTest {
   fun `sdn_string match field write decodes UTF-8 and allocates`() {
     val translator = buildP4InfoTranslatorWithStringType()
 
-    val sdnBytes = "Ethernet0".toByteArray(Charsets.UTF_8)
-    val update = writeUpdate(TABLE_ID, MATCH_FIELD_ID, sdnBytes, ACTION_ID, PARAM_ID, sdnBytes)
+    val p4rtBytes = "Ethernet0".toByteArray(Charsets.UTF_8)
+    val update = writeUpdate(TABLE_ID, MATCH_FIELD_ID, p4rtBytes, ACTION_ID, PARAM_ID, p4rtBytes)
     val translated = translator.translateForWrite(update)
     val match = translated.entity.tableEntry.matchList.first()
     assertEquals(ByteString.copyFrom(dpBytes(0)), match.exact.value)
@@ -435,9 +570,9 @@ class TypeTranslatorTest {
     val translator = buildP4InfoTranslatorWithStringType()
 
     // Write to install the mapping.
-    val sdnBytes = "Ethernet0".toByteArray(Charsets.UTF_8)
+    val p4rtBytes = "Ethernet0".toByteArray(Charsets.UTF_8)
     translator.translateForWrite(
-      writeUpdate(TABLE_ID, MATCH_FIELD_ID, sdnBytes, ACTION_ID, PARAM_ID, sdnBytes)
+      writeUpdate(TABLE_ID, MATCH_FIELD_ID, p4rtBytes, ACTION_ID, PARAM_ID, p4rtBytes)
     )
 
     // Read back.
@@ -480,9 +615,9 @@ class TypeTranslatorTest {
   fun `sdn_string optional match field is translated on write`() {
     val translator = buildP4InfoTranslatorWithStringType()
 
-    val sdnBytes = "Ethernet0".toByteArray(Charsets.UTF_8)
+    val p4rtBytes = "Ethernet0".toByteArray(Charsets.UTF_8)
     val update =
-      writeUpdateOptionalMatch(TABLE_ID, MATCH_FIELD_ID, sdnBytes, ACTION_ID, PARAM_ID, sdnBytes)
+      writeUpdateOptionalMatch(TABLE_ID, MATCH_FIELD_ID, p4rtBytes, ACTION_ID, PARAM_ID, p4rtBytes)
     val translated = translator.translateForWrite(update)
     val match = translated.entity.tableEntry.matchList.first()
     assertEquals(ByteString.copyFrom(dpBytes(0)), match.optional.value)
@@ -498,7 +633,7 @@ class TypeTranslatorTest {
 
     // Field 1 is sdn_string (port_name_t), field 3 is sdn_bitwidth (port_id_t).
     val stringBytes = "Ethernet0".toByteArray(Charsets.UTF_8)
-    val bitstringBytes = sdnBytes(5000)
+    val bitstringBytes = p4rtBytes(5000)
 
     // Write with both match fields.
     val entry =
@@ -603,7 +738,7 @@ class TypeTranslatorTest {
         .addMetadata(
           P4RuntimeOuterClass.PacketMetadata.newBuilder()
             .setMetadataId(PACKET_METADATA_ID)
-            .setValue(ByteString.copyFrom(sdnBytes(5000)))
+            .setValue(ByteString.copyFrom(p4rtBytes(5000)))
         )
         .build()
 
@@ -623,12 +758,12 @@ class TypeTranslatorTest {
         .addMetadata(
           P4RuntimeOuterClass.PacketMetadata.newBuilder()
             .setMetadataId(PACKET_METADATA_ID)
-            .setValue(ByteString.copyFrom(sdnBytes(5000)))
+            .setValue(ByteString.copyFrom(p4rtBytes(5000)))
         )
         .build()
     translator.translatePacketOut(packetOut)
 
-    // Reverse: data-plane → SDN.
+    // Reverse: data-plane → P4RT.
     val packetIn =
       P4RuntimeOuterClass.PacketIn.newBuilder()
         .setPayload(ByteString.copyFrom(byteArrayOf(0x00)))
@@ -641,7 +776,7 @@ class TypeTranslatorTest {
 
     val translated = translator.translatePacketIn(packetIn)
     val meta = translated.metadataList.first()
-    assertEquals(ByteString.copyFrom(sdnBytes(5000)), meta.value)
+    assertEquals(ByteString.copyFrom(p4rtBytes(5000)), meta.value)
   }
 
   @Test
@@ -661,7 +796,7 @@ class TypeTranslatorTest {
     val translatedOut = translator.translatePacketOut(packetOut)
     assertEquals(ByteString.copyFrom(dpBytes(0)), translatedOut.metadataList.first().value)
 
-    // Reverse: data-plane → SDN.
+    // Reverse: data-plane → P4RT.
     val packetIn =
       P4RuntimeOuterClass.PacketIn.newBuilder()
         .setPayload(ByteString.copyFrom(byteArrayOf(0x00)))
@@ -680,7 +815,7 @@ class TypeTranslatorTest {
   fun `non-translated packet metadata passes through unchanged`() {
     val translator = buildP4InfoTranslatorWithPacketIO()
 
-    val rawValue = ByteString.copyFrom(sdnBytes(42))
+    val rawValue = ByteString.copyFrom(p4rtBytes(42))
     val packetOut =
       P4RuntimeOuterClass.PacketOut.newBuilder()
         .setPayload(ByteString.copyFrom(byteArrayOf(0x00)))
@@ -720,13 +855,13 @@ class TypeTranslatorTest {
   private fun typeInfo(
     typeName: String,
     uri: String,
-    sdnType: P4Types.P4NewTypeTranslation.Builder.() -> Unit,
+    p4rtType: P4Types.P4NewTypeTranslation.Builder.() -> Unit,
   ): P4Types.P4TypeInfo =
     P4Types.P4TypeInfo.newBuilder()
       .putNewTypes(
         typeName,
         P4Types.P4NewTypeSpec.newBuilder()
-          .setTranslatedType(P4Types.P4NewTypeTranslation.newBuilder().setUri(uri).apply(sdnType))
+          .setTranslatedType(P4Types.P4NewTypeTranslation.newBuilder().setUri(uri).apply(p4rtType))
           .build(),
       )
       .build()
@@ -1037,7 +1172,7 @@ class TypeTranslatorTest {
       .setDataplaneValue(ByteString.copyFrom(dataplaneValue))
       .build()
 
-  private fun sdnBytes(value: Int): ByteArray = encodeMinWidth(value)
+  private fun p4rtBytes(value: Int): ByteArray = encodeMinWidth(value)
 
   private fun dpBytes(value: Int): ByteArray = encodeMinWidth(value)
 
