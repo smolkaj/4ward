@@ -27,7 +27,9 @@ object TraceFormatter {
         when {
           outcome.hasOutput() -> {
             val out = outcome.output
-            appendLine("${pad(indent)}output port ${out.egressPort}, ${out.payload.size()} bytes")
+            appendLine(
+              "${pad(indent)}output port ${out.dataplaneEgressPort}, ${out.payload.size()} bytes"
+            )
           }
           outcome.hasDrop() -> {
             appendLine("${pad(indent)}drop (reason: ${outcome.drop.reason.humanName()})")

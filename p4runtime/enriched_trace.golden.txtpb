@@ -1,5 +1,16 @@
+# Enriched trace for translated_port.p4: etherType=0x0800 → forward("Ethernet1"),
+# ingress on "Ethernet0".
+#
+# Uses the SAI forked v1model with @p4runtime_translation("", string) on port
+# types. The enriched p4rt_* fields show human-readable port names alongside
+# raw dataplane values:
+#   - p4rt_ingress_port: "Ethernet0"  (dataplane_ingress_port: 1)
+#   - p4rt_egress_port:  "Ethernet1"  (dataplane: 0)
+#   - p4rt_matched_entry action param: "Ethernet1" (dataplane: \000)
 events {
   packet_ingress {
+    dataplane_ingress_port: 1
+    p4rt_ingress_port: "Ethernet0"
   }
 }
 events {
@@ -16,9 +27,9 @@ events {
     to_state: "accept"
   }
   source_info {
-    file: "e2e_tests/trace_tree/no_fork.p4"
-    line: 22
-    column: 10
+    file: "e2e_tests/translated_port/translated_port.p4"
+    line: 30
+    column: 8
     source_fragment: "start"
   }
 }
@@ -52,14 +63,14 @@ events {
 }
 events {
   table_lookup {
-    table_name: "routing"
+    table_name: "forwarding"
     hit: true
     matched_entry {
-      table_id: 34192369
+      table_id: 38687552
       match {
         field_id: 1
         exact {
-          value: "\377\377\377\377\377\377"
+          value: "\b\000"
         }
       }
       action {
@@ -67,18 +78,36 @@ events {
           action_id: 29683729
           params {
             param_id: 1
-            value: "\000\001"
+            value: "\000"
           }
         }
       }
     }
     action_name: "forward"
+    p4rt_matched_entry {
+      table_id: 38687552
+      match {
+        field_id: 1
+        exact {
+          value: "\b\000"
+        }
+      }
+      action {
+        action {
+          action_id: 29683729
+          params {
+            param_id: 1
+            value: "Ethernet1"
+          }
+        }
+      }
+    }
   }
   source_info {
-    file: "e2e_tests/trace_tree/no_fork.p4"
-    line: 41
-    column: 12
-    source_fragment: "routing.apply()"
+    file: "e2e_tests/translated_port/translated_port.p4"
+    line: 50
+    column: 10
+    source_fragment: "forwarding.apply()"
   }
 }
 events {
@@ -86,14 +115,14 @@ events {
     action_name: "forward"
     params {
       key: "port"
-      value: "\000\001"
+      value: "\000"
     }
   }
   source_info {
-    file: "e2e_tests/trace_tree/no_fork.p4"
-    line: 41
-    column: 12
-    source_fragment: "routing.apply()"
+    file: "e2e_tests/translated_port/translated_port.p4"
+    line: 50
+    column: 10
+    source_fragment: "forwarding.apply()"
   }
 }
 events {
@@ -153,7 +182,7 @@ events {
 }
 packet_outcome {
   output {
-    dataplane_egress_port: 1
-    payload: "\377\377\377\377\377\377\000\000\000\000\000\001\b\000"
+    payload: "\377\377\377\377\377\377\000\000\000\000\000\001\b\000\336\255\276\357"
+    p4rt_egress_port: "Ethernet1"
   }
 }

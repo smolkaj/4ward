@@ -26,7 +26,10 @@ message InputPacket {
 }
 
 message OutputPacket {
-  uint32 egress_port = 1;
+  uint32 dataplane_egress_port = 1;
+  // P4Runtime port ID. Populated by enrichment layers (e.g. DataplaneService),
+  // never by the simulator.
+  bytes p4rt_egress_port = 3;
   bytes payload = 2;
 }
 
@@ -130,8 +133,13 @@ message ParserTransitionEvent {
 message TableLookupEvent {
   string table_name = 1;
   bool hit = 2;
-  p4.v1.TableEntry matched_entry = 3;  // present on hit; absent on miss
-  string action_name = 4;              // default action on miss
+  // Matched table entry in dataplane representation. Present on hit; absent on
+  // miss.
+  p4.v1.TableEntry matched_entry = 3;
+  // matched_entry with values translated to P4Runtime representation.
+  // Populated by enrichment layers, never by the simulator.
+  p4.v1.TableEntry p4rt_matched_entry = 5;
+  string action_name = 4;  // default action on miss
 }
 
 // Fired when an action begins executing. Parameter values are big-endian bytes.
@@ -169,14 +177,18 @@ message CloneSessionLookupEvent {
   uint32 session_id = 1;
   bool session_found =
       2;  // false = session not configured, clone silently dropped
-  uint32 egress_port =
+  uint32 dataplane_egress_port =
       3;  // clone destination; only meaningful when session_found
+  // P4Runtime port ID. Populated by enrichment layers, never by the simulator.
+  bytes p4rt_egress_port = 4;
 }
 
 // Fired when a packet arrives at the pipeline — the very first event in any
 // trace.
 message PacketIngressEvent {
-  uint32 ingress_port = 1;
+  uint32 dataplane_ingress_port = 1;
+  // P4Runtime port ID. Populated by enrichment layers, never by the simulator.
+  bytes p4rt_ingress_port = 2;
 }
 
 // Fired when the pipeline enters or exits a processing stage (parser, control,

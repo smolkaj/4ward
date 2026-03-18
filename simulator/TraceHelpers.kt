@@ -22,7 +22,7 @@ internal fun buildDropTrace(
 internal fun buildOutputTrace(events: List<TraceEvent>, port: Int, payload: ByteArray): TraceTree {
   val output =
     fourward.sim.SimulatorProto.OutputPacket.newBuilder()
-      .setEgressPort(port)
+      .setDataplaneEgressPort(port)
       .setPayload(com.google.protobuf.ByteString.copyFrom(payload))
       .build()
   val outcome = PacketOutcome.newBuilder().setOutput(output).build()
@@ -32,7 +32,7 @@ internal fun buildOutputTrace(events: List<TraceEvent>, port: Int, payload: Byte
 /** Creates a [TraceEvent] recording the packet's ingress port. */
 internal fun packetIngressEvent(ingressPort: UInt): TraceEvent =
   TraceEvent.newBuilder()
-    .setPacketIngress(PacketIngressEvent.newBuilder().setIngressPort(ingressPort.toInt()))
+    .setPacketIngress(PacketIngressEvent.newBuilder().setDataplaneIngressPort(ingressPort.toInt()))
     .build()
 
 /** Creates a [TraceEvent] marking the entry/exit of a pipeline stage. */

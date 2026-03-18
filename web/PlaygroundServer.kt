@@ -30,7 +30,7 @@ fun main(args: Array<String>) {
   val lock = Mutex()
   val broker = PacketBroker(simulator::processPacket)
   val service = P4RuntimeService(simulator, broker, lock = lock, cpuPortConfig = cpuPortConfig)
-  val dataplaneService = DataplaneService(broker, lock)
+  val dataplaneService = DataplaneService(broker, lock) { service.typeTranslator }
 
   // Start gRPC server.
   val grpcServer =

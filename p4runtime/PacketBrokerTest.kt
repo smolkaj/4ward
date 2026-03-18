@@ -10,7 +10,7 @@ class PacketBrokerTest {
 
   private fun outputPacket(egressPort: Int, payload: ByteArray = byteArrayOf()) =
     OutputPacket.newBuilder()
-      .setEgressPort(egressPort)
+      .setDataplaneEgressPort(egressPort)
       .setPayload(com.google.protobuf.ByteString.copyFrom(payload))
       .build()
 

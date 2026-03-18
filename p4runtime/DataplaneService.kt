@@ -9,6 +9,7 @@ import fourward.dataplane.DataplaneProto.ProcessPacketResult as ProcessPacketRes
 import fourward.dataplane.DataplaneProto.SubscribeResultsRequest
 import fourward.dataplane.DataplaneProto.SubscribeResultsResponse
 import fourward.dataplane.DataplaneProto.SubscriptionActive
+import fourward.sim.SimulatorProto.TraceTree
 import io.grpc.Status
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -18,28 +19,29 @@ import kotlinx.coroutines.sync.withLock
 
 /**
  * Dataplane gRPC service: injects packets into the simulator and returns output packets with dual
- * port encoding (dataplane + P4Runtime).
+ * port encoding (dataplane + P4Runtime) and P4RT-enriched traces.
  *
  * Serialized via a shared [lock] with [P4RuntimeService] to prevent races between control-plane
  * writes and data-plane packet processing.
  *
- * @param portTranslator provides the current [PortTranslator] from the loaded pipeline, or null if
- *   no pipeline is loaded or the pipeline has no port translation.
+ * @param typeTranslator provides the current [TypeTranslator] from the loaded pipeline, or null if
+ *   no pipeline is loaded or the pipeline has no type translation.
  */
 class DataplaneService(
   private val broker: PacketBroker,
   private val lock: Mutex,
-  private val portTranslator: () -> PortTranslator? = { null },
+  private val typeTranslator: () -> TypeTranslator? = { null },
 ) : DataplaneGrpcKt.DataplaneCoroutineImplBase() {
 
   override suspend fun injectPacket(request: InjectPacketRequest): InjectPacketResponse {
-    val pt = portTranslator()
+    val translator = typeTranslator()
+    val pt = translator?.portTranslator
     val ingressPort = resolveIngressPort(request, pt)
     val payload = request.payload.toByteArray()
     val result = lock.withLock { broker.processPacket(ingressPort, payload) }
     return InjectPacketResponse.newBuilder()
       .addAllOutputPackets(result.outputPackets.map { it.toDualEncoded(pt) })
-      .setTrace(result.trace)
+      .setTrace(enrichTrace(result.trace, translator))
       .build()
   }
 
@@ -53,7 +55,8 @@ class DataplaneService(
 
       val handle =
         broker.subscribe { subResult ->
-          val pt = portTranslator()
+          val translator = typeTranslator()
+          val pt = translator?.portTranslator
           val result =
             ProcessPacketResultProto.newBuilder()
               .setInputPacket(
@@ -65,7 +68,7 @@ class DataplaneService(
                   .setPayload(ByteString.copyFrom(subResult.payload))
               )
               .addAllOutputPackets(subResult.outputPackets.map { it.toDualEncoded(pt) })
-              .setTrace(subResult.trace)
+              .setTrace(enrichTrace(subResult.trace, translator))
               .build()
           trySend(SubscribeResultsResponse.newBuilder().setResult(result).build())
         }
@@ -92,6 +95,9 @@ class DataplaneService(
     }
 }
 
+private fun enrichTrace(trace: TraceTree, translator: TypeTranslator?): TraceTree =
+  translator?.let { TraceEnricher.enrich(trace, it) } ?: trace
+
 /**
  * Converts a simulator [fourward.sim.SimulatorProto.OutputPacket] to a dual-encoded
  * [DataplaneProto.OutputPacket].
@@ -100,7 +106,7 @@ private fun fourward.sim.SimulatorProto.OutputPacket.toDualEncoded(
   pt: PortTranslator?
 ): DataplaneProto.OutputPacket =
   DataplaneProto.OutputPacket.newBuilder()
-    .setDataplaneEgressPort(egressPort)
-    .apply { pt?.dataplaneToP4rt(egressPort)?.let { setP4RtEgressPort(it) } }
+    .setDataplaneEgressPort(dataplaneEgressPort)
+    .apply { pt?.dataplaneToP4rt(dataplaneEgressPort)?.let { setP4RtEgressPort(it) } }
     .setPayload(payload)
     .build()

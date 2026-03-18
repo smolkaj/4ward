@@ -123,7 +123,7 @@ fork_outcome {
       }
       packet_outcome {
         output {
-          egress_port: 1
+          dataplane_egress_port: 1
           payload: "\377\377\377\377\377\377\000\000\000\000\000\001\b\000"
         }
       }
@@ -254,7 +254,7 @@ fork_outcome {
       }
       packet_outcome {
         output {
-          egress_port: 3
+          dataplane_egress_port: 3
           payload: "\377\377\377\377\377\377\000\000\000\000\000\001\b\000"
         }
       }
