@@ -49,7 +49,7 @@ plane.
 | | BMv2 | 4ward goal | Status |
 |---|---|---|---|
 | P4Runtime support | outdated | [**100% spec-compliant**](docs/ROADMAP.md#track-4-p4runtime-reference-implementation) | ✅ [124 spec + 10 extension requirements](docs/P4RUNTIME_COMPLIANCE.md) |
-| Trace format | text | **text/JSON/[proto](e2e_tests/trace_tree/clone_with_egress.golden.txtpb)**] | ✅ |
+| Trace format | text | **text/JSON/[proto](e2e_tests/trace_tree/clone_with_egress.golden.txtpb)** | ✅ |
 | All possible traces | not natively | [**trace trees!**](docs/ROADMAP.md#track-3-trace-trees) | ✅ |
 | `@p4runtime_translation` | no | [**built-in translation engine**](#p4runtime_translation-done-right) | ✅ |
 | Architecture-generic | ish | [**by design**](docs/ROADMAP.md#track-6-multi-architecture-support) | ✅ v1model + PSA (PNA next) |
