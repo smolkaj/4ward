@@ -36,20 +36,21 @@ BCR consumers.
 
 ---
 
-## Rename "SDN" to "P4RT" in TypeTranslator
-
-The `TypeTranslator` API uses "SDN" terminology (`sdnToDataplane`,
-`dataplaneToSdn`, `SdnValue`) inherited from the P4 spec's field names
-(`sdn_string`, `sdn_bitwidth`). The rest of the codebase — including the
-DataplaneService proto and design docs — uses "P4RT", which better reflects
-that `@p4runtime_translation` is a P4Runtime concept. Rename for consistency:
-`sdnToDataplane` → `p4rtToDataplane`, `SdnValue` → `P4rtValue`, etc.
-
----
-
 ## Use dual port encoding in sonic-pins
 
 Once the DataplaneService supports both dataplane (`uint32`) and P4RT (`bytes`)
 port encodings ([design](../designs/dataplane_port_encoding.md)), update the
 sonic-pins `FourwardBackend` to use P4RT ports directly — eliminating the
 manual `SimpleAtoi`/`StrCat` conversions in `fourward_backend.cc`.
+
+---
+
+## Establish user-facing documentation
+
+`docs/` currently serves developers working on 4ward. As the project
+approaches upstream integration into sonic-pins, API consumers (DVaaS
+integrators, sonic-pins developers) need their own documentation: API
+reference, configuration guide, integration cookbook. Decide on format
+(mdbook, docusaurus, plain markdown) when scope is clearer.
+`docs/TYPE_TRANSLATION.md` is a first step toward user-facing reference
+material.

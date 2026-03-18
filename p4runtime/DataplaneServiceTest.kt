@@ -3,9 +3,11 @@ package fourward.p4runtime
 import com.google.protobuf.ByteString
 import fourward.dataplane.DataplaneGrpcKt.DataplaneCoroutineStub
 import fourward.dataplane.DataplaneProto.SubscribeResultsRequest
+import fourward.p4runtime.P4RuntimeTestHarness.Companion.assertGrpcError
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildEthernetFrame
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildExactEntry
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.loadConfig
+import io.grpc.Status
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
@@ -68,7 +70,7 @@ class DataplaneServiceTest {
     val response = harness.injectPacket(ingressPort = 0, payload = payload)
 
     assertEquals("expected 1 output", 1, response.outputPacketsCount)
-    assertEquals("should exit on port 1", 1, response.getOutputPackets(0).egressPort)
+    assertEquals("should exit on port 1", 1, response.getOutputPackets(0).dataplaneEgressPort)
   }
 
   @Test
@@ -115,8 +117,8 @@ class DataplaneServiceTest {
     assertEquals("expected 2 messages", 2, result.size)
     assertTrue("first is SubscriptionActive", result[0].hasActive())
     assertTrue("second is ProcessPacketResult", result[1].hasResult())
-    assertEquals(0, result[1].result.input.ingressPort)
-    assertEquals(ByteString.copyFrom(byteArrayOf(0x01)), result[1].result.input.payload)
+    assertEquals(0, result[1].result.inputPacket.dataplaneIngressPort)
+    assertEquals(ByteString.copyFrom(byteArrayOf(0x01)), result[1].result.inputPacket.payload)
   }
 
   // =========================================================================
@@ -209,4 +211,32 @@ class DataplaneServiceTest {
     assertTrue("first is SubscriptionActive", result[0].hasActive())
     result.drop(1).forEach { msg -> assertTrue("should be a result", msg.hasResult()) }
   }
+
+  // =========================================================================
+  // Dual port encoding
+  // =========================================================================
+
+  @Test
+  fun `InjectPacket with P4RT port fails without pipeline`() {
+    val p4rtPort = ByteString.copyFrom(byteArrayOf(0, 0, 0, 1))
+    assertGrpcError(Status.Code.FAILED_PRECONDITION) {
+      harness.injectPacketP4rt(p4rtPort, byteArrayOf(0x01))
+    }
+  }
+
+  @Test
+  fun `response output packets have no P4RT port without translation`() {
+    harness.loadPipeline(loadPassthroughConfig())
+    val response = harness.injectPacket(ingressPort = 0, payload = byteArrayOf(0x01))
+
+    assertEquals("passthrough produces 1 output", 1, response.outputPacketsCount)
+    val output = response.getOutputPackets(0)
+    assertTrue(
+      "p4rt_egress_port should be empty without translation",
+      output.p4RtEgressPort.isEmpty,
+    )
+  }
+
+  // Positive dual-encoding tests (P4RT port injection and response population) are in
+  // SaiP4E2ETest, which uses a program with @controller_header and @p4runtime_translation.
 }

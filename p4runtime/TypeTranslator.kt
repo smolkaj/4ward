@@ -29,81 +29,125 @@ internal fun encodeMinWidth(value: Int): ByteString {
   return ByteString.copyFrom(bytes.toByteArray())
 }
 
-/** The SDN (controller-facing) value for a translated type. */
-sealed class SdnValue {
-  data class Bitstring(val value: ByteString) : SdnValue()
+/** The P4Runtime (controller-facing) value for a translated type. */
+sealed class P4rtValue {
+  data class Bitstring(val value: ByteString) : P4rtValue()
 
-  data class Str(val value: String) : SdnValue()
+  data class Str(val value: String) : P4rtValue()
 }
 
 /** Thrown when a value cannot be translated (no mapping and auto-allocate is off). */
 class TranslationException(message: String) : RuntimeException(message)
 
 /**
- * Bidirectional mapping between SDN (controller-facing) and data-plane values for
+ * Translates between P4Runtime port IDs and dataplane port numbers.
+ *
+ * Most `@p4runtime_translation` types appear only in dynamically-typed table entry fields (match
+ * fields, action params), where [TypeTranslator] discovers the type from p4info field-level
+ * metadata. Ports are different: they appear in hardcoded proto fields across multiple messages —
+ * `InputPacket.ingress_port`, `OutputPacket.egress_port`, `PacketIn`/`PacketOut` metadata,
+ * `CloneSessionEntry.replicas` — so the server needs the port type as a pipeline-wide property, not
+ * per-field.
+ *
+ * The port type is derived from `controller_packet_metadata` in the p4info: metadata fields whose
+ * [`type_name`](https://github.com/p4lang/p4runtime/blob/main/proto/p4/config/v1/p4info.proto#L453)
+ * resolves to a `@p4runtime_translation`-annotated type in `type_info` identify the port
+ * translation.
+ */
+class PortTranslator internal constructor(private val table: TranslationTable) {
+  /** Translates a P4Runtime port ID to a dataplane port number. */
+  fun p4rtToDataplane(p4rtPort: ByteString): Int {
+    val dp =
+      if (table.isStringType) {
+        table.lookupOrAllocateString(p4rtPort.toStringUtf8())
+      } else {
+        table.lookupOrAllocateBitstring(p4rtPort)
+      }
+    return dp.toUnsignedInt()
+  }
+
+  /** Translates a dataplane port number to a P4Runtime port ID, or null if no mapping exists. */
+  fun dataplaneToP4rt(dataplanePort: Int): ByteString? =
+    when (val p4rtValue = table.reverseLookupOrNull(encodeMinWidth(dataplanePort))) {
+      is P4rtValue.Str -> ByteString.copyFromUtf8(p4rtValue.value)
+      is P4rtValue.Bitstring -> p4rtValue.value
+      null -> null
+    }
+}
+
+/**
+ * Bidirectional mapping between P4Runtime (controller-facing) and data-plane values for
  * `@p4runtime_translation`-annotated types.
  *
- * Supports three modes per URI:
+ * Translation tables are keyed by **fully qualified type name** (from p4info `type_info`), not by
+ * URI. This is because SAI P4 uses an empty URI for all translated types, relying on type names for
+ * disambiguation. See [docs/TYPE_TRANSLATION.md] for details.
+ *
+ * Supports three modes per type:
  * - **Explicit**: all mappings provided upfront; unknown values are rejected.
  * - **Auto-allocate**: data-plane values assigned sequentially on first use.
  * - **Hybrid**: explicit pins for known values, auto-allocate for the rest.
  *
- * When no [TypeTranslation] is provided for a URI, auto-allocation is used by default.
+ * When no [TypeTranslation] is provided for a type, auto-allocation is used by default.
  *
  * Translates action parameters, match fields (exact/optional), and PacketIO metadata.
  */
 class TypeTranslator
 private constructor(
   private val tables: ConcurrentHashMap<String, TranslationTable>,
-  private val paramUris: Map<Long, String>,
-  private val matchFieldUris: Map<Long, String>,
+  private val paramTypeNames: Map<Long, String>,
+  private val matchFieldTypeNames: Map<Long, String>,
   // Separate maps per direction: packet_out and packet_in metadata IDs can
   // overlap (both use @id(1), @id(2), …) but refer to different fields.
-  private val packetOutMetadataUris: Map<Int, String>,
-  private val packetInMetadataUris: Map<Int, String>,
+  private val packetOutMetadataTypeNames: Map<Int, String>,
+  private val packetInMetadataTypeNames: Map<Int, String>,
+  /** Port translator for hardcoded port fields, or null if the port type is not translated. */
+  val portTranslator: PortTranslator?,
 ) {
 
   /** True if this translator has any translated types to handle. */
   val hasTranslations: Boolean =
     tables.isNotEmpty() ||
-      paramUris.isNotEmpty() ||
-      matchFieldUris.isNotEmpty() ||
-      packetOutMetadataUris.isNotEmpty() ||
-      packetInMetadataUris.isNotEmpty()
+      paramTypeNames.isNotEmpty() ||
+      matchFieldTypeNames.isNotEmpty() ||
+      packetOutMetadataTypeNames.isNotEmpty() ||
+      packetInMetadataTypeNames.isNotEmpty()
 
   /**
-   * Translates an SDN bitstring value to its data-plane representation.
+   * Translates a P4Runtime bitstring value to its data-plane representation.
    *
-   * For auto-allocate URIs, creates a new mapping on first use.
+   * For auto-allocate types, creates a new mapping on first use.
    */
-  fun sdnToDataplane(uri: String, sdnValue: ByteArray): ByteArray =
-    getOrCreateTable(uri).lookupOrAllocateBitstring(ByteString.copyFrom(sdnValue)).toByteArray()
+  fun p4rtToDataplane(typeName: String, p4rtValue: ByteArray): ByteArray =
+    getOrCreateTable(typeName)
+      .lookupOrAllocateBitstring(ByteString.copyFrom(p4rtValue))
+      .toByteArray()
 
   /**
-   * Translates an SDN string value to its data-plane representation.
+   * Translates a P4Runtime string value to its data-plane representation.
    *
-   * For auto-allocate URIs, creates a new mapping on first use.
+   * For auto-allocate types, creates a new mapping on first use.
    */
-  fun sdnToDataplane(uri: String, sdnStr: String): ByteArray =
-    getOrCreateTable(uri).lookupOrAllocateString(sdnStr).toByteArray()
+  fun p4rtToDataplane(typeName: String, p4rtStr: String): ByteArray =
+    getOrCreateTable(typeName).lookupOrAllocateString(p4rtStr).toByteArray()
 
   /**
-   * Translates a data-plane value back to its SDN representation.
+   * Translates a data-plane value back to its P4Runtime representation.
    *
    * @throws TranslationException if no reverse mapping exists.
    */
-  fun dataplaneToSdn(uri: String, dataplaneValue: ByteArray): SdnValue =
-    getOrCreateTable(uri).reverseLookup(ByteString.copyFrom(dataplaneValue))
+  fun dataplaneToP4rt(typeName: String, dataplaneValue: ByteArray): P4rtValue =
+    getOrCreateTable(typeName).reverseLookup(ByteString.copyFrom(dataplaneValue))
 
-  /** Gets an existing table or creates a default auto-allocate table for unknown URIs. */
-  private fun getOrCreateTable(uri: String): TranslationTable =
-    tables.computeIfAbsent(uri) { TranslationTable(autoAllocate = true) }
+  /** Gets an existing table or creates a default auto-allocate table for unknown types. */
+  private fun getOrCreateTable(typeName: String): TranslationTable =
+    tables.computeIfAbsent(typeName) { TranslationTable(autoAllocate = true) }
 
   // ---------------------------------------------------------------------------
   // P4Runtime Write/Read translation
   // ---------------------------------------------------------------------------
 
-  /** Translates a Write update from SDN to data-plane representation. */
+  /** Translates a Write update from P4Runtime to data-plane representation. */
   fun translateForWrite(update: Update): Update {
     val entity = update.entity
     return when {
@@ -125,7 +169,7 @@ private constructor(
     }
   }
 
-  /** Translates a Read entity from data-plane to SDN representation. */
+  /** Translates a Read entity from data-plane to P4Runtime representation. */
   fun translateForRead(entity: Entity): Entity =
     when {
       entity.hasTableEntry() -> {
@@ -166,26 +210,26 @@ private constructor(
   // PacketIO metadata translation
   // ---------------------------------------------------------------------------
 
-  /** Translates PacketOut metadata from SDN to data-plane representation. */
+  /** Translates PacketOut metadata from P4Runtime to data-plane representation. */
   fun translatePacketOut(packetOut: PacketOut): PacketOut {
-    if (packetOutMetadataUris.isEmpty()) return packetOut
+    if (packetOutMetadataTypeNames.isEmpty()) return packetOut
     val translated =
-      translateMetadata(packetOutMetadataUris, packetOut.metadataList, toDataplane = true)
+      translateMetadata(packetOutMetadataTypeNames, packetOut.metadataList, toDataplane = true)
         ?: return packetOut
     return packetOut.toBuilder().clearMetadata().addAllMetadata(translated).build()
   }
 
   /**
-   * Translates PacketIn metadata from data-plane to SDN representation.
+   * Translates PacketIn metadata from data-plane to P4Runtime representation.
    *
    * Lenient: metadata values without a reverse mapping (e.g. the CPU port, which the controller
    * never forward-allocated) are passed through unchanged.
    */
   fun translatePacketIn(packetIn: PacketIn): PacketIn {
-    if (packetInMetadataUris.isEmpty()) return packetIn
+    if (packetInMetadataTypeNames.isEmpty()) return packetIn
     val translated =
       translateMetadata(
-        packetInMetadataUris,
+        packetInMetadataTypeNames,
         packetIn.metadataList,
         toDataplane = false,
         lenient = true,
@@ -252,10 +296,10 @@ private constructor(
     var changed = false
     val result =
       params.map { param ->
-        val uri = paramUris[packKey(actionId, param.paramId)]
-        if (uri != null) {
+        val typeName = paramTypeNames[packKey(actionId, param.paramId)]
+        if (typeName != null) {
           changed = true
-          val translated = translateValue(getOrCreateTable(uri), param.value, toDataplane)
+          val translated = translateValue(getOrCreateTable(typeName), param.value, toDataplane)
           param.toBuilder().setValue(translated).build()
         } else {
           param
@@ -272,10 +316,10 @@ private constructor(
     var changed = false
     val result =
       matches.map { match ->
-        val uri = matchFieldUris[packKey(tableId, match.fieldId)]
-        if (uri != null) {
+        val typeName = matchFieldTypeNames[packKey(tableId, match.fieldId)]
+        if (typeName != null) {
           changed = true
-          val table = getOrCreateTable(uri)
+          val table = getOrCreateTable(typeName)
           when {
             match.hasExact() -> {
               val translated = translateValue(table, match.exact.value, toDataplane)
@@ -306,7 +350,7 @@ private constructor(
   }
 
   private fun translateMetadata(
-    uriMap: Map<Int, String>,
+    typeNameMap: Map<Int, String>,
     metadata: List<p4.v1.P4RuntimeOuterClass.PacketMetadata>,
     toDataplane: Boolean,
     lenient: Boolean = false,
@@ -314,17 +358,17 @@ private constructor(
     var changed = false
     val result =
       metadata.map { meta ->
-        val uri = uriMap[meta.metadataId]
-        if (uri != null) {
+        val typeName = typeNameMap[meta.metadataId]
+        if (typeName != null) {
           val translated =
             if (lenient) {
               try {
-                translateValue(getOrCreateTable(uri), meta.value, toDataplane)
+                translateValue(getOrCreateTable(typeName), meta.value, toDataplane)
               } catch (_: TranslationException) {
                 null
               }
             } else {
-              translateValue(getOrCreateTable(uri), meta.value, toDataplane)
+              translateValue(getOrCreateTable(typeName), meta.value, toDataplane)
             }
           if (translated != null) {
             changed = true
@@ -340,10 +384,10 @@ private constructor(
   }
 
   /**
-   * Translates a single ByteString value forward (SDN→DP) or reverse (DP→SDN).
+   * Translates a single ByteString value forward (P4RT→DP) or reverse (DP→P4RT).
    *
-   * For `sdn_string` tables, the SDN value is a UTF-8 string encoded in the proto `bytes` field
-   * (per P4Runtime spec §8.3 — there is no separate string field).
+   * For `sdn_string` tables, the P4Runtime value is a UTF-8 string encoded in the proto `bytes`
+   * field (per P4Runtime spec §8.3 — there is no separate string field).
    */
   private fun translateValue(
     table: TranslationTable,
@@ -357,9 +401,9 @@ private constructor(
         table.lookupOrAllocateBitstring(value)
       }
     } else {
-      when (val sdnValue = table.reverseLookup(value)) {
-        is SdnValue.Bitstring -> sdnValue.value
-        is SdnValue.Str -> ByteString.copyFromUtf8(sdnValue.value)
+      when (val p4rtValue = table.reverseLookup(value)) {
+        is P4rtValue.Bitstring -> p4rtValue.value
+        is P4rtValue.Str -> ByteString.copyFromUtf8(p4rtValue.value)
       }
     }
 
@@ -367,91 +411,127 @@ private constructor(
     /**
      * Creates a TypeTranslator from translation configurations.
      *
-     * For use without p4info — the translator supports direct URI-based lookups via
-     * [sdnToDataplane] and [dataplaneToSdn], but not message-level translation methods (which
-     * require p4info to map field IDs to URIs).
+     * For use without p4info — the translator supports direct type-name-based lookups via
+     * [p4rtToDataplane] and [dataplaneToP4rt], but not message-level translation methods (which
+     * require p4info to map field IDs to type names).
      */
     fun create(translations: List<TypeTranslation> = emptyList()): TypeTranslator =
       TypeTranslator(
-        buildTables(translations),
-        paramUris = emptyMap(),
-        matchFieldUris = emptyMap(),
-        packetOutMetadataUris = emptyMap(),
-        packetInMetadataUris = emptyMap(),
+        buildTables(translations, resolveKey = { it.resolveKey() }),
+        paramTypeNames = emptyMap(),
+        matchFieldTypeNames = emptyMap(),
+        packetOutMetadataTypeNames = emptyMap(),
+        packetInMetadataTypeNames = emptyMap(),
+        portTranslator = null,
       )
 
     /**
      * Creates a TypeTranslator from p4info and translation configurations.
      *
-     * Discovers translated types from p4info and maps field IDs to URIs, enabling translation of
-     * action parameters, match fields, and PacketIO metadata in P4Runtime messages.
+     * Discovers translated types from p4info and maps field IDs to type names, enabling translation
+     * of action parameters, match fields, and PacketIO metadata in P4Runtime messages.
+     *
+     * @param portTypeName the fully qualified P4 type name for ports (from
+     *   `Architecture.port_type_name` in the compiled IR). Empty if ports use a bare `bit<N>` (no
+     *   newtype). A [PortTranslator] is created only when this type also has
+     *   `@p4runtime_translation`.
      */
-    fun create(p4info: P4Info, translations: List<TypeTranslation> = emptyList()): TypeTranslator {
+    fun create(
+      p4info: P4Info,
+      translations: List<TypeTranslation> = emptyList(),
+      portTypeName: String = "",
+    ): TypeTranslator {
       val translatedTypes =
         p4info.typeInfo.newTypesMap.filter { (_, spec) -> spec.hasTranslatedType() }
 
-      val paramUris = buildParamUris(p4info, translatedTypes)
-      val matchFieldUris = buildMatchFieldUris(p4info, translatedTypes)
-      val (packetOutMetadataUris, packetInMetadataUris) =
-        buildPacketMetadataUris(p4info, translatedTypes)
-
-      val stringUris =
-        translatedTypes.values
-          .filter { it.translatedType.hasSdnString() }
-          .mapTo(mutableSetOf()) { it.translatedType.uri }
-
-      val tables = buildTables(translations, stringUris)
-      // Pre-create tables for string URIs that have no translation config,
-      // so getOrCreateTable finds them with the correct isStringType.
-      for (uri in stringUris) {
-        tables.computeIfAbsent(uri) { TranslationTable(autoAllocate = true, isStringType = true) }
+      // Build URI → type name index for resolving TypeTranslation entries that use type_uri.
+      val uriToTypeNames = mutableMapOf<String, MutableList<String>>()
+      for ((name, spec) in translatedTypes) {
+        val uri = spec.translatedType.uri
+        if (uri.isNotEmpty()) {
+          uriToTypeNames.getOrPut(uri) { mutableListOf() }.add(name)
+        }
       }
+
+      val paramTypeNames = buildParamTypeNames(p4info, translatedTypes)
+      val matchFieldTypeNames = buildMatchFieldTypeNames(p4info, translatedTypes)
+      val (packetOutMetadataTypeNames, packetInMetadataTypeNames) =
+        buildPacketMetadataTypeNames(p4info, translatedTypes)
+
+      val stringTypeNames =
+        translatedTypes.filter { (_, spec) -> spec.translatedType.hasSdnString() }.keys.toSet()
+
+      val tables =
+        buildTables(translations, stringTypeNames) { translation ->
+          resolveTranslationKey(translation, uriToTypeNames)
+        }
+      // Pre-create tables for string types that have no translation config,
+      // so getOrCreateTable finds them with the correct isStringType.
+      for (typeName in stringTypeNames) {
+        tables.computeIfAbsent(typeName) {
+          TranslationTable(autoAllocate = true, isStringType = true)
+        }
+      }
+
+      // Create PortTranslator if the port type has @p4runtime_translation.
+      val portTranslator =
+        if (portTypeName.isNotEmpty() && portTypeName in translatedTypes) {
+          val isStringType = portTypeName in stringTypeNames
+          val portTable =
+            tables.computeIfAbsent(portTypeName) {
+              TranslationTable(autoAllocate = true, isStringType = isStringType)
+            }
+          PortTranslator(portTable)
+        } else {
+          null
+        }
 
       return TypeTranslator(
         tables,
-        paramUris,
-        matchFieldUris,
-        packetOutMetadataUris,
-        packetInMetadataUris,
+        paramTypeNames,
+        matchFieldTypeNames,
+        packetOutMetadataTypeNames,
+        packetInMetadataTypeNames,
+        portTranslator,
       )
     }
 
-    private fun buildParamUris(
+    private fun buildParamTypeNames(
       p4info: P4Info,
       translatedTypes: Map<String, P4Types.P4NewTypeSpec>,
     ): Map<Long, String> {
-      val uris = mutableMapOf<Long, String>()
+      val typeNames = mutableMapOf<Long, String>()
       for (action in p4info.actionsList) {
         for (param in action.paramsList) {
           if (!param.hasTypeName()) continue
-          val typeSpec = translatedTypes[param.typeName.name] ?: continue
-          uris[packKey(action.preamble.id, param.id)] = typeSpec.translatedType.uri
+          if (param.typeName.name !in translatedTypes) continue
+          typeNames[packKey(action.preamble.id, param.id)] = param.typeName.name
         }
       }
-      return uris
+      return typeNames
     }
 
-    private fun buildMatchFieldUris(
+    private fun buildMatchFieldTypeNames(
       p4info: P4Info,
       translatedTypes: Map<String, P4Types.P4NewTypeSpec>,
     ): Map<Long, String> {
-      val uris = mutableMapOf<Long, String>()
+      val typeNames = mutableMapOf<Long, String>()
       for (table in p4info.tablesList) {
         for (matchField in table.matchFieldsList) {
           if (!matchField.hasTypeName()) continue
-          val typeSpec = translatedTypes[matchField.typeName.name] ?: continue
-          uris[packKey(table.preamble.id, matchField.id)] = typeSpec.translatedType.uri
+          if (matchField.typeName.name !in translatedTypes) continue
+          typeNames[packKey(table.preamble.id, matchField.id)] = matchField.typeName.name
         }
       }
-      return uris
+      return typeNames
     }
 
     /**
-     * Builds per-direction metadata URI maps. IDs can overlap between packet_out and packet_in
-     * (both start @id(1)), so a flat map would cause untranslated fields (like submit_to_ingress)
-     * to be incorrectly translated.
+     * Builds per-direction metadata type name maps. IDs can overlap between packet_out and
+     * packet_in (both start @id(1)), so a flat map would cause untranslated fields (like
+     * submit_to_ingress) to be incorrectly translated.
      */
-    private fun buildPacketMetadataUris(
+    private fun buildPacketMetadataTypeNames(
       p4info: P4Info,
       translatedTypes: Map<String, P4Types.P4NewTypeSpec>,
     ): Pair<Map<Int, String>, Map<Int, String>> {
@@ -466,8 +546,8 @@ private constructor(
           }
         for (metadata in controllerMeta.metadataList) {
           if (!metadata.hasTypeName()) continue
-          val typeSpec = translatedTypes[metadata.typeName.name] ?: continue
-          target[metadata.id] = typeSpec.translatedType.uri
+          if (metadata.typeName.name !in translatedTypes) continue
+          target[metadata.id] = metadata.typeName.name
         }
       }
       return packetOut to packetIn
@@ -475,15 +555,62 @@ private constructor(
 
     private fun buildTables(
       translations: List<TypeTranslation>,
-      stringUris: Set<String> = emptySet(),
+      stringTypeNames: Set<String> = emptySet(),
+      resolveKey: (TypeTranslation) -> String,
     ): ConcurrentHashMap<String, TranslationTable> {
       val tables = ConcurrentHashMap<String, TranslationTable>()
       for (translation in translations) {
-        tables[translation.uri] =
-          TranslationTable.fromProto(translation, isStringType = translation.uri in stringUris)
+        val key = resolveKey(translation)
+        tables[key] = TranslationTable.fromProto(translation, isStringType = key in stringTypeNames)
       }
       return tables
     }
+
+    /**
+     * Resolves a [TypeTranslation]'s key using the URI → type name index from p4info. If the
+     * translation specifies `type_name`, uses it directly. If it specifies `type_uri`, resolves it
+     * to a type name; errors if the URI is ambiguous (maps to multiple types).
+     */
+    private fun resolveTranslationKey(
+      translation: TypeTranslation,
+      uriToTypeNames: Map<String, List<String>>,
+    ): String =
+      when (translation.typeCase) {
+        TypeTranslation.TypeCase.TYPE_NAME -> translation.typeName
+        TypeTranslation.TypeCase.TYPE_URI -> {
+          val uri = translation.typeUri
+          val names = uriToTypeNames[uri]
+          when {
+            names == null || names.isEmpty() ->
+              throw IllegalArgumentException(
+                "TypeTranslation type_uri '$uri' does not match any translated type in p4info"
+              )
+            names.size > 1 ->
+              throw IllegalArgumentException(
+                "TypeTranslation type_uri '$uri' is ambiguous — matches types: " +
+                  "${names.joinToString()}. Use type_name instead."
+              )
+            else -> names.single()
+          }
+        }
+        TypeTranslation.TypeCase.TYPE_NOT_SET,
+        null -> throw IllegalArgumentException("TypeTranslation must specify type_name or type_uri")
+      }
+
+    /**
+     * Resolves key from a [TypeTranslation] without p4info. Only `type_name` is accepted —
+     * resolving `type_uri` requires p4info, which is not available in this context.
+     */
+    private fun TypeTranslation.resolveKey(): String =
+      when (typeCase) {
+        TypeTranslation.TypeCase.TYPE_NAME -> typeName
+        TypeTranslation.TypeCase.TYPE_URI ->
+          throw IllegalArgumentException(
+            "TypeTranslation with type_uri requires p4info for resolution; use type_name instead"
+          )
+        TypeTranslation.TypeCase.TYPE_NOT_SET,
+        null -> throw IllegalArgumentException("TypeTranslation must specify type_name or type_uri")
+      }
 
     /** Packs two IDs into a single Long for fast compound-key lookup. */
     private fun packKey(high: Int, low: Int): Long =
@@ -492,22 +619,22 @@ private constructor(
 }
 
 /**
- * Bidirectional mapping table for a single translated type (identified by URI).
+ * Bidirectional mapping table for a single translated type.
  *
  * Thread-safe: all mutating operations are synchronized.
  */
 internal class TranslationTable(
   private val autoAllocate: Boolean,
-  /** True if this table's SDN values are strings (UTF-8 encoded in proto bytes fields). */
+  /** True if this table's P4Runtime values are strings (UTF-8 encoded in proto bytes fields). */
   val isStringType: Boolean = false,
 ) {
 
-  // Forward maps: SDN → data-plane.
+  // Forward maps: P4Runtime → data-plane.
   private val bitstringForward = mutableMapOf<ByteString, ByteString>()
   private val stringForward = mutableMapOf<String, ByteString>()
 
-  // Reverse map: data-plane → SDN.
-  private val reverse = mutableMapOf<ByteString, SdnValue>()
+  // Reverse map: data-plane → P4Runtime.
+  private val reverse = mutableMapOf<ByteString, P4rtValue>()
 
   // Data-plane values claimed by explicit entries (auto-allocator skips these).
   // Stored as integers (not ByteStrings) so width differences don't cause missed collisions.
@@ -516,36 +643,40 @@ internal class TranslationTable(
   // Counter for sequential auto-allocation.
   private var nextValue = 0
 
-  /** Looks up or auto-allocates a data-plane value for an SDN bitstring. */
+  /** Looks up or auto-allocates a data-plane value for a P4Runtime bitstring. */
   @Synchronized
-  fun lookupOrAllocateBitstring(sdnValue: ByteString): ByteString =
+  fun lookupOrAllocateBitstring(p4rtValue: ByteString): ByteString =
     lookupOrAllocate(
       bitstringForward,
-      sdnValue,
-      SdnValue::Bitstring,
-      "No mapping for SDN bitstring value $sdnValue (auto-allocate off)",
+      p4rtValue,
+      P4rtValue::Bitstring,
+      "No mapping for P4Runtime bitstring value $p4rtValue (auto-allocate off)",
     )
 
-  /** Looks up or auto-allocates a data-plane value for an SDN string. */
+  /** Looks up or auto-allocates a data-plane value for a P4Runtime string. */
   @Synchronized
-  fun lookupOrAllocateString(sdnStr: String): ByteString =
+  fun lookupOrAllocateString(p4rtStr: String): ByteString =
     lookupOrAllocate(
       stringForward,
-      sdnStr,
-      SdnValue::Str,
-      "No mapping for SDN string '$sdnStr' (auto-allocate off)",
+      p4rtStr,
+      P4rtValue::Str,
+      "No mapping for P4Runtime string '$p4rtStr' (auto-allocate off)",
     )
 
-  /** Reverse-translates a data-plane value to its SDN representation. */
+  /** Reverse-translates a data-plane value to its P4Runtime representation. */
   @Synchronized
-  fun reverseLookup(dataplaneValue: ByteString): SdnValue =
+  fun reverseLookup(dataplaneValue: ByteString): P4rtValue =
     reverse[dataplaneValue]
       ?: throw TranslationException("No reverse mapping for data-plane value $dataplaneValue")
+
+  /** Like [reverseLookup] but returns null instead of throwing. */
+  @Synchronized
+  fun reverseLookupOrNull(dataplaneValue: ByteString): P4rtValue? = reverse[dataplaneValue]
 
   private fun <K> lookupOrAllocate(
     forward: MutableMap<K, ByteString>,
     key: K,
-    wrapSdn: (K) -> SdnValue,
+    wrapP4rt: (K) -> P4rtValue,
     errorMsg: String,
   ): ByteString {
     forward[key]?.let {
@@ -554,7 +685,7 @@ internal class TranslationTable(
     if (!autoAllocate) throw TranslationException(errorMsg)
     val dp = allocateNext()
     forward[key] = dp
-    reverse[dp] = wrapSdn(key)
+    reverse[dp] = wrapP4rt(key)
     return dp
   }
 
@@ -577,11 +708,11 @@ internal class TranslationTable(
           when (entry.sdnValueCase) {
             TranslationEntry.SdnValueCase.SDN_BITSTRING -> {
               table.bitstringForward[entry.sdnBitstring] = dp
-              SdnValue.Bitstring(entry.sdnBitstring)
+              P4rtValue.Bitstring(entry.sdnBitstring)
             }
             TranslationEntry.SdnValueCase.SDN_STR -> {
               table.stringForward[entry.sdnStr] = dp
-              SdnValue.Str(entry.sdnStr)
+              P4rtValue.Str(entry.sdnStr)
             }
             else -> throw IllegalArgumentException("TranslationEntry must have an sdn_value")
           }

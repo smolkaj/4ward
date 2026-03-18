@@ -81,6 +81,10 @@ class P4RuntimeService(
 
   @Volatile private var pipeline: PipelineState? = null
 
+  /** Port translator for the currently loaded pipeline, or null if unavailable. */
+  val portTranslator: PortTranslator?
+    get() = pipeline?.typeTranslator?.portTranslator
+
   // Only accessed under lock; @Volatile not needed.
   private var savedPipeline: PipelineState? = null
 
@@ -180,10 +184,17 @@ class P4RuntimeService(
     val pipelineConfig =
       PipelineConfig.newBuilder().setP4Info(fwdConfig.p4Info).setDevice(deviceConfig).build()
 
+    val typeTranslator =
+      TypeTranslator.create(
+        fwdConfig.p4Info,
+        deviceConfig.translationsList,
+        portTypeName = deviceConfig.behavioral.architecture.portTypeName,
+      )
+
     return PipelineState(
       config = pipelineConfig,
       cookie = fwdConfig.cookie,
-      typeTranslator = TypeTranslator.create(fwdConfig.p4Info, deviceConfig.translationsList),
+      typeTranslator = typeTranslator,
       writeValidator = WriteValidator(pipelineConfig.p4Info),
       referenceValidator = ReferenceValidator.create(fwdConfig.p4Info),
       constraintValidator =

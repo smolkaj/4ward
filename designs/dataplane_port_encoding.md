@@ -98,13 +98,13 @@ message OutputPacket {
 message InjectPacketRequest {
   oneof ingress_port {
     // Dataplane port number (e.g. 0, 1, 510).
-    uint32 dataplane_ingress_port = 2;
+    uint32 dataplane_ingress_port = 1;
     // P4Runtime port ID — opaque bytes whose encoding depends on
     // @p4runtime_translation. Requires a loaded pipeline with port
     // translation; otherwise the RPC fails with FAILED_PRECONDITION.
-    bytes p4rt_ingress_port = 3;
+    bytes p4rt_ingress_port = 2;
   }
-  bytes payload = 1;
+  bytes payload = 3;
 }
 
 message InjectPacketResponse {
@@ -134,25 +134,21 @@ Key decisions:
 
 ### Port translation
 
-Port translation reuses the existing `TypeTranslator` — no new class needed.
-The `TypeTranslator` already handles all `@p4runtime_translation`-annotated
-types generically (ports, VRF IDs, nexthop IDs, etc.). The `DataplaneService`
-just needs the `TypeTranslator` and the port URI to call `sdnToDataplane` /
-`dataplaneToSdn`. (The `TypeTranslator` API uses "SDN" terminology inherited
-from the P4 spec; renaming to "P4RT" is tracked in
-[REFACTORING.md](../docs/REFACTORING.md#rename-sdn-to-p4rt-in-typetranslator).)
+`PortTranslator` is a property of `TypeTranslator`, providing bidirectional
+conversion between P4Runtime port IDs and dataplane port numbers. The port
+type is an architecture property — determined at compile time from the
+architecture's port metadata field (`standard_metadata_t.ingress_port` for
+v1model, `psa_ingress_input_metadata_t.ingress_port` for PSA) and stored
+in `Architecture.port_type_name` in the compiled IR. Stock architectures
+use `typedef` (no translation); programs that need port translation should
+use a forked architecture with a `type` + `@p4runtime_translation`. See
+[docs/TYPE_TRANSLATION.md](../docs/TYPE_TRANSLATION.md) for details.
 
-The port URI is derived at pipeline load time from
-`controller_packet_metadata` in the p4info: any metadata field whose type is a
-`@p4runtime_translation`-annotated type identifies the port URI and encoding.
-For SAI P4, this is `""` (from `@p4runtime_translation("", string)` on
-`port_id_t`). If no translated port type is found, port translation is
-unavailable and the `DataplaneService` operates in dataplane-only mode.
 
 ### DataplaneService changes
 
-The `DataplaneService` gains access to the `TypeTranslator` and port URI from
-the pipeline state (via a provider from `P4RuntimeService`):
+The `DataplaneService` accesses `TypeTranslator.portTranslator` via a
+provider from `P4RuntimeService`:
 
 - **`injectPacket`**: resolves the `oneof ingress_port` — either uses the
   dataplane port directly, or translates the P4Runtime port via the
@@ -166,9 +162,10 @@ the pipeline state (via a provider from `P4RuntimeService`):
 
 | Component | Change |
 |---|---|
+| `ir.proto` | `TypeTranslation` uses `oneof type { type_name, type_uri }`, keyed by type name |
 | `dataplane.proto` | New `InputPacket`/`OutputPacket` with dual encoding; `oneof ingress_port` on request |
+| `TypeTranslator.kt` | Tables keyed by type name; `PortTranslator` derived from `controller_packet_metadata` |
 | `DataplaneService.kt` | Translates ports on inject and populates P4Runtime ports in responses |
-| `P4RuntimeService.kt` | Derives port URI at pipeline load; exposes `TypeTranslator` + port URI |
 | `P4RuntimeServer.kt` | Wires provider from service to dataplane service |
 
 ## What doesn't change

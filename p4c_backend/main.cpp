@@ -77,7 +77,10 @@ static std::vector<fourward::ir::TypeTranslation> extractTypeTranslations(
     bool isSdnString = translatedType.has_sdn_string();
 
     fourward::ir::TypeTranslation translation;
-    translation.set_uri(translatedType.uri());
+    // Use type_name (not type_uri): the TypeTranslator keys translation
+    // tables by type name, and SAI P4 leaves the URI empty (unset) for
+    // all translated types, relying on type names for disambiguation.
+    translation.set_type_name(typeName);
     translation.set_auto_allocate(true);
 
     int bitWidth = nt->type->width_bits();
@@ -122,6 +125,37 @@ static std::vector<fourward::ir::TypeTranslation> extractTypeTranslations(
     result.push_back(std::move(translation));
   });
 
+  return result;
+}
+
+// Derives the port type name from the architecture's standard_metadata struct.
+// Returns the type name of ingress_port if it uses a P4 newtype (§7.2.10),
+// or empty if it uses a bare bit<N>.
+//
+// This requires the architecture definition (e.g. v1model.p4) to declare
+// ingress_port with the appropriate newtype. Programs that need port
+// translation (like SAI P4) should use a forked architecture where
+// standard_metadata.ingress_port has the translated type.
+static std::string derivePortTypeName(const IR::P4Program* program) {
+  std::string result;
+  forAllMatching<IR::Type_Struct>(program, [&](const IR::Type_Struct* st) {
+    // v1model: standard_metadata_t
+    // PSA: psa_ingress_input_metadata_t
+    if (st->name != "standard_metadata_t" &&
+        st->name != "psa_ingress_input_metadata_t")
+      return;
+    for (const auto* field : st->fields) {
+      if (field->name != "ingress_port") continue;
+      if (const auto* nt = field->type->to<IR::Type_Newtype>()) {
+        result = nt->name.name.c_str();
+      } else if (const auto* tn = field->type->to<IR::Type_Name>()) {
+        // After type resolution, the field type may be a Type_Name
+        // referencing the newtype by name. This also matches typedefs,
+        // but TypeTranslator.create() filters to translated types only.
+        result = tn->path->name.name.c_str();
+      }
+    }
+  });
   return result;
 }
 
@@ -225,6 +259,7 @@ int main(int argc, char* const argv[]) {
   backend.setStaticEntries(entries);
   backend.setTypeTranslations(std::move(translations));
   backend.process(toplevel);
+  backend.setPortTypeName(derivePortTypeName(program));
 
   if (!backend.writePipelineConfig()) return 1;
   return ::P4::errorCount() > 0 ? 1 : 0;

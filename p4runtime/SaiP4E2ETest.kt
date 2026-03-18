@@ -63,8 +63,8 @@ class SaiP4E2ETest {
     val translations = config.device.translationsList
     assertTrue("expected at least one translation", translations.isNotEmpty())
 
-    val vrfTranslation = translations.find { it.uri == "" }
-    assertTrue("expected translation with empty URI (vrf_id_t)", vrfTranslation != null)
+    val vrfTranslation = translations.find { it.typeName == "vrf_id_t" }
+    assertTrue("expected translation for vrf_id_t", vrfTranslation != null)
     assertTrue("expected auto_allocate=true", vrfTranslation!!.autoAllocate)
     assertEquals("expected one explicit entry", 1, vrfTranslation.entriesCount)
 
@@ -350,6 +350,45 @@ class SaiP4E2ETest {
   }
 
   // =========================================================================
+  // Port translation: stock v1model has no port newtype
+  // =========================================================================
+
+  // The forked v1model (v1model_sai.p4) declares port_id_t as a newtype with
+  // @p4runtime_translation on standard_metadata.ingress_port, enabling dual
+  // port encoding in the DataplaneService.
+
+  private fun installForwardingEntries() {
+    harness.installEntry(buildVrfEntry(""))
+    harness.installEntry(buildRouterInterfaceEntry("rif-1", "Ethernet1", RIF_MAC))
+    harness.installEntry(buildNeighborEntry("rif-1", NEIGHBOR_ID, NEIGHBOR_MAC))
+    harness.installEntry(buildNexthopEntry(nexthopId = "nhop-1", routerInterfaceId = "rif-1"))
+    harness.installEntry(buildIpv4RouteEntry(vrfId = "", nexthopId = "nhop-1"))
+  }
+
+  @Test
+  fun `InjectPacket response has dual port encoding`() {
+    installForwardingEntries()
+    val packet = buildIpv4Packet(dstMac = UNICAST_MAC, srcMac = SRC_MAC, ttl = 64)
+    val response = harness.injectPacket(ingressPort = 0, payload = packet)
+
+    assertEquals("expected 1 output", 1, response.outputPacketsCount)
+    val output = response.getOutputPackets(0)
+    assertTrue("dataplane port should be set", output.dataplaneEgressPort >= 0)
+    assertTrue("p4rt_egress_port should be populated", !output.p4RtEgressPort.isEmpty)
+  }
+
+  @Test
+  fun `InjectPacket with P4RT port forwards correctly`() {
+    installForwardingEntries()
+    val packet = buildIpv4Packet(dstMac = UNICAST_MAC, srcMac = SRC_MAC, ttl = 64)
+    val p4rtPort = ByteString.copyFromUtf8("Ethernet0")
+    val response = harness.injectPacketP4rt(p4rtPort, packet)
+
+    assertEquals("expected 1 output", 1, response.outputPacketsCount)
+    assertTrue("output should have p4rt port", !response.getOutputPackets(0).p4RtEgressPort.isEmpty)
+  }
+
+  // =========================================================================
   // PacketIO: PacketOut via StreamChannel
   // =========================================================================
 
@@ -409,11 +448,11 @@ class SaiP4E2ETest {
     )
     assertTrue(
       "expected CPU-port output",
-      result.outputPacketsList.any { it.egressPort == CPU_PORT },
+      result.outputPacketsList.any { it.dataplaneEgressPort == CPU_PORT },
     )
     assertTrue(
       "expected data-plane output",
-      result.outputPacketsList.any { it.egressPort != CPU_PORT },
+      result.outputPacketsList.any { it.dataplaneEgressPort != CPU_PORT },
     )
 
     // Via StreamChannel: only the CPU clone becomes PacketIn.

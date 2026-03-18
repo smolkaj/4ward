@@ -56,6 +56,10 @@ class FourWardBackend : public Inspector {
   void setTypeTranslations(
       std::vector<fourward::ir::TypeTranslation> translations);
 
+  // Sets the port type name on the Architecture proto.
+  // Must be called after process() (which builds the Architecture).
+  void setPortTypeName(std::string portTypeName);
+
   // Writes the accumulated PipelineConfig proto to the output file.
   // Returns true on success.
   bool writePipelineConfig() const;
