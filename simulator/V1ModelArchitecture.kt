@@ -659,7 +659,7 @@ class V1ModelArchitecture(
         CloneSessionLookupEvent.newBuilder()
           .setSessionId(sessionId)
           .setSessionFound(true)
-          .setEgressPort(egressPort)
+          .setDataplaneEgressPort(egressPort)
       )
       .build()
 

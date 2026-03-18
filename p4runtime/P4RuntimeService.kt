@@ -81,9 +81,9 @@ class P4RuntimeService(
 
   @Volatile private var pipeline: PipelineState? = null
 
-  /** Port translator for the currently loaded pipeline, or null if unavailable. */
-  val portTranslator: PortTranslator?
-    get() = pipeline?.typeTranslator?.portTranslator
+  /** Type translator for the currently loaded pipeline, or null if unavailable. */
+  val typeTranslator: TypeTranslator?
+    get() = pipeline?.typeTranslator
 
   // Only accessed under lock; @Volatile not needed.
   private var savedPipeline: PipelineState? = null
@@ -486,9 +486,9 @@ class P4RuntimeService(
     val translator = state.typeTranslator?.takeIf { it.hasTranslations }
     val cpuPort = codec.cpuPort
     return outputPackets
-      .filter { it.egressPort == cpuPort }
+      .filter { it.dataplaneEgressPort == cpuPort }
       .map { outputPacket ->
-        val metadata = codec.buildPacketInMetadata(ingressPort, outputPacket.egressPort)
+        val metadata = codec.buildPacketInMetadata(ingressPort, outputPacket.dataplaneEgressPort)
         val rawPacketIn =
           PacketIn.newBuilder().setPayload(outputPacket.payload).addAllMetadata(metadata).build()
         StreamMessageResponse.newBuilder()

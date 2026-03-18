@@ -42,7 +42,7 @@ class TraceFormatterTest {
           PacketOutcome.newBuilder()
             .setOutput(
               OutputPacket.newBuilder()
-                .setEgressPort(1)
+                .setDataplaneEgressPort(1)
                 .setPayload(ByteString.copyFrom(byteArrayOf(0xDE.toByte(), 0xAD.toByte())))
             )
         )
@@ -83,7 +83,9 @@ class TraceFormatterTest {
         )
         .setPacketOutcome(
           PacketOutcome.newBuilder()
-            .setOutput(OutputPacket.newBuilder().setEgressPort(1).setPayload(ByteString.EMPTY))
+            .setOutput(
+              OutputPacket.newBuilder().setDataplaneEgressPort(1).setPayload(ByteString.EMPTY)
+            )
         )
         .build()
 
@@ -144,7 +146,9 @@ class TraceFormatterTest {
                     .setPacketOutcome(
                       PacketOutcome.newBuilder()
                         .setOutput(
-                          OutputPacket.newBuilder().setEgressPort(1).setPayload(ByteString.EMPTY)
+                          OutputPacket.newBuilder()
+                            .setDataplaneEgressPort(1)
+                            .setPayload(ByteString.EMPTY)
                         )
                     )
                 )
@@ -157,7 +161,9 @@ class TraceFormatterTest {
                     .setPacketOutcome(
                       PacketOutcome.newBuilder()
                         .setOutput(
-                          OutputPacket.newBuilder().setEgressPort(2).setPayload(ByteString.EMPTY)
+                          OutputPacket.newBuilder()
+                            .setDataplaneEgressPort(2)
+                            .setPayload(ByteString.EMPTY)
                         )
                     )
                 )
@@ -190,7 +196,9 @@ class TraceFormatterTest {
         )
         .setPacketOutcome(
           PacketOutcome.newBuilder()
-            .setOutput(OutputPacket.newBuilder().setEgressPort(1).setPayload(ByteString.EMPTY))
+            .setOutput(
+              OutputPacket.newBuilder().setDataplaneEgressPort(1).setPayload(ByteString.EMPTY)
+            )
         )
         .build()
 
@@ -213,7 +221,9 @@ class TraceFormatterTest {
         )
         .setPacketOutcome(
           PacketOutcome.newBuilder()
-            .setOutput(OutputPacket.newBuilder().setEgressPort(1).setPayload(ByteString.EMPTY))
+            .setOutput(
+              OutputPacket.newBuilder().setDataplaneEgressPort(1).setPayload(ByteString.EMPTY)
+            )
         )
         .build()
 

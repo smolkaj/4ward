@@ -359,7 +359,7 @@ class PSAArchitectureTest {
     val outputs = collectOutputsFromTrace(result.trace)
 
     assertEquals(1, outputs.size)
-    assertEquals(5, outputs[0].egressPort)
+    assertEquals(5, outputs[0].dataplaneEgressPort)
     assertEquals(ByteString.copyFrom(payload), outputs[0].payload)
   }
 
@@ -371,7 +371,7 @@ class PSAArchitectureTest {
 
     // First event: packet ingress.
     assertTrue(events[0].hasPacketIngress())
-    assertEquals(7, events[0].packetIngress.ingressPort)
+    assertEquals(7, events[0].packetIngress.dataplaneIngressPort)
 
     // 6 stages x 2 (enter/exit) = 12 stage events.
     val stages = events.drop(1).map { it.pipelineStage }
@@ -459,9 +459,9 @@ class PSAArchitectureTest {
     val outputs = collectOutputsFromTrace(result.trace)
 
     assertEquals(3, outputs.size)
-    assertEquals(5, outputs[0].egressPort)
-    assertEquals(6, outputs[1].egressPort)
-    assertEquals(7, outputs[2].egressPort)
+    assertEquals(5, outputs[0].dataplaneEgressPort)
+    assertEquals(6, outputs[1].dataplaneEgressPort)
+    assertEquals(7, outputs[2].dataplaneEgressPort)
     // All replicas carry the same payload.
     for (output in outputs) {
       assertEquals(ByteString.copyFrom(payload), output.payload)
@@ -898,8 +898,8 @@ class PSAArchitectureTest {
 
     assertEquals(2, outputs.size)
     // Original on port 2, clone on port 5.
-    assertTrue(outputs.any { it.egressPort == 2 })
-    assertTrue(outputs.any { it.egressPort == 5 })
+    assertTrue(outputs.any { it.dataplaneEgressPort == 2 })
+    assertTrue(outputs.any { it.dataplaneEgressPort == 5 })
   }
 
   @Test
@@ -914,7 +914,7 @@ class PSAArchitectureTest {
 
     // Original dropped, clone emitted.
     assertEquals(1, outputs.size)
-    assertEquals(7, outputs[0].egressPort)
+    assertEquals(7, outputs[0].dataplaneEgressPort)
   }
 
   @Test
@@ -942,10 +942,10 @@ class PSAArchitectureTest {
 
     // Original + 3 clones = 4 outputs.
     assertEquals(4, outputs.size)
-    assertTrue(outputs.any { it.egressPort == 2 })
-    assertTrue(outputs.any { it.egressPort == 5 })
-    assertTrue(outputs.any { it.egressPort == 6 })
-    assertTrue(outputs.any { it.egressPort == 7 })
+    assertTrue(outputs.any { it.dataplaneEgressPort == 2 })
+    assertTrue(outputs.any { it.dataplaneEgressPort == 5 })
+    assertTrue(outputs.any { it.dataplaneEgressPort == 6 })
+    assertTrue(outputs.any { it.dataplaneEgressPort == 7 })
   }
 
   @Test
@@ -958,8 +958,8 @@ class PSAArchitectureTest {
     val outputs = collectOutputsFromTrace(result.trace)
 
     assertEquals(2, outputs.size)
-    assertTrue(outputs.any { it.egressPort == 2 })
-    assertTrue(outputs.any { it.egressPort == 8 })
+    assertTrue(outputs.any { it.dataplaneEgressPort == 2 })
+    assertTrue(outputs.any { it.dataplaneEgressPort == 8 })
   }
 
   @Test
@@ -995,7 +995,7 @@ class PSAArchitectureTest {
 
     // No clone session 999 → clone silently ignored, original output normally.
     assertEquals(1, outputs.size)
-    assertEquals(2, outputs[0].egressPort)
+    assertEquals(2, outputs[0].dataplaneEgressPort)
   }
 
   @Test
@@ -1023,7 +1023,7 @@ class PSAArchitectureTest {
 
     // No clone session 999 → clone silently ignored, original output normally.
     assertEquals(1, outputs.size)
-    assertEquals(2, outputs[0].egressPort)
+    assertEquals(2, outputs[0].dataplaneEgressPort)
   }
 
   @Test
@@ -1079,7 +1079,7 @@ class PSAArchitectureTest {
 
     // Packet recirculates once, then forwards on port 5.
     assertEquals(1, outputs.size)
-    assertEquals(5, outputs[0].egressPort)
+    assertEquals(5, outputs[0].dataplaneEgressPort)
     // Trace should show a RECIRCULATE fork.
     assertTrue(result.trace.hasForkOutcome())
     assertEquals(ForkReason.RECIRCULATE, result.trace.forkOutcome.reason)
@@ -1118,7 +1118,7 @@ class PSAArchitectureTest {
 
     // No clone session 0 → clone silently ignored, original output normally.
     assertEquals(1, outputs.size)
-    assertEquals(2, outputs[0].egressPort)
+    assertEquals(2, outputs[0].dataplaneEgressPort)
   }
 
   // ---------------------------------------------------------------------------
@@ -1149,7 +1149,7 @@ class PSAArchitectureTest {
     val outputs = collectOutputsFromTrace(result.trace)
 
     assertEquals(1, outputs.size)
-    assertEquals(7, outputs[0].egressPort)
+    assertEquals(7, outputs[0].dataplaneEgressPort)
     assertTrue(result.trace.hasForkOutcome())
     assertEquals(ForkReason.RESUBMIT, result.trace.forkOutcome.reason)
     assertEquals("resubmit", result.trace.forkOutcome.branchesList[0].label)
@@ -1214,7 +1214,7 @@ class PSAArchitectureTest {
 
     // Resubmit wins: packet loops back, then exits on port 5. No clone on port 9.
     assertEquals(1, outputs.size)
-    assertEquals(5, outputs[0].egressPort)
+    assertEquals(5, outputs[0].dataplaneEgressPort)
     assertEquals(ForkReason.RESUBMIT, result.trace.forkOutcome.reason)
   }
 
@@ -1448,7 +1448,7 @@ class PSAArchitectureTest {
     // Both members forward (send_to_port(1) in post-table statements).
     val outputs = collectOutputsFromTrace(result.trace)
     assertEquals(2, outputs.size)
-    assertTrue(outputs.all { it.egressPort == 1 })
+    assertTrue(outputs.all { it.dataplaneEgressPort == 1 })
   }
 
   @Test
@@ -1507,7 +1507,7 @@ class PSAArchitectureTest {
     // Both members forward (egress doesn't drop by default).
     val outputs = collectOutputsFromTrace(result.trace)
     assertEquals(2, outputs.size)
-    assertTrue(outputs.all { it.egressPort == 1 })
+    assertTrue(outputs.all { it.dataplaneEgressPort == 1 })
   }
 
   @Test

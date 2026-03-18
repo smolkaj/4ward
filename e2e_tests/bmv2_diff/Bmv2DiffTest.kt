@@ -55,7 +55,7 @@ class Bmv2DiffTest(private val testName: String) {
     for (packet in stf.packets) {
       val result = sim.processPacket(packet.ingressPort, packet.payload)
       for (pkt in result.outputPackets) {
-        fourwardOutputs.add(pkt.egressPort to pkt.payload.toByteArray())
+        fourwardOutputs.add(pkt.dataplaneEgressPort to pkt.payload.toByteArray())
       }
     }
 

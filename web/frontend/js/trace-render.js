@@ -157,7 +157,7 @@ function renderTraceEvent(event) {
   let text = '';
 
   if (event.packet_ingress) {
-    return `<div data-event-idx="${idx}" class="trace-event ingress">Received packet on port ${event.packet_ingress.ingress_port}</div>`;
+    return `<div data-event-idx="${idx}" class="trace-event ingress">Received packet on port ${event.packet_ingress.dataplane_ingress_port}</div>`;
   }
   if (event.pipeline_stage) {
     const s = event.pipeline_stage;
@@ -196,7 +196,7 @@ function renderTraceEvent(event) {
   } else if (event.clone_session_lookup) {
     const csl = event.clone_session_lookup;
     text = csl.session_found
-      ? `Resolved clone session ${csl.session_id} \u2192 port ${csl.egress_port}`
+      ? `Resolved clone session ${csl.session_id} \u2192 port ${csl.dataplane_egress_port}`
       : `Clone session ${csl.session_id} not found (dropped)`;
     const cls = csl.session_found ? 'clone-session-hit' : 'clone-session-miss';
     return `<div ${attr} class="trace-event ${cls}">${text}</div>`;
@@ -268,7 +268,7 @@ function renderPacketOutcome(outcome, traceNode) {
     if (traceNode && bytes.length > 0) {
       detail = `<div class="trace-outcome-detail">${renderPacketSections(bytes, traceNode)}</div>`;
     }
-    return `<div class="trace-outcome output" data-outcome><div class="trace-outcome-header" onclick="this.parentElement.classList.toggle('collapsed')">\u2192 output port ${o.egress_port} (${bytes.length} bytes)</div>${detail}</div>`;
+    return `<div class="trace-outcome output" data-outcome><div class="trace-outcome-header" onclick="this.parentElement.classList.toggle('collapsed')">\u2192 output port ${o.dataplane_egress_port} (${bytes.length} bytes)</div>${detail}</div>`;
   }
   if (outcome.drop) {
     const reason = formatDropReason(outcome.drop.reason);

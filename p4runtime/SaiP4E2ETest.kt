@@ -388,6 +388,49 @@ class SaiP4E2ETest {
     assertTrue("output should have p4rt port", !response.getOutputPackets(0).p4RtEgressPort.isEmpty)
   }
 
+  @Test
+  fun `InjectPacket trace has P4RT-enriched ports`() {
+    installForwardingEntries()
+    val packet = buildIpv4Packet(dstMac = UNICAST_MAC, srcMac = SRC_MAC, ttl = 64)
+    val response = harness.injectPacket(ingressPort = 0, payload = packet)
+
+    assertTrue("trace should be present", response.hasTrace())
+    val trace = response.trace
+
+    // Ingress port event should have P4RT encoding.
+    val ingressEvent = trace.eventsList.firstOrNull { it.hasPacketIngress() }
+    assertNotNull("should have ingress event", ingressEvent)
+    assertTrue(
+      "ingress port should have P4RT encoding",
+      !ingressEvent!!.packetIngress.p4RtIngressPort.isEmpty,
+    )
+
+    // Output packet in the trace outcome should have P4RT encoding.
+    assertTrue("should have packet outcome", trace.hasPacketOutcome())
+    assertTrue("should have output", trace.packetOutcome.hasOutput())
+    assertTrue(
+      "egress port should have P4RT encoding",
+      !trace.packetOutcome.output.p4RtEgressPort.isEmpty,
+    )
+  }
+
+  @Test
+  fun `InjectPacket trace has P4RT-enriched table entries`() {
+    installForwardingEntries()
+    val packet = buildIpv4Packet(dstMac = UNICAST_MAC, srcMac = SRC_MAC, ttl = 64)
+    val response = harness.injectPacket(ingressPort = 0, payload = packet)
+
+    val trace = response.trace
+    val tableLookups = trace.eventsList.filter { it.hasTableLookup() && it.tableLookup.hit }
+    assertTrue("should have at least one table hit", tableLookups.isNotEmpty())
+
+    val enrichedLookup = tableLookups.firstOrNull { it.tableLookup.hasP4RtMatchedEntry() }
+    assertNotNull(
+      "at least one table hit should have a P4RT-enriched matched entry",
+      enrichedLookup,
+    )
+  }
+
   // =========================================================================
   // PacketIO: PacketOut via StreamChannel
   // =========================================================================

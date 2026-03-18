@@ -303,8 +303,8 @@ class V1ModelArchitectureTest {
     val outputs = collectOutputsFromTrace(result.trace)
 
     assertEquals(2, outputs.size)
-    assertEquals(2, outputs[0].egressPort)
-    assertEquals(3, outputs[1].egressPort)
+    assertEquals(2, outputs[0].dataplaneEgressPort)
+    assertEquals(3, outputs[1].dataplaneEgressPort)
     // Payload should pass through unchanged (no parser extraction, no deparser emit).
     assertEquals(ByteString.copyFrom(payload), outputs[0].payload)
     assertEquals(ByteString.copyFrom(payload), outputs[1].payload)
@@ -319,7 +319,7 @@ class V1ModelArchitectureTest {
     val outputs = collectOutputsFromTrace(result.trace)
 
     assertEquals(1, outputs.size)
-    assertEquals(5, outputs[0].egressPort)
+    assertEquals(5, outputs[0].dataplaneEgressPort)
     assertEquals(ByteString.copyFrom(payload), outputs[0].payload)
   }
 
@@ -387,7 +387,7 @@ class V1ModelArchitectureTest {
     val outputs = collectOutputsFromTrace(result.trace)
 
     assertEquals(1, outputs.size)
-    assertEquals(5, outputs[0].egressPort)
+    assertEquals(5, outputs[0].dataplaneEgressPort)
   }
 
   @Test
@@ -427,9 +427,9 @@ class V1ModelArchitectureTest {
     val outputs = collectOutputsFromTrace(result.trace)
     assertEquals(2, outputs.size)
     // Original branch uses egress_spec set by ingress.
-    assertEquals(2, outputs[0].egressPort)
+    assertEquals(2, outputs[0].dataplaneEgressPort)
     // Clone branch uses the clone session's egress port.
-    assertEquals(7, outputs[1].egressPort)
+    assertEquals(7, outputs[1].dataplaneEgressPort)
   }
 
   @Test
@@ -447,8 +447,8 @@ class V1ModelArchitectureTest {
     val outputs = collectOutputsFromTrace(result.trace)
 
     assertEquals(2, outputs.size)
-    assertEquals(2, outputs[0].egressPort)
-    assertEquals(7, outputs[1].egressPort)
+    assertEquals(2, outputs[0].dataplaneEgressPort)
+    assertEquals(7, outputs[1].dataplaneEgressPort)
   }
 
   @Test
@@ -467,7 +467,7 @@ class V1ModelArchitectureTest {
     val outputs = collectOutputsFromTrace(result.trace)
 
     assertEquals(2, outputs.size)
-    assertEquals(510, outputs[1].egressPort)
+    assertEquals(510, outputs[1].dataplaneEgressPort)
   }
 
   @Test
@@ -485,8 +485,8 @@ class V1ModelArchitectureTest {
     val outputs = collectOutputsFromTrace(result.trace)
 
     assertEquals(2, outputs.size)
-    assertEquals(5, outputs[0].egressPort)
-    assertEquals(9, outputs[1].egressPort)
+    assertEquals(5, outputs[0].dataplaneEgressPort)
+    assertEquals(9, outputs[1].dataplaneEgressPort)
   }
 
   @Test
@@ -512,8 +512,8 @@ class V1ModelArchitectureTest {
 
     val outputs = collectOutputsFromTrace(result.trace)
     assertEquals(2, outputs.size)
-    assertEquals(3, outputs[0].egressPort)
-    assertEquals(8, outputs[1].egressPort)
+    assertEquals(3, outputs[0].dataplaneEgressPort)
+    assertEquals(8, outputs[1].dataplaneEgressPort)
   }
 
   @Test
@@ -572,7 +572,7 @@ class V1ModelArchitectureTest {
     assertFalse(result.trace.hasForkOutcome())
     val outputs = collectOutputsFromTrace(result.trace)
     assertEquals(1, outputs.size)
-    assertEquals(2, outputs[0].egressPort)
+    assertEquals(2, outputs[0].dataplaneEgressPort)
   }
 
   @Test
@@ -590,7 +590,7 @@ class V1ModelArchitectureTest {
     assertFalse(result.trace.hasForkOutcome())
     val outputs = collectOutputsFromTrace(result.trace)
     assertEquals(1, outputs.size)
-    assertEquals(3, outputs[0].egressPort)
+    assertEquals(3, outputs[0].dataplaneEgressPort)
   }
 
   @Test
@@ -607,7 +607,7 @@ class V1ModelArchitectureTest {
     // No fork — falls through to unicast path.
     val outputs = collectOutputsFromTrace(result.trace)
     assertEquals(1, outputs.size)
-    assertEquals(5, outputs[0].egressPort)
+    assertEquals(5, outputs[0].dataplaneEgressPort)
   }
 
   // ---------------------------------------------------------------------------
@@ -632,8 +632,8 @@ class V1ModelArchitectureTest {
     val outputs = collectOutputsFromTrace(result.trace)
 
     assertEquals(2, outputs.size)
-    assertEquals(2, outputs[0].egressPort)
-    assertEquals(3, outputs[1].egressPort)
+    assertEquals(2, outputs[0].dataplaneEgressPort)
+    assertEquals(3, outputs[1].dataplaneEgressPort)
   }
 
   @Test
@@ -651,7 +651,7 @@ class V1ModelArchitectureTest {
     // Original is dropped (mark_to_drop set egress_spec to drop port).
     // Clone survives on port 7.
     assertEquals(1, outputs.size)
-    assertEquals(7, outputs[0].egressPort)
+    assertEquals(7, outputs[0].dataplaneEgressPort)
   }
 
   @Test
@@ -684,7 +684,7 @@ class V1ModelArchitectureTest {
     val outputs = collectOutputsFromTrace(result.trace)
     // Original is dropped (egress mark_to_drop). Clone survives on port 8.
     assertEquals(1, outputs.size)
-    assertEquals(8, outputs[0].egressPort)
+    assertEquals(8, outputs[0].dataplaneEgressPort)
   }
 
   // ---------------------------------------------------------------------------
@@ -704,7 +704,7 @@ class V1ModelArchitectureTest {
 
     // First event: packet ingress with correct port.
     assertTrue(events[0].hasPacketIngress())
-    assertEquals(7, events[0].packetIngress.ingressPort)
+    assertEquals(7, events[0].packetIngress.dataplaneIngressPort)
 
     // Remaining events: enter/exit pairs for parser, 4 controls, deparser.
     data class StageStep(val name: String, val kind: StageKind, val direction: Direction)
@@ -802,7 +802,7 @@ class V1ModelArchitectureTest {
     val outputs = collectOutputsFromTrace(result.trace)
 
     assertEquals(1, outputs.size)
-    assertEquals(largePort.toInt(), outputs[0].egressPort)
+    assertEquals(largePort.toInt(), outputs[0].dataplaneEgressPort)
   }
 
   @Test
@@ -825,7 +825,7 @@ class V1ModelArchitectureTest {
     val outputs = collectOutputsFromTrace(result.trace)
 
     assertEquals(1, outputs.size)
-    assertEquals(511, outputs[0].egressPort)
+    assertEquals(511, outputs[0].dataplaneEgressPort)
   }
 
   @Test
@@ -851,7 +851,7 @@ class V1ModelArchitectureTest {
     val outputs = collectOutputsFromTrace(result.trace)
 
     assertEquals(1, outputs.size)
-    assertEquals(largePort.toInt(), outputs[0].egressPort)
+    assertEquals(largePort.toInt(), outputs[0].dataplaneEgressPort)
   }
 
   // ---------------------------------------------------------------------------
@@ -908,8 +908,8 @@ class V1ModelArchitectureTest {
     val outputs = collectOutputsFromTrace(result.trace)
     // Both original and clone produce output (metadata was preserved, so no drop).
     assertEquals(2, outputs.size)
-    assertEquals(2, outputs[0].egressPort)
-    assertEquals(7, outputs[1].egressPort)
+    assertEquals(2, outputs[0].dataplaneEgressPort)
+    assertEquals(7, outputs[1].dataplaneEgressPort)
   }
 
   @Test
@@ -953,8 +953,8 @@ class V1ModelArchitectureTest {
     assertEquals(ForkReason.CLONE, result.trace.forkOutcome.reason)
     val outputs = collectOutputsFromTrace(result.trace)
     assertEquals(2, outputs.size)
-    assertEquals(3, outputs[0].egressPort)
-    assertEquals(8, outputs[1].egressPort)
+    assertEquals(3, outputs[0].dataplaneEgressPort)
+    assertEquals(8, outputs[1].dataplaneEgressPort)
   }
 
   @Test
@@ -1042,7 +1042,7 @@ class V1ModelArchitectureTest {
     val outputs = collectOutputsFromTrace(result.trace)
     // Resubmit branch outputs (metadata was preserved, so no drop).
     assertEquals(1, outputs.size)
-    assertEquals(1, outputs[0].egressPort)
+    assertEquals(1, outputs[0].dataplaneEgressPort)
   }
 
   @Test
@@ -1095,7 +1095,7 @@ class V1ModelArchitectureTest {
     val outputs = collectOutputsFromTrace(result.trace)
     // Recirculate branch outputs (metadata was preserved, so no drop).
     assertEquals(1, outputs.size)
-    assertEquals(1, outputs[0].egressPort)
+    assertEquals(1, outputs[0].dataplaneEgressPort)
   }
 
   @Test
@@ -1156,7 +1156,7 @@ class V1ModelArchitectureTest {
     val outputs = collectOutputsFromTrace(result.trace)
 
     assertEquals(1, outputs.size)
-    assertEquals(1, outputs[0].egressPort)
+    assertEquals(1, outputs[0].dataplaneEgressPort)
     // Trace should contain a passing assertion event.
     assertTrue(result.trace.eventsList.any { it.hasAssertion() && it.assertion.passed })
   }
@@ -1262,7 +1262,7 @@ class V1ModelArchitectureTest {
 
     val outputs = collectOutputsFromTrace(result.trace)
     assertEquals(1, outputs.size)
-    assertEquals(DEFAULT_DROP_PORT, outputs[0].egressPort)
+    assertEquals(DEFAULT_DROP_PORT, outputs[0].dataplaneEgressPort)
   }
 
   @Test

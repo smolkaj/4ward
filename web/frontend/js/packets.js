@@ -73,6 +73,6 @@ export function renderPacketResults(outputPackets, trace) {
   div.innerHTML = outputPackets.map(pkt => {
     const bytes = pkt.payload ? base64ToUint8Array(pkt.payload) : new Uint8Array(0);
     const sections = renderPacketSections(bytes, trace, pkt.payload);
-    return `<div class="output-packet"><div class="output-packet-header"><span class="output-port">Port ${pkt.egress_port}</span><span class="output-bytes">${bytes.length} bytes</span></div>${sections}</div>`;
+    return `<div class="output-packet"><div class="output-packet-header"><span class="output-port">Port ${pkt.dataplane_egress_port}</span><span class="output-bytes">${bytes.length} bytes</span></div>${sections}</div>`;
   }).join('');
 }

@@ -236,6 +236,21 @@ kt_jvm_test(
 )
 
 kt_jvm_test(
+    name = "TraceEnricherTest",
+    srcs = ["TraceEnricherTest.kt"],
+    test_class = "fourward.p4runtime.TraceEnricherTest",
+    deps = [
+        ":p4info_java_proto",
+        ":p4runtime_java_proto",
+        ":p4runtime_lib",
+        "//simulator:ir_java_proto",
+        "//simulator:simulator_java_proto",
+        "@maven//:com_google_protobuf_protobuf_java",
+        "@maven//:junit_junit",
+    ],
+)
+
+kt_jvm_test(
     name = "TypeTranslatorTest",
     srcs = ["TypeTranslatorTest.kt"],
     test_class = "fourward.p4runtime.TypeTranslatorTest",
@@ -338,6 +353,31 @@ kt_jvm_test(
         "//e2e_tests/constrained_table:constrained_table_pb",
     ],
     test_class = "fourward.p4runtime.P4RuntimeConstraintTest",
+    deps = [
+        ":dataplane_kt_grpc",
+        ":p4runtime_lib",
+        "//simulator:ir_java_proto",
+        "//simulator:simulator_java_proto",
+        "@grpc-java//api",
+        "@grpc-java//inprocess",
+        "@maven//:com_google_protobuf_protobuf_java",
+        "@maven//:io_grpc_grpc_kotlin_stub",
+        "@maven//:junit_junit",
+        "@maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
+    ],
+)
+
+kt_jvm_test(
+    name = "EnrichedTraceGoldenTest",
+    srcs = [
+        "EnrichedTraceGoldenTest.kt",
+        "P4RuntimeTestHarness.kt",
+    ],
+    data = [
+        "enriched_trace.golden.txtpb",
+        "//e2e_tests/translated_port:translated_port_pb",
+    ],
+    test_class = "fourward.p4runtime.EnrichedTraceGoldenTest",
     deps = [
         ":dataplane_kt_grpc",
         ":p4runtime_lib",

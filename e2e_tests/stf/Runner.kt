@@ -70,7 +70,7 @@ class StfRunner(private val pipelineConfigPath: Path, private val dropPortOverri
       }
       val pkts = result.outputPackets
       for (pkt in pkts) {
-        outputQueue += ReceivedPacket(pkt.egressPort, pkt.payload.toByteArray())
+        outputQueue += ReceivedPacket(pkt.dataplaneEgressPort, pkt.payload.toByteArray())
       }
     }
 

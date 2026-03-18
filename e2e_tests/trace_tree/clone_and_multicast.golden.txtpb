@@ -72,7 +72,7 @@ events {
   clone_session_lookup {
     session_id: 100
     session_found: true
-    egress_port: 3
+    dataplane_egress_port: 3
   }
 }
 fork_outcome {
@@ -135,7 +135,7 @@ fork_outcome {
             }
             packet_outcome {
               output {
-                egress_port: 1
+                dataplane_egress_port: 1
                 payload: "\377\377\377\377\377\377\000\000\000\000\000\001\b\000"
               }
             }
@@ -194,7 +194,7 @@ fork_outcome {
             }
             packet_outcome {
               output {
-                egress_port: 2
+                dataplane_egress_port: 2
                 payload: "\377\377\377\377\377\377\000\000\000\000\000\001\b\000"
               }
             }
@@ -256,7 +256,7 @@ fork_outcome {
       }
       packet_outcome {
         output {
-          egress_port: 3
+          dataplane_egress_port: 3
           payload: "\377\377\377\377\377\377\000\000\000\000\000\001\b\000"
         }
       }

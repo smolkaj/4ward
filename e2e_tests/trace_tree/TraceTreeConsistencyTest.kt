@@ -65,10 +65,12 @@ class TraceTreeConsistencyTest(private val testName: String) {
 
     assertTrue("Trace tree for $testName has no leaf outcomes", leafOutcomes.isNotEmpty())
 
-    val outputsFromResult = result.outputPackets.map { it.egressPort to it.payload }
+    val outputsFromResult = result.outputPackets.map { it.dataplaneEgressPort to it.payload }
 
     val outputsFromTree =
-      leafOutcomes.filter { it.hasOutput() }.map { it.output.egressPort to it.output.payload }
+      leafOutcomes
+        .filter { it.hasOutput() }
+        .map { it.output.dataplaneEgressPort to it.output.payload }
 
     // output_packets must match trace tree leaves (both forking and non-forking).
     assertEquals(
