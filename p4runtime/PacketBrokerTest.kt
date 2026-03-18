@@ -83,4 +83,20 @@ class PacketBrokerTest {
     broker.processPacket(0, byteArrayOf())
     assertEquals("no new result after unsubscribe", 1, received.size)
   }
+
+  @Test
+  fun `throwing subscriber does not crash caller or block other subscribers`() {
+    val broker = PacketBroker(fakeProcessor(0 to result(outputPacket(1))))
+
+    val received = mutableListOf<PacketBroker.SubscriptionResult>()
+    broker.subscribe { throw IllegalStateException("boom") }
+    broker.subscribe { received.add(it) }
+
+    // The caller should get the result even though the first subscriber threw.
+    val callerResult = broker.processPacket(0, byteArrayOf())
+    assertEquals(1, callerResult.outputPackets.size)
+
+    // The second subscriber should still receive the result.
+    assertEquals(1, received.size)
+  }
 }

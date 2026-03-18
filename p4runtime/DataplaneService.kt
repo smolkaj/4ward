@@ -55,24 +55,31 @@ class DataplaneService(
 
       val handle =
         broker.subscribe { subResult ->
-          val translator = typeTranslator()
-          val pt = translator?.portTranslator
-          val result =
-            ProcessPacketResultProto.newBuilder()
-              .setInputPacket(
-                DataplaneProto.InputPacket.newBuilder()
-                  .setDataplaneIngressPort(subResult.ingressPort)
-                  .apply {
-                    // Ingress ports may come from InjectPacket.dataplane_ingress_port (raw int,
-                    // never forward-allocated), so a missing reverse mapping is expected.
-                    pt?.dataplaneToP4rt(subResult.ingressPort)?.let { setP4RtIngressPort(it) }
-                  }
-                  .setPayload(ByteString.copyFrom(subResult.payload))
-              )
-              .addAllOutputPackets(subResult.outputPackets.map { it.toDualEncoded(pt) })
-              .setTrace(enrichTrace(subResult.trace, translator))
-              .build()
-          trySend(SubscribeResultsResponse.newBuilder().setResult(result).build())
+          try {
+            val translator = typeTranslator()
+            val pt = translator?.portTranslator
+            val result =
+              ProcessPacketResultProto.newBuilder()
+                .setInputPacket(
+                  DataplaneProto.InputPacket.newBuilder()
+                    .setDataplaneIngressPort(subResult.ingressPort)
+                    .apply {
+                      // Ingress ports may come from InjectPacket.dataplane_ingress_port (raw int,
+                      // never forward-allocated), so a missing reverse mapping is expected.
+                      pt?.dataplaneToP4rt(subResult.ingressPort)?.let { setP4RtIngressPort(it) }
+                    }
+                    .setPayload(ByteString.copyFrom(subResult.payload))
+                )
+                .addAllOutputPackets(subResult.outputPackets.map { it.toDualEncoded(pt) })
+                .setTrace(enrichTrace(subResult.trace, translator))
+                .build()
+            trySend(SubscribeResultsResponse.newBuilder().setResult(result).build())
+          } catch (
+            @Suppress("TooGenericExceptionCaught") // Any translation/encoding failure should
+            e: Exception // terminate this subscription stream, not crash the packet sender.
+          ) {
+            close(e)
+          }
         }
 
       awaitClose { handle.unsubscribe() }

@@ -468,8 +468,16 @@ class P4RuntimeService(
       // Per P4Runtime spec §16.1, PacketIn is sent to all controllers with an open stream.
       val packetInHandle =
         broker.subscribe { subResult ->
-          for (response in buildPacketInResponses(subResult.outputPackets, subResult.ingressPort)) {
-            trySend(response)
+          try {
+            for (response in
+              buildPacketInResponses(subResult.outputPackets, subResult.ingressPort)) {
+              trySend(response)
+            }
+          } catch (
+            @Suppress("TooGenericExceptionCaught") // Any translation/encoding failure should
+            e: Exception // terminate this P4RT stream, not crash the packet sender.
+          ) {
+            close(e)
           }
         }
 

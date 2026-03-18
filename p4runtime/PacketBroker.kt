@@ -3,6 +3,8 @@ package fourward.p4runtime
 import fourward.sim.SimulatorProto.OutputPacket
 import fourward.sim.SimulatorProto.TraceTree
 import fourward.simulator.ProcessPacketResult
+import java.util.logging.Level
+import java.util.logging.Logger
 
 /**
  * Fan-out layer between packet sources and the simulator.
@@ -47,6 +49,9 @@ class PacketBroker(
    * 1. Calls the simulator.
    * 2. Delivers the result to all subscribers.
    * 3. Returns the result to the caller.
+   *
+   * Subscriber exceptions are caught to protect the caller and other subscribers. Well-behaved
+   * subscribers handle their own errors (e.g. by closing their stream); this catch is a safety net.
    */
   fun processPacket(ingressPort: Int, payload: ByteArray): ProcessPacketResult {
     val result = processPacketFn(ingressPort, payload)
@@ -54,7 +59,14 @@ class PacketBroker(
     if (subscribers.isNotEmpty()) {
       val subResult = SubscriptionResult(ingressPort, payload, result.outputPackets, result.trace)
       for (subscriber in subscribers) {
-        subscriber(subResult)
+        try {
+          subscriber(subResult)
+        } catch (
+          @Suppress("TooGenericExceptionCaught") // Safety net: any subscriber failure must not
+          e: Exception // crash the sender or block other subscribers.
+        ) {
+          logger.log(Level.WARNING, "Subscriber threw during packet dispatch", e)
+        }
       }
     }
 
@@ -65,5 +77,9 @@ class PacketBroker(
   fun subscribe(callback: (SubscriptionResult) -> Unit): SubscriptionHandle {
     subscribers.add(callback)
     return SubscriptionHandle { subscribers.remove(callback) }
+  }
+
+  private companion object {
+    val logger: Logger = Logger.getLogger(PacketBroker::class.java.name)
   }
 }
