@@ -216,7 +216,32 @@ class V1ModelArchitectureTest {
   private fun v1modelConfig(vararg stmts: Stmt): BehavioralConfig =
     v1modelConfig(ingressStmts = stmts.toList())
 
-  private fun writeCloneSession(store: TableStore, sessionId: Int, egressPort: Int) {
+  /**
+   * Builds a Replica using the deprecated `egress_port` field when [usePortBytes] is false, or the
+   * newer `port` (bytes) field when true.
+   */
+  private fun buildReplica(
+    egressPort: Int,
+    instance: Int = 0,
+    usePortBytes: Boolean = false,
+  ): P4RuntimeOuterClass.Replica =
+    P4RuntimeOuterClass.Replica.newBuilder()
+      .setInstance(instance)
+      .apply {
+        if (usePortBytes) {
+          setPort(ByteString.copyFrom(intToMinWidthBytes(egressPort)))
+        } else {
+          @Suppress("DEPRECATION") setEgressPort(egressPort)
+        }
+      }
+      .build()
+
+  private fun writeCloneSession(
+    store: TableStore,
+    sessionId: Int,
+    egressPort: Int,
+    usePortBytes: Boolean = false,
+  ) {
     store.write(
       P4RuntimeOuterClass.Update.newBuilder()
         .setType(P4RuntimeOuterClass.Update.Type.INSERT)
@@ -227,7 +252,7 @@ class V1ModelArchitectureTest {
                 .setCloneSessionEntry(
                   P4RuntimeOuterClass.CloneSessionEntry.newBuilder()
                     .setSessionId(sessionId)
-                    .addReplicas(P4RuntimeOuterClass.Replica.newBuilder().setEgressPort(egressPort))
+                    .addReplicas(buildReplica(egressPort, usePortBytes = usePortBytes))
                 )
             )
         )
@@ -235,7 +260,12 @@ class V1ModelArchitectureTest {
     )
   }
 
-  private fun writeMulticastGroup(store: TableStore, groupId: Int, replicas: List<Pair<Int, Int>>) {
+  private fun writeMulticastGroup(
+    store: TableStore,
+    groupId: Int,
+    replicas: List<Pair<Int, Int>>,
+    usePortBytes: Boolean = false,
+  ) {
     store.write(
       P4RuntimeOuterClass.Update.newBuilder()
         .setType(P4RuntimeOuterClass.Update.Type.INSERT)
@@ -248,10 +278,7 @@ class V1ModelArchitectureTest {
                     .setMulticastGroupId(groupId)
                     .addAllReplicas(
                       replicas.map { (rid, port) ->
-                        P4RuntimeOuterClass.Replica.newBuilder()
-                          .setInstance(rid)
-                          .setEgressPort(port)
-                          .build()
+                        buildReplica(port, instance = rid, usePortBytes = usePortBytes)
                       }
                     )
                 )
@@ -403,6 +430,63 @@ class V1ModelArchitectureTest {
     assertEquals(2, outputs[0].egressPort)
     // Clone branch uses the clone session's egress port.
     assertEquals(7, outputs[1].egressPort)
+  }
+
+  @Test
+  fun `I2E clone works with Replica port bytes field`() {
+    val config =
+      v1modelConfig(
+        externCall("clone", enumArg("I2E"), intArg(1, 32)),
+        assignField("sm", "egress_spec", 2, V1ModelArchitecture.DEFAULT_PORT_BITS),
+      )
+    val tableStore = TableStore()
+    writeCloneSession(tableStore, sessionId = 1, egressPort = 7, usePortBytes = true)
+
+    val result =
+      V1ModelArchitecture().processPacket(0u, byteArrayOf(0xAA.toByte()), config, tableStore)
+    val outputs = collectOutputsFromTrace(result.trace)
+
+    assertEquals(2, outputs.size)
+    assertEquals(2, outputs[0].egressPort)
+    assertEquals(7, outputs[1].egressPort)
+  }
+
+  @Test
+  fun `I2E clone works with multi-byte Replica port`() {
+    val config =
+      v1modelConfig(
+        externCall("clone", enumArg("I2E"), intArg(1, 32)),
+        assignField("sm", "egress_spec", 2, V1ModelArchitecture.DEFAULT_PORT_BITS),
+      )
+    val tableStore = TableStore()
+    // Port 510 = 0x01FE, exercises multi-byte decoding.
+    writeCloneSession(tableStore, sessionId = 1, egressPort = 510, usePortBytes = true)
+
+    val result =
+      V1ModelArchitecture().processPacket(0u, byteArrayOf(0xAA.toByte()), config, tableStore)
+    val outputs = collectOutputsFromTrace(result.trace)
+
+    assertEquals(2, outputs.size)
+    assertEquals(510, outputs[1].egressPort)
+  }
+
+  @Test
+  fun `multicast works with Replica port bytes field`() {
+    val config = v1modelConfig(assignField("sm", "mcast_grp", 1, 16))
+    val tableStore = TableStore()
+    writeMulticastGroup(
+      tableStore,
+      groupId = 1,
+      replicas = listOf(0 to 5, 0 to 9),
+      usePortBytes = true,
+    )
+
+    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, tableStore)
+    val outputs = collectOutputsFromTrace(result.trace)
+
+    assertEquals(2, outputs.size)
+    assertEquals(5, outputs[0].egressPort)
+    assertEquals(9, outputs[1].egressPort)
   }
 
   @Test
@@ -1209,5 +1293,17 @@ class V1ModelArchitectureTest {
   companion object {
     private const val DEFAULT_PORT_BITS = V1ModelArchitecture.DEFAULT_PORT_BITS
     private const val DEFAULT_DROP_PORT = V1ModelArchitecture.DEFAULT_DROP_PORT
+
+    /** Minimum-width big-endian encoding (matches P4Runtime canonical form). */
+    private fun intToMinWidthBytes(value: Int): ByteArray {
+      if (value == 0) return byteArrayOf(0)
+      val bytes = mutableListOf<Byte>()
+      var v = value
+      while (v > 0) {
+        bytes.add(0, (v and 0xFF).toByte())
+        v = v shr 8
+      }
+      return bytes.toByteArray()
+    }
   }
 }
