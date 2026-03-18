@@ -16,6 +16,20 @@ import fourward.sim.SimulatorProto.PipelineStageEvent
 import fourward.sim.SimulatorProto.TraceEvent
 import fourward.sim.SimulatorProto.TraceTree
 import java.math.BigInteger
+import p4.v1.P4RuntimeOuterClass
+
+/**
+ * Reads the egress port from a [P4RuntimeOuterClass.Replica], supporting both the `port` (bytes,
+ * P4Runtime v1.4+) and deprecated `egress_port` (uint32) fields.
+ */
+@Suppress("DEPRECATION")
+internal fun replicaPort(replica: P4RuntimeOuterClass.Replica): Int =
+  if (!replica.port.isEmpty) {
+    val port = replica.port
+    (0 until port.size()).fold(0) { acc, i -> (acc shl 8) or (port.byteAt(i).toInt() and 0xFF) }
+  } else {
+    replica.egressPort
+  }
 
 /**
  * v1model pipeline implementation.
@@ -538,7 +552,7 @@ class V1ModelArchitecture(
           val group = ctx.tableStore.getMulticastGroup(mcastGrp)
           if (group != null) {
             val replicas =
-              group.replicasList.map { r -> BranchMode.Replica(r.instance, r.egressPort) }
+              group.replicasList.map { r -> BranchMode.Replica(r.instance, replicaPort(r)) }
             throw MulticastFork(replicas, s.packetCtx.getEvents())
           }
         }
@@ -631,7 +645,7 @@ class V1ModelArchitecture(
   private fun resolveCloneSession(ctx: PipelineContext, s: PipelineState, sessionId: Int): Long? {
     val session = ctx.tableStore.getCloneSession(sessionId)
     if (session != null) {
-      val egressPort = session.replicasList.first().egressPort
+      val egressPort = replicaPort(session.replicasList.first())
       s.packetCtx.addTraceEvent(cloneSessionLookupEvent(sessionId, egressPort))
       return egressPort.toLong()
     }
