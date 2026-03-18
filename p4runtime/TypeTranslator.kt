@@ -68,14 +68,10 @@ class PortTranslator internal constructor(private val table: TranslationTable) {
 
   /** Translates a dataplane port number to a P4Runtime port ID, or null if no mapping exists. */
   fun dataplaneToP4rt(dataplanePort: Int): ByteString? =
-    try {
-      when (val sdnValue = table.reverseLookup(encodeMinWidth(dataplanePort))) {
-        is P4rtValue.Str -> ByteString.copyFromUtf8(sdnValue.value)
-        is P4rtValue.Bitstring -> sdnValue.value
-      }
-    } catch (_: TranslationException) {
-      // No reverse mapping (e.g. drop port, internal ports).
-      null
+    when (val p4rtValue = table.reverseLookupOrNull(encodeMinWidth(dataplanePort))) {
+      is P4rtValue.Str -> ByteString.copyFromUtf8(p4rtValue.value)
+      is P4rtValue.Bitstring -> p4rtValue.value
+      null -> null
     }
 }
 
@@ -122,9 +118,9 @@ private constructor(
    *
    * For auto-allocate types, creates a new mapping on first use.
    */
-  fun p4rtToDataplane(typeName: String, sdnValue: ByteArray): ByteArray =
+  fun p4rtToDataplane(typeName: String, p4rtValue: ByteArray): ByteArray =
     getOrCreateTable(typeName)
-      .lookupOrAllocateBitstring(ByteString.copyFrom(sdnValue))
+      .lookupOrAllocateBitstring(ByteString.copyFrom(p4rtValue))
       .toByteArray()
 
   /**
@@ -132,8 +128,8 @@ private constructor(
    *
    * For auto-allocate types, creates a new mapping on first use.
    */
-  fun p4rtToDataplane(typeName: String, sdnStr: String): ByteArray =
-    getOrCreateTable(typeName).lookupOrAllocateString(sdnStr).toByteArray()
+  fun p4rtToDataplane(typeName: String, p4rtStr: String): ByteArray =
+    getOrCreateTable(typeName).lookupOrAllocateString(p4rtStr).toByteArray()
 
   /**
    * Translates a data-plane value back to its P4Runtime representation.
@@ -405,9 +401,9 @@ private constructor(
         table.lookupOrAllocateBitstring(value)
       }
     } else {
-      when (val sdnValue = table.reverseLookup(value)) {
-        is P4rtValue.Bitstring -> sdnValue.value
-        is P4rtValue.Str -> ByteString.copyFromUtf8(sdnValue.value)
+      when (val p4rtValue = table.reverseLookup(value)) {
+        is P4rtValue.Bitstring -> p4rtValue.value
+        is P4rtValue.Str -> ByteString.copyFromUtf8(p4rtValue.value)
       }
     }
 
@@ -649,22 +645,22 @@ internal class TranslationTable(
 
   /** Looks up or auto-allocates a data-plane value for a P4Runtime bitstring. */
   @Synchronized
-  fun lookupOrAllocateBitstring(sdnValue: ByteString): ByteString =
+  fun lookupOrAllocateBitstring(p4rtValue: ByteString): ByteString =
     lookupOrAllocate(
       bitstringForward,
-      sdnValue,
+      p4rtValue,
       P4rtValue::Bitstring,
-      "No mapping for P4Runtime bitstring value $sdnValue (auto-allocate off)",
+      "No mapping for P4Runtime bitstring value $p4rtValue (auto-allocate off)",
     )
 
   /** Looks up or auto-allocates a data-plane value for a P4Runtime string. */
   @Synchronized
-  fun lookupOrAllocateString(sdnStr: String): ByteString =
+  fun lookupOrAllocateString(p4rtStr: String): ByteString =
     lookupOrAllocate(
       stringForward,
-      sdnStr,
+      p4rtStr,
       P4rtValue::Str,
-      "No mapping for P4Runtime string '$sdnStr' (auto-allocate off)",
+      "No mapping for P4Runtime string '$p4rtStr' (auto-allocate off)",
     )
 
   /** Reverse-translates a data-plane value to its P4Runtime representation. */
@@ -673,10 +669,14 @@ internal class TranslationTable(
     reverse[dataplaneValue]
       ?: throw TranslationException("No reverse mapping for data-plane value $dataplaneValue")
 
+  /** Like [reverseLookup] but returns null instead of throwing. */
+  @Synchronized
+  fun reverseLookupOrNull(dataplaneValue: ByteString): P4rtValue? = reverse[dataplaneValue]
+
   private fun <K> lookupOrAllocate(
     forward: MutableMap<K, ByteString>,
     key: K,
-    wrapSdn: (K) -> P4rtValue,
+    wrapP4rt: (K) -> P4rtValue,
     errorMsg: String,
   ): ByteString {
     forward[key]?.let {
@@ -685,7 +685,7 @@ internal class TranslationTable(
     if (!autoAllocate) throw TranslationException(errorMsg)
     val dp = allocateNext()
     forward[key] = dp
-    reverse[dp] = wrapSdn(key)
+    reverse[dp] = wrapP4rt(key)
     return dp
   }
 

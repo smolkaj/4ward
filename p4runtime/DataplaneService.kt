@@ -33,10 +33,10 @@ class DataplaneService(
 ) : DataplaneGrpcKt.DataplaneCoroutineImplBase() {
 
   override suspend fun injectPacket(request: InjectPacketRequest): InjectPacketResponse {
-    val ingressPort = resolveIngressPort(request)
+    val pt = portTranslator()
+    val ingressPort = resolveIngressPort(request, pt)
     val payload = request.payload.toByteArray()
     val result = lock.withLock { broker.processPacket(ingressPort, payload) }
-    val pt = portTranslator()
     return InjectPacketResponse.newBuilder()
       .addAllOutputPackets(result.outputPackets.map { it.toDualEncoded(pt) })
       .setTrace(result.trace)
@@ -74,18 +74,18 @@ class DataplaneService(
     }
 
   /** Resolves the ingress port from the request's oneof. */
-  private fun resolveIngressPort(request: InjectPacketRequest): Int =
+  private fun resolveIngressPort(request: InjectPacketRequest, pt: PortTranslator?): Int =
     when (request.ingressPortCase) {
       InjectPacketRequest.IngressPortCase.DATAPLANE_INGRESS_PORT -> request.dataplaneIngressPort
       InjectPacketRequest.IngressPortCase.P4RT_INGRESS_PORT -> {
-        val pt =
-          portTranslator()
+        val translator =
+          pt
             ?: throw Status.FAILED_PRECONDITION.withDescription(
                 "P4Runtime port translation requires a loaded pipeline with " +
                   "@p4runtime_translation on the port type"
               )
               .asException()
-        pt.p4rtToDataplane(request.p4RtIngressPort)
+        translator.p4rtToDataplane(request.p4RtIngressPort)
       }
       InjectPacketRequest.IngressPortCase.INGRESSPORT_NOT_SET,
       null -> 0

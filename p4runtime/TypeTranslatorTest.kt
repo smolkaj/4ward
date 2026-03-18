@@ -859,10 +859,10 @@ class TypeTranslatorTest {
     private const val NON_TRANSLATED_METADATA_ID = 2
     private const val ACTION_PROFILE_ID = 300
     private const val TYPE_NAME = "port_id_t"
-    private const val TYPE_URI = "port_id_t"
+    private const val TYPE_URI = "test.port_id"
     private const val BITWIDTH_FIELD_ID = 3
     private const val STRING_TYPE_NAME = "port_name_t"
-    private const val STRING_TYPE_URI = "port_name_t"
+    private const val STRING_TYPE_URI = "sai.port"
   }
 
   /** Builds a single-entry P4TypeInfo for a translated type. */

@@ -353,10 +353,6 @@ class SaiP4E2ETest {
   // Port translation: stock v1model has no port newtype
   // =========================================================================
 
-  // SAI P4 uses stock v1model where standard_metadata.ingress_port is bit<9>
-  // (no newtype). Port translation requires a forked architecture where
-  // ingress_port uses a newtype with @p4runtime_translation.
-  // TODO(dual-port-encoding): add positive dual-encoding tests once SAI P4
   // The forked v1model (v1model_sai.p4) declares port_id_t as a newtype with
   // @p4runtime_translation on standard_metadata.ingress_port, enabling dual
   // port encoding in the DataplaneService.

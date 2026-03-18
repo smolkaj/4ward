@@ -150,7 +150,8 @@ static std::string derivePortTypeName(const IR::P4Program* program) {
         result = nt->name.name.c_str();
       } else if (const auto* tn = field->type->to<IR::Type_Name>()) {
         // After type resolution, the field type may be a Type_Name
-        // referencing the newtype by name.
+        // referencing the newtype by name. This also matches typedefs,
+        // but TypeTranslator.create() filters to translated types only.
         result = tn->path->name.name.c_str();
       }
     }
