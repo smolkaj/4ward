@@ -38,17 +38,14 @@ genrule(
     name = "sai_middleblock_pb",
     srcs = [
         "instantiations/google/middleblock.p4",
-        "fixed/bitwidths.p4",
         ":sai_p4_srcs",
         ":v1model_sai",
     ],
     outs = ["sai_middleblock.txtpb"],
-    # Copy generated v1model_sai.p4 next to the source files so relative
-    # #include paths resolve correctly.
     cmd = " ".join([
-        "cp $(execpath :v1model_sai) $$(dirname $(execpath fixed/bitwidths.p4))/v1model_sai.p4 &&",
         "$(execpath //p4c_backend:p4c-4ward)",
         "-I $$(dirname $(execpath @p4c//p4include:core.p4))",
+        "-I $$(dirname $(execpath :v1model_sai))",
         "-o $@",
         "$(execpath instantiations/google/middleblock.p4)",
     ]),

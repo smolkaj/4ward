@@ -1,7 +1,7 @@
 #ifndef SAI_ACL_COMMON_ACTIONS_P4_
 #define SAI_ACL_COMMON_ACTIONS_P4_
 
-#include "../../fixed/v1model_sai.p4"
+#include "v1model_sai.p4"
 #include "ids.h"
 
 @id(ACL_DROP_ACTION_ID)
