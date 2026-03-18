@@ -116,9 +116,9 @@ kt_jvm_binary(
 )
 
 # Self-contained fat JAR for distribution. Allows running the server with
-# `java -jar p4runtime_server_deploy.jar` without needing Bazel runfiles.
+# `java -jar p4runtime_server_jar_deploy.jar` without needing Bazel runfiles.
 java_binary(
-    name = "p4runtime_server_deploy",
+    name = "p4runtime_server_jar",
     main_class = "fourward.p4runtime.P4RuntimeServerKt",
     visibility = ["//visibility:public"],
     runtime_deps = [":p4runtime_lib"],
