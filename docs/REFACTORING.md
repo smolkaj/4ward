@@ -36,15 +36,6 @@ BCR consumers.
 
 ---
 
-## Use dual port encoding in sonic-pins
-
-Once the DataplaneService supports both dataplane (`uint32`) and P4RT (`bytes`)
-port encodings ([design](../designs/dataplane_port_encoding.md)), update the
-sonic-pins `FourwardBackend` to use P4RT ports directly — eliminating the
-manual `SimpleAtoi`/`StrCat` conversions in `fourward_backend.cc`.
-
----
-
 ## Establish user-facing documentation
 
 `docs/` currently serves developers working on 4ward. As the project
