@@ -4,6 +4,7 @@ load("@protobuf//bazel:cc_proto_library.bzl", "cc_proto_library")
 load("@protobuf//bazel:java_proto_library.bzl", "java_proto_library")
 load("@protobuf//bazel:proto_library.bzl", "proto_library")
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_java//java:defs.bzl", "java_binary")
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_binary", "kt_jvm_library", "kt_jvm_test")
 
 # =============================================================================
@@ -109,6 +110,15 @@ kt_jvm_library(
 
 kt_jvm_binary(
     name = "p4runtime_server",
+    main_class = "fourward.p4runtime.P4RuntimeServerKt",
+    visibility = ["//visibility:public"],
+    runtime_deps = [":p4runtime_lib"],
+)
+
+# Self-contained fat JAR for distribution. Allows running the server with
+# `java -jar p4runtime_server_deploy.jar` without needing Bazel runfiles.
+java_binary(
+    name = "p4runtime_server_deploy",
     main_class = "fourward.p4runtime.P4RuntimeServerKt",
     visibility = ["//visibility:public"],
     runtime_deps = [":p4runtime_lib"],
