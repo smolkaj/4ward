@@ -1,6 +1,7 @@
 package fourward.p4runtime
 
 import com.google.protobuf.Any as ProtoAny
+import com.google.protobuf.ByteString
 import fourward.ir.DeviceConfig
 import fourward.ir.PipelineConfig
 import fourward.sim.SimulatorProto.OutputPacket
@@ -228,6 +229,101 @@ class P4RuntimeService(
     val entityReader =
       EntityReader.create(state.config.p4Info, simulator.tableNameById, simulator.actionNameById)
     pipeline = state.copy(entityReader = entityReader)
+
+    // On real SAI hardware, copy/trap-to-CPU is built in. On v1model (which 4ward simulates),
+    // it requires explicit ingress_clone_table entries and a CloneSessionEntry. Auto-install
+    // them so 4ward behaves like real hardware for integration tests (DVaaS, etc.).
+    autoInstallCopyToCpuClone(state)
+  }
+
+  /**
+   * Auto-installs clone-to-CPU infrastructure if the pipeline has `ingress_clone_table`.
+   *
+   * SAI P4's `acl_copy`/`acl_trap` actions set `marked_to_copy = true`, but the actual clone
+   * happens in `ingress_clone_table` which must have entries installed. On real SAI switches this
+   * logic is built in; on v1model it must be explicit. This method bridges the gap by installing
+   * the punt-only entry and clone session at pipeline load time.
+   */
+  private fun autoInstallCopyToCpuClone(state: PipelineState) {
+    val p4info = state.config.p4Info
+    val cloneTable = p4info.tablesList.find { it.preamble.alias == "ingress_clone_table" } ?: return
+    val cloneAction = p4info.actionsList.find { it.preamble.alias == "ingress_clone" } ?: return
+    val cpuPort = state.packetHeaderCodec?.cpuPort ?: return
+
+    val markedToCopyId =
+      cloneTable.matchFieldsList.find { it.name == "marked_to_copy" }?.id ?: return
+    val markedToMirrorId =
+      cloneTable.matchFieldsList.find { it.name == "marked_to_mirror" }?.id ?: return
+    val cloneSessionParamId =
+      cloneAction.paramsList.find { it.name == "clone_session" }?.id ?: return
+
+    // ingress_clone_table entry: marked_to_copy=1, marked_to_mirror=0 → ingress_clone(session).
+    val tableEntry =
+      P4RuntimeOuterClass.TableEntry.newBuilder()
+        .setTableId(cloneTable.preamble.id)
+        .addMatch(exactMatch(markedToCopyId, byteArrayOf(1)))
+        .addMatch(exactMatch(markedToMirrorId, byteArrayOf(0)))
+        .setAction(
+          P4RuntimeOuterClass.TableAction.newBuilder()
+            .setAction(
+              P4RuntimeOuterClass.Action.newBuilder()
+                .setActionId(cloneAction.preamble.id)
+                .addParams(
+                  P4RuntimeOuterClass.Action.Param.newBuilder()
+                    .setParamId(cloneSessionParamId)
+                    .setValue(ByteString.copyFrom(intToBytes(PUNT_CLONE_SESSION_ID, 4)))
+                )
+            )
+        )
+        .setPriority(1)
+        .build()
+
+    simulator.writeEntry(
+      P4RuntimeOuterClass.Update.newBuilder()
+        .setType(P4RuntimeOuterClass.Update.Type.INSERT)
+        .setEntity(P4RuntimeOuterClass.Entity.newBuilder().setTableEntry(tableEntry))
+        .build()
+    )
+
+    // CloneSessionEntry: session → CPU port replica.
+    val cloneSession =
+      P4RuntimeOuterClass.CloneSessionEntry.newBuilder()
+        .setSessionId(PUNT_CLONE_SESSION_ID)
+        .addReplicas(
+          P4RuntimeOuterClass.Replica.newBuilder()
+            .setPort(ByteString.copyFrom(intToBytes(cpuPort, 2)))
+            .setInstance(0)
+        )
+        .build()
+
+    simulator.writeEntry(
+      P4RuntimeOuterClass.Update.newBuilder()
+        .setType(P4RuntimeOuterClass.Update.Type.INSERT)
+        .setEntity(
+          P4RuntimeOuterClass.Entity.newBuilder()
+            .setPacketReplicationEngineEntry(
+              P4RuntimeOuterClass.PacketReplicationEngineEntry.newBuilder()
+                .setCloneSessionEntry(cloneSession)
+            )
+        )
+        .build()
+    )
+  }
+
+  private fun exactMatch(fieldId: Int, value: ByteArray): P4RuntimeOuterClass.FieldMatch =
+    P4RuntimeOuterClass.FieldMatch.newBuilder()
+      .setFieldId(fieldId)
+      .setExact(
+        P4RuntimeOuterClass.FieldMatch.Exact.newBuilder().setValue(ByteString.copyFrom(value))
+      )
+      .build()
+
+  private fun intToBytes(value: Int, width: Int): ByteArray {
+    val bytes = ByteArray(width)
+    for (i in 0 until width) {
+      bytes[width - 1 - i] = (value shr (i * 8) and 0xFF).toByte()
+    }
+    return bytes
   }
 
   // ---------------------------------------------------------------------------
@@ -843,6 +939,10 @@ class P4RuntimeService(
     private const val EXTERN_ENTRY_NOT_SUPPORTED = "ExternEntry is not supported"
     private const val ROLE_CONFIG_NOT_SUPPORTED =
       "Role.config is not supported; use @p4runtime_role annotations in p4info instead"
+
+    // Clone session ID for auto-installed punt-to-CPU clone. Chosen to avoid
+    // collision with user-installed sessions (which typically use small IDs).
+    internal const val PUNT_CLONE_SESSION_ID = 1023
 
     private const val OK_CODE = com.google.rpc.Code.OK_VALUE
 

@@ -418,8 +418,8 @@ class SaiP4E2ETest {
     installRoutingChain()
     // ACL: trap packets to dst_ip=10.0.0.1 → copy to CPU + drop original.
     installAclEntry(findAction("acl_trap"))
-    // Clone infrastructure: marked_to_copy → clone session 255 → CPU port 510.
-    installCopyToCpuCloneSession()
+    // Clone infrastructure (ingress_clone_table + CloneSessionEntry) is auto-installed
+    // at pipeline load time — see P4RuntimeService.autoInstallCopyToCpuClone().
 
     // PacketOut with submit_to_ingress=1: enters ingress, gets trapped by ACL.
     harness.openStream().use { session ->
@@ -437,7 +437,6 @@ class SaiP4E2ETest {
     installRoutingChain()
     // ACL: copy packets to CPU without dropping (forward normally + clone to CPU).
     installAclEntry(findAction("acl_copy"))
-    installCopyToCpuCloneSession()
 
     // Via InjectPacket: verify both data-plane and CPU outputs exist.
     val packet = buildIpv4Packet(dstMac = UNICAST_MAC, srcMac = SRC_MAC, ttl = 64)
@@ -470,7 +469,6 @@ class SaiP4E2ETest {
   fun `InjectPacket that egresses on CPU port produces PacketIn on StreamChannel`() {
     installRoutingChain()
     installAclEntry(findAction("acl_trap"))
-    installCopyToCpuCloneSession()
 
     // Open StreamChannel first so the PacketIn subscription is active.
     harness.openStream().use { session ->
@@ -490,7 +488,6 @@ class SaiP4E2ETest {
   fun `multiple streams each receive PacketIn (P4Runtime spec 16_1)`() {
     installRoutingChain()
     installAclEntry(findAction("acl_trap"))
-    installCopyToCpuCloneSession()
 
     // Two controllers with different election IDs — both should receive PacketIn per §16.1.
     harness.openStream().use { session1 ->
@@ -1203,9 +1200,13 @@ class SaiP4E2ETest {
       )
     )
 
-    val entities = harness.readRegularTableEntries(table.preamble.id)
-    assertEquals("expected one ingress_clone_table entry", 1, entities.size)
     val mirrorPortId = matchFieldId(table, "mirror_egress_port")
+    // Filter out the auto-installed punt-only entry (which has no mirror_egress_port match).
+    val entities =
+      harness.readRegularTableEntries(table.preamble.id).filter { entity ->
+        entity.tableEntry.matchList.any { it.fieldId == mirrorPortId && it.hasOptional() }
+      }
+    assertEquals("expected one mirror entry", 1, entities.size)
     assertEquals(
       "Ethernet0",
       entities[0]

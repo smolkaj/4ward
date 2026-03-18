@@ -631,13 +631,25 @@ class V1ModelArchitecture(
   private fun resolveCloneSession(ctx: PipelineContext, s: PipelineState, sessionId: Int): Long? {
     val session = ctx.tableStore.getCloneSession(sessionId)
     if (session != null) {
-      val egressPort = session.replicasList.first().egressPort
+      val egressPort = replicaPort(session.replicasList.first())
       s.packetCtx.addTraceEvent(cloneSessionLookupEvent(sessionId, egressPort))
       return egressPort.toLong()
     }
     s.packetCtx.addTraceEvent(cloneSessionMissEvent(sessionId))
     return null
   }
+
+  /**
+   * Reads the port from a Replica, supporting both the `port` (bytes) and deprecated `egress_port`
+   * (uint32) fields.
+   */
+  private fun replicaPort(replica: p4.v1.P4RuntimeOuterClass.Replica): Int =
+    @Suppress("DEPRECATION")
+    if (!replica.port.isEmpty) {
+      replica.port.toByteArray().fold(0) { acc, b -> (acc shl 8) or (b.toInt() and 0xFF) }
+    } else {
+      replica.egressPort
+    }
 
   private fun cloneSessionLookupEvent(sessionId: Int, egressPort: Int): TraceEvent =
     TraceEvent.newBuilder()
