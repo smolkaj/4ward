@@ -18,7 +18,7 @@ fun ByteString.toUnsignedInt(): Int =
 /**
  * Minimum-width unsigned big-endian encoding of a non-negative integer (P4Runtime canonical form).
  */
-internal fun encodeMinWidth(value: Int): ByteString {
+fun encodeMinWidth(value: Int): ByteString {
   if (value == 0) return ByteString.copyFrom(byteArrayOf(0))
   val bytes = mutableListOf<Byte>()
   var v = value

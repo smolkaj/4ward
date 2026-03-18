@@ -365,6 +365,10 @@ class P4RuntimeService(
    * Replicas using the deprecated `Replica.egress_port` (int32) field are already dataplane values
    * and pass through unchanged — but they have no P4RT reverse mapping, so `toDualEncoded` and
    * `translatePacketIn` will fail for those ports.
+   *
+   * TODO(PRE read-back): The simulator stores the translated dataplane integer in `Replica.port`,
+   *   so reading PRE entries back returns raw values, not P4RT strings. `translateForRead` doesn't
+   *   handle PRE entities yet — it would need to reverse-translate replica ports.
    */
   private fun translateReplicaPorts(update: Update, state: PipelineState): Update {
     val pt = state.typeTranslator?.portTranslator ?: return update

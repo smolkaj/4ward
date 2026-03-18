@@ -426,6 +426,25 @@ class SaiP4E2ETest {
   }
 
   @Test
+  fun `deprecated Replica egress_port causes loud error on unmapped port`() {
+    installRoutingChain()
+    installAclEntry(findAction("acl_trap"))
+    // Install the ingress_clone_table entry that triggers clone3() with session 255.
+    installIngressCloneTableEntry()
+    // Install clone session using the deprecated Replica.egress_port (int32) which bypasses
+    // port translation. Port 99 has no P4RT reverse mapping.
+    installCloneSessionDeprecated(COPY_TO_CPU_SESSION_ID, egressPort = 99)
+
+    val packet = buildIpv4Packet(dstMac = UNICAST_MAC, srcMac = SRC_MAC, ttl = 64)
+    // The clone outputs on dataplane port 99, which has no reverse mapping.
+    // toDualEncoded should fail loudly per invariant #5. gRPC surfaces the uncaught
+    // IllegalStateException as UNKNOWN (server doesn't propagate exception details).
+    P4RuntimeTestHarness.assertGrpcError(Status.Code.UNKNOWN) {
+      harness.injectPacket(ingressPort = 0, payload = packet)
+    }
+  }
+
+  @Test
   fun `InjectPacket trace has P4RT-enriched ports`() {
     installForwardingEntries()
     val packet = buildIpv4Packet(dstMac = UNICAST_MAC, srcMac = SRC_MAC, ttl = 64)
@@ -1622,6 +1641,13 @@ class SaiP4E2ETest {
    */
   @Suppress("MagicNumber")
   private fun installCopyToCpuCloneSession() {
+    installIngressCloneTableEntry()
+    installCloneSession(COPY_TO_CPU_SESSION_ID, CPU_PORT.toString())
+  }
+
+  /** Installs the ingress_clone_table entry that triggers clone3() with session 255. */
+  @Suppress("MagicNumber")
+  private fun installIngressCloneTableEntry() {
     val cloneTable = findTable("ingress_clone_table")
     val ingressClone = findAction("ingress_clone")
     harness.installEntry(
@@ -1644,7 +1670,6 @@ class SaiP4E2ETest {
         priority = 1,
       )
     )
-    installCloneSession(COPY_TO_CPU_SESSION_ID, CPU_PORT.toString())
   }
 
   /**
@@ -1663,6 +1688,29 @@ class SaiP4E2ETest {
           P4RuntimeOuterClass.Replica.newBuilder()
             .setPort(ByteString.copyFromUtf8(p4rtPort))
             .setInstance(1)
+        )
+        .build()
+    harness.installEntry(
+      Entity.newBuilder()
+        .setPacketReplicationEngineEntry(
+          P4RuntimeOuterClass.PacketReplicationEngineEntry.newBuilder().setCloneSessionEntry(entry)
+        )
+        .build()
+    )
+  }
+
+  /**
+   * Installs a clone session using the deprecated `Replica.egress_port` (int32) field, which
+   * bypasses port translation. Used to test the strict error path: outputs on ports without a P4RT
+   * reverse mapping should fail loudly.
+   */
+  @Suppress("MagicNumber", "SameParameterValue", "DEPRECATION")
+  private fun installCloneSessionDeprecated(sessionId: Int, egressPort: Int) {
+    val entry =
+      P4RuntimeOuterClass.CloneSessionEntry.newBuilder()
+        .setSessionId(sessionId)
+        .addReplicas(
+          P4RuntimeOuterClass.Replica.newBuilder().setEgressPort(egressPort).setInstance(1)
         )
         .build()
     harness.installEntry(
@@ -1772,31 +1820,13 @@ class SaiP4E2ETest {
         TypeTranslation.newBuilder().setTypeName("port_id_t").setAutoAllocate(true)
       for ((name, dpValue) in ports) {
         portTranslation.addEntries(
-          TranslationEntry.newBuilder()
-            .setSdnStr(name)
-            .setDataplaneValue(
-              ByteString.copyFrom(
-                P4RuntimeTestHarness.longToBytes(dpValue.toLong(), minWidth(dpValue))
-              )
-            )
+          TranslationEntry.newBuilder().setSdnStr(name).setDataplaneValue(encodeMinWidth(dpValue))
         )
       }
       return config
         .toBuilder()
         .setDevice(config.device.toBuilder().addTranslations(portTranslation))
         .build()
-    }
-
-    /** Minimum byte width needed to encode a non-negative integer. */
-    private fun minWidth(value: Int): Int {
-      if (value == 0) return 1
-      var v = value
-      var width = 0
-      while (v > 0) {
-        width++
-        v = v shr 8
-      }
-      return width
     }
 
     private const val MAC_LEN = 6
