@@ -52,7 +52,7 @@ plane.
 | Trace format | text | **text/JSON/[proto](e2e_tests/trace_tree/clone_with_egress.golden.txtpb)** | ✅ |
 | All possible traces | not natively | [**trace trees!**](docs/ROADMAP.md#track-3-trace-trees) | ✅ |
 | `@p4runtime_translation` | no | [**built-in translation engine**](#p4runtime_translation-done-right) | ✅ |
-| Architecture-generic | ish | [**by design**](docs/ROADMAP.md#track-6-multi-architecture-support) | ✅ v1model + PSA (PNA next) |
+| Architecture-generic | ish | [**by design**](docs/ROADMAP.md#track-6-multi-architecture-support) | ✅ v1model + PSA |
 | Architecture customization | no | [**by design**](docs/ROADMAP.md#track-5-architecture-customization) | ✅ |
 | Interactive playground | no | [**browser-based IDE with trace playback & packet decoding**](#web-playground) | ✅ |
 | Easy to extend | ehh | [**if AI can extend it, anyone can**](docs/ROADMAP.md#why-4ward-is-easier-to-extend) | ✅ |
