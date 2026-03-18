@@ -1,10 +1,6 @@
 load("@buildifier_prebuilt//:rules.bzl", "buildifier", "buildifier_test")
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_binary")
 load("@rules_license//rules:license.bzl", "license")
-# --- License metadata ---
-#
-# Declares the project license once at the root.
-# All subpackages inherit via default_package_metadata.
 
 package(default_package_metadata = [":license"])
 
@@ -15,8 +11,6 @@ license(
     license_kinds = ["@rules_license//licenses/spdx:Apache-2.0"],
     license_text = "LICENSE",
 )
-
-# --- Build tools ---
 
 buildifier(name = "buildifier")
 
