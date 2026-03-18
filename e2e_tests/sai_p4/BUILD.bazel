@@ -38,14 +38,19 @@ genrule(
     name = "sai_middleblock_pb",
     srcs = [
         "instantiations/google/middleblock.p4",
+        "fixed/parser.p4",
         ":sai_p4_srcs",
         ":v1model_sai",
     ],
     outs = ["sai_middleblock.txtpb"],
+    # Link the generated v1model_sai.p4 into the fixed/ source directory
+    # so #include "v1model_sai.p4" resolves from both fixed/ files (relative)
+    # and instantiations/ files (via ../../fixed/).
     cmd = " ".join([
+        "FIXED=$$(dirname $(execpath fixed/parser.p4)) &&",
+        "ln -sf $$(realpath $(execpath :v1model_sai)) $$FIXED/v1model_sai.p4 &&",
         "$(execpath //p4c_backend:p4c-4ward)",
         "-I $$(dirname $(execpath @p4c//p4include:core.p4))",
-        "-I $$(dirname $(execpath :v1model_sai))",
         "-o $@",
         "$(execpath instantiations/google/middleblock.p4)",
     ]),

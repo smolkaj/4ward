@@ -13,7 +13,7 @@
 
 // bitwidths.p4 must come before v1model_sai.p4 (which uses PORT_BITWIDTH).
 #include "bitwidths.p4"
-#include "v1model_sai.p4"
+#include "../../fixed/v1model_sai.p4"
 
 // These headers have to come first, to override their fixed counterparts.
 #include "roles.h"

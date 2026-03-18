@@ -1,7 +1,7 @@
 #ifndef SAI_ACL_EGRESS_P4_
 #define SAI_ACL_EGRESS_P4_
 
-#include "v1model_sai.p4"
+#include "../../fixed/v1model_sai.p4"
 #include "../../fixed/headers.p4"
 #include "../../fixed/metadata.p4"
 #include "acl_common_actions.p4"

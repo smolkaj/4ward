@@ -11,7 +11,7 @@
 #define TIMESTAMP_CAPABLE
 #define TUNNEL_ENCAP_CAPABLE
 
-#include "v1model_sai.p4"
+#include "../../fixed/v1model_sai.p4"
 
 // These headers have to come first, to override their fixed counterparts.
 #include "roles.h"
