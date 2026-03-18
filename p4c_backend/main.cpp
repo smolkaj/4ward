@@ -128,18 +128,34 @@ static std::vector<fourward::ir::TypeTranslation> extractTypeTranslations(
   return result;
 }
 
-// Derives the port type name from controller_packet_metadata in the p4info.
-// Returns the fully qualified type name of the first metadata field that has
-// a type_name (i.e., uses a P4 newtype), or empty if ports use bare bit<N>.
-static std::string derivePortTypeName(const p4::config::v1::P4Info& p4Info) {
-  for (const auto& cpMeta : p4Info.controller_packet_metadata()) {
-    for (const auto& metadata : cpMeta.metadata()) {
-      if (metadata.has_type_name()) {
-        return metadata.type_name().name();
+// Derives the port type name from the architecture's standard_metadata struct.
+// Returns the type name of ingress_port if it uses a P4 newtype (§7.2.10),
+// or empty if it uses a bare bit<N>.
+//
+// This requires the architecture definition (e.g. v1model.p4) to declare
+// ingress_port with the appropriate newtype. Programs that need port
+// translation (like SAI P4) should use a forked architecture where
+// standard_metadata.ingress_port has the translated type.
+static std::string derivePortTypeName(const IR::P4Program* program) {
+  std::string result;
+  forAllMatching<IR::Type_Struct>(program, [&](const IR::Type_Struct* st) {
+    // v1model: standard_metadata_t
+    // PSA: psa_ingress_input_metadata_t
+    if (st->name != "standard_metadata_t" &&
+        st->name != "psa_ingress_input_metadata_t")
+      return;
+    for (const auto* field : st->fields) {
+      if (field->name != "ingress_port") continue;
+      if (const auto* nt = field->type->to<IR::Type_Newtype>()) {
+        result = nt->name.name.c_str();
+      } else if (const auto* tn = field->type->to<IR::Type_Name>()) {
+        // After type resolution, the field type may be a Type_Name
+        // referencing the newtype by name.
+        result = tn->path->name.name.c_str();
       }
     }
-  }
-  return "";
+  });
+  return result;
 }
 
 // p4c's P4Runtime serializer auto-assigns descending priorities (N, N-1, …, 1)
@@ -242,7 +258,7 @@ int main(int argc, char* const argv[]) {
   backend.setStaticEntries(entries);
   backend.setTypeTranslations(std::move(translations));
   backend.process(toplevel);
-  backend.setPortTypeName(derivePortTypeName(*p4Runtime.p4Info));
+  backend.setPortTypeName(derivePortTypeName(program));
 
   if (!backend.writePipelineConfig()) return 1;
   return ::P4::errorCount() > 0 ? 1 : 0;

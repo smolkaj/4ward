@@ -139,13 +139,16 @@ built into the proto schema. The server needs to know the port type as a
 
 The `PortTranslator` (a property of `TypeTranslator`) provides this. The
 port type is a property of the architecture — it is determined at compile
-time by the p4c backend (from the architecture's port metadata in
-`controller_packet_metadata`) and stored in the IR's
-`Architecture.port_type_name` field. This field records the P4
+time from the architecture's `standard_metadata.ingress_port` field and
+stored in the IR's `Architecture.port_type_name`. This field records the P4
 [newtype](https://p4.org/wp-content/uploads/sites/53/2024/10/P4-16-spec-v1.2.5.html#sec-newtype)
 used for ports (e.g. `port_id_t`), or is empty if ports use a bare
-`bit<N>`. A `PortTranslator` is created only when the port type also has
-`@p4runtime_translation`.
+`bit<N>`.
+
+Programs that need port translation should use a forked architecture
+definition where `standard_metadata.ingress_port` has the appropriate
+newtype with `@p4runtime_translation`. A `PortTranslator` is created only
+when the port type has `@p4runtime_translation`.
 
 ## Dual port encoding in the DataplaneService
 

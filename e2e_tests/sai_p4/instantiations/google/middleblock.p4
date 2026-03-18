@@ -11,11 +11,12 @@
 #define TIMESTAMP_CAPABLE
 #define TUNNEL_ENCAP_CAPABLE
 
-#include <v1model.p4>
+// bitwidths.p4 must come before v1model_sai.p4 (which uses PORT_BITWIDTH).
+#include "bitwidths.p4"
+#include "../../fixed/v1model_sai.p4"
 
 // These headers have to come first, to override their fixed counterparts.
 #include "roles.h"
-#include "bitwidths.p4"
 #include "minimum_guaranteed_sizes.h"
 #include "../../fixed/headers.p4"
 #include "../../fixed/metadata.p4"

@@ -146,10 +146,10 @@ message Architecture {
   repeated ExternTypeDecl extern_types = 3;
 
   // Fully qualified P4 type name for port values (e.g. "port_id_t").
-  // Set when the P4 program declares a named type for ports (P4 spec
-  // §7.2.10 "type"), e.g. `type bit<9> port_id_t;`. Empty when ports
-  // use a bare `bit<N>`. Derived at compile time from the architecture's
-  // port metadata fields in controller_packet_metadata.
+  // Set when the architecture's standard_metadata.ingress_port field uses
+  // a P4 newtype (§7.2.10), e.g. `type bit<9> port_id_t;`. Empty when
+  // the field uses a bare `bit<N>`. Programs that need port translation
+  // should use a forked architecture with the appropriate newtype.
   //
   // If this type also has @p4runtime_translation, the TypeTranslator
   // creates a PortTranslator for dual port encoding.
