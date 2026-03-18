@@ -42,3 +42,26 @@ genrule(
     ],
     visibility = ["//p4runtime:__pkg__"],
 )
+
+# Binary ForwardingPipelineConfig (for use as a pre-built artifact).
+genrule(
+    name = "sai_middleblock_binpb",
+    srcs = [
+        "instantiations/google/middleblock.p4",
+        ":sai_p4_srcs",
+    ],
+    outs = ["sai_middleblock.binpb"],
+    cmd = " ".join([
+        "$(execpath //p4c_backend:p4c-4ward)",
+        "--format p4runtime",
+        "-I $$(dirname $(execpath @p4c//p4include:core.p4))",
+        "-o $@",
+        "$(execpath instantiations/google/middleblock.p4)",
+    ]),
+    tools = [
+        "//p4c_backend:p4c-4ward",
+        "@p4c//p4include",
+        "@p4c//p4include:core.p4",
+    ],
+    visibility = ["//visibility:public"],
+)
