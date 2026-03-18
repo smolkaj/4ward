@@ -139,16 +139,25 @@ built into the proto schema. The server needs to know the port type as a
 
 The `PortTranslator` (a property of `TypeTranslator`) provides this. The
 port type is a property of the architecture — it is determined at compile
-time from the architecture's `standard_metadata.ingress_port` field and
-stored in the IR's `Architecture.port_type_name`. This field records the P4
+time from the architecture's port metadata field and stored in the IR's
+`Architecture.port_type_name`:
+
+| Architecture | Port metadata field |
+|---|---|
+| v1model | `standard_metadata_t.ingress_port` |
+| PSA | `psa_ingress_input_metadata_t.ingress_port` |
+
+This field records the P4
 [newtype](https://p4.org/wp-content/uploads/sites/53/2024/10/P4-16-spec-v1.2.5.html#sec-newtype)
 used for ports (e.g. `port_id_t`), or is empty if ports use a bare
-`bit<N>`.
+`bit<N>` or a `typedef` (which is just an alias, not a new type).
 
-Programs that need port translation should use a forked architecture
-definition where `standard_metadata.ingress_port` has the appropriate
-newtype with `@p4runtime_translation`. A `PortTranslator` is created only
-when the port type has `@p4runtime_translation`.
+Stock architectures use `typedef` for ports (`typedef bit<9> PortId_t` in
+v1model, `typedef bit<32> PortId_t` in PSA) — no port translation.
+Programs that need port translation should use a forked architecture where
+the port typedef is replaced with a `type` declaration and
+`@p4runtime_translation`. A `PortTranslator` is created only when the port
+type has `@p4runtime_translation`.
 
 ## Dual port encoding in the DataplaneService
 

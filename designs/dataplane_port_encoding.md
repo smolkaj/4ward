@@ -136,13 +136,13 @@ Key decisions:
 
 `PortTranslator` is a property of `TypeTranslator`, providing bidirectional
 conversion between P4Runtime port IDs and dataplane port numbers. The port
-type is an architecture property — determined at compile time from
-`standard_metadata.ingress_port` and stored in `Architecture.port_type_name`
-in the compiled IR. Programs that need port translation should use a forked
-architecture with the appropriate newtype. See
-[docs/TYPE_TRANSLATION.md](../docs/TYPE_TRANSLATION.md) for why ports need
-special handling (hardcoded proto fields) and how translations are keyed by
-type name.
+type is an architecture property — determined at compile time from the
+architecture's port metadata field (`standard_metadata_t.ingress_port` for
+v1model, `psa_ingress_input_metadata_t.ingress_port` for PSA) and stored
+in `Architecture.port_type_name` in the compiled IR. Stock architectures
+use `typedef` (no translation); programs that need port translation should
+use a forked architecture with a `type` + `@p4runtime_translation`. See
+[docs/TYPE_TRANSLATION.md](../docs/TYPE_TRANSLATION.md) for details.
 
 
 ### DataplaneService changes
