@@ -222,18 +222,15 @@ private constructor(
   /**
    * Translates PacketIn metadata from data-plane to P4Runtime representation.
    *
-   * Lenient: metadata values without a reverse mapping (e.g. the CPU port, which the controller
-   * never forward-allocated) are passed through unchanged.
+   * @throws TranslationException if a metadata value has no reverse mapping. This happens when
+   *   clone sessions or multicast groups use the deprecated `Replica.egress_port` (int32) field,
+   *   which bypasses port translation. Use `Replica.port` (bytes, P4RT v1.4+) instead.
    */
   fun translatePacketIn(packetIn: PacketIn): PacketIn {
     if (packetInMetadataTypeNames.isEmpty()) return packetIn
     val translated =
-      translateMetadata(
-        packetInMetadataTypeNames,
-        packetIn.metadataList,
-        toDataplane = false,
-        lenient = true,
-      ) ?: return packetIn
+      translateMetadata(packetInMetadataTypeNames, packetIn.metadataList, toDataplane = false)
+        ?: return packetIn
     return packetIn.toBuilder().clearMetadata().addAllMetadata(translated).build()
   }
 

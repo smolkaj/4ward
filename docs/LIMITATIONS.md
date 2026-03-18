@@ -49,6 +49,14 @@ guilt — just write it down so someone can find it later.
   `sdn_string` with explicit, auto-allocate, and hybrid mapping modes.
   `PacketHeaderCodec` handles `packet_in`/`packet_out` header serialization
   per p4info `controller_packet_metadata`, tested E2E on SAI P4.
+- **PRE replica ports require explicit port mappings or `Replica.port`.**
+  Clone sessions and multicast groups using `Replica.egress_port` (int32,
+  deprecated) bypass port translation. When port translation is active,
+  every egress port must have a P4RT reverse mapping — outputs on unmapped
+  ports will error. Controllers should use `Replica.port` (bytes, P4RT v1.4+)
+  to forward-allocate mappings, and provide explicit `TypeTranslation` entries
+  for architecture-defined ports (like the CPU port) that auto-allocation
+  cannot assign correctly.
 - **Direct meters always return GREEN.** Direct meter configs can be
   written and read via P4Runtime, but the simulator does not perform
   real rate limiting — `direct_meter.read()` always returns the default

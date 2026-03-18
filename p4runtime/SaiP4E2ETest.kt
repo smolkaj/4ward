@@ -2,6 +2,8 @@ package fourward.p4runtime
 
 import com.google.protobuf.ByteString
 import fourward.ir.PipelineConfig
+import fourward.ir.TranslationEntry
+import fourward.ir.TypeTranslation
 import io.grpc.Status
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -33,6 +35,11 @@ class SaiP4E2ETest {
   fun setUp() {
     harness = P4RuntimeTestHarness()
     config = P4RuntimeTestHarness.loadConfig("e2e_tests/sai_p4/sai_middleblock.txtpb")
+    // Pin P4RT ↔ dataplane port mappings for architecture-defined and test-specific ports.
+    // On a real switch, these come from platform config; in tests, we pin them so auto-allocation
+    // (for table entry ports like "Ethernet0") doesn't conflict with ports that must map to
+    // specific dataplane values (CPU port 510, multicast replica ports 0/1).
+    config = withPortMappings(config, mapOf("0" to 0, "1" to 1, CPU_PORT.toString() to CPU_PORT))
     harness.loadPipeline(config)
   }
 
@@ -285,7 +292,7 @@ class SaiP4E2ETest {
   @Test
   fun `ipv4_multicast set_multicast_group_id succeeds after group is installed`() {
     harness.installEntry(buildVrfEntry(""))
-    installMulticastGroup(groupId = 1, ports = listOf(0, 1))
+    installMulticastGroup(groupId = 1, p4rtPorts = listOf("0", "1"))
     val mcastTable = findTable("ipv4_multicast_table")
     val setMcastGroup = findAction("set_multicast_group_id")
     harness.installEntry(
@@ -374,7 +381,15 @@ class SaiP4E2ETest {
     assertEquals("expected 1 output", 1, response.outputPacketsCount)
     val output = response.getOutputPackets(0)
     assertTrue("dataplane port should be set", output.dataplaneEgressPort >= 0)
+    // SAI P4 uses sdn_string ports — verify the P4RT value is a valid UTF-8 string, not just
+    // non-empty bytes. This catches encoding bugs where raw dataplane values leak through.
     assertTrue("p4rt_egress_port should be populated", !output.p4RtEgressPort.isEmpty)
+    val p4rtStr = output.p4RtEgressPort.toStringUtf8()
+    assertEquals(
+      "p4rt_egress_port should be 'Ethernet1' (from routing chain)",
+      "Ethernet1",
+      p4rtStr,
+    )
   }
 
   @Test
@@ -385,7 +400,29 @@ class SaiP4E2ETest {
     val response = harness.injectPacketP4rt(p4rtPort, packet)
 
     assertEquals("expected 1 output", 1, response.outputPacketsCount)
-    assertTrue("output should have p4rt port", !response.getOutputPackets(0).p4RtEgressPort.isEmpty)
+    val output = response.getOutputPackets(0)
+    assertTrue("output should have p4rt port", !output.p4RtEgressPort.isEmpty)
+    assertEquals(
+      "p4rt_egress_port should be 'Ethernet1' (from routing chain)",
+      "Ethernet1",
+      output.p4RtEgressPort.toStringUtf8(),
+    )
+  }
+
+  @Test
+  fun `CPU-port output has P4RT encoding from Replica port`() {
+    installRoutingChain()
+    installAclEntry(findAction("acl_trap"))
+    installCopyToCpuCloneSession()
+
+    val packet = buildIpv4Packet(dstMac = UNICAST_MAC, srcMac = SRC_MAC, ttl = 64)
+    val result = harness.injectPacket(ingressPort = 0, payload = packet)
+
+    val cpuOutput = result.outputPacketsList.find { it.dataplaneEgressPort == CPU_PORT }
+    assertNotNull("expected CPU-port output from ACL trap", cpuOutput)
+    // The clone session uses Replica.port (bytes) with P4RT value "510", which
+    // forward-allocates 510 in the PortTranslator. Verify the reverse mapping works.
+    assertEquals(CPU_PORT.toString(), cpuOutput!!.p4RtEgressPort.toStringUtf8())
   }
 
   @Test
@@ -456,12 +493,12 @@ class SaiP4E2ETest {
 
   @Test
   @Suppress("MagicNumber")
-  fun `ACL trap produces PacketIn on StreamChannel`() {
+  fun `ACL trap produces PacketIn with properly translated port metadata`() {
     // Full routing chain so the packet has a destination before ACL intervenes.
     installRoutingChain()
     // ACL: trap packets to dst_ip=10.0.0.1 → copy to CPU + drop original.
     installAclEntry(findAction("acl_trap"))
-    // Clone infrastructure: marked_to_copy → clone session 255 → CPU port 510.
+    // Clone infrastructure: marked_to_copy → clone session 255 → CPU port "510".
     installCopyToCpuCloneSession()
 
     // PacketOut with submit_to_ingress=1: enters ingress, gets trapped by ACL.
@@ -471,6 +508,20 @@ class SaiP4E2ETest {
       val response = session.sendPacketOut(packetOut)
       assertNotNull("ACL trap should produce PacketIn on StreamChannel", response)
       assertTrue("response should be PacketIn", response!!.hasPacket())
+
+      // Verify PacketIn metadata port fields are valid P4RT strings (the controller-chosen
+      // encoding from Replica.port), not raw dataplane bytes.
+      val packetIn = response.packet
+      for (meta in packetIn.metadataList) {
+        val metaName = findPacketInMetadataName(meta.metadataId)
+        if (metaName == "ingress_port" || metaName == "target_egress_port") {
+          val str = meta.value.toStringUtf8()
+          assertTrue(
+            "PacketIn $metaName should be a valid decimal string, got bytes: ${meta.value}",
+            str.all { it.isDigit() },
+          )
+        }
+      }
     }
   }
 
@@ -636,7 +687,7 @@ class SaiP4E2ETest {
   fun `IPv4 multicast replicates packet to multiple ports`() {
     // Install prerequisites: default VRF + multicast group (@refers_to enforcement).
     harness.installEntry(buildVrfEntry(""))
-    installMulticastGroup(groupId = 1, ports = listOf(0, 1))
+    installMulticastGroup(groupId = 1, p4rtPorts = listOf("0", "1"))
 
     // Install multicast route via ipv4_multicast_table (EXACT match on ipv4_dst).
     val mcastTable = findTable("ipv4_multicast_table")
@@ -851,7 +902,7 @@ class SaiP4E2ETest {
   @Suppress("MagicNumber")
   fun `ipv6_multicast_table entry with translated vrf_id round-trips`() {
     harness.installEntry(buildVrfEntry(""))
-    installMulticastGroup(groupId = 2, ports = listOf(0, 1))
+    installMulticastGroup(groupId = 2, p4rtPorts = listOf("0", "1"))
 
     val table = findTable("ipv6_multicast_table")
     val action = findAction("set_multicast_group_id")
@@ -1593,18 +1644,25 @@ class SaiP4E2ETest {
         priority = 1,
       )
     )
-    installCloneSession(COPY_TO_CPU_SESSION_ID, CPU_PORT)
+    installCloneSession(COPY_TO_CPU_SESSION_ID, CPU_PORT.toString())
   }
 
-  /** Installs a PRE clone session entry with a single replica. */
+  /**
+   * Installs a PRE clone session entry with a single replica.
+   *
+   * Uses `Replica.port` (bytes, P4RT v1.4+) with a P4RT-encoded string value. This
+   * forward-allocates the port in the PortTranslator, enabling reverse translation for PacketIn
+   * metadata and `p4rt_egress_port` in InjectPacket responses.
+   */
   @Suppress("MagicNumber", "SameParameterValue")
-  private fun installCloneSession(sessionId: Int, egressPort: Int) {
+  private fun installCloneSession(sessionId: Int, p4rtPort: String) {
     val entry =
       P4RuntimeOuterClass.CloneSessionEntry.newBuilder()
         .setSessionId(sessionId)
         .addReplicas(
-          @Suppress("DEPRECATION")
-          P4RuntimeOuterClass.Replica.newBuilder().setEgressPort(egressPort).setInstance(1)
+          P4RuntimeOuterClass.Replica.newBuilder()
+            .setPort(ByteString.copyFromUtf8(p4rtPort))
+            .setInstance(1)
         )
         .build()
     harness.installEntry(
@@ -1616,15 +1674,18 @@ class SaiP4E2ETest {
     )
   }
 
-  /** Installs a PRE multicast group with one replica per port. */
+  /** Installs a PRE multicast group with one replica per P4RT port string. */
   @Suppress("MagicNumber")
-  private fun installMulticastGroup(groupId: Int, ports: List<Int>) {
+  private fun installMulticastGroup(groupId: Int, p4rtPorts: List<String>) {
     val entry =
       P4RuntimeOuterClass.MulticastGroupEntry.newBuilder()
         .setMulticastGroupId(groupId)
         .addAllReplicas(
-          ports.mapIndexed { idx, port ->
-            P4RuntimeOuterClass.Replica.newBuilder().setEgressPort(port).setInstance(idx).build()
+          p4rtPorts.mapIndexed { idx, port ->
+            P4RuntimeOuterClass.Replica.newBuilder()
+              .setPort(ByteString.copyFromUtf8(port))
+              .setInstance(idx)
+              .build()
           }
         )
         .build()
@@ -1687,10 +1748,56 @@ class SaiP4E2ETest {
     }
   }
 
+  /** Looks up the metadata field name for a packet_in metadata ID from p4info. */
+  private fun findPacketInMetadataName(metadataId: Int): String? {
+    val packetIn =
+      config.p4Info.controllerPacketMetadataList.find { it.preamble.name == "packet_in" }
+        ?: return null
+    return packetIn.metadataList.find { it.id == metadataId }?.name
+  }
+
   companion object {
     // CPU port = 2^9 - 2 = 510 for 9-bit ports (SAI P4 ids.h: SAI_P4_CPU_PORT).
     private const val CPU_PORT = 510
     private const val COPY_TO_CPU_SESSION_ID = 255
+
+    /**
+     * Adds explicit port_id_t translation entries to the pipeline config (hybrid mode: explicit
+     * pins + auto-allocate the rest). This mirrors what a real switch does via platform config —
+     * architecture-defined ports like the CPU port need fixed P4RT ↔ dataplane mappings that
+     * auto-allocation alone can't provide.
+     */
+    private fun withPortMappings(config: PipelineConfig, ports: Map<String, Int>): PipelineConfig {
+      val portTranslation =
+        TypeTranslation.newBuilder().setTypeName("port_id_t").setAutoAllocate(true)
+      for ((name, dpValue) in ports) {
+        portTranslation.addEntries(
+          TranslationEntry.newBuilder()
+            .setSdnStr(name)
+            .setDataplaneValue(
+              ByteString.copyFrom(
+                P4RuntimeTestHarness.longToBytes(dpValue.toLong(), minWidth(dpValue))
+              )
+            )
+        )
+      }
+      return config
+        .toBuilder()
+        .setDevice(config.device.toBuilder().addTranslations(portTranslation))
+        .build()
+    }
+
+    /** Minimum byte width needed to encode a non-negative integer. */
+    private fun minWidth(value: Int): Int {
+      if (value == 0) return 1
+      var v = value
+      var width = 0
+      while (v > 0) {
+        width++
+        v = v shr 8
+      }
+      return width
+    }
 
     private const val MAC_LEN = 6
     private const val ETHERNET_HEADER_LEN = 14
