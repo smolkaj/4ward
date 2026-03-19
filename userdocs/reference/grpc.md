@@ -17,7 +17,7 @@ bazel run //p4runtime:p4runtime_server -- [flags]
 
 ## P4Runtime service
 
-Standard [P4Runtime](https://p4lang.github.io/p4runtime/spec/v1.4.0/P4Runtime-Spec.html) gRPC API (reports version
+Standard [P4Runtime](https://p4lang.github.io/p4runtime/spec/v1.5.0/P4Runtime-Spec.html) gRPC API (reports version
 **1.5.0**). All six RPCs are implemented:
 
 | RPC | Description |

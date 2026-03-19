@@ -1,11 +1,13 @@
 # Type Translation
 
-P4 programs use
-[`@p4runtime_translation`](https://p4lang.github.io/p4runtime/spec/v1.4.0/P4Runtime-Spec.html#sec-user-defined-types)
-to decouple controller-facing values from data-plane values — but the
-[P4Runtime spec](https://p4lang.github.io/p4runtime/spec/v1.4.0/P4Runtime-Spec.html)
-leaves the actual mapping mechanism unspecified. Every deployment rolls its
-own. 4ward ships a built-in translation engine that handles this automatically.
+Type translation is a
+[P4Runtime](https://p4lang.github.io/p4runtime/spec/v1.5.0/P4Runtime-Spec.html)
+mechanism that decouples controller-facing values from data-plane values. P4
+programs declare translated types with the
+[`@p4runtime_translation`](https://p4lang.github.io/p4runtime/spec/v1.5.0/P4Runtime-Spec.html#sec-user-defined-types)
+annotation — but the P4Runtime spec leaves the actual mapping mechanism
+unspecified. Every deployment rolls its own. 4ward ships a built-in
+translation engine that handles this automatically.
 
 ## The problem
 
