@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.svg" alt="4ward logo" width="160">
+</p>
+
 # 4ward
 
 **A glass-box P4 simulator — trace every decision your packet makes.**
