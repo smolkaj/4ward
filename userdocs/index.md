@@ -2,7 +2,7 @@
 
 **A glass-box P4 simulator — trace every decision your packet makes.**
 
-4ward is a spec-compliant [P4₁₆](https://p4.org/wp-content/uploads/sites/53/p4-spec/docs/p4-16-working-draft.html) reference simulator that produces **trace
+4ward is a spec-compliant [P4₁₆](https://p4.org/wp-content/uploads/sites/53/p4-spec/docs/P4-16-v1.2.4.html) reference simulator that produces **trace
 trees**: a complete record of every parser transition, table lookup, action
 execution, and branch decision a packet encounters. At non-deterministic
 choice points (action selectors, clone, multicast), the trace forks — showing
@@ -32,7 +32,7 @@ all possible outcomes in a single pass.
 - **v1model and PSA** — two P4 architectures fully implemented, with support
   for architecture modifications like translated port types.
   [Learn more](concepts/architectures.md).
-- **[P4Runtime](https://p4.org/specs/) server** — spec-compliant gRPC server
+- **[P4Runtime](https://p4lang.github.io/p4runtime/spec/v1.4.0/P4Runtime-Spec.html) server** — spec-compliant gRPC server
   with full arbitration, table management, PacketIO, and clone/multicast
   support.
 - **Type translation** — `@p4runtime_translation` types (string port names,

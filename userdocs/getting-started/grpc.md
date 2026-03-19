@@ -3,7 +3,7 @@
 The gRPC API is how test infrastructure (DVaaS, sonic-pins) integrates with
 4ward programmatically. Two services are exposed on the same port:
 
-- **[P4Runtime](https://p4.org/specs/)** — the standard P4Runtime gRPC API for
+- **[P4Runtime](https://p4lang.github.io/p4runtime/spec/v1.4.0/P4Runtime-Spec.html)** — the standard P4Runtime gRPC API for
   pipeline management, table entries, and PacketIO.
 - **DataplaneService** — 4ward-specific API for packet injection with trace
   trees.

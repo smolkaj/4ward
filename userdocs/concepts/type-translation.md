@@ -1,38 +1,71 @@
 # Type Translation
 
-P4 programs can annotate types with
-[`@p4runtime_translation`](https://p4.org/p4-spec/p4runtime/main/P4Runtime-Spec.html#sec-translation-annotation)
-to give them two representations:
+P4 programs use
+[`@p4runtime_translation`](https://p4lang.github.io/p4runtime/spec/v1.4.0/P4Runtime-Spec.html#sec-user-defined-types)
+to decouple controller-facing values from data-plane values — but the
+[P4Runtime spec](https://p4lang.github.io/p4runtime/spec/v1.4.0/P4Runtime-Spec.html)
+leaves the actual mapping mechanism unspecified. Every deployment rolls its
+own. 4ward ships a built-in translation engine that handles this automatically.
 
-- **P4Runtime (controller-facing)** — what the controller sends and receives.
-  Can be a string (e.g. `"Ethernet0"`) or a fixed-width integer.
-- **Dataplane** — the compact value the P4 program processes internally
-  (e.g. a 9-bit port number).
+## The problem
 
-4ward translates between these automatically at the P4Runtime API boundary.
-
-## Example
-
-SAI P4 declares port IDs as translated strings:
+A P4 program might declare:
 
 ```p4
 @p4runtime_translation("", string)
 type bit<9> port_id_t;
 ```
 
-A controller installs a table entry with `port = "Ethernet1"`. The
-translator maps it to dataplane value `0x01`. When the entry is read back,
-the translator maps `0x01` back to `"Ethernet1"`.
+The controller sends `"Ethernet0"` (a string). The P4 program processes a
+9-bit integer. Something has to map between these — but the P4Runtime spec
+doesn't say how. Both `sdn_string` (like SAI P4's port names) and
+`sdn_bitwidth` (fixed-width integers in a wider SDN representation) are
+supported.
 
 ## Translation modes
 
-| Mode | Behavior |
-|------|----------|
-| **Auto-allocate** (default) | P4Runtime values are assigned sequential dataplane values on first use (0, 1, 2, ...) |
-| **Explicit** | Only pre-configured mappings accepted; unknown values rejected |
-| **Hybrid** | Explicit pins for known values, auto-allocate for the rest |
+4ward supports three modes:
 
-Configure via `DeviceConfig.translations` in `SetForwardingPipelineConfig`:
+- **Auto-allocate** (default) — 4ward assigns data-plane values on first use.
+  Zero config. The controller sends any value; 4ward maps it to 0, 1, 2, ...
+- **Explicit** — you provide the full mapping table upfront. Unknown values
+  are rejected.
+- **Hybrid** — pin the values that matter, auto-allocate the rest.
+
+```
+Hybrid mode example — pin special ports, auto-allocate the rest:
+
+  explicit:  "CpuPort"    → 510
+  explicit:  "DropPort"   → 511
+  auto:      "Ethernet0"  →   0  (assigned on first use)
+  auto:      "Ethernet1"  →   1
+  auto:      "Ethernet2"  →   2
+```
+
+## Configuring mappings
+
+There are two ways to provide explicit mappings.
+
+### In P4 source: `@p4runtime_translation_mappings`
+
+The P4 program itself can declare mappings inline:
+
+```p4
+@p4runtime_translation("", string)
+@p4runtime_translation_mappings({
+  {"CpuPort", 510},
+  {"DropPort", 511}
+})
+type bit<9> port_id_t;
+```
+
+The 4ward p4c backend extracts these at compile time and converts them to
+translation entries with auto-allocate enabled (hybrid mode). This is the
+most convenient approach — the mappings live with the type declaration.
+
+### At pipeline load: `DeviceConfig.translations`
+
+Alternatively, configure mappings in `SetForwardingPipelineConfig`:
 
 ```textproto
 translations {
@@ -43,7 +76,9 @@ translations {
 }
 ```
 
-Without explicit configuration, auto-allocation is used by default.
+This is useful when the controller, not the P4 program, owns the mapping.
+
+Without either source of configuration, auto-allocation is used by default.
 
 ## Where translation happens
 
@@ -66,7 +101,7 @@ multiple messages (`InjectPacketRequest.ingress_port`,
 `OutputPacket.egress_port`, `PacketIn`/`PacketOut` metadata, clone session
 replicas).
 
-4ward creates a `PortTranslator` when the architecture's port metadata field
+4ward creates a port translator when the architecture's port metadata field
 uses a `type` (not `typedef`) with `@p4runtime_translation`. Stock
 architectures use `typedef` — no port translation. Programs that need port
 translation use a [forked architecture](architecture-modifications.md).
