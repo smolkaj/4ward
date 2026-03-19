@@ -128,7 +128,7 @@ translated this way.
 **Ports are different.** They appear in hardcoded proto fields across
 multiple messages:
 
-- `InputPacket.ingress_port` / `OutputPacket.egress_port` (DataplaneService)
+- `InputPacket.dataplane_ingress_port` / `OutputPacket.dataplane_egress_port` (DataplaneService)
 - `PacketIn` / `PacketOut` metadata (P4RuntimeService)
 - `CloneSessionEntry.replicas[].egress_port` (P4Runtime spec)
 - `MulticastGroupEntry.replicas[].egress_port` (P4Runtime spec)
@@ -172,3 +172,78 @@ for the full design.
   populated when port translation is available.
 - **No pipeline / no translation**: P4Runtime port fields are empty;
   dataplane ports work as before.
+
+## P4RT-enriched traces
+
+The simulator produces trace trees with raw dataplane values — port numbers
+are `uint32`, table entry fields are in dataplane representation. When the
+loaded pipeline uses `@p4runtime_translation`, the DataplaneService enriches
+these traces with P4RT representations before returning them to gRPC callers.
+
+### What gets enriched
+
+Each trace message has an optional `p4rt_*` field alongside the dataplane
+value. These are populated by `TraceEnricher` at the DataplaneService
+boundary — the simulator never sets them.
+
+| Trace message | Dataplane field | P4RT field | Source |
+|---|---|---|---|
+| `PacketIngressEvent` | `dataplane_ingress_port` (uint32) | `p4rt_ingress_port` (bytes) | `PortTranslator` |
+| `OutputPacket` (in `PacketOutcome`) | `dataplane_egress_port` (uint32) | `p4rt_egress_port` (bytes) | `PortTranslator` |
+| `CloneSessionLookupEvent` | `dataplane_egress_port` (uint32) | `p4rt_egress_port` (bytes) | `PortTranslator` |
+| `TableLookupEvent` | `matched_entry` (TableEntry) | `p4rt_matched_entry` (TableEntry) | `TypeTranslator` |
+
+Port fields are enriched when the pipeline has a `PortTranslator` (i.e. the
+architecture uses a `type` with `@p4runtime_translation` for its port
+metadata fields). Table entries are enriched when any match field or action
+param uses a translated type.
+
+### Example
+
+With a SAI P4 pipeline where ports are `@p4runtime_translation("", string)`,
+a trace might look like:
+
+```textproto
+events {
+  packet_ingress {
+    dataplane_ingress_port: 1
+    p4rt_ingress_port: "Ethernet0"
+  }
+}
+events {
+  table_lookup {
+    table_name: "forwarding"
+    hit: true
+    matched_entry {
+      # ... action param value: "\000" (dataplane)
+    }
+    p4rt_matched_entry {
+      # ... action param value: "Ethernet1" (P4Runtime)
+    }
+    action_name: "forward"
+  }
+}
+packet_outcome {
+  output {
+    dataplane_egress_port: 0
+    p4rt_egress_port: "Ethernet1"
+    payload: "..."
+  }
+}
+```
+
+A full example is pinned in the
+[enriched trace golden file](../p4runtime/enriched_trace.golden.txtpb).
+
+### When enrichment does not apply
+
+- **Stock v1model / PSA programs** — ports use `typedef bit<N>` (not a
+  newtype), so there is no `PortTranslator`. Port fields remain unenriched.
+  Table entries are unenriched unless the program declares translated types
+  on match fields or action params.
+- **CLI (`4ward sim`) and web playground** — these inject packets directly
+  through the simulator, not the DataplaneService. Traces from these paths
+  have no P4RT enrichment.
+- **Table misses** — `p4rt_matched_entry` is only populated on table hits.
+- **Unmapped ports** — if a dataplane port has no reverse mapping (e.g. the
+  controller never allocated it), the `p4rt_*` port field is left empty.
