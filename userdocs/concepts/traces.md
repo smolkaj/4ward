@@ -6,7 +6,7 @@ pipeline and produce a linear trace. At non-deterministic choice points (action
 selectors, clone, multicast), the trace **forks** into branches, one per
 possible outcome.
 
-No other P4 tool gives you this. BMv2 picks one path. Hardware picks one path.
+No other P4 tool gives you this. [BMv2](https://github.com/p4lang/behavioral-model) picks one path. Hardware picks one path.
 4ward shows you *all* paths in a single pass.
 
 ## Structure
