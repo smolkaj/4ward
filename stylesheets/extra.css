@@ -1,4 +1,13 @@
-/* Make sidebar section headers visually distinct from page links. */
+/* Sidebar title ("4ward"): top of the hierarchy, larger than section headers. */
+.md-nav__title {
+  font-weight: 700;
+  font-size: 0.9rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--md-default-fg-color) !important;
+}
+
+/* Sidebar section headers: uppercase labels. */
 .md-nav__item--section > .md-nav__link {
   font-weight: 700;
   font-size: 0.75rem;
@@ -6,6 +15,11 @@
   text-transform: uppercase;
   color: var(--md-default-fg-color) !important;
   margin-top: 0.6rem;
-  padding-bottom: 0.1rem;
-  border-bottom: 1px solid var(--md-default-fg-color--lightest);
+}
+
+/* Vertical scope line on section children — aligned under the header. */
+.md-nav__item--section > .md-nav > .md-nav__list {
+  border-left: 1px solid var(--md-default-fg-color--lightest);
+  margin-left: 0;
+  padding-left: 0.6rem;
 }
