@@ -1194,12 +1194,14 @@ translation entries with auto-allocate enabled (hybrid mode). This is the
 most convenient approach — the mappings live with the type declaration.</p>
 <h3 id="at-pipeline-load-deviceconfigtranslations">At pipeline load: <code>DeviceConfig.translations</code><a class="headerlink" href="#at-pipeline-load-deviceconfigtranslations" title="Permanent link">&para;</a></h3>
 <p>Alternatively, configure mappings in <code>SetForwardingPipelineConfig</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>translations {
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>  type_name: &quot;port_id_t&quot;
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>  auto_allocate: true
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>  entries { sdn_str: &quot;Ethernet0&quot;  dataplane_value: &quot;\x00&quot; }
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>  entries { sdn_str: &quot;Ethernet1&quot;  dataplane_value: &quot;\x01&quot; }
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>}
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a># proto-file: @fourward//simulator/ir.proto
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a># proto-message: fourward.ir.DeviceConfig
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>translations {
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>  type_name: &quot;port_id_t&quot;
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>  auto_allocate: true
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>  entries { sdn_str: &quot;Ethernet0&quot;  dataplane_value: &quot;\x00&quot; }
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>  entries { sdn_str: &quot;Ethernet1&quot;  dataplane_value: &quot;\x01&quot; }
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>}
 </code></pre></div>
 <p>This is useful when the controller, not the P4 program, owns the mapping.</p>
 <p>Without either source of configuration, auto-allocation is used by default.</p>

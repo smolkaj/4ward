@@ -1209,8 +1209,10 @@
 
 
 <h1 id="trace-trees">Trace Trees<a class="headerlink" href="#trace-trees" title="Permanent link">&para;</a></h1>
-<p>Every packet 4ward processes produces a <strong>trace tree</strong> — a complete record of
-every decision the simulator made. Most packets take a single path through the
+<p>Every packet 4ward processes produces a <strong>trace tree</strong>
+(<a href="https://github.com/smolkaj/4ward/blob/main/simulator/simulator.proto"><code>TraceTree</code></a>
+in <code>simulator.proto</code>) — a complete record of every decision the simulator
+made. Most packets take a single path through the
 pipeline and produce a linear trace. At non-deterministic choice points (action
 selectors, clone, multicast), the trace <strong>forks</strong> into branches, one per
 possible outcome.</p>

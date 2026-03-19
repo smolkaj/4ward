@@ -1212,7 +1212,8 @@ metadata definitions change.</p>
 <p>Adding a completely new P4 architecture (e.g., PNA, TNA) requires changes to
 4ward: a Kotlin class that implements the <code>Architecture</code> interface and handles
 the architecture's pipeline stages, externs, and non-deterministic operations.</p>
-<p>Use <code>V1ModelArchitecture.kt</code> as the reference implementation.</p>
+<p>Use <a href="https://github.com/smolkaj/4ward/blob/main/simulator/V1ModelArchitecture.kt"><code>V1ModelArchitecture.kt</code></a>
+as the reference implementation.</p>
 <h3 id="step-1-implement-architecture">Step 1: Implement <code>Architecture</code><a class="headerlink" href="#step-1-implement-architecture" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kd">class</span><span class="w"> </span><span class="nc">PnaArchitecture</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">Architecture</span><span class="w"> </span><span class="p">{</span>
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="kd">override</span><span class="w"> </span><span class="kd">fun</span><span class="w"> </span><span class="nf">processPacket</span><span class="p">(</span>
@@ -1249,7 +1250,7 @@ methods:</p>
 <a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="w">  </span><span class="p">}</span>
 </code></pre></div>
 <h3 id="step-3-register">Step 3: Register<a class="headerlink" href="#step-3-register" title="Permanent link">&para;</a></h3>
-<p>Add your architecture to the dispatcher in <code>Simulator.kt</code>:</p>
+<p>Add your architecture to the dispatcher in <a href="https://github.com/smolkaj/4ward/blob/main/simulator/Simulator.kt"><code>Simulator.kt</code></a>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">architecture</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">when</span><span class="w"> </span><span class="p">(</span><span class="n">archName</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="s">&quot;v1model&quot;</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">V1ModelArchitecture</span><span class="p">(</span><span class="n">dropPort</span><span class="p">)</span>
 <a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="s">&quot;psa&quot;</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">PSAArchitecture</span><span class="p">()</span>
