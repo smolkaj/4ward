@@ -21,7 +21,7 @@
       
       
       <link rel="icon" href="assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.5">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
@@ -50,6 +50,8 @@
         <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
       
     
+    
+      <link rel="stylesheet" href="stylesheets/extra.css">
     
     <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
@@ -1018,7 +1020,7 @@
 
 <h1 id="4ward">4ward<a class="headerlink" href="#4ward" title="Permanent link">&para;</a></h1>
 <p><strong>A glass-box P4 simulator — trace every decision your packet makes.</strong></p>
-<p>4ward is a spec-compliant P4₁₆ reference simulator that produces <strong>trace
+<p>4ward is a spec-compliant <a href="https://p4.org/wp-content/uploads/sites/53/p4-spec/docs/p4-16-working-draft.html">P4₁₆</a> reference simulator that produces <strong>trace
 trees</strong>: a complete record of every parser transition, table lookup, action
 execution, and branch decision a packet encounters. At non-deterministic
 choice points (action selectors, clone, multicast), the trace forks — showing
@@ -1062,13 +1064,14 @@ all possible outcomes in a single pass.</p>
 <li><strong>v1model and PSA</strong> — two P4 architectures fully implemented, with support
   for architecture modifications like translated port types.
   <a href="concepts/architectures/">Learn more</a>.</li>
-<li><strong>P4Runtime server</strong> — spec-compliant gRPC server with full arbitration,
-  table management, PacketIO, and clone/multicast support.</li>
+<li><strong><a href="https://p4.org/specs/">P4Runtime</a> server</strong> — spec-compliant gRPC server
+  with full arbitration, table management, PacketIO, and clone/multicast
+  support.</li>
 <li><strong>Type translation</strong> — <code>@p4runtime_translation</code> types (string port names,
   translated IDs) flow through the entire stack, including traces.
   <a href="concepts/type-translation/">Learn more</a>.</li>
 <li><strong>Web playground</strong> — visual pipeline diagrams, animated trace playback,
-  packet dissection.</li>
+  packet dissection. <a href="getting-started/playground/">Try it</a>.</li>
 </ul>
 
 

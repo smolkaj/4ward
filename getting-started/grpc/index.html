@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.5">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
@@ -53,6 +53,8 @@
       
     
     
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
     <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
@@ -78,7 +80,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#grpc-api" class="md-skip">
+        <a href="#getting-started-grpc-api" class="md-skip">
           Skip to content
         </a>
       
@@ -612,6 +614,24 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -628,6 +648,119 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#start-the-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Start the server
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#typical-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Typical workflow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Typical workflow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-load-a-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Load a pipeline
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-install-table-entries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Install table entries
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-inject-a-packet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Inject a packet
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-observe-all-results-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Observe all results (optional)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dual-port-encoding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dual port encoding
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#whats-next" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What's next
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -889,6 +1022,108 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#start-the-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Start the server
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#typical-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Typical workflow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Typical workflow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-load-a-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Load a pipeline
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-install-table-entries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Install table entries
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-inject-a-packet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Inject a packet
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-observe-all-results-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Observe all results (optional)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dual-port-encoding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dual port encoding
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#whats-next" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What's next
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -907,8 +1142,95 @@
   
 
 
-<h1 id="grpc-api">gRPC API<a class="headerlink" href="#grpc-api" title="Permanent link">&para;</a></h1>
-<p><em>Coming soon.</em></p>
+<h1 id="getting-started-grpc-api">Getting Started: gRPC API<a class="headerlink" href="#getting-started-grpc-api" title="Permanent link">&para;</a></h1>
+<p>The gRPC API is how test infrastructure (DVaaS, sonic-pins) integrates with
+4ward programmatically. Two services are exposed on the same port:</p>
+<ul>
+<li><strong><a href="https://p4.org/specs/">P4Runtime</a></strong> — the standard P4Runtime gRPC API for
+  pipeline management, table entries, and PacketIO.</li>
+<li><strong>DataplaneService</strong> — 4ward-specific API for packet injection with trace
+  trees.</li>
+</ul>
+<h2 id="start-the-server">Start the server<a class="headerlink" href="#start-the-server" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>bazel<span class="w"> </span>run<span class="w"> </span>//p4runtime:p4runtime_server
+</code></pre></div>
+<p>The server listens on port <strong>9559</strong> by default. Override with <code>--port</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>bazel<span class="w"> </span>run<span class="w"> </span>//p4runtime:p4runtime_server<span class="w"> </span>--<span class="w"> </span>--port<span class="o">=</span><span class="m">50051</span>
+</code></pre></div>
+<h2 id="typical-workflow">Typical workflow<a class="headerlink" href="#typical-workflow" title="Permanent link">&para;</a></h2>
+<h3 id="1-load-a-pipeline">1. Load a pipeline<a class="headerlink" href="#1-load-a-pipeline" title="Permanent link">&para;</a></h3>
+<p>Compile your P4 program, then load it via <code>SetForwardingPipelineConfig</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">SetForwardingPipelineConfigRequest</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="n">device_id</span><span class="o">:</span><span class="w"> </span><span class="mi">1</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="n">action</span><span class="o">:</span><span class="w"> </span><span class="n">VERIFY_AND_COMMIT</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="n">config</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span><span class="n">p4info</span><span class="o">:</span><span class="w"> </span><span class="p">&lt;</span><span class="n">from</span><span class="w"> </span><span class="n">compiled</span><span class="w"> </span><span class="n">output</span><span class="p">&gt;</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">    </span><span class="n">p4_device_config</span><span class="o">:</span><span class="w"> </span><span class="p">&lt;</span><span class="n">from</span><span class="w"> </span><span class="n">compiled</span><span class="w"> </span><span class="n">output</span><span class="p">&gt;</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">  </span><span class="p">}</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="2-install-table-entries">2. Install table entries<a class="headerlink" href="#2-install-table-entries" title="Permanent link">&para;</a></h3>
+<p>Use <code>Write</code> to install entries. The request follows the standard P4Runtime
+spec:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">WriteRequest</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="n">device_id</span><span class="o">:</span><span class="w"> </span><span class="mi">1</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="n">updates</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="n">type</span><span class="o">:</span><span class="w"> </span><span class="n">INSERT</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span><span class="n">entity</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">      </span><span class="n">table_entry</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">        </span><span class="n">table_id</span><span class="o">:</span><span class="w"> </span><span class="p">&lt;</span><span class="n">from</span><span class="w"> </span><span class="n">p4info</span><span class="p">&gt;</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">        </span><span class="n">match</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">field_id</span><span class="o">:</span><span class="w"> </span><span class="mi">1</span><span class="w">  </span><span class="n">exact</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">value</span><span class="o">:</span><span class="w"> </span><span class="s">&quot;\x08\x00&quot;</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">        </span><span class="n">action</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">action</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">action_id</span><span class="o">:</span><span class="w"> </span><span class="p">&lt;</span><span class="n">from</span><span class="w"> </span><span class="n">p4info</span><span class="p">&gt;</span><span class="w">  </span><span class="n">params</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">...</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">      </span><span class="p">}</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="w">  </span><span class="p">}</span>
+<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="3-inject-a-packet">3. Inject a packet<a class="headerlink" href="#3-inject-a-packet" title="Permanent link">&para;</a></h3>
+<p>Use the <strong>DataplaneService</strong> <code>InjectPacket</code> RPC:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">InjectPacketRequest</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="n">dataplane_ingress_port</span><span class="o">:</span><span class="w"> </span><span class="mi">0</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="n">payload</span><span class="o">:</span><span class="w"> </span><span class="p">&lt;</span><span class="n">raw</span><span class="w"> </span><span class="kt">bytes</span><span class="p">&gt;</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="p">}</span>
+</code></pre></div>
+<p>The response contains output packets and a full trace tree:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">InjectPacketResponse</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="n">output_packets</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">dataplane_egress_port</span><span class="o">:</span><span class="w"> </span><span class="mi">1</span><span class="w">  </span><span class="n">payload</span><span class="o">:</span><span class="w"> </span><span class="p">&lt;</span><span class="o">...</span><span class="p">&gt;</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="n">trace</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">events</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">...</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="n">packet_outcome</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">...</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="4-observe-all-results-optional">4. Observe all results (optional)<a class="headerlink" href="#4-observe-all-results-optional" title="Permanent link">&para;</a></h3>
+<p><code>SubscribeResults</code> is a server-streaming RPC that delivers results from
+<em>all</em> packet sources (InjectPacket, PacketOut, etc.):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1">// First message confirms the subscription is active.</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="n">SubscribeResultsResponse</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">active</span><span class="w"> </span><span class="p">{}</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="c1">// Subsequent messages carry results.</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="n">SubscribeResultsResponse</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">input_packet</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">...</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="n">output_packets</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">...</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="n">trace</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">...</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span>
+</code></pre></div>
+<h2 id="dual-port-encoding">Dual port encoding<a class="headerlink" href="#dual-port-encoding" title="Permanent link">&para;</a></h2>
+<p>When the pipeline uses
+<a href="../../concepts/type-translation/"><code>@p4runtime_translation</code></a> on port types,
+both representations appear in responses:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">OutputPacket</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span><span class="n">dataplane_egress_port</span><span class="o">:</span><span class="w"> </span><span class="mi">0</span><span class="w">        </span><span class="c1">// raw port number</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span><span class="n">p4rt_egress_port</span><span class="o">:</span><span class="w"> </span><span class="s">&quot;Ethernet1&quot;</span><span class="w">   </span><span class="c1">// P4Runtime name</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="p">}</span>
+</code></pre></div>
+<p>You can also inject packets using P4Runtime port names:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">InjectPacketRequest</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span><span class="n">p4rt_ingress_port</span><span class="o">:</span><span class="w"> </span><span class="s">&quot;Ethernet0&quot;</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">  </span><span class="n">payload</span><span class="o">:</span><span class="w"> </span><span class="p">&lt;</span><span class="n">raw</span><span class="w"> </span><span class="kt">bytes</span><span class="p">&gt;</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="p">}</span>
+</code></pre></div>
+<h2 id="whats-next">What's next<a class="headerlink" href="#whats-next" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Reference</strong> — complete <a href="../../reference/grpc/">gRPC API reference</a> with all
+  RPCs, message types, and error codes.</li>
+<li><strong>Type translation</strong> — how <a href="../../concepts/type-translation/"><code>@p4runtime_translation</code>
+  types</a> flow through the API.</li>
+<li><strong>Trace trees</strong> — understanding the <a href="../../concepts/traces/">trace tree</a> in
+  the response.</li>
+</ul>
 
 
 

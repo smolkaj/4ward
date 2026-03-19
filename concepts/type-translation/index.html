@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.5">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
@@ -52,6 +52,8 @@
         <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
       
     
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
     
     <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
@@ -757,6 +759,24 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Type Translation
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -773,6 +793,80 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#translation-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Translation modes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#where-translation-happens" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where translation happens
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ports-are-special" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ports are special
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#traces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Traces
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -889,6 +983,69 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#translation-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Translation modes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#where-translation-happens" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where translation happens
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ports-are-special" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ports are special
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#traces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Traces
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -908,7 +1065,110 @@
 
 
 <h1 id="type-translation">Type Translation<a class="headerlink" href="#type-translation" title="Permanent link">&para;</a></h1>
-<p><em>Coming soon.</em></p>
+<p>P4 programs can annotate types with
+<a href="https://p4.org/p4-spec/p4runtime/main/P4Runtime-Spec.html#sec-translation-annotation"><code>@p4runtime_translation</code></a>
+to give them two representations:</p>
+<ul>
+<li><strong>P4Runtime (controller-facing)</strong> — what the controller sends and receives.
+  Can be a string (e.g. <code>"Ethernet0"</code>) or a fixed-width integer.</li>
+<li><strong>Dataplane</strong> — the compact value the P4 program processes internally
+  (e.g. a 9-bit port number).</li>
+</ul>
+<p>4ward translates between these automatically at the P4Runtime API boundary.</p>
+<h2 id="example">Example<a class="headerlink" href="#example" title="Permanent link">&para;</a></h2>
+<p>SAI P4 declares port IDs as translated strings:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>@p4runtime_translation(&quot;&quot;, string)
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>type bit&lt;9&gt; port_id_t;
+</code></pre></div>
+<p>A controller installs a table entry with <code>port = "Ethernet1"</code>. The
+translator maps it to dataplane value <code>0x01</code>. When the entry is read back,
+the translator maps <code>0x01</code> back to <code>"Ethernet1"</code>.</p>
+<h2 id="translation-modes">Translation modes<a class="headerlink" href="#translation-modes" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Auto-allocate</strong> (default)</td>
+<td>P4Runtime values are assigned sequential dataplane values on first use (0, 1, 2, ...)</td>
+</tr>
+<tr>
+<td><strong>Explicit</strong></td>
+<td>Only pre-configured mappings accepted; unknown values rejected</td>
+</tr>
+<tr>
+<td><strong>Hybrid</strong></td>
+<td>Explicit pins for known values, auto-allocate for the rest</td>
+</tr>
+</tbody>
+</table>
+<p>Configure via <code>DeviceConfig.translations</code> in <code>SetForwardingPipelineConfig</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>translations {
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  type_name: &quot;port_id_t&quot;
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>  auto_allocate: true
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>  entries { sdn_str: &quot;Ethernet0&quot;  dataplane_value: &quot;\x00&quot; }
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>  entries { sdn_str: &quot;Ethernet1&quot;  dataplane_value: &quot;\x01&quot; }
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>}
+</code></pre></div>
+<p>Without explicit configuration, auto-allocation is used by default.</p>
+<h2 id="where-translation-happens">Where translation happens<a class="headerlink" href="#where-translation-happens" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>Direction</th>
+<th>What is translated</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Write</strong> (table entry, action profile)</td>
+<td>P4RT → dataplane</td>
+<td>Match fields, action params</td>
+</tr>
+<tr>
+<td><strong>Read</strong> (table entry, action profile)</td>
+<td>Dataplane → P4RT</td>
+<td>Match fields, action params</td>
+</tr>
+<tr>
+<td><strong>PacketOut</strong></td>
+<td>P4RT → dataplane</td>
+<td>Metadata fields</td>
+</tr>
+<tr>
+<td><strong>PacketIn</strong></td>
+<td>Dataplane → P4RT</td>
+<td>Metadata fields</td>
+</tr>
+<tr>
+<td><strong>InjectPacket</strong></td>
+<td>Either direction</td>
+<td>Ingress port (<code>p4rt_ingress_port</code> oneof)</td>
+</tr>
+</tbody>
+</table>
+<p>Translation only applies to fields whose p4info <code>type_name</code> resolves to a
+<code>@p4runtime_translation</code>-annotated type.</p>
+<h2 id="ports-are-special">Ports are special<a class="headerlink" href="#ports-are-special" title="Permanent link">&para;</a></h2>
+<p>Most translated types appear in table entries — match fields and action
+parameters. Ports are different: they appear in hardcoded proto fields across
+multiple messages (<code>InjectPacketRequest.ingress_port</code>,
+<code>OutputPacket.egress_port</code>, <code>PacketIn</code>/<code>PacketOut</code> metadata, clone session
+replicas).</p>
+<p>4ward creates a <code>PortTranslator</code> when the architecture's port metadata field
+uses a <code>type</code> (not <code>typedef</code>) with <code>@p4runtime_translation</code>. Stock
+architectures use <code>typedef</code> — no port translation. Programs that need port
+translation use a <a href="../architecture-modifications/">forked architecture</a>.</p>
+<h2 id="traces">Traces<a class="headerlink" href="#traces" title="Permanent link">&para;</a></h2>
+<p>When translation is available, <a href="../traces/">trace trees</a> carry P4RT values
+alongside dataplane values — port names on ingress/egress events, and
+translated match fields and action params on table lookups. See
+<a href="../traces/#p4rt-enrichment">P4RT enrichment</a>.</p>
 
 
 

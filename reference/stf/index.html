@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.5">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
@@ -52,6 +52,8 @@
         <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
       
     
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
     
     <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
@@ -523,6 +525,24 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    STF Test Format
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -539,6 +559,141 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#packets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Packets
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#table-entries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Table entries
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Table entries">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#match-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Match types
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#value-formats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Value formats
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#action-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Action parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#default-action" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Default action
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#action-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Action profiles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#clone-sessions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Clone sessions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#multicast-groups" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multicast groups
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#complete-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Complete example
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -889,6 +1044,130 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#packets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Packets
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#table-entries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Table entries
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Table entries">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#match-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Match types
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#value-formats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Value formats
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#action-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Action parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#default-action" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Default action
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#action-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Action profiles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#clone-sessions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Clone sessions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#multicast-groups" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multicast groups
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#complete-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Complete example
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -908,7 +1187,105 @@
 
 
 <h1 id="stf-test-format">STF Test Format<a class="headerlink" href="#stf-test-format" title="Permanent link">&para;</a></h1>
-<p><em>Coming soon.</em></p>
+<p>STF (Simple Test Framework) is a plain-text format for defining packet tests,
+originally from the <a href="https://github.com/p4lang/p4c">p4c</a> compiler test suite
+and widely used across the P4 ecosystem (p4c,
+<a href="https://github.com/p4lang/behavioral-model">BMv2</a>,
+<a href="https://github.com/p4lang/p4c/tree/main/backends/p4tools/modules/testgen">p4testgen</a>).
+4ward uses the same format for compatibility.</p>
+<p>Lines starting with <code>#</code> are comments. Tokens are whitespace-separated.</p>
+<h2 id="packets">Packets<a class="headerlink" href="#packets" title="Permanent link">&para;</a></h2>
+<p><strong>Send a packet:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>packet &lt;port&gt; &lt;hex_bytes&gt;
+</code></pre></div>
+<p>Hex bytes are space-optional: <code>FFFFFFFFFFFF 000000000001 0800</code> and
+<code>FFFFFFFFFFFF0000000000010800</code> are equivalent.</p>
+<p><strong>Expect an output packet:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>expect &lt;port&gt; &lt;hex_bytes&gt;
+</code></pre></div>
+<p>Within the same port, outputs are matched FIFO. Cross-port ordering is not
+checked.</p>
+<p>Append <code>$</code> to assert exact length — without it, trailing bytes in the actual
+output are ignored:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>expect 1 FFFFFFFFFFFF 000000000001 0800$   # exact 14 bytes
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>expect 1 FFFFFFFFFFFF 000000000001 0800    # prefix match
+</code></pre></div>
+<p>A test with no <code>expect</code> lines is send-only (always passes). A test with at
+least one <code>expect</code> fails on unexpected output packets.</p>
+<h2 id="table-entries">Table entries<a class="headerlink" href="#table-entries" title="Permanent link">&para;</a></h2>
+<p><strong>Add an entry:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>add &lt;table_name&gt; [priority] &lt;match_fields&gt;... &lt;action(params)&gt;
+</code></pre></div>
+<h3 id="match-types">Match types<a class="headerlink" href="#match-types" title="Permanent link">&para;</a></h3>
+<p><strong>Exact:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>add port_table hdr.ethernet.etherType:0x0800 forward(1)
+</code></pre></div>
+<p><strong>LPM (longest prefix match):</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>add ipv4_lpm hdr.ipv4.dstAddr:10.0.0.0/8 forward(1)
+</code></pre></div>
+<p><strong>Ternary (value &amp; mask):</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>add acl 10 hdr.ipv4.protocol:0x06&amp;&amp;&amp;0xff forward(1)
+</code></pre></div>
+<p>The priority (<code>10</code>) is required for ternary tables.</p>
+<p><strong>Wildcard (don't-care nibbles/bits):</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>add acl hdr.ipv4.protocol:0x0*   forward(1)     # hex nibble wildcard
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>add acl hdr.ipv4.protocol:0b1010**** forward(1)  # binary bit wildcard
+</code></pre></div>
+<h3 id="value-formats">Value formats<a class="headerlink" href="#value-formats" title="Permanent link">&para;</a></h3>
+<p>Match values and action parameters accept:</p>
+<ul>
+<li>Decimal: <code>42</code></li>
+<li>Hex: <code>0x0800</code></li>
+<li>Binary: <code>0b11010</code></li>
+<li>IPv4: <code>10.0.1.0</code></li>
+</ul>
+<h3 id="action-parameters">Action parameters<a class="headerlink" href="#action-parameters" title="Permanent link">&para;</a></h3>
+<p>Positional:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>add table field:value action(0x1234 42)
+</code></pre></div>
+<p>Named:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>add table field:value action(param1=0x1234 param2=42)
+</code></pre></div>
+<h3 id="default-action">Default action<a class="headerlink" href="#default-action" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>setdefault &lt;table_name&gt; &lt;action(params)&gt;
+</code></pre></div>
+<h2 id="action-profiles">Action profiles<a class="headerlink" href="#action-profiles" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>member &lt;profile_name&gt; &lt;member_id&gt; &lt;action_name&gt; [param=value ...]
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>group &lt;profile_name&gt; &lt;group_id&gt; &lt;member_id&gt; [member_id ...]
+</code></pre></div>
+<p>Reference a group from a table entry:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>add my_table field:value group=10
+</code></pre></div>
+<h2 id="clone-sessions">Clone sessions<a class="headerlink" href="#clone-sessions" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>mirroring_add &lt;session_id&gt; &lt;egress_port&gt;
+</code></pre></div>
+<p>Sets up a clone session that copies packets to the specified port. Used with
+<code>clone()</code> / <code>clone3()</code> in P4.</p>
+<p>For PSA multicast-based cloning:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>mirroring_add_mc &lt;session_id&gt; &lt;multicast_group_id&gt;
+</code></pre></div>
+<h2 id="multicast-groups">Multicast groups<a class="headerlink" href="#multicast-groups" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>mc_mgrp_create &lt;group_id&gt;
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>mc_node_create &lt;rid&gt; &lt;port&gt; [port ...]
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>mc_node_associate &lt;group_id&gt; &lt;node_handle&gt;
+</code></pre></div>
+<p>Example (multicast group 1 with replicas on ports 1, 2, 3):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>mc_mgrp_create 1
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>mc_node_create 0 1 2 3
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>mc_node_associate 1 0
+</code></pre></div>
+<h2 id="complete-example">Complete example<a class="headerlink" href="#complete-example" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a># Install a forwarding entry and a clone session.
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>add port_table hdr.ethernet.etherType:0x0800 forward(1)
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>mirroring_add 100 2
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>
+<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a># Send an IPv4 packet on port 0.
+<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>packet 0 FFFFFFFFFFFF 000000000001 0800 DEADBEEF
+<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a>
+<a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a># Expect original on port 1 and clone on port 2.
+<a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a>expect 1 FFFFFFFFFFFF 000000000001 0800 DEADBEEF
+<a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a>expect 2 FFFFFFFFFFFF 000000000001 0800 DEADBEEF
+</code></pre></div>
 
 
 

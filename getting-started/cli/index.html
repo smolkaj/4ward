@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.5">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
@@ -53,6 +53,8 @@
       
     
     
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
     <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
@@ -78,7 +80,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#cli" class="md-skip">
+        <a href="#getting-started-cli" class="md-skip">
           Skip to content
         </a>
       
@@ -467,6 +469,24 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -483,6 +503,91 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Setup
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#hello-world" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hello world
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#match-action-tables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Match-action tables
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#machine-readable-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Machine-readable output
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#three-subcommands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Three subcommands
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#whats-next" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What's next
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -889,6 +994,80 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Setup
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#hello-world" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hello world
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#match-action-tables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Match-action tables
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#machine-readable-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Machine-readable output
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#three-subcommands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Three subcommands
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#whats-next" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What's next
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -907,8 +1086,86 @@
   
 
 
-<h1 id="cli">CLI<a class="headerlink" href="#cli" title="Permanent link">&para;</a></h1>
-<p><em>Coming soon.</em></p>
+<h1 id="getting-started-cli">Getting Started: CLI<a class="headerlink" href="#getting-started-cli" title="Permanent link">&para;</a></h1>
+<p>The CLI compiles P4 programs, runs STF tests, and prints trace trees — all
+from the terminal.</p>
+<h2 id="setup">Setup<a class="headerlink" href="#setup" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/smolkaj/4ward.git<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>4ward
+</code></pre></div>
+<p>An alias makes the examples below easier to type:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">alias</span><span class="w"> </span><span class="nv">4ward</span><span class="o">=</span><span class="s1">&#39;bazel run //cli:4ward --&#39;</span>
+</code></pre></div>
+<h2 id="hello-world">Hello world<a class="headerlink" href="#hello-world" title="Permanent link">&para;</a></h2>
+<p>The simplest test: send a packet through <code>passthrough.p4</code> (hardcodes every
+packet to port 1) and check that it exits on port 1.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>4ward<span class="w"> </span>run<span class="w"> </span>examples/passthrough.p4<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="s">packet 0 FFFFFFFFFFFF 000000000001 0800</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="s">expect 1 FFFFFFFFFFFF 000000000001 0800</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="s">EOF</span>
+</code></pre></div>
+<p>Output:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>packet received: port 0, 14 bytes
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>  parse: start -&gt; accept
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>  output port 1, 14 bytes
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>PASS
+</code></pre></div>
+<p>Every event the simulator processed is right there — parser state transition,
+output port, byte count. <code>PASS</code> means the output matched the <code>expect</code> line.</p>
+<h2 id="match-action-tables">Match-action tables<a class="headerlink" href="#match-action-tables" title="Permanent link">&para;</a></h2>
+<p><code>basic_table.p4</code> has a table that matches on <code>etherType</code> and forwards to a
+port. Install a table entry, send a matching packet, then a non-matching one:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>4ward<span class="w"> </span>run<span class="w"> </span>examples/basic_table.p4<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="s">add port_table hdr.ethernet.etherType:0x0800 forward(1)</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="s">packet 0 FFFFFFFFFFFF 000000000001 0800 DEADBEEF</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="s">expect 1 FFFFFFFFFFFF 000000000001 0800 DEADBEEF</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="s">packet 0 FFFFFFFFFFFF 000000000001 0806 DEADBEEF</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="s">EOF</span>
+</code></pre></div>
+<p>Output:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>packet received: port 0, 18 bytes
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>  parse: start -&gt; accept
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>  table port_table: hit -&gt; forward
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>  action forward(port=1)
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>  output port 1, 18 bytes
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>packet received: port 0, 18 bytes
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>  parse: start -&gt; accept
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>  table port_table: miss -&gt; drop
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>  action drop
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>  mark_to_drop()
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>  drop (reason: mark_to_drop)
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>PASS
+</code></pre></div>
+<p>The first packet hits the table and forwards. The second misses — the default
+action is <code>drop()</code>.</p>
+<h2 id="machine-readable-output">Machine-readable output<a class="headerlink" href="#machine-readable-output" title="Permanent link">&para;</a></h2>
+<p>Use <code>--format=textproto</code> or <code>--format=json</code> for programmatic consumption:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>4ward<span class="w"> </span>run<span class="w"> </span>--format<span class="o">=</span>json<span class="w"> </span>examples/passthrough.p4<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="s">packet 0 DEADBEEF</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="s">EOF</span>
+</code></pre></div>
+<p>Both formats include a <code>proto-file</code> / <code>proto-message</code> header identifying the
+schema. See <a href="../../concepts/traces/#output-formats">Trace Trees: Output formats</a>
+for details.</p>
+<h2 id="three-subcommands">Three subcommands<a class="headerlink" href="#three-subcommands" title="Permanent link">&para;</a></h2>
+<p><code>4ward run</code> compiles and simulates in one step. For iterating on larger
+programs, split the work:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Compile once</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>4ward<span class="w"> </span>compile<span class="w"> </span>examples/basic_table.p4<span class="w"> </span>-o<span class="w"> </span>pipeline.txtpb
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="c1"># Run multiple tests against the same pipeline</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>4ward<span class="w"> </span>sim<span class="w"> </span>pipeline.txtpb<span class="w"> </span>test1.stf
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>4ward<span class="w"> </span>sim<span class="w"> </span>pipeline.txtpb<span class="w"> </span>test2.stf
+</code></pre></div>
+<h2 id="whats-next">What's next<a class="headerlink" href="#whats-next" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>STF format</strong> — full syntax for <a href="../../reference/stf/">table entries, match types, and
+  clone/multicast setup</a>.</li>
+<li><strong>Trace trees</strong> — understand the <a href="../../concepts/traces/">event types and fork
+  semantics</a> behind the trace output.</li>
+<li><strong>Reference</strong> — complete <a href="../../reference/cli/">CLI reference</a> with all flags.</li>
+</ul>
 
 
 

@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.5">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
@@ -52,6 +52,8 @@
         <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
       
     
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
     
     <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
@@ -813,6 +815,24 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture Modifications
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -829,6 +849,125 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#forking-an-architecture-definition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Forking an architecture definition
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Forking an architecture definition">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-translated-port-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example: translated port types
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-to-fork" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How to fork
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implementing-a-new-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementing a new architecture
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Implementing a new architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-implement-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1: Implement Architecture
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-handle-externs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2: Handle externs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-3-register" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3: Register
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key patterns
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -889,6 +1028,114 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#forking-an-architecture-definition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Forking an architecture definition
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Forking an architecture definition">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-translated-port-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example: translated port types
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-to-fork" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How to fork
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implementing-a-new-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementing a new architecture
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Implementing a new architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-implement-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1: Implement Architecture
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-handle-externs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2: Handle externs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-3-register" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3: Register
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key patterns
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -908,7 +1155,118 @@
 
 
 <h1 id="architecture-modifications">Architecture Modifications<a class="headerlink" href="#architecture-modifications" title="Permanent link">&para;</a></h1>
-<p><em>Coming soon.</em></p>
+<p>4ward supports forked P4 architecture definitions out of the box — no changes
+to 4ward itself. You can customize port widths, add <code>@p4runtime_translation</code>
+for string port names, and adjust metadata fields. The simulator
+automatically adapts: it derives the drop port from the port width, creates a
+port translator when translation annotations are present, and enriches traces
+with P4RT values. This works because 4ward reads the architecture from the
+compiled IR, not from hardcoded assumptions.</p>
+<p>There are two kinds of modifications: <strong>forking a <code>.p4</code> definition</strong> (the
+common case — no 4ward changes needed) and <strong>implementing a new backend</strong>
+(for entirely new architectures — requires changes to 4ward).</p>
+<h2 id="forking-an-architecture-definition">Forking an architecture definition<a class="headerlink" href="#forking-an-architecture-definition" title="Permanent link">&para;</a></h2>
+<p>A forked architecture is a customized copy of a standard architecture file
+(like <code>v1model.p4</code>). Common reasons to fork:</p>
+<ul>
+<li><strong>Translated port types</strong> — enable <code>@p4runtime_translation</code> for string port
+  names like <code>"Ethernet0"</code>.</li>
+<li><strong>Wider ports</strong> — change <code>bit&lt;9&gt;</code> to <code>bit&lt;16&gt;</code> or <code>bit&lt;32&gt;</code> for platforms
+  with more ports. The drop port adjusts automatically (<code>2^N - 1</code>).</li>
+<li><strong>Custom metadata</strong> — add fields to <code>standard_metadata_t</code>.</li>
+</ul>
+<h3 id="example-translated-port-types">Example: translated port types<a class="headerlink" href="#example-translated-port-types" title="Permanent link">&para;</a></h3>
+<p>4ward's test suite includes a forked <code>v1model.p4</code> that replaces the stock port
+<code>typedef</code> with a <code>type</code> annotated with <code>@p4runtime_translation</code>. This is the
+kind of change planned for SAI P4 but not yet adopted upstream.</p>
+<p><strong>Stock v1model:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>typedef bit&lt;9&gt; PortId_t;   // just an alias — no translation possible
+</code></pre></div>
+<p><strong>Forked v1model:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>@p4runtime_translation(&quot;&quot;, string)
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>type bit&lt;16&gt; port_id_t;    // newtype — string port names, wider ports
+</code></pre></div>
+<p>Both changes cascade through the system automatically:</p>
+<ul>
+<li><strong>String port names</strong> — controllers send <code>"Ethernet0"</code> instead of <code>0</code>.</li>
+<li><strong>Dual port encoding</strong> — the DataplaneService returns both
+  <code>dataplane_egress_port: 0</code> and <code>p4rt_egress_port: "Ethernet0"</code>.</li>
+<li><strong>Trace enrichment</strong> — trace trees show P4RT port names alongside raw
+  numbers.</li>
+<li><strong>Drop port</strong> — shifts from 511 (<code>2^9 - 1</code>) to 65535 (<code>2^16 - 1</code>).</li>
+</ul>
+<h3 id="how-to-fork">How to fork<a class="headerlink" href="#how-to-fork" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Copy</strong> the architecture file (e.g., <code>v1model.p4</code> from p4c's include
+   directory).</li>
+<li><strong>Make your changes</strong> — port type, port width, metadata fields.</li>
+<li><strong>Include your fork</strong> in your P4 program:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>#include &quot;my_v1model.p4&quot;
+</code></pre></div></li>
+<li><strong>Compile normally</strong> — the 4ward backend reads everything from the IR.
+   No 4ward configuration needed.</li>
+</ol>
+<p>The pipeline structure (stages, externs) stays the same — only the type and
+metadata definitions change.</p>
+<h2 id="implementing-a-new-architecture">Implementing a new architecture<a class="headerlink" href="#implementing-a-new-architecture" title="Permanent link">&para;</a></h2>
+<p>Adding a completely new P4 architecture (e.g., PNA, TNA) requires changes to
+4ward: a Kotlin class that implements the <code>Architecture</code> interface and handles
+the architecture's pipeline stages, externs, and non-deterministic operations.</p>
+<p>Use <code>V1ModelArchitecture.kt</code> as the reference implementation.</p>
+<h3 id="step-1-implement-architecture">Step 1: Implement <code>Architecture</code><a class="headerlink" href="#step-1-implement-architecture" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kd">class</span><span class="w"> </span><span class="nc">PnaArchitecture</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">Architecture</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="kd">override</span><span class="w"> </span><span class="kd">fun</span><span class="w"> </span><span class="nf">processPacket</span><span class="p">(</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="n">ingressPort</span><span class="p">:</span><span class="w"> </span><span class="n">UInt</span><span class="p">,</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="n">payload</span><span class="p">:</span><span class="w"> </span><span class="n">ByteArray</span><span class="p">,</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span><span class="n">config</span><span class="p">:</span><span class="w"> </span><span class="n">BehavioralConfig</span><span class="p">,</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span><span class="n">tableStore</span><span class="p">:</span><span class="w"> </span><span class="n">TableStore</span><span class="p">,</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">  </span><span class="p">):</span><span class="w"> </span><span class="n">PipelineResult</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">    </span><span class="c1">// Run pipeline stages in order.</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">    </span><span class="c1">// Handle architecture-specific externs.</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">    </span><span class="c1">// Produce trace tree with forks for non-deterministic operations.</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">  </span><span class="p">}</span>
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="step-2-handle-externs">Step 2: Handle externs<a class="headerlink" href="#step-2-handle-externs" title="Permanent link">&para;</a></h3>
+<p>Create an <code>ExternHandler</code> for your architecture's free functions and object
+methods:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kd">private</span><span class="w"> </span><span class="kd">fun</span><span class="w"> </span><span class="nf">createExternHandler</span><span class="p">(</span><span class="n">state</span><span class="p">:</span><span class="w"> </span><span class="n">State</span><span class="p">):</span><span class="w"> </span><span class="n">ExternHandler</span><span class="w"> </span><span class="o">=</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="n">ExternHandler</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">call</span><span class="p">,</span><span class="w"> </span><span class="n">eval</span><span class="w"> </span><span class="o">-&gt;</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="k">when</span><span class="w"> </span><span class="p">(</span><span class="n">call</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">      </span><span class="k">is</span><span class="w"> </span><span class="n">ExternCall</span><span class="p">.</span><span class="na">FreeFunction</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="k">when</span><span class="w"> </span><span class="p">(</span><span class="n">call</span><span class="p">.</span><span class="na">name</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">        </span><span class="s">&quot;my_forward&quot;</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="cm">/* set egress port */</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">        </span><span class="k">else</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">error</span><span class="p">(</span><span class="s">&quot;unhandled extern: </span><span class="si">${</span><span class="n">call</span><span class="p">.</span><span class="na">name</span><span class="si">}</span><span class="s">&quot;</span><span class="p">)</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">      </span><span class="p">}</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">      </span><span class="k">is</span><span class="w"> </span><span class="n">ExternCall</span><span class="p">.</span><span class="na">Method</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="k">when</span><span class="w"> </span><span class="p">(</span><span class="n">call</span><span class="p">.</span><span class="na">externType</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">        </span><span class="s">&quot;MyRegister&quot;</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="k">when</span><span class="w"> </span><span class="p">(</span><span class="n">call</span><span class="p">.</span><span class="na">method</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">          </span><span class="s">&quot;read&quot;</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="cm">/* return value */</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">          </span><span class="s">&quot;write&quot;</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="cm">/* store value */</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">          </span><span class="k">else</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">error</span><span class="p">(</span><span class="s">&quot;unhandled method&quot;</span><span class="p">)</span>
+<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="w">        </span><span class="p">}</span>
+<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="w">        </span><span class="k">else</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">error</span><span class="p">(</span><span class="s">&quot;unhandled extern type&quot;</span><span class="p">)</span>
+<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="w">      </span><span class="p">}</span>
+<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="w">  </span><span class="p">}</span>
+</code></pre></div>
+<h3 id="step-3-register">Step 3: Register<a class="headerlink" href="#step-3-register" title="Permanent link">&para;</a></h3>
+<p>Add your architecture to the dispatcher in <code>Simulator.kt</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">architecture</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">when</span><span class="w"> </span><span class="p">(</span><span class="n">archName</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="s">&quot;v1model&quot;</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">V1ModelArchitecture</span><span class="p">(</span><span class="n">dropPort</span><span class="p">)</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="s">&quot;psa&quot;</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">PSAArchitecture</span><span class="p">()</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span><span class="s">&quot;pna&quot;</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">PnaArchitecture</span><span class="p">()</span><span class="w">       </span><span class="c1">// ← add here</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">  </span><span class="k">else</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="k">throw</span><span class="w"> </span><span class="n">IllegalArgumentException</span><span class="p">(</span><span class="s">&quot;unsupported architecture: </span><span class="si">$</span><span class="n">archName</span><span class="s">&quot;</span><span class="p">)</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="key-patterns">Key patterns<a class="headerlink" href="#key-patterns" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Forks at boundaries</strong> — clone/resubmit/recirculate decisions are deferred
+  to pipeline boundaries, not executed inline. The extern sets a flag; the
+  boundary logic checks it and forks.</li>
+<li><strong>Drop port from port width</strong> — <code>(1L shl portBits) - 1</code>. Never hardcoded.</li>
+<li><strong>Never fail silently</strong> — unknown externs should <code>error()</code>, not fall through.</li>
+<li><strong>Trace everything</strong> — log architecture-specific decisions (drops, clones,
+  multicast) as trace events so users can understand packet flow.</li>
+</ul>
 
 
 

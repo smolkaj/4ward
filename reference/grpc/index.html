@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.5">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
@@ -53,6 +53,8 @@
       
     
     
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
     <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
@@ -78,7 +80,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#grpc-api" class="md-skip">
+        <a href="#grpc-api-reference" class="md-skip">
           Skip to content
         </a>
       
@@ -640,6 +642,24 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -656,6 +676,136 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Server
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#p4runtime-service" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        P4Runtime service
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="P4Runtime service">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#arbitration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Arbitration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#write-atomicity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Write atomicity
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dataplane-service" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dataplane service
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Dataplane service">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#injectpacket" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        InjectPacket
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#subscriberesults" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SubscribeResults
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dual-port-encoding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dual port encoding
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#error-codes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error codes
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -889,6 +1039,125 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Server
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#p4runtime-service" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        P4Runtime service
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="P4Runtime service">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#arbitration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Arbitration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#write-atomicity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Write atomicity
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dataplane-service" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dataplane service
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Dataplane service">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#injectpacket" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        InjectPacket
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#subscriberesults" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SubscribeResults
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dual-port-encoding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dual port encoding
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#error-codes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error codes
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -907,8 +1176,185 @@
   
 
 
-<h1 id="grpc-api">gRPC API<a class="headerlink" href="#grpc-api" title="Permanent link">&para;</a></h1>
-<p><em>Coming soon.</em></p>
+<h1 id="grpc-api-reference">gRPC API Reference<a class="headerlink" href="#grpc-api-reference" title="Permanent link">&para;</a></h1>
+<p>4ward exposes two gRPC services on the same port (default: <strong>9559</strong>).</p>
+<h2 id="server">Server<a class="headerlink" href="#server" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>bazel<span class="w"> </span>run<span class="w"> </span>//p4runtime:p4runtime_server<span class="w"> </span>--<span class="w"> </span><span class="o">[</span>flags<span class="o">]</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--port</code></td>
+<td>9559</td>
+<td>gRPC listen port</td>
+</tr>
+<tr>
+<td><code>--device-id</code></td>
+<td>1</td>
+<td>P4Runtime device ID</td>
+</tr>
+<tr>
+<td><code>--drop-port</code></td>
+<td><code>2^N - 1</code></td>
+<td>Override drop port (e.g., 511 for 9-bit ports)</td>
+</tr>
+<tr>
+<td><code>--cpu-port</code></td>
+<td><code>2^N - 2</code></td>
+<td>Override CPU port (e.g., 510 for 9-bit ports; auto-enabled when <code>@controller_header</code> is present)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="p4runtime-service">P4Runtime service<a class="headerlink" href="#p4runtime-service" title="Permanent link">&para;</a></h2>
+<p>Standard <a href="https://p4.org/specs/">P4Runtime</a> gRPC API (reports version
+<strong>1.5.0</strong>). All six RPCs are implemented:</p>
+<table>
+<thead>
+<tr>
+<th>RPC</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SetForwardingPipelineConfig</code></td>
+<td>Load or replace a P4 pipeline</td>
+</tr>
+<tr>
+<td><code>GetForwardingPipelineConfig</code></td>
+<td>Retrieve the loaded pipeline</td>
+</tr>
+<tr>
+<td><code>Write</code></td>
+<td>Insert, modify, or delete entities (table entries, action profiles, clone sessions, multicast groups)</td>
+</tr>
+<tr>
+<td><code>Read</code></td>
+<td>Query entities (streaming response)</td>
+</tr>
+<tr>
+<td><code>StreamChannel</code></td>
+<td>Bidirectional stream for master arbitration, PacketOut, and PacketIn</td>
+</tr>
+<tr>
+<td><code>Capabilities</code></td>
+<td>Report P4Runtime protocol version</td>
+</tr>
+</tbody>
+</table>
+<h3 id="arbitration">Arbitration<a class="headerlink" href="#arbitration" title="Permanent link">&para;</a></h3>
+<p>Multi-controller arbitration is fully supported with role-based access
+control. Open a <code>StreamChannel</code> and send a <code>MasterArbitrationUpdate</code> to
+become primary for a role. The highest <code>election_id</code> wins.</p>
+<h3 id="write-atomicity">Write atomicity<a class="headerlink" href="#write-atomicity" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CONTINUE_ON_ERROR</code></td>
+<td>Attempt all updates; report per-update status</td>
+</tr>
+<tr>
+<td><code>ROLLBACK_ON_ERROR</code></td>
+<td>All-or-none (snapshot-based rollback)</td>
+</tr>
+<tr>
+<td><code>DATAPLANE_ATOMIC</code></td>
+<td>Same as rollback (the write lock ensures atomicity)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="dataplane-service">Dataplane service<a class="headerlink" href="#dataplane-service" title="Permanent link">&para;</a></h2>
+<p>Defined in <code>p4runtime/dataplane.proto</code>. For packet injection and result
+observation — not part of the P4Runtime spec.</p>
+<h3 id="injectpacket"><code>InjectPacket</code><a class="headerlink" href="#injectpacket" title="Permanent link">&para;</a></h3>
+<p>Inject a single packet and get the result inline.</p>
+<p><strong>Request:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kd">message</span><span class="w"> </span><span class="nc">InjectPacketRequest</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="k">oneof</span><span class="w"> </span><span class="n">ingress_port</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="kt">uint32</span><span class="w"> </span><span class="na">dataplane_ingress_port</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">  </span><span class="c1">// e.g., 0</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="kt">bytes</span><span class="w"> </span><span class="na">p4rt_ingress_port</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w">        </span><span class="c1">// e.g., &quot;Ethernet0&quot;</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span><span class="p">}</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">  </span><span class="kt">bytes</span><span class="w"> </span><span class="na">payload</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="p">}</span>
+</code></pre></div>
+<p>The <code>p4rt_ingress_port</code> variant requires a loaded pipeline with
+<a href="../../concepts/type-translation/"><code>@p4runtime_translation</code></a> on the port type.</p>
+<p><strong>Response:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kd">message</span><span class="w"> </span><span class="nc">InjectPacketResponse</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="k">repeated</span><span class="w"> </span><span class="n">OutputPacket</span><span class="w"> </span><span class="na">output_packets</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="n">TraceTree</span><span class="w"> </span><span class="na">trace</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w">  </span><span class="c1">// P4RT-enriched when translation is available</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="subscriberesults"><code>SubscribeResults</code><a class="headerlink" href="#subscriberesults" title="Permanent link">&para;</a></h3>
+<p>Server-streaming RPC that delivers results from all packet sources
+(InjectPacket, PacketOut, etc.).</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1">// First message confirms the subscription.</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">SubscribeResultsResponse</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">active</span><span class="o">:</span><span class="w"> </span><span class="p">{}</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="c1">// Subsequent messages carry results.</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">SubscribeResultsResponse</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span><span class="n">result</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span><span class="n">input_packet</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">...</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">    </span><span class="n">output_packets</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="w"> </span><span class="o">...</span><span class="w"> </span><span class="p">]</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">    </span><span class="n">trace</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">...</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">  </span><span class="p">}</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="dual-port-encoding">Dual port encoding<a class="headerlink" href="#dual-port-encoding" title="Permanent link">&para;</a></h3>
+<p>Output packets carry both port representations when translation is available:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kd">message</span><span class="w"> </span><span class="nc">OutputPacket</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="kt">uint32</span><span class="w"> </span><span class="na">dataplane_egress_port</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">  </span><span class="c1">// always present</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="kt">bytes</span><span class="w"> </span><span class="na">p4rt_egress_port</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span><span class="w">        </span><span class="c1">// only when translated</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span><span class="kt">bytes</span><span class="w"> </span><span class="na">payload</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="p">}</span>
+</code></pre></div>
+<h2 id="error-codes">Error codes<a class="headerlink" href="#error-codes" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>gRPC status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>No pipeline loaded</td>
+<td><code>FAILED_PRECONDITION</code></td>
+</tr>
+<tr>
+<td>P4RT port requested without port translation</td>
+<td><code>FAILED_PRECONDITION</code></td>
+</tr>
+<tr>
+<td>Invalid request</td>
+<td><code>INVALID_ARGUMENT</code></td>
+</tr>
+<tr>
+<td>Entity already exists (INSERT)</td>
+<td><code>ALREADY_EXISTS</code></td>
+</tr>
+<tr>
+<td>Entity not found (MODIFY/DELETE)</td>
+<td><code>NOT_FOUND</code></td>
+</tr>
+<tr>
+<td>Not primary for role</td>
+<td><code>PERMISSION_DENIED</code></td>
+</tr>
+</tbody>
+</table>
 
 
 

@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.5">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
@@ -52,6 +52,8 @@
         <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
       
     
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
     
     <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
@@ -1212,7 +1214,7 @@ every decision the simulator made. Most packets take a single path through the
 pipeline and produce a linear trace. At non-deterministic choice points (action
 selectors, clone, multicast), the trace <strong>forks</strong> into branches, one per
 possible outcome.</p>
-<p>No other P4 tool gives you this. BMv2 picks one path. Hardware picks one path.
+<p>No other P4 tool gives you this. <a href="https://github.com/p4lang/behavioral-model">BMv2</a> picks one path. Hardware picks one path.
 4ward shows you <em>all</em> paths in a single pass.</p>
 <h2 id="structure">Structure<a class="headerlink" href="#structure" title="Permanent link">&para;</a></h2>
 <p>A trace tree is a recursive structure:</p>

@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.5">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
@@ -52,6 +52,8 @@
         <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
       
     
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
     
     <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
@@ -1110,23 +1112,27 @@
 <p>The playground is the fastest way to try 4ward — edit, compile, and trace P4
 programs in the browser.</p>
 <h2 id="start-the-server">Start the server<a class="headerlink" href="#start-the-server" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>bazel<span class="w"> </span>run<span class="w"> </span>//web:playground
+<p>Clone and build if you haven't already:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/smolkaj/4ward.git<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>4ward
+</code></pre></div>
+<p>Then start the playground:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>bazel<span class="w"> </span>run<span class="w"> </span>//web:playground
 </code></pre></div>
 <p>The server prints:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>4ward Playground
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  Web UI:   http://localhost:8080
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>  gRPC:     localhost:9559
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>4ward Playground
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>  Web UI:   http://localhost:8080
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>  gRPC:     localhost:9559
 </code></pre></div>
 <p>Your browser opens automatically. If it doesn't, navigate to
 <code>http://localhost:8080</code>.</p>
 <h2 id="load-an-example">Load an example<a class="headerlink" href="#load-an-example" title="Permanent link">&para;</a></h2>
 <p>Click the <strong>example selector</strong> dropdown (top of the editor) and choose
 <strong>basic_table</strong>. You'll see a short v1model program with one table:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>table port_table {
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>    key = { hdr.ethernet.etherType : exact; }
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>    actions = { forward; drop; NoAction; }
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    default_action = drop();
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>}
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>table port_table {
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>    key = { hdr.ethernet.etherType : exact; }
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    actions = { forward; drop; NoAction; }
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    default_action = drop();
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>}
 </code></pre></div>
 <p>Click <strong>Compile &amp; Load</strong>. The status bar turns green and shows the pipeline
 summary (tables, actions). The <strong>control-flow graph</strong> appears at the bottom,
