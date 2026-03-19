@@ -1,0 +1,5 @@
+/* Make sidebar section headers visually distinct from page links. */
+.md-nav__item--section > .md-nav__link {
+  font-weight: 700;
+  color: var(--md-default-fg-color) !important;
+}
