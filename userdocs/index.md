@@ -10,7 +10,7 @@ all possible outcomes in a single pass.
 
 ## Pick your entry point
 
-| | |
+| Entry point | Description |
 |---|---|
 | **[Web Playground](getting-started/playground.md)** | Edit P4 in the browser, install table entries, send packets, step through traces visually. |
 | **[CLI](getting-started/cli.md)** | Compile a P4 program, run an STF test, read the trace — all from the terminal. |
