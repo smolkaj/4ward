@@ -3,6 +3,7 @@
   <br><br>
   <strong>Your P4 programs, finally explained.</strong>
   <br><br>
+  <a href="https://smolkaj.github.io/4ward/"><img src="https://img.shields.io/badge/docs-4ward-blue" alt="Docs"></a>
   <a href="https://github.com/smolkaj/4ward/actions/workflows/ci.yml"><img src="https://github.com/smolkaj/4ward/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://smolkaj.github.io/4ward/main/"><img src="https://img.shields.io/badge/coverage-report-blue" alt="Coverage"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue" alt="License"></a>
@@ -297,7 +298,8 @@ requirements.
 │   ├── bmv2_diff/          BMv2 differential testing
 │   ├── sai_p4/             SAI P4 test fixtures
 │   └── <feature>/          Hand-written feature tests (passthrough, lpm, …)
-├── docs/                   Project documentation
+├── userdocs/               User-facing documentation (MkDocs → smolkaj.github.io/4ward/)
+├── docs/                   Developer documentation (architecture, roadmap, testing)
 └── tools/                  Developer scripts (format, lint, coverage, …)
 ```
 

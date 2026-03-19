@@ -61,12 +61,11 @@ jobs:
           git worktree add /tmp/gh-pages gh-pages
           # Sync docs output to gh-pages root, preserving coverage directories.
           rsync -a --delete --exclude='main/' --exclude='pr/' site/ /tmp/gh-pages/
-          cd /tmp/gh-pages
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git diff --cached --quiet || git commit -m "Docs for $SHORT_SHA"
-          git push origin gh-pages || (git pull --rebase origin gh-pages && git push origin gh-pages)
+          git -C /tmp/gh-pages config user.name "github-actions[bot]"
+          git -C /tmp/gh-pages config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C /tmp/gh-pages add -A
+          git -C /tmp/gh-pages diff --cached --quiet || git -C /tmp/gh-pages commit -m "Docs for $SHORT_SHA"
+          git -C /tmp/gh-pages push origin gh-pages || (git -C /tmp/gh-pages pull --rebase origin gh-pages && git -C /tmp/gh-pages push origin gh-pages)
 
   lint:
     if: github.event.action != 'closed'  # skip on PR close; only cancel job runs
