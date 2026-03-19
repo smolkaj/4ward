@@ -48,6 +48,8 @@ jobs:
   docs:
     if: github.event_name == 'push'  # deploy docs only on main pushes
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v6
 
