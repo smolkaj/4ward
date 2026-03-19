@@ -9,6 +9,9 @@ docs_dir: userdocs
 site_dir: site
 exclude_docs: README.md
 
+plugins:
+  - glightbox
+
 extra_css:
   - stylesheets/extra.css
 
