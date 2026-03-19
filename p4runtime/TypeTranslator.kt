@@ -350,23 +350,13 @@ private constructor(
     typeNameMap: Map<Int, String>,
     metadata: List<p4.v1.P4RuntimeOuterClass.PacketMetadata>,
     toDataplane: Boolean,
-    lenient: Boolean = false,
   ): List<p4.v1.P4RuntimeOuterClass.PacketMetadata>? {
     var changed = false
     val result =
       metadata.map { meta ->
         val typeName = typeNameMap[meta.metadataId]
         if (typeName != null) {
-          val translated =
-            if (lenient) {
-              try {
-                translateValue(getOrCreateTable(typeName), meta.value, toDataplane)
-              } catch (_: TranslationException) {
-                null
-              }
-            } else {
-              translateValue(getOrCreateTable(typeName), meta.value, toDataplane)
-            }
+          val translated = translateValue(getOrCreateTable(typeName), meta.value, toDataplane)
           if (translated != null) {
             changed = true
             meta.toBuilder().setValue(translated).build()
