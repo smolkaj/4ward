@@ -1,6 +1,7 @@
 package fourward.cli
 
 import com.google.protobuf.TextFormat
+import com.google.protobuf.util.JsonFormat
 import fourward.e2e.ReceivedPacket
 import fourward.e2e.StfFile
 import fourward.e2e.installStfEntries
@@ -56,6 +57,7 @@ fun simulate(pipelinePath: Path, stfPath: Path, format: OutputFormat, dropPort: 
 
   val outputQueue = mutableListOf<ReceivedPacket>()
   val textProtoPrinter = TextFormat.printer()
+  val jsonPrinter = JsonFormat.printer().preservingProtoFieldNames()
 
   for (packet in stf.packets) {
     val result = sim.processPacket(packet.ingressPort, packet.payload)
@@ -64,7 +66,14 @@ fun simulate(pipelinePath: Path, stfPath: Path, format: OutputFormat, dropPort: 
         println("packet received: port ${packet.ingressPort}, ${packet.payload.size} bytes")
         println(TraceFormatter.format(result.trace).trim().prependIndent("  "))
       }
-      OutputFormat.TEXTPROTO -> print(textProtoPrinter.printToString(result.trace))
+      OutputFormat.TEXTPROTO -> {
+        print(TEXTPROTO_HEADER)
+        print(textProtoPrinter.printToString(result.trace))
+      }
+      OutputFormat.JSON -> {
+        print(JSON_HEADER)
+        println(jsonPrinter.print(result.trace))
+      }
     }
     val pkts = result.outputPackets
     for (pkt in pkts) {
@@ -81,3 +90,8 @@ fun simulate(pipelinePath: Path, stfPath: Path, format: OutputFormat, dropPort: 
   println("PASS")
   return ExitCode.SUCCESS
 }
+
+private const val PROTO_FILE = "@fourward//simulator/simulator.proto"
+private const val PROTO_MESSAGE = "fourward.sim.TraceTree"
+private const val TEXTPROTO_HEADER = "# proto-file: $PROTO_FILE\n# proto-message: $PROTO_MESSAGE\n"
+private const val JSON_HEADER = "// proto-file: $PROTO_FILE\n// proto-message: $PROTO_MESSAGE\n"
