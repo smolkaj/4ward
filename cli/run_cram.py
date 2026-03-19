@@ -18,7 +18,7 @@ import tempfile
 
 cram_args = []
 for arg in sys.argv[1:]:
-    if "=" in arg and not arg.endswith(".t"):
+    if "=" in arg and not arg.endswith((".t", ".md")):
         key, _, value = arg.partition("=")
         os.environ[key] = os.path.abspath(value)
     else:

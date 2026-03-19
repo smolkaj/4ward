@@ -315,9 +315,18 @@ report in about 5. No flakes, no "works on my machine." See for yourself on the
 
 ## Documentation
 
+**[User documentation](https://smolkaj.github.io/4ward/)** — getting started
+guides, reference pages, and concept explainers for the web playground, CLI,
+and gRPC API.
+
+**[Tutorial](examples/tutorial.md)** — a hands-on walkthrough from hello
+world to machine-readable trace output. Doubles as a regression test (cram
+format — every command and expected output is verified in CI).
+
+Developer docs (in [`docs/`](docs/)):
+
 | Document | Purpose |
 |---|---|
-| [Tutorial](examples/tutorial.t) | Getting started — from hello world to machine-readable output |
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Design rationale and component overview |
 | [ENTRY_POINTS.md](docs/ENTRY_POINTS.md) | CLI, P4Runtime server, web playground, test APIs |
 | [ROADMAP.md](docs/ROADMAP.md) | Development tracks, priorities, and sequencing |

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.svg" alt="4ward logo" width="160">
+  <img src="assets/logo.svg" alt="4ward logo" width="160" class="off-glb">
 </p>
 
 # 4ward
@@ -11,6 +11,10 @@ trees**: a complete record of every parser transition, table lookup, action
 execution, and branch decision a packet encounters. At non-deterministic
 choice points (action selectors, clone, multicast), the trace forks — showing
 all possible outcomes in a single pass.
+
+!!! tip "Prefer to get your hands dirty?"
+
+    Jump straight to the **[hands-on tutorial](https://github.com/smolkaj/4ward/blob/main/examples/tutorial.md)** — compile a P4 program, send packets, read traces, all from the terminal. Every command is CI-verified, so it always works.
 
 ## Pick your entry point
 
