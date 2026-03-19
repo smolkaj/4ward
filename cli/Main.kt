@@ -8,6 +8,7 @@ import kotlin.system.exitProcess
 enum class OutputFormat {
   HUMAN,
   TEXTPROTO,
+  JSON,
 }
 
 /** Thrown on invalid CLI arguments. Caught by [main] and reported as a usage error. */
@@ -22,17 +23,17 @@ Commands:
   run      program.p4 test.stf           Compile and simulate in one step.
 
 Options:
-  --format=human|textproto   Trace output format (default: human).
+  --format=human|textproto|json   Trace output format (default: human).
   --help                     Show this help message."""
 
 private const val SIM_USAGE =
-  """Usage: 4ward sim [--format=human|textproto] [--drop-port=N] <pipeline.txtpb> <test.stf>
+  """Usage: 4ward sim [--format=human|textproto|json] [--drop-port=N] <pipeline.txtpb> <test.stf>
 
 Loads a compiled pipeline config and runs an STF test against it.
 Prints the trace tree for each packet and reports PASS/FAIL.
 
 Options:
-  --format=human|textproto   Trace output format (default: human).
+  --format=human|textproto|json   Trace output format (default: human).
   --drop-port=N              Override the drop port (default: derived from port width)."""
 
 private const val COMPILE_USAGE =
@@ -45,12 +46,12 @@ Options:
   -I <dir>             Add include directory for P4 headers."""
 
 private const val RUN_USAGE =
-  """Usage: 4ward run [--format=human|textproto] [--drop-port=N] <program.p4> <test.stf>
+  """Usage: 4ward run [--format=human|textproto|json] [--drop-port=N] <program.p4> <test.stf>
 
 Compiles a P4 program and runs an STF test against it in one step.
 
 Options:
-  --format=human|textproto   Trace output format (default: human).
+  --format=human|textproto|json   Trace output format (default: human).
   --drop-port=N              Override the drop port (default: derived from port width)."""
 
 fun main(args: Array<String>) {
@@ -189,6 +190,7 @@ private fun parseFormat(arg: String): OutputFormat =
   when (val f = arg.removePrefix("--format=")) {
     "human" -> OutputFormat.HUMAN
     "textproto" -> OutputFormat.TEXTPROTO
+    "json" -> OutputFormat.JSON
     else -> throw UsageError("unknown format '$f'")
   }
 
