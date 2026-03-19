@@ -32,17 +32,17 @@
             <td></td>
             <td class="headerItem">Lines:</td>
             <td class="headerCovTableEntryHi">90.9&nbsp;%</td>
-            <td class="headerCovTableEntry">275</td>
-            <td class="headerCovTableEntry">250</td>
+            <td class="headerCovTableEntry">317</td>
+            <td class="headerCovTableEntry">288</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-14 01:45:03</td>
+            <td class="headerValue">2026-03-19 07:35:06</td>
             <td></td>
             <td class="headerItem">Functions:</td>
-            <td class="headerCovTableEntryHi">95.7&nbsp;%</td>
-            <td class="headerCovTableEntry">47</td>
-            <td class="headerCovTableEntry">45</td>
+            <td class="headerCovTableEntryHi">96.4&nbsp;%</td>
+            <td class="headerCovTableEntry">56</td>
+            <td class="headerCovTableEntry">54</td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
                 </table>
@@ -63,16 +63,37 @@
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L569">fourward/p4runtime/TranslationTable$Companion::fromProto$default (Lfourward/p4runtime/TranslationTable$Companion;Lfourward/ir/v1/TypeTranslation;ZILjava/lang/Object;)Lfourward/p4runtime/TranslationTable;</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L687">fourward/p4runtime/TranslationTable$Companion::fromProto$default (Lfourward/p4runtime/TranslationTable$Companion;Lfourward/ir/TypeTranslation;ZILjava/lang/Object;)Lfourward/p4runtime/TranslationTable;</a></td>
               
               <td class="coverFnLo">0</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L372">fourward/p4runtime/TypeTranslator$Companion::create$default (Lfourward/p4runtime/TypeTranslator$Companion;Ljava/util/List;ILjava/lang/Object;)Lfourward/p4runtime/TypeTranslator;</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L467">fourward/p4runtime/TypeTranslator$Companion$create$portTranslator$portTable$1::apply (Ljava/lang/String;)Lfourward/p4runtime/TranslationTable;</a></td>
               
               <td class="coverFnLo">0</td>
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L55">fourward/p4runtime/PortTranslator::&lt;init&gt; (Lfourward/p4runtime/TranslationTable;)V</a></td>
+              
+              <td class="coverFnHi">1</td>
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L69">fourward/p4runtime/PortTranslator::dataplaneToP4rt (I)Lcom/google/protobuf/ByteString;</a></td>
+              
+              <td class="coverFnHi">1</td>
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L58">fourward/p4runtime/PortTranslator::p4rtToDataplane (Lcom/google/protobuf/ByteString;)I</a></td>
+              
+              <td class="coverFnHi">1</td>
               
               
             </tr>
@@ -84,238 +105,280 @@
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L570">fourward/p4runtime/TranslationTable$Companion::fromProto (Lfourward/ir/v1/TypeTranslation;Z)Lfourward/p4runtime/TranslationTable;</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L688">fourward/p4runtime/TranslationTable$Companion::fromProto (Lfourward/ir/TypeTranslation;Z)Lfourward/p4runtime/TranslationTable;</a></td>
               
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L561">fourward/p4runtime/TranslationTable::allocateNext ()Lcom/google/protobuf/ByteString;</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L679">fourward/p4runtime/TranslationTable::allocateNext ()Lcom/google/protobuf/ByteString;</a></td>
               
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L500">fourward/p4runtime/TranslationTable::isStringType ()Z</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L614">fourward/p4runtime/TranslationTable::isStringType ()Z</a></td>
               
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L549">fourward/p4runtime/TranslationTable::lookupOrAllocate (Ljava/util/Map;Ljava/lang/Object;Lkotlin/jvm/functions/Function1;Ljava/lang/String;)Lcom/google/protobuf/ByteString;</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L667">fourward/p4runtime/TranslationTable::lookupOrAllocate (Ljava/util/Map;Ljava/lang/Object;Lkotlin/jvm/functions/Function1;Ljava/lang/String;)Lcom/google/protobuf/ByteString;</a></td>
               
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L520">fourward/p4runtime/TranslationTable::lookupOrAllocateBitstring (Lcom/google/protobuf/ByteString;)Lcom/google/protobuf/ByteString;</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L634">fourward/p4runtime/TranslationTable::lookupOrAllocateBitstring (Lcom/google/protobuf/ByteString;)Lcom/google/protobuf/ByteString;</a></td>
               
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L530">fourward/p4runtime/TranslationTable::lookupOrAllocateString (Ljava/lang/String;)Lcom/google/protobuf/ByteString;</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L644">fourward/p4runtime/TranslationTable::lookupOrAllocateString (Ljava/lang/String;)Lcom/google/protobuf/ByteString;</a></td>
               
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L540">fourward/p4runtime/TranslationTable::reverseLookup (Lcom/google/protobuf/ByteString;)Lfourward/p4runtime/SdnValue;</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L654">fourward/p4runtime/TranslationTable::reverseLookup (Lcom/google/protobuf/ByteString;)Lfourward/p4runtime/P4rtValue;</a></td>
               
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L405">fourward/p4runtime/TypeTranslator$Companion$create$1::apply (Ljava/lang/String;)Lfourward/p4runtime/TranslationTable;</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L659">fourward/p4runtime/TranslationTable::reverseLookupOrNull (Lcom/google/protobuf/ByteString;)Lfourward/p4runtime/P4rtValue;</a></td>
               
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L436">fourward/p4runtime/TypeTranslator$Companion::buildMatchFieldUris (Lp4/config/v1/P4InfoOuterClass$P4Info;Ljava/util/Map;)Ljava/util/Map;</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L405">fourward/p4runtime/TypeTranslator$Companion$create$1::invoke (Lfourward/ir/TypeTranslation;)Ljava/lang/String;</a></td>
               
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L456">fourward/p4runtime/TypeTranslator$Companion::buildPacketMetadataUris (Lp4/config/v1/P4InfoOuterClass$P4Info;Ljava/util/Map;)Lkotlin/Pair;</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L457">fourward/p4runtime/TypeTranslator$Companion$create$3::apply (Ljava/lang/String;)Lfourward/p4runtime/TranslationTable;</a></td>
               
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L421">fourward/p4runtime/TypeTranslator$Companion::buildParamUris (Lp4/config/v1/P4InfoOuterClass$P4Info;Ljava/util/Map;)Ljava/util/Map;</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L451">fourward/p4runtime/TypeTranslator$Companion$create$tables$1::invoke (Lfourward/ir/TypeTranslation;)Ljava/lang/String;</a></td>
               
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L478">fourward/p4runtime/TypeTranslator$Companion::buildTables (Ljava/util/List;Ljava/util/Set;)Ljava/util/concurrent/ConcurrentHashMap;</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L503">fourward/p4runtime/TypeTranslator$Companion::buildMatchFieldTypeNames (Lp4/config/v1/P4InfoOuterClass$P4Info;Ljava/util/Map;)Ljava/util/Map;</a></td>
               
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L474">fourward/p4runtime/TypeTranslator$Companion::buildTables$default (Lfourward/p4runtime/TypeTranslator$Companion;Ljava/util/List;Ljava/util/Set;ILjava/lang/Object;)Ljava/util/concurrent/ConcurrentHashMap;</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L523">fourward/p4runtime/TypeTranslator$Companion::buildPacketMetadataTypeNames (Lp4/config/v1/P4InfoOuterClass$P4Info;Ljava/util/Map;)Lkotlin/Pair;</a></td>
               
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L373">fourward/p4runtime/TypeTranslator$Companion::create (Ljava/util/List;)Lfourward/p4runtime/TypeTranslator;</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L488">fourward/p4runtime/TypeTranslator$Companion::buildParamTypeNames (Lp4/config/v1/P4InfoOuterClass$P4Info;Ljava/util/Map;)Ljava/util/Map;</a></td>
               
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L388">fourward/p4runtime/TypeTranslator$Companion::create (Lp4/config/v1/P4InfoOuterClass$P4Info;Ljava/util/List;)Lfourward/p4runtime/TypeTranslator;</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L546">fourward/p4runtime/TypeTranslator$Companion::buildTables (Ljava/util/List;Ljava/util/Set;Lkotlin/jvm/functions/Function1;)Ljava/util/concurrent/ConcurrentHashMap;</a></td>
               
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L387">fourward/p4runtime/TypeTranslator$Companion::create$default (Lfourward/p4runtime/TypeTranslator$Companion;Lp4/config/v1/P4InfoOuterClass$P4Info;Ljava/util/List;ILjava/lang/Object;)Lfourward/p4runtime/TypeTranslator;</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L541">fourward/p4runtime/TypeTranslator$Companion::buildTables$default (Lfourward/p4runtime/TypeTranslator$Companion;Ljava/util/List;Ljava/util/Set;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Ljava/util/concurrent/ConcurrentHashMap;</a></td>
               
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L488">fourward/p4runtime/TypeTranslator$Companion::packKey (II)J</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L404">fourward/p4runtime/TypeTranslator$Companion::create (Ljava/util/List;)Lfourward/p4runtime/TypeTranslator;</a></td>
               
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L53">fourward/p4runtime/TypeTranslator::&lt;init&gt; (Ljava/util/concurrent/ConcurrentHashMap;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;)V</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L429">fourward/p4runtime/TypeTranslator$Companion::create (Lp4/config/v1/P4InfoOuterClass$P4Info;Ljava/util/List;Ljava/lang/String;)Lfourward/p4runtime/TypeTranslator;</a></td>
               
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L94">fourward/p4runtime/TypeTranslator::dataplaneToSdn (Ljava/lang/String;[B)Lfourward/p4runtime/SdnValue;</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L403">fourward/p4runtime/TypeTranslator$Companion::create$default (Lfourward/p4runtime/TypeTranslator$Companion;Ljava/util/List;ILjava/lang/Object;)Lfourward/p4runtime/TypeTranslator;</a></td>
               
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L65">fourward/p4runtime/TypeTranslator::getHasTranslations ()Z</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L424">fourward/p4runtime/TypeTranslator$Companion::create$default (Lfourward/p4runtime/TypeTranslator$Companion;Lp4/config/v1/P4InfoOuterClass$P4Info;Ljava/util/List;Ljava/lang/String;ILjava/lang/Object;)Lfourward/p4runtime/TypeTranslator;</a></td>
               
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L86">fourward/p4runtime/TypeTranslator::sdnToDataplane (Ljava/lang/String;Ljava/lang/String;)[B</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L602">fourward/p4runtime/TypeTranslator$Companion::packKey (II)J</a></td>
               
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L78">fourward/p4runtime/TypeTranslator::sdnToDataplane (Ljava/lang/String;[B)[B</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L590">fourward/p4runtime/TypeTranslator$Companion::resolveKey (Lfourward/ir/TypeTranslation;)Ljava/lang/String;</a></td>
               
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L237">fourward/p4runtime/TypeTranslator::translateAction (Lp4/v1/P4RuntimeOuterClass$Action;Z)Lp4/v1/P4RuntimeOuterClass$Action;</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L563">fourward/p4runtime/TypeTranslator$Companion::resolveTranslationKey (Lfourward/ir/TypeTranslation;Ljava/util/Map;)Ljava/lang/String;</a></td>
               
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L128">fourward/p4runtime/TypeTranslator::translateForRead (Lp4/v1/P4RuntimeOuterClass$Entity;)Lp4/v1/P4RuntimeOuterClass$Entity;</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L93">fourward/p4runtime/TypeTranslator::&lt;init&gt; (Ljava/util/concurrent/ConcurrentHashMap;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Lfourward/p4runtime/PortTranslator;)V</a></td>
               
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L106">fourward/p4runtime/TypeTranslator::translateForWrite (Lp4/v1/P4RuntimeOuterClass$Update;)Lp4/v1/P4RuntimeOuterClass$Update;</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L138">fourward/p4runtime/TypeTranslator::dataplaneToP4rt (Ljava/lang/String;[B)Lfourward/p4runtime/P4rtValue;</a></td>
               
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L270">fourward/p4runtime/TypeTranslator::translateMatchFields (ILjava/util/List;Z)Ljava/util/List;</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L107">fourward/p4runtime/TypeTranslator::getHasTranslations ()Z</a></td>
               
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L312">fourward/p4runtime/TypeTranslator::translateMetadata (Ljava/util/Map;Ljava/util/List;ZZ)Ljava/util/List;</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L103">fourward/p4runtime/TypeTranslator::getPortTranslator ()Lfourward/p4runtime/PortTranslator;</a></td>
               
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L306">fourward/p4runtime/TypeTranslator::translateMetadata$default (Lfourward/p4runtime/TypeTranslator;Ljava/util/Map;Ljava/util/List;ZZILjava/lang/Object;)Ljava/util/List;</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L130">fourward/p4runtime/TypeTranslator::p4rtToDataplane (Ljava/lang/String;Ljava/lang/String;)[B</a></td>
               
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L183">fourward/p4runtime/TypeTranslator::translatePacketIn (Lp4/v1/P4RuntimeOuterClass$PacketIn;)Lp4/v1/P4RuntimeOuterClass$PacketIn;</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L120">fourward/p4runtime/TypeTranslator::p4rtToDataplane (Ljava/lang/String;[B)[B</a></td>
               
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L169">fourward/p4runtime/TypeTranslator::translatePacketOut (Lp4/v1/P4RuntimeOuterClass$PacketOut;)Lp4/v1/P4RuntimeOuterClass$PacketOut;</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L278">fourward/p4runtime/TypeTranslator::translateAction (Lp4/v1/P4RuntimeOuterClass$Action;Z)Lp4/v1/P4RuntimeOuterClass$Action;</a></td>
               
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L250">fourward/p4runtime/TypeTranslator::translateParams (ILjava/util/List;Z)Ljava/util/List;</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L172">fourward/p4runtime/TypeTranslator::translateForRead (Lp4/v1/P4RuntimeOuterClass$Entity;)Lp4/v1/P4RuntimeOuterClass$Entity;</a></td>
               
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L202">fourward/p4runtime/TypeTranslator::translateTableAction (Lp4/v1/P4RuntimeOuterClass$TableAction;Z)Lp4/v1/P4RuntimeOuterClass$TableAction;</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L150">fourward/p4runtime/TypeTranslator::translateForWrite (Lp4/v1/P4RuntimeOuterClass$Update;)Lp4/v1/P4RuntimeOuterClass$Update;</a></td>
               
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L150">fourward/p4runtime/TypeTranslator::translateTableEntry (Lp4/v1/P4RuntimeOuterClass$TableEntry;Z)Lp4/v1/P4RuntimeOuterClass$TableEntry;</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L311">fourward/p4runtime/TypeTranslator::translateMatchFields (ILjava/util/List;Z)Ljava/util/List;</a></td>
               
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L351">fourward/p4runtime/TypeTranslator::translateValue (Lfourward/p4runtime/TranslationTable;Lcom/google/protobuf/ByteString;Z)Lcom/google/protobuf/ByteString;</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L352">fourward/p4runtime/TypeTranslator::translateMetadata (Ljava/util/Map;Ljava/util/List;Z)Ljava/util/List;</a></td>
+              
+              <td class="coverFnHi">1</td>
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L228">fourward/p4runtime/TypeTranslator::translatePacketIn (Lp4/v1/P4RuntimeOuterClass$PacketIn;)Lp4/v1/P4RuntimeOuterClass$PacketIn;</a></td>
+              
+              <td class="coverFnHi">1</td>
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L213">fourward/p4runtime/TypeTranslator::translatePacketOut (Lp4/v1/P4RuntimeOuterClass$PacketOut;)Lp4/v1/P4RuntimeOuterClass$PacketOut;</a></td>
+              
+              <td class="coverFnHi">1</td>
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L291">fourward/p4runtime/TypeTranslator::translateParams (ILjava/util/List;Z)Ljava/util/List;</a></td>
+              
+              <td class="coverFnHi">1</td>
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L243">fourward/p4runtime/TypeTranslator::translateTableAction (Lp4/v1/P4RuntimeOuterClass$TableAction;Z)Lp4/v1/P4RuntimeOuterClass$TableAction;</a></td>
+              
+              <td class="coverFnHi">1</td>
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L194">fourward/p4runtime/TypeTranslator::translateTableEntry (Lp4/v1/P4RuntimeOuterClass$TableEntry;Z)Lp4/v1/P4RuntimeOuterClass$TableEntry;</a></td>
+              
+              <td class="coverFnHi">1</td>
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L382">fourward/p4runtime/TypeTranslator::translateValue (Lfourward/p4runtime/TranslationTable;Lcom/google/protobuf/ByteString;Z)Lcom/google/protobuf/ByteString;</a></td>
               
               <td class="coverFnHi">1</td>
               
@@ -336,84 +399,84 @@
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L32">fourward/p4runtime/SdnValue$Bitstring::&lt;init&gt; (Lcom/google/protobuf/ByteString;)V</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L32">fourward/p4runtime/P4rtValue$Bitstring::&lt;init&gt; (Lcom/google/protobuf/ByteString;)V</a></td>
               
               <td class="coverFnHi">2</td>
               
               
             </tr>
             <tr>
-              <td class="coverFnAlias"><a href="TypeTranslator.kt.gcov.html#L32">fourward/p4runtime/SdnValue$Bitstring::<init> (Lcom/google/protobuf/ByteString;)V</a></td>
+              <td class="coverFnAlias"><a href="TypeTranslator.kt.gcov.html#L32">fourward/p4runtime/P4rtValue$Bitstring::<init> (Lcom/google/protobuf/ByteString;)V</a></td>
               
               <td class="coverFnAliasHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFnAlias"><a href="TypeTranslator.kt.gcov.html#L32">fourward/p4runtime/SdnValue$Bitstring::getValue ()Lcom/google/protobuf/ByteString;</a></td>
+              <td class="coverFnAlias"><a href="TypeTranslator.kt.gcov.html#L32">fourward/p4runtime/P4rtValue$Bitstring::getValue ()Lcom/google/protobuf/ByteString;</a></td>
               
               <td class="coverFnAliasHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L34">fourward/p4runtime/SdnValue$Str::&lt;init&gt; (Ljava/lang/String;)V</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L34">fourward/p4runtime/P4rtValue$Str::&lt;init&gt; (Ljava/lang/String;)V</a></td>
               
               <td class="coverFnHi">2</td>
               
               
             </tr>
             <tr>
-              <td class="coverFnAlias"><a href="TypeTranslator.kt.gcov.html#L34">fourward/p4runtime/SdnValue$Str::<init> (Ljava/lang/String;)V</a></td>
+              <td class="coverFnAlias"><a href="TypeTranslator.kt.gcov.html#L34">fourward/p4runtime/P4rtValue$Str::<init> (Ljava/lang/String;)V</a></td>
               
               <td class="coverFnAliasHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFnAlias"><a href="TypeTranslator.kt.gcov.html#L34">fourward/p4runtime/SdnValue$Str::getValue ()Ljava/lang/String;</a></td>
+              <td class="coverFnAlias"><a href="TypeTranslator.kt.gcov.html#L34">fourward/p4runtime/P4rtValue$Str::getValue ()Ljava/lang/String;</a></td>
               
               <td class="coverFnAliasHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L497">fourward/p4runtime/TranslationTable::&lt;init&gt; (ZZ)V</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L611">fourward/p4runtime/TranslationTable::&lt;init&gt; (ZZ)V</a></td>
               
               <td class="coverFnHi">2</td>
               
               
             </tr>
             <tr>
-              <td class="coverFnAlias"><a href="TypeTranslator.kt.gcov.html#L497">fourward/p4runtime/TranslationTable::<init> (ZZ)V</a></td>
+              <td class="coverFnAlias"><a href="TypeTranslator.kt.gcov.html#L611">fourward/p4runtime/TranslationTable::<init> (ZZ)V</a></td>
               
               <td class="coverFnAliasHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFnAlias"><a href="TypeTranslator.kt.gcov.html#L497">fourward/p4runtime/TranslationTable::<init> (ZZILkotlin/jvm/internal/DefaultConstructorMarker;)V</a></td>
+              <td class="coverFnAlias"><a href="TypeTranslator.kt.gcov.html#L611">fourward/p4runtime/TranslationTable::<init> (ZZILkotlin/jvm/internal/DefaultConstructorMarker;)V</a></td>
               
               <td class="coverFnAliasHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L98">fourward/p4runtime/TypeTranslator::getOrCreateTable (Ljava/lang/String;)Lfourward/p4runtime/TranslationTable;</a></td>
+              <td class="coverFn"><a href="TypeTranslator.kt.gcov.html#L142">fourward/p4runtime/TypeTranslator::getOrCreateTable (Ljava/lang/String;)Lfourward/p4runtime/TranslationTable;</a></td>
               
               <td class="coverFnHi">2</td>
               
               
             </tr>
             <tr>
-              <td class="coverFnAlias"><a href="TypeTranslator.kt.gcov.html#L98">fourward/p4runtime/TypeTranslator$getOrCreateTable$1::apply (Ljava/lang/String;)Lfourward/p4runtime/TranslationTable;</a></td>
+              <td class="coverFnAlias"><a href="TypeTranslator.kt.gcov.html#L142">fourward/p4runtime/TypeTranslator$getOrCreateTable$1::apply (Ljava/lang/String;)Lfourward/p4runtime/TranslationTable;</a></td>
               
               <td class="coverFnAliasHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFnAlias"><a href="TypeTranslator.kt.gcov.html#L98">fourward/p4runtime/TypeTranslator::getOrCreateTable (Ljava/lang/String;)Lfourward/p4runtime/TranslationTable;</a></td>
+              <td class="coverFnAlias"><a href="TypeTranslator.kt.gcov.html#L142">fourward/p4runtime/TypeTranslator::getOrCreateTable (Ljava/lang/String;)Lfourward/p4runtime/TranslationTable;</a></td>
               
               <td class="coverFnAliasHi">1</td>
               

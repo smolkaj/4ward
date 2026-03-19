@@ -31,18 +31,18 @@
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
-            <td class="headerCovTableEntry">10</td>
-            <td class="headerCovTableEntry">10</td>
+            <td class="headerCovTableEntryHi">93.9&nbsp;%</td>
+            <td class="headerCovTableEntry">66</td>
+            <td class="headerCovTableEntry">62</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-14 01:45:03</td>
+            <td class="headerValue">2026-03-19 07:35:06</td>
             <td></td>
             <td class="headerItem">Functions:</td>
-            <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
-            <td class="headerCovTableEntry">3</td>
-            <td class="headerCovTableEntry">3</td>
+            <td class="headerCovTableEntryMed">81.8&nbsp;%</td>
+            <td class="headerCovTableEntry">11</td>
+            <td class="headerCovTableEntry">9</td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
                 </table>
@@ -63,23 +63,93 @@
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="DataplaneService.kt.gcov.html#L19">fourward/p4runtime/DataplaneService::&lt;init&gt; (Lfourward/simulator/Simulator;Lkotlinx/coroutines/sync/Mutex;)V</a></td>
+              <td class="coverFn"><a href="DataplaneService.kt.gcov.html#L31">fourward/p4runtime/DataplaneService$1::invoke ()Ljava/lang/Void;</a></td>
+              
+              <td class="coverFnLo">0</td>
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFn"><a href="DataplaneService.kt.gcov.html#L83">fourward/p4runtime/DataplaneService$subscribeResults$1$1::invoke ()V</a></td>
               
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="DataplaneService.kt.gcov.html#L23">fourward/p4runtime/DataplaneService::processPacket (Lfourward/sim/v1/SimulatorProto$ProcessPacketRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;</a></td>
+              <td class="coverFn"><a href="DataplaneService.kt.gcov.html#L56">fourward/p4runtime/DataplaneService$subscribeResults$1$handle$1::invoke (Lfourward/p4runtime/PacketBroker$SubscriptionResult;)V</a></td>
               
               <td class="coverFnHi">1</td>
               
               
             </tr>
             <tr>
-              <td class="coverFn"><a href="DataplaneService.kt.gcov.html#L31">fourward/p4runtime/DataplaneService::processPacketWithTraceTree (Lfourward/sim/v1/SimulatorProto$ProcessPacketRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;</a></td>
+              <td class="coverFn"><a href="DataplaneService.kt.gcov.html#L28">fourward/p4runtime/DataplaneService::&lt;init&gt; (Lfourward/p4runtime/PacketBroker;Lkotlinx/coroutines/sync/Mutex;Lkotlin/jvm/functions/Function0;)V</a></td>
               
               <td class="coverFnHi">1</td>
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFnAlias"><a href="DataplaneService.kt.gcov.html#L28">fourward/p4runtime/DataplaneService::<init> (Lfourward/p4runtime/PacketBroker;Lkotlinx/coroutines/sync/Mutex;Lkotlin/jvm/functions/Function0;ILkotlin/jvm/internal/DefaultConstructorMarker;)V</a></td>
+              
+              <td class="coverFnAliasLo">0</td>
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFnAlias"><a href="DataplaneService.kt.gcov.html#L28">fourward/p4runtime/DataplaneService::<init> (Lfourward/p4runtime/PacketBroker;Lkotlinx/coroutines/sync/Mutex;Lkotlin/jvm/functions/Function0;)V</a></td>
+              
+              <td class="coverFnAliasHi">1</td>
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFn"><a href="DataplaneService.kt.gcov.html#L35">fourward/p4runtime/DataplaneService::injectPacket (Lfourward/dataplane/DataplaneProto$InjectPacketRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;</a></td>
+              
+              <td class="coverFnHi">1</td>
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFn"><a href="DataplaneService.kt.gcov.html#L88">fourward/p4runtime/DataplaneService::resolveIngressPort (Lfourward/dataplane/DataplaneProto$InjectPacketRequest;Lfourward/p4runtime/PortTranslator;)I</a></td>
+              
+              <td class="coverFnHi">1</td>
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFn"><a href="DataplaneService.kt.gcov.html#L106">fourward/p4runtime/DataplaneServiceKt::enrichTrace (Lfourward/sim/SimulatorProto$TraceTree;Lfourward/p4runtime/TypeTranslator;)Lfourward/sim/SimulatorProto$TraceTree;</a></td>
+              
+              <td class="coverFnHi">1</td>
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFn"><a href="DataplaneService.kt.gcov.html#L120">fourward/p4runtime/DataplaneServiceKt::toDualEncoded (Lfourward/sim/SimulatorProto$OutputPacket;Lfourward/p4runtime/PortTranslator;)Lfourward/dataplane/DataplaneProto$OutputPacket;</a></td>
+              
+              <td class="coverFnHi">1</td>
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFn"><a href="DataplaneService.kt.gcov.html#L47">fourward/p4runtime/DataplaneService$subscribeResults$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;</a></td>
+              
+              <td class="coverFnHi">2</td>
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFnAlias"><a href="DataplaneService.kt.gcov.html#L47">fourward/p4runtime/DataplaneService$subscribeResults$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;</a></td>
+              
+              <td class="coverFnAliasHi">1</td>
+              
+              
+            </tr>
+            <tr>
+              <td class="coverFnAlias"><a href="DataplaneService.kt.gcov.html#L47">fourward/p4runtime/DataplaneService::subscribeResults (Lfourward/dataplane/DataplaneProto$SubscribeResultsRequest;)Lkotlinx/coroutines/flow/Flow;</a></td>
+              
+              <td class="coverFnAliasHi">1</td>
               
               
             </tr>

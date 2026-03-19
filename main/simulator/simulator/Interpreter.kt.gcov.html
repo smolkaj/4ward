@@ -31,13 +31,13 @@
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">91.0&nbsp;%</td>
+            <td class="headerCovTableEntryHi">91.3&nbsp;%</td>
             <td class="headerCovTableEntry">676</td>
-            <td class="headerCovTableEntry">615</td>
+            <td class="headerCovTableEntry">617</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-14 01:45:03</td>
+            <td class="headerValue">2026-03-19 07:35:06</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">97.5&nbsp;%</td>
@@ -62,28 +62,28 @@
 <pre class="source">
 <span id="L1"><span class="lineNum">       1</span>              : package fourward.simulator</span>
 <span id="L2"><span class="lineNum">       2</span>              : </span>
-<span id="L3"><span class="lineNum">       3</span>              : import fourward.ir.v1.BehavioralConfig</span>
-<span id="L4"><span class="lineNum">       4</span>              : import fourward.ir.v1.BinaryOperator</span>
-<span id="L5"><span class="lineNum">       5</span>              : import fourward.ir.v1.ControlDecl</span>
-<span id="L6"><span class="lineNum">       6</span>              : import fourward.ir.v1.Direction</span>
-<span id="L7"><span class="lineNum">       7</span>              : import fourward.ir.v1.Expr</span>
-<span id="L8"><span class="lineNum">       8</span>              : import fourward.ir.v1.FieldDecl</span>
-<span id="L9"><span class="lineNum">       9</span>              : import fourward.ir.v1.Literal</span>
-<span id="L10"><span class="lineNum">      10</span>              : import fourward.ir.v1.MethodCall</span>
-<span id="L11"><span class="lineNum">      11</span>              : import fourward.ir.v1.ParserDecl</span>
-<span id="L12"><span class="lineNum">      12</span>              : import fourward.ir.v1.SourceInfo</span>
-<span id="L13"><span class="lineNum">      13</span>              : import fourward.ir.v1.Stmt</span>
-<span id="L14"><span class="lineNum">      14</span>              : import fourward.ir.v1.TableApplyExpr</span>
-<span id="L15"><span class="lineNum">      15</span>              : import fourward.ir.v1.TableBehavior</span>
-<span id="L16"><span class="lineNum">      16</span>              : import fourward.ir.v1.Type</span>
-<span id="L17"><span class="lineNum">      17</span>              : import fourward.ir.v1.UnaryOperator</span>
-<span id="L18"><span class="lineNum">      18</span>              : import fourward.sim.v1.SimulatorProto.ActionExecutionEvent</span>
-<span id="L19"><span class="lineNum">      19</span>              : import fourward.sim.v1.SimulatorProto.AssertionEvent</span>
-<span id="L20"><span class="lineNum">      20</span>              : import fourward.sim.v1.SimulatorProto.BranchEvent</span>
-<span id="L21"><span class="lineNum">      21</span>              : import fourward.sim.v1.SimulatorProto.DeparserEmitEvent</span>
-<span id="L22"><span class="lineNum">      22</span>              : import fourward.sim.v1.SimulatorProto.ParserTransitionEvent</span>
-<span id="L23"><span class="lineNum">      23</span>              : import fourward.sim.v1.SimulatorProto.TableLookupEvent</span>
-<span id="L24"><span class="lineNum">      24</span>              : import fourward.sim.v1.SimulatorProto.TraceEvent</span>
+<span id="L3"><span class="lineNum">       3</span>              : import fourward.ir.BehavioralConfig</span>
+<span id="L4"><span class="lineNum">       4</span>              : import fourward.ir.BinaryOperator</span>
+<span id="L5"><span class="lineNum">       5</span>              : import fourward.ir.ControlDecl</span>
+<span id="L6"><span class="lineNum">       6</span>              : import fourward.ir.Direction</span>
+<span id="L7"><span class="lineNum">       7</span>              : import fourward.ir.Expr</span>
+<span id="L8"><span class="lineNum">       8</span>              : import fourward.ir.FieldDecl</span>
+<span id="L9"><span class="lineNum">       9</span>              : import fourward.ir.Literal</span>
+<span id="L10"><span class="lineNum">      10</span>              : import fourward.ir.MethodCall</span>
+<span id="L11"><span class="lineNum">      11</span>              : import fourward.ir.ParserDecl</span>
+<span id="L12"><span class="lineNum">      12</span>              : import fourward.ir.SourceInfo</span>
+<span id="L13"><span class="lineNum">      13</span>              : import fourward.ir.Stmt</span>
+<span id="L14"><span class="lineNum">      14</span>              : import fourward.ir.TableApplyExpr</span>
+<span id="L15"><span class="lineNum">      15</span>              : import fourward.ir.TableBehavior</span>
+<span id="L16"><span class="lineNum">      16</span>              : import fourward.ir.Type</span>
+<span id="L17"><span class="lineNum">      17</span>              : import fourward.ir.UnaryOperator</span>
+<span id="L18"><span class="lineNum">      18</span>              : import fourward.sim.SimulatorProto.ActionExecutionEvent</span>
+<span id="L19"><span class="lineNum">      19</span>              : import fourward.sim.SimulatorProto.AssertionEvent</span>
+<span id="L20"><span class="lineNum">      20</span>              : import fourward.sim.SimulatorProto.BranchEvent</span>
+<span id="L21"><span class="lineNum">      21</span>              : import fourward.sim.SimulatorProto.DeparserEmitEvent</span>
+<span id="L22"><span class="lineNum">      22</span>              : import fourward.sim.SimulatorProto.ParserTransitionEvent</span>
+<span id="L23"><span class="lineNum">      23</span>              : import fourward.sim.SimulatorProto.TableLookupEvent</span>
+<span id="L24"><span class="lineNum">      24</span>              : import fourward.sim.SimulatorProto.TraceEvent</span>
 <span id="L25"><span class="lineNum">      25</span>              : import java.math.BigInteger</span>
 <span id="L26"><span class="lineNum">      26</span>              : </span>
 <span id="L27"><span class="lineNum">      27</span>              : /**</span>
@@ -119,8 +119,8 @@
 <span id="L57"><span class="lineNum">      57</span>              :   //   declaration, which carries the actual action body.</span>
 <span id="L58"><span class="lineNum">      58</span>              :   // - If the midend renamed the action (currentName != &quot;&quot;), it is also indexed under</span>
 <span id="L59"><span class="lineNum">      59</span>              :   //   currentName so that direct call sites using the post-midend name can resolve it.</span>
-<span id="L60"><span class="lineNum">      60</span> <span class="tlaGNC">           1 :   private val actions: Map&lt;String, fourward.ir.v1.ActionDecl&gt; = buildMap {</span></span>
-<span id="L61"><span class="lineNum">      61</span>              :     fun index(action: fourward.ir.v1.ActionDecl) {</span>
+<span id="L60"><span class="lineNum">      60</span> <span class="tlaGNC">           1 :   private val actions: Map&lt;String, fourward.ir.ActionDecl&gt; = buildMap {</span></span>
+<span id="L61"><span class="lineNum">      61</span>              :     fun index(action: fourward.ir.ActionDecl) {</span>
 <span id="L62"><span class="lineNum">      62</span> <span class="tlaGNC">           1 :       if (!containsKey(action.name)) put(action.name, action)</span></span>
 <span id="L63"><span class="lineNum">      63</span> <span class="tlaGNC">           1 :       if (action.currentName.isNotEmpty()) put(action.currentName, action)</span></span>
 <span id="L64"><span class="lineNum">      64</span> <span class="tlaGNC">           1 :     }</span></span>
@@ -196,7 +196,7 @@
 <span id="L134"><span class="lineNum">     134</span>              : </span>
 <span id="L135"><span class="lineNum">     135</span>              :   /** Evaluates a select expression, returning (nextState, formattedValue, formattedExpression). */</span>
 <span id="L136"><span class="lineNum">     136</span>              :   private fun evalSelectWithValue(</span>
-<span id="L137"><span class="lineNum">     137</span>              :     select: fourward.ir.v1.SelectTransition,</span>
+<span id="L137"><span class="lineNum">     137</span>              :     select: fourward.ir.SelectTransition,</span>
 <span id="L138"><span class="lineNum">     138</span>              :     env: Environment,</span>
 <span id="L139"><span class="lineNum">     139</span>              :   ): Triple&lt;String, String, String&gt; {</span>
 <span id="L140"><span class="lineNum">     140</span> <span class="tlaGNC">           1 :     val keyValues = select.keysList.map { evalExpr(it, env) }</span></span>
@@ -204,9 +204,9 @@
 <span id="L142"><span class="lineNum">     142</span> <span class="tlaGNC">           1 :       keyValues.joinToString(&quot;, &quot;) {</span></span>
 <span id="L143"><span class="lineNum">     143</span> <span class="tlaGNC">           1 :         when (it) {</span></span>
 <span id="L144"><span class="lineNum">     144</span> <span class="tlaGNC">           1 :           is BitVal -&gt; &quot;0x${it.bits.value.toString(16).uppercase()}&quot;</span></span>
-<span id="L145"><span class="lineNum">     145</span> <span class="tlaUNC tlaBgUNC">           0 :           is IntVal -&gt; &quot;0x${it.bits.value.toString(16).uppercase()}&quot;</span></span>
-<span id="L146"><span class="lineNum">     146</span> <span class="tlaUNC">           0 :           is BoolVal -&gt; it.value.toString()</span></span>
-<span id="L147"><span class="lineNum">     147</span> <span class="tlaUNC">           0 :           else -&gt; it.toString()</span></span>
+<span id="L145"><span class="lineNum">     145</span> <span class="tlaGNC">           1 :           is IntVal -&gt; &quot;0x${it.bits.value.toString(16).uppercase()}&quot;</span></span>
+<span id="L146"><span class="lineNum">     146</span> <span class="tlaGNC">           1 :           is BoolVal -&gt; it.value.toString()</span></span>
+<span id="L147"><span class="lineNum">     147</span> <span class="tlaUNC tlaBgUNC">           0 :           else -&gt; it.toString()</span></span>
 <span id="L148"><span class="lineNum">     148</span> <span class="tlaGNC tlaBgGNC">           1 :         }</span></span>
 <span id="L149"><span class="lineNum">     149</span>              :       }</span>
 <span id="L150"><span class="lineNum">     150</span> <span class="tlaGNC">           1 :     val expression = select.keysList.joinToString(&quot;, &quot;) { formatExpr(it) }</span></span>
@@ -232,7 +232,7 @@
 <span id="L170"><span class="lineNum">     170</span>              :   }</span>
 <span id="L171"><span class="lineNum">     171</span>              : </span>
 <span id="L172"><span class="lineNum">     172</span>              :   /** Human-readable rendering of an IR expression (best-effort, for trace display). */</span>
-<span id="L173"><span class="lineNum">     173</span>              :   private fun formatExpr(expr: fourward.ir.v1.Expr): String =</span>
+<span id="L173"><span class="lineNum">     173</span>              :   private fun formatExpr(expr: fourward.ir.Expr): String =</span>
 <span id="L174"><span class="lineNum">     174</span> <span class="tlaGNC">           1 :     when {</span></span>
 <span id="L175"><span class="lineNum">     175</span> <span class="tlaGNC">           1 :       expr.hasNameRef() -&gt; expr.nameRef.name</span></span>
 <span id="L176"><span class="lineNum">     176</span> <span class="tlaGNC">           1 :       expr.hasFieldAccess() -&gt; &quot;${formatExpr(expr.fieldAccess.expr)}.${expr.fieldAccess.fieldName}&quot;</span></span>
@@ -252,7 +252,7 @@
 <span id="L190"><span class="lineNum">     190</span>              : </span>
 <span id="L191"><span class="lineNum">     191</span>              :   private fun matchesKeyset(</span>
 <span id="L192"><span class="lineNum">     192</span>              :     value: Value,</span>
-<span id="L193"><span class="lineNum">     193</span>              :     keyset: fourward.ir.v1.KeysetExpr,</span>
+<span id="L193"><span class="lineNum">     193</span>              :     keyset: fourward.ir.KeysetExpr,</span>
 <span id="L194"><span class="lineNum">     194</span>              :     constEnv: Environment,</span>
 <span id="L195"><span class="lineNum">     195</span>              :   ): Boolean =</span>
 <span id="L196"><span class="lineNum">     196</span> <span class="tlaGNC">           1 :     when {</span></span>
@@ -315,7 +315,7 @@
 <span id="L253"><span class="lineNum">     253</span>              : </span>
 <span id="L254"><span class="lineNum">     254</span>              :   /** Pushes a scope, defines [localVars], runs [body], then pops the scope. */</span>
 <span id="L255"><span class="lineNum">     255</span>              :   private inline fun withLocalScope(</span>
-<span id="L256"><span class="lineNum">     256</span>              :     localVars: List&lt;fourward.ir.v1.VarDecl&gt;,</span>
+<span id="L256"><span class="lineNum">     256</span>              :     localVars: List&lt;fourward.ir.VarDecl&gt;,</span>
 <span id="L257"><span class="lineNum">     257</span>              :     env: Environment,</span>
 <span id="L258"><span class="lineNum">     258</span>              :     body: () -&gt; Unit,</span>
 <span id="L259"><span class="lineNum">     259</span>              :   ) {</span>
@@ -356,7 +356,7 @@
 <span id="L294"><span class="lineNum">     294</span>              :     }</span>
 <span id="L295"><span class="lineNum">     295</span> <span class="tlaGNC">           1 :   }</span></span>
 <span id="L296"><span class="lineNum">     296</span>              : </span>
-<span id="L297"><span class="lineNum">     297</span>              :   private fun execIf(ifStmt: fourward.ir.v1.IfStmt, env: Environment) {</span>
+<span id="L297"><span class="lineNum">     297</span>              :   private fun execIf(ifStmt: fourward.ir.IfStmt, env: Environment) {</span>
 <span id="L298"><span class="lineNum">     298</span> <span class="tlaGNC">           1 :     val condition = (evalExpr(ifStmt.condition, env) as BoolVal).value</span></span>
 <span id="L299"><span class="lineNum">     299</span>              : </span>
 <span id="L300"><span class="lineNum">     300</span> <span class="tlaGNC">           1 :     packetCtx?.addTraceEvent(</span></span>
@@ -374,7 +374,7 @@
 <span id="L312"><span class="lineNum">     312</span>              :     }</span>
 <span id="L313"><span class="lineNum">     313</span> <span class="tlaGNC">           1 :   }</span></span>
 <span id="L314"><span class="lineNum">     314</span>              : </span>
-<span id="L315"><span class="lineNum">     315</span>              :   private fun execSwitch(switchStmt: fourward.ir.v1.SwitchStmt, env: Environment) {</span>
+<span id="L315"><span class="lineNum">     315</span>              :   private fun execSwitch(switchStmt: fourward.ir.SwitchStmt, env: Environment) {</span>
 <span id="L316"><span class="lineNum">     316</span> <span class="tlaGNC">           1 :     val tableResult = applyTable(switchStmt.subject.tableApply.tableName, env)</span></span>
 <span id="L317"><span class="lineNum">     317</span> <span class="tlaGNC">           1 :     val matchedCase = switchStmt.casesList.find { it.actionName == tableResult.actionName }</span></span>
 <span id="L318"><span class="lineNum">     318</span> <span class="tlaGNC">           1 :     if (matchedCase != null) {</span></span>
@@ -414,7 +414,7 @@
 <span id="L352"><span class="lineNum">     352</span> <span class="tlaUNC tlaBgUNC">           0 :       else -&gt; error(&quot;unhandled expression kind: $expr&quot;)</span></span>
 <span id="L353"><span class="lineNum">     353</span> <span class="tlaGNC tlaBgGNC">           1 :     }</span></span>
 <span id="L354"><span class="lineNum">     354</span>              : </span>
-<span id="L355"><span class="lineNum">     355</span>              :   private fun evalLiteral(lit: Literal, type: fourward.ir.v1.Type): Value =</span>
+<span id="L355"><span class="lineNum">     355</span>              :   private fun evalLiteral(lit: Literal, type: fourward.ir.Type): Value =</span>
 <span id="L356"><span class="lineNum">     356</span> <span class="tlaGNC">           1 :     when {</span></span>
 <span id="L357"><span class="lineNum">     357</span> <span class="tlaGNC">           1 :       lit.hasBoolean() -&gt; BoolVal(lit.boolean)</span></span>
 <span id="L358"><span class="lineNum">     358</span> <span class="tlaGNC">           1 :       lit.hasErrorMember() -&gt; ErrorVal(lit.errorMember)</span></span>
@@ -439,7 +439,7 @@
 <span id="L377"><span class="lineNum">     377</span> <span class="tlaUNC">           0 :       else -&gt; error(&quot;unhandled literal kind: $lit&quot;)</span></span>
 <span id="L378"><span class="lineNum">     378</span> <span class="tlaGNC tlaBgGNC">           1 :     }</span></span>
 <span id="L379"><span class="lineNum">     379</span>              : </span>
-<span id="L380"><span class="lineNum">     380</span>              :   private fun evalFieldAccess(fa: fourward.ir.v1.FieldAccess, env: Environment): Value {</span>
+<span id="L380"><span class="lineNum">     380</span>              :   private fun evalFieldAccess(fa: fourward.ir.FieldAccess, env: Environment): Value {</span>
 <span id="L381"><span class="lineNum">     381</span>              :     // Special case: table.apply().hit / .miss — the p4c midend may restructure</span>
 <span id="L382"><span class="lineNum">     382</span>              :     // the apply call such that the backend emits FieldAccess{TableApplyExpr, &quot;hit&quot;}</span>
 <span id="L383"><span class="lineNum">     383</span>              :     // rather than TableApplyExpr{access_kind=HIT}.</span>
@@ -485,25 +485,25 @@
 <span id="L423"><span class="lineNum">     423</span> <span class="tlaGNC tlaBgGNC">           1 :     }</span></span>
 <span id="L424"><span class="lineNum">     424</span>              : </span>
 <span id="L425"><span class="lineNum">     425</span>              :   // P4 spec §8.18: out-of-bounds reads return an invalid header with default values.</span>
-<span id="L426"><span class="lineNum">     426</span>              :   private fun evalArrayIndex(ai: fourward.ir.v1.ArrayIndex, env: Environment): Value {</span>
+<span id="L426"><span class="lineNum">     426</span>              :   private fun evalArrayIndex(ai: fourward.ir.ArrayIndex, env: Environment): Value {</span>
 <span id="L427"><span class="lineNum">     427</span> <span class="tlaGNC">           1 :     val stack = evalExpr(ai.expr, env) as? HeaderStackVal ?: error(&quot;array index on non-stack value&quot;)</span></span>
 <span id="L428"><span class="lineNum">     428</span> <span class="tlaGNC">           1 :     val index = intValue(evalExpr(ai.index, env))</span></span>
 <span id="L429"><span class="lineNum">     429</span> <span class="tlaGNC">           1 :     if (index !in 0 until stack.size) return defaultValue(stack.elementTypeName, types)</span></span>
 <span id="L430"><span class="lineNum">     430</span> <span class="tlaGNC">           1 :     return stack.headers[index]</span></span>
 <span id="L431"><span class="lineNum">     431</span>              :   }</span>
 <span id="L432"><span class="lineNum">     432</span>              : </span>
-<span id="L433"><span class="lineNum">     433</span>              :   private fun evalSlice(slice: fourward.ir.v1.Slice, env: Environment): Value {</span>
+<span id="L433"><span class="lineNum">     433</span>              :   private fun evalSlice(slice: fourward.ir.Slice, env: Environment): Value {</span>
 <span id="L434"><span class="lineNum">     434</span> <span class="tlaGNC">           1 :     val bits = (evalExpr(slice.expr, env) as BitVal).bits</span></span>
 <span id="L435"><span class="lineNum">     435</span> <span class="tlaGNC">           1 :     return BitVal(bits.slice(slice.hi, slice.lo))</span></span>
 <span id="L436"><span class="lineNum">     436</span>              :   }</span>
 <span id="L437"><span class="lineNum">     437</span>              : </span>
-<span id="L438"><span class="lineNum">     438</span>              :   private fun evalConcat(concat: fourward.ir.v1.Concat, env: Environment): Value {</span>
+<span id="L438"><span class="lineNum">     438</span>              :   private fun evalConcat(concat: fourward.ir.Concat, env: Environment): Value {</span>
 <span id="L439"><span class="lineNum">     439</span> <span class="tlaGNC">           1 :     val left = (evalExpr(concat.left, env) as BitVal).bits</span></span>
 <span id="L440"><span class="lineNum">     440</span> <span class="tlaGNC">           1 :     val right = (evalExpr(concat.right, env) as BitVal).bits</span></span>
 <span id="L441"><span class="lineNum">     441</span> <span class="tlaGNC">           1 :     return BitVal(left.concat(right))</span></span>
 <span id="L442"><span class="lineNum">     442</span>              :   }</span>
 <span id="L443"><span class="lineNum">     443</span>              : </span>
-<span id="L444"><span class="lineNum">     444</span>              :   private fun evalCast(cast: fourward.ir.v1.Cast, env: Environment): Value {</span>
+<span id="L444"><span class="lineNum">     444</span>              :   private fun evalCast(cast: fourward.ir.Cast, env: Environment): Value {</span>
 <span id="L445"><span class="lineNum">     445</span> <span class="tlaGNC">           1 :     val inner = evalExpr(cast.expr, env)</span></span>
 <span id="L446"><span class="lineNum">     446</span> <span class="tlaGNC">           1 :     return when {</span></span>
 <span id="L447"><span class="lineNum">     447</span> <span class="tlaGNC">           1 :       cast.targetType.hasBit() -&gt; {</span></span>
@@ -559,7 +559,7 @@
 <span id="L497"><span class="lineNum">     497</span>              :   }</span>
 <span id="L498"><span class="lineNum">     498</span>              : </span>
 <span id="L499"><span class="lineNum">     499</span>              :   @Suppress(&quot;CyclomaticComplexMethod&quot;)</span>
-<span id="L500"><span class="lineNum">     500</span>              :   private fun evalBinaryOp(op: fourward.ir.v1.BinaryOp, env: Environment): Value {</span>
+<span id="L500"><span class="lineNum">     500</span>              :   private fun evalBinaryOp(op: fourward.ir.BinaryOp, env: Environment): Value {</span>
 <span id="L501"><span class="lineNum">     501</span>              :     // P4 spec §8.1: compile-time integers adopt the width of the other operand.</span>
 <span id="L502"><span class="lineNum">     502</span> <span class="tlaGNC tlaBgGNC">           1 :     val (left, right) = coerceInfInts(evalExpr(op.left, env), evalExpr(op.right, env))</span></span>
 <span id="L503"><span class="lineNum">     503</span>              : </span>
@@ -656,7 +656,7 @@
 <span id="L594"><span class="lineNum">     594</span> <span class="tlaGNC">           1 :       else -&gt; left to right</span></span>
 <span id="L595"><span class="lineNum">     595</span> <span class="tlaGNC">           1 :     }</span></span>
 <span id="L596"><span class="lineNum">     596</span>              : </span>
-<span id="L597"><span class="lineNum">     597</span>              :   private fun evalUnaryOp(op: fourward.ir.v1.UnaryOp, env: Environment): Value {</span>
+<span id="L597"><span class="lineNum">     597</span>              :   private fun evalUnaryOp(op: fourward.ir.UnaryOp, env: Environment): Value {</span>
 <span id="L598"><span class="lineNum">     598</span> <span class="tlaGNC">           1 :     val inner = evalExpr(op.expr, env)</span></span>
 <span id="L599"><span class="lineNum">     599</span> <span class="tlaGNC">           1 :     return when (op.op) {</span></span>
 <span id="L600"><span class="lineNum">     600</span>              :       // Two's-complement negation: (2^N - x) mod 2^N = (0 - x) using wrapping subtraction.</span>
@@ -673,13 +673,13 @@
 <span id="L611"><span class="lineNum">     611</span>              :     }</span>
 <span id="L612"><span class="lineNum">     612</span>              :   }</span>
 <span id="L613"><span class="lineNum">     613</span>              : </span>
-<span id="L614"><span class="lineNum">     614</span>              :   private fun evalMux(mux: fourward.ir.v1.MuxExpr, env: Environment): Value =</span>
+<span id="L614"><span class="lineNum">     614</span>              :   private fun evalMux(mux: fourward.ir.MuxExpr, env: Environment): Value =</span>
 <span id="L615"><span class="lineNum">     615</span> <span class="tlaGNC tlaBgGNC">           1 :     if ((evalExpr(mux.condition, env) as BoolVal).value) evalExpr(mux.thenExpr, env)</span></span>
 <span id="L616"><span class="lineNum">     616</span> <span class="tlaGNC">           1 :     else evalExpr(mux.elseExpr, env)</span></span>
 <span id="L617"><span class="lineNum">     617</span>              : </span>
 <span id="L618"><span class="lineNum">     618</span>              :   private fun evalStructExpr(</span>
-<span id="L619"><span class="lineNum">     619</span>              :     se: fourward.ir.v1.StructExpr,</span>
-<span id="L620"><span class="lineNum">     620</span>              :     type: fourward.ir.v1.Type,</span>
+<span id="L619"><span class="lineNum">     619</span>              :     se: fourward.ir.StructExpr,</span>
+<span id="L620"><span class="lineNum">     620</span>              :     type: fourward.ir.Type,</span>
 <span id="L621"><span class="lineNum">     621</span>              :     env: Environment,</span>
 <span id="L622"><span class="lineNum">     622</span>              :   ): Value {</span>
 <span id="L623"><span class="lineNum">     623</span> <span class="tlaGNC">           1 :     require(type.hasNamed()) { &quot;StructExpr must have a named type, got: $type&quot; }</span></span>
