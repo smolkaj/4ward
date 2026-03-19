@@ -1,6 +1,8 @@
 # SAI P4 (middleblock instantiation) — vendored from sonic-net/sonic-pins.
 # Used for E2E testing of the P4Runtime server with @p4runtime_translation.
 
+load("//e2e_tests:diff_test.bzl", "cmd_diff_test")
+
 exports_files(
     glob([
         "fixed/*.p4",
@@ -64,4 +66,31 @@ genrule(
         "@p4c//p4include:core.p4",
     ],
     visibility = ["//visibility:public"],
+)
+
+# Extract stock v1model.p4 from p4c for diff testing.
+genrule(
+    name = "stock_v1model",
+    srcs = ["@p4c//p4include"],
+    outs = ["v1model.p4"],
+    cmd = "cp $$(dirname $(execpath @p4c//p4include:core.p4))/v1model.p4 $@",
+    tools = ["@p4c//p4include:core.p4"],
+)
+
+# Golden diff of v1model_sai.p4 vs stock v1model.p4 — tracks the size of
+# our fork. Update with: bazel run //e2e_tests/sai_p4:v1model_fork_diff_test -- --update
+cmd_diff_test(
+    name = "v1model_fork_diff_test",
+    actual_cmd = " ".join([
+        "diff -u",
+        "--label v1model.p4 --label v1model_sai.p4",
+        "$(location :stock_v1model)",
+        "$(location fixed/v1model_sai.p4)",
+        "|| true",
+    ]),
+    data = [
+        "fixed/v1model_sai.p4",
+        ":stock_v1model",
+    ],
+    expected = "v1model_fork.golden.diff",
 )

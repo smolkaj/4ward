@@ -70,6 +70,13 @@ const bit<32> __v1model_version = V1MODEL_VERSION;
 #ifndef PORT_BITWIDTH
 #error "PORT_BITWIDTH must be defined before including v1model_sai.p4"
 #endif
+// Pin well-known ports so they get deterministic P4RT names instead of
+// auto-allocated values. Values match SAI_P4_CPU_PORT / SAI_P4_DROP_PORT
+// in ids.h; raw literals used here to avoid an #include dependency.
+@p4runtime_translation_mappings({
+  {"CPU_PORT", 510},
+  {"DROP_PORT", 511},
+})
 @p4runtime_translation("", string)
 type bit<PORT_BITWIDTH> port_id_t;
 
