@@ -1,6 +1,6 @@
-/* Header bar: warm amber to complement the green logo. */
-.md-header {
-  background-color: #f59e0b;
+/* White logo in the header bar. */
+.md-header .md-header__button.md-logo img {
+  filter: brightness(0) invert(1);
 }
 
 /* Sidebar title ("4ward"): top of the hierarchy, larger than section headers. */
