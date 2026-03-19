@@ -984,7 +984,7 @@
 
 
 <p align="center">
-  <a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="assets/logo.svg" data-desc-position="bottom"><img src="assets/logo.svg" alt="4ward logo" width="160"></a>
+  <img src="assets/logo.svg" alt="4ward logo" width="160" class="off-glb">
 </p>
 
 <h1 id="4ward">4ward<a class="headerlink" href="#4ward" title="Permanent link">¶</a></h1>
@@ -994,6 +994,10 @@ trees</strong>: a complete record of every parser transition, table lookup, acti
 execution, and branch decision a packet encounters. At non-deterministic
 choice points (action selectors, clone, multicast), the trace forks — showing
 all possible outcomes in a single pass.</p>
+<div class="admonition tip">
+<p class="admonition-title">Prefer to get your hands dirty?</p>
+<p>Jump straight to the <strong><a href="https://github.com/smolkaj/4ward/blob/main/examples/tutorial.md">hands-on tutorial</a></strong> — compile a P4 program, send packets, read traces, all from the terminal. Every command is CI-verified, so it always works.</p>
+</div>
 <h2 id="pick-your-entry-point">Pick your entry point<a class="headerlink" href="#pick-your-entry-point" title="Permanent link">¶</a></h2>
 <table>
 <thead>
