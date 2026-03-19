@@ -32,7 +32,7 @@ all possible outcomes in a single pass.
 - **v1model and PSA** — two P4 architectures fully implemented, with support
   for architecture modifications like translated port types.
   [Learn more](concepts/architectures.md).
-- **[P4Runtime](https://p4lang.github.io/p4runtime/spec/v1.4.0/P4Runtime-Spec.html) server** — spec-compliant gRPC server
+- **[P4Runtime](https://p4lang.github.io/p4runtime/spec/v1.5.0/P4Runtime-Spec.html) server** — spec-compliant gRPC server
   with full arbitration, table management, PacketIO, and clone/multicast
   support.
 - **Type translation** — `@p4runtime_translation` types (string port names,
