@@ -810,10 +810,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#example" class="md-nav__link">
+  <a href="#the-problem" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Example
+        The problem
       
     </span>
   </a>
@@ -828,6 +828,45 @@
       
     </span>
   </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuring-mappings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuring mappings
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configuring mappings">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#in-p4-source-p4runtime_translation_mappings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        In P4 source: @p4runtime_translation_mappings
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#at-pipeline-load-deviceconfigtranslations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        At pipeline load: DeviceConfig.translations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -990,10 +1029,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#example" class="md-nav__link">
+  <a href="#the-problem" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Example
+        The problem
       
     </span>
   </a>
@@ -1008,6 +1047,45 @@
       
     </span>
   </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuring-mappings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuring mappings
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configuring mappings">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#in-p4-source-p4runtime_translation_mappings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        In P4 source: @p4runtime_translation_mappings
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#at-pipeline-load-deviceconfigtranslations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        At pipeline load: DeviceConfig.translations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1065,56 +1143,64 @@
 
 
 <h1 id="type-translation">Type Translation<a class="headerlink" href="#type-translation" title="Permanent link">&para;</a></h1>
-<p>P4 programs can annotate types with
-<a href="https://p4.org/p4-spec/p4runtime/main/P4Runtime-Spec.html#sec-translation-annotation"><code>@p4runtime_translation</code></a>
-to give them two representations:</p>
-<ul>
-<li><strong>P4Runtime (controller-facing)</strong> — what the controller sends and receives.
-  Can be a string (e.g. <code>"Ethernet0"</code>) or a fixed-width integer.</li>
-<li><strong>Dataplane</strong> — the compact value the P4 program processes internally
-  (e.g. a 9-bit port number).</li>
-</ul>
-<p>4ward translates between these automatically at the P4Runtime API boundary.</p>
-<h2 id="example">Example<a class="headerlink" href="#example" title="Permanent link">&para;</a></h2>
-<p>SAI P4 declares port IDs as translated strings:</p>
+<p>P4 programs use
+<a href="https://p4lang.github.io/p4runtime/spec/v1.4.0/P4Runtime-Spec.html#sec-user-defined-types"><code>@p4runtime_translation</code></a>
+to decouple controller-facing values from data-plane values — but the
+<a href="https://p4lang.github.io/p4runtime/spec/v1.4.0/P4Runtime-Spec.html">P4Runtime spec</a>
+leaves the actual mapping mechanism unspecified. Every deployment rolls its
+own. 4ward ships a built-in translation engine that handles this automatically.</p>
+<h2 id="the-problem">The problem<a class="headerlink" href="#the-problem" title="Permanent link">&para;</a></h2>
+<p>A P4 program might declare:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>@p4runtime_translation(&quot;&quot;, string)
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>type bit&lt;9&gt; port_id_t;
 </code></pre></div>
-<p>A controller installs a table entry with <code>port = "Ethernet1"</code>. The
-translator maps it to dataplane value <code>0x01</code>. When the entry is read back,
-the translator maps <code>0x01</code> back to <code>"Ethernet1"</code>.</p>
+<p>The controller sends <code>"Ethernet0"</code> (a string). The P4 program processes a
+9-bit integer. Something has to map between these — but the P4Runtime spec
+doesn't say how. Both <code>sdn_string</code> (like SAI P4's port names) and
+<code>sdn_bitwidth</code> (fixed-width integers in a wider SDN representation) are
+supported.</p>
 <h2 id="translation-modes">Translation modes<a class="headerlink" href="#translation-modes" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>Mode</th>
-<th>Behavior</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>Auto-allocate</strong> (default)</td>
-<td>P4Runtime values are assigned sequential dataplane values on first use (0, 1, 2, ...)</td>
-</tr>
-<tr>
-<td><strong>Explicit</strong></td>
-<td>Only pre-configured mappings accepted; unknown values rejected</td>
-</tr>
-<tr>
-<td><strong>Hybrid</strong></td>
-<td>Explicit pins for known values, auto-allocate for the rest</td>
-</tr>
-</tbody>
-</table>
-<p>Configure via <code>DeviceConfig.translations</code> in <code>SetForwardingPipelineConfig</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>translations {
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  type_name: &quot;port_id_t&quot;
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>  auto_allocate: true
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>  entries { sdn_str: &quot;Ethernet0&quot;  dataplane_value: &quot;\x00&quot; }
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>  entries { sdn_str: &quot;Ethernet1&quot;  dataplane_value: &quot;\x01&quot; }
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>}
+<p>4ward supports three modes:</p>
+<ul>
+<li><strong>Auto-allocate</strong> (default) — 4ward assigns data-plane values on first use.
+  Zero config. The controller sends any value; 4ward maps it to 0, 1, 2, ...</li>
+<li><strong>Explicit</strong> — you provide the full mapping table upfront. Unknown values
+  are rejected.</li>
+<li><strong>Hybrid</strong> — pin the values that matter, auto-allocate the rest.</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Hybrid mode example — pin special ports, auto-allocate the rest:
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>  explicit:  &quot;CpuPort&quot;    → 510
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>  explicit:  &quot;DropPort&quot;   → 511
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>  auto:      &quot;Ethernet0&quot;  →   0  (assigned on first use)
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>  auto:      &quot;Ethernet1&quot;  →   1
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>  auto:      &quot;Ethernet2&quot;  →   2
 </code></pre></div>
-<p>Without explicit configuration, auto-allocation is used by default.</p>
+<h2 id="configuring-mappings">Configuring mappings<a class="headerlink" href="#configuring-mappings" title="Permanent link">&para;</a></h2>
+<p>There are two ways to provide explicit mappings.</p>
+<h3 id="in-p4-source-p4runtime_translation_mappings">In P4 source: <code>@p4runtime_translation_mappings</code><a class="headerlink" href="#in-p4-source-p4runtime_translation_mappings" title="Permanent link">&para;</a></h3>
+<p>The P4 program itself can declare mappings inline:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>@p4runtime_translation(&quot;&quot;, string)
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>@p4runtime_translation_mappings({
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>  {&quot;CpuPort&quot;, 510},
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>  {&quot;DropPort&quot;, 511}
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>})
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>type bit&lt;9&gt; port_id_t;
+</code></pre></div>
+<p>The 4ward p4c backend extracts these at compile time and converts them to
+translation entries with auto-allocate enabled (hybrid mode). This is the
+most convenient approach — the mappings live with the type declaration.</p>
+<h3 id="at-pipeline-load-deviceconfigtranslations">At pipeline load: <code>DeviceConfig.translations</code><a class="headerlink" href="#at-pipeline-load-deviceconfigtranslations" title="Permanent link">&para;</a></h3>
+<p>Alternatively, configure mappings in <code>SetForwardingPipelineConfig</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>translations {
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>  type_name: &quot;port_id_t&quot;
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>  auto_allocate: true
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>  entries { sdn_str: &quot;Ethernet0&quot;  dataplane_value: &quot;\x00&quot; }
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>  entries { sdn_str: &quot;Ethernet1&quot;  dataplane_value: &quot;\x01&quot; }
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>}
+</code></pre></div>
+<p>This is useful when the controller, not the P4 program, owns the mapping.</p>
+<p>Without either source of configuration, auto-allocation is used by default.</p>
 <h2 id="where-translation-happens">Where translation happens<a class="headerlink" href="#where-translation-happens" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1160,7 +1246,7 @@ parameters. Ports are different: they appear in hardcoded proto fields across
 multiple messages (<code>InjectPacketRequest.ingress_port</code>,
 <code>OutputPacket.egress_port</code>, <code>PacketIn</code>/<code>PacketOut</code> metadata, clone session
 replicas).</p>
-<p>4ward creates a <code>PortTranslator</code> when the architecture's port metadata field
+<p>4ward creates a port translator when the architecture's port metadata field
 uses a <code>type</code> (not <code>typedef</code>) with <code>@p4runtime_translation</code>. Stock
 architectures use <code>typedef</code> — no port translation. Programs that need port
 translation use a <a href="../architecture-modifications/">forked architecture</a>.</p>

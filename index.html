@@ -1020,7 +1020,7 @@
 
 <h1 id="4ward">4ward<a class="headerlink" href="#4ward" title="Permanent link">&para;</a></h1>
 <p><strong>A glass-box P4 simulator — trace every decision your packet makes.</strong></p>
-<p>4ward is a spec-compliant <a href="https://p4.org/wp-content/uploads/sites/53/p4-spec/docs/p4-16-working-draft.html">P4₁₆</a> reference simulator that produces <strong>trace
+<p>4ward is a spec-compliant <a href="https://p4.org/wp-content/uploads/sites/53/p4-spec/docs/P4-16-v1.2.4.html">P4₁₆</a> reference simulator that produces <strong>trace
 trees</strong>: a complete record of every parser transition, table lookup, action
 execution, and branch decision a packet encounters. At non-deterministic
 choice points (action selectors, clone, multicast), the trace forks — showing
@@ -1064,7 +1064,7 @@ all possible outcomes in a single pass.</p>
 <li><strong>v1model and PSA</strong> — two P4 architectures fully implemented, with support
   for architecture modifications like translated port types.
   <a href="concepts/architectures/">Learn more</a>.</li>
-<li><strong><a href="https://p4.org/specs/">P4Runtime</a> server</strong> — spec-compliant gRPC server
+<li><strong><a href="https://p4lang.github.io/p4runtime/spec/v1.4.0/P4Runtime-Spec.html">P4Runtime</a> server</strong> — spec-compliant gRPC server
   with full arbitration, table management, PacketIO, and clone/multicast
   support.</li>
 <li><strong>Type translation</strong> — <code>@p4runtime_translation</code> types (string port names,
