@@ -1,7 +1,5 @@
 # Web Playground Reference
 
-![4ward Web Playground](https://raw.githubusercontent.com/smolkaj/4ward/main/docs/playground.gif)
-
 ## Starting the server
 
 ```sh

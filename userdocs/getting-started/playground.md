@@ -3,6 +3,8 @@
 The playground is the fastest way to try 4ward — edit, compile, and trace P4
 programs in the browser.
 
+![4ward Web Playground](https://raw.githubusercontent.com/smolkaj/4ward/main/docs/playground.gif)
+
 ## Start the server
 
 Clone and build if you haven't already:
