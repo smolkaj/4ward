@@ -8,7 +8,7 @@ User-facing documentation for 4ward, built with
 **Local preview:**
 
 ```sh
-pip install mkdocs-material
+pip install mkdocs-material mkdocs-glightbox
 mkdocs serve        # http://localhost:8000
 ```
 
