@@ -1,3 +1,8 @@
+/* Header bar: warm amber to complement the green logo. */
+.md-header {
+  background-color: #f59e0b;
+}
+
 /* Sidebar title ("4ward"): top of the hierarchy, larger than section headers. */
 .md-nav__title {
   font-weight: 700;
