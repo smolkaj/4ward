@@ -70,6 +70,8 @@ most convenient approach — the mappings live with the type declaration.
 Alternatively, configure mappings in `SetForwardingPipelineConfig`:
 
 ```textproto
+# proto-file: @fourward//simulator/ir.proto
+# proto-message: fourward.ir.DeviceConfig
 translations {
   type_name: "port_id_t"
   auto_allocate: true
