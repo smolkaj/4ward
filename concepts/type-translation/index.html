@@ -1143,12 +1143,14 @@
 
 
 <h1 id="type-translation">Type Translation<a class="headerlink" href="#type-translation" title="Permanent link">&para;</a></h1>
-<p>P4 programs use
-<a href="https://p4lang.github.io/p4runtime/spec/v1.4.0/P4Runtime-Spec.html#sec-user-defined-types"><code>@p4runtime_translation</code></a>
-to decouple controller-facing values from data-plane values — but the
-<a href="https://p4lang.github.io/p4runtime/spec/v1.4.0/P4Runtime-Spec.html">P4Runtime spec</a>
-leaves the actual mapping mechanism unspecified. Every deployment rolls its
-own. 4ward ships a built-in translation engine that handles this automatically.</p>
+<p>Type translation is a
+<a href="https://p4lang.github.io/p4runtime/spec/v1.5.0/P4Runtime-Spec.html">P4Runtime</a>
+mechanism that decouples controller-facing values from data-plane values. P4
+programs declare translated types with the
+<a href="https://p4lang.github.io/p4runtime/spec/v1.5.0/P4Runtime-Spec.html#sec-user-defined-types"><code>@p4runtime_translation</code></a>
+annotation — but the P4Runtime spec leaves the actual mapping mechanism
+unspecified. Every deployment rolls its own. 4ward ships a built-in
+translation engine that handles this automatically.</p>
 <h2 id="the-problem">The problem<a class="headerlink" href="#the-problem" title="Permanent link">&para;</a></h2>
 <p>A P4 program might declare:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>@p4runtime_translation(&quot;&quot;, string)

@@ -1,5 +1,11 @@
 /* Make sidebar section headers visually distinct from page links. */
 .md-nav__item--section > .md-nav__link {
   font-weight: 700;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--md-default-fg-color) !important;
+  margin-top: 0.6rem;
+  padding-bottom: 0.1rem;
+  border-bottom: 1px solid var(--md-default-fg-color--lightest);
 }
