@@ -5,7 +5,9 @@ originally from the [p4c](https://github.com/p4lang/p4c) compiler test suite
 and widely used across the P4 ecosystem (p4c,
 [BMv2](https://github.com/p4lang/behavioral-model),
 [p4testgen](https://github.com/p4lang/p4c/tree/main/backends/p4tools/modules/testgen)).
-4ward uses the same format for compatibility.
+4ward uses the same format for compatibility. See the
+[`e2e_tests/`](https://github.com/smolkaj/4ward/tree/main/e2e_tests)
+directory for real-world examples.
 
 Lines starting with `#` are comments. Tokens are whitespace-separated.
 

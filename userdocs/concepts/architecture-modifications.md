@@ -72,7 +72,8 @@ Adding a completely new P4 architecture (e.g., PNA, TNA) requires changes to
 4ward: a Kotlin class that implements the `Architecture` interface and handles
 the architecture's pipeline stages, externs, and non-deterministic operations.
 
-Use `V1ModelArchitecture.kt` as the reference implementation.
+Use [`V1ModelArchitecture.kt`](https://github.com/smolkaj/4ward/blob/main/simulator/V1ModelArchitecture.kt)
+as the reference implementation.
 
 ### Step 1: Implement `Architecture`
 
@@ -118,7 +119,7 @@ private fun createExternHandler(state: State): ExternHandler =
 
 ### Step 3: Register
 
-Add your architecture to the dispatcher in `Simulator.kt`:
+Add your architecture to the dispatcher in [`Simulator.kt`](https://github.com/smolkaj/4ward/blob/main/simulator/Simulator.kt):
 
 ```kotlin
 architecture = when (archName) {
