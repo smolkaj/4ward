@@ -76,7 +76,7 @@ Multiple calls use last-writer-wins. All produce
 
 The Portable Switch Architecture — a more modern design with a cleaner
 separation between ingress and egress. Defined in
-[psa.p4](https://github.com/p4lang/p4c/blob/main/p4include/psa.p4);
+[psa.p4](https://github.com/p4lang/p4-spec/blob/main/p4-16/psa/psa.p4);
 see the [PSA specification](https://p4lang.github.io/p4-spec/docs/PSA.pdf)
 for the canonical behavioral spec.
 
