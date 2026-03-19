@@ -5,6 +5,14 @@ programs in the browser.
 
 ## Start the server
 
+Clone and build if you haven't already:
+
+```sh
+git clone https://github.com/smolkaj/4ward.git && cd 4ward
+```
+
+Then start the playground:
+
 ```sh
 bazel run //web:playground
 ```

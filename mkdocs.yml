@@ -9,6 +9,9 @@ docs_dir: userdocs
 site_dir: site
 exclude_docs: README.md
 
+extra_css:
+  - stylesheets/extra.css
+
 theme:
   name: material
   palette:
