@@ -55,22 +55,31 @@ class DataplaneService(
 
       val handle =
         broker.subscribe { subResult ->
-          val translator = typeTranslator()
-          val pt = translator?.portTranslator
-          val result =
-            ProcessPacketResultProto.newBuilder()
-              .setInputPacket(
-                DataplaneProto.InputPacket.newBuilder()
-                  .setDataplaneIngressPort(subResult.ingressPort)
-                  .apply {
-                    pt?.dataplaneToP4rt(subResult.ingressPort)?.let { setP4RtIngressPort(it) }
-                  }
-                  .setPayload(ByteString.copyFrom(subResult.payload))
-              )
-              .addAllOutputPackets(subResult.outputPackets.map { it.toDualEncoded(pt) })
-              .setTrace(enrichTrace(subResult.trace, translator))
-              .build()
-          trySend(SubscribeResultsResponse.newBuilder().setResult(result).build())
+          try {
+            val translator = typeTranslator()
+            val pt = translator?.portTranslator
+            val result =
+              ProcessPacketResultProto.newBuilder()
+                .setInputPacket(
+                  DataplaneProto.InputPacket.newBuilder()
+                    .setDataplaneIngressPort(subResult.ingressPort)
+                    .apply {
+                      // Ingress ports may come from InjectPacket.dataplane_ingress_port (raw int,
+                      // never forward-allocated), so a missing reverse mapping is expected.
+                      pt?.dataplaneToP4rt(subResult.ingressPort)?.let { setP4RtIngressPort(it) }
+                    }
+                    .setPayload(ByteString.copyFrom(subResult.payload))
+                )
+                .addAllOutputPackets(subResult.outputPackets.map { it.toDualEncoded(pt) })
+                .setTrace(enrichTrace(subResult.trace, translator))
+                .build()
+            trySend(SubscribeResultsResponse.newBuilder().setResult(result).build())
+          } catch (
+            @Suppress("TooGenericExceptionCaught") // Any translation/encoding failure should
+            e: Exception // terminate this subscription stream, not crash the packet sender.
+          ) {
+            close(e)
+          }
         }
 
       awaitClose { handle.unsubscribe() }
@@ -101,12 +110,29 @@ private fun enrichTrace(trace: TraceTree, translator: TypeTranslator?): TraceTre
 /**
  * Converts a simulator [fourward.sim.SimulatorProto.OutputPacket] to a dual-encoded
  * [DataplaneProto.OutputPacket].
+ *
+ * When a [PortTranslator] is present, every egress port must be reverse-translatable — either
+ * forward-allocated by a controller Write or installed via `Replica.port` (bytes). A missing
+ * mapping means the clone session or multicast group used the deprecated `Replica.egress_port`
+ * (int32), which bypasses port translation.
  */
 private fun fourward.sim.SimulatorProto.OutputPacket.toDualEncoded(
   pt: PortTranslator?
 ): DataplaneProto.OutputPacket =
   DataplaneProto.OutputPacket.newBuilder()
     .setDataplaneEgressPort(dataplaneEgressPort)
-    .apply { pt?.dataplaneToP4rt(dataplaneEgressPort)?.let { setP4RtEgressPort(it) } }
+    .apply {
+      if (pt != null) {
+        val p4rtPort =
+          pt.dataplaneToP4rt(dataplaneEgressPort)
+            ?: error(
+              "PortTranslator has no reverse mapping for dataplane egress port " +
+                "$dataplaneEgressPort. Use Replica.port (bytes) instead of the deprecated " +
+                "Replica.egress_port (int32) to enable port translation for clone sessions " +
+                "and multicast groups."
+            )
+        setP4RtEgressPort(p4rtPort)
+      }
+    }
     .setPayload(payload)
     .build()

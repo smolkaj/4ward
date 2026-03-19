@@ -18,7 +18,7 @@ fun ByteString.toUnsignedInt(): Int =
 /**
  * Minimum-width unsigned big-endian encoding of a non-negative integer (P4Runtime canonical form).
  */
-internal fun encodeMinWidth(value: Int): ByteString {
+fun encodeMinWidth(value: Int): ByteString {
   if (value == 0) return ByteString.copyFrom(byteArrayOf(0))
   val bytes = mutableListOf<Byte>()
   var v = value
@@ -222,18 +222,15 @@ private constructor(
   /**
    * Translates PacketIn metadata from data-plane to P4Runtime representation.
    *
-   * Lenient: metadata values without a reverse mapping (e.g. the CPU port, which the controller
-   * never forward-allocated) are passed through unchanged.
+   * @throws TranslationException if a metadata value has no reverse mapping. This happens when
+   *   clone sessions or multicast groups use the deprecated `Replica.egress_port` (int32) field,
+   *   which bypasses port translation. Use `Replica.port` (bytes, P4RT v1.4+) instead.
    */
   fun translatePacketIn(packetIn: PacketIn): PacketIn {
     if (packetInMetadataTypeNames.isEmpty()) return packetIn
     val translated =
-      translateMetadata(
-        packetInMetadataTypeNames,
-        packetIn.metadataList,
-        toDataplane = false,
-        lenient = true,
-      ) ?: return packetIn
+      translateMetadata(packetInMetadataTypeNames, packetIn.metadataList, toDataplane = false)
+        ?: return packetIn
     return packetIn.toBuilder().clearMetadata().addAllMetadata(translated).build()
   }
 
@@ -353,23 +350,13 @@ private constructor(
     typeNameMap: Map<Int, String>,
     metadata: List<p4.v1.P4RuntimeOuterClass.PacketMetadata>,
     toDataplane: Boolean,
-    lenient: Boolean = false,
   ): List<p4.v1.P4RuntimeOuterClass.PacketMetadata>? {
     var changed = false
     val result =
       metadata.map { meta ->
         val typeName = typeNameMap[meta.metadataId]
         if (typeName != null) {
-          val translated =
-            if (lenient) {
-              try {
-                translateValue(getOrCreateTable(typeName), meta.value, toDataplane)
-              } catch (_: TranslationException) {
-                null
-              }
-            } else {
-              translateValue(getOrCreateTable(typeName), meta.value, toDataplane)
-            }
+          val translated = translateValue(getOrCreateTable(typeName), meta.value, toDataplane)
           if (translated != null) {
             changed = true
             meta.toBuilder().setValue(translated).build()
