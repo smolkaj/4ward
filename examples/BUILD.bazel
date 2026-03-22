@@ -12,7 +12,7 @@ exports_files(
 
 cram_test(
     name = "tutorial_test",
-    src = "tutorial.md",
+    src = "tutorial.t",
     data = [
         "//cli:4ward",
         "//examples:basic_table.p4",

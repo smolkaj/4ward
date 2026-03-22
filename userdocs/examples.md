@@ -5,7 +5,7 @@ works with the [CLI](getting-started/cli.md) and the
 [web playground](getting-started/playground.md).
 
 For a guided walkthrough using these examples, see the
-[tutorial](https://github.com/smolkaj/4ward/blob/main/examples/tutorial.md).
+[tutorial](https://github.com/smolkaj/4ward/blob/main/examples/tutorial.t).
 
 ## passthrough
 
