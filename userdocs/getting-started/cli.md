@@ -105,7 +105,7 @@ programs, split the work:
 
 ## What's next
 
-- **Tutorial** — the full [hands-on walkthrough](https://github.com/smolkaj/4ward/blob/main/examples/tutorial.md),
+- **Tutorial** — the full [hands-on walkthrough](https://github.com/smolkaj/4ward/blob/main/examples/tutorial.t),
   CI-verified so it's always up to date.
 - **STF format** — full syntax for [table entries, match types, and
   clone/multicast setup](../reference/stf.md).

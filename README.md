@@ -319,7 +319,7 @@ report in about 5. No flakes, no "works on my machine." See for yourself on the
 guides, reference pages, and concept explainers for the web playground, CLI,
 and gRPC API.
 
-**[Tutorial](examples/tutorial.md)** — a hands-on walkthrough from hello
+**[Tutorial](examples/tutorial.t)** — a hands-on walkthrough from hello
 world to machine-readable trace output. Doubles as a regression test (cram
 format — every command and expected output is verified in CI).
 
