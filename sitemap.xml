@@ -2,54 +2,54 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://smolkaj.github.io/4ward/</loc>
-         <lastmod>2026-03-19</lastmod>
+         <lastmod>2026-03-22</lastmod>
     </url>
     <url>
          <loc>https://smolkaj.github.io/4ward/examples/</loc>
-         <lastmod>2026-03-19</lastmod>
+         <lastmod>2026-03-22</lastmod>
     </url>
     <url>
          <loc>https://smolkaj.github.io/4ward/concepts/architecture-modifications/</loc>
-         <lastmod>2026-03-19</lastmod>
+         <lastmod>2026-03-22</lastmod>
     </url>
     <url>
          <loc>https://smolkaj.github.io/4ward/concepts/architectures/</loc>
-         <lastmod>2026-03-19</lastmod>
+         <lastmod>2026-03-22</lastmod>
     </url>
     <url>
          <loc>https://smolkaj.github.io/4ward/concepts/traces/</loc>
-         <lastmod>2026-03-19</lastmod>
+         <lastmod>2026-03-22</lastmod>
     </url>
     <url>
          <loc>https://smolkaj.github.io/4ward/concepts/type-translation/</loc>
-         <lastmod>2026-03-19</lastmod>
+         <lastmod>2026-03-22</lastmod>
     </url>
     <url>
          <loc>https://smolkaj.github.io/4ward/getting-started/cli/</loc>
-         <lastmod>2026-03-19</lastmod>
+         <lastmod>2026-03-22</lastmod>
     </url>
     <url>
          <loc>https://smolkaj.github.io/4ward/getting-started/grpc/</loc>
-         <lastmod>2026-03-19</lastmod>
+         <lastmod>2026-03-22</lastmod>
     </url>
     <url>
          <loc>https://smolkaj.github.io/4ward/getting-started/playground/</loc>
-         <lastmod>2026-03-19</lastmod>
+         <lastmod>2026-03-22</lastmod>
     </url>
     <url>
          <loc>https://smolkaj.github.io/4ward/reference/cli/</loc>
-         <lastmod>2026-03-19</lastmod>
+         <lastmod>2026-03-22</lastmod>
     </url>
     <url>
          <loc>https://smolkaj.github.io/4ward/reference/grpc/</loc>
-         <lastmod>2026-03-19</lastmod>
+         <lastmod>2026-03-22</lastmod>
     </url>
     <url>
          <loc>https://smolkaj.github.io/4ward/reference/playground/</loc>
-         <lastmod>2026-03-19</lastmod>
+         <lastmod>2026-03-22</lastmod>
     </url>
     <url>
          <loc>https://smolkaj.github.io/4ward/reference/stf/</loc>
-         <lastmod>2026-03-19</lastmod>
+         <lastmod>2026-03-22</lastmod>
     </url>
 </urlset>
