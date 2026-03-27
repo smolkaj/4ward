@@ -512,6 +512,27 @@ Deliverables:
 **Done when:** we have a reproducible latency number for SAI P4 at 10k
 entries and know where the time goes.
 
+**Baseline (2026-03-27).** In-process gRPC, SAI P4 middleblock, L3
+IPv4 forwarding with /32 LPM routes. Benchmark:
+`bazel test //p4runtime:DataplaneBenchmark --test_output=streamed`.
+
+| Routes | Entries |  p50   |  p95   | Mean   | Throughput |
+|--------|---------|--------|--------|--------|------------|
+|      0 |       0 | 0.26ms | 3.3ms  | 0.6ms  |  1,600 pps |
+|    100 |     203 | 0.42ms | 3.6ms  | 0.8ms  |  1,200 pps |
+|  1,000 |   2,003 | 0.50ms | 3.8ms  | 0.9ms  |  1,100 pps |
+|  4,000 |   8,003 | 0.87ms | 4.5ms  | 1.5ms  |    670 pps |
+| 10,000 |  10,103 | 1.35ms | 5.3ms  | 2.4ms  |    410 pps |
+
+Key observations:
+- **p50 scales linearly** with ipv4_table size (~0.1ms per 1k entries),
+  consistent with the O(n) linear scan in `TableStore.lookup()`.
+- **Fat p95/p99 tails** (3–10ms) are GC pauses, not algorithmic — a hash
+  index won't help the tails.
+- **Baseline overhead is ~0.26ms** (parsing, trace tree, gRPC) even with
+  no table entries.
+- **The 1ms target at 10k entries requires ~2× improvement at p50.**
+
 #### Phase 2: low-hanging fruit
 
 Targeted optimizations guided by profiling results. Likely candidates (to be
