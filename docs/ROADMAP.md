@@ -544,13 +544,31 @@ Key observations:
   ~24× improvement. Trace tree forking dominates; table lookup is
   noise.
 
+**After table lookup caching (PR #379).** Cache lookup results across
+selector fork re-executions: tables before the fork point produce
+identical results, so re-executions skip the O(n) scan entirely.
+
+| Config        | Before  | After   | Speedup |
+|---------------|---------|---------|---------|
+| direct 10k    |  0.73ms |  0.71ms |    1.0× |
+| wcmp×4 10k    |  3.49ms |  0.89ms |    3.9× |
+| wcmp×16 10k   | 11.93ms |  1.49ms |    8.0× |
+| wcmp×16+mirr  | 24.38ms |  2.55ms |    9.6× |
+
+The remaining 2.55ms (wcmp×16+mirr) is dominated by interpreter
+re-execution: parser + controls run 32 times (16 members × 2 clone
+paths). The table lookups are now cached, but the IR tree-walk,
+expression evaluation, trace event recording, and action execution
+still run for each branch.
+
 #### Phase 2: low-hanging fruit
 
-Targeted optimizations guided by profiling results. Likely candidates (to be
-confirmed by Phase 1 data):
+Targeted optimizations guided by profiling results. Likely candidates
+(to be confirmed by further profiling):
 
-- **Hash index for exact-match tables.** Most SAI tables use exact match;
-  O(1) lookup instead of O(n).
+- **Hash index for exact-match tables.** Most SAI tables use exact
+  match; O(1) lookup instead of O(n). Helps the direct path and
+  post-fork tables.
 - **Compact value representation.** `Long` for `bit<N>` where N ≤ 64,
   avoiding `BigInteger` heap allocation on the hot path.
 
