@@ -54,11 +54,10 @@ class DataplaneBenchmark {
         ScalePoint("direct", routes = 4_000),
         ScalePoint("direct", routes = 10_000, nexthops = 100),
         // --- WCMP (action selector → trace tree fork) ---
-        ScalePoint("wcmp", routes = 1_000, wcmpMembers = 16),
-        ScalePoint("wcmp", routes = 10_000, nexthops = 100, wcmpMembers = 16),
+        ScalePoint("wcmp×4", routes = 10_000, nexthops = 100, wcmpMembers = 4),
+        ScalePoint("wcmp×16", routes = 10_000, nexthops = 100, wcmpMembers = 16),
         // --- WCMP + mirror (clone fork → 2 output packets) ---
-        ScalePoint("wcmp+mirror", routes = 1_000, wcmpMembers = 16, mirror = true),
-        ScalePoint("wcmp+mirror", routes = 10_000, nexthops = 100, wcmpMembers = 16, mirror = true),
+        ScalePoint("wcmp×16+mirr", routes = 10_000, nexthops = 100, wcmpMembers = 16, mirror = true),
       )
 
     println()
