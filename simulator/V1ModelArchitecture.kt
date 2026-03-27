@@ -77,7 +77,63 @@ class V1ModelArchitecture(
     val payload: ByteArray,
     val config: BehavioralConfig,
     val tableStore: TableStore,
+    val template: PipelineTemplate,
   )
+
+  /**
+   * Cached pipeline template — derived once per [BehavioralConfig] and reused across all pipeline
+   * executions. Avoids re-walking the proto type tree on every execution (which dominates per-fork
+   * cost for WCMP and multicast).
+   */
+  private class PipelineTemplate(config: BehavioralConfig) {
+    val typesByName: Map<String, fourward.ir.TypeDecl> = config.typesList.associateBy { it.name }
+
+    // v1model parser has (packet_in, hdr, meta, standard_metadata) — extract the user params.
+    private val ioTypes = setOf("packet_in", "packet_out")
+    val parserUserParams =
+      config.parsersList.first().paramsList.filter {
+        it.type.hasNamed() && it.type.named !in ioTypes
+      }
+
+    init {
+      require(parserUserParams.size == V1MODEL_USER_PARAM_COUNT) {
+        "Expected $V1MODEL_USER_PARAM_COUNT non-IO parser params, got ${parserUserParams.size}"
+      }
+    }
+
+    val headersTypeName: String = parserUserParams[0].type.named
+    val metaTypeName: String = parserUserParams[1].type.named
+    val standardMetaTypeName: String = parserUserParams[2].type.named
+
+    // Default value templates — deep-copied per execution instead of re-walking the type tree.
+    private val defaultHeaders: Value = defaultValue(headersTypeName, typesByName)
+    private val defaultMeta: Value = defaultValue(metaTypeName, typesByName)
+    private val defaultStandardMetadata: Value = defaultValue(standardMetaTypeName, typesByName)
+
+    val metaParamName: String = parserUserParams[1].name
+    val metaStructDecl: StructDecl? = typesByName[metaTypeName]?.struct
+
+    fun freshHeaders(): Value = defaultHeaders.deepCopy()
+
+    fun freshMeta(): Value = defaultMeta.deepCopy()
+
+    fun freshStandardMetadata(): StructVal =
+      defaultStandardMetadata.deepCopy() as? StructVal
+        ?: error("$standardMetaTypeName not found in IR types; is v1model.p4 included?")
+  }
+
+  // Cache keyed by BehavioralConfig identity — a new pipeline load creates a new config object.
+  private var cachedTemplate: PipelineTemplate? = null
+  private var cachedConfig: BehavioralConfig? = null
+
+  private fun templateFor(config: BehavioralConfig): PipelineTemplate {
+    // Fast path: same config object as last time (the common case).
+    if (config === cachedConfig) return cachedTemplate!!
+    val template = PipelineTemplate(config)
+    cachedConfig = config
+    cachedTemplate = template
+    return template
+  }
 
   /** Per-execution state created fresh for each pipeline run. */
   @Suppress("LongParameterList")
@@ -112,7 +168,8 @@ class V1ModelArchitecture(
     config: BehavioralConfig,
     tableStore: TableStore,
   ): PipelineResult {
-    val ctx = PipelineContext(ingressPort, payload, config, tableStore)
+    val template = templateFor(config)
+    val ctx = PipelineContext(ingressPort, payload, config, tableStore, template)
     return buildTraceTree(ctx, V1ModelDecisions(), prefixLength = 0)
   }
 
@@ -296,38 +353,16 @@ class V1ModelArchitecture(
   /**
    * Creates a fresh [PipelineState] for one pipeline execution.
    *
-   * Resolves type names, initialises standard_metadata, and binds parameter names across all
-   * stages. Stage topology (ingress/egress split) is derived by [PipelineState] itself.
+   * Uses [PipelineTemplate] (cached per pipeline config) for type metadata and default values,
+   * avoiding repeated proto type-tree walks on every fork branch.
    */
   private fun initPipelineState(ctx: PipelineContext, decisions: V1ModelDecisions): PipelineState {
     require(decisions.pipelineDepth <= MAX_PIPELINE_DEPTH) { "max pipeline depth exceeded" }
+    val t = ctx.template
     val packetCtx = PacketContext(ctx.payload)
     val env = Environment()
-    val config = ctx.config
-    val typesByName = config.typesList.associateBy { it.name }
 
-    // Derive the type names for hdr/meta/standard_metadata from the parser's
-    // parameter list, filtering out the architecture-level packet I/O params.
-    // v1model always declares: (packet_in, hdr, meta, standard_metadata) in that order.
-    val ioTypes = setOf("packet_in", "packet_out")
-    val parserUserParams =
-      config.parsersList.first().paramsList.filter {
-        it.type.hasNamed() && it.type.named !in ioTypes
-      }
-    require(parserUserParams.size == V1MODEL_USER_PARAM_COUNT) {
-      "Expected $V1MODEL_USER_PARAM_COUNT non-IO parser params, got ${parserUserParams.size}"
-    }
-    val headersTypeName = parserUserParams[0].type.named
-    val metaTypeName = parserUserParams[1].type.named
-    val standardMetaTypeName = parserUserParams[2].type.named
-
-    val standardMetadata =
-      (defaultValue(standardMetaTypeName, typesByName) as? StructVal)
-        ?: error("$standardMetaTypeName not found in IR types; is v1model.p4 included?")
-    check("ingress_port" in standardMetadata.fields) { "$standardMetaTypeName has no ingress_port" }
-    check("packet_length" in standardMetadata.fields) {
-      "$standardMetaTypeName has no packet_length"
-    }
+    val standardMetadata = t.freshStandardMetadata()
     standardMetadata.setBitField("ingress_port", ctx.ingressPort.toLong())
     standardMetadata.setBitField("packet_length", ctx.payload.size.toLong())
     standardMetadata.fields["parser_error"] = ErrorVal("NoError")
@@ -335,7 +370,6 @@ class V1ModelArchitecture(
       standardMetadata.setBitField("instance_type", decisions.instanceTypeOverride)
     }
 
-    // Resolve drop port once: override takes precedence, otherwise derive from port width.
     val portBits = standardMetadata.bitWidth("ingress_port")
     val dropPort = dropPortOverride?.toLong() ?: ((1L shl portBits) - 1)
 
@@ -349,7 +383,7 @@ class V1ModelArchitecture(
         createExternHandler(standardMetadata, pendingOps, ctx.tableStore, dropPort),
       )
 
-    val metaValue = defaultValue(metaTypeName, typesByName)
+    val metaValue = t.freshMeta()
 
     // Restore pre-filtered preserved metadata from clone/resubmit/recirculate.
     if (decisions.preservedMetadata != null && metaValue is StructVal) {
@@ -360,32 +394,30 @@ class V1ModelArchitecture(
 
     val sharedByType =
       mapOf(
-        headersTypeName to defaultValue(headersTypeName, typesByName),
-        metaTypeName to metaValue,
-        standardMetaTypeName to standardMetadata,
+        t.headersTypeName to t.freshHeaders(),
+        t.metaTypeName to metaValue,
+        t.standardMetaTypeName to standardMetadata,
       )
-    for (parser in config.parsersList) {
+    for (parser in ctx.config.parsersList) {
       for (param in parser.paramsList) {
         sharedByType[param.type.named]?.let { env.define(param.name, it) }
       }
     }
-    for (control in config.controlsList) {
+    for (control in ctx.config.controlsList) {
       for (param in control.paramsList) {
         sharedByType[param.type.named]?.let { env.define(param.name, it) }
       }
     }
 
-    val metaParamName = parserUserParams[1].name
-    val metaStructDecl = typesByName[metaTypeName]?.struct
     return PipelineState(
       packetCtx,
       pendingOps,
       interpreter,
       env,
       standardMetadata,
-      metaParamName,
-      metaStructDecl,
-      config,
+      t.metaParamName,
+      t.metaStructDecl,
+      ctx.config,
       dropPort,
     )
   }
