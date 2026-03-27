@@ -556,31 +556,85 @@ results, so re-executions skip the O(n) scan entirely.
 
 (packets/sec; higher is better)
 
-The remaining gap to 1k pps on wcmp×16+mirr is interpreter
-re-execution: parser + controls run 32 times (16 members × 2 clone
-paths). Table lookups are cached, but the IR tree-walk, expression
-evaluation, trace event recording, and action execution still run for
-each branch.
+**Profiling (Java Flight Recorder, packet-processing samples only).** After table lookup
+caching, the remaining per-packet cost breaks down as:
+
+| Component           | % of time | What it does                           |
+|---------------------|-----------|----------------------------------------|
+| `initPipelineState` |       38% | Interpreter construction + defaultValue |
+| `runParser`         |       30% | Re-parses packet on every branch       |
+| `execStmt`/controls |       21% | Interprets control blocks              |
+| Trace proto builders |      10% | ForkBranch/TraceTree assembly           |
+
+**68% of time is in work that produces identical results across all fork
+branches** (`initPipelineState` + `runParser`). The `Interpreter`
+constructor rebuilds 4 maps from config protos on every instantiation,
+and the parser runs 32 times on the same payload.
 
 #### Phase 2: low-hanging fruit
 
-Targeted optimizations guided by profiling results. Likely candidates
-(to be confirmed by further profiling):
+Targeted optimizations guided by profiling:
 
-- **Hash index for exact-match tables.** Most SAI tables use exact
-  match; O(1) lookup instead of O(n). Helps the direct path and
-  post-fork tables.
-- **Compact value representation.** `Long` for `bit<N>` where N ≤ 64,
-  avoiding `BigInteger` heap allocation on the hot path.
+- **Cache `Interpreter` maps across branches.** The `parsers`,
+  `controls`, `actions`, and `tables` maps are derived from
+  `BehavioralConfig` which doesn't change between branches. Build
+  them once and share.
+- **Skip parser on fork re-execution.** Deep-copy the post-parser
+  `Environment` instead of re-parsing the same payload 32 times.
+  Parser + initPipelineState together account for 68% of cost.
+- **Hash index for exact-match tables.** O(1) lookup instead of O(n).
+  Helps the direct path and post-fork tables.
 
 #### Phase 3: structural (if needed)
 
-Deeper changes, only if Phase 2 doesn't reach the 1ms target:
+Deeper changes, only if Phase 2 doesn't reach the 1k pps target:
 
 - **LPM trie** for longest-prefix-match tables (IPv4/IPv6 routing).
 - **Packet batching** in the Dataplane gRPC API.
 - **Read-optimized concurrency** (read-heavy workload: many packets, rare
   table writes).
+
+### Track 11: error quality
+
+**Priority: next | Parallelizable: yes**
+
+Every error 4ward produces — whether from the simulator, the P4Runtime
+server, or the CLI — should be clear, actionable, and specific. Today,
+many errors surface as opaque gRPC `UNKNOWN` with no detail about what
+went wrong or how to fix it. A user hitting a table size limit,
+a malformed packet, or an unsupported feature should get a message that
+tells them exactly what happened and what to do about it.
+
+This isn't about P4Runtime spec compliance (Track 9 covers that). It's
+about the overall developer experience: when something goes wrong, the
+error message is the product.
+
+#### Phase 1: audit and classify
+
+Survey all error paths across the stack:
+- **Simulator**: `error()`, `require()`, `check()` calls in
+  `Interpreter.kt`, `TableStore.kt`, architecture implementations.
+- **gRPC server**: `StatusException` throws in `P4RuntimeService`,
+  `DataplaneService`. Which ones surface as `UNKNOWN` vs a proper
+  status code with detail?
+- **CLI**: error output from `4ward compile`, `4ward sim`, `4ward run`.
+
+For each error, classify: (1) already clear and actionable,
+(2) has the right info but poor formatting, (3) swallowed or opaque.
+
+#### Phase 2: fix the worst offenders
+
+Start with errors that users actually hit:
+- Simulator exceptions that surface as gRPC `UNKNOWN` — catch at the
+  service layer and translate to proper gRPC status codes with the
+  original message.
+- Table write failures — include the table name, the constraint that
+  was violated, and the entry that caused it.
+- Pipeline load failures — include the P4 program name and the
+  specific IR validation error.
+
+**Done when:** no error path produces a bare `UNKNOWN` or
+`INTERNAL` without an actionable message.
 
 ## Sequencing
 
@@ -608,6 +662,9 @@ Deeper changes, only if Phase 2 doesn't reach the 1ms target:
               │                           │    │          │    │          │
   Track 10    │                           │    │ bench +  │    │ optimize │
               │                           │    │ profile  │    │          │
+              │                           │    │          │    │          │
+  Track 11    │                           │    │ error    │    │          │
+              │                           │    │ quality  │    │          │
               └───────────────────────────┘    └──────────┘    └──────────┘
 ```
 
@@ -623,3 +680,5 @@ Deeper changes, only if Phase 2 doesn't reach the 1ms target:
   (adversarial testing) is next.
 - Track 10 (performance) has no blockers — SAI P4 already works E2E. Phase 1
   (benchmark + profile) informs all subsequent optimization work.
+- Track 11 (error quality) has no blockers. Complements Track 9 (P4Runtime
+  hardening) but covers the full stack, not just P4Runtime compliance.
