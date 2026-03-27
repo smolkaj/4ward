@@ -1,0 +1,8 @@
+# PNA direct counter: tables with direct counters, no send_to_port.
+# Tests: PNA pipeline, direct counter externs, drop-by-default.
+
+# IPv4 packet -> tables apply but no send_to_port -> drop
+packet 0 001122334455 00aabbccddee 0800 4500001400000000400600000A0000010A000002
+
+# Non-IPv4 packet -> drop
+packet 0 001122334455 00aabbccddee 0806 0001080006040001

@@ -1,0 +1,22 @@
+# PNA template: LPM routing with next_hop/drop actions.
+# Tests: PNA pipeline with runtime table entries, LPM match, send_to_port, drop_packet.
+
+add ipv4_da_lpm hdr.ipv4.dstAddr:10.0.0.0/8 next_hop(vport:1)
+add ipv4_da_lpm hdr.ipv4.dstAddr:10.1.0.0/16 next_hop(vport:2)
+
+# 10.2.3.4 matches 10.0.0.0/8 -> port 1
+# Ethernet: dst=ff:ff:ff:ff:ff:ff src=00:00:00:00:00:01 etherType=0x0800
+# IPv4: ver=4 ihl=5 tos=0 len=20 id=0 flags=0 ttl=64 proto=0 cksum=0
+#       src=10.0.0.1 dst=10.2.3.4
+packet 0 FFFFFFFFFFFF 000000000001 0800 4500001400000000400000000A0000010A020304
+expect 1 FFFFFFFFFFFF 000000000001 0800 4500001400000000400000000A0000010A020304$
+
+# 10.1.2.3 matches 10.1.0.0/16 (longest prefix) -> port 2
+packet 0 FFFFFFFFFFFF 000000000001 0800 4500001400000000400000000A0000010A010203
+expect 2 FFFFFFFFFFFF 000000000001 0800 4500001400000000400000000A0000010A010203$
+
+# 192.168.1.1 matches nothing -> default drop
+packet 0 FFFFFFFFFFFF 000000000001 0800 4500001400000000400000000A000001C0A80101
+
+# Non-IPv4 -> hdr.ipv4 not valid -> table not applied -> drop
+packet 0 FFFFFFFFFFFF 000000000001 0806 0001080006040001
