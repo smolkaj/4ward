@@ -1,0 +1,14 @@
+# PNA SelectByDirection: LPM table keyed on SelectByDirection(direction, srcAddr, dstAddr).
+# In NET_TO_HOST direction, key is srcAddr. Default action is drop.
+
+add ipv4_da_lpm ipv4_addr:10.0.0.0/8 next_hop(vport:1)
+
+# IPv4 with srcAddr=10.0.0.1 -> matches 10.0.0.0/8 -> port 1
+packet 0 001122334455 00aabbccddee 0800 4500001400000000400600000A0000010A000002
+expect 1 001122334455 00aabbccddee 0800 4500001400000000400600000A0000010A000002$
+
+# IPv4 with srcAddr=192.168.1.1 -> no match -> drop
+packet 0 001122334455 00aabbccddee 0800 45000014000000004006000000000001C0A80101
+
+# Non-IPv4 -> drop
+packet 0 001122334455 00aabbccddee 0806 0001080006040001

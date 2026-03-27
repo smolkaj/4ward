@@ -1,0 +1,15 @@
+# PNA bitwise AND in table key: exact match on (dstAddr & 0xf).
+# Default action is drop.
+
+# Match on (dstAddr & 0xf) == 2 -> next_hop port 1
+add ipv4_da_lpm hdr.ipv4.dstAddr&0xf:0x00000002 next_hop(vport:1)
+
+# dstAddr=10.0.0.2 -> 10.0.0.2 & 0xf = 2 -> match -> port 1
+packet 0 001122334455 00aabbccddee 0800 4500001400000000400600000A0000010A000002
+expect 1 001122334455 00aabbccddee 0800 4500001400000000400600000A0000010A000002$
+
+# dstAddr=10.0.0.3 -> 10.0.0.3 & 0xf = 3 -> no match -> drop
+packet 0 001122334455 00aabbccddee 0800 4500001400000000400600000A0000010A000003
+
+# Non-IPv4 -> drop
+packet 0 001122334455 00aabbccddee 0806 0001080006040001

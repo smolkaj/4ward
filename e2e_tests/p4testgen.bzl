@@ -32,7 +32,7 @@ def _p4testgen_stfs_impl(ctx):
     include_flags = ["-I " + f.dirname for f in ctx.files.includes]
     define_flags = ["-D" + d for d in ctx.attr.defines]
     args = " ".join([
-        "--target bmv2 --arch v1model --test-backend stf",
+        "--target " + ctx.attr.target + " --arch " + ctx.attr.arch + " --test-backend stf",
         "--max-tests " + str(ctx.attr.max_tests),
         "--seed " + str(ctx.attr.seed),
         "-I " + ctx.file._core_p4.dirname,
@@ -74,6 +74,8 @@ _p4testgen_stfs = rule(
         "defines": attr.string_list(default = []),
         "max_tests": attr.int(default = 0),
         "seed": attr.int(default = 0),
+        "target": attr.string(default = "bmv2"),
+        "arch": attr.string(default = "v1model"),
         "_p4testgen": attr.label(
             default = "@p4c//backends/p4tools:p4testgen",
             executable = True,
@@ -91,7 +93,7 @@ _p4testgen_stfs = rule(
     fragments = ["cpp"],
 )
 
-def _p4_testgen_rules(name, src_p4, includes, max_tests, seed, tags, defines = []):
+def _p4_testgen_rules(name, src_p4, includes, max_tests, seed, tags, defines = [], target = "bmv2", arch = "v1model"):
     """Creates the stfs + txtpb build rules for a single P4 program.
 
     Returns:
@@ -107,6 +109,8 @@ def _p4_testgen_rules(name, src_p4, includes, max_tests, seed, tags, defines = [
         defines = defines,
         max_tests = max_tests,
         seed = seed,
+        target = target,
+        arch = arch,
         tags = tags,
     )
 
@@ -117,7 +121,7 @@ def _p4_testgen_rules(name, src_p4, includes, max_tests, seed, tags, defines = [
 
     return [":" + stfs_name, ":" + name + "_pb"]
 
-def p4_testgen_test(name, src_p4 = None, includes = [], max_tests = 0, seed = 0, tags = [], defines = []):
+def p4_testgen_test(name, src_p4 = None, includes = [], max_tests = 0, seed = 0, tags = [], defines = [], target = "bmv2", arch = "v1model"):
     """Generates p4testgen STF tests and runs them against the 4ward simulator.
 
     Creates a dedicated kt_jvm_test for a single P4 program. Use this for
@@ -137,7 +141,7 @@ def p4_testgen_test(name, src_p4 = None, includes = [], max_tests = 0, seed = 0,
     if src_p4 == None:
         src_p4 = "@p4c//testdata/p4_16_samples:" + name + ".p4"
 
-    data = _p4_testgen_rules(name, src_p4, includes, max_tests, seed, tags, defines)
+    data = _p4_testgen_rules(name, src_p4, includes, max_tests, seed, tags, defines, target, arch)
 
     kt_jvm_test(
         name = name + "_test",
@@ -150,7 +154,7 @@ def p4_testgen_test(name, src_p4 = None, includes = [], max_tests = 0, seed = 0,
         ],
     )
 
-def p4_testgen_suite(name, tests, includes = {}, max_tests = {}, tags = []):
+def p4_testgen_suite(name, tests, includes = {}, max_tests = {}, tags = [], target = "bmv2", arch = "v1model"):
     """Batches p4testgen STF tests for many P4 programs into a single JVM.
 
     Build-phase parallelism (p4testgen symbolic execution, p4c compilation) is
@@ -169,7 +173,7 @@ def p4_testgen_suite(name, tests, includes = {}, max_tests = {}, tags = []):
         src_p4 = "@p4c//testdata/p4_16_samples:" + test + ".p4"
         test_includes = includes.get(test, [])
         test_max_tests = max_tests.get(test, 0)
-        data.extend(_p4_testgen_rules(test, src_p4, test_includes, test_max_tests, seed = 0, tags = tags))
+        data.extend(_p4_testgen_rules(test, src_p4, test_includes, test_max_tests, seed = 0, tags = tags, target = target, arch = arch))
 
     kt_jvm_test(
         name = name,

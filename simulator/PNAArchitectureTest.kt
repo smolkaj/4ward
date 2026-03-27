@@ -18,6 +18,7 @@ import fourward.ir.Transition
 import fourward.ir.Type
 import fourward.ir.TypeDecl
 import fourward.sim.SimulatorProto.DropReason
+import fourward.sim.SimulatorProto.ForkReason
 import fourward.sim.SimulatorProto.PipelineStageEvent.Direction
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -368,5 +369,100 @@ class PNAArchitectureTest {
     assertTrue(result.trace.hasPacketOutcome())
     assertTrue(result.trace.packetOutcome.hasDrop())
     assertEquals(DropReason.ASSERTION_FAILURE, result.trace.packetOutcome.drop.reason)
+  }
+
+  // ---------------------------------------------------------------------------
+  // mirror_packet tests
+  // ---------------------------------------------------------------------------
+
+  /** mirror_packet(slot, session) — PNA free function with slot and session ID arguments. */
+  private fun mirrorPacket(slotId: Long, sessionId: Long): Stmt =
+    externCall("mirror_packet", bit(slotId, 8), bit(sessionId, 16))
+
+  @Test
+  fun `mirror_packet creates fork with original and mirror branches`() {
+    val config = pnaConfig(mainControlStmts = listOf(sendToPort(2), mirrorPacket(0, 100)))
+    val store = TableStore()
+    writeCloneSession(store, 100, listOf(0 to 5))
+
+    val result = PNAArchitecture().processPacket(0u, byteArrayOf(0xAA.toByte()), config, store)
+    val outputs = collectOutputsFromTrace(result.trace)
+
+    assertEquals(2, outputs.size)
+    assertTrue(outputs.any { it.dataplaneEgressPort == 2 })
+    assertTrue(outputs.any { it.dataplaneEgressPort == 5 })
+  }
+
+  @Test
+  fun `mirror_packet with drop still emits mirror`() {
+    // Mirror + drop: original is dropped, but mirror still goes out.
+    val config = pnaConfig(mainControlStmts = listOf(mirrorPacket(0, 100)))
+    val store = TableStore()
+    writeCloneSession(store, 100, listOf(0 to 7))
+
+    val result = PNAArchitecture().processPacket(0u, byteArrayOf(0xBB.toByte()), config, store)
+    val outputs = collectOutputsFromTrace(result.trace)
+
+    assertEquals(1, outputs.size)
+    assertEquals(7, outputs[0].dataplaneEgressPort)
+  }
+
+  @Test
+  fun `mirror_packet trace has CLONE fork reason`() {
+    val config = pnaConfig(mainControlStmts = listOf(sendToPort(2), mirrorPacket(0, 100)))
+    val store = TableStore()
+    writeCloneSession(store, 100, listOf(0 to 5))
+
+    val result = PNAArchitecture().processPacket(0u, byteArrayOf(0x01), config, store)
+
+    assertTrue(result.trace.hasForkOutcome())
+    assertEquals(ForkReason.CLONE, result.trace.forkOutcome.reason)
+    assertEquals("original", result.trace.forkOutcome.branchesList[0].label)
+    assertEquals("mirror_port_5", result.trace.forkOutcome.branchesList[1].label)
+  }
+
+  @Test
+  fun `mirror_packet with unknown session silently ignores mirror`() {
+    val config = pnaConfig(mainControlStmts = listOf(sendToPort(2), mirrorPacket(0, 999)))
+    val result = PNAArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val outputs = collectOutputsFromTrace(result.trace)
+
+    assertEquals(1, outputs.size)
+    assertEquals(2, outputs[0].dataplaneEgressPort)
+  }
+
+  @Test
+  fun `mirror_packet with multiple replicas`() {
+    val config = pnaConfig(mainControlStmts = listOf(sendToPort(2), mirrorPacket(0, 100)))
+    val store = TableStore()
+    writeCloneSession(store, 100, listOf(0 to 5, 1 to 6, 2 to 7))
+
+    val result = PNAArchitecture().processPacket(0u, byteArrayOf(0x01), config, store)
+    val outputs = collectOutputsFromTrace(result.trace)
+
+    // Original + 3 mirror replicas = 4 outputs.
+    assertEquals(4, outputs.size)
+    assertTrue(outputs.any { it.dataplaneEgressPort == 2 })
+    assertTrue(outputs.any { it.dataplaneEgressPort == 5 })
+    assertTrue(outputs.any { it.dataplaneEgressPort == 6 })
+    assertTrue(outputs.any { it.dataplaneEgressPort == 7 })
+  }
+
+  @Test
+  fun `mirror_packet with recirculate emits both`() {
+    // Mirror is independent of recirculate — both should take effect.
+    // Every pass calls recirculate(), so this hits MAX_RECIRCULATIONS, but the first
+    // fork should contain both mirror and recirculate branches.
+    val config =
+      pnaConfig(mainControlStmts = listOf(sendToPort(2), mirrorPacket(0, 100), recirculate()))
+    val store = TableStore()
+    writeCloneSession(store, 100, listOf(0 to 5))
+
+    try {
+      PNAArchitecture().processPacket(0u, byteArrayOf(0x01), config, store)
+      fail("expected recirculation depth exceeded")
+    } catch (e: IllegalStateException) {
+      assertTrue(e.message!!.contains("recirculation depth exceeded"))
+    }
   }
 }

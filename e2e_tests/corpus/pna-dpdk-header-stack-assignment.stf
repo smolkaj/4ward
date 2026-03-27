@@ -1,0 +1,9 @@
+# PNA header stack assignment: always sends to port 1 after table apply.
+
+# Ethernet frame with IPv4+TCP: parsed as mac + ipv4[0] + tcp
+# mac: dst=001122334455 src=00aabbccddee type=0x0800
+# ipv4: ver=4 ihl=5 dscp=0 ecn=0 len=40 id=0 flags=0 ttl=64 proto=6(TCP) cksum=0
+#       src=10.0.0.1 dst=10.0.0.2
+# tcp: sport=1234 dport=80 seq=0 ack=0 offset=5 reserved=0 flags=0x02 win=0 cksum=0 urg=0
+packet 0 001122334455 00aabbccddee 0800 45000028000000004006 0000 0A000001 0A000002 04D2 0050 00000000 00000000 5002 0000 0000 0000
+expect 1 001122334455 00aabbccddee 0800 45000028000000004006 0000 0A000001 0A000002 04D2 0050 00000000 00000000 5002 0000 0000 0000$

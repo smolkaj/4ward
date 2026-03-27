@@ -1,0 +1,14 @@
+# PNA direction: LPM table keyed on direction-dependent address.
+# NET_TO_HOST uses srcAddr, HOST_TO_NET uses dstAddr; default is drop.
+
+add ipv4_da_lpm ipv4_addr:10.0.0.0/8 next_hop(vport:1)
+
+# IPv4 with srcAddr=10.0.0.1 -> matches 10.0.0.0/8 -> port 1
+packet 0 001122334455 00aabbccddee 0800 45000014000000004006 0000 0A000001 0A000002
+expect 1 001122334455 00aabbccddee 0800 45000014000000004006 0000 0A000001 0A000002$
+
+# IPv4 with srcAddr=192.168.1.1 -> outside 10.0.0.0/8 -> drop
+packet 0 001122334455 00aabbccddee 0800 45000014000000004006 0000 C0A80101 0A000002
+
+# Non-IPv4 -> drop
+packet 0 001122334455 00aabbccddee 0806 0001080006040001

@@ -16,6 +16,7 @@ import fourward.ir.NameRef
 import fourward.ir.SourceInfo
 import fourward.ir.Stmt
 import fourward.ir.Type
+import p4.v1.P4RuntimeOuterClass
 
 /**
  * Shared proto-building helpers for interpreter unit tests.
@@ -142,3 +143,30 @@ fun controlConfig(controlName: String, vararg stmts: Stmt): BehavioralConfig =
   BehavioralConfig.newBuilder()
     .addControls(ControlDecl.newBuilder().setName(controlName).addAllApplyBody(stmts.toList()))
     .build()
+
+/** Inserts a clone session into [store] with the given replicas (instance, egressPort). */
+fun writeCloneSession(store: TableStore, sessionId: Int, replicas: List<Pair<Int, Int>>) {
+  store.write(
+    P4RuntimeOuterClass.Update.newBuilder()
+      .setType(P4RuntimeOuterClass.Update.Type.INSERT)
+      .setEntity(
+        P4RuntimeOuterClass.Entity.newBuilder()
+          .setPacketReplicationEngineEntry(
+            P4RuntimeOuterClass.PacketReplicationEngineEntry.newBuilder()
+              .setCloneSessionEntry(
+                P4RuntimeOuterClass.CloneSessionEntry.newBuilder()
+                  .setSessionId(sessionId)
+                  .addAllReplicas(
+                    replicas.map { (instance, port) ->
+                      P4RuntimeOuterClass.Replica.newBuilder()
+                        .setInstance(instance)
+                        .setEgressPort(port)
+                        .build()
+                    }
+                  )
+              )
+          )
+      )
+      .build()
+  )
+}
