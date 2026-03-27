@@ -195,6 +195,21 @@ kt_jvm_test(
 )
 
 kt_jvm_test(
+    name = "PNAArchitectureTest",
+    srcs = ["PNAArchitectureTest.kt"],
+    test_class = "fourward.simulator.PNAArchitectureTest",
+    deps = [
+        ":interpreter_test_dsl",
+        ":ir_java_proto",
+        ":p4runtime_java_proto",
+        ":simulator_java_proto",
+        ":simulator_lib",
+        "@maven//:com_google_protobuf_protobuf_java",
+        "@maven//:junit_junit",
+    ],
+)
+
+kt_jvm_test(
     name = "PSAArchitectureTest",
     srcs = ["PSAArchitectureTest.kt"],
     test_class = "fourward.simulator.PSAArchitectureTest",

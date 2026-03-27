@@ -36,6 +36,19 @@ BCR consumers.
 
 ---
 
+## Extract shared architecture helpers
+
+`PSAArchitecture.kt` and `PNAArchitecture.kt` duplicate ~350 lines of
+architecture-agnostic code: `BlockParam`, `buildBlockParamsMap`,
+`createDefaultValues`, `buildExternInstancesMap`, `bindStageParams`,
+`runParserStage`, `runControlStage`, `handleActionSelectorFork`,
+`buildForkTree`, `evalGetHash`, `hashDataArg`, `sumWords`, `IO_TYPES`,
+`MAX_RECIRCULATIONS`, and the entire Register/Hash/Counter/Meter/Checksum
+extern method dispatch. Extract into shared files (e.g.
+`ArchitectureHelpers.kt`, extend `TraceHelpers.kt` and `Hash.kt`).
+
+---
+
 ## Establish user-facing documentation
 
 `docs/` currently serves developers working on 4ward. As the project

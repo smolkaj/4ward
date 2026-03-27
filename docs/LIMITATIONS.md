@@ -22,8 +22,18 @@ guilt — just write it down so someone can find it later.
   `Digest.pack` (stub no-op), counters (indirect + direct), action profiles,
   action selectors (including fork-based trace trees for group hits), parser
   `value_set`, header stacks, and top-level assignments. 73 additional PSA
-  programs (BMv2 + DPDK targets) are verified to compile. PNA and TNA are not
+  programs (BMv2 + DPDK targets) are verified to compile. TNA is not
   implemented.
+- **PNA: basic pipeline implemented, no corpus tests yet.** The PNA
+  single-pipeline architecture (PreControl → MainParser → MainControl →
+  MainDeparser) is implemented with support for `send_to_port`, `drop_packet`,
+  `recirculate`, `SelectByDirection`, registers, `Hash.get_hash`,
+  `Meter.execute` (stub GREEN), `InternetChecksum`, `Digest.pack` (stub no-op),
+  counters (stub no-op), and `Random.read()`. Not yet implemented:
+  `mirror_packet()` (rejects at runtime), `add_entry` / `allocate_flow_id` /
+  `set_entry_expire_time` / `restart_expire_timer` (stubs). No corpus STF tests
+  exist for PNA (p4c doesn't ship PNA STF files); p4testgen PNA support outputs
+  PTF format, not STF — format conversion or a PTF runner is needed.
 
 ## Externs
 
