@@ -31,13 +31,13 @@
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">91.3&nbsp;%</td>
+            <td class="headerCovTableEntryHi">91.4&nbsp;%</td>
             <td class="headerCovTableEntry">676</td>
-            <td class="headerCovTableEntry">617</td>
+            <td class="headerCovTableEntry">618</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-27 07:36:52</td>
+            <td class="headerValue">2026-03-27 23:37:07</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">97.5&nbsp;%</td>
@@ -237,8 +237,8 @@
 <span id="L175"><span class="lineNum">     175</span> <span class="tlaGNC">           1 :       expr.hasNameRef() -&gt; expr.nameRef.name</span></span>
 <span id="L176"><span class="lineNum">     176</span> <span class="tlaGNC">           1 :       expr.hasFieldAccess() -&gt; &quot;${formatExpr(expr.fieldAccess.expr)}.${expr.fieldAccess.fieldName}&quot;</span></span>
 <span id="L177"><span class="lineNum">     177</span> <span class="tlaGNC">           1 :       expr.hasArrayIndex() -&gt;</span></span>
-<span id="L178"><span class="lineNum">     178</span> <span class="tlaUNC tlaBgUNC">           0 :         &quot;${formatExpr(expr.arrayIndex.expr)}[${formatExpr(expr.arrayIndex.index)}]&quot;</span></span>
-<span id="L179"><span class="lineNum">     179</span> <span class="tlaGNC tlaBgGNC">           1 :       expr.hasSlice() -&gt; &quot;${formatExpr(expr.slice.expr)}[${expr.slice.hi}:${expr.slice.lo}]&quot;</span></span>
+<span id="L178"><span class="lineNum">     178</span> <span class="tlaGNC">           1 :         &quot;${formatExpr(expr.arrayIndex.expr)}[${formatExpr(expr.arrayIndex.index)}]&quot;</span></span>
+<span id="L179"><span class="lineNum">     179</span> <span class="tlaGNC">           1 :       expr.hasSlice() -&gt; &quot;${formatExpr(expr.slice.expr)}[${expr.slice.hi}:${expr.slice.lo}]&quot;</span></span>
 <span id="L180"><span class="lineNum">     180</span> <span class="tlaGNC">           1 :       expr.hasLiteral() -&gt; {</span></span>
 <span id="L181"><span class="lineNum">     181</span> <span class="tlaGNC">           1 :         val lit = expr.literal</span></span>
 <span id="L182"><span class="lineNum">     182</span> <span class="tlaGNC">           1 :         when {</span></span>
