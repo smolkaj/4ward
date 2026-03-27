@@ -461,6 +461,76 @@ Shake the tree with inputs no reasonable controller would send.
 **Done when:** fuzz testing runs in CI without crashes, concurrency tests pass,
 and at least one external test suite has been evaluated.
 
+### Track 10: dataplane performance
+
+**Priority: next | Parallelizable: yes**
+
+The simulator is correct. Now it needs to be fast enough to be practical.
+
+**Problem.** DVaaS validates switch behavior by replaying packets through the
+simulator. Today's packet processing latency is unmeasured — there are no
+benchmarks. As DVaaS scales to realistic table sizes (thousands of entries)
+and production workloads (sustained packet streams), simulator latency becomes
+the bottleneck. Without measurement, we can't tell whether we're minutes or
+months away from acceptable performance.
+
+**Goal.** 1 ms per packet (1k packets/sec) on SAI P4 middleblock with ~10k
+table entries. This is the bar for practical DVaaS use — fast enough that
+test suites complete in seconds, not hours.
+
+**Why it's hard.** Several design choices that serve correctness work against
+throughput:
+
+- **O(n) table lookup.** `TableStore.lookup()` linearly scans all entries and
+  scores each one. With 10k entries across ~15 SAI tables, that's thousands of
+  `BigInteger` comparisons per packet.
+- **Trace construction.** Every packet produces a complete `TraceTree` with
+  events for every parser state, table hit, and expression eval. This is
+  required (DVaaS needs traces), but it's pure overhead relative to just
+  computing output packets.
+- **`BigInteger` arithmetic.** All `bit<N>` operations allocate on the heap
+  via `BigInteger`, even for widths that fit in a `Long`.
+- **Global mutex.** A single lock serializes all packets — no concurrent
+  processing.
+- **Per-packet gRPC overhead.** One RPC round-trip per packet, no batching.
+
+**Approach: measure first, optimize second.**
+
+#### Phase 1: benchmark and profile
+
+Build a repeatable benchmark that measures end-to-end per-packet latency
+through the gRPC Dataplane service on SAI P4 middleblock with configurable
+table entry counts. Profile with async-profiler or JFR to identify actual
+hotspots — not guesses.
+
+Deliverables:
+- A JMH or Kotlin-based benchmark: load SAI P4, install N table entries, send
+  M packets, report p50/p95/p99 latency and throughput.
+- A flame graph showing where time is spent at 10k entries.
+- A baseline number we can track over time.
+
+**Done when:** we have a reproducible latency number for SAI P4 at 10k
+entries and know where the time goes.
+
+#### Phase 2: low-hanging fruit
+
+Targeted optimizations guided by profiling results. Likely candidates (to be
+confirmed by Phase 1 data):
+
+- **Hash index for exact-match tables.** Most SAI tables use exact match;
+  O(1) lookup instead of O(n).
+- **Compact value representation.** `Long` for `bit<N>` where N ≤ 64,
+  avoiding `BigInteger` heap allocation on the hot path.
+
+#### Phase 3: structural (if needed)
+
+Deeper changes, only if Phase 2 doesn't reach the 1ms target:
+
+- **LPM trie** for longest-prefix-match tables (IPv4/IPv6 routing).
+- **Packet batching** in the Dataplane gRPC API.
+- **Read-optimized concurrency** (read-heavy workload: many packets, rare
+  table writes).
+
 ## Sequencing
 
 ```
@@ -484,6 +554,9 @@ and at least one external test suite has been evaluated.
               │                           │    │          │    │          │
   Track 9     │                           │    │ P4Rt     │    │ fuzz +   │
               │                           │    │ hardening│    │ external │
+              │                           │    │          │    │          │
+  Track 10    │                           │    │ bench +  │    │ optimize │
+              │                           │    │ profile  │    │          │
               └───────────────────────────┘    └──────────┘    └──────────┘
 ```
 
@@ -497,3 +570,5 @@ and at least one external test suite has been evaluated.
   visual pipeline diagrams and animated trace playback.
 - Track 9 builds on Track 4. Phases 1–3 are complete. Phase 4
   (adversarial testing) is next.
+- Track 10 (performance) has no blockers — SAI P4 already works E2E. Phase 1
+  (benchmark + profile) informs all subsequent optimization work.
