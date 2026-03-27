@@ -270,7 +270,8 @@ class V1ModelArchitecture(
           fork.members.map { member ->
             val d =
               decisions.copy(
-                selectorMembers = decisions.selectorMembers + (fork.tableName to member.memberId)
+                selectorMembers = decisions.selectorMembers + (fork.tableName to member.memberId),
+                tableLookupCache = fork.preForkLookups,
               )
             BranchSpec("member_${member.memberId}", ctx, d, fork.eventsBeforeFork.size)
           }
@@ -381,6 +382,7 @@ class V1ModelArchitecture(
         packetCtx,
         decisions.selectorMembers,
         createExternHandler(standardMetadata, pendingOps, ctx.tableStore, dropPort),
+        decisions.tableLookupCache,
       )
 
     val metaValue = t.freshMeta()
@@ -1007,6 +1009,8 @@ internal data class V1ModelDecisions(
   val instanceTypeOverride: Long? = null,
   val pipelineDepth: Int = 0,
   val preservedMetadata: Map<String, Value>? = null,
+  /** Cached table lookup results from before a selector fork, to avoid redundant O(n) scans. */
+  val tableLookupCache: Map<String, TableStore.LookupResult>? = null,
 )
 
 /**
