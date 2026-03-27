@@ -52,6 +52,7 @@ class Simulator(
       when (val archName = config.device.behavioral.architecture.name) {
         "v1model" -> V1ModelArchitecture(dropPortOverride)
         "psa" -> PSAArchitecture()
+        "pna" -> PNAArchitecture()
         else -> throw IllegalArgumentException("unsupported architecture: $archName")
       }
   }

@@ -960,12 +960,34 @@ void FourWardBackend::emitArchitecture(const IR::ToplevelBlock* toplevel) {
              fourward::ir::StageKind::CONTROL);
     addStage("egress_deparser", resolveBlockName((*egressArgs)[2]->expression),
              fourward::ir::StageKind::DEPARSER);
+  } else if (main->type->name == "PNA_NIC") {
+    arch->set_name("pna");
+
+    // PNA_NIC(main_parser, pre_control, main_control, main_deparser)
+    const std::vector<std::pair<std::string, fourward::ir::StageKind>>
+        stageSpec = {
+            {"main_parser", fourward::ir::StageKind::PARSER},
+            {"pre_control", fourward::ir::StageKind::CONTROL},
+            {"main_control", fourward::ir::StageKind::CONTROL},
+            {"main_deparser", fourward::ir::StageKind::DEPARSER},
+        };
+
+    size_t i = 0;
+    for (const auto& arg :
+         *main->node->to<IR::Declaration_Instance>()->arguments) {
+      if (i >= stageSpec.size()) break;
+      std::string blockName = resolveBlockName(arg->expression);
+      if (!blockName.empty()) {
+        addStage(stageSpec[i].first, blockName, stageSpec[i].second);
+      }
+      ++i;
+    }
   } else {
     // Unknown architecture: emit the name and leave stages empty.
     // The simulator will reject it with a clear error.
     arch->set_name(main->type->name.name.c_str());
     ::P4::error(
-        "4ward: unsupported architecture '%1%'. Only v1model and PSA are "
+        "4ward: unsupported architecture '%1%'. Only v1model, PSA, and PNA are "
         "supported currently.",
         main->type->name);
   }

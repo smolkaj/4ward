@@ -1,0 +1,372 @@
+package fourward.simulator
+
+import com.google.protobuf.ByteString
+import fourward.ir.Architecture
+import fourward.ir.BehavioralConfig
+import fourward.ir.ControlDecl
+import fourward.ir.EnumDecl
+import fourward.ir.ExternInstanceDecl
+import fourward.ir.FieldDecl
+import fourward.ir.ParamDecl
+import fourward.ir.ParserDecl
+import fourward.ir.ParserState
+import fourward.ir.PipelineStage
+import fourward.ir.StageKind
+import fourward.ir.Stmt
+import fourward.ir.StructDecl
+import fourward.ir.Transition
+import fourward.ir.Type
+import fourward.ir.TypeDecl
+import fourward.sim.SimulatorProto.DropReason
+import fourward.sim.SimulatorProto.PipelineStageEvent.Direction
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
+import org.junit.Test
+
+/**
+ * Unit tests for [PNAArchitecture].
+ *
+ * These exercise PNA-specific pipeline semantics — drop-by-default, send_to_port, drop_packet,
+ * recirculate, register read/write, and the single-pipeline structure — using minimal synthetic
+ * BehavioralConfig protos.
+ */
+class PNAArchitectureTest {
+
+  // ---------------------------------------------------------------------------
+  // Helpers: minimal PNA config construction
+  // ---------------------------------------------------------------------------
+
+  private fun field(name: String, width: Int): FieldDecl =
+    FieldDecl.newBuilder().setName(name).setType(bitType(width)).build()
+
+  private fun boolField(name: String): FieldDecl =
+    FieldDecl.newBuilder().setName(name).setType(Type.newBuilder().setBoolean(true)).build()
+
+  private fun enumField(name: String, enumType: String): FieldDecl =
+    FieldDecl.newBuilder().setName(name).setType(namedType(enumType)).build()
+
+  private fun errorField(name: String): FieldDecl =
+    FieldDecl.newBuilder().setName(name).setType(Type.newBuilder().setError(true)).build()
+
+  private fun param(name: String, typeName: String): ParamDecl =
+    ParamDecl.newBuilder().setName(name).setType(namedType(typeName)).build()
+
+  // PNA metadata types — fields match pna.p4.
+  private val preInputMeta =
+    TypeDecl.newBuilder()
+      .setName("pna_pre_input_metadata_t")
+      .setStruct(
+        StructDecl.newBuilder()
+          .addFields(field("input_port", 32))
+          .addFields(errorField("parser_error"))
+          .addFields(enumField("direction", "PNA_Direction_t"))
+          .addFields(field("pass", 3))
+          .addFields(boolField("loopedback"))
+      )
+      .build()
+
+  private val preOutputMeta =
+    TypeDecl.newBuilder()
+      .setName("pna_pre_output_metadata_t")
+      .setStruct(
+        StructDecl.newBuilder()
+          .addFields(boolField("decrypt"))
+          .addFields(field("said", 32))
+          .addFields(field("decrypt_start_offset", 16))
+      )
+      .build()
+
+  private val mainParserInputMeta =
+    TypeDecl.newBuilder()
+      .setName("pna_main_parser_input_metadata_t")
+      .setStruct(
+        StructDecl.newBuilder()
+          .addFields(enumField("direction", "PNA_Direction_t"))
+          .addFields(field("pass", 3))
+          .addFields(boolField("loopedback"))
+          .addFields(field("input_port", 32))
+      )
+      .build()
+
+  private val mainInputMeta =
+    TypeDecl.newBuilder()
+      .setName("pna_main_input_metadata_t")
+      .setStruct(
+        StructDecl.newBuilder()
+          .addFields(enumField("direction", "PNA_Direction_t"))
+          .addFields(field("pass", 3))
+          .addFields(boolField("loopedback"))
+          .addFields(field("timestamp", 64))
+          .addFields(errorField("parser_error"))
+          .addFields(field("class_of_service", 8))
+          .addFields(field("input_port", 32))
+      )
+      .build()
+
+  private val mainOutputMeta =
+    TypeDecl.newBuilder()
+      .setName("pna_main_output_metadata_t")
+      .setStruct(StructDecl.newBuilder().addFields(field("class_of_service", 8)))
+      .build()
+
+  private val directionEnum =
+    TypeDecl.newBuilder()
+      .setName("PNA_Direction_t")
+      .setEnum(EnumDecl.newBuilder().addMembers("NET_TO_HOST").addMembers("HOST_TO_NET"))
+      .build()
+
+  private val packetPathEnum =
+    TypeDecl.newBuilder()
+      .setName("PNA_PacketPath_t")
+      .setEnum(
+        EnumDecl.newBuilder()
+          .addMembers("FROM_NET_PORT")
+          .addMembers("FROM_NET_LOOPEDBACK")
+          .addMembers("FROM_NET_RECIRCULATED")
+          .addMembers("FROM_HOST")
+          .addMembers("FROM_HOST_LOOPEDBACK")
+          .addMembers("FROM_HOST_RECIRCULATED")
+      )
+      .build()
+
+  private val headersType =
+    TypeDecl.newBuilder().setName("headers_t").setStruct(StructDecl.getDefaultInstance()).build()
+
+  private val metaType =
+    TypeDecl.newBuilder().setName("meta_t").setStruct(StructDecl.getDefaultInstance()).build()
+
+  private val allTypes =
+    listOf(
+      preInputMeta,
+      preOutputMeta,
+      mainParserInputMeta,
+      mainInputMeta,
+      mainOutputMeta,
+      directionEnum,
+      packetPathEnum,
+      headersType,
+      metaType,
+    )
+
+  private val pnaArch =
+    Architecture.newBuilder()
+      .setName("pna")
+      .addStages(stage("main_parser", "MainParser", StageKind.PARSER))
+      .addStages(stage("pre_control", "PreControl", StageKind.CONTROL))
+      .addStages(stage("main_control", "MainControl", StageKind.CONTROL))
+      .addStages(stage("main_deparser", "MainDeparser", StageKind.DEPARSER))
+      .build()
+
+  private fun stage(name: String, blockName: String, kind: StageKind): PipelineStage =
+    PipelineStage.newBuilder().setName(name).setBlockName(blockName).setKind(kind).build()
+
+  private val noopParser =
+    ParserDecl.newBuilder()
+      .setName("MainParser")
+      .addParams(param("pkt", "packet_in"))
+      .addParams(param("hdr", "headers_t"))
+      .addParams(param("meta", "meta_t"))
+      .addParams(param("istd", "pna_main_parser_input_metadata_t"))
+      .addStates(
+        ParserState.newBuilder()
+          .setName("start")
+          .setTransition(Transition.newBuilder().setNextState("accept"))
+      )
+      .build()
+
+  private val preControlParams =
+    listOf(
+      "hdr" to "headers_t",
+      "meta" to "meta_t",
+      "istd" to "pna_pre_input_metadata_t",
+      "ostd" to "pna_pre_output_metadata_t",
+    )
+
+  private val mainControlParams =
+    listOf(
+      "hdr" to "headers_t",
+      "meta" to "meta_t",
+      "istd" to "pna_main_input_metadata_t",
+      "ostd" to "pna_main_output_metadata_t",
+    )
+
+  private val mainDeparserParams =
+    listOf(
+      "pkt" to "packet_out",
+      "hdr" to "headers_t",
+      "meta" to "meta_t",
+      "ostd" to "pna_main_output_metadata_t",
+    )
+
+  private fun noopControl(name: String, params: List<Pair<String, String>>): ControlDecl =
+    ControlDecl.newBuilder()
+      .setName(name)
+      .addAllParams(params.map { (n, t) -> param(n, t) })
+      .build()
+
+  private fun control(
+    name: String,
+    params: List<Pair<String, String>>,
+    stmts: List<Stmt> = emptyList(),
+    externInstances: List<ExternInstanceDecl> = emptyList(),
+  ): ControlDecl =
+    ControlDecl.newBuilder()
+      .setName(name)
+      .addAllParams(params.map { (n, t) -> param(n, t) })
+      .addAllApplyBody(stmts)
+      .addAllExternInstances(externInstances)
+      .build()
+
+  /**
+   * Builds a minimal PNA [BehavioralConfig].
+   *
+   * All stages default to no-op; override [mainControlStmts] to add behaviour to the main control.
+   */
+  private fun pnaConfig(
+    mainControlStmts: List<Stmt> = emptyList(),
+    mainControlExterns: List<ExternInstanceDecl> = emptyList(),
+  ): BehavioralConfig =
+    BehavioralConfig.newBuilder()
+      .setArchitecture(pnaArch)
+      .addAllTypes(allTypes)
+      .addParsers(noopParser)
+      .addControls(noopControl("PreControl", preControlParams))
+      .addControls(control("MainControl", mainControlParams, mainControlStmts, mainControlExterns))
+      .addControls(noopControl("MainDeparser", mainDeparserParams))
+      .build()
+
+  /** send_to_port(port) — PNA free function with a single port argument. */
+  private fun sendToPort(port: Long): Stmt = externCall("send_to_port", bit(port, 32))
+
+  /** drop_packet() — PNA free function with no arguments. */
+  private fun dropPacket(): Stmt = externCall("drop_packet")
+
+  /** recirculate() — PNA free function with no arguments. */
+  private fun recirculate(): Stmt = externCall("recirculate")
+
+  // ---------------------------------------------------------------------------
+  // Tests
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `PNA drops by default without send_to_port`() {
+    val config = pnaConfig()
+    val result = PNAArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+
+    assertTrue(result.trace.hasPacketOutcome())
+    assertTrue(result.trace.packetOutcome.hasDrop())
+  }
+
+  @Test
+  fun `send_to_port forwards packet`() {
+    val config = pnaConfig(mainControlStmts = listOf(sendToPort(5)))
+    val payload = byteArrayOf(0xAA.toByte(), 0xBB.toByte())
+    val result = PNAArchitecture().processPacket(0u, payload, config, TableStore())
+    val outputs = collectOutputsFromTrace(result.trace)
+
+    assertEquals(1, outputs.size)
+    assertEquals(5, outputs[0].dataplaneEgressPort)
+    assertEquals(ByteString.copyFrom(payload), outputs[0].payload)
+  }
+
+  @Test
+  fun `drop_packet explicitly drops`() {
+    // send_to_port then drop_packet — last writer wins, packet drops.
+    val config = pnaConfig(mainControlStmts = listOf(sendToPort(5), dropPacket()))
+    val result = PNAArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+
+    assertTrue(result.trace.hasPacketOutcome())
+    assertTrue(result.trace.packetOutcome.hasDrop())
+  }
+
+  @Test
+  fun `send_to_port overrides drop_packet`() {
+    // drop_packet then send_to_port — last writer wins, packet forwards.
+    val config = pnaConfig(mainControlStmts = listOf(dropPacket(), sendToPort(5)))
+    val result = PNAArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val outputs = collectOutputsFromTrace(result.trace)
+
+    assertEquals(1, outputs.size)
+    assertEquals(5, outputs[0].dataplaneEgressPort)
+  }
+
+  @Test
+  fun `trace has enter-exit pairs for all 4 PNA stages`() {
+    val config = pnaConfig(mainControlStmts = listOf(sendToPort(1)))
+    val result = PNAArchitecture().processPacket(7u, byteArrayOf(0x01), config, TableStore())
+    val events = result.trace.eventsList.filter { it.hasPacketIngress() || it.hasPipelineStage() }
+
+    // First event: packet ingress.
+    assertTrue(events[0].hasPacketIngress())
+    assertEquals(7, events[0].packetIngress.dataplaneIngressPort)
+
+    // 4 stages x 2 (enter/exit) = 8 stage events.
+    // PNA execution order: pre_control -> main_parser -> main_control -> main_deparser.
+    val stages = events.drop(1).map { it.pipelineStage }
+    val expected =
+      listOf(
+        Triple("pre_control", StageKind.CONTROL, Direction.ENTER),
+        Triple("pre_control", StageKind.CONTROL, Direction.EXIT),
+        Triple("main_parser", StageKind.PARSER, Direction.ENTER),
+        Triple("main_parser", StageKind.PARSER, Direction.EXIT),
+        Triple("main_control", StageKind.CONTROL, Direction.ENTER),
+        Triple("main_control", StageKind.CONTROL, Direction.EXIT),
+        Triple("main_deparser", StageKind.DEPARSER, Direction.ENTER),
+        Triple("main_deparser", StageKind.DEPARSER, Direction.EXIT),
+      )
+    assertEquals(expected, stages.map { Triple(it.stageName, it.stageKind, it.direction) })
+  }
+
+  @Test
+  fun `register write then read returns written value`() {
+    val config =
+      pnaConfig(
+        mainControlStmts =
+          listOf(
+            methodCallStmt(
+              "my_reg",
+              "write",
+              bit(0, 32),
+              bit(0xBEEF, 16),
+              targetType = namedType("Register"),
+            ),
+            sendToPort(1),
+          )
+      )
+    val tableStore = TableStore()
+    val result = PNAArchitecture().processPacket(0u, byteArrayOf(0x01), config, tableStore)
+
+    // Packet should forward (register write doesn't affect drop).
+    val outputs = collectOutputsFromTrace(result.trace)
+    assertEquals(1, outputs.size)
+
+    // Verify the register was actually written to the store.
+    val stored = tableStore.registerRead("my_reg", 0)
+    assertTrue("register should contain written value", stored is BitVal)
+    assertEquals(0xBEEF.toLong(), (stored as BitVal).bits.value.toLong())
+  }
+
+  @Test
+  fun `recirculate exceeds max depth`() {
+    // With recirculate() as the only forwarding call, every pass recirculates.
+    // This should hit the MAX_RECIRCULATIONS guard.
+    val config = pnaConfig(mainControlStmts = listOf(recirculate()))
+    try {
+      PNAArchitecture().processPacket(0u, byteArrayOf(0xAA.toByte()), config, TableStore())
+      fail("expected recirculation depth exceeded")
+    } catch (e: IllegalStateException) {
+      assertTrue(e.message!!.contains("recirculation depth exceeded"))
+    }
+  }
+
+  @Test
+  fun `assertion failure drops packet`() {
+    val config = pnaConfig(mainControlStmts = listOf(externCall("assert", boolLit(false))))
+    val result = PNAArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+
+    assertTrue(result.trace.hasPacketOutcome())
+    assertTrue(result.trace.packetOutcome.hasDrop())
+    assertEquals(DropReason.ASSERTION_FAILURE, result.trace.packetOutcome.drop.reason)
+  }
+}
