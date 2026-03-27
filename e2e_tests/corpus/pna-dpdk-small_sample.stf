@@ -1,0 +1,12 @@
+# PNA small_sample: IPv4 table with default next_hop(1) action.
+# Tests: PNA pipeline, send_to_port, drop-by-default for non-IPv4.
+
+# IPv4 packet -> table ipv4_da hits default action next_hop(1) -> port 1
+# Ethernet: dst=00:11:22:33:44:55 src=00:aa:bb:cc:dd:ee etherType=0x0800
+# IPv4: ver=4 ihl=5 tos=0 len=20 id=0 flags=0 ttl=64 proto=6 cksum=0
+#       src=10.0.0.1 dst=10.0.0.2
+packet 0 001122334455 00aabbccddee 0800 4500001400000000400600000A0000010A000002
+expect 1 001122334455 00aabbccddee 0800 4500001400000000400600000A0000010A000002$
+
+# Non-IPv4 packet -> hdr.ipv4 not valid -> no send_to_port -> drop
+packet 0 001122334455 00aabbccddee 0806 0001080006040001

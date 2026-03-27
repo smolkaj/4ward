@@ -8,7 +8,6 @@ import fourward.sim.SimulatorProto.DropReason
 import fourward.sim.SimulatorProto.Fork
 import fourward.sim.SimulatorProto.ForkBranch
 import fourward.sim.SimulatorProto.ForkReason
-import fourward.sim.SimulatorProto.PipelineStageEvent
 import fourward.sim.SimulatorProto.TraceEvent
 import fourward.sim.SimulatorProto.TraceTree
 import java.math.BigInteger
@@ -617,114 +616,9 @@ class PSAArchitecture : Architecture {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Stage execution helpers
-  // ---------------------------------------------------------------------------
-
-  private fun runParserStage(
-    interpreter: Interpreter,
-    ctx: PacketContext,
-    env: Environment,
-    stage: PipelineStage,
-    onParserError: (ParserErrorException) -> Unit,
-  ) {
-    ctx.addTraceEvent(stageEvent(stage, PipelineStageEvent.Direction.ENTER))
-    try {
-      interpreter.runParser(stage.blockName, env)
-    } catch (e: ParserErrorException) {
-      onParserError(e)
-    } finally {
-      ctx.addTraceEvent(stageEvent(stage, PipelineStageEvent.Direction.EXIT))
-    }
-  }
-
-  private fun runControlStage(
-    interpreter: Interpreter,
-    ctx: PacketContext,
-    env: Environment,
-    stage: PipelineStage,
-  ) {
-    ctx.addTraceEvent(stageEvent(stage, PipelineStageEvent.Direction.ENTER))
-    try {
-      interpreter.runControl(stage.blockName, env)
-    } catch (_: ExitException) {
-      // PSA: exit terminates the current control, but the pipeline continues.
-    } finally {
-      ctx.addTraceEvent(stageEvent(stage, PipelineStageEvent.Direction.EXIT))
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // Parameter binding
-  // ---------------------------------------------------------------------------
-
-  /**
-   * Binds a stage's parameters in the environment, mapping each param name to the shared value for
-   * its type.
-   *
-   * PSA stages reuse parameter names (e.g. `istd`) with different types, so parameters must be
-   * re-bound before each stage — unlike v1model where all params can be bound once upfront.
-   */
-  private fun bindStageParams(
-    env: Environment,
-    blockName: String,
-    blockParams: Map<String, List<BlockParam>>,
-    valueByType: Map<String, Value>,
-  ) {
-    for (param in blockParams[blockName] ?: emptyList()) {
-      valueByType[param.typeName]?.let { env.define(param.name, it) }
-    }
-  }
-
-  /** Simplified parameter descriptor: just name and type. */
-  private data class BlockParam(val name: String, val typeName: String)
-
-  /** Builds a map from block name to parameter list across all parsers and controls. */
-  private fun buildBlockParamsMap(config: BehavioralConfig): Map<String, List<BlockParam>> {
-    val result = mutableMapOf<String, List<BlockParam>>()
-    for (parser in config.parsersList) {
-      result[parser.name] =
-        parser.paramsList
-          .filter { it.type.hasNamed() && it.type.named !in IO_TYPES }
-          .map { BlockParam(it.name, it.type.named) }
-    }
-    for (control in config.controlsList) {
-      result[control.name] =
-        control.paramsList
-          .filter { it.type.hasNamed() && it.type.named !in IO_TYPES }
-          .map { BlockParam(it.name, it.type.named) }
-    }
-    return result
-  }
-
-  /**
-   * Creates default values for all named types referenced by parser/control parameters.
-   *
-   * Returns a mutable map keyed by type name. The same value instance is shared across all
-   * parameters of that type (e.g., `headers` is shared between parser `parsed_hdr` and control
-   * `hdr`), so mutations in one stage are visible to subsequent stages.
-   */
-  private fun createDefaultValues(
-    config: BehavioralConfig,
-    typesByName: Map<String, TypeDecl>,
-  ): MutableMap<String, Value> {
-    val values = mutableMapOf<String, Value>()
-    for (parser in config.parsersList) {
-      for (param in parser.paramsList) {
-        if (param.type.hasNamed() && param.type.named !in IO_TYPES) {
-          values.getOrPut(param.type.named) { defaultValue(param.type.named, typesByName) }
-        }
-      }
-    }
-    for (control in config.controlsList) {
-      for (param in control.paramsList) {
-        if (param.type.hasNamed() && param.type.named !in IO_TYPES) {
-          values.getOrPut(param.type.named) { defaultValue(param.type.named, typesByName) }
-        }
-      }
-    }
-    return values
-  }
+  // Stage execution helpers (bindStageParams, runParserStage, runControlStage,
+  // createDefaultValues, buildBlockParamsMap, buildExternInstancesMap) live in
+  // ArchitectureHelpers.kt.
 
   // ---------------------------------------------------------------------------
   // PSA extern handler
@@ -793,7 +687,7 @@ class PSAArchitecture : Architecture {
             "count" -> UnitVal
             // PSA Hash.get_hash: 1-arg form returns hash(data), 3-arg form returns
             // (base + hash(data)) mod max. Algorithm comes from constructor args.
-            "get_hash" -> evalGetHash(call, eval, pipeline.externInstances)
+            "get_hash" -> evalGetHash(call, eval, pipeline.externInstances, PSA_HASH_ALGORITHMS)
             // PSA Meter.execute(index): returns PSA_MeterColor_t. Always GREEN — no real
             // packet rates in simulator (same as v1model).
             "execute" -> EnumVal("GREEN")
@@ -842,114 +736,9 @@ class PSAArchitecture : Architecture {
     }
   }
 
-  /** Evaluates PSA Hash.get_hash (1-arg or 3-arg form). */
-  private fun evalGetHash(
-    call: ExternCall.Method,
-    eval: ExternEvaluator,
-    externInstances: Map<String, ExternInstanceDecl>,
-  ): Value {
-    val instance =
-      externInstances[call.instanceName] ?: error("unknown Hash instance: ${call.instanceName}")
-    val psaAlgorithm =
-      instance.constructorArgsList.firstOrNull()?.literal?.enumMember
-        ?: error("Hash instance ${call.instanceName} missing algorithm constructor arg")
-    val algorithm =
-      PSA_HASH_ALGORITHMS[psaAlgorithm] ?: error("unsupported PSA hash algorithm: $psaAlgorithm")
-    val resultWidth = eval.returnType().bit.width
-
-    val resultMask = BigInteger.TWO.pow(resultWidth) - BigInteger.ONE
-
-    return if (eval.argCount() == 1) {
-      // 1-arg form: get_hash(data) → hash(data) truncated to result width
-      val data = hashDataArg(eval.evalArg(0))
-      val hash = computeHash(algorithm, data).and(resultMask)
-      BitVal(BitVector(hash, resultWidth))
-    } else {
-      // 3-arg form: get_hash(base, data, max) → (base + hash(data)) mod max
-      val base = (eval.evalArg(0) as BitVal).bits.value
-      val data = hashDataArg(eval.evalArg(1))
-      val max = (eval.evalArg(2) as BitVal).bits.value
-      val hash = computeHash(algorithm, data)
-      val result = if (max > BigInteger.ZERO) (base + hash.mod(max)).and(resultMask) else base
-      BitVal(BitVector(result, resultWidth))
-    }
-  }
-
-  /**
-   * Coerces a hash data argument to [StructVal]. The p4c midend usually wraps hash inputs in a
-   * StructExpression, but single-field inputs (e.g. `get_hash(hdr.ethernet.srcAddr)`) arrive as
-   * bare [BitVal]. Headers arrive as [HeaderVal].
-   */
-  private fun hashDataArg(value: Value): StructVal =
-    when (value) {
-      is BitVal -> StructVal("", mutableMapOf("_0" to value))
-      else -> value.asStructVal()
-    }
-
-  /**
-   * Sums all 16-bit words in [data]'s concatenated fields. Returns the raw sum (not complemented).
-   */
-  private fun sumWords(data: StructVal): BigInteger =
-    concatFields(data)?.let { sumBitWords(it) } ?: BigInteger.ZERO
-
-  /** Builds a flat map from extern instance name → declaration across all parsers and controls. */
-  private fun buildExternInstancesMap(config: BehavioralConfig): Map<String, ExternInstanceDecl> =
-    (config.parsersList.flatMap { it.externInstancesList } +
-        config.controlsList.flatMap { it.externInstancesList })
-      .associateBy { it.name }
-
-  // ---------------------------------------------------------------------------
-  // Action selector fork handling
-  // ---------------------------------------------------------------------------
-
-  /**
-   * Handles an [ActionSelectorFork] by re-executing the pipeline segment for each group member.
-   *
-   * On the first encounter with an action selector group hit, the [Interpreter] throws
-   * [ActionSelectorFork] with the list of group members and the trace events accumulated before the
-   * fork. This method builds a fork [TraceTree] with one branch per member, re-executing via
-   * [reExecute] with the forced member selection added to [currentSelectors].
-   *
-   * The re-execution produces identical events up to the fork point (deterministic replay), so the
-   * prefix is safely stripped from each branch's trace.
-   */
-  private fun handleActionSelectorFork(
-    fork: ActionSelectorFork,
-    currentSelectors: Map<String, Int>,
-    reExecute: (Map<String, Int>) -> TraceTree,
-  ): TraceTree {
-    val prefixLength = fork.eventsBeforeFork.size
-    val branches =
-      fork.members.map { member ->
-        val newSelectors = currentSelectors + (fork.tableName to member.memberId)
-        val subtree = reExecute(newSelectors)
-        val stripped = TraceTree.newBuilder().addAllEvents(subtree.eventsList.drop(prefixLength))
-        if (subtree.hasPacketOutcome()) stripped.setPacketOutcome(subtree.packetOutcome)
-        if (subtree.hasForkOutcome()) stripped.setForkOutcome(subtree.forkOutcome)
-        ForkBranch.newBuilder()
-          .setLabel("member_${member.memberId}")
-          .setSubtree(stripped.build())
-          .build()
-      }
-    return buildForkTree(fork.eventsBeforeFork, ForkReason.ACTION_SELECTOR, branches)
-  }
-
-  // ---------------------------------------------------------------------------
-  // Trace helpers
-  // ---------------------------------------------------------------------------
-
-  private fun buildForkTree(
-    events: List<TraceEvent>,
-    reason: ForkReason,
-    branches: List<ForkBranch>,
-  ): TraceTree =
-    TraceTree.newBuilder()
-      .addAllEvents(events)
-      .setForkOutcome(Fork.newBuilder().setReason(reason).addAllBranches(branches))
-      .build()
-
-  // Shared trace helpers (buildDropTrace, buildOutputTrace, packetIngressEvent, stageEvent)
-  // live in TraceHelpers.kt.
+  // Hash helpers (evalGetHash, hashDataArg, sumWords) live in Hash.kt.
+  // Action selector fork handling (handleActionSelectorFork) and trace helpers
+  // (buildForkTree) live in ArchitectureHelpers.kt and TraceHelpers.kt.
 
   private companion object {
     // PSA_PacketPath_t enum values (PSA spec §6.1).
@@ -960,9 +749,6 @@ class PSAArchitecture : Architecture {
     const val PACKET_PATH_CLONE_E2E = "CLONE_E2E"
     const val PACKET_PATH_RESUBMIT = "RESUBMIT"
     const val PACKET_PATH_RECIRCULATE = "RECIRCULATE"
-
-    /** Architecture-level packet I/O types that are not user-visible parameters. */
-    val IO_TYPES = setOf("packet_in", "packet_out")
 
     /** Maps PSA_HashAlgorithm_t enum members to the internal algorithm names used by Hash.kt. */
     val PSA_HASH_ALGORITHMS =
@@ -976,8 +762,5 @@ class PSAArchitecture : Architecture {
     /** PSA_PORT_RECIRCULATE (psa.p4: `const PortId_t PSA_PORT_RECIRCULATE = 32w0xfffffffa`). */
     const val PSA_PORT_RECIRCULATE_LONG = 0xFFFFFFFAL
     val PSA_PORT_RECIRCULATE_UINT = PSA_PORT_RECIRCULATE_LONG.toUInt()
-
-    /** Guard against infinite recirculation loops (BMv2 psa_switch uses a similar limit). */
-    const val MAX_RECIRCULATIONS = 16
   }
 }

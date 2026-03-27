@@ -1,5 +1,6 @@
 package fourward.simulator
 
+import fourward.ir.ExternInstanceDecl
 import java.math.BigInteger
 import java.util.zip.CRC32
 
@@ -134,3 +135,56 @@ fun computeHashWithPayload(algorithm: String, data: StructVal, payload: ByteArra
       }
     }
   }
+
+/**
+ * Coerces a hash data argument to [StructVal]. The p4c midend usually wraps hash inputs in a
+ * StructExpression, but single-field inputs (e.g. `get_hash(hdr.ethernet.srcAddr)`) arrive as bare
+ * [BitVal]. Headers arrive as [HeaderVal].
+ */
+internal fun hashDataArg(value: Value): StructVal =
+  when (value) {
+    is BitVal -> StructVal("", mutableMapOf("_0" to value))
+    else -> value.asStructVal()
+  }
+
+/**
+ * Sums all 16-bit words in [data]'s concatenated fields. Returns the raw sum (not complemented).
+ */
+internal fun sumWords(data: StructVal): BigInteger =
+  concatFields(data)?.let { sumBitWords(it) } ?: BigInteger.ZERO
+
+/**
+ * Evaluates Hash.get_hash (1-arg or 3-arg form). [algorithmMap] maps architecture-specific enum
+ * members to the internal algorithm names used by [computeHash].
+ */
+internal fun evalGetHash(
+  call: ExternCall.Method,
+  eval: ExternEvaluator,
+  externInstances: Map<String, ExternInstanceDecl>,
+  algorithmMap: Map<String, String>,
+): Value {
+  val instance =
+    externInstances[call.instanceName] ?: error("unknown Hash instance: ${call.instanceName}")
+  val archAlgorithm =
+    instance.constructorArgsList.firstOrNull()?.literal?.enumMember
+      ?: error("Hash instance ${call.instanceName} missing algorithm constructor arg")
+  val algorithm = algorithmMap[archAlgorithm] ?: error("unsupported hash algorithm: $archAlgorithm")
+  val resultWidth = eval.returnType().bit.width
+
+  val resultMask = BigInteger.TWO.pow(resultWidth) - BigInteger.ONE
+
+  return if (eval.argCount() == 1) {
+    // 1-arg form: get_hash(data) -> hash(data) truncated to result width
+    val data = hashDataArg(eval.evalArg(0))
+    val hash = computeHash(algorithm, data).and(resultMask)
+    BitVal(BitVector(hash, resultWidth))
+  } else {
+    // 3-arg form: get_hash(base, data, max) -> (base + hash(data)) mod max
+    val base = (eval.evalArg(0) as BitVal).bits.value
+    val data = hashDataArg(eval.evalArg(1))
+    val max = (eval.evalArg(2) as BitVal).bits.value
+    val hash = computeHash(algorithm, data)
+    val result = if (max > BigInteger.ZERO) (base + hash.mod(max)).and(resultMask) else base
+    BitVal(BitVector(result, resultWidth))
+  }
+}

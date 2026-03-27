@@ -359,6 +359,20 @@ corpus_test_suite(
     ],
 )
 
+corpus_test_suite(
+    name = "pna_stf_corpus_test",
+    stf_overrides = {
+        "pna-dpdk-direct-counter": "//e2e_tests/corpus:pna-dpdk-direct-counter.stf",
+        "pna-dpdk-small_sample": "//e2e_tests/corpus:pna-dpdk-small_sample.stf",
+        "pna-example-template": "//e2e_tests/corpus:pna-example-template.stf",
+    },
+    tests = [
+        "pna-dpdk-direct-counter",
+        "pna-dpdk-small_sample",
+        "pna-example-template",
+    ],
+)
+
 # Tests that take excessively long to compile with p4c-4ward.
 corpus_test_suite(
     name = "slow_compile_stf_corpus_test",

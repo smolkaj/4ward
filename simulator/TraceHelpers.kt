@@ -3,6 +3,9 @@ package fourward.simulator
 import fourward.ir.PipelineStage
 import fourward.sim.SimulatorProto.Drop
 import fourward.sim.SimulatorProto.DropReason
+import fourward.sim.SimulatorProto.Fork
+import fourward.sim.SimulatorProto.ForkBranch
+import fourward.sim.SimulatorProto.ForkReason
 import fourward.sim.SimulatorProto.PacketIngressEvent
 import fourward.sim.SimulatorProto.PacketOutcome
 import fourward.sim.SimulatorProto.PipelineStageEvent
@@ -44,4 +47,15 @@ internal fun stageEvent(stage: PipelineStage, direction: PipelineStageEvent.Dire
         .setStageKind(stage.kind)
         .setDirection(direction)
     )
+    .build()
+
+/** Builds a [TraceTree] with a fork outcome from accumulated events and branches. */
+internal fun buildForkTree(
+  events: List<TraceEvent>,
+  reason: ForkReason,
+  branches: List<ForkBranch>,
+): TraceTree =
+  TraceTree.newBuilder()
+    .addAllEvents(events)
+    .setForkOutcome(Fork.newBuilder().setReason(reason).addAllBranches(branches))
     .build()
