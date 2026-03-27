@@ -1,0 +1,5 @@
+# PNA action selector: table with ActionSelector and exact+selector keys.
+# No entries -> default NoAction. No send_to_port -> drop.
+
+# Ethernet + IPv4 packet -> table miss -> drop
+packet 0 001122334455 00aabbccddee 0800 4500001400000000400600000A0000010A000002

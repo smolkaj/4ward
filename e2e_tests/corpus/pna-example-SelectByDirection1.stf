@@ -1,0 +1,15 @@
+# PNA SelectByDirection1: LPM table applied only when SelectByDirection result == dstAddr.
+# In NET_TO_HOST: SelectByDirection returns srcAddr. Table applied only if srcAddr == dstAddr.
+# Default action is drop.
+
+add ipv4_da_lpm hdr.ipv4.dstAddr:10.0.0.0/8 next_hop(vport:1)
+
+# srcAddr == dstAddr: table is applied, matches 10.0.0.0/8 -> port 1
+packet 0 001122334455 00aabbccddee 0800 4500001400000000400600000A0000010A000001
+expect 1 001122334455 00aabbccddee 0800 4500001400000000400600000A0000010A000001$
+
+# srcAddr != dstAddr: table not applied -> drop (no send_to_port)
+packet 0 001122334455 00aabbccddee 0800 4500001400000000400600000A0000010A000002
+
+# Non-IPv4 -> drop
+packet 0 001122334455 00aabbccddee 0806 0001080006040001

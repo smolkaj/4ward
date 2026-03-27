@@ -1,0 +1,9 @@
+# PNA issue 3041: varbit parsing with send_to_port(0).
+# Always forwards to port 0 after applying tables.
+
+# Ethernet + IPv4 (ihl=5, no options) -> port 0
+# Ethernet: dst=001122334455 src=00aabbccddee type=0x0800
+# IPv4: ver=4 ihl=5 dscp=0 len=20 id=0 flags=0 ttl=64 proto=6 cksum=0
+#       src=10.0.0.1 dst=10.0.0.2
+packet 0 001122334455 00aabbccddee 0800 4500001400000000400600000A0000010A000002
+expect 0 001122334455 00aabbccddee 0800 4500001400000000400600000A0000010A000002$

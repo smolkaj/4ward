@@ -85,7 +85,11 @@ kt_jvm_library(
     name = "interpreter_test_dsl",
     testonly = True,
     srcs = ["InterpreterTestDsl.kt"],
-    deps = [":ir_java_proto"],
+    deps = [
+        ":ir_java_proto",
+        ":p4runtime_java_proto",
+        ":simulator_lib",
+    ],
 )
 
 # =============================================================================

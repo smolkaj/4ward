@@ -1,0 +1,9 @@
+# PNA header union: parses header union member based on first byte.
+# No send_to_port -> all packets drop; exercises header union parsing.
+
+# First byte = 0x00: extract h1 (Hdr1, 1 byte), deparse h1 + union
+# h1.a=0x00, then h1 extracted as union member (1 byte)
+packet 0 00 AA
+
+# First byte = 0x01: extract h2 (Hdr2, 2 bytes), then setInvalid -> deparse h1 only
+packet 0 01 AABB

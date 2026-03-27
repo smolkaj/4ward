@@ -1,0 +1,8 @@
+# PNA header union1: similar to header-union but with debug_hdr table.
+# No send_to_port -> all packets drop.
+
+# S.t=0: parse O1 (1 byte)
+packet 0 00 AA
+
+# S.t=1: parse O2 (2 bytes)
+packet 0 01 AABB

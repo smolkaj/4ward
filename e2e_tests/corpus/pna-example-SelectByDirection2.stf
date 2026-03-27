@@ -1,0 +1,14 @@
+# PNA SelectByDirection2: calls forward(SelectByDirection(dir, srcAddr, dstAddr)).
+# In NET_TO_HOST: forward sets meta = srcAddr, then table applied if meta == dstAddr.
+# Default action is drop.
+
+add ipv4_da_lpm hdr.ipv4.dstAddr:10.0.0.0/8 forward(addr:0x0A000001)
+
+# srcAddr == dstAddr == 10.0.0.1: meta = srcAddr = dstAddr, table applied -> forward
+packet 0 001122334455 00aabbccddee 0800 4500001400000000400600000A0000010A000001
+
+# srcAddr (10.0.0.1) != dstAddr (10.0.0.2): table not applied -> drop
+packet 0 001122334455 00aabbccddee 0800 4500001400000000400600000A0000010A000002
+
+# Non-IPv4 -> drop
+packet 0 001122334455 00aabbccddee 0806 0001080006040001

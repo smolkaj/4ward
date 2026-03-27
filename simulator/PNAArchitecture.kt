@@ -54,6 +54,8 @@ class PNAArchitecture : Architecture {
     var dropped: Boolean = true
     var destPort: Int = 0
     var recirculate: Boolean = false
+    /** Mirror session ID requested by `mirror_packet()`, or null if no mirror. */
+    var mirrorSessionId: Int? = null
   }
 
   override fun processPacket(
@@ -164,7 +166,12 @@ class PNAArchitecture : Architecture {
     }
 
     // --- Post-control forwarding decision ---
+    val mirrorBranches = buildMirrorBranches(pipeline, payload, forwardingState)
+
     if (forwardingState.dropped && !forwardingState.recirculate) {
+      if (mirrorBranches.isNotEmpty()) {
+        return buildForkTree(ctx.getEvents(), ForkReason.CLONE, mirrorBranches)
+      }
       return buildDropTrace(ctx.getEvents())
     }
 
@@ -183,17 +190,26 @@ class PNAArchitecture : Architecture {
           passNumber + 1,
           depth + 1,
         )
+      val recircBranch =
+        ForkBranch.newBuilder().setLabel("recirculate").setSubtree(recircTree).build()
+      // Mirror is independent of recirculation — emit both if requested.
+      val branches = mirrorBranches + recircBranch
+      val reason = if (mirrorBranches.isNotEmpty()) ForkReason.CLONE else ForkReason.RECIRCULATE
       return TraceTree.newBuilder()
         .addAllEvents(ctx.getEvents())
-        .setForkOutcome(
-          Fork.newBuilder()
-            .setReason(ForkReason.RECIRCULATE)
-            .addBranches(ForkBranch.newBuilder().setLabel("recirculate").setSubtree(recircTree))
-        )
+        .setForkOutcome(Fork.newBuilder().setReason(reason).addAllBranches(branches))
         .build()
     }
 
-    return buildOutputTrace(ctx.getEvents(), forwardingState.destPort, deparsedBytes)
+    val originalTree = buildOutputTrace(ctx.getEvents(), forwardingState.destPort, deparsedBytes)
+
+    if (mirrorBranches.isNotEmpty()) {
+      val originalBranch =
+        ForkBranch.newBuilder().setLabel("original").setSubtree(originalTree).build()
+      return buildForkTree(emptyList(), ForkReason.CLONE, listOf(originalBranch) + mirrorBranches)
+    }
+
+    return originalTree
   }
 
   // ---------------------------------------------------------------------------
@@ -237,10 +253,6 @@ class PNAArchitecture : Architecture {
     }
   }
 
-  // Stage execution helpers (bindStageParams, runParserStage, runControlStage,
-  // createDefaultValues, buildBlockParamsMap, buildExternInstancesMap) live in
-  // ArchitectureHelpers.kt.
-
   // ---------------------------------------------------------------------------
   // PNA extern handler
   // ---------------------------------------------------------------------------
@@ -282,7 +294,11 @@ class PNAArchitecture : Architecture {
         forwardingState.destPort = port.bits.value.toInt()
         UnitVal
       }
-      "mirror_packet" -> error("PNA mirror_packet() is not yet implemented")
+      "mirror_packet" -> {
+        val sessionId = (eval.evalArg(1) as BitVal).bits.value.toInt()
+        forwardingState.mirrorSessionId = sessionId
+        UnitVal
+      }
       "recirculate" -> {
         forwardingState.recirculate = true
         UnitVal
@@ -291,11 +307,12 @@ class PNAArchitecture : Architecture {
         val direction = (eval.evalArg(0) as EnumVal).member
         if (direction == DIRECTION_NET_TO_HOST) eval.evalArg(1) else eval.evalArg(2)
       }
-      // TODO(PNA): implement actual add-on-miss table entry insertion.
+      // TODO(PNA add-on-miss): actual data-plane table insertion is not implemented.
       "add_entry" -> BoolVal(true)
-      // TODO(PNA): implement flow ID allocation.
+      // Stub: returns 0. Real NICs would allocate unique per-flow IDs, but a fixed value
+      // suffices for STF testing where flow ID values are not checked.
       "allocate_flow_id" -> BitVal(BitVector(BigInteger.ZERO, 32))
-      // TODO(PNA): implement entry expiration tracking.
+      // No-op: the simulator has no real timers, so expiration is not modeled.
       "set_entry_expire_time" -> UnitVal
       "restart_expire_timer" -> UnitVal
       else -> error("unhandled PNA extern: ${call.name}")
@@ -387,9 +404,33 @@ class PNAArchitecture : Architecture {
         )
     }
 
-  // Hash helpers (evalGetHash, hashDataArg, sumWords) live in Hash.kt.
-  // Action selector fork handling (handleActionSelectorFork) and trace helpers
-  // (buildForkTree) live in ArchitectureHelpers.kt and TraceHelpers.kt.
+  // ---------------------------------------------------------------------------
+  // Mirror branch construction
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Builds mirror branches if `mirror_packet()` was called during main control.
+   *
+   * PNA mirroring uses the ORIGINAL input bytes (pre-parse), similar to PSA's I2E clone. Each
+   * replica in the clone session outputs the original bytes on the replica's egress port. Unlike
+   * PSA clones (which run through a separate egress pipeline), PNA mirror replicas emit directly
+   * because PNA has no separate egress stage for mirrored packets to traverse.
+   */
+  private fun buildMirrorBranches(
+    pipeline: PipelineConfig,
+    originalPayload: ByteArray,
+    forwardingState: ForwardingState,
+  ): List<ForkBranch> {
+    val sessionId = forwardingState.mirrorSessionId ?: return emptyList()
+    val session = pipeline.tableStore.getCloneSession(sessionId) ?: return emptyList()
+    return session.replicasList.map { replica ->
+      val subtree = buildOutputTrace(emptyList(), replica.egressPort, originalPayload)
+      ForkBranch.newBuilder()
+        .setLabel("mirror_port_${replica.egressPort}")
+        .setSubtree(subtree)
+        .build()
+    }
+  }
 
   private companion object {
     // PNA_Direction_t enum values (pna.p4).

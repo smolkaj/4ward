@@ -1,0 +1,11 @@
+# PNA header union example: parses S header, then union member based on S.t.
+# Ingress modifies the union data. No send_to_port -> drop.
+
+# S.t=0: parse O1 (1 byte). Ingress sets O1.data=0xff.
+packet 0 00 AA
+
+# S.t=1: parse O2 (2 bytes). Ingress sets O2.data=0xffff.
+packet 0 01 AABB
+
+# S.t=2: no union member parsed. Drop.
+packet 0 02

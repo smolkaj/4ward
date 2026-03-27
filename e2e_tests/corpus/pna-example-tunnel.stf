@@ -1,0 +1,8 @@
+# PNA tunnel: tunnel decap/encap using RxPkt direction check.
+# No send_to_port -> all packets drop.
+
+# IPv4 packet -> tables apply (no matching entries) -> drop
+packet 0 001122334455 00aabbccddee 0800 4500001400000000400600000A0000010A000002
+
+# Non-IPv4 packet -> drop
+packet 0 001122334455 00aabbccddee 0806 0001080006040001

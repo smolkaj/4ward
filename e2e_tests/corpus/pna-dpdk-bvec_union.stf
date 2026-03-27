@@ -1,0 +1,8 @@
+# PNA bvec union: parses header union with structured fields.
+# No send_to_port -> all packets drop; exercises header union + struct parsing.
+
+# h1.a=0x00: extract Hdr1 as union (4 bytes data)
+packet 0 00 AABBCCDD 11223344
+
+# h1.a=0x01: extract Hdr2 as union (2 bytes data), then setInvalid
+packet 0 01 AABB
