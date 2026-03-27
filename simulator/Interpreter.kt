@@ -41,6 +41,15 @@ class Interpreter(
   private val packetCtx: PacketContext? = null,
   private val selectorOverrides: Map<String, Int> = emptyMap(),
   private val externHandler: ExternHandler? = null,
+  /**
+   * Cached table lookup results from a prior execution, keyed by table name. When non-null, table
+   * lookups use the cache instead of scanning [tableStore] — avoiding O(n) scans for tables whose
+   * key values haven't changed since the cache was populated (i.e., tables before a fork point).
+   *
+   * The cache is disabled once a table from [selectorOverrides] is hit, since tables after the fork
+   * point may produce different key values due to different selector member actions.
+   */
+  private val tableLookupCache: Map<String, TableStore.LookupResult>? = null,
 ) {
   private val parsers: Map<String, ParserDecl> = config.parsersList.associateBy { it.name }
 
@@ -73,6 +82,12 @@ class Interpreter(
     get() = packetCtx ?: error("packet I/O requires a PacketContext")
 
   private val types = config.typesList.associateBy { it.name }
+
+  /** Table lookup results recorded during this execution, for caching in fork re-executions. */
+  private val recordedLookups = mutableMapOf<String, TableStore.LookupResult>()
+
+  /** Set to true once a [selectorOverrides] table is hit, disabling the [tableLookupCache]. */
+  private var pastForkPoint = false
 
   /** Source info of the statement currently being executed, for trace events. */
   private var currentSourceInfo: SourceInfo? = null
@@ -720,7 +735,11 @@ class Interpreter(
     val tableBehavior = tables[tableName] ?: error("unknown table: $tableName")
     val keyValues = tableBehavior.keysList.map { key -> key.fieldName to evalExpr(key.expr, env) }
 
-    val result = tableStore.lookup(tableName, keyValues)
+    // On fork re-executions, use cached results for tables before the fork point.
+    val cached =
+      if (!pastForkPoint && tableLookupCache != null) tableLookupCache[tableName] else null
+    val result = cached ?: tableStore.lookup(tableName, keyValues)
+    if (!pastForkPoint) recordedLookups.putIfAbsent(tableName, result)
 
     // P4Runtime spec §9.3: direct counters are incremented on every table hit.
     if (result.hit && result.entry != null && packetCtx != null) {
@@ -742,7 +761,9 @@ class Interpreter(
     if (result.members != null) {
       val forced = selectorOverrides[tableName]
       if (forced != null) {
-        // Re-execution with a forced member — execute that member's action directly.
+        // Re-execution with a forced member. Disable cache: tables after the fork may
+        // see different key values per branch.
+        pastForkPoint = true
         val member =
           result.members.find { it.memberId == forced }
             ?: error("forced member $forced not found in table $tableName")
@@ -752,7 +773,12 @@ class Interpreter(
         return TableResult(result.hit, member.actionName)
       }
       // First encounter: throw to let the architecture build the trace tree.
-      throw ActionSelectorFork(tableName, result.members, packetCtx!!.getEvents())
+      throw ActionSelectorFork(
+        tableName,
+        result.members,
+        packetCtx!!.getEvents(),
+        recordedLookups.toMap(),
+      )
     }
 
     // Resolve per-table action specialization: the p4info uses original names,
@@ -1262,4 +1288,6 @@ class ActionSelectorFork(
   val tableName: String,
   val members: List<TableStore.MemberAction>,
   eventsBeforeFork: List<TraceEvent>,
+  /** Table lookup results from before the fork point, for caching in re-executions. */
+  val preForkLookups: Map<String, TableStore.LookupResult> = emptyMap(),
 ) : ForkException(eventsBeforeFork)
