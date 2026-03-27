@@ -518,29 +518,30 @@ Benchmark: `bazel test //p4runtime:DataplaneBenchmark --test_output=streamed`.
 Three configurations exercise increasingly realistic workloads:
 - **direct** — L3 forwarding only (VRF → LPM → nexthop → MAC rewrite).
 - **wcmp** — routes → `set_wcmp_group_id` → `wcmp_group_table` with
-  4-member action profile group (action selector fork in trace tree).
+  16-member action profile group (action selector fork in trace tree).
 - **wcmp+mirror** — adds ACL copy-to-CPU via clone session (clone fork
   in trace tree, 2 output packets per input).
 
-| Config      | Routes | Entries |  p50   |  p99   | Mean   | Throughput |
-|-------------|--------|---------|--------|--------|--------|------------|
-| direct      |      0 |       0 | 0.13ms | 0.36ms | 0.15ms |  6,600 pps |
-| direct      |  1,000 |   2,003 | 0.26ms | 0.54ms | 0.30ms |  3,300 pps |
-| direct      | 10,000 |  10,103 | 0.72ms | 1.36ms | 0.74ms |  1,300 pps |
-| wcmp        |  1,000 |   2,009 | 0.82ms | 1.44ms | 0.86ms |  1,200 pps |
-| wcmp        | 10,000 |  10,109 | 3.51ms | 5.07ms | 3.55ms |    280 pps |
-| wcmp+mirror |  1,000 |   2,012 | 1.45ms | 2.28ms | 1.49ms |    670 pps |
-| wcmp+mirror | 10,000 |  10,112 | 6.43ms | 8.26ms | 6.51ms |    150 pps |
+| Config      | Routes | Entries |   p50   |   p99   |  Mean   | Throughput |
+|-------------|--------|---------|---------|---------|---------|------------|
+| direct      |      0 |       0 |  0.14ms |  0.35ms |  0.16ms |  6,500 pps |
+| direct      |  1,000 |   2,003 |  0.23ms |  0.55ms |  0.29ms |  3,400 pps |
+| direct      | 10,000 |  10,103 |  0.73ms |  1.62ms |  0.76ms |  1,300 pps |
+| wcmp        |  1,000 |   2,021 |  2.56ms |  3.68ms |  2.62ms |    380 pps |
+| wcmp        | 10,000 |  10,121 | 11.84ms | 13.53ms | 11.94ms |     84 pps |
+| wcmp+mirror |  1,000 |   2,024 |  5.40ms |  6.71ms |  5.49ms |    180 pps |
+| wcmp+mirror | 10,000 |  10,124 | 23.40ms | 26.01ms | 23.63ms |     42 pps |
 
 Key observations:
-- **Direct L3 at 10k entries: 0.72ms p50** — already meets the 1ms
+- **Direct L3 at 10k entries: 0.73ms p50** — already meets the 1ms
   target. Scales linearly (~0.06ms per 1k ipv4_table entries).
-- **WCMP adds ~3× latency** at the same entry count — the action
-  selector fork (trace tree branching over all 4 members) dominates.
+- **WCMP with 16 members adds ~16× latency** — the action selector
+  fork explores all 16 members in the trace tree.  Latency scales
+  linearly with member count, as expected for exhaustive forking.
 - **Mirror adds another ~2×** — the clone fork re-executes the egress
-  pipeline, roughly doubling work.
-- **The realistic target (wcmp+mirror at 10k) is 6.4ms** — needs ~6×
-  improvement. Direct L3 isn't the bottleneck; trace tree forking is.
+  pipeline for each branch.
+- **The realistic target (wcmp+mirror at 10k) is 23ms** — needs ~23×
+  improvement. Trace tree forking dominates; table lookup is noise.
 
 #### Phase 2: low-hanging fruit
 
