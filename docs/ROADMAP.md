@@ -512,26 +512,35 @@ Deliverables:
 **Done when:** we have a reproducible latency number for SAI P4 at 10k
 entries and know where the time goes.
 
-**Baseline (2026-03-27).** In-process gRPC, SAI P4 middleblock, L3
-IPv4 forwarding with /32 LPM routes. Benchmark:
-`bazel test //p4runtime:DataplaneBenchmark --test_output=streamed`.
+**Baseline (2026-03-27).** In-process gRPC, SAI P4 middleblock.
+Benchmark: `bazel test //p4runtime:DataplaneBenchmark --test_output=streamed`.
 
-| Routes | Entries |  p50   |  p95   | Mean   | Throughput |
-|--------|---------|--------|--------|--------|------------|
-|      0 |       0 | 0.26ms | 3.3ms  | 0.6ms  |  1,600 pps |
-|    100 |     203 | 0.42ms | 3.6ms  | 0.8ms  |  1,200 pps |
-|  1,000 |   2,003 | 0.50ms | 3.8ms  | 0.9ms  |  1,100 pps |
-|  4,000 |   8,003 | 0.87ms | 4.5ms  | 1.5ms  |    670 pps |
-| 10,000 |  10,103 | 1.35ms | 5.3ms  | 2.4ms  |    410 pps |
+Three configurations exercise increasingly realistic workloads:
+- **direct** — L3 forwarding only (VRF → LPM → nexthop → MAC rewrite).
+- **wcmp** — routes → `set_wcmp_group_id` → `wcmp_group_table` with
+  4-member action profile group (action selector fork in trace tree).
+- **wcmp+mirror** — adds ACL copy-to-CPU via clone session (clone fork
+  in trace tree, 2 output packets per input).
+
+| Config      | Routes | Entries |  p50   |  p99   | Mean   | Throughput |
+|-------------|--------|---------|--------|--------|--------|------------|
+| direct      |      0 |       0 | 0.13ms | 0.36ms | 0.15ms |  6,600 pps |
+| direct      |  1,000 |   2,003 | 0.26ms | 0.54ms | 0.30ms |  3,300 pps |
+| direct      | 10,000 |  10,103 | 0.72ms | 1.36ms | 0.74ms |  1,300 pps |
+| wcmp        |  1,000 |   2,009 | 0.82ms | 1.44ms | 0.86ms |  1,200 pps |
+| wcmp        | 10,000 |  10,109 | 3.51ms | 5.07ms | 3.55ms |    280 pps |
+| wcmp+mirror |  1,000 |   2,012 | 1.45ms | 2.28ms | 1.49ms |    670 pps |
+| wcmp+mirror | 10,000 |  10,112 | 6.43ms | 8.26ms | 6.51ms |    150 pps |
 
 Key observations:
-- **p50 scales linearly** with ipv4_table size (~0.1ms per 1k entries),
-  consistent with the O(n) linear scan in `TableStore.lookup()`.
-- **Fat p95/p99 tails** (3–10ms) are GC pauses, not algorithmic — a hash
-  index won't help the tails.
-- **Baseline overhead is ~0.26ms** (parsing, trace tree, gRPC) even with
-  no table entries.
-- **The 1ms target at 10k entries requires ~2× improvement at p50.**
+- **Direct L3 at 10k entries: 0.72ms p50** — already meets the 1ms
+  target. Scales linearly (~0.06ms per 1k ipv4_table entries).
+- **WCMP adds ~3× latency** at the same entry count — the action
+  selector fork (trace tree branching over all 4 members) dominates.
+- **Mirror adds another ~2×** — the clone fork re-executes the egress
+  pipeline, roughly doubling work.
+- **The realistic target (wcmp+mirror at 10k) is 6.4ms** — needs ~6×
+  improvement. Direct L3 isn't the bottleneck; trace tree forking is.
 
 #### Phase 2: low-hanging fruit
 
