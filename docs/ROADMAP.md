@@ -474,9 +474,9 @@ and production workloads (sustained packet streams), simulator latency becomes
 the bottleneck. Without measurement, we can't tell whether we're minutes or
 months away from acceptable performance.
 
-**Goal.** 1 ms per packet (1k packets/sec) on SAI P4 middleblock with ~10k
-table entries. This is the bar for practical DVaaS use — fast enough that
-test suites complete in seconds, not hours.
+**Goal.** 1k packets/sec on SAI P4 middleblock with ~10k table entries.
+This is the bar for practical DVaaS use — fast enough that test suites
+complete in seconds, not hours.
 
 **Why it's hard.** Several design choices that serve correctness work against
 throughput:
@@ -522,35 +522,54 @@ Three configurations exercise increasingly realistic workloads:
 - **wcmp×16+mirror** — adds ingress clone via ACL `acl_copy` + clone
   session (clone fork in trace tree, 2 output packets per input).
 
-| Config        | Routes | Entries |   p50   |   p99   |  Mean   | Throughput |
-|---------------|--------|---------|---------|---------|---------|------------|
-| direct        |      0 |       0 |  0.15ms |  0.32ms |  0.16ms |  6,100 pps |
-| direct        |  1,000 |   2,003 |  0.25ms |  0.60ms |  0.31ms |  3,300 pps |
-| direct        | 10,000 |  10,103 |  0.73ms |  1.08ms |  0.74ms |  1,400 pps |
-| wcmp×4        | 10,000 |  10,109 |  3.49ms |  5.24ms |  3.56ms |    280 pps |
-| wcmp×16       | 10,000 |  10,121 | 11.93ms | 13.43ms | 12.06ms |     83 pps |
-| wcmp×16+mirr  | 10,000 |  10,124 | 24.38ms | 25.94ms | 24.50ms |     41 pps |
+| Config        | Routes | Entries | packets/s |   p50   |
+|---------------|--------|---------|-----------|---------|
+| direct        |      0 |       0 |     6,100 |  0.15ms |
+| direct        |  1,000 |   2,003 |     3,300 |  0.25ms |
+| direct        | 10,000 |  10,103 |     1,400 |  0.73ms |
+| wcmp×4        | 10,000 |  10,109 |       280 |  3.49ms |
+| wcmp×16       | 10,000 |  10,121 |        83 | 11.93ms |
+| wcmp×16+mirr  | 10,000 |  10,124 |        41 | 24.38ms |
 
 Key observations:
-- **Direct L3 at 10k entries: 0.73ms p50** — already meets the 1ms
-  target. Scales linearly (~0.06ms per 1k ipv4_table entries).
+- **Direct L3 at 10k: 1,400 pps** — already meets the 1k pps target.
 - **WCMP scales linearly with member count**: 4 members → 3.5ms,
   16 members → 11.9ms (~3.4× for 4× members). The action selector
   fork explores every member in the trace tree.
 - **Ingress mirror adds ~2×** — the clone fork re-executes the egress
   pipeline (including all WCMP branches), so the trace tree has
   16 branches × 2 clone paths = 32 leaves.
-- **The realistic target (wcmp×16+mirror at 10k) is 24ms** — needs
+- **The realistic target (wcmp×16+mirror at 10k) is 41 pps** — needs
   ~24× improvement. Trace tree forking dominates; table lookup is
   noise.
 
+**After table lookup caching.** Cache lookup results across selector
+fork re-executions: tables before the fork point produce identical
+results, so re-executions skip the O(n) scan entirely.
+
+| Config       | Before  | After   | Speedup |
+|--------------|---------|---------|---------|
+| direct 10k   | 1,400   | 1,400   |    1.0× |
+| wcmp×4 10k   |   280   | 1,100   |    3.8× |
+| wcmp×16 10k  |    83   |   660   |    7.5× |
+| wcmp×16+mirr |    41   |   350   |    8.7× |
+
+(packets/sec; higher is better)
+
+The remaining gap to 1k pps on wcmp×16+mirr is interpreter
+re-execution: parser + controls run 32 times (16 members × 2 clone
+paths). Table lookups are cached, but the IR tree-walk, expression
+evaluation, trace event recording, and action execution still run for
+each branch.
+
 #### Phase 2: low-hanging fruit
 
-Targeted optimizations guided by profiling results. Likely candidates (to be
-confirmed by Phase 1 data):
+Targeted optimizations guided by profiling results. Likely candidates
+(to be confirmed by further profiling):
 
-- **Hash index for exact-match tables.** Most SAI tables use exact match;
-  O(1) lookup instead of O(n).
+- **Hash index for exact-match tables.** Most SAI tables use exact
+  match; O(1) lookup instead of O(n). Helps the direct path and
+  post-fork tables.
 - **Compact value representation.** `Long` for `bit<N>` where N ≤ 64,
   avoiding `BigInteger` heap allocation on the hot path.
 
