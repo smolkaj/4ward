@@ -9,7 +9,10 @@ package fourward.simulator
  * The simulator's interpreter produces and consumes these values; they never escape to the trace
  * (traces use byte-encoded representations for portability).
  */
-sealed class Value
+sealed class Value {
+  /** Returns an independent deep copy. Immutable leaf types return `this`. */
+  open fun deepCopy(): Value = this
+}
 
 /** A bit<N> value. */
 data class BitVal(val bits: BitVector) : Value() {
@@ -91,6 +94,9 @@ data class HeaderVal(
   }
 
   fun copy(): HeaderVal = HeaderVal(typeName, fields.toMutableMap(), valid)
+
+  override fun deepCopy(): HeaderVal =
+    HeaderVal(typeName, fields.mapValuesTo(mutableMapOf()) { it.value.deepCopy() }, valid)
 }
 
 /**
@@ -100,6 +106,9 @@ data class HeaderVal(
 data class StructVal(val typeName: String, val fields: MutableMap<String, Value> = mutableMapOf()) :
   Value() {
   fun copy(): StructVal = StructVal(typeName, fields.toMutableMap())
+
+  override fun deepCopy(): StructVal =
+    StructVal(typeName, fields.mapValuesTo(mutableMapOf()) { it.value.deepCopy() })
 
   /** P4 spec §8.20: a header union is valid if any member header is valid. */
   fun isUnionValid(): Boolean = fields.values.any { it is HeaderVal && it.valid }
@@ -140,6 +149,9 @@ data class HeaderStackVal(
 ) : Value() {
   val size: Int
     get() = headers.size
+
+  override fun deepCopy(): HeaderStackVal =
+    HeaderStackVal(elementTypeName, headers.mapTo(mutableListOf()) { it.deepCopy() }, nextIndex)
 }
 
 /** Sentinel for void returns and uninitialised variables. */
