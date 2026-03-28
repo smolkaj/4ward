@@ -39,8 +39,14 @@ class DataplaneService(
     val ingressPort = resolveIngressPort(request, pt)
     val payload = request.payload.toByteArray()
     val result = lock.withLock { broker.processPacket(ingressPort, payload) }
+    val outputPackets =
+      try {
+        result.outputPackets.map { it.toDualEncoded(pt) }
+      } catch (e: IllegalStateException) {
+        throw Status.INTERNAL.withDescription(e.message).withCause(e).asException()
+      }
     return InjectPacketResponse.newBuilder()
-      .addAllOutputPackets(result.outputPackets.map { it.toDualEncoded(pt) })
+      .addAllOutputPackets(outputPackets)
       .setTrace(enrichTrace(result.trace, translator))
       .build()
   }

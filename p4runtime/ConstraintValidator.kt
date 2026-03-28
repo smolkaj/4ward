@@ -38,7 +38,14 @@ private constructor(
       ConstraintRequest.newBuilder()
         .setValidateEntry(ValidateEntryRequest.newBuilder().setEntry(entry))
         .build()
-    val response = call(input, output, request)
+    val response =
+      try {
+        call(input, output, request)
+      } catch (e: java.io.IOException) {
+        throw ConstraintValidatorException(
+          "constraint validator subprocess communication failed: ${e.message}"
+        )
+      }
     if (response.hasError()) {
       throw ConstraintValidatorException(response.error.message)
     }
@@ -94,7 +101,15 @@ private constructor(
         ConstraintRequest.newBuilder()
           .setLoadP4Info(LoadP4InfoRequest.newBuilder().setP4Info(p4info))
           .build()
-      val response = call(input, output, request)
+      val response =
+        try {
+          call(input, output, request)
+        } catch (e: java.io.IOException) {
+          process.destroyForcibly().waitFor()
+          throw ConstraintValidatorException(
+            "constraint validator subprocess failed during P4Info load: ${e.message}"
+          )
+        }
 
       if (response.hasError()) {
         process.destroyForcibly().waitFor()
