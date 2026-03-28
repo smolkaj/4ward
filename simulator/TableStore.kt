@@ -10,7 +10,16 @@ import p4.v1.P4RuntimeOuterClass.TableEntry
 import p4.v1.P4RuntimeOuterClass.Update
 
 /** Interprets a protobuf [ByteString] as an unsigned big-endian integer. */
-internal fun ByteString.toUnsignedBigInteger(): BigInteger = BigInteger(1, toByteArray())
+/**
+ * Cache for [ByteString] → [BigInteger] conversions. Protobuf ByteStrings from table entries are
+ * immutable and reused, so the same object is converted at most once. Thread-safe: concurrent
+ * readers may redundantly compute the same entry, but the result is identical (BigInteger is
+ * immutable) and the map is never structurally modified during packet processing.
+ */
+private val bigIntCache = java.util.IdentityHashMap<ByteString, BigInteger>()
+
+internal fun ByteString.toUnsignedBigInteger(): BigInteger =
+  bigIntCache.getOrPut(this) { BigInteger(1, toByteArray()) }
 
 /**
  * Tests whether a [BitVector] matches a P4Runtime [FieldMatch].
