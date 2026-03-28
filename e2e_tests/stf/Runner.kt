@@ -13,7 +13,6 @@ import p4.v1.P4RuntimeOuterClass
 
 /** BMv2 STF files use `$N` for array indices; normalize to `[N]`. */
 private val ARRAY_INDEX_REGEX = Regex("\\$(\\d+)")
-private val WHITESPACE_REGEX = Regex("\\s+")
 private val INTEGER_REGEX = Regex("\\d+")
 
 /**
@@ -247,7 +246,7 @@ data class StfFile(
       val expects = mutableListOf<StfExpectedOutput>()
 
       for (line in lines) {
-        val tokens = line.split(WHITESPACE_REGEX)
+        val tokens = tokenizeQuoteAware(line)
         when (tokens[0].lowercase()) {
           "packet" -> {
             val port = tokens[1].toInt()
@@ -876,6 +875,51 @@ data class StfMcNodeAssociate(val groupId: Int, val nodeHandle: Int)
 
 /** Strips surrounding double-quotes, if present. */
 private fun String.unquote(): String = removeSurrounding("\"")
+
+/**
+ * Tokenizes a line respecting double-quoted strings. Content inside matching quotes is kept as a
+ * single token (quotes included), even if it contains spaces or special characters like `&`.
+ * Unquoted regions are split on whitespace as usual.
+ *
+ * This is needed for p4testgen STFs where field names can contain bitwise-AND expressions:
+ * `"hdr.ipv4.dstAddr & 0xf":0x0`.
+ */
+private fun tokenizeQuoteAware(line: String): List<String> {
+  val tokens = mutableListOf<String>()
+  val current = StringBuilder()
+  var i = 0
+  while (i < line.length) {
+    when {
+      line[i] == '"' -> {
+        // Scan to the closing quote. The quoted content may be immediately
+        // followed by non-whitespace (e.g. `"field":value`), so we keep
+        // accumulating into the current token after the closing quote.
+        val closeIdx = line.indexOf('"', i + 1)
+        if (closeIdx < 0) {
+          // No closing quote — treat rest of line as one token.
+          current.append(line.substring(i))
+          i = line.length
+        } else {
+          current.append(line.substring(i, closeIdx + 1))
+          i = closeIdx + 1
+        }
+      }
+      line[i].isWhitespace() -> {
+        if (current.isNotEmpty()) {
+          tokens += current.toString()
+          current.clear()
+        }
+        i++
+      }
+      else -> {
+        current.append(line[i])
+        i++
+      }
+    }
+  }
+  if (current.isNotEmpty()) tokens += current.toString()
+  return tokens
+}
 
 /**
  * Splits a possibly-named action param (`"name":value` or `name:value`) into its name (null if

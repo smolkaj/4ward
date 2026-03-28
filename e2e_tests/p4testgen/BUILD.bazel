@@ -285,6 +285,7 @@ p4_testgen_suite(
         "pna-example-SelectByDirection",
         "pna-example-SelectByDirection1",
         "pna-example-SelectByDirection2",
+        "pna-example-bAnd-in-tableKey",
         "pna-example-dpdk-optional",
         "pna-example-dpdk-varbit",
         "pna-example-dpdk-varbit-1",

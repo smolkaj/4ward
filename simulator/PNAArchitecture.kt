@@ -56,6 +56,8 @@ class PNAArchitecture : Architecture {
     var recirculate: Boolean = false
     /** Mirror session ID requested by `mirror_packet()`, or null if no mirror. */
     var mirrorSessionId: Int? = null
+    /** Tracks the currently executing stage for extern call validation. */
+    var currentStage: String = ""
   }
 
   override fun processPacket(
@@ -147,11 +149,13 @@ class PNAArchitecture : Architecture {
 
     // --- PreControl ---
     // The PRE stage is minimally specified in PNA (decrypt is TBD). Run it as a normal control.
+    forwardingState.currentStage = "pre_control"
     bindStageParams(env, pipeline.preControl.blockName, pipeline.blockParams, values)
     runControlStage(interpreter, ctx, env, pipeline.preControl)
 
     try {
       // --- Main Control ---
+      forwardingState.currentStage = "main_control"
       bindStageParams(env, pipeline.mainControl.blockName, pipeline.blockParams, values)
       runControlStage(interpreter, ctx, env, pipeline.mainControl)
     } catch (_: AssertionFailureException) {
@@ -171,19 +175,25 @@ class PNAArchitecture : Architecture {
     }
 
     // --- Post-control forwarding decision ---
-    val mirrorBranches = buildMirrorBranches(pipeline, payload, forwardingState)
+    val hasMirror = forwardingState.mirrorSessionId != null
 
-    if (forwardingState.dropped && !forwardingState.recirculate) {
-      if (mirrorBranches.isNotEmpty()) {
-        return buildForkTree(ctx.getEvents(), ForkReason.CLONE, mirrorBranches)
-      }
+    if (forwardingState.dropped && !forwardingState.recirculate && !hasMirror) {
       return buildDropTrace(ctx.getEvents())
     }
 
     // --- Main Deparser ---
+    // Always run the deparser when mirror is requested (even if dropped), because PNA mirrors
+    // the deparsed packet (post-modification), matching DPDK SoftNIC behavior.
     bindStageParams(env, pipeline.mainDeparser.blockName, pipeline.blockParams, values)
     runControlStage(interpreter, ctx, env, pipeline.mainDeparser)
     val deparsedBytes = ctx.outputPayload() + ctx.drainRemainingInput()
+
+    val mirrorBranches = buildMirrorBranches(pipeline, deparsedBytes, forwardingState)
+
+    if (forwardingState.dropped && !forwardingState.recirculate) {
+      // Dropped with mirror: emit only mirror branches.
+      return buildForkTree(ctx.getEvents(), ForkReason.CLONE, mirrorBranches)
+    }
 
     if (forwardingState.recirculate) {
       val recircTree =
@@ -274,7 +284,7 @@ class PNAArchitecture : Architecture {
     checksumState: MutableMap<String, BigInteger>,
   ): ExternHandler = ExternHandler { call, eval ->
     when (call) {
-      is ExternCall.FreeFunction -> handlePnaFreeFunction(call, eval, forwardingState)
+      is ExternCall.FreeFunction -> handlePnaFreeFunction(call, eval, pipeline, forwardingState)
       is ExternCall.Method -> handlePnaMethod(call, eval, pipeline, checksumState)
     }
   }
@@ -283,6 +293,7 @@ class PNAArchitecture : Architecture {
   private fun handlePnaFreeFunction(
     call: ExternCall.FreeFunction,
     eval: ExternEvaluator,
+    pipeline: PipelineConfig,
     forwardingState: ForwardingState,
   ): Value =
     when (call.name) {
@@ -290,6 +301,11 @@ class PNAArchitecture : Architecture {
       // set — calling one overwrites the other (last writer wins). recirculate is
       // independent and NOT part of this set.
       "drop_packet" -> {
+        // PNA spec: "Invoking drop_packet() is supported only within the main control."
+        require(forwardingState.currentStage == "main_control") {
+          "drop_packet() called in ${forwardingState.currentStage}, " +
+            "but PNA only supports it within main_control"
+        }
         forwardingState.dropped = true
         UnitVal
       }
@@ -312,8 +328,7 @@ class PNAArchitecture : Architecture {
         val direction = (eval.evalArg(0) as EnumVal).member
         if (direction == DIRECTION_NET_TO_HOST) eval.evalArg(1) else eval.evalArg(2)
       }
-      // TODO(PNA add-on-miss): actual data-plane table insertion is not implemented.
-      "add_entry" -> BoolVal(true)
+      "add_entry" -> execAddEntry(eval, pipeline)
       // Stub: returns 0. Real NICs would allocate unique per-flow IDs, but a fixed value
       // suffices for STF testing where flow ID values are not checked.
       "allocate_flow_id" -> BitVal(BitVector(BigInteger.ZERO, 32))
@@ -322,6 +337,41 @@ class PNAArchitecture : Architecture {
       "restart_expire_timer" -> UnitVal
       else -> error("unhandled PNA extern: ${call.name}")
     }
+
+  /**
+   * Implements PNA's `add_entry` extern: inserts a table entry from the data plane.
+   *
+   * The extern signature (from pna.p4):
+   * ```
+   * extern bool add_entry<T>(string action_name, in T action_params,
+   *                          in ExpireTimeProfileId_t expire_time_profile_id);
+   * ```
+   *
+   * The table to insert into is determined by the most recent table miss (the table with
+   * `add_on_miss = true` whose default action called `add_entry`). The match key values come from
+   * that same miss. After the midend, action_params may be a single value (for actions with one
+   * parameter) or a struct (for actions with multiple parameters).
+   */
+  private fun execAddEntry(eval: ExternEvaluator, pipeline: PipelineConfig): BoolVal {
+    val missCtx = eval.lastTableMiss() ?: error("add_entry called but no table miss has occurred")
+    val actionAlias = (eval.evalArg(0) as StringVal).value
+    val actionName =
+      pipeline.tableStore.resolveActionByAlias(actionAlias)
+        ?: error("add_entry: unknown action '$actionAlias'")
+
+    // The action_params argument (arg 1) is either a single value (one-param actions)
+    // or a struct (multi-param actions, lowered to a tuple by the midend).
+    val paramsValue = eval.evalArg(1)
+    val actionParams: List<Value> =
+      when (paramsValue) {
+        is StructVal -> paramsValue.fields.values.toList()
+        else -> listOf(paramsValue)
+      }
+
+    val success =
+      pipeline.tableStore.addEntry(missCtx.tableName, missCtx.keyValues, actionName, actionParams)
+    return BoolVal(success)
+  }
 
   /** Handles PNA extern method calls (Register, Hash, Counter, Meter, Checksum, Digest). */
   private fun handlePnaMethod(
@@ -350,20 +400,20 @@ class PNAArchitecture : Architecture {
   /**
    * Builds mirror branches if `mirror_packet()` was called during main control.
    *
-   * PNA mirroring uses the ORIGINAL input bytes (pre-parse), similar to PSA's I2E clone. Each
-   * replica in the clone session outputs the original bytes on the replica's egress port. Unlike
+   * PNA mirrors the deparsed packet (post-modification), matching DPDK SoftNIC behavior. Each
+   * replica in the clone session outputs the deparsed bytes on the replica's egress port. Unlike
    * PSA clones (which run through a separate egress pipeline), PNA mirror replicas emit directly
    * because PNA has no separate egress stage for mirrored packets to traverse.
    */
   private fun buildMirrorBranches(
     pipeline: PipelineConfig,
-    originalPayload: ByteArray,
+    deparsedBytes: ByteArray,
     forwardingState: ForwardingState,
   ): List<ForkBranch> {
     val sessionId = forwardingState.mirrorSessionId ?: return emptyList()
     val session = pipeline.tableStore.getCloneSession(sessionId) ?: return emptyList()
     return session.replicasList.map { replica ->
-      val subtree = buildOutputTrace(emptyList(), replica.egressPort, originalPayload)
+      val subtree = buildOutputTrace(emptyList(), replica.egressPort, deparsedBytes)
       ForkBranch.newBuilder()
         .setLabel("mirror_port_${replica.egressPort}")
         .setSubtree(subtree)

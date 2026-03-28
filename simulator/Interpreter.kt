@@ -89,6 +89,9 @@ class Interpreter(
   /** Set to true once a [selectorOverrides] table is hit, disabling the [tableLookupCache]. */
   private var pastForkPoint = false
 
+  /** Context from the most recent table miss, for PNA's `add_entry` extern. */
+  private var lastTableMissCtx: TableMissContext? = null
+
   /** Source info of the statement currently being executed, for trace events. */
   private var currentSourceInfo: SourceInfo? = null
 
@@ -741,6 +744,9 @@ class Interpreter(
     val result = cached ?: tableStore.lookup(tableName, keyValues)
     if (!pastForkPoint) recordedLookups.putIfAbsent(tableName, result)
 
+    // Record table miss context so PNA's add_entry extern knows which table to insert into.
+    if (!result.hit) lastTableMissCtx = TableMissContext(tableName, keyValues)
+
     // P4Runtime spec §9.3: direct counters are incremented on every table hit.
     if (result.hit && result.entry != null && packetCtx != null) {
       tableStore.directCounterIncrement(tableName, result.entry, packetCtx.payloadSize)
@@ -911,6 +917,8 @@ class Interpreter(
       }
 
       override fun peekRemainingInput(): ByteArray = packet.peekRemainingInput()
+
+      override fun lastTableMiss(): TableMissContext? = lastTableMissCtx
     }
 
   private fun execExternCall(call: MethodCall, env: Environment): Value {
