@@ -199,7 +199,7 @@ Batch = `InjectPackets` (1000 packets streamed concurrently).
 - **16 cores** — `InjectPacket` parallelizes fork branches within each
   packet. `InjectPackets` adds cross-packet parallelism.
 
-Throughput scales with available cores. See [Track 10](../ROADMAP.md#track-10-dataplane-performance)
+Throughput scales with available cores. See [Track 10](https://github.com/smolkaj/4ward/blob/main/docs/ROADMAP.md#track-10-dataplane-performance)
 in the roadmap for methodology and optimization details.
 
 ## Error codes
