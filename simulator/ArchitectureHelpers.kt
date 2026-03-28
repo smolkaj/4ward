@@ -90,7 +90,7 @@ internal fun bindStageParams(
 
 /** Runs a parser stage, recording trace events and routing parser errors to [onParserError]. */
 internal fun runParserStage(
-  interpreter: Interpreter,
+  interpreter: Interpreter.Execution,
   ctx: PacketContext,
   env: Environment,
   stage: PipelineStage,
@@ -108,7 +108,7 @@ internal fun runParserStage(
 
 /** Runs a control stage, recording trace events. An `exit` statement terminates only the stage. */
 internal fun runControlStage(
-  interpreter: Interpreter,
+  interpreter: Interpreter.Execution,
   ctx: PacketContext,
   env: Environment,
   stage: PipelineStage,

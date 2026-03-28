@@ -71,10 +71,10 @@ class InterpreterPacketTest {
       )
       .build()
 
-  private fun interp(packetCtx: PacketContext, vararg types: TypeDecl): Interpreter {
+  private fun interp(packetCtx: PacketContext, vararg types: TypeDecl): Interpreter.Execution {
     val config =
       BehavioralConfig.newBuilder().also { cfg -> types.forEach { cfg.addTypes(it) } }.build()
-    return Interpreter(config, TableStore(), packetCtx)
+    return interpreterExecution(config, TableStore(), packetCtx)
   }
 
   // ---------------------------------------------------------------------------
@@ -85,7 +85,7 @@ class InterpreterPacketTest {
   fun `extract without PacketContext gives a descriptive error`() {
     val type = headerType("h_t", "f" to 8)
     val config = BehavioralConfig.newBuilder().also { cfg -> cfg.addTypes(type) }.build()
-    val interp = Interpreter(config, TableStore()) // no PacketContext
+    val interp = interpreterExecution(config, TableStore()) // no PacketContext
     val env = Environment()
     env.define("hdr", HeaderVal(typeName = "h_t", valid = false))
 

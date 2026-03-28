@@ -97,7 +97,7 @@ class InterpreterTraceEventTest {
     val config = controlConfig("MyIngress", markToDropStmt())
     val env = standardMetadataEnv()
     val pktCtx = PacketContext(byteArrayOf())
-    Interpreter(config, TableStore(), pktCtx, externHandler = markToDropHandler)
+    interpreterExecution(config, TableStore(), pktCtx, externHandler = markToDropHandler)
       .runControl("MyIngress", env)
 
     val markToDropEvents = pktCtx.getEvents().filter { it.hasMarkToDrop() }
@@ -114,7 +114,7 @@ class InterpreterTraceEventTest {
     val config = controlConfig("MyIngress", ifStmt(boolLit(true)))
     val env = Environment()
     val pktCtx = PacketContext(byteArrayOf())
-    Interpreter(config, TableStore(), pktCtx).runControl("MyIngress", env)
+    interpreterExecution(config, TableStore(), pktCtx).runControl("MyIngress", env)
 
     val branchEvents = pktCtx.getEvents().filter { it.hasBranch() }
     assertEquals(1, branchEvents.size)
@@ -137,7 +137,7 @@ class InterpreterTraceEventTest {
     val config = controlConfig("MyIngress", ifStmt(boolLit(true), sourceInfo = si))
     val env = Environment()
     val pktCtx = PacketContext(byteArrayOf())
-    Interpreter(config, TableStore(), pktCtx).runControl("MyIngress", env)
+    interpreterExecution(config, TableStore(), pktCtx).runControl("MyIngress", env)
 
     val branchEvents = pktCtx.getEvents().filter { it.hasBranch() }
     assertEquals(1, branchEvents.size)
@@ -157,7 +157,7 @@ class InterpreterTraceEventTest {
     val config = controlConfig("MyIngress", ifStmt(boolLit(true)))
     val env = Environment()
     val pktCtx = PacketContext(byteArrayOf())
-    Interpreter(config, TableStore(), pktCtx).runControl("MyIngress", env)
+    interpreterExecution(config, TableStore(), pktCtx).runControl("MyIngress", env)
 
     val branchEvents = pktCtx.getEvents().filter { it.hasBranch() }
     assertEquals(1, branchEvents.size)
@@ -175,7 +175,7 @@ class InterpreterTraceEventTest {
       ParserDecl.newBuilder().setName("P").addStates(parserState("start", "accept", si)).build()
     val config = BehavioralConfig.newBuilder().addParsers(parser).build()
     val pktCtx = PacketContext(byteArrayOf())
-    Interpreter(config, TableStore(), pktCtx).runParser("P", Environment())
+    interpreterExecution(config, TableStore(), pktCtx).runParser("P", Environment())
 
     val transitions = pktCtx.getEvents().filter { it.hasParserTransition() }
     assertEquals(1, transitions.size)
@@ -201,7 +201,7 @@ class InterpreterTraceEventTest {
         .build()
     val config = BehavioralConfig.newBuilder().addParsers(parser).build()
     val pktCtx = PacketContext(byteArrayOf())
-    Interpreter(config, TableStore(), pktCtx).runParser("P", Environment())
+    interpreterExecution(config, TableStore(), pktCtx).runParser("P", Environment())
 
     val transitions = pktCtx.getEvents().filter { it.hasParserTransition() }
     assertEquals(2, transitions.size)
@@ -223,7 +223,7 @@ class InterpreterTraceEventTest {
       controlConfig("MyIngress", ifStmt(boolLit(true), sourceInfo = si1), markToDropStmt(si2))
     val env = standardMetadataEnv()
     val pktCtx = PacketContext(byteArrayOf())
-    Interpreter(config, TableStore(), pktCtx, externHandler = markToDropHandler)
+    interpreterExecution(config, TableStore(), pktCtx, externHandler = markToDropHandler)
       .runControl("MyIngress", env)
 
     val events = pktCtx.getEvents()
@@ -243,7 +243,7 @@ class InterpreterTraceEventTest {
   fun `assert true emits passing AssertionEvent`() {
     val config = controlConfig("MyIngress", externCall("assert", boolLit(true)))
     val pktCtx = PacketContext(byteArrayOf())
-    Interpreter(config, TableStore(), pktCtx).runControl("MyIngress", Environment())
+    interpreterExecution(config, TableStore(), pktCtx).runControl("MyIngress", Environment())
 
     val events = pktCtx.getEvents().filter { it.hasAssertion() }
     assertEquals(1, events.size)
@@ -259,7 +259,7 @@ class InterpreterTraceEventTest {
     val config = controlConfig("MyIngress", externCall("assert", boolLit(false)))
     val pktCtx = PacketContext(byteArrayOf())
     assertThrows(AssertionFailureException::class.java) {
-      Interpreter(config, TableStore(), pktCtx).runControl("MyIngress", Environment())
+      interpreterExecution(config, TableStore(), pktCtx).runControl("MyIngress", Environment())
     }
 
     val events = pktCtx.getEvents().filter { it.hasAssertion() }
@@ -276,7 +276,7 @@ class InterpreterTraceEventTest {
     val config = controlConfig("MyIngress", externCall("assume", boolLit(false)))
     val pktCtx = PacketContext(byteArrayOf())
     assertThrows(AssertionFailureException::class.java) {
-      Interpreter(config, TableStore(), pktCtx).runControl("MyIngress", Environment())
+      interpreterExecution(config, TableStore(), pktCtx).runControl("MyIngress", Environment())
     }
   }
 }

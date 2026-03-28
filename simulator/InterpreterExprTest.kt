@@ -39,11 +39,11 @@ class InterpreterExprTest {
   private val emptyEnv
     get() = Environment()
 
-  private fun interp() = Interpreter(emptyConfig, TableStore())
+  private fun interp() = interpreterExecution(emptyConfig, TableStore())
 
   /** Interpreter with v1model hash extern handler, for hash tests. */
   private fun interpWithHash() =
-    Interpreter(
+    interpreterExecution(
       emptyConfig,
       TableStore(),
       externHandler =
@@ -635,7 +635,7 @@ class InterpreterExprTest {
             .setHeaderUnion(fourward.ir.HeaderUnionDecl.getDefaultInstance())
         )
         .build()
-    Interpreter(config, TableStore()).evalExpr(expr, env)
+    interpreterExecution(config, TableStore()).evalExpr(expr, env)
 
     assertTrue(memberB.valid)
     assertFalse(memberA.valid)
@@ -851,7 +851,7 @@ class InterpreterExprTest {
       )
       .build()
 
-  private fun stackInterp() = Interpreter(stackTestConfig, TableStore())
+  private fun stackInterp() = interpreterExecution(stackTestConfig, TableStore())
 
   private fun makeStack(vararg validFields: Int?): HeaderStackVal {
     val headers =
