@@ -1,0 +1,17 @@
+# selector_post_fork_table.stf — selector members set different tags,
+# post-fork table routes based on tag. Tests cache invalidation.
+
+member my_selector 0 set_tag tag=0x01
+member my_selector 1 set_tag tag=0x02
+group my_selector 1 0 1
+add selector_table hdr.ethernet.dstAddr:0xFFFFFFFFFFFF group=1
+
+# Post-fork table: tag=1 → port 1, tag=2 → port 2.
+add post_table meta.tag:0x01 set_port(1)
+add post_table meta.tag:0x02 set_port(2)
+
+packet 0 FFFFFFFFFFFF 000000000001 0800
+# Member 0: tag=1 → post_table hit → port 1
+expect 1 FFFFFFFFFFFF 000000000001 0800
+# Member 1: tag=2 → post_table hit → port 2
+expect 2 FFFFFFFFFFFF 000000000001 0800

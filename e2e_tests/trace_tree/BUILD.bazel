@@ -17,7 +17,7 @@ exports_files([
 # unimplemented features are tagged "manual".
 # =============================================================================
 
-_P4_PROGRAMS = [
+_GOLDEN = [
     "no_fork",
     "action_selector_3",
     "action_selector_miss",
@@ -34,7 +34,15 @@ _P4_PROGRAMS = [
     "selector_exit",
 ]
 
-_PASSING = _P4_PROGRAMS
+# Programs without golden files — tested via STF expect directives only.
+_STF_ONLY = [
+    "selector_multi_packet",
+    "selector_post_fork_table",
+]
+
+_P4_PROGRAMS = _GOLDEN + _STF_ONLY
+
+_PASSING = _GOLDEN
 
 _MANUAL = []
 
@@ -79,8 +87,8 @@ kt_jvm_test(
 kt_jvm_test(
     name = "trace_tree_consistency_test",
     srcs = ["TraceTreeConsistencyTest.kt"],
-    data = ["%s.stf" % n for n in _PASSING] +
-           [":%s_pb" % n for n in _PASSING],
+    data = ["%s.stf" % n for n in _P4_PROGRAMS] +
+           [":%s_pb" % n for n in _P4_PROGRAMS],
     test_class = "fourward.e2e.tracetree.TraceTreeConsistencyTest",
     deps = _TEST_DEPS,
 )

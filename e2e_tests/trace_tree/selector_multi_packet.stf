@@ -1,0 +1,25 @@
+# selector_multi_packet.stf — two packets through different ECMP groups.
+# Tests that fork caches are correctly invalidated between packets.
+
+# Group 1: members point to ports 1, 2
+member ecmp 0 set_port port=0x0001
+member ecmp 1 set_port port=0x0002
+group ecmp 1 0 1
+
+# Group 2: members point to ports 3, 4
+member ecmp 2 set_port port=0x0003
+member ecmp 3 set_port port=0x0004
+group ecmp 2 2 3
+
+add routing hdr.ethernet.dstAddr:0x010101010101 group=1
+add routing hdr.ethernet.dstAddr:0x020202020202 group=2
+
+# Packet 1: dst=01:01:01:01:01:01 → group 1 → ports 1, 2
+packet 0 010101010101 AABBCCDDEEFF 0800
+expect 1 010101010101 AABBCCDDEEFF 0800
+expect 2 010101010101 AABBCCDDEEFF 0800
+
+# Packet 2: dst=02:02:02:02:02:02 → group 2 → ports 3, 4
+packet 0 020202020202 AABBCCDDEEFF 0800
+expect 3 020202020202 AABBCCDDEEFF 0800
+expect 4 020202020202 AABBCCDDEEFF 0800
