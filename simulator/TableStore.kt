@@ -122,7 +122,7 @@ class TableStore : TableDataReader {
   private data class RegisterInfo(val name: String, val bitwidth: Int, val size: Int)
 
   /** Metadata for statically-allocated indexed externs (counters, meters). */
-  private data class IndexedExternInfo(val size: Int)
+  private data class IndexedExternInfo(val name: String, val size: Int)
 
   // -------------------------------------------------------------------------
   // Write-state
@@ -430,9 +430,15 @@ class TableStore : TableDataReader {
         reg.preamble.id to RegisterInfo(reg.preamble.name, bitwidth, reg.size)
       }
     this.counterInfoById =
-      p4info.countersList.associate { it.preamble.id to IndexedExternInfo(it.size.toInt()) }
+      p4info.countersList.associate {
+        it.preamble.id to
+          IndexedExternInfo(it.preamble.alias.ifEmpty { it.preamble.name }, it.size.toInt())
+      }
     this.meterInfoById =
-      p4info.metersList.associate { it.preamble.id to IndexedExternInfo(it.size.toInt()) }
+      p4info.metersList.associate {
+        it.preamble.id to
+          IndexedExternInfo(it.preamble.alias.ifEmpty { it.preamble.name }, it.size.toInt())
+      }
     this.valueSetInfoById =
       p4info.valueSetsList.associate {
         it.preamble.id to
@@ -657,7 +663,12 @@ class TableStore : TableDataReader {
       return WriteResult.InvalidArgument("registers only support MODIFY, not $type")
     val info =
       registerInfoById[entry.registerId]
-        ?: return WriteResult.NotFound("unknown register ID: ${entry.registerId}")
+        ?: return WriteResult.NotFound(
+          "unknown register ID: ${entry.registerId} " +
+            "(available: ${formatOptions(
+              registerInfoById.values.map { "'${it.name}' (${it.bitwidth}-bit)" }
+            )})"
+        )
     val index = entry.index.index.toInt()
     if (index < 0 || index >= info.size)
       return WriteResult.InvalidArgument("register index $index out of bounds [0, ${info.size})")
@@ -724,7 +735,12 @@ class TableStore : TableDataReader {
   ): WriteResult {
     if (type != Update.Type.MODIFY)
       return WriteResult.InvalidArgument("${entityName}s only support MODIFY, not $type")
-    val info = infoById[id] ?: return WriteResult.NotFound("unknown $entityName ID: $id")
+    val info =
+      infoById[id]
+        ?: return WriteResult.NotFound(
+          "unknown $entityName ID: $id " +
+            "(available: ${formatOptions(infoById.values.map { it.name })})"
+        )
     val idx = index.index.toInt()
     if (idx < 0 || idx >= info.size)
       return WriteResult.InvalidArgument("$entityName index $idx out of bounds [0, ${info.size})")
@@ -856,7 +872,10 @@ class TableStore : TableDataReader {
       return WriteResult.InvalidArgument("${entityName}s only support MODIFY, not $type")
     val tableName =
       tableNameById[tableEntry.tableId]
-        ?: return WriteResult.NotFound("unknown table ID ${tableEntry.tableId}")
+        ?: return WriteResult.NotFound(
+          "unknown table ID ${tableEntry.tableId} " +
+            "(available: ${formatOptions(tableNameById.values)})"
+        )
     if (tableName !in knownTables)
       return WriteResult.InvalidArgument("table '$tableName' has no $entityName")
     val entries =
@@ -945,7 +964,10 @@ class TableStore : TableDataReader {
       return WriteResult.InvalidArgument("value_set only supports MODIFY, not $type")
     val info =
       valueSetInfoById[entry.valueSetId]
-        ?: return WriteResult.NotFound("unknown value_set ID: ${entry.valueSetId}")
+        ?: return WriteResult.NotFound(
+          "unknown value_set ID: ${entry.valueSetId} " +
+            "(available: ${formatOptions(valueSetInfoById.values.map { it.name })})"
+        )
     val name = info.name
     val maxSize = info.size
     if (entry.membersCount > maxSize)
@@ -1008,7 +1030,9 @@ class TableStore : TableDataReader {
     val entry = update.entity.tableEntry
     val tableName =
       tableNameById[entry.tableId]
-        ?: return WriteResult.NotFound("unknown table ID ${entry.tableId}")
+        ?: return WriteResult.NotFound(
+          "unknown table ID ${entry.tableId} (available: ${formatOptions(tableNameById.values)})"
+        )
 
     // P4Runtime spec §9.1: default entries are stored separately and only support MODIFY.
     // The WriteValidator already rejects INSERT/DELETE for defaults.
@@ -1489,5 +1513,19 @@ class TableStore : TableDataReader {
   companion object {
     private val BOOL_TRUE_BITS = BitVector.ofInt(1, 1)
     private val BOOL_FALSE_BITS = BitVector.ofInt(0, 1)
+
+    private const val MAX_LISTED_OPTIONS = 10
+
+    /** Formats a list of option names for inclusion in an error message, truncating if needed. */
+    private fun formatOptions(options: Collection<String>): String {
+      val list = options.toList()
+      return when {
+        list.isEmpty() -> "none"
+        list.size <= MAX_LISTED_OPTIONS -> list.joinToString(", ")
+        else ->
+          list.take(MAX_LISTED_OPTIONS).joinToString(", ") +
+            ", ... and ${list.size - MAX_LISTED_OPTIONS} more"
+      }
+    }
   }
 }

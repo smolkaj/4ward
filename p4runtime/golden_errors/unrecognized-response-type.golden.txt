@@ -1,1 +1,1 @@
-INVALID_ARGUMENT: unrecognized response type
+INVALID_ARGUMENT: unrecognized response type 999 (valid values: ALL (0), COOKIE_ONLY (1), P4INFO_AND_COOKIE (2), DEVICE_CONFIG_AND_COOKIE (3))

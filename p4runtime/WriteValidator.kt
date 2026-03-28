@@ -70,7 +70,13 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
   private fun validateTableEntry(update: P4RuntimeOuterClass.Update) {
     val entry = update.entity.tableEntry
     val tableInfo =
-      tableInfoById[entry.tableId] ?: throw notFound("unknown table ID ${entry.tableId}")
+      tableInfoById[entry.tableId]
+        ?: throw notFound(
+          "unknown table ID ${entry.tableId} " +
+            "(available: ${formatOptions(
+              tableInfoById.values.map { "'${it.tableName}' (${it.preamble.id})" }
+            )})"
+        )
 
     // §9.1: const tables are immutable — no writes allowed.
     if (entry.tableId in constTableIds) {
@@ -136,16 +142,22 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
     action: P4RuntimeOuterClass.Action,
     tableInfo: P4InfoOuterClass.Table,
   ) {
+    val validRefIds = actionRefIdsByTable[tableInfo.preamble.id] ?: emptySet()
+    val validActionDescs = validRefIds.mapNotNull { id -> actionInfoById[id]?.let { "'${it.preamble.name}' ($id)" } }
     val actionInfo =
       actionInfoById[action.actionId]
         ?: throw invalidArg(
-          "unknown action ID ${action.actionId} in table '${tableInfo.tableName}'"
+          "unknown action ID ${action.actionId} " +
+            "in table '${tableInfo.tableName}' " +
+            "(valid actions: ${formatOptions(validActionDescs)})"
         )
 
-    if (action.actionId !in (actionRefIdsByTable[tableInfo.preamble.id] ?: emptySet())) {
+    if (action.actionId !in validRefIds) {
       throw invalidArg(
-        "action '${actionInfo.preamble.name}' (ID ${action.actionId}) " +
-          "is not valid for table '${tableInfo.tableName}'"
+        "action '${actionInfo.preamble.name}' " +
+          "(ID ${action.actionId}) " +
+          "is not valid for table '${tableInfo.tableName}' " +
+          "(valid actions: ${formatOptions(validActionDescs)})"
       )
     }
 
@@ -168,7 +180,8 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
       val paramInfo =
         paramLookup[param.paramId]
           ?: throw invalidArg(
-            "unknown param ID ${param.paramId} for action '${actionInfo.preamble.name}'"
+            "unknown param ID ${param.paramId} for action '${actionInfo.preamble.name}' " +
+              "(valid params: ${formatOptions(paramLookup.values.map { it.name })})"
           )
       // §8.3: canonical byte width. Skip if bitwidth is 0
       // (e.g. @p4runtime_translation with sdn_string).
@@ -193,7 +206,8 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
       val fieldInfo =
         fieldLookup[fm.fieldId]
           ?: throw invalidArg(
-            "unknown match field ID ${fm.fieldId} in table '${tableInfo.tableName}'"
+            "unknown match field ID ${fm.fieldId} in table '${tableInfo.tableName}' " +
+              "(valid fields: ${formatOptions(fieldLookup.values.map { it.name })})"
           )
       // §9.1: each match field may appear at most once.
       if (!presentFieldIds.add(fm.fieldId)) {
@@ -296,24 +310,34 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
     val member = update.entity.actionProfileMember
     val profileId = member.actionProfileId
     val profileInfo =
-      actionProfileInfoById[profileId] ?: throw notFound("unknown action_profile_id: $profileId")
+      actionProfileInfoById[profileId]
+        ?: throw notFound(
+          "unknown action_profile_id: $profileId " +
+            "(available: ${formatOptions(
+              actionProfileInfoById.values.map {
+                "'${it.preamble.alias.ifEmpty { it.preamble.name }}' (${it.preamble.id})"
+              }
+            )})"
+        )
 
     // DELETE only needs the key (profile_id + member_id); skip content validation.
     if (update.type == P4RuntimeOuterClass.Update.Type.DELETE) return
 
     val action = member.action
+    val validActionIds = actionRefIdsByProfile[profileId] ?: emptySet()
+    val profileName = profileInfo.preamble.alias.ifEmpty { profileInfo.preamble.name }
+    val validActionDescs = validActionIds.mapNotNull { id -> actionInfoById[id]?.let { "'${it.preamble.name}' ($id)" } }
     val actionInfo =
       actionInfoById[action.actionId]
         ?: throw invalidArg(
-          "unknown action ID ${action.actionId} in action profile " +
-            "'${profileInfo.preamble.alias.ifEmpty { profileInfo.preamble.name }}'"
+          "unknown action ID ${action.actionId} in action profile '$profileName' " +
+            "(valid actions: ${formatOptions(validActionDescs)})"
         )
 
-    val validActionIds = actionRefIdsByProfile[profileId] ?: emptySet()
     if (action.actionId !in validActionIds) {
       throw invalidArg(
-        "action ID ${action.actionId} is not valid for action profile " +
-          "'${profileInfo.preamble.alias.ifEmpty { profileInfo.preamble.name }}'"
+        "action ID ${action.actionId} is not valid for action profile '$profileName' " +
+          "(valid actions: ${formatOptions(validActionDescs)})"
       )
     }
 
@@ -328,7 +352,14 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
     val group = update.entity.actionProfileGroup
     val profileId = group.actionProfileId
     if (profileId !in actionProfileInfoById) {
-      throw notFound("unknown action_profile_id: $profileId")
+      throw notFound(
+        "unknown action_profile_id: $profileId " +
+          "(available: ${formatOptions(
+            actionProfileInfoById.values.map {
+              "'${it.preamble.alias.ifEmpty { it.preamble.name }}' (${it.preamble.id})"
+            }
+          )})"
+      )
     }
     // Group members reference member_ids, which are validated at write time by the simulator.
     // Schema-level validation only checks the profile ID exists.
@@ -403,6 +434,18 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
 
     private val P4InfoOuterClass.Table.tableName: String
       get() = preamble.alias.ifEmpty { preamble.name }
+
+    private const val MAX_LISTED_OPTIONS = 10
+
+    /** Formats a list of option names for inclusion in an error message, truncating if needed. */
+    private fun formatOptions(options: List<String>): String =
+      when {
+        options.isEmpty() -> "none"
+        options.size <= MAX_LISTED_OPTIONS -> options.joinToString(", ")
+        else ->
+          options.take(MAX_LISTED_OPTIONS).joinToString(", ") +
+            ", ... and ${options.size - MAX_LISTED_OPTIONS} more"
+      }
 
     private fun invalidArg(msg: String): StatusException =
       Status.INVALID_ARGUMENT.withDescription(msg).asException()

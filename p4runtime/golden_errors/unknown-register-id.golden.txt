@@ -1,1 +1,1 @@
-NOT_FOUND: unknown register ID: 99999
+NOT_FOUND: unknown register ID: 99999 (available: none)
