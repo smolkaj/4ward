@@ -10,6 +10,8 @@ import java.net.InetSocketAddress
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.Executors
+import java.util.logging.Level
+import java.util.logging.Logger
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -38,6 +40,7 @@ class WebServer(
   private val staticDir: Path? = null,
 ) {
 
+  private val logger = Logger.getLogger(WebServer::class.java.name)
   private val server = HttpServer.create(InetSocketAddress(httpPort), 0)
   private val jsonPrinter: JsonFormat.Printer =
     JsonFormat.printer().preservingProtoFieldNames().alwaysPrintFieldsWithNoPresence()
@@ -82,6 +85,11 @@ class WebServer(
     } catch (e: io.grpc.StatusException) {
       sendJson(exchange, HTTP_BAD_REQUEST, errorJson(e.status.description ?: e.status.code.name))
     } catch (e: Exception) {
+      logger.log(
+        Level.SEVERE,
+        "Unhandled exception in ${exchange.requestMethod} ${exchange.requestURI}",
+        e,
+      )
       sendJson(exchange, HTTP_INTERNAL_ERROR, errorJson(e.message ?: "Internal server error"))
     }
   }

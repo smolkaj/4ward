@@ -117,7 +117,9 @@ class PNAArchitecture : Architecture {
     depth: Int,
     selectorMembers: Map<String, Int> = emptyMap(),
   ): TraceTree {
-    check(depth < MAX_RECIRCULATIONS) { "PNA recirculation depth exceeded ($MAX_RECIRCULATIONS)" }
+    check(depth < MAX_RECIRCULATIONS) {
+      "PNA recirculation depth exceeded ($MAX_RECIRCULATIONS) — possible infinite recirculate loop"
+    }
 
     val ctx = PacketContext(payload)
     val env = Environment()
@@ -338,7 +340,7 @@ class PNAArchitecture : Architecture {
       // No-op: the simulator has no real timers, so expiration is not modeled.
       "set_entry_expire_time" -> UnitVal
       "restart_expire_timer" -> UnitVal
-      else -> error("unhandled PNA extern: ${call.name}")
+      else -> error("PNA extern '${call.name}' is not implemented")
     }
 
   /**
@@ -392,8 +394,8 @@ class PNAArchitecture : Architecture {
       PNA_HASH_ALGORITHMS,
     )
       ?: error(
-        "unhandled PNA extern method: ${call.externType}.${call.method}" +
-          " on ${call.instanceName}"
+        "PNA extern method '${call.externType}.${call.method}' is not implemented" +
+          " (on ${call.instanceName})"
       )
 
   // ---------------------------------------------------------------------------

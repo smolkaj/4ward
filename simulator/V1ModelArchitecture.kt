@@ -282,7 +282,9 @@ class V1ModelArchitecture(
    * stages. Stage topology (ingress/egress split) is derived by [PipelineState] itself.
    */
   private fun initPipelineState(ctx: PipelineContext, decisions: V1ModelDecisions): PipelineState {
-    require(decisions.pipelineDepth <= MAX_PIPELINE_DEPTH) { "max pipeline depth exceeded" }
+    require(decisions.pipelineDepth <= MAX_PIPELINE_DEPTH) {
+      "max pipeline depth exceeded ($MAX_PIPELINE_DEPTH) — possible infinite resubmit/recirculate loop"
+    }
     val config = ctx.config
     val typesByName = config.typesList.associateBy { it.name }
 
@@ -390,7 +392,9 @@ class V1ModelArchitecture(
   /** Executes the full v1model pipeline once, returning a flat trace tree with a leaf outcome. */
   @Suppress("CyclomaticComplexMethod", "ThrowsCount")
   private fun runPipeline(ctx: PipelineContext, decisions: V1ModelDecisions): TraceTree {
-    require(decisions.pipelineDepth <= MAX_PIPELINE_DEPTH) { "max pipeline depth exceeded" }
+    require(decisions.pipelineDepth <= MAX_PIPELINE_DEPTH) {
+      "max pipeline depth exceeded ($MAX_PIPELINE_DEPTH) — possible infinite resubmit/recirculate loop"
+    }
     val snapshot = decisions.postParserSnapshot
 
     // --- Init + Parser ---
@@ -864,7 +868,7 @@ class V1ModelArchitecture(
         )
         UnitVal
       }
-      else -> error("unhandled v1model extern: $name")
+      else -> error("v1model extern '$name' is not implemented")
     }
 
   // -------------------------------------------------------------------------
@@ -898,14 +902,20 @@ class V1ModelArchitecture(
             tableStore.registerWrite(call.instanceName, index, eval.evalArg(1))
             UnitVal
           }
-          else -> error("unhandled register method: ${call.method} on ${call.instanceName}")
+          else ->
+            error(
+              "v1model register method '${call.method}' is not implemented (on ${call.instanceName})"
+            )
         }
       "counter",
       "direct_counter" ->
         when (call.method) {
           // fire-and-forget side-effect, invisible to data plane.
           "count" -> UnitVal
-          else -> error("unhandled counter method: ${call.method} on ${call.instanceName}")
+          else ->
+            error(
+              "v1model counter method '${call.method}' is not implemented (on ${call.instanceName})"
+            )
         }
       "meter" ->
         when (call.method) {
@@ -914,7 +924,10 @@ class V1ModelArchitecture(
             eval.writeOutArg(1, eval.defaultValue(eval.argType(1)))
             UnitVal
           }
-          else -> error("unhandled meter method: ${call.method} on ${call.instanceName}")
+          else ->
+            error(
+              "v1model meter method '${call.method}' is not implemented (on ${call.instanceName})"
+            )
         }
       "direct_meter" ->
         when (call.method) {
@@ -923,12 +936,15 @@ class V1ModelArchitecture(
             eval.writeOutArg(0, eval.defaultValue(eval.argType(0)))
             UnitVal
           }
-          else -> error("unhandled direct_meter method: ${call.method} on ${call.instanceName}")
+          else ->
+            error(
+              "v1model direct_meter method '${call.method}' is not implemented (on ${call.instanceName})"
+            )
         }
       else ->
         error(
-          "unhandled v1model extern method: ${call.externType}.${call.method}" +
-            " on ${call.instanceName}"
+          "v1model extern method '${call.externType}.${call.method}' is not implemented" +
+            " (on ${call.instanceName})"
         )
     }
 
