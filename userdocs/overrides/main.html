@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block extrahead %}
+{% set og_title = page.title ~ " - 4ward" if page else "4ward" %}
+{% set og_desc = page.meta.description if page and page.meta and page.meta.description else config.site_description %}
+
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="{{ og_title }}">
+<meta property="og:description" content="{{ og_desc }}">
+<meta property="og:image" content="{{ config.site_url }}assets/social-card.png">
+<meta property="og:url" content="{{ page.canonical_url if page else config.site_url }}">
+<meta property="og:site_name" content="4ward">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{ og_title }}">
+<meta name="twitter:description" content="{{ og_desc }}">
+<meta name="twitter:image" content="{{ config.site_url }}assets/social-card.png">
+
+<!-- Apple Touch Icon -->
+<link rel="apple-touch-icon" href="{{ config.site_url }}assets/apple-touch-icon.png">
+{% endblock %}

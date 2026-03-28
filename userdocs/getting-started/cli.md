@@ -1,3 +1,7 @@
+---
+description: "Get started with the 4ward CLI: compile P4 programs, run STF tests, and inspect trace trees from the command line."
+---
+
 # Getting Started: CLI
 
 The CLI compiles P4 programs, runs STF tests, and prints trace trees — all

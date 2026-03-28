@@ -1,3 +1,7 @@
+---
+description: "4ward CLI reference: all commands, flags, output formats, and environment variables for compile, sim, and run."
+---
+
 # CLI Reference
 
 ## Commands

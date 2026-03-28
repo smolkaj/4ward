@@ -1,3 +1,7 @@
+---
+description: "STF test format reference: packet injection, table entry installation, expected output matching, and all supported commands."
+---
+
 # STF Test Format
 
 STF (Simple Test Framework) is a plain-text format for defining packet tests,

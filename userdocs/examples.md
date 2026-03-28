@@ -1,3 +1,7 @@
+---
+description: "Ready-to-run P4 example programs for 4ward: passthrough, table-based forwarding, and the interactive tutorial."
+---
+
 # Examples
 
 4ward ships with example P4 programs that demonstrate core concepts. Each one

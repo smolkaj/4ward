@@ -1,3 +1,7 @@
+---
+description: "How 4ward translates between P4Runtime SDN values and data-plane values using explicit, auto-allocate, and hybrid mapping modes."
+---
+
 # Type Translation
 
 Type translation is a

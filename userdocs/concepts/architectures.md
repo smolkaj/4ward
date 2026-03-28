@@ -1,3 +1,7 @@
+---
+description: "P4 architecture support in 4ward: v1model, PSA, and PNA — what works, what differs, and how to choose."
+---
+
 # Architectures
 
 4ward currently supports three P4 architectures: **v1model**, **PSA**, and **PNA**. Each
