@@ -1,0 +1,12 @@
+# PNA varbit: unconditional send_to_port(0), exact-match tables with no entries.
+# Tests: PNA pipeline with varbit header parsing, unconditional forwarding.
+
+# Ethernet + IPv4 (version_ihl=0x45, no options) -> send to port 0
+# ipv4_base: version_ihl=45 diffserv=00 totalLen=0014 id=0000 flags_fragOffset=0000
+#            ttl=40 protocol=06 hdrChecksum=0000 srcAddr=0A000001 dstAddr=0A000002
+packet 0 001122334455 00aabbccddee 0800 450000140000000040060000 0A000001 0A000002
+expect 0 001122334455 00aabbccddee 0800 450000140000000040060000 0A000001 0A000002$
+
+# Non-IPv4 -> still sent to port 0 (send_to_port is unconditional)
+packet 0 001122334455 00aabbccddee 0806 0001080006040001
+expect 0 001122334455 00aabbccddee 0806 0001080006040001$

@@ -1,0 +1,10 @@
+# PNA varbit-1: unconditional send_to_port(0), exact-match tables with no entries.
+# Same as pna-example-dpdk-varbit but with a fixed-size varbit extract (16 bits).
+
+# Ethernet + IPv4 (version_ihl=0x45, no options) -> send to port 0
+packet 0 001122334455 00aabbccddee 0800 450000140000000040060000 0A000001 0A000002
+expect 0 001122334455 00aabbccddee 0800 450000140000000040060000 0A000001 0A000002$
+
+# Non-IPv4 -> still sent to port 0 (send_to_port is unconditional)
+packet 0 001122334455 00aabbccddee 0806 0001080006040001
+expect 0 001122334455 00aabbccddee 0806 0001080006040001$
