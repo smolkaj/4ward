@@ -1,0 +1,1 @@
+INVALID_ARGUMENT: duplicate match field 'hdr.ethernet.etherType' (ID 1) in table 'port_table'

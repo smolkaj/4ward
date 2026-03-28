@@ -183,6 +183,32 @@ kt_jvm_test(
 )
 
 kt_jvm_test(
+    name = "GoldenErrorTest",
+    srcs = [
+        "GoldenErrorTest.kt",
+        "P4RuntimeTestHarness.kt",
+    ],
+    data = [
+        "//e2e_tests/basic_table:basic_table_pb",
+        "//e2e_tests/trace_tree:clone_with_egress_pb",
+    ] + glob(["golden_errors/*.golden.txt"]),
+    test_class = "fourward.p4runtime.GoldenErrorTest",
+    deps = [
+        ":dataplane_kt_grpc",
+        ":p4runtime_java_proto",
+        ":p4runtime_lib",
+        "//simulator:ir_java_proto",
+        "//simulator:simulator_java_proto",
+        "@grpc-java//api",
+        "@grpc-java//inprocess",
+        "@maven//:com_google_protobuf_protobuf_java",
+        "@maven//:io_grpc_grpc_kotlin_stub",
+        "@maven//:junit_junit",
+        "@maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
+    ],
+)
+
+kt_jvm_test(
     name = "WriteValidatorTest",
     srcs = ["WriteValidatorTest.kt"],
     test_class = "fourward.p4runtime.WriteValidatorTest",

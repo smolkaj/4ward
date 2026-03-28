@@ -1,0 +1,1 @@
+UNIMPLEMENTED: digest is not supported; the simulator does not implement digest extern generation
