@@ -37,12 +37,12 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-28 07:53:47</td>
+            <td class="headerValue">2026-03-28 08:21:47</td>
             <td></td>
             <td class="headerItem">Functions:</td>
-            <td class="headerCovTableEntryHi">97.1&nbsp;%</td>
-            <td class="headerCovTableEntry">70</td>
-            <td class="headerCovTableEntry">68</td>
+            <td class="headerCovTableEntryHi">97.3&nbsp;%</td>
+            <td class="headerCovTableEntry">74</td>
+            <td class="headerCovTableEntry">72</td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
                 </table>
@@ -123,7 +123,7 @@
 <span id="L61"><span class="lineNum">      61</span> <span class="tlaGNC">           1 :   private val simulator: Simulator,</span></span>
 <span id="L62"><span class="lineNum">      62</span> <span class="tlaGNC">           1 :   private val broker: PacketBroker,</span></span>
 <span id="L63"><span class="lineNum">      63</span> <span class="tlaGNC">           1 :   private val constraintValidatorBinary: Path? = null,</span></span>
-<span id="L64"><span class="lineNum">      64</span> <span class="tlaGNC">           1 :   private val lock: Mutex = Mutex(),</span></span>
+<span id="L64"><span class="lineNum">      64</span> <span class="tlaGNC">           1 :   private val lock: ReadWriteMutex = ReadWriteMutex(),</span></span>
 <span id="L65"><span class="lineNum">      65</span> <span class="tlaGNC">           1 :   private val deviceId: Long = DEFAULT_DEVICE_ID,</span></span>
 <span id="L66"><span class="lineNum">      66</span> <span class="tlaGNC">           1 :   private val cpuPortConfig: CpuPortConfig = CpuPortConfig.Auto,</span></span>
 <span id="L67"><span class="lineNum">      67</span> <span class="tlaGNC">           1 : ) : P4RuntimeGrpcKt.P4RuntimeCoroutineImplBase(), Closeable {</span></span>
@@ -185,7 +185,7 @@
 <span id="L123"><span class="lineNum">     123</span>              :   override suspend fun setForwardingPipelineConfig(</span>
 <span id="L124"><span class="lineNum">     124</span>              :     request: SetForwardingPipelineConfigRequest</span>
 <span id="L125"><span class="lineNum">     125</span>              :   ): SetForwardingPipelineConfigResponse =</span>
-<span id="L126"><span class="lineNum">     126</span> <span class="tlaGNC">           1 :     lock.withLock {</span></span>
+<span id="L126"><span class="lineNum">     126</span> <span class="tlaGNC">           1 :     lock.withWriteLock {</span></span>
 <span id="L127"><span class="lineNum">     127</span> <span class="tlaGNC">           1 :       requireDeviceId(request.deviceId)</span></span>
 <span id="L128"><span class="lineNum">     128</span> <span class="tlaGNC">           1 :       requirePrimaryOrNoArbitration(request.electionId, request.role)</span></span>
 <span id="L129"><span class="lineNum">     129</span> <span class="tlaGNC">           1 :       when (request.action) {</span></span>
@@ -373,7 +373,7 @@
 <span id="L311"><span class="lineNum">     311</span>              :   // ---------------------------------------------------------------------------</span>
 <span id="L312"><span class="lineNum">     312</span>              : </span>
 <span id="L313"><span class="lineNum">     313</span>              :   override suspend fun write(request: WriteRequest): WriteResponse =</span>
-<span id="L314"><span class="lineNum">     314</span> <span class="tlaGNC">           1 :     lock.withLock {</span></span>
+<span id="L314"><span class="lineNum">     314</span> <span class="tlaGNC">           1 :     lock.withWriteLock {</span></span>
 <span id="L315"><span class="lineNum">     315</span> <span class="tlaGNC">           1 :       requireDeviceId(request.deviceId)</span></span>
 <span id="L316"><span class="lineNum">     316</span> <span class="tlaGNC">           1 :       val state = requirePipeline()</span></span>
 <span id="L317"><span class="lineNum">     317</span> <span class="tlaGNC">           1 :       val roleName = request.role // empty = default role</span></span>
@@ -564,7 +564,7 @@
 <span id="L502"><span class="lineNum">     502</span>              :     // Acquire the lock for the entire read (pipeline check + read + translation)</span>
 <span id="L503"><span class="lineNum">     503</span>              :     // so the pipeline can't be swapped mid-read.</span>
 <span id="L504"><span class="lineNum">     504</span> <span class="tlaGNC">           1 :     val response =</span></span>
-<span id="L505"><span class="lineNum">     505</span> <span class="tlaGNC">           1 :       lock.withLock {</span></span>
+<span id="L505"><span class="lineNum">     505</span> <span class="tlaGNC">           1 :       lock.withReadLock {</span></span>
 <span id="L506"><span class="lineNum">     506</span> <span class="tlaGNC">           1 :         requireDeviceId(request.deviceId)</span></span>
 <span id="L507"><span class="lineNum">     507</span> <span class="tlaGNC">           1 :         val state = requirePipeline()</span></span>
 <span id="L508"><span class="lineNum">     508</span> <span class="tlaGNC">           1 :         val roleName = request.role // empty = default role</span></span>
@@ -642,7 +642,7 @@
 <span id="L580"><span class="lineNum">     580</span> <span class="tlaGNC">           1 :           when {</span></span>
 <span id="L581"><span class="lineNum">     581</span> <span class="tlaGNC">           1 :             msg.hasArbitration() -&gt;</span></span>
 <span id="L582"><span class="lineNum">     582</span> <span class="tlaGNC">           1 :               send(handleArbitration(streamId, msg.arbitration, notifications))</span></span>
-<span id="L583"><span class="lineNum">     583</span> <span class="tlaGNC">           1 :             msg.hasPacket() -&gt; lock.withLock { handlePacketOut(msg.packet) }</span></span>
+<span id="L583"><span class="lineNum">     583</span> <span class="tlaGNC">           1 :             msg.hasPacket() -&gt; lock.withReadLock { handlePacketOut(msg.packet) }</span></span>
 <span id="L584"><span class="lineNum">     584</span> <span class="tlaGNC">           1 :             msg.hasDigestAck() -&gt;</span></span>
 <span id="L585"><span class="lineNum">     585</span> <span class="tlaGNC">           1 :               throw Status.UNIMPLEMENTED.withDescription(DIGEST_NOT_SUPPORTED).asException()</span></span>
 <span id="L586"><span class="lineNum">     586</span>              :             // P4Runtime spec §16: unrecognized stream messages get an error response.</span>
