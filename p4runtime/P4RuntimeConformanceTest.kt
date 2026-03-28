@@ -1679,12 +1679,208 @@ class P4RuntimeConformanceTest {
     }
   }
 
-  /** P4Runtime spec §7.2: RECONCILE_AND_COMMIT is not supported. */
+  // =========================================================================
+  // RECONCILE_AND_COMMIT (scenarios 80, 126-130)
+  // =========================================================================
+
+  /** Same pipeline reloaded with RECONCILE_AND_COMMIT preserves entries. */
   @Test
-  fun `80 - RECONCILE_AND_COMMIT returns UNIMPLEMENTED`() {
-    assertGrpcError(Status.Code.UNIMPLEMENTED) {
-      sendPipelineAction(SetForwardingPipelineConfigRequest.Action.RECONCILE_AND_COMMIT)
+  fun `80 - RECONCILE_AND_COMMIT preserves entries on identical pipeline reload`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    harness.installEntry(buildExactEntry(config, matchValue = 0x0800, port = 1))
+    assertEquals(1, harness.readRegularEntries().size)
+    sendPipelineAction(SetForwardingPipelineConfigRequest.Action.RECONCILE_AND_COMMIT, config)
+    assertEquals("entry should survive reconcile", 1, harness.readRegularEntries().size)
+  }
+
+  /** RECONCILE_AND_COMMIT with no prior pipeline is equivalent to VERIFY_AND_COMMIT. */
+  @Test
+  fun `126 - RECONCILE_AND_COMMIT without prior pipeline loads normally`() {
+    val config = loadBasicTableConfig()
+    sendPipelineAction(SetForwardingPipelineConfigRequest.Action.RECONCILE_AND_COMMIT, config)
+    harness.installEntry(buildExactEntry(config, matchValue = 0x0800, port = 1))
+    assertEquals(1, harness.readRegularEntries().size)
+  }
+
+  /** RECONCILE_AND_COMMIT rejects if a populated table is missing from the new pipeline. */
+  @Test
+  fun `127 - RECONCILE_AND_COMMIT rejects when populated table removed`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    harness.installEntry(buildExactEntry(config, matchValue = 0x0800, port = 1))
+    // Load a different pipeline that doesn't have the same table.
+    assertGrpcError(Status.Code.INVALID_ARGUMENT, "absent from the new pipeline") {
+      sendPipelineAction(
+        SetForwardingPipelineConfigRequest.Action.RECONCILE_AND_COMMIT,
+        loadPassthroughConfig(),
+      )
     }
+  }
+
+  /** RECONCILE_AND_COMMIT succeeds when tables exist but have no entries. */
+  @Test
+  fun `128 - RECONCILE_AND_COMMIT succeeds with empty tables and different pipeline`() {
+    harness.loadPipeline(loadBasicTableConfig())
+    // No entries installed — any pipeline change should be fine.
+    sendPipelineAction(
+      SetForwardingPipelineConfigRequest.Action.RECONCILE_AND_COMMIT,
+      loadPassthroughConfig(),
+    )
+    // New pipeline should be active.
+    assertNotNull(harness.getConfig())
+  }
+
+  /** RECONCILE_AND_COMMIT preserves PRE entries (multicast groups, clone sessions). */
+  @Test
+  fun `129 - RECONCILE_AND_COMMIT preserves PRE entries`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    // Install a multicast group.
+    val mcastGroup =
+      Entity.newBuilder()
+        .setPacketReplicationEngineEntry(
+          P4RuntimeOuterClass.PacketReplicationEngineEntry.newBuilder()
+            .setMulticastGroupEntry(
+              P4RuntimeOuterClass.MulticastGroupEntry.newBuilder()
+                .setMulticastGroupId(1)
+                .addReplicas(
+                  P4RuntimeOuterClass.Replica.newBuilder().setEgressPort(1).setInstance(0)
+                )
+            )
+        )
+        .build()
+    harness.installEntry(mcastGroup)
+    sendPipelineAction(SetForwardingPipelineConfigRequest.Action.RECONCILE_AND_COMMIT, config)
+    // PRE entry should survive.
+    val request =
+      ReadRequest.newBuilder()
+        .setDeviceId(1)
+        .addEntities(
+          Entity.newBuilder()
+            .setPacketReplicationEngineEntry(
+              P4RuntimeOuterClass.PacketReplicationEngineEntry.newBuilder()
+                .setMulticastGroupEntry(
+                  P4RuntimeOuterClass.MulticastGroupEntry.getDefaultInstance()
+                )
+            )
+        )
+        .build()
+    val results = harness.readEntries(request)
+    assertTrue("PRE entry should survive reconcile", results.isNotEmpty())
+  }
+
+  /** RECONCILE_AND_COMMIT preserves action profile members. */
+  @Test
+  fun `130 - RECONCILE_AND_COMMIT preserves action profile members`() {
+    val config = loadConfig("e2e_tests/trace_tree/action_selector_3.txtpb")
+    harness.loadPipeline(config)
+    val profileId = config.p4Info.actionProfilesList.first().preamble.id
+    val dropId = P4RuntimeTestHarness.findAction(config, "drop").preamble.id
+    val member = buildMemberEntity(actionProfileId = profileId, memberId = 1, actionId = dropId)
+    harness.installEntry(member)
+    sendPipelineAction(SetForwardingPipelineConfigRequest.Action.RECONCILE_AND_COMMIT, config)
+    val members = harness.readProfileMembers(actionProfileId = profileId)
+    assertEquals("profile member should survive reconcile", 1, members.size)
+  }
+
+  /** RECONCILE_AND_COMMIT rejects when a populated table's schema changed. */
+  @Test
+  fun `131 - RECONCILE_AND_COMMIT rejects when populated table schema changed`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    harness.installEntry(buildExactEntry(config, matchValue = 0x0800, port = 1))
+    // Build a modified config where the table's match field bitwidth differs.
+    val table = config.p4Info.tablesList.first()
+    val modifiedTable =
+      table.toBuilder().setMatchFields(0, table.matchFieldsList.first().toBuilder().setBitwidth(32))
+    val modifiedP4Info = config.p4Info.toBuilder().setTables(0, modifiedTable)
+    val modifiedConfig = config.toBuilder().setP4Info(modifiedP4Info).build()
+    assertGrpcError(Status.Code.INVALID_ARGUMENT, "schema changed") {
+      sendPipelineAction(
+        SetForwardingPipelineConfigRequest.Action.RECONCILE_AND_COMMIT,
+        modifiedConfig,
+      )
+    }
+  }
+
+  /** RECONCILE_AND_COMMIT preserves entries and forwarding still works. */
+  @Test
+  fun `132 - forwarding works after RECONCILE_AND_COMMIT`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    harness.installEntry(buildExactEntry(config, matchValue = 0x0800, port = 1))
+    // Packet with etherType 0x0800 should hit the table entry and be forwarded.
+    val before = harness.simulatePacket(0, buildEthernetFrame(0x0800))
+    assertTrue("packet should be forwarded before reconcile", before.isNotEmpty())
+    sendPipelineAction(SetForwardingPipelineConfigRequest.Action.RECONCILE_AND_COMMIT, config)
+    val after = harness.simulatePacket(0, buildEthernetFrame(0x0800))
+    assertTrue("packet should be forwarded after reconcile", after.isNotEmpty())
+    assertEquals(
+      "output port should match",
+      before[0].dataplaneEgressPort,
+      after[0].dataplaneEgressPort,
+    )
+  }
+
+  /** RECONCILE_AND_COMMIT on identical pipeline updates the cookie. */
+  @Test
+  fun `133 - RECONCILE_AND_COMMIT updates cookie on identical pipeline`() {
+    val config = loadBasicTableConfig()
+    val oldCookie = ForwardingPipelineConfig.Cookie.newBuilder().setCookie(1).build()
+    harness.loadPipeline(config, oldCookie)
+    harness.installEntry(buildExactEntry(config, matchValue = 0x0800, port = 1))
+    val newCookie = ForwardingPipelineConfig.Cookie.newBuilder().setCookie(2).build()
+    sendPipelineAction(
+      SetForwardingPipelineConfigRequest.Action.RECONCILE_AND_COMMIT,
+      config,
+      newCookie,
+    )
+    assertEquals("cookie should be updated", 2, harness.getConfig().config.cookie.cookie)
+    assertEquals("entry should survive", 1, harness.readRegularEntries().size)
+  }
+
+  /** RECONCILE_AND_COMMIT preserves modified default actions. */
+  @Test
+  fun `134 - RECONCILE_AND_COMMIT preserves modified default action`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    val table = config.p4Info.tablesList.first()
+    val dropId = P4RuntimeTestHarness.findAction(config, "drop").preamble.id
+    harness.modifyEntry(P4RuntimeTestHarness.buildDefaultActionEntity(table.preamble.id, dropId))
+    // Verify the modified default is readable.
+    val beforeDefaults = harness.readEntries().filter { it.tableEntry.isDefaultAction }
+    assertTrue("modified default should be readable", beforeDefaults.isNotEmpty())
+    sendPipelineAction(SetForwardingPipelineConfigRequest.Action.RECONCILE_AND_COMMIT, config)
+    val afterDefaults = harness.readEntries().filter { it.tableEntry.isDefaultAction }
+    assertTrue("modified default should survive reconcile", afterDefaults.isNotEmpty())
+    assertEquals(
+      "default action should be drop",
+      dropId,
+      afterDefaults[0].tableEntry.action.action.actionId,
+    )
+  }
+
+  /** RECONCILE_AND_COMMIT: populated tables preserved, empty changed tables tolerated. */
+  @Test
+  fun `135 - RECONCILE_AND_COMMIT mixed populated and empty tables`() {
+    val config = loadMultiTableConfig()
+    harness.loadPipeline(config)
+    // Only install entries in the original exact table, leave ternary/LPM empty.
+    harness.installEntry(buildExactEntry(config, matchValue = 0x0800, port = 1))
+    // Build a new config that keeps the exact table but changes the ternary table's bitwidth.
+    // This should succeed because the ternary table has no entries.
+    val p4Info = config.p4Info.toBuilder()
+    val ternaryIdx = p4Info.tablesList.indexOfFirst { it.preamble.id == MULTI_TERNARY_TABLE_ID }
+    val ternaryTable = p4Info.getTables(ternaryIdx)
+    val modifiedTernary =
+      ternaryTable
+        .toBuilder()
+        .setMatchFields(0, ternaryTable.matchFieldsList.first().toBuilder().setBitwidth(32))
+    p4Info.setTables(ternaryIdx, modifiedTernary)
+    val newConfig = config.toBuilder().setP4Info(p4Info).build()
+    sendPipelineAction(SetForwardingPipelineConfigRequest.Action.RECONCILE_AND_COMMIT, newConfig)
+    assertEquals("exact table entry should survive", 1, harness.readRegularEntries().size)
   }
 
   // ---------------------------------------------------------------------------
@@ -2420,11 +2616,13 @@ class P4RuntimeConformanceTest {
   private fun sendPipelineAction(
     action: SetForwardingPipelineConfigRequest.Action,
     config: PipelineConfig = loadBasicTableConfig(),
+    cookie: ForwardingPipelineConfig.Cookie = ForwardingPipelineConfig.Cookie.getDefaultInstance(),
   ) = runBlocking {
     val fwdConfig =
       ForwardingPipelineConfig.newBuilder()
         .setP4Info(config.p4Info)
         .setP4DeviceConfig(config.device.toByteString())
+        .setCookie(cookie)
     harness.stub.setForwardingPipelineConfig(
       SetForwardingPipelineConfigRequest.newBuilder()
         .setDeviceId(1)
