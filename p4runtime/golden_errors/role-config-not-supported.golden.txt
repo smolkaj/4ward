@@ -1,0 +1,1 @@
+UNIMPLEMENTED: Role.config is not supported; use @p4runtime_role annotations in p4info instead
