@@ -1,0 +1,1 @@
+INVALID_ARGUMENT: match field 'hdr.ethernet.etherType' expects EXACT but got TERNARY
