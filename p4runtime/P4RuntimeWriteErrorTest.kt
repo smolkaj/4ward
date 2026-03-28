@@ -215,6 +215,78 @@ class P4RuntimeWriteErrorTest {
     assertGrpcError(Status.Code.INVALID_ARGUMENT, "missing") { harness.installEntry(entity) }
   }
 
+  // P4Runtime spec §9.1.2: param_id must exist in the action's p4info schema.
+  @Test
+  fun `insert with unknown param ID returns INVALID_ARGUMENT`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    val entity =
+      buildInvalidEntry(config) { b ->
+        b.tableEntryBuilder.actionBuilder.actionBuilder.getParamsBuilder(0).setParamId(99999)
+      }
+    assertGrpcError(Status.Code.INVALID_ARGUMENT, "unknown") { harness.installEntry(entity) }
+  }
+
+  // P4Runtime spec §9.1.1: match field IDs must correspond to p4info fields.
+  @Test
+  fun `insert with unknown match field ID returns INVALID_ARGUMENT`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    val entity =
+      buildInvalidEntry(config) { b -> b.tableEntryBuilder.getMatchBuilder(0).setFieldId(99999) }
+    assertGrpcError(Status.Code.INVALID_ARGUMENT, "unknown") { harness.installEntry(entity) }
+  }
+
+  // P4Runtime spec §9.1: each match field may appear at most once.
+  @Test
+  fun `insert with duplicate match field returns INVALID_ARGUMENT`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    val entity =
+      buildInvalidEntry(config) { b ->
+        // Add a second copy of the first match field.
+        b.tableEntryBuilder.addMatch(b.tableEntryBuilder.getMatch(0))
+      }
+    assertGrpcError(Status.Code.INVALID_ARGUMENT, "duplicate") { harness.installEntry(entity) }
+  }
+
+  // P4Runtime spec §9.1.1: a match field with no value set must be rejected.
+  @Test
+  fun `insert with match field missing value returns INVALID_ARGUMENT`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    val matchField = config.p4Info.tablesList.first().matchFieldsList.first()
+    val entity =
+      buildInvalidEntry(config) { b ->
+        // Clear the exact value, leaving field_id set but no oneof variant.
+        b.tableEntryBuilder.getMatchBuilder(0).clearExact().setFieldId(matchField.id)
+      }
+    assertGrpcError(Status.Code.INVALID_ARGUMENT, "no value set") { harness.installEntry(entity) }
+  }
+
+  // P4Runtime spec §9.1.1: exact-only tables must have priority == 0.
+  @Test
+  fun `insert with priority must be 0 message on exact table`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    val entity = buildInvalidEntry(config) { b -> b.tableEntryBuilder.setPriority(5) }
+    assertGrpcError(Status.Code.INVALID_ARGUMENT, "priority") { harness.installEntry(entity) }
+  }
+
+  // P4Runtime spec §12.3: per-update errors must include space and code fields.
+  @Test
+  fun `batch error details include space and code fields`() {
+    harness.loadPipeline(loadBasicTableConfig())
+    val request = harness.buildBatchRequest(Update.Type.INSERT, listOf(badTableEntity()))
+    val errors = assertBatchError { harness.writeRaw(request) }
+    assert(errors.size == 1)
+    assert(errors[0].space == "p4.v1") { "error space should be 'p4.v1', got '${errors[0].space}'" }
+    assert(errors[0].code == errors[0].canonicalCode) {
+      "error code should match canonical_code, got code=${errors[0].code} " +
+        "canonical_code=${errors[0].canonicalCode}"
+    }
+  }
+
   // =========================================================================
   // Unimplemented feature guards
   // =========================================================================
