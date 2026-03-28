@@ -1,0 +1,21 @@
+# pna-dpdk-add_on_miss0: ct_tcp_table miss sets eth.src[7:0]=0xa5, ipv4_host forwards.
+# Exercises add_on_miss table + add_entry extern (no-op in sim) with observable side effects.
+
+add ipv4_host hdr.ipv4.dst_addr:0x0A020304 send(port:1)
+
+# TCP SYN packet: ct_tcp_table misses -> eth.src[7:0] = 0xa5, ipv4_host hits -> port 1
+# Eth: dst=ffffffffffff src=000000000001 type=0800
+# IPv4: ver/ihl=45 tos=00 len=0028 id=0000 flags/frag=0000 ttl=40 proto=06 cksum=0000
+#       src=0a000001 dst=0a020304
+# TCP: src=04d2 dst=0050 seq=00000000 ack=00000000 off/res=50 flags=02(SYN) win=0000
+#      cksum=0000 urg=0000
+packet 0 FFFFFFFFFFFF 000000000001 0800 4500002800000000400600000A0000010A020304 04D2005000000000000000005002000000000000
+expect 1 FFFFFFFFFFFF 0000000000A5 0800 4500002800000000400600000A0000010A020304 04D2005000000000000000005002000000000000 $
+
+# Non-TCP IPv4 -> ct_tcp_table not applied (guard: ipv4 && tcp valid),
+# ipv4_host hits -> port 1, no eth modification
+packet 0 FFFFFFFFFFFF 000000000001 0800 4500001400000000400000000A0000010A020304
+expect 1 FFFFFFFFFFFF 000000000001 0800 4500001400000000400000000A0000010A020304 $
+
+# IPv4 with unknown dst -> ipv4_host misses -> drop
+packet 0 FFFFFFFFFFFF 000000000001 0800 4500002800000000400600000A000001C0A80101 04D2005000000000000000005002000000000000

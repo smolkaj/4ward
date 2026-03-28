@@ -1,0 +1,12 @@
+# pna-dpdk-add_on_miss1: conntrack sub-control with direction-based key normalization.
+# ct_tcp_table miss sets eth.src[7:0]=0xa5, ipv4_host forwards.
+
+add ipv4_host hdr.ipv4.dst_addr:0x0A020304 send(port:1)
+
+# TCP packet -> conntrack miss -> eth.src[7:0] = 0xa5, ipv4_host -> port 1
+packet 0 FFFFFFFFFFFF 000000000001 0800 4500002800000000400600000A0000010A020304 04D2005000000000000000005002000000000000
+expect 1 FFFFFFFFFFFF 0000000000A5 0800 4500002800000000400600000A0000010A020304 04D2005000000000000000005002000000000000 $
+
+# Non-TCP IPv4 -> conntrack skipped, ipv4_host -> port 1, no eth modification
+packet 0 FFFFFFFFFFFF 000000000001 0800 4500001400000000400000000A0000010A020304
+expect 1 FFFFFFFFFFFF 000000000001 0800 4500001400000000400000000A0000010A020304 $

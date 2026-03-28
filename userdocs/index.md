@@ -37,8 +37,8 @@ all possible outcomes in a single pass.
 
 - **Trace trees** — every event recorded, every fork explored.
   [Learn more](concepts/traces.md).
-- **v1model and PSA** — two P4 architectures fully implemented, with support
-  for architecture modifications like translated port types.
+- **v1model, PSA, and PNA** — three P4 architectures fully implemented, with
+  support for architecture modifications like translated port types.
   [Learn more](concepts/architectures.md).
 - **[P4Runtime](https://p4lang.github.io/p4runtime/spec/v1.5.0/P4Runtime-Spec.html) server** — spec-compliant gRPC server
   with full arbitration, table management, PacketIO, and clone/multicast

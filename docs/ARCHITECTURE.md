@@ -134,7 +134,7 @@ evaluating expressions, walking control flow, performing table lookups, and
 managing variable scopes. Architecture-specific extern dispatch, fork
 semantics, and pipeline orchestration belong in the architecture layer.
 
-**Current status:** v1model and PSA are both implemented. The interpreter is
+**Current status:** v1model, PSA, and PNA are all implemented. The interpreter is
 a pure IR tree-walker with no architecture-specific code — extern dispatch,
 fork semantics, and pipeline orchestration all live in the architecture layer
 (`V1ModelArchitecture.kt`, `PSAArchitecture.kt`). See [ROADMAP.md](ROADMAP.md)

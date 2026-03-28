@@ -1,6 +1,6 @@
 # Architectures
 
-4ward currently supports two P4 architectures: **v1model** and **PSA**. Each
+4ward currently supports three P4 architectures: **v1model**, **PSA**, and **PNA**. Each
 defines a fixed pipeline of stages, a set of externs, and metadata structures.
 Adding more architectures is straightforward — see
 [Architecture Modifications](architecture-modifications.md).
@@ -141,9 +141,61 @@ Supported algorithms: `IDENTITY`, `CRC16`, `CRC32`, `ONES_COMPLEMENT16`.
 
 - `Digest.pack(data)` — queues message to control plane (no-op in simulator)
 
+## PNA
+
+The Portable NIC Architecture — designed for smart NICs with a single-pipeline
+structure. Defined in
+[pna.p4](https://github.com/p4lang/p4c/blob/main/p4include/pna.p4).
+
+Single-pipeline design (no separate egress):
+
+```
+MainParser → PreControl → MainControl → MainDeparser
+```
+
+**Key difference from PSA:** forwarding uses free functions (`send_to_port()`,
+`drop_packet()`) with last-writer-wins semantics instead of output metadata
+fields. Drops by default — `send_to_port()` must be called to forward.
+
+**Ports:** 32-bit (`bit<32>`). Direction-aware: packets have a `PNA_Direction_t`
+(`NET_TO_HOST` or `HOST_TO_NET`).
+
+### Key metadata
+
+**Main input** (`pna_main_input_metadata_t`):
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `direction` | `PNA_Direction_t` | `NET_TO_HOST` or `HOST_TO_NET` |
+| `input_port` | `bit<32>` | Input port |
+| `parser_error` | `error` | Parser error (set after parsing) |
+| `pass` | `bit<3>` | Recirculation pass number (0–7) |
+| `loopedback` | `bool` | True if recirculated |
+| `timestamp` | `bit<64>` | Packet arrival timestamp |
+
+### Externs
+
+**Forwarding (last-writer-wins):**
+
+- `send_to_port(port)` — forward to port
+- `drop_packet()` — drop (main control only per spec)
+- `recirculate()` — loop deparsed bytes back to parser
+- `mirror_packet(slot_id, session_id)` — mirror deparsed bytes to clone session
+
+**Direction:**
+
+- `SelectByDirection(direction, n2h_value, h2n_value)` — select value based on packet direction
+
+**Add-on-miss (data-plane table insertion):**
+
+- `add_entry(action_name, action_params, expire_time_profile_id) → bool` — insert table entry on miss
+
+**Stateful:** Same as PSA — `Register`, `Counter`, `Meter` (GREEN), `Hash`,
+`InternetChecksum`, `Digest` (no-op), `Random`.
+
 ## Limitations
 
-Both architectures:
+All architectures:
 
 - **Meters always return GREEN.** No real packet rates in a simulator.
 - **Counters are fire-and-forget.** Not readable from P4 logic (control-plane

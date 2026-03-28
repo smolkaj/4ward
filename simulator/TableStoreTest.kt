@@ -1133,6 +1133,101 @@ class TableStoreTest {
   }
 
   // ---------------------------------------------------------------------------
+  // Dotted alias resolution for nested controls
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `loadMappings resolves dotted aliases to underscored behavioral names`() {
+    // Simulate inlined nested controls: p4info uses dotted aliases (e.g. "ct.t"),
+    // while behavioral IR uses underscored names (e.g. "ct_t").
+    val nestedTableId = 3
+    val nestedActionId = 30
+    val p4info =
+      buildP4Info(
+        tables =
+          listOf(
+            P4InfoOuterClass.Table.newBuilder()
+              .setPreamble(
+                P4InfoOuterClass.Preamble.newBuilder()
+                  .setId(nestedTableId)
+                  .setAlias("inner.myTable")
+              )
+              .setConstDefaultActionId(nestedActionId)
+              .build()
+          ),
+        actions =
+          listOf(
+            P4InfoOuterClass.Action.newBuilder()
+              .setPreamble(
+                P4InfoOuterClass.Preamble.newBuilder()
+                  .setId(nestedActionId)
+                  .setAlias("inner.myAction")
+              )
+              .build()
+          ),
+      )
+    val device =
+      fourward.ir.DeviceConfig.newBuilder()
+        .setBehavioral(
+          fourward.ir.BehavioralConfig.newBuilder()
+            .addTables(fourward.ir.TableBehavior.newBuilder().setName("inner_myTable"))
+            .addActions(fourward.ir.ActionDecl.newBuilder().setName("inner_myAction"))
+        )
+        .build()
+    val s = TableStore()
+    s.loadMappings(p4info = p4info, device = device)
+    // The dotted alias "inner.myTable" should resolve to behavioral "inner_myTable",
+    // and the default action "inner.myAction" should resolve to "inner_myAction".
+    val result = s.lookup("inner_myTable", emptyList())
+    assertEquals("inner_myAction", result.actionName)
+  }
+
+  @Test
+  fun `loadMappings resolves control-prefixed aliases to short behavioral names`() {
+    // When two tables share a short name, p4c disambiguates with the control prefix
+    // (e.g. alias "MainControl.t" for behavioral name "t").
+    val tableId = 4
+    val actionId = 40
+    val p4info =
+      buildP4Info(
+        tables =
+          listOf(
+            P4InfoOuterClass.Table.newBuilder()
+              .setPreamble(
+                P4InfoOuterClass.Preamble.newBuilder()
+                  .setId(tableId)
+                  .setAlias("MainControl.myTable")
+              )
+              .setConstDefaultActionId(actionId)
+              .build()
+          ),
+        actions =
+          listOf(
+            P4InfoOuterClass.Action.newBuilder()
+              .setPreamble(
+                P4InfoOuterClass.Preamble.newBuilder()
+                  .setId(actionId)
+                  .setAlias("MainControl.myAction")
+              )
+              .build()
+          ),
+      )
+    val device =
+      fourward.ir.DeviceConfig.newBuilder()
+        .setBehavioral(
+          fourward.ir.BehavioralConfig.newBuilder()
+            .addTables(fourward.ir.TableBehavior.newBuilder().setName("myTable"))
+            .addActions(fourward.ir.ActionDecl.newBuilder().setName("myAction"))
+        )
+        .build()
+    val s = TableStore()
+    s.loadMappings(p4info = p4info, device = device)
+    // "MainControl.myTable" should resolve to "myTable" by stripping the control prefix.
+    val result = s.lookup("myTable", emptyList())
+    assertEquals("myAction", result.actionName)
+  }
+
+  // ---------------------------------------------------------------------------
   // Action profile write semantics
   // ---------------------------------------------------------------------------
 

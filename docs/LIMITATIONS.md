@@ -29,10 +29,14 @@ guilt — just write it down so someone can find it later.
   MainDeparser) is implemented with support for `send_to_port`, `drop_packet`,
   `recirculate`, `mirror_packet`, `SelectByDirection`, registers, `Hash.get_hash`,
   `Meter.execute` (stub GREEN), `InternetChecksum`, `Digest.pack` (stub no-op),
-  counters (stub no-op), and `Random.read()`. `add_entry` inserts table entries
-  from the data plane (add-on-miss). `allocate_flow_id`, `set_entry_expire_time`,
-  `restart_expire_timer` are stubs (no real timers in the simulator).
-  22 STF corpus tests, 46 compile-only tests, p4testgen symbolic tests.
+  counters (stub no-op), and `Random.read()`. Add-on-miss externs (`add_entry`,
+  `allocate_flow_id`, `set_entry_expire_time`, `restart_expire_timer`) are stubs.
+  37 STF corpus tests, 31 compile-only tests, 33 p4testgen symbolic tests.
+- **PNA mirror_packet uses original (pre-parse) bytes.** The DPDK SoftNIC
+  mirrors the packet at its current state when `mirror_packet()` executes
+  (post-modification). The PNA spec is underspecified on this point. Our
+  approach matches PSA's I2E clone semantics but may diverge from DPDK for
+  programs that modify headers before mirroring.
 
 ## Externs
 

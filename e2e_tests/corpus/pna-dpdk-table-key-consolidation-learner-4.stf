@@ -1,0 +1,8 @@
+# pna-dpdk-table-key-consolidation-learner-4: add_on_miss with metadata keys.
+# Both tables miss -> add_entry (no-op) without send_to_port -> drop.
+
+# IPv4 packet
+packet 0 FFFFFFFFFFFF 000000000001 0800 4500001400000000400000000A0000010A020304
+
+# Non-IPv4 -> drop
+packet 0 FFFFFFFFFFFF 000000000001 0806 0001080006040001
