@@ -301,17 +301,15 @@ architecture should be straightforward. More importantly, PNA is the path to
 deep confidence: **p4testgen supports PNA**, enabling automated symbolic path
 exploration that generates hundreds of test cases.
 
-Work:
-- Implement `PNAArchitecture.kt` (simpler pipeline than PSA).
-- Update p4c backend for PNA detection.
-- Integrate p4testgen for PNA (investigate output format compatibility with
-  our STF runner — p4testgen's PNA support targets DPDK, so format conversion
-  may be needed).
-
-Testing: p4testgen symbolic execution for exhaustive path coverage. This is
-what brings a second architecture to v1model-level confidence.
-
-**Done when:** PNA passes p4testgen-generated tests with full path exploration.
+**Current status:** Complete. 68/68 PNA programs covered (37 STF corpus tests,
+31 compile-only). 411 p4testgen-generated symbolic tests across 22 programs.
+All major externs implemented: `send_to_port`, `drop_packet`, `recirculate`,
+`mirror_packet` (deparsed bytes, matching DPDK), `SelectByDirection`,
+`add_entry` (data-plane table insertion), registers, Hash, Counter, Meter,
+InternetChecksum, Digest, Random. Pipeline ordering validated against DPDK
+SoftNIC reference (MainParser → PreControl → MainControl → MainDeparser).
+Found and reported upstream p4testgen bug (p4lang/p4c#5569): PNA model
+initialized `DROP=false` instead of `true`.
 
 #### Why this ordering
 
@@ -663,8 +661,7 @@ Start with errors that users actually hit:
 - Tracks 1, 3, 4, 5, 7, and 8 are complete.
 - Track 5 subsumes Track 4C and 4E.
 - Track 2 is picked up opportunistically.
-- Track 6 phases 1 (refactoring) and 2 (PSA, 26/26) are complete. Phase 3
-  (PNA) is next.
+- Track 6 is complete: refactoring, PSA (26/26), and PNA (68/68 + p4testgen).
 - Track 8 (interfaces) is complete: gRPC services, CLI, and playground with
   visual pipeline diagrams and animated trace playback.
 - Track 9 builds on Track 4. Phases 1–3 are complete. Phase 4

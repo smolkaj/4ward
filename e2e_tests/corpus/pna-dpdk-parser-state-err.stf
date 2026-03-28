@@ -1,0 +1,12 @@
+# pna-dpdk-parser-state-err: parser extracts TCP then Ethernet then IPv4.
+# add_on_miss tables with range check side effects. Miss actions -> drop.
+
+# Packet: TCP header (20B) + Ethernet (14B) + IPv4 (20B)
+# TCP: src=0096(150) dst=0050 seq=00000000 ack=00000000 off=5 flags=0x02 win=0 cksum=0 urg=0
+# Eth: dst=ffffffffffff src=000000000001 etherType=0800
+# IPv4: ver/ihl=45 tos=00 len=0014 id=0000 flags=0 ttl=40 proto=00 cksum=0000
+#       src=0a000001 dst=0a020304
+packet 0 00960050000000000000000050020000 00000000 FFFFFFFFFFFF 000000000001 0800 4500001400000000400000000A0000010A020304
+
+# Non-IPv4: TCP header + Ethernet with etherType=0806
+packet 0 00960050000000000000000050020000 00000000 FFFFFFFFFFFF 000000000001 0806 0001080006040001

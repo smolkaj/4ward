@@ -1,0 +1,14 @@
+# pna-example-tcp-connection-tracking: TCP connection tracking with SelectByDirection keys.
+# Uses set_ct_options (const entries) and ct_tcp_table (add_on_miss).
+# Default direction is NET_TO_HOST -> set_ct_options skipped -> do_add_on_miss=false ->
+# ct_tcp_table_miss calls drop_packet.
+
+# TCP SYN packet (NET_TO_HOST): set_ct_options not applied, ct_tcp_table misses -> drop
+# Eth: dst=ffffffffffff src=000000000001 type=0800
+# IPv4: ver/ihl=45 tos=00 len=0028 id=0000 flags=0 ttl=40 proto=06 cksum=0000
+#       src=0a000001 dst=0a020304
+# TCP: src=04d2 dst=0050 seq=00000000 ack=00000000 off=5 flags=02(SYN) win=0 cksum=0 urg=0
+packet 0 FFFFFFFFFFFF 000000000001 0800 4500002800000000400600000A0000010A020304 04D2005000000000000000005002000000000000
+
+# Non-TCP IPv4 -> ct_tcp_table not applied -> no forwarding -> drop
+packet 0 FFFFFFFFFFFF 000000000001 0800 4500001400000000400000000A0000010A020304

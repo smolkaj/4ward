@@ -1,0 +1,8 @@
+# pna-add-on-miss: two add_on_miss tables (ipv4_da, ipv4_da2).
+# Miss actions call add_entry (no-op in sim) without send_to_port -> drop.
+
+# IPv4 packet: both tables miss -> drop
+packet 0 FFFFFFFFFFFF 000000000001 0800 4500001400000000400000000A0000010A020304
+
+# Non-IPv4 -> tables not applied -> drop
+packet 0 FFFFFFFFFFFF 000000000001 0806 0001080006040001

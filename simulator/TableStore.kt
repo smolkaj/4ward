@@ -267,8 +267,24 @@ class TableStore : TableDataReader {
         listOfNotNull(action.name, action.currentName.ifEmpty { null })
       }
 
-    fun resolveName(alias: String, candidates: List<String>): String =
-      candidates.find { it == alias } ?: candidates.find { it.endsWith("_$alias") } ?: alias
+    fun resolveName(alias: String, candidates: List<String>): String {
+      // p4info aliases use dots for nested controls (e.g. "ct.ipv4_da"), while
+      // the behavioral IR uses underscores (e.g. "ct_ipv4_da"). When two tables
+      // share a short name, p4c disambiguates with a control prefix
+      // (e.g. "MainControlImpl.ipv4_da" for behavioral "ipv4_da"). Try multiple
+      // forms to handle all cases.
+      val underscored = alias.replace('.', '_')
+      val afterFirstDot = if ('.' in alias) alias.substringAfter('.') else null
+      val afterFirstDotUnderscored = afterFirstDot?.replace('.', '_')
+      return candidates.find { it == alias }
+        ?: candidates.find { it.endsWith("_$alias") }
+        ?: candidates.find { it == underscored }
+        ?: candidates.find { it.endsWith("_$underscored") }
+        ?: afterFirstDotUnderscored?.let { suffix ->
+          candidates.find { it == suffix } ?: candidates.find { it.endsWith("_$suffix") }
+        }
+        ?: alias
+    }
 
     // Build both forward (id → behavioral name) and reverse (behavioral name → alias) maps
     // in a single pass per list.
@@ -1306,8 +1322,24 @@ class TableStore : TableDataReader {
     actionNameById[actionId] ?: error("unknown action ID: $actionId")
 
   /** Resolves an action name (alias or behavioral) to its behavioral name. */
-  fun resolveActionByAlias(name: String): String? =
-    if (name in actionIdByName) name else actionAliasByName.entries.find { it.value == name }?.key
+  fun resolveActionByAlias(name: String): String? {
+    if (name in actionIdByName) return name
+    // Exact alias match.
+    actionAliasByName.entries
+      .find { it.value == name }
+      ?.let {
+        return it.key
+      }
+    // Fuzzy match: nested controls use underscored behavioral names for dotted aliases.
+    val candidates = actionIdByName.keys.toList()
+    val underscored = name.replace('.', '_')
+    candidates
+      .find { it.endsWith("_$name") || it.endsWith("_$underscored") }
+      ?.let {
+        return it
+      }
+    return null
+  }
 
   /** Returns the short p4info alias for a behavioral action name, or the name itself if unknown. */
   fun actionDisplayName(behavioralName: String): String =
