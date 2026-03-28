@@ -6,6 +6,89 @@
 > Reverse-chronological log. Add new entries at the top (below this header).
 > See [ROADMAP.md](ROADMAP.md) for the big picture.
 
+## 2026-03-28
+
+|                | Delta      | Total     |
+|----------------|------------|-----------|
+| PRs merged     | 76         | 391       |
+| Kotlin prod    | -0.4k      | 10.6k    |
+| Kotlin test    | +2.0k      | 23.6k    |
+| C++ prod       | +100       | 1.6k     |
+| C++ test       | +0         | 1.3k     |
+| Proto          | +0         | 1.0k     |
+| Web frontend   | +1.4k      | 5.2k     |
+| **Total**      | **+3.0k**  | **43.3k**|
+
+**66× dataplane throughput improvement, PNA architecture complete, and
+Track 11 (error quality) underway.**
+
+### Track 10: dataplane performance — 66× improvement
+
+Started at 41 packets/sec on the hardest workload (WCMP×16 + mirror,
+10k table entries, 32 trace tree branches per packet). Now at 2,700
+packets/sec (concurrent, 32 cores) / 780 packets/sec (sequential). The
+1k pps target is met across all configurations.
+
+Five optimizations, each building on profiling data:
+
+1. **Table lookup caching** (#382) — cache pre-fork lookup results
+   across selector re-executions. The single biggest win.
+2. **Parser skip** (#392, #397) — snapshot post-parser state, restore
+   instead of re-parsing on fork branches.
+3. **Long-lived Interpreter** (#400) — split into outer class (config
+   maps, built once) and inner `Execution` (per-run state, cheap).
+4. **Parallel fork branches** (#406) — `parallelStream()` replaces the
+   iterative work stack. The code got simpler (-36 lines).
+5. **Concurrent packet processing** (#409) — `ReadWriteMutex` replaces
+   the global `Mutex`; new `InjectPackets` streaming RPC for bulk
+   injection. Throughput now scales with available cores.
+
+Also: cache correctness tests (#393), direct counter skip on selector
+re-executions (counters were inflated by fork branches), and
+comprehensive benchmark covering direct L3, WCMP×4, WCMP×16, and
+WCMP×16+mirror at 10k entries.
+
+What didn't help (tried and reverted): `defaultValue()` caching
+(negligible), persistent collections for copy-on-write (HAMT overhead
+cancelled copy savings).
+
+### Track 6 Phase 3: PNA — complete
+
+68/68 PNA programs covered (37 STF corpus tests, 31 compile-only). 411
+p4testgen-generated tests across 22 programs. All major externs
+implemented. Pipeline ordering validated against DPDK SoftNIC reference.
+
+### Track 11: error quality — started
+
+New track: every error should be clear, actionable, and specific.
+Phase 1 audit started: golden error tests for 13 error paths in the
+P4Runtime server, ensuring error messages don't regress.
+
+### Track 9: P4Runtime hardening — continued
+
+P4Runtime conformance expanded with multi-table test fixtures, structured
+error detail verification, and encoding edge cases.
+
+### Documentation & docs site
+
+User-facing docs updated with the new `InjectPackets` RPC, concurrent
+processing guidance, and the recommended DVaaS pattern (subscribe →
+wait for `active {}` → inject → collect). Reference docs explain how to
+match `SubscribeResults` to injected packets and how to determine the
+expected `PacketIn` count from CPU-port outputs.
+
+Docs site SEO: favicon, Open Graph social cards, meta descriptions on
+all pages, author/date meta tags, sitemap fix for Google indexing (#384,
+#405, #407). Tutorial promoted to the docs site (#374).
+
+### What's next
+
+- **Track 11** — fix the worst error paths (opaque gRPC `UNKNOWN` from
+  simulator exceptions)
+- **DVaaS integration** — all building blocks are in place; the new
+  `InjectPackets` RPC is designed for DVaaS's bulk packet injection
+  pattern
+
 ## 2026-03-14
 
 |                | Delta      | Total     |
