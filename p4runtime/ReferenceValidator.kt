@@ -198,7 +198,10 @@ private constructor(
     ): List<Reference> =
       annotations.mapNotNull { annotation ->
         val match = REFERS_TO_PATTERN.find(annotation) ?: return@mapNotNull null
-        val (tableName, fieldName) = match.destructured
+        // p4c wraps annotation arguments in double quotes (e.g.
+        // @refers_to("target_table", "id")); strip them.
+        val tableName = match.groupValues[1].removeSurrounding("\"")
+        val fieldName = match.groupValues[2].removeSurrounding("\"")
 
         // builtin::multicast_group_table is handled specially — no table ID to resolve.
         // p4c may insert spaces around '::' in annotations.

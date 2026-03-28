@@ -48,6 +48,14 @@ class ReferenceValidatorTest {
     assertNotNull(ReferenceValidator.create(p4info))
   }
 
+  @Test
+  fun `create parses quoted refers_to annotation from p4c`() {
+    // p4c wraps annotation arguments in double quotes:
+    // @refers_to("target_table" , "target_id")
+    val p4info = p4InfoWithQuotedMatchFieldRef()
+    assertNotNull(ReferenceValidator.create(p4info))
+  }
+
   // =========================================================================
   // Match field validation
   // =========================================================================
@@ -446,6 +454,28 @@ class ReferenceValidatorTest {
           ),
         )
       )
+      .build()
+
+  /** p4info where a match field has quoted @refers_to (as p4c actually emits). */
+  private fun p4InfoWithQuotedMatchFieldRef(): P4InfoOuterClass.P4Info =
+    P4InfoOuterClass.P4Info.newBuilder()
+      .addTables(
+        table(
+          REFERRING_TABLE_ID,
+          "referring_table",
+          matchField(REF_FIELD_ID, "ref_id", """@refers_to("target_table" , "target_id")"""),
+          actionRef(NO_ACTION_ID),
+        )
+      )
+      .addTables(
+        table(
+          TARGET_TABLE_ID,
+          "target_table",
+          matchField(TARGET_FIELD_ID, "target_id"),
+          actionRef(NO_ACTION_ID),
+        )
+      )
+      .addActions(action(NO_ACTION_ID, "no_action"))
       .build()
 
   /** p4info where an annotation references a table not present in p4info. */

@@ -1,0 +1,1 @@
+INVALID_ARGUMENT: RECONCILE_AND_COMMIT: table 'port_table' has entries but its schema changed

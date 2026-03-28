@@ -23,3 +23,9 @@ p4c_compile(
     src_p4 = "action_profile.p4",
     visibility = ["//p4runtime:__pkg__"],
 )
+
+p4c_compile(
+    name = "refers_to",
+    src_p4 = "refers_to.p4",
+    visibility = ["//p4runtime:__pkg__"],
+)

@@ -1,0 +1,1 @@
+INVALID_ARGUMENT: type translation failed: no mapping for P4Runtime bitstring 0x00000001 (auto-allocate off)

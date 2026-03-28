@@ -6,13 +6,19 @@ import fourward.ir.Architecture
 import fourward.ir.BehavioralConfig
 import fourward.ir.DeviceConfig
 import fourward.ir.PipelineConfig
+import fourward.ir.TypeTranslation
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildExactEntry
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.extractBatchErrors
+import fourward.p4runtime.P4RuntimeTestHarness.Companion.findAction
+import fourward.p4runtime.P4RuntimeTestHarness.Companion.findTable
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.loadConfig
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.longToBytes
+import fourward.p4runtime.P4RuntimeTestHarness.Companion.matchFieldId
+import fourward.p4runtime.P4RuntimeTestHarness.Companion.paramId
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.uint128
 import io.grpc.Status
 import io.grpc.StatusException
+import java.nio.file.Path
 import java.nio.file.Paths
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
@@ -68,7 +74,7 @@ class GoldenErrorTest(private val testName: String) {
     }
 
     val expected = goldenPath.toFile().readText().trim()
-    if (expected != actual) {
+    if (expected != actual.trim()) {
       fail(
         "Error message mismatch for '$testName'.\n\n" +
           "Expected (golden):\n  $expected\n\n" +
@@ -153,6 +159,14 @@ class GoldenErrorTest(private val testName: String) {
       "unknown-profile-id-member" -> triggerUnknownProfileIdMember()
       "unknown-profile-id-group" -> triggerUnknownProfileIdGroup()
       "unknown-action-in-profile" -> triggerUnknownActionInProfile()
+      "action-not-valid-for-table" -> triggerActionNotValidForTable()
+      "reconcile-schema-changed" -> triggerReconcileSchemaChanged()
+      "direct-counter-no-entries" -> triggerDirectCounterNoEntries()
+      "direct-counter-no-match" -> triggerDirectCounterNoMatch()
+      "constraint-validation-failed" -> triggerConstraintValidationFailed()
+      "refers-to-violation-no-entry" -> triggerRefersToViolationNoEntry()
+      "refers-to-violation-no-multicast" -> triggerRefersToViolationNoMulticast()
+      "type-translation-failed" -> triggerTypeTranslationFailed()
       else -> error("unknown test: $name")
     }
   }
@@ -1120,6 +1134,351 @@ class GoldenErrorTest(private val testName: String) {
     harness.installEntry(P4RuntimeTestHarness.buildMemberEntity(profile.preamble.id, 1, 99999))
   }
 
+  @Suppress("MagicNumber")
+  private fun triggerActionNotValidForTable() {
+    val config = loadBasicTable()
+    // Patch p4info: add a fake action that is NOT in the table's action_refs.
+    val fakeActionId = 99998
+    val patchedP4Info =
+      config.p4Info
+        .toBuilder()
+        .addActions(
+          p4.config.v1.P4InfoOuterClass.Action.newBuilder()
+            .setPreamble(
+              p4.config.v1.P4InfoOuterClass.Preamble.newBuilder()
+                .setId(fakeActionId)
+                .setName("fake_action")
+                .setAlias("fake_action")
+            )
+        )
+        .build()
+    val patched = config.toBuilder().setP4Info(patchedP4Info).build()
+    harness.loadPipeline(patched)
+    val table = patched.p4Info.tablesList.first()
+    val entity =
+      Entity.newBuilder()
+        .setTableEntry(
+          TableEntry.newBuilder()
+            .setTableId(table.preamble.id)
+            .addMatch(
+              P4RuntimeOuterClass.FieldMatch.newBuilder()
+                .setFieldId(table.matchFieldsList.first().id)
+                .setExact(
+                  P4RuntimeOuterClass.FieldMatch.Exact.newBuilder()
+                    .setValue(ByteString.copyFrom(longToBytes(0x0800, 2)))
+                )
+            )
+            .setAction(
+              P4RuntimeOuterClass.TableAction.newBuilder()
+                .setAction(P4RuntimeOuterClass.Action.newBuilder().setActionId(fakeActionId))
+            )
+        )
+        .build()
+    harness.installEntry(entity)
+  }
+
+  @Suppress("MagicNumber")
+  private fun triggerReconcileSchemaChanged() {
+    val config = loadBasicTable()
+    harness.loadPipeline(config)
+    harness.installEntry(buildExactEntry(config, matchValue = 0x0800, port = 1))
+    // RECONCILE_AND_COMMIT with a schema change: add an extra match field to the same table.
+    val table = config.p4Info.tablesList.first()
+    val patchedTable =
+      table
+        .toBuilder()
+        .addMatchFields(
+          p4.config.v1.P4InfoOuterClass.MatchField.newBuilder()
+            .setId(99)
+            .setName("extra_field")
+            .setBitwidth(8)
+            .setMatchType(p4.config.v1.P4InfoOuterClass.MatchField.MatchType.EXACT)
+        )
+        .build()
+    val patchedP4Info = config.p4Info.toBuilder().setTables(0, patchedTable).build()
+    val patchedConfig = config.toBuilder().setP4Info(patchedP4Info).build()
+    runBlocking {
+      harness.stub.setForwardingPipelineConfig(
+        SetForwardingPipelineConfigRequest.newBuilder()
+          .setDeviceId(1)
+          .setAction(SetForwardingPipelineConfigRequest.Action.RECONCILE_AND_COMMIT)
+          .setConfig(harness.buildForwardingPipelineConfig(patchedConfig))
+          .build()
+      )
+    }
+  }
+
+  @Suppress("MagicNumber")
+  private fun triggerDirectCounterNoEntries() {
+    // Load basic_table with a direct counter attached, but don't install any entries.
+    val config = loadBasicTableWithDirectCounter()
+    harness.loadPipeline(config)
+    val tableId = config.p4Info.tablesList.first().preamble.id
+    val entity =
+      Entity.newBuilder()
+        .setDirectCounterEntry(
+          P4RuntimeOuterClass.DirectCounterEntry.newBuilder()
+            .setTableEntry(
+              TableEntry.newBuilder()
+                .setTableId(tableId)
+                .addMatch(
+                  P4RuntimeOuterClass.FieldMatch.newBuilder()
+                    .setFieldId(config.p4Info.tablesList.first().matchFieldsList.first().id)
+                    .setExact(
+                      P4RuntimeOuterClass.FieldMatch.Exact.newBuilder()
+                        .setValue(ByteString.copyFrom(longToBytes(0x0800, 2)))
+                    )
+                )
+            )
+        )
+        .build()
+    harness.modifyEntry(entity)
+  }
+
+  @Suppress("MagicNumber")
+  private fun triggerDirectCounterNoMatch() {
+    // Load basic_table with a direct counter, install one entry, then MODIFY the counter
+    // for a different (non-matching) key.
+    val config = loadBasicTableWithDirectCounter()
+    harness.loadPipeline(config)
+    harness.installEntry(buildExactEntry(config, matchValue = 0x0800, port = 1))
+    val tableId = config.p4Info.tablesList.first().preamble.id
+    val entity =
+      Entity.newBuilder()
+        .setDirectCounterEntry(
+          P4RuntimeOuterClass.DirectCounterEntry.newBuilder()
+            .setTableEntry(
+              TableEntry.newBuilder()
+                .setTableId(tableId)
+                .addMatch(
+                  P4RuntimeOuterClass.FieldMatch.newBuilder()
+                    .setFieldId(config.p4Info.tablesList.first().matchFieldsList.first().id)
+                    .setExact(
+                      P4RuntimeOuterClass.FieldMatch.Exact.newBuilder()
+                        .setValue(ByteString.copyFrom(longToBytes(0x0801, 2)))
+                    )
+                )
+            )
+        )
+        .build()
+    harness.modifyEntry(entity)
+  }
+
+  @Suppress("MagicNumber")
+  private fun triggerConstraintValidationFailed() {
+    // Use a separate harness with the constraint validator binary.
+    harness.close()
+    P4RuntimeTestHarness(constraintValidatorBinary = VALIDATOR_BINARY).use { constrainedHarness ->
+      val config = loadConfig("e2e_tests/constrained_table/constrained_table.txtpb")
+      constrainedHarness.loadPipeline(config)
+
+      val table = config.p4Info.tablesList.first { it.preamble.name.contains("acl") }
+      val forwardAction = config.p4Info.actionsList.first { it.preamble.name.contains("forward") }
+      val etherTypeFieldId = table.matchFieldsList.first { it.name.contains("ether_type") }.id
+      val ipv4DstFieldId = table.matchFieldsList.first { it.name.contains("ipv4_dst") }.id
+
+      // ipv4_dst mask != 0 but ether_type != 0x0800 -- violates the @entry_restriction.
+      val entry =
+        Entity.newBuilder()
+          .setTableEntry(
+            TableEntry.newBuilder()
+              .setTableId(table.preamble.id)
+              .setPriority(10)
+              .addMatch(
+                P4RuntimeOuterClass.FieldMatch.newBuilder()
+                  .setFieldId(etherTypeFieldId)
+                  .setTernary(
+                    P4RuntimeOuterClass.FieldMatch.Ternary.newBuilder()
+                      .setValue(ByteString.copyFrom(longToBytes(0x0806, 2)))
+                      .setMask(ByteString.copyFrom(longToBytes(0xFFFF, 2)))
+                  )
+              )
+              .addMatch(
+                P4RuntimeOuterClass.FieldMatch.newBuilder()
+                  .setFieldId(ipv4DstFieldId)
+                  .setTernary(
+                    P4RuntimeOuterClass.FieldMatch.Ternary.newBuilder()
+                      .setValue(ByteString.copyFrom(longToBytes(0x0A000001, 4)))
+                      .setMask(ByteString.copyFrom(longToBytes(0xFFFFFFFFL, 4)))
+                  )
+              )
+              .setAction(
+                P4RuntimeOuterClass.TableAction.newBuilder()
+                  .setAction(
+                    P4RuntimeOuterClass.Action.newBuilder()
+                      .setActionId(forwardAction.preamble.id)
+                      .addParams(
+                        P4RuntimeOuterClass.Action.Param.newBuilder()
+                          .setParamId(1)
+                          .setValue(ByteString.copyFrom(longToBytes(1, 2)))
+                      )
+                  )
+              )
+          )
+          .build()
+      constrainedHarness.installEntry(entry)
+    }
+  }
+
+  @Suppress("MagicNumber")
+  private fun triggerRefersToViolationNoEntry() {
+    val config = loadRefersTo()
+    harness.loadPipeline(config)
+    val refTable = findTable(config, "ref_table")
+    val forwardAction = findAction(config, "forward")
+    val srcAddrFieldId = matchFieldId(refTable, "hdr.ethernet.srcAddr")
+    // INSERT into ref_table without a matching entry in target_table.
+    val entity =
+      Entity.newBuilder()
+        .setTableEntry(
+          TableEntry.newBuilder()
+            .setTableId(refTable.preamble.id)
+            .addMatch(
+              P4RuntimeOuterClass.FieldMatch.newBuilder()
+                .setFieldId(srcAddrFieldId)
+                .setExact(
+                  P4RuntimeOuterClass.FieldMatch.Exact.newBuilder()
+                    .setValue(ByteString.copyFrom(longToBytes(0xAABBCCDDEEFFL, 6)))
+                )
+            )
+            .setAction(
+              P4RuntimeOuterClass.TableAction.newBuilder()
+                .setAction(
+                  P4RuntimeOuterClass.Action.newBuilder()
+                    .setActionId(forwardAction.preamble.id)
+                    .addParams(
+                      P4RuntimeOuterClass.Action.Param.newBuilder()
+                        .setParamId(paramId(forwardAction, "port"))
+                        .setValue(ByteString.copyFrom(longToBytes(1, 2)))
+                    )
+                )
+            )
+        )
+        .build()
+    harness.installEntry(entity)
+  }
+
+  @Suppress("MagicNumber")
+  private fun triggerRefersToViolationNoMulticast() {
+    // Build synthetic p4info with a @refers_to(builtin::multicast_group_table) annotation
+    // on an action param. p4c emits spaces around "::" in annotations.
+    val config = loadBasicTable()
+    val table = config.p4Info.tablesList.first()
+    val mcastActionId = MCAST_ACTION_ID
+    val mcastParamId = 1
+    val patchedP4Info =
+      config.p4Info
+        .toBuilder()
+        .addActions(
+          p4.config.v1.P4InfoOuterClass.Action.newBuilder()
+            .setPreamble(
+              p4.config.v1.P4InfoOuterClass.Preamble.newBuilder()
+                .setId(mcastActionId)
+                .setName("set_multicast")
+                .setAlias("set_multicast")
+            )
+            .addParams(
+              p4.config.v1.P4InfoOuterClass.Action.Param.newBuilder()
+                .setId(mcastParamId)
+                .setName("mcast_group_id")
+                .setBitwidth(16)
+                .addAnnotations(
+                  "@refers_to(builtin : : multicast_group_table , multicast_group_id)"
+                )
+            )
+        )
+        .setTables(
+          0,
+          table
+            .toBuilder()
+            .addActionRefs(
+              p4.config.v1.P4InfoOuterClass.ActionRef.newBuilder().setId(mcastActionId)
+            ),
+        )
+        .build()
+    val patched = config.toBuilder().setP4Info(patchedP4Info).build()
+    harness.loadPipeline(patched)
+    // INSERT with a multicast group ID that doesn't exist in the PRE.
+    val entity =
+      Entity.newBuilder()
+        .setTableEntry(
+          TableEntry.newBuilder()
+            .setTableId(table.preamble.id)
+            .addMatch(
+              P4RuntimeOuterClass.FieldMatch.newBuilder()
+                .setFieldId(table.matchFieldsList.first().id)
+                .setExact(
+                  P4RuntimeOuterClass.FieldMatch.Exact.newBuilder()
+                    .setValue(ByteString.copyFrom(longToBytes(0x0800, 2)))
+                )
+            )
+            .setAction(
+              P4RuntimeOuterClass.TableAction.newBuilder()
+                .setAction(
+                  P4RuntimeOuterClass.Action.newBuilder()
+                    .setActionId(mcastActionId)
+                    .addParams(
+                      P4RuntimeOuterClass.Action.Param.newBuilder()
+                        .setParamId(mcastParamId)
+                        .setValue(ByteString.copyFrom(longToBytes(42, 2)))
+                    )
+                )
+            )
+        )
+        .build()
+    harness.installEntry(entity)
+  }
+
+  @Suppress("MagicNumber")
+  private fun triggerTypeTranslationFailed() {
+    // Load translated_type.p4 with auto_allocate=false and no explicit mappings,
+    // so any translated value triggers a TranslationException.
+    val config = loadTranslatedType()
+    val noAutoAllocate =
+      config
+        .toBuilder()
+        .setDevice(
+          config.device
+            .toBuilder()
+            .addTranslations(
+              TypeTranslation.newBuilder().setTypeName("port_id_t").setAutoAllocate(false)
+            )
+        )
+        .build()
+    harness.loadPipeline(noAutoAllocate)
+    // The 'forward' action has a port_id_t param. With no mapping, this will fail.
+    val table = config.p4Info.tablesList.first()
+    val forwardAction = config.p4Info.actionsList.find { it.preamble.name.contains("forward") }!!
+    val entity =
+      Entity.newBuilder()
+        .setTableEntry(
+          TableEntry.newBuilder()
+            .setTableId(table.preamble.id)
+            .addMatch(
+              P4RuntimeOuterClass.FieldMatch.newBuilder()
+                .setFieldId(table.matchFieldsList.first().id)
+                .setExact(
+                  P4RuntimeOuterClass.FieldMatch.Exact.newBuilder()
+                    .setValue(ByteString.copyFrom(longToBytes(0x0800, 2)))
+                )
+            )
+            .setAction(
+              P4RuntimeOuterClass.TableAction.newBuilder()
+                .setAction(
+                  P4RuntimeOuterClass.Action.newBuilder()
+                    .setActionId(forwardAction.preamble.id)
+                    .addParams(
+                      P4RuntimeOuterClass.Action.Param.newBuilder()
+                        .setParamId(forwardAction.paramsList.first().id)
+                        .setValue(ByteString.copyFrom(longToBytes(1, 4)))
+                    )
+                )
+            )
+        )
+        .build()
+    harness.installEntry(entity)
+  }
+
   // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
@@ -1145,6 +1504,30 @@ class GoldenErrorTest(private val testName: String) {
 
   private fun loadActionSelector3(): PipelineConfig =
     loadConfig("e2e_tests/trace_tree/action_selector_3.txtpb")
+
+  private fun loadRefersTo(): PipelineConfig = loadConfig("e2e_tests/golden_errors/refers_to.txtpb")
+
+  private fun loadTranslatedType(): PipelineConfig =
+    loadConfig("e2e_tests/translated_type/translated_type.txtpb")
+
+  @Suppress("MagicNumber")
+  private fun loadBasicTableWithDirectCounter(): PipelineConfig {
+    val base = loadBasicTable()
+    val tableId = base.p4Info.tablesList.first().preamble.id
+    val directCounter =
+      p4.config.v1.P4InfoOuterClass.DirectCounter.newBuilder()
+        .setPreamble(
+          p4.config.v1.P4InfoOuterClass.Preamble.newBuilder()
+            .setId(DCTR_ID)
+            .setName("myDirectCounter")
+        )
+        .setDirectTableId(tableId)
+        .build()
+    return base
+      .toBuilder()
+      .setP4Info(base.p4Info.toBuilder().addDirectCounters(directCounter))
+      .build()
+  }
 
   /**
    * Captures the error description from a gRPC call.
@@ -1246,7 +1629,22 @@ class GoldenErrorTest(private val testName: String) {
         "unknown-profile-id-member",
         "unknown-profile-id-group",
         "unknown-action-in-profile",
+        "action-not-valid-for-table",
+        "reconcile-schema-changed",
+        "direct-counter-no-entries",
+        "direct-counter-no-match",
+        "constraint-validation-failed",
+        "refers-to-violation-no-entry",
+        "refers-to-violation-no-multicast",
+        "type-translation-failed",
       )
+
+    private val VALIDATOR_BINARY: Path =
+      Paths.get(System.getenv("JAVA_RUNFILES") ?: ".", "_main/p4runtime/constraint_validator")
+
+    private const val MCAST_ACTION_ID = 99997
+
+    private const val DCTR_ID = 800
 
     private fun goldenDir(): java.nio.file.Path {
       val r = System.getenv("JAVA_RUNFILES") ?: "."
