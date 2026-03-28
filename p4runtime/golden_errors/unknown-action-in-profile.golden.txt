@@ -1,1 +1,1 @@
-INVALID_ARGUMENT: unknown action ID 99999 in action profile 'ecmp_selector'
+INVALID_ARGUMENT: unknown action ID 99999 in action profile 'ecmp_selector' (valid actions: 'MyIngress.set_port' (29586029), 'MyIngress.drop' (25652968))

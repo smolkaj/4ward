@@ -622,7 +622,10 @@ class TableStore : TableDataReader {
       return WriteResult.InvalidArgument("registers only support MODIFY, not $type")
     val info =
       registerInfoById[entry.registerId]
-        ?: return WriteResult.NotFound("unknown register ID: ${entry.registerId}")
+        ?: return WriteResult.NotFound(
+          "unknown register ID: ${entry.registerId}; valid registers: " +
+            formatOptions(registerInfoById.values.map { it.name })
+        )
     val index = entry.index.index.toInt()
     if (index < 0 || index >= info.size)
       return WriteResult.InvalidArgument("register index $index out of bounds [0, ${info.size})")
@@ -689,7 +692,12 @@ class TableStore : TableDataReader {
   ): WriteResult {
     if (type != Update.Type.MODIFY)
       return WriteResult.InvalidArgument("${entityName}s only support MODIFY, not $type")
-    val info = infoById[id] ?: return WriteResult.NotFound("unknown $entityName ID: $id")
+    val info =
+      infoById[id]
+        ?: return WriteResult.NotFound(
+          "unknown $entityName ID: $id; valid ${entityName} IDs: " +
+            formatOptions(infoById.keys.map { it.toString() })
+        )
     val idx = index.index.toInt()
     if (idx < 0 || idx >= info.size)
       return WriteResult.InvalidArgument("$entityName index $idx out of bounds [0, ${info.size})")
@@ -821,7 +829,10 @@ class TableStore : TableDataReader {
       return WriteResult.InvalidArgument("${entityName}s only support MODIFY, not $type")
     val tableName =
       tableNameById[tableEntry.tableId]
-        ?: return WriteResult.NotFound("unknown table ID ${tableEntry.tableId}")
+        ?: return WriteResult.NotFound(
+          "unknown table ID ${tableEntry.tableId}; valid tables: " +
+            formatOptions(tableNameById.values.toList())
+        )
     if (tableName !in knownTables)
       return WriteResult.InvalidArgument("table '$tableName' has no $entityName")
     val entries =
@@ -910,7 +921,10 @@ class TableStore : TableDataReader {
       return WriteResult.InvalidArgument("value_set only supports MODIFY, not $type")
     val info =
       valueSetInfoById[entry.valueSetId]
-        ?: return WriteResult.NotFound("unknown value_set ID: ${entry.valueSetId}")
+        ?: return WriteResult.NotFound(
+          "unknown value_set ID: ${entry.valueSetId}; valid value_sets: " +
+            formatOptions(valueSetInfoById.values.map { it.name })
+        )
     val name = info.name
     val maxSize = info.size
     if (entry.membersCount > maxSize)
@@ -973,7 +987,10 @@ class TableStore : TableDataReader {
     val entry = update.entity.tableEntry
     val tableName =
       tableNameById[entry.tableId]
-        ?: return WriteResult.NotFound("unknown table ID ${entry.tableId}")
+        ?: return WriteResult.NotFound(
+          "unknown table ID ${entry.tableId}; valid tables: " +
+            formatOptions(tableNameById.values.toList())
+        )
 
     // P4Runtime spec §9.1: default entries are stored separately and only support MODIFY.
     // The WriteValidator already rejects INSERT/DELETE for defaults.
@@ -1383,8 +1400,16 @@ class TableStore : TableDataReader {
     return LookupResult(true, best.entry, resolveActionName(best.entry.action.action.actionId))
   }
 
+  private fun formatOptions(options: List<String>): String =
+    if (options.size <= 10) options.joinToString(", ")
+    else options.take(10).joinToString(", ") + " ... and ${options.size - 10} more"
+
   private fun resolveActionName(actionId: Int): String =
-    actionNameById[actionId] ?: error("unknown action ID: $actionId")
+    actionNameById[actionId]
+      ?: error(
+        "unknown action ID: $actionId; valid actions: " +
+          formatOptions(actionNameById.values.toList())
+      )
 
   /** Resolves an action name (alias or behavioral) to its behavioral name. */
   fun resolveActionByAlias(name: String): String? {
