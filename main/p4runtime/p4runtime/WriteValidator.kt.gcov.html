@@ -31,13 +31,13 @@
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">99.5&nbsp;%</td>
+            <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
             <td class="headerCovTableEntry">192</td>
-            <td class="headerCovTableEntry">191</td>
+            <td class="headerCovTableEntry">192</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-28 07:20:56</td>
+            <td class="headerValue">2026-03-28 07:28:47</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -292,9 +292,9 @@
 <span id="L230"><span class="lineNum">     230</span> <span class="tlaGNC">           1 :         fm.hasLpm() -&gt; P4InfoOuterClass.MatchField.MatchType.LPM</span></span>
 <span id="L231"><span class="lineNum">     231</span> <span class="tlaGNC">           1 :         fm.hasRange() -&gt; P4InfoOuterClass.MatchField.MatchType.RANGE</span></span>
 <span id="L232"><span class="lineNum">     232</span> <span class="tlaGNC">           1 :         fm.hasOptional() -&gt; P4InfoOuterClass.MatchField.MatchType.OPTIONAL</span></span>
-<span id="L233"><span class="lineNum">     233</span> <span class="tlaUNC tlaBgUNC">           0 :         else -&gt; throw invalidArg(&quot;match field '${fieldInfo.name}' has no value set&quot;)</span></span>
+<span id="L233"><span class="lineNum">     233</span> <span class="tlaGNC">           1 :         else -&gt; throw invalidArg(&quot;match field '${fieldInfo.name}' has no value set&quot;)</span></span>
 <span id="L234"><span class="lineNum">     234</span>              :       }</span>
-<span id="L235"><span class="lineNum">     235</span> <span class="tlaGNC tlaBgGNC">           1 :     if (actual != fieldInfo.matchType) {</span></span>
+<span id="L235"><span class="lineNum">     235</span> <span class="tlaGNC">           1 :     if (actual != fieldInfo.matchType) {</span></span>
 <span id="L236"><span class="lineNum">     236</span> <span class="tlaGNC">           1 :       throw invalidArg(</span></span>
 <span id="L237"><span class="lineNum">     237</span> <span class="tlaGNC">           1 :         &quot;match field '${fieldInfo.name}' expects ${fieldInfo.matchType.name} but got ${actual.name}&quot;</span></span>
 <span id="L238"><span class="lineNum">     238</span>              :       )</span>
