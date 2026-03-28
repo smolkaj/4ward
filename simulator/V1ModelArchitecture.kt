@@ -76,9 +76,10 @@ class V1ModelArchitecture(
    * [forkSpecs] when an [ActionSelectorFork] is caught, to pass to fork re-executions. Reset at the
    * start of each [processPacket] to prevent stale state across packets.
    */
-  private var postParserSnapshot: PostParserSnapshot? = null
+  // ThreadLocal: parallel fork branches each get their own snapshot, avoiding races when
+  // nested forks (clone after selector) write concurrently.
+  private val postParserSnapshot = ThreadLocal<PostParserSnapshot?>()
   private val interpreterCache = Interpreter.Cache()
-  private val forkPool = java.util.concurrent.ForkJoinPool()
 
   /** Invariant inputs to the pipeline, shared across fork re-executions. */
   private data class PipelineContext(
@@ -122,7 +123,7 @@ class V1ModelArchitecture(
     config: BehavioralConfig,
     tableStore: TableStore,
   ): PipelineResult {
-    postParserSnapshot = null
+    postParserSnapshot.set(null)
     val ctx =
       PipelineContext(ingressPort, payload, config, tableStore, interpreterCache.get(config))
     return buildTraceTree(ctx, V1ModelDecisions(), prefixLength = 0)
@@ -147,14 +148,10 @@ class V1ModelArchitecture(
       // Run fork branches in parallel. Each branch recursively builds its own subtree,
       // handling nested forks (clone after selector, etc.) independently.
       val subtrees =
-        forkPool
-          .submit<List<PipelineResult>> {
-            specs
-              .parallelStream()
-              .map { spec -> buildTraceTree(spec.ctx, spec.decisions, spec.prefixLength) }
-              .toList()
-          }
-          .get()
+        specs
+          .parallelStream()
+          .map { spec -> buildTraceTree(spec.ctx, spec.decisions, spec.prefixLength) }
+          .toList()
 
       val branches =
         specs.zip(subtrees).map { (spec, result) ->
@@ -195,7 +192,7 @@ class V1ModelArchitecture(
               decisions.copy(
                 selectorMembers = decisions.selectorMembers + (fork.tableName to member.memberId),
                 tableLookupCache = fork.preForkLookups,
-                postParserSnapshot = postParserSnapshot,
+                postParserSnapshot = postParserSnapshot.get(),
               )
             BranchSpec("member_${member.memberId}", ctx, d, fork.eventsBeforeFork.size)
           }
@@ -419,7 +416,7 @@ class V1ModelArchitecture(
         ctx.config.parsersList.first().paramsList.filter {
           it.type.hasNamed() && it.type.named !in IO_TYPES
         }
-      postParserSnapshot =
+      postParserSnapshot.set(
         PostParserSnapshot(
           env = s.env.deepCopy(),
           bytesConsumed = s.packetCtx.bytesConsumed,
@@ -427,6 +424,7 @@ class V1ModelArchitecture(
           parserExitDrop = parserExitDrop,
           standardMetaParamName = parserUserParams[2].name,
         )
+      )
     }
     if (parserExitDrop) return buildDropTrace(s.packetCtx.getEvents(), DropReason.MARK_TO_DROP)
 
@@ -963,12 +961,6 @@ class V1ModelArchitecture(
     private const val INGRESS_CONTROL_COUNT = 2
 
     private const val MAX_PIPELINE_DEPTH = 10
-
-    // Cap on total pipeline executions per packet to prevent exponential blowup
-    // from nested clone/recirculate chains (e.g. clone → recirculate → clone → ...).
-    // MAX_PIPELINE_EXECUTIONS removed: pipeline depth is now bounded by MAX_PIPELINE_DEPTH
-    // in V1ModelDecisions, and fork branches are bounded by the finite number of selector
-    // members / clone sessions / multicast replicas.
 
     // v1model instance_type values (BMv2 PktInstanceType convention).
     private const val CLONE_I2E_INSTANCE_TYPE = 1L
