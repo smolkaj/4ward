@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-28 05:59:48</td>
+            <td class="headerValue">2026-03-28 06:31:32</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -152,7 +152,7 @@
 <span id="L90"><span class="lineNum">      90</span>              : </span>
 <span id="L91"><span class="lineNum">      91</span>              : /** Runs a parser stage, recording trace events and routing parser errors to [onParserError]. */</span>
 <span id="L92"><span class="lineNum">      92</span>              : internal fun runParserStage(</span>
-<span id="L93"><span class="lineNum">      93</span>              :   interpreter: Interpreter,</span>
+<span id="L93"><span class="lineNum">      93</span>              :   interpreter: Interpreter.Execution,</span>
 <span id="L94"><span class="lineNum">      94</span>              :   ctx: PacketContext,</span>
 <span id="L95"><span class="lineNum">      95</span>              :   env: Environment,</span>
 <span id="L96"><span class="lineNum">      96</span>              :   stage: PipelineStage,</span>
@@ -170,7 +170,7 @@
 <span id="L108"><span class="lineNum">     108</span>              : </span>
 <span id="L109"><span class="lineNum">     109</span>              : /** Runs a control stage, recording trace events. An `exit` statement terminates only the stage. */</span>
 <span id="L110"><span class="lineNum">     110</span>              : internal fun runControlStage(</span>
-<span id="L111"><span class="lineNum">     111</span>              :   interpreter: Interpreter,</span>
+<span id="L111"><span class="lineNum">     111</span>              :   interpreter: Interpreter.Execution,</span>
 <span id="L112"><span class="lineNum">     112</span>              :   ctx: PacketContext,</span>
 <span id="L113"><span class="lineNum">     113</span>              :   env: Environment,</span>
 <span id="L114"><span class="lineNum">     114</span>              :   stage: PipelineStage,</span>
