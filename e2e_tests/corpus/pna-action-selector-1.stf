@@ -1,0 +1,10 @@
+# PNA ActionSelector: table with exact+selector keys, default sends to port 0.
+# No table entries -> const default_action = set_exception(0) -> send_to_port(0).
+
+# Ethernet + IPv4 -> table miss -> default set_exception(0) -> port 0
+packet 0 001122334455 00aabbccddee 0800 4500001400000000400600000A0000010A000002
+expect 0 001122334455 00aabbccddee 0800 4500001400000000400600000A0000010A000002$
+
+# Non-IPv4 -> table still applied (no isValid guard) -> default -> port 0
+packet 0 001122334455 00aabbccddee 0806 0001080006040001
+expect 0 001122334455 00aabbccddee 0806 0001080006040001$
