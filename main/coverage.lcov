@@ -7081,21 +7081,21 @@ FN:1372,fourward/simulator/TableStore::lookup (Ljava/lang/String;Ljava/util/List
 FNDA:1,fourward/simulator/TableStore::lookup (Ljava/lang/String;Ljava/util/List;)Lfourward/simulator/TableStore$LookupResult;
 FN:1441,fourward/simulator/TableStore::formatOptions (Ljava/util/List;)Ljava/lang/String;
 FNDA:1,fourward/simulator/TableStore::formatOptions (Ljava/util/List;)Ljava/lang/String;
-FN:1445,fourward/simulator/TableStore::resolveActionName (I)Ljava/lang/String;
+FN:1448,fourward/simulator/TableStore::resolveActionName (I)Ljava/lang/String;
 FNDA:1,fourward/simulator/TableStore::resolveActionName (I)Ljava/lang/String;
-FN:1453,fourward/simulator/TableStore::resolveActionByAlias (Ljava/lang/String;)Ljava/lang/String;
+FN:1456,fourward/simulator/TableStore::resolveActionByAlias (Ljava/lang/String;)Ljava/lang/String;
 FNDA:1,fourward/simulator/TableStore::resolveActionByAlias (Ljava/lang/String;)Ljava/lang/String;
-FN:1473,fourward/simulator/TableStore::actionDisplayName (Ljava/lang/String;)Ljava/lang/String;
+FN:1476,fourward/simulator/TableStore::actionDisplayName (Ljava/lang/String;)Ljava/lang/String;
 FNDA:1,fourward/simulator/TableStore::actionDisplayName (Ljava/lang/String;)Ljava/lang/String;
-FN:1477,fourward/simulator/TableStore::tableDisplayName (Ljava/lang/String;)Ljava/lang/String;
+FN:1480,fourward/simulator/TableStore::tableDisplayName (Ljava/lang/String;)Ljava/lang/String;
 FNDA:1,fourward/simulator/TableStore::tableDisplayName (Ljava/lang/String;)Ljava/lang/String;
-FN:1481,fourward/simulator/TableStore::displayName (Ljava/lang/String;)Ljava/lang/String;
+FN:1484,fourward/simulator/TableStore::displayName (Ljava/lang/String;)Ljava/lang/String;
 FNDA:0,fourward/simulator/TableStore::displayName (Ljava/lang/String;)Ljava/lang/String;
-FN:1489,fourward/simulator/TableStore::scoreEntry (Lp4/v1/P4RuntimeOuterClass$TableEntry;Ljava/util/List;)Ljava/lang/Long;
+FN:1492,fourward/simulator/TableStore::scoreEntry (Lp4/v1/P4RuntimeOuterClass$TableEntry;Ljava/util/List;)Ljava/lang/Long;
 FNDA:1,fourward/simulator/TableStore::scoreEntry (Lp4/v1/P4RuntimeOuterClass$TableEntry;Ljava/util/List;)Ljava/lang/Long;
 FN:377,fourward/simulator/TableStore::loadMappings$resolveName (Ljava/lang/String;Ljava/util/List;)Ljava/lang/String;
 FNDA:1,fourward/simulator/TableStore::loadMappings$resolveName (Ljava/lang/String;Ljava/util/List;)Ljava/lang/String;
-FN:1517,fourward/simulator/TableStore::<clinit> ()V
+FN:1520,fourward/simulator/TableStore::<clinit> ()V
 FNDA:1,fourward/simulator/TableStore::<clinit> ()V
 FN:127,fourward/simulator/TableStore$IndexedExternInfo::<init> (I)V
 FNDA:1,fourward/simulator/TableStore$IndexedExternInfo::<init> (I)V
@@ -7658,58 +7658,60 @@ BRDA:1432,0,0,1
 BRDA:1432,0,1,0
 BRDA:1432,0,2,0
 BRDA:1432,0,3,1
-BRDA:1441,0,0,1
-BRDA:1441,0,1,0
-BRDA:1445,0,0,0
-BRDA:1445,0,1,1
-BRDA:1453,0,0,1
-BRDA:1453,0,1,1
+BRDA:1442,0,0,1
+BRDA:1442,0,1,1
+BRDA:1443,0,0,1
+BRDA:1443,0,1,0
+BRDA:1448,0,0,0
+BRDA:1448,0,1,1
 BRDA:1456,0,0,1
 BRDA:1456,0,1,1
-BRDA:1456,0,2,1
-BRDA:1456,0,3,1
-BRDA:1457,0,0,1
-BRDA:1457,0,1,1
-BRDA:1464,0,0,1
-BRDA:1464,0,1,0
-BRDA:1464,0,2,1
-BRDA:1464,0,3,1
-BRDA:1464,0,4,0
-BRDA:1464,0,5,1
-BRDA:1464,0,6,1
-BRDA:1464,0,7,1
-BRDA:1465,0,0,1
-BRDA:1465,0,1,0
-BRDA:1473,0,0,1
-BRDA:1473,0,1,1
-BRDA:1477,0,0,0
-BRDA:1477,0,1,1
-BRDA:1481,0,0,-
-BRDA:1481,0,1,-
-BRDA:1481,0,2,-
-BRDA:1481,0,3,-
-BRDA:1490,0,0,1
-BRDA:1490,0,1,1
-BRDA:1492,0,0,1
-BRDA:1492,0,1,1
-BRDA:1492,0,2,1
-BRDA:1492,0,3,1
-BRDA:1492,0,4,1
-BRDA:1492,0,5,1
-BRDA:1497,0,0,1
-BRDA:1497,0,1,1
-BRDA:1498,0,0,1
-BRDA:1498,0,1,0
-BRDA:1498,0,2,1
-BRDA:1498,0,3,1
-BRDA:1502,0,0,1
-BRDA:1502,0,1,1
-BRDA:1506,0,0,1
-BRDA:1506,0,1,1
-BRDA:1507,0,0,1
-BRDA:1507,0,1,1
-BRDA:1508,0,0,1
-BRDA:1508,0,1,1
+BRDA:1459,0,0,1
+BRDA:1459,0,1,1
+BRDA:1459,0,2,1
+BRDA:1459,0,3,1
+BRDA:1460,0,0,1
+BRDA:1460,0,1,1
+BRDA:1467,0,0,1
+BRDA:1467,0,1,0
+BRDA:1467,0,2,1
+BRDA:1467,0,3,1
+BRDA:1467,0,4,0
+BRDA:1467,0,5,1
+BRDA:1467,0,6,1
+BRDA:1467,0,7,1
+BRDA:1468,0,0,1
+BRDA:1468,0,1,0
+BRDA:1476,0,0,1
+BRDA:1476,0,1,1
+BRDA:1480,0,0,0
+BRDA:1480,0,1,1
+BRDA:1484,0,0,-
+BRDA:1484,0,1,-
+BRDA:1484,0,2,-
+BRDA:1484,0,3,-
+BRDA:1493,0,0,1
+BRDA:1493,0,1,1
+BRDA:1495,0,0,1
+BRDA:1495,0,1,1
+BRDA:1495,0,2,1
+BRDA:1495,0,3,1
+BRDA:1495,0,4,1
+BRDA:1495,0,5,1
+BRDA:1500,0,0,1
+BRDA:1500,0,1,1
+BRDA:1501,0,0,1
+BRDA:1501,0,1,0
+BRDA:1501,0,2,1
+BRDA:1501,0,3,1
+BRDA:1505,0,0,1
+BRDA:1505,0,1,1
+BRDA:1509,0,0,1
+BRDA:1509,0,1,1
+BRDA:1510,0,0,1
+BRDA:1510,0,1,1
+BRDA:1511,0,0,1
+BRDA:1511,0,1,1
 BRDA:25,0,0,1
 BRDA:25,0,1,1
 BRDA:38,0,0,1
@@ -8502,46 +8504,49 @@ DA:1434,1
 DA:1437,1
 DA:1441,1
 DA:1442,1
+DA:1443,1
+DA:1444,0
 DA:1445,1
-DA:1446,0
-DA:1447,0
-DA:1448,0
-DA:1449,1
-DA:1453,1
-DA:1455,1
+DA:1448,1
+DA:1449,0
+DA:1450,0
+DA:1451,0
+DA:1452,1
 DA:1456,1
-DA:1457,1
 DA:1458,1
+DA:1459,1
+DA:1460,1
 DA:1461,1
-DA:1462,1
-DA:1463,1
 DA:1464,1
 DA:1465,1
 DA:1466,1
-DA:1468,0
-DA:1473,1
-DA:1477,1
-DA:1481,0
-DA:1489,1
-DA:1490,1
-DA:1491,1
+DA:1467,1
+DA:1468,1
+DA:1469,1
+DA:1471,0
+DA:1476,1
+DA:1480,1
+DA:1484,0
 DA:1492,1
 DA:1493,1
+DA:1494,1
 DA:1495,1
 DA:1496,1
-DA:1497,1
 DA:1498,1
-DA:1499,0
-DA:1502,1
+DA:1499,1
+DA:1500,1
+DA:1501,1
+DA:1502,0
 DA:1505,1
-DA:1506,1
-DA:1507,1
 DA:1508,1
-DA:1513,1
-DA:1517,1
-DA:1518,1
-LH:725
-LF:780
+DA:1509,1
+DA:1510,1
+DA:1511,1
+DA:1516,1
+DA:1520,1
+DA:1521,1
+LH:727
+LF:783
 end_of_record
 SF:simulator/TraceHelpers.kt
 FN:20,fourward/simulator/TraceHelpersKt::buildDropTrace (Ljava/util/List;Lfourward/sim/SimulatorProto$DropReason;)Lfourward/sim/SimulatorProto$TraceTree;
