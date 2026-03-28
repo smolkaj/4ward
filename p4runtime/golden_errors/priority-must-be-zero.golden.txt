@@ -1,0 +1,1 @@
+INVALID_ARGUMENT: table 'port_table' must have priority == 0 (exact/LPM match only)

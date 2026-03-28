@@ -1,0 +1,1 @@
+UNIMPLEMENTED: idle_timeout_ns is not supported on table 'port_table'

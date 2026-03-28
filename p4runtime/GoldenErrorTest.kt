@@ -1,6 +1,9 @@
 package fourward.p4runtime
 
 import com.google.protobuf.ByteString
+import fourward.ir.Architecture
+import fourward.ir.BehavioralConfig
+import fourward.ir.DeviceConfig
 import fourward.ir.PipelineConfig
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildExactEntry
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.extractBatchErrors
@@ -97,6 +100,19 @@ class GoldenErrorTest(private val testName: String) {
       "digest-not-supported" -> triggerDigestNotSupported()
       "extern-entry-not-supported" -> triggerExternEntryNotSupported()
       "unrecognized-atomicity" -> triggerUnrecognizedAtomicity()
+      "idle-timeout-not-supported" -> triggerIdleTimeoutNotSupported()
+      "default-entry-wrong-type" -> triggerDefaultEntryWrongType()
+      "default-entry-with-match" -> triggerDefaultEntryWithMatch()
+      "unknown-param-id" -> triggerUnknownParamId()
+      "unknown-match-field-id" -> triggerUnknownMatchFieldId()
+      "match-field-no-value" -> triggerMatchFieldNoValue()
+      "priority-must-be-zero" -> triggerPriorityMustBeZero()
+      "table-entry-already-exists" -> triggerTableEntryAlreadyExists()
+      "table-entry-not-found" -> triggerTableEntryNotFound()
+      "commit-without-save" -> triggerCommitWithoutSave()
+      "unrecognized-pipeline-action" -> triggerUnrecognizedPipelineAction()
+      "simulator-rejected-pipeline" -> triggerSimulatorRejectedPipeline()
+      "register-insert-not-supported" -> triggerRegisterInsertNotSupported()
       else -> error("unknown test: $name")
     }
   }
@@ -306,6 +322,169 @@ class GoldenErrorTest(private val testName: String) {
     harness.writeRaw(request)
   }
 
+  @Suppress("MagicNumber")
+  private fun triggerIdleTimeoutNotSupported() {
+    val config = loadBasicTable()
+    harness.loadPipeline(config)
+    val valid = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    val entity = valid.toBuilder().apply { tableEntryBuilder.setIdleTimeoutNs(1000) }.build()
+    harness.installEntry(entity)
+  }
+
+  private fun triggerDefaultEntryWrongType() {
+    val config = loadBasicTable()
+    harness.loadPipeline(config)
+    val tableId = config.p4Info.tablesList.first().preamble.id
+    val entity =
+      Entity.newBuilder()
+        .setTableEntry(TableEntry.newBuilder().setTableId(tableId).setIsDefaultAction(true))
+        .build()
+    // INSERT a default entry (should be MODIFY).
+    harness.installEntry(entity)
+  }
+
+  private fun triggerDefaultEntryWithMatch() {
+    val config = loadBasicTable()
+    harness.loadPipeline(config)
+    val valid = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    // MODIFY a default entry that still has match fields set.
+    val entity = valid.toBuilder().apply { tableEntryBuilder.setIsDefaultAction(true) }.build()
+    harness.modifyEntry(entity)
+  }
+
+  @Suppress("MagicNumber")
+  private fun triggerUnknownParamId() {
+    val config = loadBasicTable()
+    harness.loadPipeline(config)
+    val valid = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    // Replace the param with one that has the correct count but wrong ID.
+    val entity =
+      valid
+        .toBuilder()
+        .apply {
+          tableEntryBuilder.actionBuilder.actionBuilder.setParams(
+            0,
+            valid.tableEntry.action.action.getParams(0).toBuilder().setParamId(99999),
+          )
+        }
+        .build()
+    harness.installEntry(entity)
+  }
+
+  @Suppress("MagicNumber")
+  private fun triggerUnknownMatchFieldId() {
+    val config = loadBasicTable()
+    harness.loadPipeline(config)
+    val valid = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    val entity =
+      valid.toBuilder().apply { tableEntryBuilder.getMatchBuilder(0).setFieldId(99999) }.build()
+    harness.installEntry(entity)
+  }
+
+  @Suppress("MagicNumber")
+  private fun triggerMatchFieldNoValue() {
+    val config = loadBasicTable()
+    harness.loadPipeline(config)
+    val matchField = config.p4Info.tablesList.first().matchFieldsList.first()
+    val valid = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    // Set a FieldMatch with only field_id — no exact/ternary/lpm/etc.
+    val entity =
+      valid
+        .toBuilder()
+        .apply {
+          tableEntryBuilder.setMatch(
+            0,
+            P4RuntimeOuterClass.FieldMatch.newBuilder().setFieldId(matchField.id),
+          )
+        }
+        .build()
+    harness.installEntry(entity)
+  }
+
+  @Suppress("MagicNumber")
+  private fun triggerPriorityMustBeZero() {
+    val config = loadBasicTable()
+    harness.loadPipeline(config)
+    val valid = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    // Exact-match table: priority must be zero.
+    val entity = valid.toBuilder().apply { tableEntryBuilder.setPriority(42) }.build()
+    harness.installEntry(entity)
+  }
+
+  @Suppress("MagicNumber")
+  private fun triggerTableEntryAlreadyExists() {
+    val config = loadBasicTable()
+    harness.loadPipeline(config)
+    val entry = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    harness.installEntry(entry)
+    // INSERT the same entry again.
+    harness.installEntry(entry)
+  }
+
+  @Suppress("MagicNumber")
+  private fun triggerTableEntryNotFound() {
+    val config = loadBasicTable()
+    harness.loadPipeline(config)
+    val entry = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    // DELETE an entry that was never inserted.
+    harness.deleteEntry(entry)
+  }
+
+  private fun triggerCommitWithoutSave() = runBlocking {
+    harness.stub.setForwardingPipelineConfig(
+      SetForwardingPipelineConfigRequest.newBuilder()
+        .setDeviceId(1)
+        .setAction(SetForwardingPipelineConfigRequest.Action.COMMIT)
+        .build()
+    )
+  }
+
+  private fun triggerUnrecognizedPipelineAction() = runBlocking {
+    harness.stub.setForwardingPipelineConfig(
+      SetForwardingPipelineConfigRequest.newBuilder()
+        .setDeviceId(1)
+        .setAction(SetForwardingPipelineConfigRequest.Action.UNSPECIFIED)
+        .build()
+    )
+  }
+
+  private fun triggerSimulatorRejectedPipeline() {
+    // Build a DeviceConfig with an unsupported architecture name. The proto parses fine
+    // but the simulator rejects it at loadPipeline time.
+    val deviceConfig =
+      DeviceConfig.newBuilder()
+        .setBehavioral(
+          BehavioralConfig.newBuilder()
+            .setArchitecture(Architecture.newBuilder().setName("bogus_arch"))
+        )
+        .build()
+    val fwdConfig =
+      ForwardingPipelineConfig.newBuilder()
+        .setP4Info(p4.config.v1.P4InfoOuterClass.P4Info.getDefaultInstance())
+        .setP4DeviceConfig(deviceConfig.toByteString())
+        .build()
+    runBlocking {
+      harness.stub.setForwardingPipelineConfig(
+        SetForwardingPipelineConfigRequest.newBuilder()
+          .setDeviceId(1)
+          .setAction(SetForwardingPipelineConfigRequest.Action.VERIFY_AND_COMMIT)
+          .setConfig(fwdConfig)
+          .build()
+      )
+    }
+  }
+
+  private fun triggerRegisterInsertNotSupported() {
+    val config = loadBasicTable()
+    harness.loadPipeline(config)
+    // INSERT a register entry — registers only support MODIFY.
+    val entity =
+      Entity.newBuilder()
+        .setRegisterEntry(P4RuntimeOuterClass.RegisterEntry.newBuilder().setRegisterId(1))
+        .build()
+    harness.installEntry(entity)
+  }
+
   // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
@@ -364,6 +543,19 @@ class GoldenErrorTest(private val testName: String) {
         "digest-not-supported",
         "extern-entry-not-supported",
         "unrecognized-atomicity",
+        "idle-timeout-not-supported",
+        "default-entry-wrong-type",
+        "default-entry-with-match",
+        "unknown-param-id",
+        "unknown-match-field-id",
+        "match-field-no-value",
+        "priority-must-be-zero",
+        "table-entry-already-exists",
+        "table-entry-not-found",
+        "commit-without-save",
+        "unrecognized-pipeline-action",
+        "simulator-rejected-pipeline",
+        "register-insert-not-supported",
       )
 
     private fun goldenDir(): java.nio.file.Path {
