@@ -1438,8 +1438,11 @@ class TableStore : TableDataReader {
   }
 
   private fun formatOptions(options: List<String>): String =
-    if (options.size <= 10) options.joinToString(", ")
-    else options.take(10).joinToString(", ") + " ... and ${options.size - 10} more"
+    when {
+      options.isEmpty() -> "none"
+      options.size <= 10 -> options.joinToString(", ")
+      else -> options.take(10).joinToString(", ") + " ... and ${options.size - 10} more"
+    }
 
   private fun resolveActionName(actionId: Int): String =
     actionNameById[actionId]

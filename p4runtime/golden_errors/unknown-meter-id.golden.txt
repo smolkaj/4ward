@@ -1,1 +1,1 @@
-NOT_FOUND: unknown meter ID: 99999 (valid meter IDs: )
+NOT_FOUND: unknown meter ID: 99999 (valid meter IDs: none)
