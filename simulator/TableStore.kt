@@ -9,39 +9,76 @@ import p4.v1.P4RuntimeOuterClass
 import p4.v1.P4RuntimeOuterClass.TableEntry
 import p4.v1.P4RuntimeOuterClass.Update
 
-/** Interprets a protobuf [ByteString] as an unsigned big-endian integer. */
-internal fun ByteString.toUnsignedBigInteger(): BigInteger = BigInteger(1, toByteArray())
+/**
+ * Cache for wide (>63-bit) ByteString→BigInteger conversions. Identity-keyed: proto ByteStrings
+ * from table entries are immutable and reused, so pointer equality suffices.
+ */
+private val bigIntCache = java.util.IdentityHashMap<ByteString, BigInteger>()
+
+/** Interprets a protobuf [ByteString] as an unsigned big-endian [BigInteger]. Cached for reuse. */
+internal fun ByteString.toUnsignedBigInteger(): BigInteger =
+  bigIntCache.getOrPut(this) { BigInteger(1, toByteArray()) }
+
+/** Decode a proto ByteString as an unsigned Long. For the common case (≤8 bytes). */
+private fun ByteString.toUnsignedLong(): Long {
+  var v = 0L
+  for (i in 0 until size()) v = (v shl 8) or (byteAt(i).toLong() and 0xFF)
+  return v
+}
 
 /**
  * Tests whether a [BitVector] matches a P4Runtime [FieldMatch].
  *
  * Supports exact, ternary, LPM, range, and optional match kinds. An unset FieldMatch (no kind set)
- * acts as a wildcard (matches any value). Returns `false` for unknown match kinds.
+ * acts as a wildcard (matches any value). For fields ≤ 63 bits (ports, IPs, MACs — the vast
+ * majority), uses Long arithmetic with zero heap allocation. Wider fields (IPv6 at 128 bits) fall
+ * back to BigInteger.
  */
 fun matchesFieldMatch(bits: BitVector, match: P4RuntimeOuterClass.FieldMatch): Boolean =
+  if (bits.width <= BitVector.LONG_WIDTH) matchLong(bits.longValue, bits.width, match)
+  else matchBig(bits.value, bits.width, match)
+
+private fun matchLong(bits: Long, width: Int, match: P4RuntimeOuterClass.FieldMatch): Boolean =
   when {
-    match.hasExact() -> bits.value == match.exact.value.toUnsignedBigInteger()
+    match.hasExact() -> bits == match.exact.value.toUnsignedLong()
     match.hasTernary() -> {
-      val want = match.ternary.value.toUnsignedBigInteger()
-      val mask = match.ternary.mask.toUnsignedBigInteger()
-      bits.value.and(mask) == want.and(mask)
+      val mask = match.ternary.mask.toUnsignedLong()
+      (bits and mask) == (match.ternary.value.toUnsignedLong() and mask)
     }
     match.hasLpm() -> {
       val prefixLen = match.lpm.prefixLen
       if (prefixLen == 0) true
       else {
-        val prefix = match.lpm.value.toUnsignedBigInteger()
-        val shift = bits.width - prefixLen
-        bits.value.shiftRight(shift) == prefix.shiftRight(shift)
+        val shift = width - prefixLen
+        bits ushr shift == match.lpm.value.toUnsignedLong() ushr shift
+      }
+    }
+    match.hasRange() -> bits in match.range.low.toUnsignedLong()..match.range.high.toUnsignedLong()
+    match.hasOptional() -> bits == match.optional.value.toUnsignedLong()
+    else -> true
+  }
+
+private fun matchBig(bits: BigInteger, width: Int, match: P4RuntimeOuterClass.FieldMatch): Boolean =
+  when {
+    match.hasExact() -> bits == match.exact.value.toUnsignedBigInteger()
+    match.hasTernary() -> {
+      val mask = match.ternary.mask.toUnsignedBigInteger()
+      bits.and(mask) == match.ternary.value.toUnsignedBigInteger().and(mask)
+    }
+    match.hasLpm() -> {
+      val prefixLen = match.lpm.prefixLen
+      if (prefixLen == 0) true
+      else {
+        val shift = width - prefixLen
+        bits.shiftRight(shift) == match.lpm.value.toUnsignedBigInteger().shiftRight(shift)
       }
     }
     match.hasRange() -> {
       val lo = match.range.low.toUnsignedBigInteger()
       val hi = match.range.high.toUnsignedBigInteger()
-      bits.value in lo..hi
+      bits in lo..hi
     }
-    match.hasOptional() -> bits.value == match.optional.value.toUnsignedBigInteger()
-    // Unset FieldMatch = wildcard (matches any value).
+    match.hasOptional() -> bits == match.optional.value.toUnsignedBigInteger()
     else -> true
   }
 

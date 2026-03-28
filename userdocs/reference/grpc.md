@@ -175,6 +175,33 @@ message OutputPacket {
 }
 ```
 
+## Performance
+
+While 4ward optimizes for correctness and simplicity over raw speed, it
+achieves practical throughput for production test workloads.
+
+Representative numbers on SAI P4 middleblock with 10k table entries.
+Measured on AMD Ryzen 9 7950X3D (16 cores, 128 MB L3), OpenJDK 21. Throughput in packets/sec (higher is better).
+
+| Workload | Sequential, 1 core | Sequential, 16 cores | Batch, 1 core | Batch, 16 cores |
+|----------|--------------------|----------------------|---------------|-----------------|
+| L3 forwarding | 1,800 | 1,900 | 1,800 | 9,700 |
+| WCMP ×16 members | 1,200 | 1,400 | 950 | 5,400 |
+| WCMP ×16 + mirror | 810 | 1,050 | 600 | 3,500 |
+
+Sequential = `InjectPacket` (one packet at a time).
+Batch = `InjectPackets` (1000 packets streamed concurrently).
+
+- **L3 forwarding** — VRF → LPM → nexthop → MAC rewrite. No forks.
+- **WCMP ×16** — 16-member action selector (16 trace tree branches).
+- **WCMP ×16 + mirror** — WCMP ×16 + ingress clone (32 branches).
+- **1 core** — no parallelism. Useful for estimating per-packet cost.
+- **16 cores** — `InjectPacket` parallelizes fork branches within each
+  packet. `InjectPackets` adds cross-packet parallelism.
+
+Throughput scales with available cores. See [Track 10](../ROADMAP.md#track-10-dataplane-performance)
+in the roadmap for methodology and optimization details.
+
 ## Error codes
 
 | Situation | gRPC status |
