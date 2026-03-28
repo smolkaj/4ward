@@ -15,6 +15,10 @@ import java.nio.file.Path
  * runfiles when available. Returns an exit code (does not call `exitProcess`).
  */
 fun compile(p4Source: Path, outputPath: Path?, includeDirs: List<Path>): Int {
+  if (!Files.exists(p4Source)) {
+    System.err.println("error: file not found: $p4Source")
+    return ExitCode.USAGE_ERROR
+  }
   val p4c = findP4c4ward()
   if (p4c == null) {
     System.err.println(
@@ -35,7 +39,7 @@ fun compile(p4Source: Path, outputPath: Path?, includeDirs: List<Path>): Int {
   process.inputStream.copyTo(System.out)
   val exitCode = process.waitFor()
   if (exitCode != 0) {
-    System.err.println("error: p4c-4ward exited with code $exitCode")
+    System.err.println("error: p4c-4ward exited with code $exitCode (see compiler output above)")
     return ExitCode.COMPILE_ERROR
   }
   return ExitCode.SUCCESS

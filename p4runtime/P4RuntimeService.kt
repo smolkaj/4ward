@@ -349,13 +349,21 @@ class P4RuntimeService(
     for (rawUpdate in updates) {
       try {
         processUpdate(rawUpdate, state, roleName)
-        errors.add(P4RuntimeOuterClass.Error.newBuilder().setCanonicalCode(OK_CODE).build())
+        errors.add(
+          P4RuntimeOuterClass.Error.newBuilder()
+            .setCanonicalCode(OK_CODE)
+            .setSpace(P4RT_ERROR_SPACE)
+            .setCode(OK_CODE)
+            .build()
+        )
       } catch (e: StatusException) {
         hasError = true
         errors.add(
           P4RuntimeOuterClass.Error.newBuilder()
             .setCanonicalCode(e.status.code.value())
             .setMessage(e.status.description ?: "")
+            .setSpace(P4RT_ERROR_SPACE)
+            .setCode(e.status.code.value())
             .build()
         )
       }
@@ -1001,6 +1009,9 @@ class P4RuntimeService(
       "Role.config is not supported; use @p4runtime_role annotations in p4info instead"
 
     private const val OK_CODE = com.google.rpc.Code.OK_VALUE
+
+    // P4Runtime spec §12.3: the error space for P4Runtime-specific errors.
+    private const val P4RT_ERROR_SPACE = "p4.v1"
 
     private fun isZeroElectionId(id: Uint128): Boolean = id.high == 0L && id.low == 0L
 
