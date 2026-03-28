@@ -31,13 +31,13 @@
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">93.7&nbsp;%</td>
+            <td class="headerCovTableEntryHi">94.1&nbsp;%</td>
             <td class="headerCovTableEntry">493</td>
-            <td class="headerCovTableEntry">462</td>
+            <td class="headerCovTableEntry">464</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-28 09:19:39</td>
+            <td class="headerValue">2026-03-28 18:36:54</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">97.3&nbsp;%</td>
@@ -513,10 +513,10 @@
 <span id="L451"><span class="lineNum">     451</span> <span class="tlaGNC">           1 :         throw Status.NOT_FOUND.withDescription(result.message).asException()</span></span>
 <span id="L452"><span class="lineNum">     452</span> <span class="tlaGNC">           1 :       is WriteResult.InvalidArgument -&gt;</span></span>
 <span id="L453"><span class="lineNum">     453</span> <span class="tlaGNC">           1 :         throw Status.INVALID_ARGUMENT.withDescription(result.message).asException()</span></span>
-<span id="L454"><span class="lineNum">     454</span> <span class="tlaUNC tlaBgUNC">           0 :       is WriteResult.ResourceExhausted -&gt;</span></span>
-<span id="L455"><span class="lineNum">     455</span> <span class="tlaUNC">           0 :         throw Status.RESOURCE_EXHAUSTED.withDescription(result.message).asException()</span></span>
+<span id="L454"><span class="lineNum">     454</span> <span class="tlaGNC">           1 :       is WriteResult.ResourceExhausted -&gt;</span></span>
+<span id="L455"><span class="lineNum">     455</span> <span class="tlaGNC">           1 :         throw Status.RESOURCE_EXHAUSTED.withDescription(result.message).asException()</span></span>
 <span id="L456"><span class="lineNum">     456</span>              :     }</span>
-<span id="L457"><span class="lineNum">     457</span> <span class="tlaGNC tlaBgGNC">           1 :   }</span></span>
+<span id="L457"><span class="lineNum">     457</span> <span class="tlaGNC">           1 :   }</span></span>
 <span id="L458"><span class="lineNum">     458</span>              : </span>
 <span id="L459"><span class="lineNum">     459</span>              :   /**</span>
 <span id="L460"><span class="lineNum">     460</span>              :    * Translates `Replica.port` (bytes, P4RT-encoded) to dataplane form for the simulator.</span>

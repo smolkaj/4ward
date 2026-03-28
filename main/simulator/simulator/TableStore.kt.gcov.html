@@ -31,18 +31,18 @@
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">94.6&nbsp;%</td>
+            <td class="headerCovTableEntryHi">94.8&nbsp;%</td>
             <td class="headerCovTableEntry">744</td>
-            <td class="headerCovTableEntry">704</td>
+            <td class="headerCovTableEntry">705</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-28 09:19:39</td>
+            <td class="headerValue">2026-03-28 18:36:54</td>
             <td></td>
             <td class="headerItem">Functions:</td>
-            <td class="headerCovTableEntryHi">96.7&nbsp;%</td>
+            <td class="headerCovTableEntryHi">97.4&nbsp;%</td>
             <td class="headerCovTableEntry">152</td>
-            <td class="headerCovTableEntry">147</td>
+            <td class="headerCovTableEntry">148</td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
                 </table>
@@ -883,8 +883,8 @@
 <span id="L821"><span class="lineNum">     821</span> <span class="tlaGNC">           1 :       return WriteResult.InvalidArgument(&quot;${entityName}s only support MODIFY, not $type&quot;)</span></span>
 <span id="L822"><span class="lineNum">     822</span> <span class="tlaGNC">           1 :     val tableName =</span></span>
 <span id="L823"><span class="lineNum">     823</span> <span class="tlaGNC">           1 :       tableNameById[tableEntry.tableId]</span></span>
-<span id="L824"><span class="lineNum">     824</span> <span class="tlaUNC tlaBgUNC">           0 :         ?: return WriteResult.NotFound(&quot;unknown table ID ${tableEntry.tableId}&quot;)</span></span>
-<span id="L825"><span class="lineNum">     825</span> <span class="tlaGNC tlaBgGNC">           1 :     if (tableName !in knownTables)</span></span>
+<span id="L824"><span class="lineNum">     824</span> <span class="tlaGNC">           1 :         ?: return WriteResult.NotFound(&quot;unknown table ID ${tableEntry.tableId}&quot;)</span></span>
+<span id="L825"><span class="lineNum">     825</span> <span class="tlaGNC">           1 :     if (tableName !in knownTables)</span></span>
 <span id="L826"><span class="lineNum">     826</span> <span class="tlaUNC tlaBgUNC">           0 :       return WriteResult.InvalidArgument(&quot;table '$tableName' has no $entityName&quot;)</span></span>
 <span id="L827"><span class="lineNum">     827</span> <span class="tlaGNC tlaBgGNC">           1 :     val entries =</span></span>
 <span id="L828"><span class="lineNum">     828</span> <span class="tlaGNC">           1 :       tables[tableName] ?: return WriteResult.NotFound(&quot;no entries in table '$tableName'&quot;)</span></span>
