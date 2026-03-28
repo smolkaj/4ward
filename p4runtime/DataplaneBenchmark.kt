@@ -47,18 +47,38 @@ class DataplaneBenchmark {
 
     val scalePoints =
       listOf(
+        // All scale points include 500 ternary ACL entries across acl_ingress_table and
+        // acl_pre_ingress_table (none match test packets → worst-case full scan).
         // --- Direct nexthop (L3 only) ---
-        ScalePoint("direct", routes = 0),
-        ScalePoint("direct", routes = 100),
-        ScalePoint("direct", routes = 1_000),
-        ScalePoint("direct", routes = 4_000),
-        ScalePoint("direct", routes = 10_000, nexthops = 100),
+        ScalePoint("direct", routes = 0, aclEntries = ACL_ENTRIES),
+        ScalePoint("direct", routes = 100, aclEntries = ACL_ENTRIES),
+        ScalePoint("direct", routes = 1_000, aclEntries = ACL_ENTRIES),
+        ScalePoint("direct", routes = 4_000, aclEntries = ACL_ENTRIES),
+        ScalePoint("direct", routes = 10_000, nexthops = 100, aclEntries = ACL_ENTRIES),
         // --- WCMP (action selector → trace tree fork) ---
-        ScalePoint("wcmp×4", routes = 10_000, nexthops = 100, wcmpMembers = 4),
-        ScalePoint("wcmp×16", routes = 10_000, nexthops = 100, wcmpMembers = 16),
+        ScalePoint(
+          "wcmp×4",
+          routes = 10_000,
+          nexthops = 100,
+          wcmpMembers = 4,
+          aclEntries = ACL_ENTRIES,
+        ),
+        ScalePoint(
+          "wcmp×16",
+          routes = 10_000,
+          nexthops = 100,
+          wcmpMembers = 16,
+          aclEntries = ACL_ENTRIES,
+        ),
         // --- WCMP + mirror (clone fork → 2 output packets) ---
-        @Suppress("MaxLineLength")
-        ScalePoint("wcmp×16+mirr", routes = 10_000, nexthops = 100, wcmpMembers = 16, mirror = true),
+        ScalePoint(
+          "wcmp×16+mirr",
+          routes = 10_000,
+          nexthops = 100,
+          wcmpMembers = 16,
+          mirror = true,
+          aclEntries = ACL_ENTRIES,
+        ),
       )
 
     println()
@@ -90,10 +110,22 @@ class DataplaneBenchmark {
     // --- Concurrent benchmark: InjectPackets (all packets at once) ---
     val concurrentPoints =
       listOf(
-        ScalePoint("direct", routes = 10_000, nexthops = 100),
-        ScalePoint("wcmp×16", routes = 10_000, nexthops = 100, wcmpMembers = 16),
-        @Suppress("MaxLineLength")
-        ScalePoint("wcmp×16+mirr", routes = 10_000, nexthops = 100, wcmpMembers = 16, mirror = true),
+        ScalePoint("direct", routes = 10_000, nexthops = 100, aclEntries = ACL_ENTRIES),
+        ScalePoint(
+          "wcmp×16",
+          routes = 10_000,
+          nexthops = 100,
+          wcmpMembers = 16,
+          aclEntries = ACL_ENTRIES,
+        ),
+        ScalePoint(
+          "wcmp×16+mirr",
+          routes = 10_000,
+          nexthops = 100,
+          wcmpMembers = 16,
+          mirror = true,
+          aclEntries = ACL_ENTRIES,
+        ),
       )
 
     println("Concurrent (InjectPackets, $BENCHMARK_PACKETS packets at once):")
@@ -121,6 +153,7 @@ class DataplaneBenchmark {
     val nexthops: Int = routes,
     val wcmpMembers: Int = 0,
     val mirror: Boolean = false,
+    val aclEntries: Int = 0,
   )
 
   private data class BenchmarkResult(
@@ -135,7 +168,7 @@ class DataplaneBenchmark {
   private fun measureConcurrent(sp: ScalePoint): Pair<Double, Double> =
     createHarness().use { harness ->
       val actualNexthops = minOf(sp.nexthops, maxOf(sp.routes, 1))
-      installEntries(harness, sp.routes, actualNexthops, sp.wcmpMembers, sp.mirror)
+      installEntries(harness, sp.routes, actualNexthops, sp.wcmpMembers, sp.mirror, sp.aclEntries)
 
       val warmupPkt = buildIpv4Packet(dstIp = ipForRoute(0))
       repeat(SCALE_WARMUP_PACKETS) { harness.injectPacket(ingressPort = 0, payload = warmupPkt) }
@@ -155,7 +188,8 @@ class DataplaneBenchmark {
   private fun measureScalePoint(sp: ScalePoint): BenchmarkResult =
     createHarness().use { harness ->
       val actualNexthops = minOf(sp.nexthops, maxOf(sp.routes, 1))
-      val entryCount = installEntries(harness, sp.routes, actualNexthops, sp.wcmpMembers, sp.mirror)
+      val entryCount =
+        installEntries(harness, sp.routes, actualNexthops, sp.wcmpMembers, sp.mirror, sp.aclEntries)
 
       val warmupPkt = buildIpv4Packet(dstIp = ipForRoute(0))
       repeat(SCALE_WARMUP_PACKETS) { harness.injectPacket(ingressPort = 0, payload = warmupPkt) }
@@ -214,6 +248,7 @@ class DataplaneBenchmark {
     nexthopCount: Int,
     wcmpMembers: Int = 0,
     mirror: Boolean = false,
+    aclEntries: Int = 0,
   ): Int {
     if (routeCount == 0) return 0
     var count = 0
@@ -388,7 +423,83 @@ class DataplaneBenchmark {
       count += installMirror(harness)
     }
 
+    // --- ACL entries (ternary — worst case for O(n) table scan) ---
+    if (aclEntries > 0) {
+      count += installAclEntries(harness, aclEntries)
+    }
+
     return count
+  }
+
+  /**
+   * Installs [count] ternary ACL entries across acl_ingress_table (50%) and acl_pre_ingress_table
+   * (50%). None match the benchmark's test packets, forcing a full table scan on every packet
+   * (worst case).
+   */
+  @Suppress("MagicNumber")
+  private fun installAclEntries(harness: P4RuntimeTestHarness, count: Int): Int {
+    val ingressCount = count / 2
+    val preIngressCount = count - ingressCount
+    var installed = 0
+
+    // acl_ingress_table: ternary on src_ip + dst_ip
+    val ingressTable = findTable("acl_ingress_table")
+    val aclFwd = findAction("acl_forward")
+    for (batch in (0 until ingressCount).chunked(BATCH_SIZE)) {
+      val entities =
+        batch.map { i ->
+          buildEntry(
+            ingressTable,
+            aclFwd,
+            listOf(
+              optionalMatch(ingressTable, "is_ipv4", byteArrayOf(1)),
+              ternaryMatch(
+                ingressTable,
+                "src_ip",
+                byteArrayOf(172.toByte(), 16, (i / 256).toByte(), (i % 256).toByte()),
+                byteArrayOf(-1, -1, -1, -1),
+              ),
+              ternaryMatch(
+                ingressTable,
+                "dst_ip",
+                byteArrayOf(172.toByte(), 17, (i / 256).toByte(), (i % 256).toByte()),
+                byteArrayOf(-1, -1, -1, -1),
+              ),
+            ),
+            priority = i + 1,
+          )
+        }
+      harness.writeRaw(harness.buildBatchRequest(Update.Type.INSERT, entities))
+      installed += entities.size
+    }
+
+    // acl_pre_ingress_table: ternary on dst_mac + dst_ip
+    val preIngressTable = findTable("acl_pre_ingress_table")
+    val setVrf = findAction("set_vrf")
+    for (batch in (0 until preIngressCount).chunked(BATCH_SIZE)) {
+      val entities =
+        batch.map { i ->
+          buildEntry(
+            preIngressTable,
+            setVrf,
+            listOf(
+              optionalMatch(preIngressTable, "is_ipv4", byteArrayOf(1)),
+              ternaryMatch(
+                preIngressTable,
+                "dst_ip",
+                byteArrayOf(172.toByte(), 18, (i / 256).toByte(), (i % 256).toByte()),
+                byteArrayOf(-1, -1, -1, -1),
+              ),
+            ),
+            params = listOf(stringParam(setVrf, "vrf_id", "")),
+            priority = i + 1,
+          )
+        }
+      harness.writeRaw(harness.buildBatchRequest(Update.Type.INSERT, entities))
+      installed += entities.size
+    }
+
+    return installed
   }
 
   /**
@@ -513,6 +624,21 @@ class DataplaneBenchmark {
       .setOptional(FieldMatch.Optional.newBuilder().setValue(ByteString.copyFrom(value)))
       .build()
 
+  private fun ternaryMatch(
+    table: P4InfoOuterClass.Table,
+    fieldName: String,
+    value: ByteArray,
+    mask: ByteArray,
+  ): FieldMatch =
+    FieldMatch.newBuilder()
+      .setFieldId(matchFieldId(table, fieldName))
+      .setTernary(
+        FieldMatch.Ternary.newBuilder()
+          .setValue(ByteString.copyFrom(value))
+          .setMask(ByteString.copyFrom(mask))
+      )
+      .build()
+
   private fun lpmMatch(
     table: P4InfoOuterClass.Table,
     fieldName: String,
@@ -573,6 +699,7 @@ class DataplaneBenchmark {
     private const val SCALE_WARMUP_PACKETS = 100
     private const val BENCHMARK_PACKETS = 1_000
     private const val BATCH_SIZE = 500
+    private const val ACL_ENTRIES = 500
     private const val NS_PER_MS = 1_000_000.0
 
     private const val MAC_LEN = 6
