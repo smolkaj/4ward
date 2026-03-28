@@ -7,6 +7,9 @@ import java.math.BigInteger
  *
  * All arithmetic is performed with BigInteger and then masked to [width] bits, matching the P4
  * spec's truncating-on-overflow semantics. No operation ever produces a value outside [0, 2^width).
+ *
+ * For widths ≤ 63, [longValue] provides a cached Long for zero-allocation comparisons in table
+ * matching — the hot path.
  */
 data class BitVector(val value: BigInteger, val width: Int) {
 
@@ -20,6 +23,9 @@ data class BitVector(val value: BigInteger, val width: Int) {
       require(value == BigInteger.ZERO) { "zero-width BitVector must have value 0" }
     }
   }
+
+  /** Cached Long representation for fast comparison. Valid when width ≤ 63. */
+  val longValue: Long = if (width <= LONG_WIDTH) value.toLong() else 0L
 
   // Arithmetic — all results are truncated to [width] bits.
 
@@ -129,6 +135,8 @@ data class BitVector(val value: BigInteger, val width: Int) {
 
   companion object {
     const val BITS_PER_BYTE = 8
+    // 63 not 64: Java Long is signed, so we reserve bit 63 to keep unsigned comparisons simple.
+    const val LONG_WIDTH = 63
 
     fun ofInt(value: Int, width: Int): BitVector =
       BitVector(BigInteger.valueOf(value.toLong()), width)

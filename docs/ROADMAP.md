@@ -512,47 +512,55 @@ entries and know where the time goes.
 
 **Current status: complete.** The 1k pps target is met across all
 workloads (sequential and concurrent). Benchmark, profiling, and five
-optimizations delivered **66× improvement** on the hardest workload
-(wcmp×16+mirr, concurrent).
+optimizations delivered **85× improvement** on the hardest workload
+(wcmp×16+mirr, batch on 16 cores) and **26× sequential single-core**.
 
 **Benchmark** (`bazel test //p4runtime:DataplaneBenchmark --test_output=streamed`).
-Three configurations at 10k entries on a 32-core machine, measured both
-sequentially (`InjectPacket`, one at a time) and concurrently
-(`InjectPackets`, all 1000 packets at once). Concurrent throughput
-scales with available cores.
+SAI P4 middleblock with 10k table entries, four workloads of increasing
+complexity. Throughput in packets/sec (higher is better).
 
-| Config       | Baseline | Sequential | Concurrent (32 cores) |
-|--------------|----------|------------|----------------------|
-| direct 10k   |    1,400 |      1,300 |                6,400 |
-| wcmp×4 10k   |      280 |      1,100 |                      |
-| wcmp×16 10k  |       83 |      1,000 |                3,900 |
-| wcmp×16+mirr |       41 |        780 |                2,700 |
+**Test machine:** AMD Ryzen 9 7950X3D (16 cores, 128 MB L3 V-Cache),
+OpenJDK 21, Linux 6.8. The large L3 cache may flatter cache-locality-
+sensitive workloads compared to typical server hardware.
+
+| Config       | Baseline | Sequential, 1 core | Sequential, 16 cores | Batch, 1 core | Batch, 16 cores |
+|--------------|----------|--------------------|----------------------|---------------|-----------------|
+| direct 10k   |    1,400 |              1,800 |                1,900 |         1,800 |           9,700 |
+| wcmp×4 10k   |      280 |              1,500 |                1,500 |               |                 |
+| wcmp×16 10k  |       83 |              1,200 |                1,400 |           950 |           5,400 |
+| wcmp×16+mirr |       41 |                810 |                1,050 |           600 |           3,500 |
+
+Sequential = `InjectPacket` (one packet at a time).
+Batch = `InjectPackets` (1000 packets streamed concurrently).
+
+- **direct** — L3 forwarding (VRF → LPM → nexthop → MAC rewrite).
+- **wcmp×N** — N-member WCMP action profile (N trace tree branches).
+- **wcmp×16+mirr** — WCMP×16 + ingress clone (32 branches per packet).
+- **1 core** — `ForkJoinPool.common.parallelism=1`. No parallelism.
+- **16 cores** — `InjectPacket` parallelizes fork branches within each
+  packet. `InjectPackets` adds cross-packet parallelism.
 
 (packets/sec; higher is better)
 
 **Optimizations landed:**
-1. **Table lookup caching** (PR #382): cache lookup results across
-   selector fork re-executions. Tables before the fork point produce
-   identical results, so re-executions skip the O(n) scan.
-2. **Parser skip on fork re-execution** (PR #392, #397): snapshot the
-   post-parser Environment and restore on re-executions instead of
-   re-parsing the same payload 32 times.
-3. **Long-lived Interpreter** (PR #400): split Interpreter into a
-   long-lived outer class (config-derived maps) and a lightweight
-   `Execution` inner class (per-run state).
-4. **Parallel fork branches** (PR #406): run trace tree fork branches
-   concurrently via `parallelStream`. The code got simpler — the
-   iterative work stack was replaced by a clean recursive function.
-5. **Concurrent packet processing** (PR #409): `ReadWriteMutex`
-   replaces the global `Mutex`; new `InjectPackets` streaming RPC
-   for bulk injection. Packets process concurrently under a read lock
-   while control-plane writes take an exclusive write lock.
+1. **Table lookup caching** (PR #382): cache pre-fork lookup results
+   across selector fork re-executions.
+2. **Parser skip on fork re-execution** (PR #392, #397): snapshot
+   post-parser state, restore instead of re-parsing.
+3. **Long-lived Interpreter** (PR #400): split into outer class
+   (config-derived maps) and lightweight `Execution` inner class.
+4. **Parallel fork branches** (PR #406): `parallelStream` replaces
+   the iterative work stack — code got simpler (-36 lines).
+5. **Concurrent packet processing** (PR #409): `ReadWriteMutex` +
+   `InjectPackets` streaming RPC for bulk injection.
+6. **Long fast-path for table matching** (PR #422): `BitVector.longValue`
+   + Long-based match for fields ≤ 63 bits. Zero heap allocation per
+   comparison. BigInteger cache for wide fields (IPv6).
 
 **What didn't help** (tried and reverted):
 - Caching `defaultValue()` templates — negligible.
 - Persistent collections (`kotlinx.collections.immutable`) for
-  copy-on-write — HAMT read/write overhead cancelled the copy savings
-  for our small struct sizes.
+  copy-on-write — HAMT overhead cancelled the copy savings.
 
 #### Phase 2: future optimizations (if needed)
 
