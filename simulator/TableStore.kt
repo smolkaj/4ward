@@ -623,8 +623,8 @@ class TableStore : TableDataReader {
     val info =
       registerInfoById[entry.registerId]
         ?: return WriteResult.NotFound(
-          "unknown register ID: ${entry.registerId}; valid registers: " +
-            formatOptions(registerInfoById.values.map { it.name })
+          "unknown register ID: ${entry.registerId} " +
+            "(valid registers: ${formatOptions(registerInfoById.entries.map { "'${it.value.name}' (${it.key})" })})"
         )
     val index = entry.index.index.toInt()
     if (index < 0 || index >= info.size)
@@ -695,8 +695,8 @@ class TableStore : TableDataReader {
     val info =
       infoById[id]
         ?: return WriteResult.NotFound(
-          "unknown $entityName ID: $id; valid ${entityName} IDs: " +
-            formatOptions(infoById.keys.map { it.toString() })
+          "unknown $entityName ID: $id " +
+            "(valid ${entityName} IDs: ${formatOptions(infoById.keys.sorted().map { it.toString() })})"
         )
     val idx = index.index.toInt()
     if (idx < 0 || idx >= info.size)
@@ -830,8 +830,8 @@ class TableStore : TableDataReader {
     val tableName =
       tableNameById[tableEntry.tableId]
         ?: return WriteResult.NotFound(
-          "unknown table ID ${tableEntry.tableId}; valid tables: " +
-            formatOptions(tableNameById.values.toList())
+          "unknown table ID ${tableEntry.tableId} " +
+            "(valid tables: ${formatOptions(tableNameById.entries.map { "'${it.value}' (${it.key})" })})"
         )
     if (tableName !in knownTables)
       return WriteResult.InvalidArgument("table '$tableName' has no $entityName")
@@ -922,8 +922,8 @@ class TableStore : TableDataReader {
     val info =
       valueSetInfoById[entry.valueSetId]
         ?: return WriteResult.NotFound(
-          "unknown value_set ID: ${entry.valueSetId}; valid value_sets: " +
-            formatOptions(valueSetInfoById.values.map { it.name })
+          "unknown value_set ID: ${entry.valueSetId} " +
+            "(valid value_sets: ${formatOptions(valueSetInfoById.entries.map { "'${it.value.name}' (${it.key})" })})"
         )
     val name = info.name
     val maxSize = info.size
@@ -988,8 +988,8 @@ class TableStore : TableDataReader {
     val tableName =
       tableNameById[entry.tableId]
         ?: return WriteResult.NotFound(
-          "unknown table ID ${entry.tableId}; valid tables: " +
-            formatOptions(tableNameById.values.toList())
+          "unknown table ID ${entry.tableId} " +
+            "(valid tables: ${formatOptions(tableNameById.entries.map { "'${it.value}' (${it.key})" })})"
         )
 
     // P4Runtime spec §9.1: default entries are stored separately and only support MODIFY.
@@ -1407,8 +1407,8 @@ class TableStore : TableDataReader {
   private fun resolveActionName(actionId: Int): String =
     actionNameById[actionId]
       ?: error(
-        "unknown action ID: $actionId; valid actions: " +
-          formatOptions(actionNameById.values.toList())
+        "unknown action ID: $actionId " +
+          "(valid actions: ${formatOptions(actionNameById.entries.map { "'${it.value}' (${it.key})" })})"
       )
 
   /** Resolves an action name (alias or behavioral) to its behavioral name. */
