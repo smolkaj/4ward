@@ -1,29 +1,22 @@
-# What Happened to My Packet? Introducing 4ward.
+# 4ward: a P4 simulator that shows its work
 
-If you've ever debugged a P4 program, you know the drill. A packet goes in,
-something comes out (or doesn't), and you're left piecing together what happened
-from log fragments and educated guesses. The switch is a black box. BMv2 gives
-you a trace — a single path through the program — but if your program has
-non-deterministic choice points (action selectors, clone, multicast), you only
-see one outcome. Which one? You don't get to choose, and you can't see the
-others.
+Most P4 tools give you a black box. Packet goes in, packet comes out, and
+if something went wrong you're on your own. BMv2 gives you a trace, which
+helps — but it's one path through the program. If your program clones,
+multicasts, or uses an action selector, you see one arbitrary outcome and
+have to guess about the rest.
 
-[4ward](https://github.com/smolkaj/4ward) is a new P4 simulator that takes a
-different approach. It's a **glass box**: every decision your packet makes is
-visible — every parser transition, every table lookup, every action, every
-branch. And when the program hits a non-deterministic choice point, 4ward
-doesn't pick one path. It shows you **all of them**, as a structured **trace
-tree**.
+4ward shows you all of them.
 
 <p align="center">
 <video src="https://smolka.st/4ward/assets/playground-demo.mp4" controls muted width="100%"></video>
 </p>
 
-## Trace trees: the killer feature
+## Trace trees
 
-Here's a P4 program that clones a packet and forwards the original and clone
-out of two different ports. One packet goes in, two come out. The trace tree
-captures the full picture:
+When a packet hits a non-deterministic choice point, 4ward forks the
+trace into a tree. One packet in, multiple possible outcomes out — all
+captured in a single proto:
 
 ```protobuf
 events { parser_transition { from_state: "start"  to_state: "accept" } }
@@ -47,93 +40,58 @@ fork_outcome {
 }
 ```
 
-This isn't a log you have to grep through. It's a structured proto you can
-programmatically inspect, diff, and assert against in tests. And it captures
-*every possible outcome* — not just the one that happened to fire.
+You can diff these, assert against them in tests, or just read them. Every
+parser transition, table hit, action, and output is there. No grepping
+through logs.
 
-No other P4 tool gives you this. BMv2 picks one path. Hardware picks one path.
-4ward shows you all of them.
+## Why this exists
 
-## Built for testing, not forwarding
+We're building 4ward to replace BMv2 in
+[DVaaS](https://github.com/sonic-net/sonic-pins/tree/main/dvaas), SONiC's
+dataplane validation service. DVaaS sends the same packets through a switch
+and a reference simulator, then compares outputs. The reference simulator
+needs to be correct, observable, and able to handle production P4 programs
+like [SAI P4](https://github.com/sonic-net/sonic-pins/tree/main/sai_p4) —
+a 30-table v1model program with string-translated ports,
+`@entry_restriction`, and all the things BMv2 doesn't do well.
 
-4ward is not a data plane. It's a **spec-compliant reference implementation**
-of [P4₁₆](https://p4.org/wp-content/uploads/sites/53/p4-spec/docs/p4-16-working-draft.html)
-and [P4Runtime](https://p4lang.github.io/p4runtime/spec/main/P4Runtime-Spec.html),
-optimized for **correctness, observability, and extensibility**. Think of it as
-a debugger that speaks P4.
+4ward handles all of that. It's a
+[spec-compliant](https://github.com/smolkaj/4ward/blob/main/docs/P4RUNTIME_COMPLIANCE.md)
+P4₁₆ and P4Runtime implementation — not a data plane, but a reference you
+can trust. 144 P4Runtime requirements tested. Three architectures (v1model,
+PSA, PNA). A built-in `@p4runtime_translation` engine.
 
-The concrete goal: replace BMv2 as the reference simulator in
-[DVaaS](https://github.com/sonic-net/sonic-pins/tree/main/dvaas) (SONiC's
-Dataplane Validation as a Service), and fully support
-[SAI P4](https://github.com/sonic-net/sonic-pins/tree/main/sai_p4) — Google's
-production P4 pipeline for network switches.
+## How we know it works
 
-These two forcing functions keep us honest. SAI P4 is a 30-table v1model
-program with heavy use of `@p4runtime_translation` (string port names!),
-`@entry_restriction`, and `@refers_to` — the kind of production complexity
-that other tools paper over with hardcoded workarounds. DVaaS needs structured
-traces and all-paths coverage to validate switch behavior reliably.
+Three independent test strategies, each with a different source of truth:
 
-## What's under the hood
+- **p4c's own test suite** — 200+ conformance tests with hand-written
+  expectations from the language authors.
+- **p4testgen** — symbolic execution that auto-generates tests covering
+  paths you'd never think to write by hand.
+- **Differential testing against BMv2** — same inputs, compare outputs.
 
-**Three architectures.** v1model, PSA, and PNA all work today. The architecture
-boundary is clean — adding a new one means implementing a Kotlin interface, not
-forking the simulator.
+When all three agree, the code is correct.
 
-**P4Runtime done right.** 141 out of 142 spec requirements tested and passing.
-Full multi-controller arbitration, role-based access control, and a built-in
-`@p4runtime_translation` engine with explicit, auto-allocate, and hybrid
-mapping modes.
+## The AI thing
 
-**Interactive web playground.** A browser-based IDE where you write P4, install
-table entries, inject packets, and step through the resulting trace — with
-animated playback that highlights the active source line and control-flow node
-in sync. `bazel run //web:playground` and you're in.
+4ward is written entirely by AI — Claude, specifically. Every line of
+code, every test, every doc. 40k lines, 400+ PRs, under three months.
 
-**A proper CLI.** `4ward run program.p4 test.stf` for quick experiments;
-`--format=json` or `--format=textproto` for machine-readable output in CI
-pipelines.
-
-## Three oracles, one answer
-
-Here's the question everyone asks: *how do you know it's correct?*
-
-4ward uses three independent testing strategies, each with a different source of
-truth:
-
-1. **200+ conformance tests** from p4c's own test suite — hand-written
-   expectations by the people who built the language.
-2. **Symbolic path exploration** via p4testgen — auto-generated tests that
-   systematically cover execution paths humans wouldn't think to exercise.
-3. **Differential testing** against BMv2 — run identical inputs through both
-   simulators, compare every output.
-
-When three independent oracles agree, the answer is clear.
-
-## 100% AI-written
-
-Every line of code, every test, every doc — including the one you're reading
-right now — was written by AI (Claude). The entire codebase was built from
-scratch in under three months: 40k lines of code, 400+ PRs, and CI that runs
-in about 2 minutes.
-
-The natural follow-up is: should you trust AI-written code?
-
-The answer isn't "trust the AI." It's **trust the tests**. The three-oracle
-testing strategy above doesn't care who wrote the code. It cares whether the
-code is correct. And when you can verify correctness against the language spec,
-a symbolic solver, *and* the existing reference implementation, the question of
-authorship stops mattering.
-
-There's a practical upside too: 4ward is designed to be extended by AI agents.
-If Claude can navigate the codebase, understand the IR, and land a feature with
-passing tests — so can you. The codebase is its own documentation.
+We're not saying this to be flashy. We're saying it because the codebase
+proves something useful: if you have good tests, good CI, and a codebase
+that an AI agent can navigate, authorship doesn't matter. The tests are
+the authority, not the author. And as a side effect, any contributor —
+human or AI — can pick up the codebase and extend it. The same properties
+that make it AI-friendly make it human-friendly.
 
 ## Try it
 
+The web playground is the fastest way in:
+
 ```sh
 git clone https://github.com/smolkaj/4ward.git && cd 4ward
-bazel run //web:playground    # opens http://localhost:8080
+bazel run //web:playground
 ```
 
 Or from the command line:
@@ -156,11 +114,7 @@ packet received: port 0, 18 bytes
 PASS
 ```
 
-Every step is visible. That's the point.
-
-## Links
-
-- **GitHub:** [smolkaj/4ward](https://github.com/smolkaj/4ward)
-- **Documentation:** [smolka.st/4ward](https://smolka.st/4ward/)
-- **Roadmap:** [ROADMAP.md](https://github.com/smolkaj/4ward/blob/main/docs/ROADMAP.md)
-- **How we develop with AI:** [AI_WORKFLOW.md](https://github.com/smolkaj/4ward/blob/main/docs/AI_WORKFLOW.md)
+- [GitHub](https://github.com/smolkaj/4ward)
+- [Docs](https://smolka.st/4ward/)
+- [Roadmap](https://github.com/smolkaj/4ward/blob/main/docs/ROADMAP.md)
+- [How we develop with AI](https://github.com/smolkaj/4ward/blob/main/docs/AI_WORKFLOW.md)
