@@ -83,6 +83,29 @@ class DataplaneBenchmark {
 
     println(SEPARATOR)
     println()
+
+    // --- Concurrent benchmark: InjectPackets (all packets at once) ---
+    val concurrentPoints =
+      listOf(
+        ScalePoint("direct", routes = 10_000, nexthops = 100),
+        ScalePoint("wcmp×16", routes = 10_000, nexthops = 100, wcmpMembers = 16),
+        @Suppress("MaxLineLength")
+        ScalePoint("wcmp×16+mirr", routes = 10_000, nexthops = 100, wcmpMembers = 16, mirror = true),
+      )
+
+    println("Concurrent (InjectPackets, $BENCHMARK_PACKETS packets at once):")
+    println(CONCURRENT_HEADER)
+    println(CONCURRENT_SEPARATOR)
+
+    for (sp in concurrentPoints) {
+      val result = measureConcurrent(sp)
+      println(
+        "| %-12s | %6d | %10.0f | %10.1f |".format(sp.label, sp.routes, result.first, result.second)
+      )
+    }
+
+    println(CONCURRENT_SEPARATOR)
+    println()
   }
 
   // ===========================================================================
@@ -104,6 +127,34 @@ class DataplaneBenchmark {
     val meanMs: Double,
     val throughput: Double,
   )
+
+  /** Measures total throughput by sending all packets at once via InjectPackets. */
+  private fun measureConcurrent(sp: ScalePoint): Pair<Double, Double> {
+    val harness = createHarness()
+    try {
+      val actualNexthops = minOf(sp.nexthops, maxOf(sp.routes, 1))
+      installEntries(harness, sp.routes, actualNexthops, sp.wcmpMembers, sp.mirror)
+
+      // Warmup
+      val warmupPkt = buildIpv4Packet(dstIp = ipForRoute(0))
+      repeat(SCALE_WARMUP_PACKETS) { harness.injectPacket(ingressPort = 0, payload = warmupPkt) }
+
+      // Build all packets
+      val packets =
+        (0 until BENCHMARK_PACKETS).map { i ->
+          0 to buildIpv4Packet(dstIp = ipForRoute(i % maxOf(sp.routes, 1)))
+        }
+
+      // Measure: send all at once via streaming RPC
+      val startNs = System.nanoTime()
+      harness.injectPackets(packets)
+      val elapsedMs = (System.nanoTime() - startNs) / NS_PER_MS
+      val throughput = BENCHMARK_PACKETS / elapsedMs * 1000
+      return throughput to elapsedMs
+    } finally {
+      harness.close()
+    }
+  }
 
   private fun measureScalePoint(sp: ScalePoint): BenchmarkResult {
     val harness = createHarness()
@@ -550,6 +601,8 @@ class DataplaneBenchmark {
       "| Config       | Routes | Entries |  p50 ms  |  p99 ms  | mean ms  | packets/s  |"
     private const val SEPARATOR =
       "|--------------|--------|---------|----------|----------|----------|------------|"
+    private const val CONCURRENT_HEADER = "| Config       | Routes | packets/s  | elapsed ms |"
+    private const val CONCURRENT_SEPARATOR = "|--------------|--------|------------|------------|"
 
     /** Maps route index i to a /32 destination: 10.{b1}.{b2}.{b3}. */
     private fun ipForRoute(i: Int): ByteArray =

@@ -17,11 +17,18 @@ service Dataplane {
   // Inject a single packet into the data plane. Returns the result inline.
   rpc InjectPacket(InjectPacketRequest) returns (InjectPacketResponse);
 
-  // Observe results from ALL injection sources (InjectPacket, PacketOut,
-  // other callers). Each result bundles the input with all its outputs.
+  // Inject a batch of packets concurrently. Results are delivered via
+  // SubscribeResults, not in the response.
+  rpc InjectPackets(stream InjectPacketRequest) returns (InjectPacketsResponse);
+
+  // Observe results from ALL injection sources (InjectPacket, InjectPackets,
+  // PacketOut, other callers). Each result bundles the input with all its
+  // outputs.
   rpc SubscribeResults(SubscribeResultsRequest)
       returns (stream SubscribeResultsResponse);
 }
+
+message InjectPacketsResponse {}
 
 message InputPacket {
   uint32 dataplane_ingress_port = 1;

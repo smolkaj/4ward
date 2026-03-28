@@ -3,12 +3,12 @@ package fourward.web
 import fourward.p4runtime.DataplaneService
 import fourward.p4runtime.P4RuntimeService
 import fourward.p4runtime.PacketBroker
+import fourward.p4runtime.ReadWriteMutex
 import fourward.simulator.Simulator
 import io.grpc.netty.NettyServerBuilder
 import java.awt.Desktop
 import java.net.URI
 import java.nio.file.Path
-import kotlinx.coroutines.sync.Mutex
 
 /**
  * 4ward Playground — combined gRPC + HTTP server.
@@ -27,7 +27,7 @@ fun main(args: Array<String>) {
   val cpuPortConfig = fourward.p4runtime.CpuPortConfig.fromFlag(flagValue(args, "--cpu-port"))
 
   val simulator = Simulator(dropPort)
-  val lock = Mutex()
+  val lock = ReadWriteMutex()
   val broker = PacketBroker(simulator::processPacket)
   val service = P4RuntimeService(simulator, broker, lock = lock, cpuPortConfig = cpuPortConfig)
   val dataplaneService = DataplaneService(broker, lock) { service.typeTranslator }
