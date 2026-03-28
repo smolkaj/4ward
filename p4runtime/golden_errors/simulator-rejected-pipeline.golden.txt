@@ -1,1 +1,1 @@
-INTERNAL: Simulator rejected pipeline: unsupported architecture: bogus_arch
+INVALID_ARGUMENT: simulator rejected pipeline: unsupported architecture: bogus_arch

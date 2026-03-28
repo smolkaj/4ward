@@ -821,7 +821,7 @@ class TableStore : TableDataReader {
       return WriteResult.InvalidArgument("${entityName}s only support MODIFY, not $type")
     val tableName =
       tableNameById[tableEntry.tableId]
-        ?: return WriteResult.NotFound("unknown table ID: ${tableEntry.tableId}")
+        ?: return WriteResult.NotFound("unknown table ID ${tableEntry.tableId}")
     if (tableName !in knownTables)
       return WriteResult.InvalidArgument("table '$tableName' has no $entityName")
     val entries =
@@ -973,7 +973,7 @@ class TableStore : TableDataReader {
     val entry = update.entity.tableEntry
     val tableName =
       tableNameById[entry.tableId]
-        ?: return WriteResult.NotFound("unknown table ID: ${entry.tableId}")
+        ?: return WriteResult.NotFound("unknown table ID ${entry.tableId}")
 
     // P4Runtime spec §9.1: default entries are stored separately and only support MODIFY.
     // The WriteValidator already rejects INSERT/DELETE for defaults.
