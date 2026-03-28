@@ -512,11 +512,10 @@ Deliverables:
 **Done when:** we have a reproducible latency number for SAI P4 at 10k
 entries and know where the time goes.
 
-**Current status: Phase 1 complete.** Benchmark, profiling, and two
+**Current status: Phase 1 complete.** Benchmark, profiling, and three
 optimizations delivered a **12× improvement** on the most expensive
 workload (wcmp×16+mirr). The 1k pps target is met for direct L3 and
-wcmp×4. Further optimization requires architectural changes with
-diminishing returns.
+wcmp×4.
 
 **Benchmark** (`bazel test //p4runtime:DataplaneBenchmark --test_output=streamed`).
 Three configurations at 10k entries:
@@ -528,10 +527,10 @@ Three configurations at 10k entries:
 
 | Config       | Baseline | Current | Speedup |
 |--------------|----------|---------|---------|
-| direct 10k   |    1,400 |   1,400 |    1.0× |
+| direct 10k   |    1,400 |   1,300 |    1.0× |
 | wcmp×4 10k   |      280 |   1,100 |    3.9× |
-| wcmp×16 10k  |       83 |     780 |    9.4× |
-| wcmp×16+mirr |       41 |     460 |   11.2× |
+| wcmp×16 10k  |       83 |     750 |    9.0× |
+| wcmp×16+mirr |       41 |     500 |   12.2× |
 
 (packets/sec; higher is better)
 
@@ -539,39 +538,43 @@ Three configurations at 10k entries:
 1. **Table lookup caching** (PR #382, ~15 lines): cache lookup results
    across selector fork re-executions. Tables before the fork point
    produce identical results, so re-executions skip the O(n) scan.
-   This was the big win: 8.7× on wcmp×16+mirr.
-2. **Parser skip on fork re-execution** (PR #392): snapshot the
+   The big win: **8.7×** on wcmp×16+mirr.
+2. **Parser skip on fork re-execution** (PR #392, #397): snapshot the
    post-parser Environment and buffer position; restore on
    re-executions instead of re-parsing the same payload 32 times.
-   1.3× on wcmp×16+mirr.
+   **1.3×** on wcmp×16+mirr.
+3. **Long-lived Interpreter** (PR #400): split Interpreter into a
+   long-lived outer class (config-derived maps, built once per
+   pipeline load) and a lightweight `Execution` inner class (per-run
+   state, just field assignments). **1.1×** on wcmp×16+mirr — modest,
+   but the lifecycle separation is the right design.
 
 **What didn't help** (tried and reverted):
 - Caching `defaultValue()` templates — negligible; the type-tree walk
   is cheap relative to the interpreter tree-walk.
-- Caching Interpreter config maps (`InterpreterContext`) — 5%; not
-  worth the added abstraction.
-- Restructuring Interpreter as outer/inner class — 8%; clean but the
-  improvement-to-churn ratio was too low.
+- Caching Interpreter config maps as a separate abstraction
+  (`InterpreterContext`) — 5%; superseded by the inner class approach
+  which achieves the same thing more naturally.
 
-**Profiling** (Java Flight Recorder, after both optimizations). The
+**Profiling** (Java Flight Recorder, after all optimizations). The
 remaining cost is spread evenly — no single dominant bottleneck:
 
 | Component             |  Self % | What it does                           |
 |-----------------------|---------|----------------------------------------|
-| `Interpreter.<init>`  |     17% | JVM constructor overhead               |
-| `StructVal.deepCopy`  |     19% | Environment deep copy per fork branch  |
-| `execStmt`/controls   |     15% | Actual control interpretation          |
-| Proto builders        |      7% | TraceTree/TraceEvent assembly          |
-| `initPipelineState`   |      6% | Pipeline state setup                   |
-| HashMap operations    |     11% | Various map lookups                    |
+| `StructVal.deepCopy`  |     20% | Environment deep copy per fork branch  |
+| `defaultValue`        |      9% | Fresh values for non-snapshot branches  |
+| `buildTraceTree`      |      9% | Trace tree assembly overhead           |
+| `execStmt`/controls   |      8% | Actual control interpretation          |
+| `runPipeline`         |      6% | Pipeline orchestration                 |
+| `runControlStages`    |      5% | Control stage dispatch                 |
 
-**Why we stopped.** The two landed optimizations targeted clear,
-dominant bottlenecks (table scans at 90%+, parser re-execution at
-30%). The remaining cost is spread across many small operations: JVM
-allocation, deep copies, IR tree-walks, proto builders. Each potential
-optimization (Interpreter reuse, copy-on-write Environment, compiled
-IR) would yield 5-10% while adding significant complexity — against
-the project's "correctness and readability over performance" principle.
+**Why further re-architecture won't help.** We evaluated
+fork-and-continue (forking at the selector point instead of replaying
+from the start). The caches already eliminate the expensive pre-fork
+work (table scans, parser). What remains is cheap control-flow
+interpretation and pipeline orchestration — fork-and-continue would
+skip ~10% of that. A major interpreter rewrite for 10% is the wrong
+trade.
 
 #### Phase 2: future optimizations (if needed)
 
@@ -579,11 +582,9 @@ Revisit if DVaaS workloads need faster forking:
 
 - **Hash index for exact-match tables.** O(1) lookup instead of O(n).
   Helps the direct path and post-fork tables that aren't cached.
-- **Compiled IR.** Replace the tree-walking interpreter with bytecode
-  compilation. Would eliminate `execStmt`/`evalExpr` overhead but is a
-  major project.
 - **Copy-on-write Environment.** Avoid deep-copying fields that
-  branches don't modify. Complex to implement correctly.
+  branches don't modify. Would address the 20% `deepCopy` cost but
+  complex to implement correctly.
 
 ### Track 11: error quality
 
