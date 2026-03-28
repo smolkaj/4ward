@@ -42,6 +42,7 @@ class PSAArchitecture : Architecture {
     val blockParams: Map<String, List<BlockParam>>,
     val typesByName: Map<String, TypeDecl>,
     val externInstances: Map<String, ExternInstanceDecl>,
+    val interpCtx: InterpreterContext,
     // Pre-resolved PSA pipeline stages (fail fast on misconfigured pipelines).
     val ingressParser: PipelineStage,
     val ingress: PipelineStage,
@@ -69,6 +70,7 @@ class PSAArchitecture : Architecture {
         blockParams = buildBlockParamsMap(config),
         typesByName = config.typesList.associateBy { it.name },
         externInstances = buildExternInstancesMap(config),
+        interpCtx = InterpreterContext(config),
         ingressParser = stage("ingress_parser"),
         ingress = stage("ingress"),
         ingressDeparser = stage("ingress_deparser"),
@@ -214,7 +216,7 @@ class PSAArchitecture : Architecture {
 
     val interpreter =
       Interpreter(
-        pipeline.config,
+        pipeline.interpCtx,
         pipeline.tableStore,
         ctx,
         selectorMembers,
@@ -411,7 +413,7 @@ class PSAArchitecture : Architecture {
     val egressOutput = egressValues["psa_egress_output_metadata_t"] as? StructVal
 
     val egressInterpreter =
-      Interpreter(p.config, p.tableStore, egressCtx, selectorMembers, createPsaExternHandler(p))
+      Interpreter(p.interpCtx, p.tableStore, egressCtx, selectorMembers, createPsaExternHandler(p))
 
     // --- Egress Parser ---
     bindStageParams(egressEnv, p.egressParser.blockName, p.blockParams, egressValues)

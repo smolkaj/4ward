@@ -77,7 +77,20 @@ class V1ModelArchitecture(
     val payload: ByteArray,
     val config: BehavioralConfig,
     val tableStore: TableStore,
+    val interpCtx: InterpreterContext,
   )
+
+  // Cached per BehavioralConfig identity — avoids rebuilding Interpreter maps on every execution.
+  private var cachedInterpCtx: InterpreterContext? = null
+  private var cachedConfig: BehavioralConfig? = null
+
+  private fun interpCtxFor(config: BehavioralConfig): InterpreterContext {
+    if (config === cachedConfig) return cachedInterpCtx!!
+    val ctx = InterpreterContext(config)
+    cachedConfig = config
+    cachedInterpCtx = ctx
+    return ctx
+  }
 
   /** Per-execution state created fresh for each pipeline run. */
   @Suppress("LongParameterList")
@@ -112,7 +125,7 @@ class V1ModelArchitecture(
     config: BehavioralConfig,
     tableStore: TableStore,
   ): PipelineResult {
-    val ctx = PipelineContext(ingressPort, payload, config, tableStore)
+    val ctx = PipelineContext(ingressPort, payload, config, tableStore, interpCtxFor(config))
     return buildTraceTree(ctx, V1ModelDecisions(), prefixLength = 0)
   }
 
@@ -343,7 +356,7 @@ class V1ModelArchitecture(
     val pendingOps = V1ModelPendingOps()
     val interpreter =
       Interpreter(
-        ctx.config,
+        ctx.interpCtx,
         ctx.tableStore,
         packetCtx,
         decisions.selectorMembers,

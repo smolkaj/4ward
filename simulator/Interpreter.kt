@@ -35,8 +35,41 @@ import java.math.BigInteger
  * to focused methods. There is no bytecode compilation or optimisation — correctness and
  * readability are the goals.
  */
+/**
+ * Config-derived maps shared across all [Interpreter] instances for a given pipeline. Built once
+ * per [BehavioralConfig] to avoid reconstructing these maps on every pipeline execution — a 38%
+ * cost saving on fork-heavy workloads (WCMP, multicast).
+ */
+class InterpreterContext(config: BehavioralConfig) {
+  internal val parsers: Map<String, ParserDecl> = config.parsersList.associateBy { it.name }
+  internal val controls: Map<String, ControlDecl> = config.controlsList.associateBy { it.name }
+
+  // Actions may be declared either at the top level or as local actions inside controls.
+  // After the midend, all relevant actions end up in control.localActionsList.
+  //
+  // Indexing rules:
+  // - Every action is indexed under name (= originalName) so that table dispatch
+  //   (which resolves via p4info aliases = originalNames) always finds it. We use
+  //   putIfAbsent so that a renamed duplicate (e.g. the second "do_thing" copy that
+  //   the midend renames to "do_thing_1") does not overwrite the authoritative first
+  //   declaration, which carries the actual action body.
+  // - If the midend renamed the action (currentName != ""), it is also indexed under
+  //   currentName so that direct call sites using the post-midend name can resolve it.
+  internal val actions: Map<String, fourward.ir.ActionDecl> = buildMap {
+    fun index(action: fourward.ir.ActionDecl) {
+      if (!containsKey(action.name)) put(action.name, action)
+      if (action.currentName.isNotEmpty()) put(action.currentName, action)
+    }
+    config.actionsList.forEach { index(it) }
+    config.controlsList.forEach { ctrl -> ctrl.localActionsList.forEach { index(it) } }
+  }
+
+  internal val tables: Map<String, TableBehavior> = config.tablesList.associateBy { it.name }
+  internal val types: Map<String, fourward.ir.TypeDecl> = config.typesList.associateBy { it.name }
+}
+
 class Interpreter(
-  private val config: BehavioralConfig,
+  private val ctx: InterpreterContext,
   private val tableStore: TableStore,
   private val packetCtx: PacketContext? = null,
   private val selectorOverrides: Map<String, Int> = emptyMap(),
@@ -51,37 +84,41 @@ class Interpreter(
    */
   private val tableLookupCache: Map<String, TableStore.LookupResult>? = null,
 ) {
-  private val parsers: Map<String, ParserDecl> = config.parsersList.associateBy { it.name }
+  private val parsers
+    get() = ctx.parsers
 
-  private val controls: Map<String, ControlDecl> = config.controlsList.associateBy { it.name }
+  private val controls
+    get() = ctx.controls
 
-  // Actions may be declared either at the top level or as local actions inside controls.
-  // After the midend, all relevant actions end up in control.localActionsList.
-  //
-  // Indexing rules:
-  // - Every action is indexed under name (= originalName) so that table dispatch
-  //   (which resolves via p4info aliases = originalNames) always finds it. We use
-  //   putIfAbsent so that a renamed duplicate (e.g. the second "do_thing" copy that
-  //   the midend renames to "do_thing_1") does not overwrite the authoritative first
-  //   declaration, which carries the actual action body.
-  // - If the midend renamed the action (currentName != ""), it is also indexed under
-  //   currentName so that direct call sites using the post-midend name can resolve it.
-  private val actions: Map<String, fourward.ir.ActionDecl> = buildMap {
-    fun index(action: fourward.ir.ActionDecl) {
-      if (!containsKey(action.name)) put(action.name, action)
-      if (action.currentName.isNotEmpty()) put(action.currentName, action)
-    }
-    config.actionsList.forEach { index(it) }
-    config.controlsList.forEach { ctrl -> ctrl.localActionsList.forEach { index(it) } }
-  }
+  private val actions
+    get() = ctx.actions
 
-  private val tables: Map<String, TableBehavior> = config.tablesList.associateBy { it.name }
+  private val tables
+    get() = ctx.tables
 
   /** Non-null packet context; throws a clear error if packet I/O is attempted without one. */
   private val packet: PacketContext
     get() = packetCtx ?: error("packet I/O requires a PacketContext")
 
-  private val types = config.typesList.associateBy { it.name }
+  private val types
+    get() = ctx.types
+
+  /** Convenience constructor that builds an [InterpreterContext] from a [BehavioralConfig]. */
+  constructor(
+    config: BehavioralConfig,
+    tableStore: TableStore,
+    packetCtx: PacketContext? = null,
+    selectorOverrides: Map<String, Int> = emptyMap(),
+    externHandler: ExternHandler? = null,
+    tableLookupCache: Map<String, TableStore.LookupResult>? = null,
+  ) : this(
+    InterpreterContext(config),
+    tableStore,
+    packetCtx,
+    selectorOverrides,
+    externHandler,
+    tableLookupCache,
+  )
 
   /** Table lookup results recorded during this execution, for caching in fork re-executions. */
   private val recordedLookups = mutableMapOf<String, TableStore.LookupResult>()

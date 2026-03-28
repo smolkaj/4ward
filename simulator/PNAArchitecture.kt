@@ -38,6 +38,7 @@ class PNAArchitecture : Architecture {
     val blockParams: Map<String, List<BlockParam>>,
     val typesByName: Map<String, TypeDecl>,
     val externInstances: Map<String, ExternInstanceDecl>,
+    val interpCtx: InterpreterContext,
     val mainParser: PipelineStage,
     val preControl: PipelineStage,
     val mainControl: PipelineStage,
@@ -76,6 +77,7 @@ class PNAArchitecture : Architecture {
         blockParams = buildBlockParamsMap(config),
         typesByName = config.typesList.associateBy { it.name },
         externInstances = buildExternInstancesMap(config),
+        interpCtx = InterpreterContext(config),
         mainParser = stage("main_parser"),
         preControl = stage("pre_control"),
         mainControl = stage("main_control"),
@@ -123,7 +125,7 @@ class PNAArchitecture : Architecture {
     val checksumState = mutableMapOf<String, BigInteger>()
     val interpreter =
       Interpreter(
-        pipeline.config,
+        pipeline.interpCtx,
         pipeline.tableStore,
         ctx,
         selectorMembers,
