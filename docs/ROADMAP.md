@@ -512,87 +512,78 @@ Deliverables:
 **Done when:** we have a reproducible latency number for SAI P4 at 10k
 entries and know where the time goes.
 
-**Baseline (2026-03-27).** In-process gRPC, SAI P4 middleblock.
-Benchmark: `bazel test //p4runtime:DataplaneBenchmark --test_output=streamed`.
+**Current status: Phase 1 complete.** Benchmark, profiling, and two
+optimizations delivered a **12× improvement** on the most expensive
+workload (wcmp×16+mirr). The 1k pps target is met for direct L3 and
+wcmp×4. Further optimization requires architectural changes with
+diminishing returns.
 
-Three configurations exercise increasingly realistic workloads:
+**Benchmark** (`bazel test //p4runtime:DataplaneBenchmark --test_output=streamed`).
+Three configurations at 10k entries:
 - **direct** — L3 forwarding only (VRF → LPM → nexthop → MAC rewrite).
-- **wcmp×N** — routes → `set_wcmp_group_id` → `wcmp_group_table` with
-  N-member action profile group (action selector fork in trace tree).
-- **wcmp×16+mirror** — adds ingress clone via ACL `acl_copy` + clone
-  session (clone fork in trace tree, 2 output packets per input).
+- **wcmp×N** — routes through N-member WCMP action profile group
+  (action selector fork in trace tree).
+- **wcmp×16+mirror** — adds ingress clone (clone fork, 2 output
+  packets, 32 trace tree leaves total).
 
-| Config        | Routes | Entries | packets/s |   p50   |
-|---------------|--------|---------|-----------|---------|
-| direct        |      0 |       0 |     6,100 |  0.15ms |
-| direct        |  1,000 |   2,003 |     3,300 |  0.25ms |
-| direct        | 10,000 |  10,103 |     1,400 |  0.73ms |
-| wcmp×4        | 10,000 |  10,109 |       280 |  3.49ms |
-| wcmp×16       | 10,000 |  10,121 |        83 | 11.93ms |
-| wcmp×16+mirr  | 10,000 |  10,124 |        41 | 24.38ms |
-
-Key observations:
-- **Direct L3 at 10k: 1,400 pps** — already meets the 1k pps target.
-- **WCMP scales linearly with member count**: 4 members → 3.5ms,
-  16 members → 11.9ms (~3.4× for 4× members). The action selector
-  fork explores every member in the trace tree.
-- **Ingress mirror adds ~2×** — the clone fork re-executes the egress
-  pipeline (including all WCMP branches), so the trace tree has
-  16 branches × 2 clone paths = 32 leaves.
-- **The realistic target (wcmp×16+mirror at 10k) is 41 pps** — needs
-  ~24× improvement. Trace tree forking dominates; table lookup is
-  noise.
-
-**After table lookup caching.** Cache lookup results across selector
-fork re-executions: tables before the fork point produce identical
-results, so re-executions skip the O(n) scan entirely.
-
-| Config       | Before  | After   | Speedup |
-|--------------|---------|---------|---------|
-| direct 10k   | 1,400   | 1,400   |    1.0× |
-| wcmp×4 10k   |   280   | 1,100   |    3.8× |
-| wcmp×16 10k  |    83   |   660   |    7.5× |
-| wcmp×16+mirr |    41   |   350   |    8.7× |
+| Config       | Baseline | Current | Speedup |
+|--------------|----------|---------|---------|
+| direct 10k   |    1,400 |   1,400 |    1.0× |
+| wcmp×4 10k   |      280 |   1,100 |    3.9× |
+| wcmp×16 10k  |       83 |     780 |    9.4× |
+| wcmp×16+mirr |       41 |     460 |   11.2× |
 
 (packets/sec; higher is better)
 
-**Profiling (Java Flight Recorder, packet-processing samples only).** After table lookup
-caching, the remaining per-packet cost breaks down as:
+**Optimizations landed:**
+1. **Table lookup caching** (PR #382, ~15 lines): cache lookup results
+   across selector fork re-executions. Tables before the fork point
+   produce identical results, so re-executions skip the O(n) scan.
+   This was the big win: 8.7× on wcmp×16+mirr.
+2. **Parser skip on fork re-execution** (PR #392): snapshot the
+   post-parser Environment and buffer position; restore on
+   re-executions instead of re-parsing the same payload 32 times.
+   1.3× on wcmp×16+mirr.
 
-| Component           | % of time | What it does                           |
-|---------------------|-----------|----------------------------------------|
-| `initPipelineState` |       38% | Interpreter construction + defaultValue |
-| `runParser`         |       30% | Re-parses packet on every branch       |
-| `execStmt`/controls |       21% | Interprets control blocks              |
-| Trace proto builders |      10% | ForkBranch/TraceTree assembly           |
+**What didn't help** (tried and reverted):
+- Caching `defaultValue()` templates — negligible; the type-tree walk
+  is cheap relative to the interpreter tree-walk.
+- Caching Interpreter config maps (`InterpreterContext`) — 5%; not
+  worth the added abstraction.
+- Restructuring Interpreter as outer/inner class — 8%; clean but the
+  improvement-to-churn ratio was too low.
 
-**68% of time is in work that produces identical results across all fork
-branches** (`initPipelineState` + `runParser`). The `Interpreter`
-constructor rebuilds 4 maps from config protos on every instantiation,
-and the parser runs 32 times on the same payload.
+**Profiling** (Java Flight Recorder, after both optimizations). The
+remaining cost is spread evenly — no single dominant bottleneck:
 
-#### Phase 2: low-hanging fruit
+| Component             |  Self % | What it does                           |
+|-----------------------|---------|----------------------------------------|
+| `Interpreter.<init>`  |     17% | JVM constructor overhead               |
+| `StructVal.deepCopy`  |     19% | Environment deep copy per fork branch  |
+| `execStmt`/controls   |     15% | Actual control interpretation          |
+| Proto builders        |      7% | TraceTree/TraceEvent assembly          |
+| `initPipelineState`   |      6% | Pipeline state setup                   |
+| HashMap operations    |     11% | Various map lookups                    |
 
-Targeted optimizations guided by profiling:
+**Why we stopped.** The two landed optimizations targeted clear,
+dominant bottlenecks (table scans at 90%+, parser re-execution at
+30%). The remaining cost is spread across many small operations: JVM
+allocation, deep copies, IR tree-walks, proto builders. Each potential
+optimization (Interpreter reuse, copy-on-write Environment, compiled
+IR) would yield 5-10% while adding significant complexity — against
+the project's "correctness and readability over performance" principle.
 
-- **Cache `Interpreter` maps across branches.** The `parsers`,
-  `controls`, `actions`, and `tables` maps are derived from
-  `BehavioralConfig` which doesn't change between branches. Build
-  them once and share.
-- **Skip parser on fork re-execution.** Deep-copy the post-parser
-  `Environment` instead of re-parsing the same payload 32 times.
-  Parser + initPipelineState together account for 68% of cost.
+#### Phase 2: future optimizations (if needed)
+
+Revisit if DVaaS workloads need faster forking:
+
 - **Hash index for exact-match tables.** O(1) lookup instead of O(n).
-  Helps the direct path and post-fork tables.
-
-#### Phase 3: structural (if needed)
-
-Deeper changes, only if Phase 2 doesn't reach the 1k pps target:
-
-- **LPM trie** for longest-prefix-match tables (IPv4/IPv6 routing).
-- **Packet batching** in the Dataplane gRPC API.
-- **Read-optimized concurrency** (read-heavy workload: many packets, rare
-  table writes).
+  Helps the direct path and post-fork tables that aren't cached.
+- **Compiled IR.** Replace the tree-walking interpreter with bytecode
+  compilation. Would eliminate `execStmt`/`evalExpr` overhead but is a
+  major project.
+- **Copy-on-write Environment.** Avoid deep-copying fields that
+  branches don't modify. Complex to implement correctly.
 
 ### Track 11: error quality
 
