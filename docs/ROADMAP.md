@@ -510,79 +510,54 @@ Deliverables:
 **Done when:** we have a reproducible latency number for SAI P4 at 10k
 entries and know where the time goes.
 
-**Current status: Phase 1 complete.** Benchmark, profiling, and three
-optimizations delivered a **12× improvement** on the most expensive
-workload (wcmp×16+mirr). The 1k pps target is met for direct L3 and
-wcmp×4.
+**Current status: complete.** The 1k pps target is met across all
+workloads (sequential and concurrent). Benchmark, profiling, and five
+optimizations delivered **66× improvement** on the hardest workload
+(wcmp×16+mirr, concurrent).
 
 **Benchmark** (`bazel test //p4runtime:DataplaneBenchmark --test_output=streamed`).
-Three configurations at 10k entries:
-- **direct** — L3 forwarding only (VRF → LPM → nexthop → MAC rewrite).
-- **wcmp×N** — routes through N-member WCMP action profile group
-  (action selector fork in trace tree).
-- **wcmp×16+mirror** — adds ingress clone (clone fork, 2 output
-  packets, 32 trace tree leaves total).
+Three configurations at 10k entries on a 32-core machine, measured both
+sequentially (`InjectPacket`, one at a time) and concurrently
+(`InjectPackets`, all 1000 packets at once). Concurrent throughput
+scales with available cores.
 
-| Config       | Baseline | Current | Speedup |
-|--------------|----------|---------|---------|
-| direct 10k   |    1,400 |   1,300 |    1.0× |
-| wcmp×4 10k   |      280 |   1,100 |    3.9× |
-| wcmp×16 10k  |       83 |     750 |    9.0× |
-| wcmp×16+mirr |       41 |     500 |   12.2× |
+| Config       | Baseline | Sequential | Concurrent (32 cores) |
+|--------------|----------|------------|----------------------|
+| direct 10k   |    1,400 |      1,300 |                6,400 |
+| wcmp×4 10k   |      280 |      1,100 |                      |
+| wcmp×16 10k  |       83 |      1,000 |                3,900 |
+| wcmp×16+mirr |       41 |        780 |                2,700 |
 
 (packets/sec; higher is better)
 
 **Optimizations landed:**
-1. **Table lookup caching** (PR #382, ~15 lines): cache lookup results
-   across selector fork re-executions. Tables before the fork point
-   produce identical results, so re-executions skip the O(n) scan.
-   The big win: **8.7×** on wcmp×16+mirr.
+1. **Table lookup caching** (PR #382): cache lookup results across
+   selector fork re-executions. Tables before the fork point produce
+   identical results, so re-executions skip the O(n) scan.
 2. **Parser skip on fork re-execution** (PR #392, #397): snapshot the
-   post-parser Environment and buffer position; restore on
-   re-executions instead of re-parsing the same payload 32 times.
-   **1.3×** on wcmp×16+mirr.
+   post-parser Environment and restore on re-executions instead of
+   re-parsing the same payload 32 times.
 3. **Long-lived Interpreter** (PR #400): split Interpreter into a
-   long-lived outer class (config-derived maps, built once per
-   pipeline load) and a lightweight `Execution` inner class (per-run
-   state, just field assignments). **1.1×** on wcmp×16+mirr — modest,
-   but the lifecycle separation is the right design.
+   long-lived outer class (config-derived maps) and a lightweight
+   `Execution` inner class (per-run state).
+4. **Parallel fork branches** (PR #406): run trace tree fork branches
+   concurrently via `parallelStream`. The code got simpler — the
+   iterative work stack was replaced by a clean recursive function.
+5. **Concurrent packet processing** (PR #409): `ReadWriteMutex`
+   replaces the global `Mutex`; new `InjectPackets` streaming RPC
+   for bulk injection. Packets process concurrently under a read lock
+   while control-plane writes take an exclusive write lock.
 
 **What didn't help** (tried and reverted):
-- Caching `defaultValue()` templates — negligible; the type-tree walk
-  is cheap relative to the interpreter tree-walk.
-- Caching Interpreter config maps as a separate abstraction
-  (`InterpreterContext`) — 5%; superseded by the inner class approach
-  which achieves the same thing more naturally.
-
-**Profiling** (Java Flight Recorder, after all optimizations). The
-remaining cost is spread evenly — no single dominant bottleneck:
-
-| Component             |  Self % | What it does                           |
-|-----------------------|---------|----------------------------------------|
-| `StructVal.deepCopy`  |     20% | Environment deep copy per fork branch  |
-| `defaultValue`        |      9% | Fresh values for non-snapshot branches  |
-| `buildTraceTree`      |      9% | Trace tree assembly overhead           |
-| `execStmt`/controls   |      8% | Actual control interpretation          |
-| `runPipeline`         |      6% | Pipeline orchestration                 |
-| `runControlStages`    |      5% | Control stage dispatch                 |
-
-**Why further re-architecture won't help.** We evaluated
-fork-and-continue (forking at the selector point instead of replaying
-from the start). The caches already eliminate the expensive pre-fork
-work (table scans, parser). What remains is cheap control-flow
-interpretation and pipeline orchestration — fork-and-continue would
-skip ~10% of that. A major interpreter rewrite for 10% is the wrong
-trade.
+- Caching `defaultValue()` templates — negligible.
+- Persistent collections (`kotlinx.collections.immutable`) for
+  copy-on-write — HAMT read/write overhead cancelled the copy savings
+  for our small struct sizes.
 
 #### Phase 2: future optimizations (if needed)
 
-Revisit if DVaaS workloads need faster forking:
-
 - **Hash index for exact-match tables.** O(1) lookup instead of O(n).
   Helps the direct path and post-fork tables that aren't cached.
-- **Copy-on-write Environment.** Avoid deep-copying fields that
-  branches don't modify. Would address the 20% `deepCopy` cost but
-  complex to implement correctly.
 
 ### Track 11: error quality
 

@@ -61,7 +61,7 @@ class P4RuntimeService(
   private val simulator: Simulator,
   private val broker: PacketBroker,
   private val constraintValidatorBinary: Path? = null,
-  private val lock: Mutex = Mutex(),
+  private val lock: ReadWriteMutex = ReadWriteMutex(),
   private val deviceId: Long = DEFAULT_DEVICE_ID,
   private val cpuPortConfig: CpuPortConfig = CpuPortConfig.Auto,
 ) : P4RuntimeGrpcKt.P4RuntimeCoroutineImplBase(), Closeable {
@@ -123,7 +123,7 @@ class P4RuntimeService(
   override suspend fun setForwardingPipelineConfig(
     request: SetForwardingPipelineConfigRequest
   ): SetForwardingPipelineConfigResponse =
-    lock.withLock {
+    lock.withWriteLock {
       requireDeviceId(request.deviceId)
       requirePrimaryOrNoArbitration(request.electionId, request.role)
       when (request.action) {
@@ -311,7 +311,7 @@ class P4RuntimeService(
   // ---------------------------------------------------------------------------
 
   override suspend fun write(request: WriteRequest): WriteResponse =
-    lock.withLock {
+    lock.withWriteLock {
       requireDeviceId(request.deviceId)
       val state = requirePipeline()
       val roleName = request.role // empty = default role
@@ -494,7 +494,7 @@ class P4RuntimeService(
     // Acquire the lock for the entire read (pipeline check + read + translation)
     // so the pipeline can't be swapped mid-read.
     val response =
-      lock.withLock {
+      lock.withReadLock {
         requireDeviceId(request.deviceId)
         val state = requirePipeline()
         val roleName = request.role // empty = default role
@@ -572,7 +572,7 @@ class P4RuntimeService(
           when {
             msg.hasArbitration() ->
               send(handleArbitration(streamId, msg.arbitration, notifications))
-            msg.hasPacket() -> lock.withLock { handlePacketOut(msg.packet) }
+            msg.hasPacket() -> lock.withReadLock { handlePacketOut(msg.packet) }
             msg.hasDigestAck() ->
               throw Status.UNIMPLEMENTED.withDescription(DIGEST_NOT_SUPPORTED).asException()
             // P4Runtime spec §16: unrecognized stream messages get an error response.
