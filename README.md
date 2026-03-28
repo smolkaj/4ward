@@ -43,9 +43,9 @@ packets, explore trace trees. No setup beyond Bazel.
 4ward is a **spec-compliant reference implementation** of the
 [P4₁₆ language](https://p4.org/wp-content/uploads/sites/53/p4-spec/docs/p4-16-working-draft.html)
 and [P4Runtime](https://p4lang.github.io/p4runtime/spec/main/P4Runtime-Spec.html),
-optimized for **correctness, observability, and extensibility** rather than
-performance. Think of it as a debugger that speaks P4, not a production data
-plane.
+optimized for **correctness, observability, and extensibility** — yet fast
+enough for production test workloads ([thousands of packets/sec](docs/ROADMAP.md#track-10-dataplane-performance)
+with full trace trees).
 
 | | BMv2 | 4ward goal | Status |
 |---|---|---|---|
