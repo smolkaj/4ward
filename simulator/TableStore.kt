@@ -229,6 +229,18 @@ class TableStore : TableDataReader {
 
   private var valueSetInfoById: Map<Int, ValueSetInfo> = emptyMap()
 
+  /** Match field descriptors per table (behavioral name), for data-plane add_entry. */
+  private var tableMatchFields: Map<String, List<P4InfoOuterClass.MatchField>> = emptyMap()
+
+  /** Reverse mapping: behavioral action name -> action ID. */
+  private var actionIdByName: Map<String, Int> = emptyMap()
+
+  /** Reverse mapping: behavioral table name -> table ID. */
+  private var tableIdByName: Map<String, Int> = emptyMap()
+
+  /** Action parameter info per action (behavioral name), for data-plane add_entry. */
+  private var actionParamInfo: Map<String, List<P4InfoOuterClass.Action.Param>> = emptyMap()
+
   /**
    * Initialises the store for a loaded pipeline and clears all mutable state.
    *
@@ -281,6 +293,22 @@ class TableStore : TableDataReader {
     }
     this.actionNameById = actionById
     this.actionAliasByName = actionByName
+    this.actionIdByName = actionById.entries.associate { (id, name) -> name to id }
+    this.tableIdByName = tableById.entries.associate { (id, name) -> name to id }
+    this.actionParamInfo =
+      p4info.actionsList
+        .mapNotNull { action ->
+          val name = actionById[action.preamble.id] ?: return@mapNotNull null
+          name to action.paramsList
+        }
+        .toMap()
+    this.tableMatchFields =
+      p4info.tablesList
+        .mapNotNull { table ->
+          val name = tableById[table.preamble.id] ?: return@mapNotNull null
+          name to table.matchFieldsList
+        }
+        .toMap()
     this.registerInfoById =
       p4info.registersList.associate { reg ->
         val bitwidth = reg.typeSpec.bitstring.bit.bitwidth
@@ -371,6 +399,108 @@ class TableStore : TableDataReader {
   ) {
     defaultActions[tableName] = DefaultAction(actionName, params)
   }
+
+  // -------------------------------------------------------------------------
+  // Data-plane table insertion (PNA add_entry)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Inserts a table entry from the data plane, as done by PNA's `add_entry` extern.
+   *
+   * Unlike [write] (which uses p4info IDs), this method works with behavioral names and runtime
+   * [Value]s -- the natural representation available inside the simulator during packet processing.
+   *
+   * @param tableName the behavioral name of the table to insert into.
+   * @param keyValues the match key values (field ID string to [Value]), from the table miss.
+   * @param actionName the behavioral name of the action to install.
+   * @param actionParams action parameter values, in declaration order.
+   * @return true if the entry was inserted, false if the table is full or the entry already exists.
+   */
+  fun addEntry(
+    tableName: String,
+    keyValues: List<Pair<String, Value>>,
+    actionName: String,
+    actionParams: List<Value>,
+  ): Boolean {
+    val tableId = tableIdByName[tableName] ?: error("add_entry: unknown table '$tableName'")
+    val actionId = actionIdByName[actionName] ?: error("add_entry: unknown action '$actionName'")
+    val matchFields =
+      tableMatchFields[tableName] ?: error("add_entry: no match fields for '$tableName'")
+    val paramInfo = actionParamInfo[actionName] ?: emptyList()
+
+    val entryBuilder = TableEntry.newBuilder().setTableId(tableId)
+
+    for (mf in matchFields) {
+      val (_, value) =
+        keyValues.find { it.first == mf.id.toString() }
+          ?: error("add_entry: missing key value for field ${mf.id} in table '$tableName'")
+      val bytes = valueToBytesForMatch(value, mf.bitwidth)
+      val fm = P4RuntimeOuterClass.FieldMatch.newBuilder().setFieldId(mf.id)
+      when (mf.matchType) {
+        P4InfoOuterClass.MatchField.MatchType.EXACT ->
+          fm.setExact(P4RuntimeOuterClass.FieldMatch.Exact.newBuilder().setValue(bytes))
+        P4InfoOuterClass.MatchField.MatchType.LPM ->
+          fm.setLpm(
+            P4RuntimeOuterClass.FieldMatch.LPM.newBuilder()
+              .setValue(bytes)
+              .setPrefixLen(mf.bitwidth)
+          )
+        P4InfoOuterClass.MatchField.MatchType.TERNARY ->
+          fm.setTernary(
+            P4RuntimeOuterClass.FieldMatch.Ternary.newBuilder()
+              .setValue(bytes)
+              .setMask(ByteString.copyFrom(ByteArray((mf.bitwidth + 7) / 8) { 0xFF.toByte() }))
+          )
+        P4InfoOuterClass.MatchField.MatchType.OPTIONAL ->
+          fm.setOptional(P4RuntimeOuterClass.FieldMatch.Optional.newBuilder().setValue(bytes))
+        else -> error("add_entry: unsupported match type ${mf.matchType} in table '$tableName'")
+      }
+      entryBuilder.addMatch(fm)
+    }
+
+    val actionBuilder = P4RuntimeOuterClass.Action.newBuilder().setActionId(actionId)
+    for ((i, value) in actionParams.withIndex()) {
+      val paramId = paramInfo.getOrNull(i)?.id ?: (i + 1)
+      actionBuilder.addParams(
+        P4RuntimeOuterClass.Action.Param.newBuilder()
+          .setParamId(paramId)
+          .setValue(valueToBytes(value))
+      )
+    }
+    entryBuilder.setAction(P4RuntimeOuterClass.TableAction.newBuilder().setAction(actionBuilder))
+
+    val entry = entryBuilder.build()
+    val entries = tables.getOrPut(tableName) { mutableListOf() }
+
+    // If an entry with the same key already exists, the add_entry is a no-op (returns true
+    // per PNA spec -- the existing entry is retained).
+    if (entries.any { it.sameKey(entry) }) return true
+
+    val limit = tableSizeLimit[tableName]
+    if (limit != null && entries.size >= limit) return false
+
+    entries.add(entry)
+    return true
+  }
+
+  /** Encodes a runtime [Value] as a P4Runtime [ByteString] for a match field of [bitwidth] bits. */
+  private fun valueToBytesForMatch(value: Value, bitwidth: Int): ByteString =
+    when (value) {
+      is BitVal -> ByteString.copyFrom(value.bits.toByteArray())
+      is BoolVal -> {
+        val b = if (value.value) 1 else 0
+        ByteString.copyFrom(BitVector.ofInt(b, bitwidth).toByteArray())
+      }
+      else -> error("add_entry: unsupported key value type: ${value::class.simpleName}")
+    }
+
+  /** Encodes a runtime [Value] as a P4Runtime [ByteString] for an action parameter. */
+  private fun valueToBytes(value: Value): ByteString =
+    when (value) {
+      is BitVal -> ByteString.copyFrom(value.bits.toByteArray())
+      is BoolVal -> ByteString.copyFrom(byteArrayOf(if (value.value) 1 else 0))
+      else -> error("add_entry: unsupported action param type: ${value::class.simpleName}")
+    }
 
   // -------------------------------------------------------------------------
   // Raw data accessors (used by the P4Runtime layer's EntityReader)
@@ -1174,6 +1304,10 @@ class TableStore : TableDataReader {
 
   private fun resolveActionName(actionId: Int): String =
     actionNameById[actionId] ?: error("unknown action ID: $actionId")
+
+  /** Resolves an action name (alias or behavioral) to its behavioral name. */
+  fun resolveActionByAlias(name: String): String? =
+    if (name in actionIdByName) name else actionAliasByName.entries.find { it.value == name }?.key
 
   /** Returns the short p4info alias for a behavioral action name, or the name itself if unknown. */
   fun actionDisplayName(behavioralName: String): String =

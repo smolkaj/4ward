@@ -225,6 +225,7 @@ class PNAArchitectureTest {
    * All stages default to no-op; override [mainControlStmts] to add behaviour to the main control.
    */
   private fun pnaConfig(
+    preControlStmts: List<Stmt> = emptyList(),
     mainControlStmts: List<Stmt> = emptyList(),
     mainControlExterns: List<ExternInstanceDecl> = emptyList(),
   ): BehavioralConfig =
@@ -232,7 +233,7 @@ class PNAArchitectureTest {
       .setArchitecture(pnaArch)
       .addAllTypes(allTypes)
       .addParsers(noopParser)
-      .addControls(noopControl("PreControl", preControlParams))
+      .addControls(control("PreControl", preControlParams, preControlStmts))
       .addControls(control("MainControl", mainControlParams, mainControlStmts, mainControlExterns))
       .addControls(noopControl("MainDeparser", mainDeparserParams))
       .build()
@@ -464,6 +465,21 @@ class PNAArchitectureTest {
       fail("expected recirculation depth exceeded")
     } catch (e: IllegalStateException) {
       assertTrue(e.message!!.contains("recirculation depth exceeded"))
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // drop_packet scope enforcement
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `drop_packet in pre_control is rejected`() {
+    val config = pnaConfig(preControlStmts = listOf(dropPacket()))
+    try {
+      PNAArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+      fail("expected drop_packet to be rejected in pre_control")
+    } catch (e: IllegalArgumentException) {
+      assertTrue(e.message!!.contains("main_control"))
     }
   }
 }

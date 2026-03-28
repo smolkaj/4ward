@@ -284,6 +284,24 @@ class StfParserTest {
     assertEquals("hdr.ipv4.protocol", entry.matches[0].fieldName)
   }
 
+  @Test
+  fun `add with quoted field name containing spaces and ampersand`() {
+    val stf =
+      parse(
+        "add \"MainControlImpl.ipv4_da\" " +
+          "\"hdr.ipv4.dstAddr & 0xf\":0x0 " +
+          "\"MainControlImpl.next_hop\"(\"vport\":0x00000001)"
+      )
+    val entry = stf.tableEntries[0] as StfAddEntry
+    assertEquals("MainControlImpl.ipv4_da", entry.tableName)
+    assertEquals(1, entry.matches.size)
+    assertEquals("hdr.ipv4.dstAddr & 0xf", entry.matches[0].fieldName)
+    assertEquals(MatchKind.EXACT, entry.matches[0].kind)
+    assertEquals("0x0", entry.matches[0].value)
+    assertEquals("MainControlImpl.next_hop", entry.actionName)
+    assertEquals(listOf("\"vport\":0x00000001"), entry.actionParams)
+  }
+
   // ---------------------------------------------------------------------------
   // p4testgen dialect: named action params
   // ---------------------------------------------------------------------------

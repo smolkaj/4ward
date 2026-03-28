@@ -68,7 +68,23 @@ interface ExternEvaluator {
 
   /** Peeks at remaining unparsed input bytes (for `_with_payload` checksum variants). */
   fun peekRemainingInput(): ByteArray
+
+  /**
+   * Returns context from the most recent table miss, or null if no table miss has occurred.
+   *
+   * Used by PNA's `add_entry` extern to determine which table to insert into and what match key
+   * values to use. The interpreter records this whenever a table lookup results in a miss.
+   */
+  fun lastTableMiss(): TableMissContext? = null
 }
+
+/**
+ * Records the table name and match key values from a table lookup that resulted in a miss.
+ *
+ * PNA's `add_entry` extern uses this to insert entries into the table that triggered the miss,
+ * using the same match key values that caused the miss.
+ */
+data class TableMissContext(val tableName: String, val keyValues: List<Pair<String, Value>>)
 
 /**
  * Architecture-provided handler for extern functions and extern object methods.
