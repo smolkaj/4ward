@@ -796,10 +796,32 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#injectpackets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        InjectPackets
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#subscriberesults" class="md-nav__link">
     <span class="md-ellipsis">
       
         SubscribeResults
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#matching-results-to-injected-packets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Matching results to injected packets
       
     </span>
   </a>
@@ -1149,10 +1171,32 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#injectpackets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        InjectPackets
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#subscriberesults" class="md-nav__link">
     <span class="md-ellipsis">
       
         SubscribeResults
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#matching-results-to-injected-packets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Matching results to injected packets
       
     </span>
   </a>
@@ -1328,27 +1372,83 @@ For packet injection and result observation — not part of the P4Runtime spec.<
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="n">TraceTree</span><span class="w"> </span><span class="na">trace</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w">  </span><span class="c1">// P4RT-enriched when translation is available</span>
 <a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="p">}</span>
 </code></pre></div>
+<h3 id="injectpackets"><code>InjectPackets</code><a class="headerlink" href="#injectpackets" title="Permanent link">¶</a></h3>
+<p>Client-streaming RPC for bulk packet injection. Packets are processed
+concurrently as they arrive from the stream. Results are <strong>not</strong> returned
+in the response — use <a href="#subscriberesults"><code>SubscribeResults</code></a> to collect them.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">rpc</span><span class="w"> </span><span class="n">InjectPackets</span><span class="p">(</span><span class="n">stream</span><span class="w"> </span><span class="n">InjectPacketRequest</span><span class="p">)</span><span class="w"> </span><span class="k">returns</span><span class="w"> </span><span class="p">(</span><span class="n">InjectPacketsResponse</span><span class="p">);</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="kd">message</span><span class="w"> </span><span class="nc">InjectPacketsResponse</span><span class="w"> </span><span class="p">{}</span><span class="w">  </span><span class="c1">// empty — results via SubscribeResults</span>
+</code></pre></div>
+<p><strong>Recommended pattern for DVaaS / bulk workloads:</strong></p>
+<ol>
+<li>Open a <code>SubscribeResults</code> stream.</li>
+<li>Wait for the <code>SubscriptionActive</code> message — this confirms the
+   subscription is registered and no results will be missed.</li>
+<li>Send all packets via <code>InjectPackets</code>.</li>
+<li>Collect results from the subscription (exactly one per injected
+   packet).</li>
+</ol>
+<p>Packets process concurrently across available cores, with trace tree fork
+branches (WCMP groups, multicast, clones) also parallelized within each
+packet.</p>
 <h3 id="subscriberesults"><code>SubscribeResults</code><a class="headerlink" href="#subscriberesults" title="Permanent link">¶</a></h3>
 <p>Server-streaming RPC that delivers results from all packet sources
-(InjectPacket, PacketOut, etc.).</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1">// First message confirms the subscription.</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">SubscribeResultsResponse</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">active</span><span class="o">:</span><span class="w"> </span><span class="p">{}</span><span class="w"> </span><span class="p">}</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="c1">// Subsequent messages carry results.</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">SubscribeResultsResponse</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span><span class="n">result</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span><span class="n">input_packet</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">...</span><span class="w"> </span><span class="p">}</span>
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">    </span><span class="n">output_packets</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="w"> </span><span class="o">...</span><span class="w"> </span><span class="p">]</span>
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">    </span><span class="n">trace</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">...</span><span class="w"> </span><span class="p">}</span>
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">  </span><span class="p">}</span>
-<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="p">}</span>
+(InjectPacket, InjectPackets, PacketOut, etc.).</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1">// First message confirms the subscription.</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">SubscribeResultsResponse</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">active</span><span class="o">:</span><span class="w"> </span><span class="p">{}</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="c1">// Subsequent messages carry results.</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="n">SubscribeResultsResponse</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span><span class="n">result</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">    </span><span class="n">input_packet</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">...</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">    </span><span class="n">output_packets</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="w"> </span><span class="o">...</span><span class="w"> </span><span class="p">]</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">    </span><span class="n">trace</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">...</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">  </span><span class="p">}</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="p">}</span>
 </code></pre></div>
+<h3 id="matching-results-to-injected-packets">Matching results to injected packets<a class="headerlink" href="#matching-results-to-injected-packets" title="Permanent link">¶</a></h3>
+<p>Each <code>ProcessPacketResult</code> in the <code>SubscribeResults</code> stream includes the
+full <code>InputPacket</code> (ingress port + payload). Match results to injected
+packets by comparing the payload bytes.</p>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>For DVaaS workloads, embed a unique tag in each test packet (e.g., in
+an unused header field or the payload body) to make matching
+unambiguous.</p>
+</div>
+<p><strong>Ordering:</strong> With concurrent processing (<code>InjectPackets</code>), results may
+arrive in any order. Do not assume the result stream matches the
+injection order.</p>
+<p><strong>Completeness:</strong> You will receive exactly one <code>ProcessPacketResult</code> per
+injected packet. Count results to know when you're done.</p>
+<p><strong>Relationship to P4Runtime PacketIn:</strong> When a packet triggers
+copy-to-CPU (e.g., SAI P4's <code>acl_copy</code> or <code>acl_trap</code>), two things
+happen:</p>
+<ul>
+<li>The CPU-bound clone appears as a <strong>PacketIn</strong> on the P4Runtime
+  <code>StreamChannel</code>.</li>
+<li>The complete result (all outputs including the clone, plus the trace
+  tree) appears in <strong><code>SubscribeResults</code></strong>.</li>
+</ul>
+<p><code>SubscribeResults</code> gives the full picture for every packet.
+<code>StreamChannel</code> PacketIn only carries the CPU-port copies — it's the
+standard P4Runtime mechanism for packets punted to the controller.</p>
+<div class="admonition note">
+<p class="admonition-title">SubscribeResults vs PacketIn</p>
+<p><strong><code>SubscribeResults</code></strong> delivers exactly N results for N injected
+packets, so you always know when you're done.</p>
+<p><strong><code>PacketIn</code></strong> on <code>StreamChannel</code> is convenient because it carries
+<code>@controller_header</code> metadata already parsed — but there's no
+end-of-batch marker. To know when you've seen all PacketIns, count
+CPU-port outputs in <code>SubscribeResults</code> — that tells you exactly how
+many PacketIns to expect.</p>
+</div>
 <h3 id="dual-port-encoding">Dual port encoding<a class="headerlink" href="#dual-port-encoding" title="Permanent link">¶</a></h3>
 <p>Output packets carry both port representations when translation is available:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kd">message</span><span class="w"> </span><span class="nc">OutputPacket</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="kt">uint32</span><span class="w"> </span><span class="na">dataplane_egress_port</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">  </span><span class="c1">// always present</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="kt">bytes</span><span class="w"> </span><span class="na">p4rt_egress_port</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span><span class="w">        </span><span class="c1">// only when translated</span>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span><span class="kt">bytes</span><span class="w"> </span><span class="na">payload</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kd">message</span><span class="w"> </span><span class="nc">OutputPacket</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="kt">uint32</span><span class="w"> </span><span class="na">dataplane_egress_port</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">  </span><span class="c1">// always present</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="kt">bytes</span><span class="w"> </span><span class="na">p4rt_egress_port</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span><span class="w">        </span><span class="c1">// only when translated</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span><span class="kt">bytes</span><span class="w"> </span><span class="na">payload</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="p">}</span>
 </code></pre></div>
 <h2 id="error-codes">Error codes<a class="headerlink" href="#error-codes" title="Permanent link">¶</a></h2>
 <table>

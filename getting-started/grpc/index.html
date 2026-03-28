@@ -751,10 +751,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#4-observe-all-results-optional" class="md-nav__link">
+  <a href="#4-inject-many-packets-bulk-dvaas" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4. Observe all results (optional)
+        4. Inject many packets (bulk / DVaaS)
       
     </span>
   </a>
@@ -1115,10 +1115,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#4-observe-all-results-optional" class="md-nav__link">
+  <a href="#4-inject-many-packets-bulk-dvaas" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4. Observe all results (optional)
+        4. Inject many packets (bulk / DVaaS)
       
     </span>
   </a>
@@ -1229,14 +1229,36 @@ spec:</p>
 <a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="n">trace</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">events</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">...</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="n">packet_outcome</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">...</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span>
 <a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="p">}</span>
 </code></pre></div>
-<h3 id="4-observe-all-results-optional">4. Observe all results (optional)<a class="headerlink" href="#4-observe-all-results-optional" title="Permanent link">¶</a></h3>
-<p><code>SubscribeResults</code> is a server-streaming RPC that delivers results from
-<em>all</em> packet sources (InjectPacket, PacketOut, etc.):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1">// First message confirms the subscription is active.</span>
+<h3 id="4-inject-many-packets-bulk-dvaas">4. Inject many packets (bulk / DVaaS)<a class="headerlink" href="#4-inject-many-packets-bulk-dvaas" title="Permanent link">¶</a></h3>
+<p>For high throughput, use the streaming <code>InjectPackets</code> RPC with
+<code>SubscribeResults</code>:</p>
+<ol>
+<li>Open a <code>SubscribeResults</code> stream.</li>
+<li>Wait for the <code>active {}</code> confirmation — this guarantees the
+   subscription is registered and no results will be missed.</li>
+<li>Send all packets via <code>InjectPackets</code> (client-streaming).</li>
+<li>Collect results from the subscription.</li>
+</ol>
+<p>Packets process concurrently across available cores. This is the
+recommended pattern for DVaaS and any workload with many test packets.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1">// SubscribeResults delivers results from ALL sources.</span>
 <a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="n">SubscribeResultsResponse</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">active</span><span class="w"> </span><span class="p">{}</span><span class="w"> </span><span class="p">}</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="c1">// Subsequent messages carry results.</span>
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="n">SubscribeResultsResponse</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">input_packet</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">...</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="n">output_packets</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">...</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="n">trace</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">...</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">SubscribeResultsResponse</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">input_packet</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">...</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="n">output_packets</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">...</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="n">trace</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">...</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span>
 </code></pre></div>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p><code>InjectPacket</code> (singular) returns the result inline — simpler for
+one-off debugging. <code>InjectPackets</code> (plural) processes concurrently
+but results come via <code>SubscribeResults</code>.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Matching results to packets</p>
+<p>Each result includes the full input packet (port + payload). With
+concurrent processing, results may arrive out of order — match by
+payload content, not position. See the
+<a href="../../reference/grpc/#matching-results-to-injected-packets">reference</a>
+for details on PacketIn interaction.</p>
+</div>
 <h2 id="dual-port-encoding">Dual port encoding<a class="headerlink" href="#dual-port-encoding" title="Permanent link">¶</a></h2>
 <p>When the pipeline uses
 <a href="../../concepts/type-translation/"><code>@p4runtime_translation</code></a> on port types,
