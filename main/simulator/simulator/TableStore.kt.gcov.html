@@ -31,13 +31,13 @@
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">94.5&nbsp;%</td>
+            <td class="headerCovTableEntryHi">94.6&nbsp;%</td>
             <td class="headerCovTableEntry">744</td>
-            <td class="headerCovTableEntry">703</td>
+            <td class="headerCovTableEntry">704</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-28 09:04:16</td>
+            <td class="headerValue">2026-03-28 09:09:22</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">96.7&nbsp;%</td>
@@ -883,7 +883,7 @@
 <span id="L821"><span class="lineNum">     821</span> <span class="tlaGNC">           1 :       return WriteResult.InvalidArgument(&quot;${entityName}s only support MODIFY, not $type&quot;)</span></span>
 <span id="L822"><span class="lineNum">     822</span> <span class="tlaGNC">           1 :     val tableName =</span></span>
 <span id="L823"><span class="lineNum">     823</span> <span class="tlaGNC">           1 :       tableNameById[tableEntry.tableId]</span></span>
-<span id="L824"><span class="lineNum">     824</span> <span class="tlaUNC tlaBgUNC">           0 :         ?: return WriteResult.NotFound(&quot;unknown table ID: ${tableEntry.tableId}&quot;)</span></span>
+<span id="L824"><span class="lineNum">     824</span> <span class="tlaUNC tlaBgUNC">           0 :         ?: return WriteResult.NotFound(&quot;unknown table ID ${tableEntry.tableId}&quot;)</span></span>
 <span id="L825"><span class="lineNum">     825</span> <span class="tlaGNC tlaBgGNC">           1 :     if (tableName !in knownTables)</span></span>
 <span id="L826"><span class="lineNum">     826</span> <span class="tlaUNC tlaBgUNC">           0 :       return WriteResult.InvalidArgument(&quot;table '$tableName' has no $entityName&quot;)</span></span>
 <span id="L827"><span class="lineNum">     827</span> <span class="tlaGNC tlaBgGNC">           1 :     val entries =</span></span>
@@ -1035,7 +1035,7 @@
 <span id="L973"><span class="lineNum">     973</span> <span class="tlaGNC tlaBgGNC">           1 :     val entry = update.entity.tableEntry</span></span>
 <span id="L974"><span class="lineNum">     974</span> <span class="tlaGNC">           1 :     val tableName =</span></span>
 <span id="L975"><span class="lineNum">     975</span> <span class="tlaGNC">           1 :       tableNameById[entry.tableId]</span></span>
-<span id="L976"><span class="lineNum">     976</span> <span class="tlaGNC">           1 :         ?: return WriteResult.NotFound(&quot;unknown table ID: ${entry.tableId}&quot;)</span></span>
+<span id="L976"><span class="lineNum">     976</span> <span class="tlaGNC">           1 :         ?: return WriteResult.NotFound(&quot;unknown table ID ${entry.tableId}&quot;)</span></span>
 <span id="L977"><span class="lineNum">     977</span>              : </span>
 <span id="L978"><span class="lineNum">     978</span>              :     // P4Runtime spec §9.1: default entries are stored separately and only support MODIFY.</span>
 <span id="L979"><span class="lineNum">     979</span>              :     // The WriteValidator already rejects INSERT/DELETE for defaults.</span>
@@ -1207,8 +1207,8 @@
 <span id="L1145"><span class="lineNum">    1145</span> <span class="tlaGNC">           1 :           &quot;multicast group ${entry.multicastGroupId}&quot;,</span></span>
 <span id="L1146"><span class="lineNum">    1146</span>              :         )</span>
 <span id="L1147"><span class="lineNum">    1147</span>              :       }</span>
-<span id="L1148"><span class="lineNum">    1148</span> <span class="tlaUNC tlaBgUNC">           0 :       else -&gt; WriteResult.InvalidArgument(&quot;PRE entry must have a clone session or multicast group&quot;)</span></span>
-<span id="L1149"><span class="lineNum">    1149</span> <span class="tlaGNC tlaBgGNC">           1 :     }</span></span>
+<span id="L1148"><span class="lineNum">    1148</span> <span class="tlaGNC">           1 :       else -&gt; WriteResult.InvalidArgument(&quot;PRE entry must have a clone session or multicast group&quot;)</span></span>
+<span id="L1149"><span class="lineNum">    1149</span> <span class="tlaGNC">           1 :     }</span></span>
 <span id="L1150"><span class="lineNum">    1150</span>              : </span>
 <span id="L1151"><span class="lineNum">    1151</span>              :   fun getCloneSession(sessionId: Int): P4RuntimeOuterClass.CloneSessionEntry? =</span>
 <span id="L1152"><span class="lineNum">    1152</span> <span class="tlaGNC">           1 :     cloneSessions[sessionId]</span></span>

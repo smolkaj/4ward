@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-28 09:04:16</td>
+            <td class="headerValue">2026-03-28 09:09:22</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -132,7 +132,7 @@
 <span id="L70"><span class="lineNum">      70</span>              :   private fun validateTableEntry(update: P4RuntimeOuterClass.Update) {</span>
 <span id="L71"><span class="lineNum">      71</span> <span class="tlaGNC">           1 :     val entry = update.entity.tableEntry</span></span>
 <span id="L72"><span class="lineNum">      72</span> <span class="tlaGNC">           1 :     val tableInfo =</span></span>
-<span id="L73"><span class="lineNum">      73</span> <span class="tlaGNC">           1 :       tableInfoById[entry.tableId] ?: throw notFound(&quot;unknown table ID: ${entry.tableId}&quot;)</span></span>
+<span id="L73"><span class="lineNum">      73</span> <span class="tlaGNC">           1 :       tableInfoById[entry.tableId] ?: throw notFound(&quot;unknown table ID ${entry.tableId}&quot;)</span></span>
 <span id="L74"><span class="lineNum">      74</span>              : </span>
 <span id="L75"><span class="lineNum">      75</span>              :     // §9.1: const tables are immutable — no writes allowed.</span>
 <span id="L76"><span class="lineNum">      76</span> <span class="tlaGNC">           1 :     if (entry.tableId in constTableIds) {</span></span>

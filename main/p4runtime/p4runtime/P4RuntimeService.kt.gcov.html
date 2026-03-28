@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-28 09:04:16</td>
+            <td class="headerValue">2026-03-28 09:09:22</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">97.3&nbsp;%</td>
@@ -366,7 +366,7 @@
 <span id="L304"><span class="lineNum">     304</span> <span class="tlaGNC">           1 :     try {</span></span>
 <span id="L305"><span class="lineNum">     305</span> <span class="tlaGNC">           1 :       load(state.config)</span></span>
 <span id="L306"><span class="lineNum">     306</span> <span class="tlaGNC">           1 :     } catch (e: IllegalArgumentException) {</span></span>
-<span id="L307"><span class="lineNum">     307</span> <span class="tlaGNC">           1 :       throw Status.INTERNAL.withDescription(&quot;Simulator rejected pipeline: ${e.message}&quot;)</span></span>
+<span id="L307"><span class="lineNum">     307</span> <span class="tlaGNC">           1 :       throw Status.INVALID_ARGUMENT.withDescription(&quot;simulator rejected pipeline: ${e.message}&quot;)</span></span>
 <span id="L308"><span class="lineNum">     308</span> <span class="tlaGNC">           1 :         .withCause(e)</span></span>
 <span id="L309"><span class="lineNum">     309</span> <span class="tlaGNC">           1 :         .asException()</span></span>
 <span id="L310"><span class="lineNum">     310</span>              :     }</span>
@@ -1090,7 +1090,7 @@
 <span id="L1028"><span class="lineNum">    1028</span>              :     private const val P4RUNTIME_API_VERSION = &quot;1.5.0&quot;</span>
 <span id="L1029"><span class="lineNum">    1029</span>              : </span>
 <span id="L1030"><span class="lineNum">    1030</span>              :     private const val NO_PIPELINE_MESSAGE =</span>
-<span id="L1031"><span class="lineNum">    1031</span>              :       &quot;No pipeline loaded; call SetForwardingPipelineConfig first&quot;</span>
+<span id="L1031"><span class="lineNum">    1031</span>              :       &quot;no pipeline loaded; call SetForwardingPipelineConfig first&quot;</span>
 <span id="L1032"><span class="lineNum">    1032</span>              : </span>
 <span id="L1033"><span class="lineNum">    1033</span>              :     private const val DIGEST_NOT_SUPPORTED =</span>
 <span id="L1034"><span class="lineNum">    1034</span>              :       &quot;digest is not supported; the simulator does not implement digest extern generation&quot;</span>
