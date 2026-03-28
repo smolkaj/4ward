@@ -789,8 +789,12 @@ class Interpreter internal constructor(config: BehavioralConfig) {
       if (!result.hit) lastTableMissCtx = TableMissContext(tableName, keyValues)
 
       // P4Runtime spec §9.3: direct counters are incremented on every table hit.
+      // Skip on action selector re-executions: each branch explores a possible path, not a
+      // definite one. Clone/multicast branches ARE real copies and should be counted.
       if (result.hit && result.entry != null && packetCtx != null) {
-        tableStore.directCounterIncrement(tableName, result.entry, packetCtx.payloadSize)
+        if (selectorOverrides.isEmpty()) {
+          tableStore.directCounterIncrement(tableName, result.entry, packetCtx.payloadSize)
+        }
       }
 
       packetCtx?.addTraceEvent(

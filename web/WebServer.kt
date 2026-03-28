@@ -13,8 +13,6 @@ import java.util.concurrent.Executors
 import java.util.logging.Level
 import java.util.logging.Logger
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import p4.v1.P4RuntimeOuterClass.Entity
 import p4.v1.P4RuntimeOuterClass.ForwardingPipelineConfig
 import p4.v1.P4RuntimeOuterClass.ReadRequest
@@ -35,7 +33,7 @@ import p4.v1.P4RuntimeOuterClass.WriteRequest
 class WebServer(
   private val simulator: Simulator,
   private val service: fourward.p4runtime.P4RuntimeService,
-  private val lock: Mutex,
+  private val lock: fourward.p4runtime.ReadWriteMutex,
   private val httpPort: Int = DEFAULT_HTTP_PORT,
   private val staticDir: Path? = null,
 ) {
@@ -204,7 +202,7 @@ class WebServer(
       extractJsonString(body, "payload_hex") ?: throw badRequest("Missing payload_hex")
     val payload = hexToBytes(payloadHex)
 
-    val result = runBlocking { lock.withLock { simulator.processPacket(ingressPort, payload) } }
+    val result = runBlocking { lock.withReadLock { simulator.processPacket(ingressPort, payload) } }
 
     val outputsJson = result.outputPackets.joinToString(",") { jsonPrinter.print(it) }
     val traceJson = jsonPrinter.print(result.trace)

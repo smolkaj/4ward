@@ -62,6 +62,9 @@ class DataplaneBenchmark {
       )
 
     println()
+    println("${Runtime.getRuntime().availableProcessors()} cores available")
+    println()
+    println("Sequential (InjectPacket, one at a time):")
     println(HEADER)
     println(SEPARATOR)
 
@@ -82,6 +85,29 @@ class DataplaneBenchmark {
     }
 
     println(SEPARATOR)
+    println()
+
+    // --- Concurrent benchmark: InjectPackets (all packets at once) ---
+    val concurrentPoints =
+      listOf(
+        ScalePoint("direct", routes = 10_000, nexthops = 100),
+        ScalePoint("wcmp×16", routes = 10_000, nexthops = 100, wcmpMembers = 16),
+        @Suppress("MaxLineLength")
+        ScalePoint("wcmp×16+mirr", routes = 10_000, nexthops = 100, wcmpMembers = 16, mirror = true),
+      )
+
+    println("Concurrent (InjectPackets, $BENCHMARK_PACKETS packets at once):")
+    println(CONCURRENT_HEADER)
+    println(CONCURRENT_SEPARATOR)
+
+    for (sp in concurrentPoints) {
+      val result = measureConcurrent(sp)
+      println(
+        "| %-12s | %6d | %10.0f | %10.1f |".format(sp.label, sp.routes, result.first, result.second)
+      )
+    }
+
+    println(CONCURRENT_SEPARATOR)
     println()
   }
 
@@ -105,9 +131,29 @@ class DataplaneBenchmark {
     val throughput: Double,
   )
 
-  private fun measureScalePoint(sp: ScalePoint): BenchmarkResult {
-    val harness = createHarness()
-    try {
+  /** Measures total throughput by sending all packets at once via InjectPackets. */
+  private fun measureConcurrent(sp: ScalePoint): Pair<Double, Double> =
+    createHarness().use { harness ->
+      val actualNexthops = minOf(sp.nexthops, maxOf(sp.routes, 1))
+      installEntries(harness, sp.routes, actualNexthops, sp.wcmpMembers, sp.mirror)
+
+      val warmupPkt = buildIpv4Packet(dstIp = ipForRoute(0))
+      repeat(SCALE_WARMUP_PACKETS) { harness.injectPacket(ingressPort = 0, payload = warmupPkt) }
+
+      val packets =
+        (0 until BENCHMARK_PACKETS).map { i ->
+          0 to buildIpv4Packet(dstIp = ipForRoute(i % maxOf(sp.routes, 1)))
+        }
+
+      val startNs = System.nanoTime()
+      harness.injectPackets(packets)
+      val elapsedMs = (System.nanoTime() - startNs) / NS_PER_MS
+      val throughput = BENCHMARK_PACKETS / elapsedMs * 1000
+      throughput to elapsedMs
+    }
+
+  private fun measureScalePoint(sp: ScalePoint): BenchmarkResult =
+    createHarness().use { harness ->
       val actualNexthops = minOf(sp.nexthops, maxOf(sp.routes, 1))
       val entryCount = installEntries(harness, sp.routes, actualNexthops, sp.wcmpMembers, sp.mirror)
 
@@ -123,17 +169,14 @@ class DataplaneBenchmark {
       }
 
       latencies.sort()
-      return BenchmarkResult(
+      BenchmarkResult(
         totalEntries = entryCount,
         p50Ms = latencies[latencies.size / 2] / NS_PER_MS,
         p99Ms = latencies[(latencies.size * 0.99).toInt()] / NS_PER_MS,
         meanMs = latencies.average() / NS_PER_MS,
         throughput = NS_PER_MS * 1000 / latencies.average(),
       )
-    } finally {
-      harness.close()
     }
-  }
 
   // ===========================================================================
   // Pipeline setup
@@ -550,6 +593,8 @@ class DataplaneBenchmark {
       "| Config       | Routes | Entries |  p50 ms  |  p99 ms  | mean ms  | packets/s  |"
     private const val SEPARATOR =
       "|--------------|--------|---------|----------|----------|----------|------------|"
+    private const val CONCURRENT_HEADER = "| Config       | Routes | packets/s  | elapsed ms |"
+    private const val CONCURRENT_SEPARATOR = "|--------------|--------|------------|------------|"
 
     /** Maps route index i to a /32 destination: 10.{b1}.{b2}.{b3}. */
     private fun ipForRoute(i: Int): ByteArray =

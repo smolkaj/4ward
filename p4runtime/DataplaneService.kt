@@ -11,11 +11,11 @@ import fourward.dataplane.DataplaneProto.SubscribeResultsResponse
 import fourward.dataplane.DataplaneProto.SubscriptionActive
 import fourward.sim.SimulatorProto.TraceTree
 import io.grpc.Status
+import java.util.concurrent.ForkJoinPool
+import java.util.concurrent.ForkJoinTask
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 
 /**
  * Dataplane gRPC service: injects packets into the simulator and returns output packets with dual
@@ -29,7 +29,7 @@ import kotlinx.coroutines.sync.withLock
  */
 class DataplaneService(
   private val broker: PacketBroker,
-  private val lock: Mutex,
+  private val lock: ReadWriteMutex,
   private val typeTranslator: () -> TypeTranslator? = { null },
 ) : DataplaneGrpcKt.DataplaneCoroutineImplBase() {
 
@@ -38,7 +38,7 @@ class DataplaneService(
     val pt = translator?.portTranslator
     val ingressPort = resolveIngressPort(request, pt)
     val payload = request.payload.toByteArray()
-    val result = lock.withLock { broker.processPacket(ingressPort, payload) }
+    val result = lock.withReadLock { broker.processPacket(ingressPort, payload) }
     val outputPackets =
       try {
         result.outputPackets.map { it.toDualEncoded(pt) }
@@ -49,6 +49,25 @@ class DataplaneService(
       .addAllOutputPackets(outputPackets)
       .setTrace(enrichTrace(result.trace, translator))
       .build()
+  }
+
+  override suspend fun injectPackets(
+    requests: Flow<InjectPacketRequest>
+  ): DataplaneProto.InjectPacketsResponse {
+    val pt = typeTranslator()?.portTranslator
+    // Submit each packet to the ForkJoinPool as it arrives from the stream.
+    val futures = mutableListOf<ForkJoinTask<*>>()
+    requests.collect { req ->
+      val port = resolveIngressPort(req, pt)
+      val payload = req.payload.toByteArray()
+      futures.add(
+        ForkJoinPool.commonPool().submit {
+          lock.withReadLockBlocking { broker.processPacket(port, payload) }
+        }
+      )
+    }
+    futures.forEach { it.join() }
+    return DataplaneProto.InjectPacketsResponse.getDefaultInstance()
   }
 
   override fun subscribeResults(request: SubscribeResultsRequest): Flow<SubscribeResultsResponse> =
@@ -91,7 +110,6 @@ class DataplaneService(
       awaitClose { handle.unsubscribe() }
     }
 
-  /** Resolves the ingress port from the request's oneof. */
   private fun resolveIngressPort(request: InjectPacketRequest, pt: PortTranslator?): Int =
     when (request.ingressPortCase) {
       InjectPacketRequest.IngressPortCase.DATAPLANE_INGRESS_PORT -> request.dataplaneIngressPort

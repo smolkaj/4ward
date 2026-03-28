@@ -19,7 +19,6 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import p4.v1.P4RuntimeGrpcKt.P4RuntimeCoroutineStub
@@ -57,7 +56,7 @@ class P4RuntimeTestHarness(
 
   private val serverName = InProcessServerBuilder.generateName()
   private val simulator = Simulator(dropPortOverride)
-  private val lock = Mutex()
+  private val lock = ReadWriteMutex()
   private val broker = PacketBroker(simulator::processPacket)
   private val service =
     P4RuntimeService(
@@ -163,6 +162,22 @@ class P4RuntimeTestHarness(
   /** Injects a packet and returns only the output packets. */
   fun simulatePacket(ingressPort: Int, payload: ByteArray): List<DataplaneProto.OutputPacket> =
     injectPacket(ingressPort, payload).outputPacketsList
+
+  /** Injects multiple packets concurrently via the streaming InjectPackets RPC. */
+  fun injectPackets(packets: List<Pair<Int, ByteArray>>) = runBlocking {
+    dataplaneStub.injectPackets(
+      kotlinx.coroutines.flow.flow {
+        for ((port, payload) in packets) {
+          emit(
+            DataplaneProto.InjectPacketRequest.newBuilder()
+              .setDataplaneIngressPort(port)
+              .setPayload(ByteString.copyFrom(payload))
+              .build()
+          )
+        }
+      }
+    )
+  }
 
   // ---------------------------------------------------------------------------
   // Table entry management
