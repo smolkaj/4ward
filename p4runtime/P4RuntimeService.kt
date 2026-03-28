@@ -224,8 +224,15 @@ class P4RuntimeService(
     val newState = verifyPipeline(fwdConfig)
     val oldState = pipeline
     if (oldState == null) {
-      // No existing pipeline — equivalent to VERIFY_AND_COMMIT.
       commitPipeline(newState)
+      return
+    }
+
+    // Identical pipeline: update P4Runtime-layer state (cookie, validators) without touching
+    // the simulator. This is the common case for DVaaS-style reloads.
+    if (oldState.config == newState.config) {
+      oldState.constraintValidator?.close()
+      pipeline = newState.copy(entityReader = oldState.entityReader)
       return
     }
 
