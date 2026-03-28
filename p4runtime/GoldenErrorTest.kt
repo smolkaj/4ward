@@ -114,6 +114,11 @@ class GoldenErrorTest(private val testName: String) {
       "unrecognized-pipeline-action" -> triggerUnrecognizedPipelineAction()
       "simulator-rejected-pipeline" -> triggerSimulatorRejectedPipeline()
       "param-width-mismatch" -> triggerParamWidthMismatch()
+      "priority-required" -> triggerPriorityRequired()
+      "ternary-masked-bits" -> triggerTernaryMaskedBits()
+      "lpm-trailing-bits" -> triggerLpmTrailingBits()
+      "counter-insert-not-supported" -> triggerCounterInsertNotSupported()
+      "meter-insert-not-supported" -> triggerMeterInsertNotSupported()
       "register-insert-not-supported" -> triggerRegisterInsertNotSupported()
       "pre-entry-missing-type" -> triggerPreEntryMissingType()
       "clone-session-already-exists" -> triggerCloneSessionAlreadyExists()
@@ -503,6 +508,159 @@ class GoldenErrorTest(private val testName: String) {
     }
   }
 
+  @Suppress("MagicNumber")
+  private fun triggerPriorityRequired() {
+    val config = loadTernaryAcl()
+    harness.loadPipeline(config)
+    val table = config.p4Info.tablesList.first()
+    val matchField = table.matchFieldsList.first()
+    val byteWidth = (matchField.bitwidth + 7) / 8
+    val forwardAction = config.p4Info.actionsList.find { it.preamble.name.contains("forward") }!!
+    val entity =
+      Entity.newBuilder()
+        .setTableEntry(
+          TableEntry.newBuilder()
+            .setTableId(table.preamble.id)
+            .setPriority(0)
+            .addMatch(
+              P4RuntimeOuterClass.FieldMatch.newBuilder()
+                .setFieldId(matchField.id)
+                .setTernary(
+                  P4RuntimeOuterClass.FieldMatch.Ternary.newBuilder()
+                    .setValue(ByteString.copyFrom(longToBytes(0x06, byteWidth)))
+                    .setMask(ByteString.copyFrom(longToBytes(0xFF, byteWidth)))
+                )
+            )
+            .setAction(
+              P4RuntimeOuterClass.TableAction.newBuilder()
+                .setAction(
+                  P4RuntimeOuterClass.Action.newBuilder()
+                    .setActionId(forwardAction.preamble.id)
+                    .addParams(
+                      P4RuntimeOuterClass.Action.Param.newBuilder()
+                        .setParamId(forwardAction.paramsList.first().id)
+                        .setValue(
+                          ByteString.copyFrom(
+                            longToBytes(1, (forwardAction.paramsList.first().bitwidth + 7) / 8)
+                          )
+                        )
+                    )
+                )
+            )
+        )
+        .build()
+    harness.installEntry(entity)
+  }
+
+  @Suppress("MagicNumber")
+  private fun triggerTernaryMaskedBits() {
+    val config = loadTernaryAcl()
+    harness.loadPipeline(config)
+    val table = config.p4Info.tablesList.first()
+    val matchField = table.matchFieldsList.first()
+    val byteWidth = (matchField.bitwidth + 7) / 8
+    val forwardAction = config.p4Info.actionsList.find { it.preamble.name.contains("forward") }!!
+    // value=0xFF but mask=0x0F — high nibble has bits set where mask is 0.
+    val entity =
+      Entity.newBuilder()
+        .setTableEntry(
+          TableEntry.newBuilder()
+            .setTableId(table.preamble.id)
+            .setPriority(1)
+            .addMatch(
+              P4RuntimeOuterClass.FieldMatch.newBuilder()
+                .setFieldId(matchField.id)
+                .setTernary(
+                  P4RuntimeOuterClass.FieldMatch.Ternary.newBuilder()
+                    .setValue(ByteString.copyFrom(longToBytes(0xFF, byteWidth)))
+                    .setMask(ByteString.copyFrom(longToBytes(0x0F, byteWidth)))
+                )
+            )
+            .setAction(
+              P4RuntimeOuterClass.TableAction.newBuilder()
+                .setAction(
+                  P4RuntimeOuterClass.Action.newBuilder()
+                    .setActionId(forwardAction.preamble.id)
+                    .addParams(
+                      P4RuntimeOuterClass.Action.Param.newBuilder()
+                        .setParamId(forwardAction.paramsList.first().id)
+                        .setValue(
+                          ByteString.copyFrom(
+                            longToBytes(1, (forwardAction.paramsList.first().bitwidth + 7) / 8)
+                          )
+                        )
+                    )
+                )
+            )
+        )
+        .build()
+    harness.installEntry(entity)
+  }
+
+  @Suppress("MagicNumber")
+  private fun triggerLpmTrailingBits() {
+    val config = loadLpmRouting()
+    harness.loadPipeline(config)
+    val table = config.p4Info.tablesList.first()
+    val matchField = table.matchFieldsList.first()
+    val byteWidth = (matchField.bitwidth + 7) / 8
+    val forwardAction = config.p4Info.actionsList.find { it.preamble.name.contains("forward") }!!
+    // 10.0.0.255/24 — the last byte (255) extends beyond the 24-bit prefix.
+    val entity =
+      Entity.newBuilder()
+        .setTableEntry(
+          TableEntry.newBuilder()
+            .setTableId(table.preamble.id)
+            .addMatch(
+              P4RuntimeOuterClass.FieldMatch.newBuilder()
+                .setFieldId(matchField.id)
+                .setLpm(
+                  P4RuntimeOuterClass.FieldMatch.LPM.newBuilder()
+                    .setValue(ByteString.copyFrom(longToBytes(0x0A0000FF, byteWidth)))
+                    .setPrefixLen(24)
+                )
+            )
+            .setAction(
+              P4RuntimeOuterClass.TableAction.newBuilder()
+                .setAction(
+                  P4RuntimeOuterClass.Action.newBuilder()
+                    .setActionId(forwardAction.preamble.id)
+                    .addParams(
+                      P4RuntimeOuterClass.Action.Param.newBuilder()
+                        .setParamId(forwardAction.paramsList.first().id)
+                        .setValue(
+                          ByteString.copyFrom(
+                            longToBytes(1, (forwardAction.paramsList.first().bitwidth + 7) / 8)
+                          )
+                        )
+                    )
+                )
+            )
+        )
+        .build()
+    harness.installEntry(entity)
+  }
+
+  private fun triggerCounterInsertNotSupported() {
+    val config = loadBasicTable()
+    harness.loadPipeline(config)
+    val entity =
+      Entity.newBuilder()
+        .setCounterEntry(P4RuntimeOuterClass.CounterEntry.newBuilder().setCounterId(1))
+        .build()
+    harness.installEntry(entity)
+  }
+
+  private fun triggerMeterInsertNotSupported() {
+    val config = loadBasicTable()
+    harness.loadPipeline(config)
+    val entity =
+      Entity.newBuilder()
+        .setMeterEntry(P4RuntimeOuterClass.MeterEntry.newBuilder().setMeterId(1))
+        .build()
+    harness.installEntry(entity)
+  }
+
   private fun triggerRegisterInsertNotSupported() {
     val config = loadBasicTable()
     harness.loadPipeline(config)
@@ -593,6 +751,12 @@ class GoldenErrorTest(private val testName: String) {
   private fun loadBasicTable(): PipelineConfig =
     loadConfig("e2e_tests/basic_table/basic_table.txtpb")
 
+  private fun loadTernaryAcl(): PipelineConfig =
+    loadConfig("e2e_tests/ternary_acl/ternary_acl.txtpb")
+
+  private fun loadLpmRouting(): PipelineConfig =
+    loadConfig("e2e_tests/lpm_routing/lpm_routing.txtpb")
+
   /**
    * Captures the error description from a gRPC call.
    *
@@ -657,6 +821,11 @@ class GoldenErrorTest(private val testName: String) {
         "unrecognized-pipeline-action",
         "simulator-rejected-pipeline",
         "param-width-mismatch",
+        "priority-required",
+        "ternary-masked-bits",
+        "lpm-trailing-bits",
+        "counter-insert-not-supported",
+        "meter-insert-not-supported",
         "register-insert-not-supported",
         "pre-entry-missing-type",
         "clone-session-already-exists",

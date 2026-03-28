@@ -1,0 +1,1 @@
+INVALID_ARGUMENT: match field 'hdr.ipv4.protocol' has masked-off bits set in value (value & ~mask != 0)
