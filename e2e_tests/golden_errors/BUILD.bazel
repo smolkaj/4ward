@@ -1,0 +1,25 @@
+load("//e2e_tests:p4c.bzl", "p4c_compile")
+
+p4c_compile(
+    name = "stateful",
+    src_p4 = "stateful.p4",
+    visibility = ["//p4runtime:__pkg__"],
+)
+
+p4c_compile(
+    name = "range_table",
+    src_p4 = "range_table.p4",
+    visibility = ["//p4runtime:__pkg__"],
+)
+
+p4c_compile(
+    name = "value_set",
+    src_p4 = "value_set.p4",
+    visibility = ["//p4runtime:__pkg__"],
+)
+
+p4c_compile(
+    name = "action_profile",
+    src_p4 = "action_profile.p4",
+    visibility = ["//p4runtime:__pkg__"],
+)

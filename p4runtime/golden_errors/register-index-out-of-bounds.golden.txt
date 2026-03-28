@@ -1,0 +1,1 @@
+INVALID_ARGUMENT: register index 999 out of bounds [0, 10)
