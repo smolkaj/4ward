@@ -15,6 +15,9 @@ import p4.v1.P4RuntimeOuterClass.Update
 fun ByteString.toUnsignedInt(): Int =
   toByteArray().fold(0) { acc, b -> (acc shl 8) or (b.toInt() and 0xFF) }
 
+/** Formats a [ByteString] as a lowercase hex string (e.g. "0a01ff"). */
+fun ByteString.toHex(): String = toByteArray().joinToString("") { "%02x".format(it) }
+
 /**
  * Minimum-width unsigned big-endian encoding of a non-negative integer (P4Runtime canonical form).
  */
@@ -637,7 +640,7 @@ internal class TranslationTable(
       bitstringForward,
       p4rtValue,
       P4rtValue::Bitstring,
-      "No mapping for P4Runtime bitstring value $p4rtValue (auto-allocate off)",
+      "no mapping for P4Runtime bitstring 0x${p4rtValue.toHex()} (auto-allocate off)",
     )
 
   /** Looks up or auto-allocates a data-plane value for a P4Runtime string. */
@@ -647,14 +650,16 @@ internal class TranslationTable(
       stringForward,
       p4rtStr,
       P4rtValue::Str,
-      "No mapping for P4Runtime string '$p4rtStr' (auto-allocate off)",
+      "no mapping for P4Runtime string '$p4rtStr' (auto-allocate off)",
     )
 
   /** Reverse-translates a data-plane value to its P4Runtime representation. */
   @Synchronized
   fun reverseLookup(dataplaneValue: ByteString): P4rtValue =
     reverse[dataplaneValue]
-      ?: throw TranslationException("No reverse mapping for data-plane value $dataplaneValue")
+      ?: throw TranslationException(
+        "no reverse mapping for data-plane value 0x${dataplaneValue.toHex()}"
+      )
 
   /** Like [reverseLookup] but returns null instead of throwing. */
   @Synchronized

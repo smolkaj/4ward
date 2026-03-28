@@ -1,0 +1,14 @@
+INVALID_ARGUMENT: All entries must satisfy:
+
+In @entry_restriction of table 'MyIngress.acl'; at offset line 2, columns 9 to 58:
+  | 
+2 |         ipv4_dst::mask != 0 -> ether_type::value == 0x0800;
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+But your entry does not.
+>>>Relevant Entry Info<<<
+Table Name: "MyIngress.acl"
+Priority:10
+Field: "ether_type" -> Value: Ternary{.value = 2054, .mask = 65535}
+Field: "ipv4_dst" -> Value: Ternary{.value = 167772161, .mask = 4294967295}
+
