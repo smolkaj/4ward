@@ -303,14 +303,15 @@ class PNAArchitectureTest {
     assertEquals(7, events[0].packetIngress.dataplaneIngressPort)
 
     // 4 stages x 2 (enter/exit) = 8 stage events.
-    // PNA execution order: pre_control -> main_parser -> main_control -> main_deparser.
+    // PNA execution order (matching DPDK): main_parser -> pre_control -> main_control ->
+    // main_deparser.
     val stages = events.drop(1).map { it.pipelineStage }
     val expected =
       listOf(
-        Triple("pre_control", StageKind.CONTROL, Direction.ENTER),
-        Triple("pre_control", StageKind.CONTROL, Direction.EXIT),
         Triple("main_parser", StageKind.PARSER, Direction.ENTER),
         Triple("main_parser", StageKind.PARSER, Direction.EXIT),
+        Triple("pre_control", StageKind.CONTROL, Direction.ENTER),
+        Triple("pre_control", StageKind.CONTROL, Direction.EXIT),
         Triple("main_control", StageKind.CONTROL, Direction.ENTER),
         Triple("main_control", StageKind.CONTROL, Direction.EXIT),
         Triple("main_deparser", StageKind.DEPARSER, Direction.ENTER),
