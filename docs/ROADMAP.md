@@ -556,26 +556,38 @@ results, so re-executions skip the O(n) scan entirely.
 
 (packets/sec; higher is better)
 
-The remaining gap to 1k pps on wcmp×16+mirr is interpreter
-re-execution: parser + controls run 32 times (16 members × 2 clone
-paths). Table lookups are cached, but the IR tree-walk, expression
-evaluation, trace event recording, and action execution still run for
-each branch.
+**Profiling (Java Flight Recorder, packet-processing samples only).** After table lookup
+caching, the remaining per-packet cost breaks down as:
+
+| Component           | % of time | What it does                           |
+|---------------------|-----------|----------------------------------------|
+| `initPipelineState` |       38% | Interpreter construction + defaultValue |
+| `runParser`         |       30% | Re-parses packet on every branch       |
+| `execStmt`/controls |       21% | Interprets control blocks              |
+| Trace proto builders |      10% | ForkBranch/TraceTree assembly           |
+
+**68% of time is in work that produces identical results across all fork
+branches** (`initPipelineState` + `runParser`). The `Interpreter`
+constructor rebuilds 4 maps from config protos on every instantiation,
+and the parser runs 32 times on the same payload.
 
 #### Phase 2: low-hanging fruit
 
-Targeted optimizations guided by profiling results. Likely candidates
-(to be confirmed by further profiling):
+Targeted optimizations guided by profiling:
 
-- **Hash index for exact-match tables.** Most SAI tables use exact
-  match; O(1) lookup instead of O(n). Helps the direct path and
-  post-fork tables.
-- **Compact value representation.** `Long` for `bit<N>` where N ≤ 64,
-  avoiding `BigInteger` heap allocation on the hot path.
+- **Cache `Interpreter` maps across branches.** The `parsers`,
+  `controls`, `actions`, and `tables` maps are derived from
+  `BehavioralConfig` which doesn't change between branches. Build
+  them once and share.
+- **Skip parser on fork re-execution.** Deep-copy the post-parser
+  `Environment` instead of re-parsing the same payload 32 times.
+  Parser + initPipelineState together account for 68% of cost.
+- **Hash index for exact-match tables.** O(1) lookup instead of O(n).
+  Helps the direct path and post-fork tables.
 
 #### Phase 3: structural (if needed)
 
-Deeper changes, only if Phase 2 doesn't reach the 1ms target:
+Deeper changes, only if Phase 2 doesn't reach the 1k pps target:
 
 - **LPM trie** for longest-prefix-match tables (IPv4/IPv6 routing).
 - **Packet batching** in the Dataplane gRPC API.
