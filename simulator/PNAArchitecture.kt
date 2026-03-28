@@ -319,90 +319,24 @@ class PNAArchitecture : Architecture {
     }
 
   /** Handles PNA extern method calls (Register, Hash, Counter, Meter, Checksum, Digest). */
-  @Suppress("LongMethod")
   private fun handlePnaMethod(
     call: ExternCall.Method,
     eval: ExternEvaluator,
     pipeline: PipelineConfig,
     checksumState: MutableMap<String, BigInteger>,
   ): Value =
-    when (call.method) {
-      // Register.read(index) returns T directly.
-      "read" ->
-        when (call.externType) {
-          "Register" -> {
-            val index = (eval.evalArg(0) as BitVal).bits.value.toInt()
-            pipeline.tableStore.registerRead(call.instanceName, index)
-              ?: eval.defaultValue(eval.returnType())
-          }
-          // Random.read() — 0 args, returns a random value in [min, max].
-          "Random" -> {
-            val instance = pipeline.externInstances[call.instanceName]
-            val lo = instance?.constructorArgsList?.getOrNull(0)?.literal?.integer ?: 0L
-            val hi = instance?.constructorArgsList?.getOrNull(1)?.literal?.integer ?: 0L
-            val value = if (hi > lo) kotlin.random.Random.nextLong(lo, hi + 1) else lo
-            BitVal(BitVector(BigInteger.valueOf(value), eval.returnType().bit.width))
-          }
-          else -> error("unhandled PNA extern read: ${call.externType}.read")
-        }
-      "write" -> {
-        val index = (eval.evalArg(0) as BitVal).bits.value.toInt()
-        pipeline.tableStore.registerWrite(call.instanceName, index, eval.evalArg(1))
-        UnitVal
-      }
-      "count" -> UnitVal
-      // Hash.get_hash: 1-arg or 3-arg form. Algorithm from constructor args.
-      "get_hash" -> evalGetHash(call, eval, pipeline.externInstances, PNA_HASH_ALGORITHMS)
-      // Meter.execute(index): returns PNA_MeterColor_t. Always GREEN — no real
-      // packet rates in simulator.
-      "execute" -> EnumVal("GREEN")
-      // --- InternetChecksum extern ---
-      "clear" -> {
-        checksumState[call.instanceName] = BigInteger.ZERO
-        UnitVal
-      }
-      "add" -> {
-        val data = eval.evalArg(0).asStructVal()
-        val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)
-        checksumState[call.instanceName] = onesComplementAdd(sum, sumWords(data))
-        UnitVal
-      }
-      "subtract" -> {
-        // RFC 1624: subtract by adding the ones' complement of the data's word sum.
-        val data = eval.evalArg(0).asStructVal()
-        val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)
-        val dataSumComplement = CSUM_MASK.subtract(sumWords(data))
-        checksumState[call.instanceName] = onesComplementAdd(sum, dataSumComplement)
-        UnitVal
-      }
-      "get" -> {
-        val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)
-        BitVal(BitVector(CSUM_MASK.subtract(sum), CSUM_WORD_BITS))
-      }
-      "get_state" -> {
-        val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)
-        BitVal(BitVector(sum, CSUM_WORD_BITS))
-      }
-      "set_state" -> {
-        checksumState[call.instanceName] = (eval.evalArg(0) as BitVal).bits.value
-        UnitVal
-      }
-      // Digest.pack() queues a digest message for the control plane. No-op in STF testing.
-      // TODO(PNA): implement digest delivery via P4Runtime StreamChannel.
-      "pack" -> UnitVal
-      // Checksum extern (PNA uses Checksum<W> in addition to InternetChecksum).
-      "update" -> {
-        val data = eval.evalArg(0).asStructVal()
-        val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)
-        checksumState[call.instanceName] = onesComplementAdd(sum, sumWords(data))
-        UnitVal
-      }
-      else ->
-        error(
-          "unhandled PNA extern method: ${call.externType}.${call.method}" +
-            " on ${call.instanceName}"
-        )
-    }
+    handleCommonExternMethod(
+      call,
+      eval,
+      pipeline.tableStore,
+      pipeline.externInstances,
+      checksumState,
+      PNA_HASH_ALGORITHMS,
+    )
+      ?: error(
+        "unhandled PNA extern method: ${call.externType}.${call.method}" +
+          " on ${call.instanceName}"
+      )
 
   // ---------------------------------------------------------------------------
   // Mirror branch construction

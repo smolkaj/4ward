@@ -262,40 +262,18 @@ p4_testgen_test(
     src_p4 = "//e2e_tests/sai_p4:instantiations/google/middleblock.p4",
 )
 
-# PNA p4testgen tests. p4testgen's PNA model does not account for drop-by-default:
-# it expects packets forwarded even when send_to_port() is never called (parser
-# failure, non-matching etherType, etc.). Tests where all generated cases trigger
-# this mismatch are excluded. Programs that generate at least some valid forwarding
-# paths are included — the subset of cases that fail due to the drop-by-default
-# issue will show as test failures until p4testgen's PNA model is fixed upstream.
-p4_testgen_test(
-    name = "pna-dpdk-small_sample",
+p4_testgen_suite(
+    name = "pna_p4testgen_suite_test",
     arch = "pna",
-    max_tests = 10,
-    tags = ["manual"],
+    max_tests = {
+        "pna-direction": 20,
+        "pna-example-tunnel": 20,
+    },
     target = "dpdk",
-)
-
-p4_testgen_test(
-    name = "pna-direction",
-    arch = "pna",
-    max_tests = 10,
-    tags = ["manual"],
-    target = "dpdk",
-)
-
-p4_testgen_test(
-    name = "pna-example-SelectByDirection",
-    arch = "pna",
-    max_tests = 10,
-    tags = ["manual"],
-    target = "dpdk",
-)
-
-p4_testgen_test(
-    name = "pna-example-tunnel",
-    arch = "pna",
-    max_tests = 10,
-    tags = ["manual"],
-    target = "dpdk",
+    tests = [
+        "pna-direction",
+        "pna-dpdk-small_sample",
+        "pna-example-SelectByDirection",
+        "pna-example-tunnel",
+    ],
 )
