@@ -304,7 +304,7 @@ class P4RuntimeService(
     try {
       load(state.config)
     } catch (e: IllegalArgumentException) {
-      throw Status.INTERNAL.withDescription("Simulator rejected pipeline: ${e.message}")
+      throw Status.INVALID_ARGUMENT.withDescription("simulator rejected pipeline: ${e.message}")
         .withCause(e)
         .asException()
     }
@@ -1028,7 +1028,7 @@ class P4RuntimeService(
     private const val P4RUNTIME_API_VERSION = "1.5.0"
 
     private const val NO_PIPELINE_MESSAGE =
-      "No pipeline loaded; call SetForwardingPipelineConfig first"
+      "no pipeline loaded; call SetForwardingPipelineConfig first"
 
     private const val DIGEST_NOT_SUPPORTED =
       "digest is not supported; the simulator does not implement digest extern generation"

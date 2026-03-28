@@ -81,6 +81,7 @@ class GoldenErrorTest(private val testName: String) {
   // Error triggers
   // ---------------------------------------------------------------------------
 
+  @Suppress("CyclomaticComplexMethod")
   private fun triggerError(name: String) {
     when (name) {
       "no-pipeline-loaded" -> triggerNoPipelineLoaded()
@@ -112,7 +113,13 @@ class GoldenErrorTest(private val testName: String) {
       "commit-without-save" -> triggerCommitWithoutSave()
       "unrecognized-pipeline-action" -> triggerUnrecognizedPipelineAction()
       "simulator-rejected-pipeline" -> triggerSimulatorRejectedPipeline()
+      "param-width-mismatch" -> triggerParamWidthMismatch()
       "register-insert-not-supported" -> triggerRegisterInsertNotSupported()
+      "pre-entry-missing-type" -> triggerPreEntryMissingType()
+      "clone-session-already-exists" -> triggerCloneSessionAlreadyExists()
+      "clone-session-not-found" -> triggerCloneSessionNotFound()
+      "multicast-group-already-exists" -> triggerMulticastGroupAlreadyExists()
+      "multicast-group-not-found" -> triggerMulticastGroupNotFound()
       else -> error("unknown test: $name")
     }
   }
@@ -372,6 +379,28 @@ class GoldenErrorTest(private val testName: String) {
   }
 
   @Suppress("MagicNumber")
+  private fun triggerParamWidthMismatch() {
+    val config = loadBasicTable()
+    harness.loadPipeline(config)
+    val valid = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    // The 'port' param is 9-bit (2 bytes canonical); send 4 bytes instead.
+    val entity =
+      valid
+        .toBuilder()
+        .apply {
+          tableEntryBuilder.actionBuilder.actionBuilder.setParams(
+            0,
+            valid.tableEntry.action.action
+              .getParams(0)
+              .toBuilder()
+              .setValue(ByteString.copyFrom(byteArrayOf(0, 0, 0, 1))),
+          )
+        }
+        .build()
+    harness.installEntry(entity)
+  }
+
+  @Suppress("MagicNumber")
   private fun triggerUnknownMatchFieldId() {
     val config = loadBasicTable()
     harness.loadPipeline(config)
@@ -485,6 +514,78 @@ class GoldenErrorTest(private val testName: String) {
     harness.installEntry(entity)
   }
 
+  private fun triggerPreEntryMissingType() {
+    harness.loadPipeline(loadBasicTable())
+    val entity =
+      Entity.newBuilder()
+        .setPacketReplicationEngineEntry(
+          P4RuntimeOuterClass.PacketReplicationEngineEntry.getDefaultInstance()
+        )
+        .build()
+    harness.installEntry(entity)
+  }
+
+  private fun triggerCloneSessionAlreadyExists() {
+    harness.loadPipeline(loadBasicTable())
+    val entity =
+      Entity.newBuilder()
+        .setPacketReplicationEngineEntry(
+          P4RuntimeOuterClass.PacketReplicationEngineEntry.newBuilder()
+            .setCloneSessionEntry(
+              P4RuntimeOuterClass.CloneSessionEntry.newBuilder().setSessionId(1)
+            )
+        )
+        .build()
+    harness.installEntry(entity)
+    harness.installEntry(entity)
+  }
+
+  @Suppress("MagicNumber")
+  private fun triggerCloneSessionNotFound() {
+    harness.loadPipeline(loadBasicTable())
+    val entity =
+      Entity.newBuilder()
+        .setPacketReplicationEngineEntry(
+          P4RuntimeOuterClass.PacketReplicationEngineEntry.newBuilder()
+            .setCloneSessionEntry(
+              P4RuntimeOuterClass.CloneSessionEntry.newBuilder().setSessionId(999)
+            )
+        )
+        .build()
+    harness.deleteEntry(entity)
+  }
+
+  @Suppress("MagicNumber")
+  private fun triggerMulticastGroupAlreadyExists() {
+    harness.loadPipeline(loadBasicTable())
+    val entity =
+      Entity.newBuilder()
+        .setPacketReplicationEngineEntry(
+          P4RuntimeOuterClass.PacketReplicationEngineEntry.newBuilder()
+            .setMulticastGroupEntry(
+              P4RuntimeOuterClass.MulticastGroupEntry.newBuilder().setMulticastGroupId(42)
+            )
+        )
+        .build()
+    harness.installEntry(entity)
+    harness.installEntry(entity)
+  }
+
+  @Suppress("MagicNumber")
+  private fun triggerMulticastGroupNotFound() {
+    harness.loadPipeline(loadBasicTable())
+    val entity =
+      Entity.newBuilder()
+        .setPacketReplicationEngineEntry(
+          P4RuntimeOuterClass.PacketReplicationEngineEntry.newBuilder()
+            .setMulticastGroupEntry(
+              P4RuntimeOuterClass.MulticastGroupEntry.newBuilder().setMulticastGroupId(999)
+            )
+        )
+        .build()
+    harness.deleteEntry(entity)
+  }
+
   // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
@@ -555,7 +656,13 @@ class GoldenErrorTest(private val testName: String) {
         "commit-without-save",
         "unrecognized-pipeline-action",
         "simulator-rejected-pipeline",
+        "param-width-mismatch",
         "register-insert-not-supported",
+        "pre-entry-missing-type",
+        "clone-session-already-exists",
+        "clone-session-not-found",
+        "multicast-group-already-exists",
+        "multicast-group-not-found",
       )
 
     private fun goldenDir(): java.nio.file.Path {

@@ -81,7 +81,11 @@ class WebServer(
     try {
       handler(exchange)
     } catch (e: io.grpc.StatusException) {
-      sendJson(exchange, HTTP_BAD_REQUEST, errorJson(e.status.description ?: e.status.code.name))
+      sendJson(
+        exchange,
+        grpcToHttpStatus(e.status.code),
+        errorJson(e.status.description ?: e.status.code.name),
+      )
     } catch (e: Exception) {
       logger.log(
         Level.SEVERE,
@@ -344,6 +348,19 @@ class WebServer(
   // Helpers
   // ---------------------------------------------------------------------------
 
+  private fun grpcToHttpStatus(code: io.grpc.Status.Code): Int =
+    when (code) {
+      io.grpc.Status.Code.INVALID_ARGUMENT -> HTTP_BAD_REQUEST
+      io.grpc.Status.Code.PERMISSION_DENIED -> HTTP_FORBIDDEN
+      io.grpc.Status.Code.NOT_FOUND -> HTTP_NOT_FOUND
+      io.grpc.Status.Code.ALREADY_EXISTS -> HTTP_CONFLICT
+      io.grpc.Status.Code.FAILED_PRECONDITION -> HTTP_PRECONDITION_FAILED
+      io.grpc.Status.Code.RESOURCE_EXHAUSTED -> HTTP_TOO_MANY_REQUESTS
+      io.grpc.Status.Code.UNIMPLEMENTED -> HTTP_NOT_IMPLEMENTED
+      io.grpc.Status.Code.INTERNAL -> HTTP_INTERNAL_ERROR
+      else -> HTTP_BAD_REQUEST
+    }
+
   private fun sendJson(exchange: HttpExchange, statusCode: Int, json: String) {
     val bytes = json.toByteArray(Charsets.UTF_8)
     exchange.responseHeaders.add("Content-Type", "application/json; charset=utf-8")
@@ -368,8 +385,13 @@ class WebServer(
     private const val HTTP_OK = 200
     private const val HTTP_NO_CONTENT = 204
     private const val HTTP_BAD_REQUEST = 400
+    private const val HTTP_FORBIDDEN = 403
     private const val HTTP_NOT_FOUND = 404
+    private const val HTTP_CONFLICT = 409
+    private const val HTTP_PRECONDITION_FAILED = 412
+    private const val HTTP_TOO_MANY_REQUESTS = 429
     private const val HTTP_INTERNAL_ERROR = 500
+    private const val HTTP_NOT_IMPLEMENTED = 501
     private const val NO_BODY = -1L
 
     private fun contentType(path: String): String =

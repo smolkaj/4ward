@@ -695,12 +695,16 @@ fun allOnesMask(bitwidth: Int): String {
 fun findTable(name: String, p4info: P4InfoOuterClass.P4Info): P4InfoOuterClass.Table =
   p4info.tablesList.find { it.preamble.alias == name || it.preamble.name == name }
     ?: p4info.tablesList.find { it.preamble.name.endsWith(".$name") }
-    ?: error("unknown table: $name")
+    ?: error(
+      "unknown table: $name (available: ${p4info.tablesList.map { it.preamble.name }.sorted().joinToString(", ")})"
+    )
 
 fun findAction(name: String, p4info: P4InfoOuterClass.P4Info): P4InfoOuterClass.Action =
   p4info.actionsList.find { it.preamble.alias == name || it.preamble.name == name }
     ?: p4info.actionsList.find { it.preamble.name.endsWith(".$name") }
-    ?: error("unknown action: $name")
+    ?: error(
+      "unknown action: $name (available: ${p4info.actionsList.map { it.preamble.name }.sorted().joinToString(", ")})"
+    )
 
 fun findActionProfile(
   name: String,
@@ -708,7 +712,9 @@ fun findActionProfile(
 ): P4InfoOuterClass.ActionProfile =
   p4info.actionProfilesList.find { it.preamble.alias == name || it.preamble.name == name }
     ?: p4info.actionProfilesList.find { it.preamble.name.endsWith(".$name") }
-    ?: error("unknown action profile: $name")
+    ?: error(
+      "unknown action profile: $name (available: ${p4info.actionProfilesList.map { it.preamble.name }.sorted().joinToString(", ")})"
+    )
 
 private fun resolveStfMatchField(
   m: StfMatchField,
@@ -725,7 +731,9 @@ private fun resolveStfMatchField(
         val suffix = it.name.substringAfter(".")
         suffix == m.fieldName || suffix == stfNorm
       }
-      ?: error("unknown match field '${m.fieldName}' in table '$tableName'")
+      ?: error(
+        "unknown match field '${m.fieldName}' in table '$tableName' (available: ${table.matchFieldsList.map { it.name }.sorted().joinToString(", ")})"
+      )
   val fmBuilder = P4RuntimeOuterClass.FieldMatch.newBuilder().setFieldId(mf.id)
   val encodedValue = encodeValue(m.value, mf.bitwidth)
 

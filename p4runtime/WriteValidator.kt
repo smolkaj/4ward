@@ -70,7 +70,7 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
   private fun validateTableEntry(update: P4RuntimeOuterClass.Update) {
     val entry = update.entity.tableEntry
     val tableInfo =
-      tableInfoById[entry.tableId] ?: throw notFound("unknown table ID: ${entry.tableId}")
+      tableInfoById[entry.tableId] ?: throw notFound("unknown table ID ${entry.tableId}")
 
     // §9.1: const tables are immutable — no writes allowed.
     if (entry.tableId in constTableIds) {
