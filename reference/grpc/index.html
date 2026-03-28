@@ -845,6 +845,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#error-codes" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1220,6 +1231,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#error-codes" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1450,6 +1472,57 @@ many PacketIns to expect.</p>
 <a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span><span class="kt">bytes</span><span class="w"> </span><span class="na">payload</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
 <a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="p">}</span>
 </code></pre></div>
+<h2 id="performance">Performance<a class="headerlink" href="#performance" title="Permanent link">¶</a></h2>
+<p>While 4ward optimizes for correctness and simplicity over raw speed, it
+achieves practical throughput for production test workloads.</p>
+<p>Representative numbers on SAI P4 middleblock with 10k table entries.
+Measured on AMD Ryzen 9 7950X3D (16 cores, 128 MB L3), OpenJDK 21. Throughput in packets/sec (higher is better).</p>
+<table>
+<thead>
+<tr>
+<th>Workload</th>
+<th>Sequential, 1 core</th>
+<th>Sequential, 16 cores</th>
+<th>Batch, 1 core</th>
+<th>Batch, 16 cores</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>L3 forwarding</td>
+<td>1,800</td>
+<td>1,900</td>
+<td>1,800</td>
+<td>9,700</td>
+</tr>
+<tr>
+<td>WCMP ×16 members</td>
+<td>1,200</td>
+<td>1,400</td>
+<td>950</td>
+<td>5,400</td>
+</tr>
+<tr>
+<td>WCMP ×16 + mirror</td>
+<td>810</td>
+<td>1,050</td>
+<td>600</td>
+<td>3,500</td>
+</tr>
+</tbody>
+</table>
+<p>Sequential = <code>InjectPacket</code> (one packet at a time).
+Batch = <code>InjectPackets</code> (1000 packets streamed concurrently).</p>
+<ul>
+<li><strong>L3 forwarding</strong> — VRF → LPM → nexthop → MAC rewrite. No forks.</li>
+<li><strong>WCMP ×16</strong> — 16-member action selector (16 trace tree branches).</li>
+<li><strong>WCMP ×16 + mirror</strong> — WCMP ×16 + ingress clone (32 branches).</li>
+<li><strong>1 core</strong> — no parallelism. Useful for estimating per-packet cost.</li>
+<li><strong>16 cores</strong> — <code>InjectPacket</code> parallelizes fork branches within each
+  packet. <code>InjectPackets</code> adds cross-packet parallelism.</li>
+</ul>
+<p>Throughput scales with available cores. See <a href="https://github.com/smolkaj/4ward/blob/main/docs/ROADMAP.md#track-10-dataplane-performance">Track 10</a>
+in the roadmap for methodology and optimization details.</p>
 <h2 id="error-codes">Error codes<a class="headerlink" href="#error-codes" title="Permanent link">¶</a></h2>
 <table>
 <thead>
