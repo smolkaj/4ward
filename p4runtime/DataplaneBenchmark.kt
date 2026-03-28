@@ -57,6 +57,7 @@ class DataplaneBenchmark {
         ScalePoint("wcmp×4", routes = 10_000, nexthops = 100, wcmpMembers = 4),
         ScalePoint("wcmp×16", routes = 10_000, nexthops = 100, wcmpMembers = 16),
         // --- WCMP + mirror (clone fork → 2 output packets) ---
+        @Suppress("MaxLineLength")
         ScalePoint("wcmp×16+mirr", routes = 10_000, nexthops = 100, wcmpMembers = 16, mirror = true),
       )
 

@@ -1,6 +1,7 @@
 package fourward.p4runtime
 
 import com.google.protobuf.Any as ProtoAny
+import com.google.protobuf.ByteString
 import fourward.ir.PipelineConfig
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.assertGrpcError
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildEthernetFrame
@@ -10,6 +11,7 @@ import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildMemberEntity
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.loadConfig
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.uint128
 import io.grpc.Status
+import io.grpc.StatusException
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -28,6 +30,8 @@ import p4.v1.P4RuntimeOuterClass.ReadRequest
 import p4.v1.P4RuntimeOuterClass.SetForwardingPipelineConfigRequest
 import p4.v1.P4RuntimeOuterClass.StreamMessageRequest
 import p4.v1.P4RuntimeOuterClass.Uint128
+import p4.v1.P4RuntimeOuterClass.Update
+import p4.v1.P4RuntimeOuterClass.WriteRequest
 
 /**
  * P4Runtime conformance tests.
@@ -1974,6 +1978,424 @@ class P4RuntimeConformanceTest {
     val resp = harness.injectPacket(0, byteArrayOf(0x01, 0x02))
     assertTrue("should have output packets", resp.outputPacketsList.isNotEmpty())
     assertTrue("trace should be present", resp.hasTrace())
+  }
+
+  // =========================================================================
+  // §6: P4Info message — ID allocation (scenario 107)
+  // =========================================================================
+
+  /** §6.3: P4Info IDs have an 8-bit type prefix; all tables share the same prefix, etc. */
+  @Test
+  fun `107 - p4info IDs have consistent type prefixes`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    // All table IDs should share the same 8-bit prefix.
+    val tablePrefixes = config.p4Info.tablesList.map { it.preamble.id ushr 24 }.toSet()
+    assertEquals("all table IDs should share one prefix", 1, tablePrefixes.size)
+    // All action IDs should share the same 8-bit prefix (different from tables).
+    val actionPrefixes = config.p4Info.actionsList.map { it.preamble.id ushr 24 }.toSet()
+    assertEquals("all action IDs should share one prefix", 1, actionPrefixes.size)
+    // Table and action prefixes should differ.
+    assertTrue(
+      "table and action prefixes should differ",
+      tablePrefixes.first() != actionPrefixes.first(),
+    )
+  }
+
+  // =========================================================================
+  // §8.1: Default-valued fields (scenarios 108-109)
+  // =========================================================================
+
+  /** §8.1: A zero-valued exact match field is valid and distinct from "unset". */
+  @Test
+  fun `108 - zero-valued exact match field accepted and round-trips`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    val entry = buildExactEntry(config, matchValue = 0, port = 1)
+    harness.installEntry(entry)
+    val results = harness.readRegularEntries()
+    assertEquals(1, results.size)
+    // The match value should read back as all-zero bytes, not be dropped.
+    val readMatch = results[0].tableEntry.matchList.first().exact.value
+    assertTrue("match value should be present", readMatch.size() > 0)
+    assertTrue("match value should be all zeros", readMatch.toByteArray().all { it == 0.toByte() })
+  }
+
+  /** §8.1: An action parameter with value zero round-trips correctly. */
+  @Test
+  fun `109 - zero-valued action parameter round-trips`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    // Port = 0 is a valid zero-valued parameter.
+    val entry = buildExactEntry(config, matchValue = 0x0800, port = 0)
+    harness.installEntry(entry)
+    val results = harness.readEntry(buildReadFilter(config, 0x0800))
+    assertEquals(1, results.size)
+    val param = results[0].tableEntry.action.action.paramsList.first()
+    assertTrue("zero param should be present", param.value.size() > 0)
+    assertTrue("param value should be zero", param.value.toByteArray().all { it == 0.toByte() })
+  }
+
+  // =========================================================================
+  // §8.2: Read-write symmetry (scenarios 110-113)
+  // =========================================================================
+
+  /** §8.2: Table entry written via Write reads back identically via Read. */
+  @Test
+  fun `110 - table entry read-write symmetry`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    val entry = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    harness.installEntry(entry)
+    val readBack = harness.readEntry(buildReadFilter(config, 0x0800))
+    assertEquals(1, readBack.size)
+    val written = entry.tableEntry
+    val read = readBack[0].tableEntry
+    assertEquals("table_id must match", written.tableId, read.tableId)
+    assertEquals("match fields must match", written.matchList, read.matchList)
+    assertEquals("action must match", written.action, read.action)
+  }
+
+  /** §8.2: Action profile member round-trips identically. */
+  @Test
+  fun `111 - action profile member read-write symmetry`() {
+    val (profileId, dropId) = loadActionSelector()
+    val member = buildMemberEntity(actionProfileId = profileId, memberId = 1, actionId = dropId)
+    harness.installEntry(member)
+    val readBack = harness.readProfileMembers(actionProfileId = profileId)
+    assertEquals(1, readBack.size)
+    val written = member.actionProfileMember
+    val read = readBack[0].actionProfileMember
+    assertEquals("profile ID must match", written.actionProfileId, read.actionProfileId)
+    assertEquals("member ID must match", written.memberId, read.memberId)
+    assertEquals("action must match", written.action, read.action)
+  }
+
+  /** §8.2: Action profile group round-trips identically. */
+  @Test
+  fun `112 - action profile group read-write symmetry`() {
+    val (profileId, _) = loadActionSelector()
+    val group = buildGroupEntity(actionProfileId = profileId, groupId = 1, memberIds = listOf(1, 2))
+    harness.installEntry(group)
+    val readBack = harness.readProfileGroups(actionProfileId = profileId)
+    assertEquals(1, readBack.size)
+    val written = group.actionProfileGroup
+    val read = readBack[0].actionProfileGroup
+    assertEquals("profile ID must match", written.actionProfileId, read.actionProfileId)
+    assertEquals("group ID must match", written.groupId, read.groupId)
+    assertEquals("member count must match", written.membersCount, read.membersCount)
+  }
+
+  /** §8.2: Register entry round-trips identically. */
+  @Test
+  fun `113 - register entry read-write symmetry`() {
+    harness.loadPipeline(loadConfigWithRegister())
+    val entry =
+      P4RuntimeTestHarness.buildRegisterEntry(
+        REG_ID,
+        index = 0,
+        value = 42,
+        byteLen = REG_BYTEWIDTH,
+      )
+    harness.modifyEntry(entry)
+    val readBack = harness.readRegisterEntries(REG_ID)
+    val read =
+      checkNotNull(readBack.find { it.registerEntry.index.index == 0L }) {
+        "register entry should be readable"
+      }
+    assertEquals("register value must match", entry.registerEntry.data, read.registerEntry.data)
+  }
+
+  // =========================================================================
+  // §9.1.5: Preinitialized / const tables (scenarios 114-116)
+  // =========================================================================
+
+  /** §9.1.5: Const entries are immutable — INSERT rejected. */
+  @Test
+  fun `114 - INSERT into const table returns INVALID_ARGUMENT`() {
+    val config = loadConstEntriesConfig()
+    harness.loadPipeline(config)
+    val constTable = checkNotNull(config.p4Info.tablesList.find { it.isConstTable })
+    val entry =
+      Entity.newBuilder()
+        .setTableEntry(
+          P4RuntimeOuterClass.TableEntry.newBuilder().setTableId(constTable.preamble.id)
+        )
+        .build()
+    assertGrpcError(Status.Code.INVALID_ARGUMENT) { harness.installEntry(entry) }
+  }
+
+  /** §9.1.5: Const entries are readable via wildcard read. */
+  @Test
+  fun `115 - wildcard read includes const table entries`() {
+    val config = loadConstEntriesConfig()
+    harness.loadPipeline(config)
+    val constTable = checkNotNull(config.p4Info.tablesList.find { it.isConstTable })
+    val constEntries = harness.readRegularTableEntries(constTable.preamble.id)
+    assertTrue("const entries should appear in read", constEntries.isNotEmpty())
+  }
+
+  /** §9.1.5: MODIFY on const table entry is rejected. */
+  @Test
+  fun `116 - MODIFY const table entry returns INVALID_ARGUMENT`() {
+    val config = loadConstEntriesConfig()
+    harness.loadPipeline(config)
+    val constTable = checkNotNull(config.p4Info.tablesList.find { it.isConstTable })
+    val existing = harness.readRegularTableEntries(constTable.preamble.id)
+    assertTrue(existing.isNotEmpty())
+    assertGrpcError(Status.Code.INVALID_ARGUMENT) { harness.modifyEntry(existing[0]) }
+  }
+
+  // =========================================================================
+  // §9.1.8: Idle timeout (scenario 117)
+  // =========================================================================
+
+  /** §9.1.8: idle_timeout_ns is rejected — no wall-clock time in a reference simulator. */
+  @Test
+  fun `117 - idle_timeout_ns on table entry returns UNIMPLEMENTED`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    val base = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    val entry =
+      base.toBuilder().setTableEntry(base.tableEntry.toBuilder().setIdleTimeoutNs(1000000)).build()
+    assertGrpcError(Status.Code.UNIMPLEMENTED) { harness.installEntry(entry) }
+  }
+
+  // =========================================================================
+  // §9.2.2: Action profile group rules (scenarios 118-119)
+  // =========================================================================
+
+  /** §9.2.2: Empty group (zero members) is accepted. */
+  @Test
+  fun `118 - empty action profile group accepted`() {
+    val (profileId, _) = loadActionSelector()
+    val group = buildGroupEntity(actionProfileId = profileId, groupId = 1, memberIds = emptyList())
+    harness.installEntry(group)
+    val results = harness.readProfileGroups(actionProfileId = profileId)
+    assertEquals(1, results.size)
+    assertEquals(0, results[0].actionProfileGroup.membersCount)
+  }
+
+  /** §9.2.2: Group member list is fully replaced on MODIFY. */
+  @Test
+  fun `119 - group modify replaces member list entirely`() {
+    val (profileId, _) = loadActionSelector()
+    val group =
+      buildGroupEntity(actionProfileId = profileId, groupId = 1, memberIds = listOf(1, 2, 3))
+    harness.installEntry(group)
+    val modified = buildGroupEntity(actionProfileId = profileId, groupId = 1, memberIds = listOf(4))
+    harness.modifyEntry(modified)
+    val results = harness.readProfileGroups(actionProfileId = profileId)
+    assertEquals(1, results.size)
+    assertEquals(1, results[0].actionProfileGroup.membersCount)
+    assertEquals(4, results[0].actionProfileGroup.membersList[0].memberId)
+  }
+
+  // =========================================================================
+  // §10: Error reporting (scenarios 120-121)
+  // =========================================================================
+
+  /** §10: Per-update errors include canonical_code and message text. */
+  @Test
+  fun `120 - batch error details include canonical_code and message`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    // Insert two entries: one valid, one with bad table_id. CONTINUE_ON_ERROR.
+    val good = buildExactEntry(config, matchValue = 0x0800, port = 1)
+    val bad =
+      Entity.newBuilder()
+        .setTableEntry(P4RuntimeOuterClass.TableEntry.newBuilder().setTableId(999999))
+        .build()
+    val request =
+      WriteRequest.newBuilder()
+        .setDeviceId(1)
+        .setAtomicity(WriteRequest.Atomicity.CONTINUE_ON_ERROR)
+        .addUpdates(Update.newBuilder().setType(Update.Type.INSERT).setEntity(good))
+        .addUpdates(Update.newBuilder().setType(Update.Type.INSERT).setEntity(bad))
+        .build()
+    try {
+      harness.writeRaw(request)
+      throw AssertionError("expected batch error")
+    } catch (e: StatusException) {
+      val errors = checkNotNull(P4RuntimeTestHarness.extractBatchErrors(e))
+      assertEquals("should have 2 per-update statuses", 2, errors.size)
+      assertEquals(com.google.rpc.Code.OK_VALUE, errors[0].canonicalCode)
+      assertTrue("bad update should have error code", errors[1].canonicalCode != 0)
+      assertTrue("bad update should have error message", errors[1].message.isNotEmpty())
+    }
+  }
+
+  /** §10: Single-update write errors are wrapped as per-update batch errors. */
+  @Test
+  fun `121 - single-update error has structured details in trailers`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    val bad =
+      Entity.newBuilder()
+        .setTableEntry(P4RuntimeOuterClass.TableEntry.newBuilder().setTableId(999999))
+        .build()
+    try {
+      harness.installEntry(bad)
+      throw AssertionError("expected error")
+    } catch (e: StatusException) {
+      val errors = checkNotNull(P4RuntimeTestHarness.extractBatchErrors(e))
+      assertEquals(1, errors.size)
+      assertTrue("should have non-OK code", errors[0].canonicalCode != 0)
+    }
+  }
+
+  // =========================================================================
+  // §12.1: Write batch ordering — cross-entity-type (scenario 122)
+  // =========================================================================
+
+  /** §12.1: Batch with member INSERT then group INSERT referencing it succeeds in order. */
+  @Test
+  fun `122 - cross-entity batch ordering preserves dependencies`() {
+    val (profileId, dropId) = loadActionSelector()
+    val member = buildMemberEntity(actionProfileId = profileId, memberId = 1, actionId = dropId)
+    val group = buildGroupEntity(actionProfileId = profileId, groupId = 1, memberIds = listOf(1))
+    // Single batch: insert member, then insert group referencing that member.
+    val request =
+      WriteRequest.newBuilder()
+        .setDeviceId(1)
+        .addUpdates(Update.newBuilder().setType(Update.Type.INSERT).setEntity(member))
+        .addUpdates(Update.newBuilder().setType(Update.Type.INSERT).setEntity(group))
+        .build()
+    harness.writeRaw(request)
+    assertEquals(1, harness.readProfileMembers(actionProfileId = profileId).size)
+    assertEquals(1, harness.readProfileGroups(actionProfileId = profileId).size)
+  }
+
+  // =========================================================================
+  // §13.3: Read batch — multiple entity types (scenarios 123-124)
+  // =========================================================================
+
+  /** §13.3: Single Read request with both table entries and action profile members. */
+  @Test
+  fun `123 - read batch with multiple entity types`() {
+    val config = loadConfig("e2e_tests/trace_tree/action_selector_3.txtpb")
+    harness.loadPipeline(config)
+    val profileId = config.p4Info.actionProfilesList.first().preamble.id
+    val dropId = P4RuntimeTestHarness.findAction(config, "drop").preamble.id
+    val table = config.p4Info.tablesList.first()
+    val tableEntry =
+      Entity.newBuilder()
+        .setTableEntry(
+          P4RuntimeOuterClass.TableEntry.newBuilder()
+            .setTableId(table.preamble.id)
+            .addMatch(
+              P4RuntimeOuterClass.FieldMatch.newBuilder()
+                .setFieldId(table.matchFieldsList.first().id)
+                .setExact(
+                  P4RuntimeOuterClass.FieldMatch.Exact.newBuilder()
+                    .setValue(
+                      ByteString.copyFrom(
+                        P4RuntimeTestHarness.longToBytes(
+                          0x0800,
+                          (table.matchFieldsList.first().bitwidth + 7) / 8,
+                        )
+                      )
+                    )
+                )
+            )
+            .setAction(P4RuntimeOuterClass.TableAction.newBuilder().setActionProfileGroupId(1))
+            .setPriority(0)
+        )
+        .build()
+    val member = buildMemberEntity(actionProfileId = profileId, memberId = 1, actionId = dropId)
+    harness.installEntry(member)
+    val group = buildGroupEntity(actionProfileId = profileId, groupId = 1, memberIds = listOf(1))
+    harness.installEntry(group)
+    harness.installEntry(tableEntry)
+
+    // Read both entity types in a single request.
+    val request =
+      ReadRequest.newBuilder()
+        .setDeviceId(1)
+        .addEntities(
+          Entity.newBuilder()
+            .setTableEntry(
+              P4RuntimeOuterClass.TableEntry.newBuilder().setTableId(table.preamble.id)
+            )
+        )
+        .addEntities(
+          Entity.newBuilder()
+            .setActionProfileMember(
+              P4RuntimeOuterClass.ActionProfileMember.newBuilder().setActionProfileId(profileId)
+            )
+        )
+        .build()
+    val results = harness.readEntries(request)
+    val hasTable = results.any { it.hasTableEntry() }
+    val hasMembers = results.any { it.hasActionProfileMember() }
+    assertTrue("response should contain table entries", hasTable)
+    assertTrue("response should contain profile members", hasMembers)
+  }
+
+  /** §13.3: Wildcard read for counters and registers in a single request. */
+  @Test
+  fun `124 - read batch with counter and register entities`() {
+    // Build a config with both counters and registers by stacking the synthetic p4info entities.
+    val regConfig = loadConfigWithRegister()
+    val counterP4Info =
+      regConfig.p4Info
+        .toBuilder()
+        .addCounters(
+          p4.config.v1.P4InfoOuterClass.Counter.newBuilder()
+            .setPreamble(
+              p4.config.v1.P4InfoOuterClass.Preamble.newBuilder()
+                .setId(CTR_ID)
+                .setName("my_counter")
+                .setAlias("my_counter")
+            )
+            .setSize(CTR_SIZE.toLong())
+            .setSpec(
+              p4.config.v1.P4InfoOuterClass.CounterSpec.newBuilder()
+                .setUnit(p4.config.v1.P4InfoOuterClass.CounterSpec.Unit.BOTH)
+            )
+        )
+    val combined = regConfig.toBuilder().setP4Info(counterP4Info).build()
+    harness.loadPipeline(combined)
+
+    // Write a register value.
+    harness.modifyEntry(
+      P4RuntimeTestHarness.buildRegisterEntry(REG_ID, index = 0, value = 7, byteLen = REG_BYTEWIDTH)
+    )
+
+    // Read both counters and registers in a single request.
+    val request =
+      ReadRequest.newBuilder()
+        .setDeviceId(1)
+        .addEntities(
+          Entity.newBuilder()
+            .setCounterEntry(P4RuntimeOuterClass.CounterEntry.newBuilder().setCounterId(CTR_ID))
+        )
+        .addEntities(
+          Entity.newBuilder()
+            .setRegisterEntry(P4RuntimeOuterClass.RegisterEntry.newBuilder().setRegisterId(REG_ID))
+        )
+        .build()
+    val results = harness.readEntries(request)
+    val hasCounters = results.any { it.hasCounterEntry() }
+    val hasRegisters = results.any { it.hasRegisterEntry() }
+    assertTrue("response should contain counter entries", hasCounters)
+    assertTrue("response should contain register entries", hasRegisters)
+  }
+
+  // =========================================================================
+  // §19: Versioning (scenario 125)
+  // =========================================================================
+
+  /** §19: Capabilities response includes a properly formatted version string. */
+  @Test
+  fun `125 - capabilities version follows semver format`() {
+    val resp = harness.capabilities()
+    assertTrue("version should be non-empty", resp.p4RuntimeApiVersion.isNotEmpty())
+    // Version should contain at least a major.minor pattern.
+    assertTrue(
+      "version should match semver pattern: ${resp.p4RuntimeApiVersion}",
+      resp.p4RuntimeApiVersion.matches(Regex("\\d+\\.\\d+.*")),
+    )
   }
 
   // ---------------------------------------------------------------------------

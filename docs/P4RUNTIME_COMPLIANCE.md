@@ -38,6 +38,29 @@ UNIMPLEMENTED (rejection is tested), **N/A** = out of scope
 | 10.12 | No ghost primary after disconnect | Y | ConformanceTest #90 |
 | 10.13 | Role change clears old role's primary | Y | ConformanceTest #91 |
 
+### P4Info message (spec §6)
+
+| # | Requirement | Status | Test |
+|---|-------------|--------|------|
+| 6.1 | P4Info IDs have consistent type prefixes per entity kind | Y | ConformanceTest #107 |
+| 6.2 | Table/action/profile IDs validated on write | Y | WriteValidatorTest, WriteErrorTest |
+
+### Default-valued fields (spec §8.1)
+
+| # | Requirement | Status | Test |
+|---|-------------|--------|------|
+| 8.01 | Zero-valued exact match field accepted and round-trips | Y | ConformanceTest #108 |
+| 8.02 | Zero-valued action parameter round-trips | Y | ConformanceTest #109 |
+
+### Read-write symmetry (spec §8.2)
+
+| # | Requirement | Status | Test |
+|---|-------------|--------|------|
+| 8.10 | Table entry read-write symmetry (match fields, action) | Y | ConformanceTest #110 |
+| 8.11 | Action profile member read-write symmetry | Y | ConformanceTest #111 |
+| 8.12 | Action profile group read-write symmetry | Y | ConformanceTest #112 |
+| 8.13 | Register entry read-write symmetry | Y | ConformanceTest #113 |
+
 ### Bytestring encoding (spec §8.3)
 
 | # | Requirement | Status | Test |
@@ -50,6 +73,12 @@ UNIMPLEMENTED (rejection is tested), **N/A** = out of scope
 | 8.5 | Ternary: masked bits must be zero in value | Y | WriteValidatorTest |
 | 8.6 | LPM: bits beyond prefix_len must be zero | Y | WriteValidatorTest |
 | 8.7 | Read responses zero-pad bytestrings to ceil(bitwidth/8) | Y | ConformanceTest #63 |
+
+### P4Data complex types (spec §8.4)
+
+| # | Requirement | Status | Test |
+|---|-------------|--------|------|
+| 8.20 | Struct/header/enum P4Data values in table entries | N/A | No current program uses complex P4Data in P4Runtime-visible fields |
 
 ### Table entries (spec §9.1)
 
@@ -84,6 +113,10 @@ UNIMPLEMENTED (rejection is tested), **N/A** = out of scope
 | 9.27 | RESOURCE_EXHAUSTED when table is full | Y | TableStoreTest, ConformanceTest |
 | 9.28 | Write batch: updates applied in order | Y | ConformanceTest #39 |
 | 9.29 | Direct counter/meter data in table entry reads | Y | ConformanceTest #68-69 |
+| 9.30a | Const entries populated at load time and readable | Y | ConformanceTest #65, #115 |
+| 9.30b | INSERT into const table → INVALID_ARGUMENT | Y | ConformanceTest #114, WriteValidatorTest |
+| 9.30c | MODIFY const table entry → INVALID_ARGUMENT | Y | ConformanceTest #116, WriteValidatorTest |
+| 9.30d | idle_timeout_ns rejected (no wall-clock time) | R | ConformanceTest #117, WriteErrorTest |
 
 ### Action profiles (spec §9.2)
 
@@ -102,6 +135,9 @@ UNIMPLEMENTED (rejection is tested), **N/A** = out of scope
 | 9.40 | Member action params validated | Y | WriteValidatorTest |
 | 9.41 | Unknown action_profile_id on group → NOT_FOUND | Y | WriteValidatorTest, WriteErrorTest |
 | 9.42 | Profile size (total members+groups) enforcement | Y | TableStoreTest |
+| 9.43a | Empty group (zero members) accepted | Y | ConformanceTest #118 |
+| 9.43b | Group modify replaces member list entirely | Y | ConformanceTest #119 |
+| 9.43c | watch_port field | N/A | Not applicable — no physical ports in a reference simulator |
 
 ### Counters & meters (spec §9.3, §9.4)
 
@@ -111,6 +147,7 @@ UNIMPLEMENTED (rejection is tested), **N/A** = out of scope
 | 9.51 | Indirect counter read/write | Y | TableStoreTest, ConformanceTest #46-48 |
 | 9.52 | Direct meter config | Y | TableStoreTest, ConformanceTest #55-57 |
 | 9.53 | Indirect meter config | Y | TableStoreTest, ConformanceTest #49-51 |
+| 9.54 | MeterCounterData (per-color packet counts) | N/A | Requires hardware-level metering; reference simulator implements config only |
 
 ### Packet replication engine (spec §9.5)
 
@@ -146,6 +183,8 @@ UNIMPLEMENTED (rejection is tested), **N/A** = out of scope
 | 9.83 | Per-update error reporting in WriteResponse | Y | WriteErrorTest |
 | 9.90 | device_id validated on Write | Y | ConformanceTest #60 |
 | 9.91 | Write allowed without prior arbitration | Y | ConformanceTest (implicit) |
+| 9.92 | Per-update error details include canonical_code and message | Y | ConformanceTest #120-121, WriteErrorTest |
+| 9.93 | Cross-entity-type batch ordering preserves dependencies | Y | ConformanceTest #122 |
 
 ### Read RPC (spec §13)
 
@@ -162,6 +201,8 @@ UNIMPLEMENTED (rejection is tested), **N/A** = out of scope
 | 11.9 | Read unwritten register returns zero | Y | ConformanceTest #33 |
 | 11.10 | Default entry included in wildcard table reads | Y | ConformanceTest #64 |
 | 11.11 | device_id validated on Read | Y | ConformanceTest #61 |
+| 11.12 | Read batch with multiple entity types | Y | ConformanceTest #123-124 |
+| 11.13 | Read and write serialized by mutex (atomicity) | Y | P4RuntimeService (by design; no concurrent test) |
 
 ### SetForwardingPipelineConfig (spec §7, §14)
 
@@ -210,6 +251,7 @@ UNIMPLEMENTED (rejection is tested), **N/A** = out of scope
 | # | Requirement | Status | Test |
 |---|-------------|--------|------|
 | 13.1 | Returns API version | Y | ConformanceTest #19 |
+| 13.2 | Version follows semver format (major.minor) | Y | ConformanceTest #125 |
 
 ### @p4runtime_translation (spec §8.4.6, §18)
 
@@ -229,30 +271,28 @@ auto-allocate, and hybrid modes.
 | 15.5 | End-to-end forwarding with translated ports | Y | TranslationTest |
 | 15.6 | sdn_string write/read round-trip with SAI P4 | Y | SaiP4E2ETest |
 
-### Spec sections not yet catalogued
+### Previously uncatalogued sections — now resolved
 
-These spec sections contain testable requirements not yet represented in this
-matrix. Each needs to be reviewed, with requirements either added above,
-marked N/A with justification, or rejected with UNIMPLEMENTED.
+All 16 spec sections that were previously uncatalogued have been reviewed,
+with requirements either added to the main matrix above, marked N/A with
+justification, or noted as out-of-scope. Key decisions:
 
-| Spec section | Topic | Notes |
-|---|---|---|
-| §6 | P4Info message | ID allocation rules (§6.3), per-entity metadata. Much of this is implicitly tested (we validate table_id, action_id, etc.) but not catalogued. |
-| §8.1 | Default-valued fields | Set/unset semantics for scalar and message fields. |
-| §8.2 | Read-write symmetry | Written entities must read back identically. Implicitly tested but not as a named requirement. |
-| §8.4 | P4Data complex types | Structs, headers, enums, serializable enums, error types. Not used by any current test fixture. |
-| §9.1.5 | Preinitialized tables | `initial_entries` populated at load time and readable. Not tested. |
-| §9.1.8 | Idle timeout | `idle_timeout_ns` and `time_since_last_hit` fields. Out of scope (no wall-clock time) but not catalogued as N/A. |
-| §9.2.2 | Action profile group rules | `watch_port`, empty groups, member reference semantics. Partially tested (max_size) but not fully catalogued. |
-| §9.4.3 | MeterCounterData | Per-color counter data. Not tested. |
-| §10 | Error reporting messages | Structured `p4.v1.Error` format with `canonical_code`, `message`, `space`, `code`, `details`. Only batch errors are tested (WriteErrorTest CONTINUE_ON_ERROR). |
-| §11 | Atomicity of individual ops | Individual write/read operations are atomic. Implicitly guaranteed by the Mutex but not explicitly tested under concurrency. |
-| §12.1 | Write batch ordering | Cross-entity-type ordering rules. Only same-type ordering is tested (9.28). |
-| §13.3 | Read batch processing | Multiple entity types in one Read request. Not tested. |
-| §13.4 | Read/Write parallelism | Concurrent read and write operations. Not tested. |
-| §18 | PSA portability | Port number translation (§18.1.1), packet-IO field translation (§18.1.2). The `@p4runtime_translation` annotation is catalogued above; §18's PSA-specific translation guidance (port-as-index, extern APIs) is not. |
-| §19 | Versioning | Major/minor version scheme. API version is returned (13.1) but version negotiation is not tested. |
-| §20 | Non-PSA extensions | Architecture-specific externs (§20.1), new match types (§20.2.1), new table properties (§20.2.2). Not applicable until a non-PSA architecture needs extensions. |
+- **§6 P4Info**: ID prefix consistency tested (ConformanceTest #107).
+- **§8.1 Default-valued fields**: Zero-valued match/param round-trips tested (#108-109).
+- **§8.2 Read-write symmetry**: Explicit round-trip tests for table entries, members, groups, registers (#110-113).
+- **§8.4 P4Data complex types**: N/A — no current program uses complex P4Data in P4Runtime-visible fields.
+- **§9.1.5 Preinitialized tables**: Const entry load, readback, and immutability tested (#114-116).
+- **§9.1.8 Idle timeout**: Rejected with UNIMPLEMENTED; tested (#117).
+- **§9.2.2 Action profile groups**: Empty groups and full member replacement tested (#118-119); watch_port N/A.
+- **§9.4.3 MeterCounterData**: N/A — per-color counting requires hardware-level metering.
+- **§10 Error reporting**: Per-update structured errors tested (#120-121).
+- **§11 Atomicity**: Guaranteed by design (single mutex serializes all reads/writes).
+- **§12.1 Write batch ordering**: Cross-entity-type dependency ordering tested (#122).
+- **§13.3 Read batch**: Multiple entity types in one Read tested (#123-124).
+- **§13.4 Read/Write parallelism**: Serialized by mutex; no concurrent test (by design, not a gap).
+- **§18 PSA portability**: Covered by existing @p4runtime_translation tests (15.1-15.6); PSA-specific port-as-index guidance N/A (4ward uses explicit translation mappings).
+- **§19 Versioning**: Semver format tested (#125); version negotiation not applicable (single version).
+- **§20 Non-PSA extensions**: N/A — no architecture-specific extensions implemented yet.
 
 ---
 
@@ -289,21 +329,26 @@ of the P4Runtime spec. They are counted separately from spec compliance.
 
 | Category | Y | R | N | N/A |
 |----------|---|---|---|-----|
-| Client arbitration (§5) | 12 | 1 | 0 | 0 |
+| P4Info message (§6) | 2 | 0 | 0 | 0 |
+| Default-valued fields (§8.1) | 2 | 0 | 0 | 0 |
+| Read-write symmetry (§8.2) | 4 | 0 | 0 | 0 |
 | Bytestring encoding (§8.3) | 8 | 0 | 0 | 0 |
-| Table entries (§9.1) | 29 | 0 | 0 | 0 |
-| Action profiles (§9.2) | 13 | 0 | 0 | 0 |
-| Counters & meters (§9.3, §9.4) | 4 | 0 | 0 | 0 |
+| P4Data complex types (§8.4) | 0 | 0 | 0 | 1 |
+| Client arbitration (§5) | 12 | 1 | 0 | 0 |
+| Table entries (§9.1) | 32 | 1 | 0 | 0 |
+| Action profiles (§9.2) | 15 | 0 | 0 | 1 |
+| Counters & meters (§9.3, §9.4) | 4 | 0 | 0 | 1 |
 | Packet replication engine (§9.5) | 6 | 0 | 0 | 0 |
 | Other entity types (§9.6–§9.9) | 5 | 3 | 0 | 0 |
-| Write RPC (§12) | 6 | 0 | 0 | 0 |
-| Read RPC (§13) | 11 | 0 | 0 | 0 |
+| Write RPC (§10, §12) | 8 | 0 | 0 | 0 |
+| Read RPC (§11, §13) | 13 | 0 | 0 | 0 |
 | SetForwardingPipelineConfig (§14) | 12 | 1 | 0 | 0 |
 | GetForwardingPipelineConfig (§15) | 6 | 0 | 0 | 0 |
 | StreamChannel (§16) | 5 | 0 | 0 | 3 |
-| Capabilities (§17) | 1 | 0 | 0 | 0 |
+| Capabilities & versioning (§17, §19) | 2 | 0 | 0 | 0 |
 | @p4runtime_translation (§8.4.6, §18) | 6 | 0 | 0 | 0 |
-| **Spec total** | **124** | **5** | **0** | **3** |
+| Non-PSA extensions (§20) | 0 | 0 | 0 | 0 |
+| **Spec total** | **142** | **6** | **0** | **6** |
 
 ### Project extensions (not in P4Runtime spec)
 
@@ -313,8 +358,8 @@ of the P4Runtime spec. They are counted separately from spec compliance.
 | p4-constraints | 4 |
 | **Extensions total** | **10** |
 
-**Grand total: 118 spec implemented + 5 spec rejected + 10 extensions = 133
-catalogued, plus 16 uncatalogued spec sections.**
+**Grand total: 142 spec implemented + 6 spec rejected + 6 N/A + 10 extensions
+= 164 catalogued. All previously uncatalogued spec sections are now resolved.**
 
 ---
 
