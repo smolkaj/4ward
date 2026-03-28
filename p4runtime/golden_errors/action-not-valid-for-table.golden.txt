@@ -1,1 +1,1 @@
-INVALID_ARGUMENT: action 'fake_action' (ID 99998) is not valid for table 'port_table'
+INVALID_ARGUMENT: action 'fake_action' (ID 99998) is not valid for table 'port_table' (valid actions: 'MyIngress.forward' (29683729), 'MyIngress.drop' (25652968), 'NoAction' (21257015))

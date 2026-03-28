@@ -150,7 +150,9 @@ class P4RuntimeService(
         SetForwardingPipelineConfigRequest.Action.UNSPECIFIED,
         SetForwardingPipelineConfigRequest.Action.UNRECOGNIZED ->
           throw Status.INVALID_ARGUMENT.withDescription(
-              "unrecognized SetForwardingPipelineConfig action"
+              "unrecognized SetForwardingPipelineConfig action ${request.actionValue} " +
+                "(valid values: VERIFY (1), VERIFY_AND_COMMIT (2), " +
+                "VERIFY_AND_SAVE (3), COMMIT (4), RECONCILE_AND_COMMIT (5))"
             )
             .asException()
       }
@@ -703,7 +705,12 @@ class P4RuntimeService(
         fwdConfig.setP4DeviceConfig(state.config.device.toByteString())
       }
       GetForwardingPipelineConfigRequest.ResponseType.UNRECOGNIZED ->
-        throw Status.INVALID_ARGUMENT.withDescription("unrecognized response type").asException()
+        throw Status.INVALID_ARGUMENT.withDescription(
+            "unrecognized response type ${request.responseTypeValue} " +
+              "(valid values: ALL (0), COOKIE_ONLY (1), " +
+              "P4INFO_AND_COOKIE (2), DEVICE_CONFIG_AND_COOKIE (3))"
+          )
+          .asException()
       GetForwardingPipelineConfigRequest.ResponseType.COOKIE_ONLY -> {}
       GetForwardingPipelineConfigRequest.ResponseType.P4INFO_AND_COOKIE -> {
         fwdConfig.setP4Info(state.config.p4Info)
