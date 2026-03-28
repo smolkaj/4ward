@@ -80,10 +80,34 @@ message InjectPacketResponse {
 }
 ```
 
+### `InjectPackets`
+
+Client-streaming RPC for bulk packet injection. Packets are processed
+concurrently as they arrive from the stream. Results are **not** returned
+in the response — use [`SubscribeResults`](#subscriberesults) to collect them.
+
+```protobuf
+rpc InjectPackets(stream InjectPacketRequest) returns (InjectPacketsResponse);
+message InjectPacketsResponse {}  // empty — results via SubscribeResults
+```
+
+**Recommended pattern for DVaaS / bulk workloads:**
+
+1. Open a `SubscribeResults` stream.
+2. Wait for the `SubscriptionActive` message — this confirms the
+   subscription is registered and no results will be missed.
+3. Send all packets via `InjectPackets`.
+4. Collect results from the subscription (exactly one per injected
+   packet).
+
+Packets process concurrently across available cores, with trace tree fork
+branches (WCMP groups, multicast, clones) also parallelized within each
+packet.
+
 ### `SubscribeResults`
 
 Server-streaming RPC that delivers results from all packet sources
-(InjectPacket, PacketOut, etc.).
+(InjectPacket, InjectPackets, PacketOut, etc.).
 
 ```protobuf
 // First message confirms the subscription.
@@ -97,6 +121,47 @@ SubscribeResultsResponse {
   }
 }
 ```
+
+### Matching results to injected packets
+
+Each `ProcessPacketResult` in the `SubscribeResults` stream includes the
+full `InputPacket` (ingress port + payload). Match results to injected
+packets by comparing the payload bytes.
+
+!!! tip
+    For DVaaS workloads, embed a unique tag in each test packet (e.g., in
+    an unused header field or the payload body) to make matching
+    unambiguous.
+
+**Ordering:** With concurrent processing (`InjectPackets`), results may
+arrive in any order. Do not assume the result stream matches the
+injection order.
+
+**Completeness:** You will receive exactly one `ProcessPacketResult` per
+injected packet. Count results to know when you're done.
+
+**Relationship to P4Runtime PacketIn:** When a packet triggers
+copy-to-CPU (e.g., SAI P4's `acl_copy` or `acl_trap`), two things
+happen:
+
+- The CPU-bound clone appears as a **PacketIn** on the P4Runtime
+  `StreamChannel`.
+- The complete result (all outputs including the clone, plus the trace
+  tree) appears in **`SubscribeResults`**.
+
+`SubscribeResults` gives the full picture for every packet.
+`StreamChannel` PacketIn only carries the CPU-port copies — it's the
+standard P4Runtime mechanism for packets punted to the controller.
+
+!!! note "SubscribeResults vs PacketIn"
+    **`SubscribeResults`** delivers exactly N results for N injected
+    packets, so you always know when you're done.
+
+    **`PacketIn`** on `StreamChannel` is convenient because it carries
+    `@controller_header` metadata already parsed — but there's no
+    end-of-batch marker. To know when you've seen all PacketIns, count
+    CPU-port outputs in `SubscribeResults` — that tells you exactly how
+    many PacketIns to expect.
 
 ### Dual port encoding
 

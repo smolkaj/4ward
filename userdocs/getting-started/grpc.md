@@ -82,17 +82,37 @@ InjectPacketResponse {
 }
 ```
 
-### 4. Observe all results (optional)
+### 4. Inject many packets (bulk / DVaaS)
 
-`SubscribeResults` is a server-streaming RPC that delivers results from
-*all* packet sources (InjectPacket, PacketOut, etc.):
+For high throughput, use the streaming `InjectPackets` RPC with
+`SubscribeResults`:
+
+1. Open a `SubscribeResults` stream.
+2. Wait for the `active {}` confirmation — this guarantees the
+   subscription is registered and no results will be missed.
+3. Send all packets via `InjectPackets` (client-streaming).
+4. Collect results from the subscription.
+
+Packets process concurrently across available cores. This is the
+recommended pattern for DVaaS and any workload with many test packets.
 
 ```protobuf
-// First message confirms the subscription is active.
+// SubscribeResults delivers results from ALL sources.
 SubscribeResultsResponse { active {} }
-// Subsequent messages carry results.
 SubscribeResultsResponse { result { input_packet { ... } output_packets { ... } trace { ... } } }
 ```
+
+!!! tip
+    `InjectPacket` (singular) returns the result inline — simpler for
+    one-off debugging. `InjectPackets` (plural) processes concurrently
+    but results come via `SubscribeResults`.
+
+!!! note "Matching results to packets"
+    Each result includes the full input packet (port + payload). With
+    concurrent processing, results may arrive out of order — match by
+    payload content, not position. See the
+    [reference](../reference/grpc.md#matching-results-to-injected-packets)
+    for details on PacketIn interaction.
 
 ## Dual port encoding
 
