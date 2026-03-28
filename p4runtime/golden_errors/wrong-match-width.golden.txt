@@ -1,0 +1,1 @@
+INVALID_ARGUMENT: match field 'hdr.ethernet.etherType' value expects 2 bytes, got 1

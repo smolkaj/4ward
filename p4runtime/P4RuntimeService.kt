@@ -968,9 +968,12 @@ class P4RuntimeService(
   private fun buildBatchError(errors: List<P4RuntimeOuterClass.Error>): StatusException {
     val failedCount = errors.count { it.canonicalCode != OK_CODE }
     val totalCount = errors.size
-    val message =
-      "$failedCount of $totalCount updates failed; " +
-        "see per-update status in grpc-status-details-bin trailer"
+    val failedDetails =
+      errors
+        .withIndex()
+        .filter { it.value.canonicalCode != OK_CODE }
+        .joinToString("; ") { (i, e) -> "update #${i + 1}: ${e.message}" }
+    val message = "$failedCount of $totalCount updates failed: $failedDetails"
     val rpcStatus =
       com.google.rpc.Status.newBuilder()
         .setCode(com.google.rpc.Code.UNKNOWN_VALUE)

@@ -1,0 +1,1 @@
+UNIMPLEMENTED: ExternEntry is not supported; use the dedicated entity types (TableEntry, CounterEntry, etc.) instead

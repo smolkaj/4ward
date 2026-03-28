@@ -1,0 +1,1 @@
+INVALID_ARGUMENT: ForwardingPipelineConfig must include p4info and p4_device_config
