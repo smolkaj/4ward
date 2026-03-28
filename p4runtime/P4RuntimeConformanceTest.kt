@@ -1679,12 +1679,109 @@ class P4RuntimeConformanceTest {
     }
   }
 
-  /** P4Runtime spec §7.2: RECONCILE_AND_COMMIT is not supported. */
+  // =========================================================================
+  // RECONCILE_AND_COMMIT (scenarios 80, 126-130)
+  // =========================================================================
+
+  /** Same pipeline reloaded with RECONCILE_AND_COMMIT preserves entries. */
   @Test
-  fun `80 - RECONCILE_AND_COMMIT returns UNIMPLEMENTED`() {
-    assertGrpcError(Status.Code.UNIMPLEMENTED) {
-      sendPipelineAction(SetForwardingPipelineConfigRequest.Action.RECONCILE_AND_COMMIT)
+  fun `80 - RECONCILE_AND_COMMIT preserves entries on identical pipeline reload`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    harness.installEntry(buildExactEntry(config, matchValue = 0x0800, port = 1))
+    assertEquals(1, harness.readRegularEntries().size)
+    sendPipelineAction(SetForwardingPipelineConfigRequest.Action.RECONCILE_AND_COMMIT, config)
+    assertEquals("entry should survive reconcile", 1, harness.readRegularEntries().size)
+  }
+
+  /** RECONCILE_AND_COMMIT with no prior pipeline is equivalent to VERIFY_AND_COMMIT. */
+  @Test
+  fun `126 - RECONCILE_AND_COMMIT without prior pipeline loads normally`() {
+    val config = loadBasicTableConfig()
+    sendPipelineAction(SetForwardingPipelineConfigRequest.Action.RECONCILE_AND_COMMIT, config)
+    harness.installEntry(buildExactEntry(config, matchValue = 0x0800, port = 1))
+    assertEquals(1, harness.readRegularEntries().size)
+  }
+
+  /** RECONCILE_AND_COMMIT rejects if a populated table is missing from the new pipeline. */
+  @Test
+  fun `127 - RECONCILE_AND_COMMIT rejects when populated table removed`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    harness.installEntry(buildExactEntry(config, matchValue = 0x0800, port = 1))
+    // Load a different pipeline that doesn't have the same table.
+    assertGrpcError(Status.Code.INVALID_ARGUMENT, "absent from the new pipeline") {
+      sendPipelineAction(
+        SetForwardingPipelineConfigRequest.Action.RECONCILE_AND_COMMIT,
+        loadPassthroughConfig(),
+      )
     }
+  }
+
+  /** RECONCILE_AND_COMMIT succeeds when tables exist but have no entries. */
+  @Test
+  fun `128 - RECONCILE_AND_COMMIT succeeds with empty tables and different pipeline`() {
+    harness.loadPipeline(loadBasicTableConfig())
+    // No entries installed — any pipeline change should be fine.
+    sendPipelineAction(
+      SetForwardingPipelineConfigRequest.Action.RECONCILE_AND_COMMIT,
+      loadPassthroughConfig(),
+    )
+    // New pipeline should be active.
+    assertNotNull(harness.getConfig())
+  }
+
+  /** RECONCILE_AND_COMMIT preserves PRE entries (multicast groups, clone sessions). */
+  @Test
+  fun `129 - RECONCILE_AND_COMMIT preserves PRE entries`() {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+    // Install a multicast group.
+    val mcastGroup =
+      Entity.newBuilder()
+        .setPacketReplicationEngineEntry(
+          P4RuntimeOuterClass.PacketReplicationEngineEntry.newBuilder()
+            .setMulticastGroupEntry(
+              P4RuntimeOuterClass.MulticastGroupEntry.newBuilder()
+                .setMulticastGroupId(1)
+                .addReplicas(
+                  P4RuntimeOuterClass.Replica.newBuilder().setEgressPort(1).setInstance(0)
+                )
+            )
+        )
+        .build()
+    harness.installEntry(mcastGroup)
+    sendPipelineAction(SetForwardingPipelineConfigRequest.Action.RECONCILE_AND_COMMIT, config)
+    // PRE entry should survive.
+    val request =
+      ReadRequest.newBuilder()
+        .setDeviceId(1)
+        .addEntities(
+          Entity.newBuilder()
+            .setPacketReplicationEngineEntry(
+              P4RuntimeOuterClass.PacketReplicationEngineEntry.newBuilder()
+                .setMulticastGroupEntry(
+                  P4RuntimeOuterClass.MulticastGroupEntry.getDefaultInstance()
+                )
+            )
+        )
+        .build()
+    val results = harness.readEntries(request)
+    assertTrue("PRE entry should survive reconcile", results.isNotEmpty())
+  }
+
+  /** RECONCILE_AND_COMMIT preserves action profile members. */
+  @Test
+  fun `130 - RECONCILE_AND_COMMIT preserves action profile members`() {
+    val config = loadConfig("e2e_tests/trace_tree/action_selector_3.txtpb")
+    harness.loadPipeline(config)
+    val profileId = config.p4Info.actionProfilesList.first().preamble.id
+    val dropId = P4RuntimeTestHarness.findAction(config, "drop").preamble.id
+    val member = buildMemberEntity(actionProfileId = profileId, memberId = 1, actionId = dropId)
+    harness.installEntry(member)
+    sendPipelineAction(SetForwardingPipelineConfigRequest.Action.RECONCILE_AND_COMMIT, config)
+    val members = harness.readProfileMembers(actionProfileId = profileId)
+    assertEquals("profile member should survive reconcile", 1, members.size)
   }
 
   // ---------------------------------------------------------------------------

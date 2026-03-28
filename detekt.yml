@@ -72,8 +72,8 @@ complexity:
   # or dispatch classes like Interpreter (one function per AST node kind).
   # Google style sets no hard limit.
   TooManyFunctions:
-    thresholdInFiles: 60
-    thresholdInClasses: 60
+    thresholdInFiles: 65
+    thresholdInClasses: 65
     thresholdInInterfaces: 30
     thresholdInObjects: 30
     thresholdInEnums: 11

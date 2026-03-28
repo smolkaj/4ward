@@ -58,6 +58,20 @@ class Simulator(
   }
 
   /**
+   * Like [loadPipeline], but preserves forwarding state for tables whose schema is unchanged.
+   *
+   * Used by RECONCILE_AND_COMMIT. Snapshots the current write-state, loads the new pipeline (which
+   * clears all state), then restores entries for tables that exist in both pipelines. The caller
+   * must verify schema compatibility before calling this.
+   */
+  fun loadPipelinePreservingEntries(config: PipelineConfig) {
+    val snapshot = tableStore.snapshotWriteState()
+    val oldAliasByName = tableStore.tableAliasByName
+    loadPipeline(config)
+    tableStore.restoreTableEntries(snapshot, oldAliasByName)
+  }
+
+  /**
    * Processes a single packet through the pipeline.
    *
    * @throws IllegalStateException if no pipeline is loaded.
@@ -122,6 +136,10 @@ class Simulator(
 
   val actionNameById: Map<Int, String>
     get() = tableStore.actionNameById
+
+  /** P4info alias names of tables that have at least one installed entry. */
+  val populatedTableAliases: Set<String>
+    get() = tableStore.populatedTableAliases()
 
   override fun getTableEntries(tableName: String) = tableStore.getTableEntries(tableName)
 

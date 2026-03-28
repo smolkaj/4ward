@@ -217,7 +217,8 @@ UNIMPLEMENTED (rejection is tested), **N/A** = out of scope
 | 7.7 | VERIFY action validates without applying | Y | ConformanceTest #75 |
 | 7.8 | VERIFY_AND_COMMIT applies atomically | Y | ConformanceTest #1 |
 | 7.9 | VERIFY_AND_SAVE + COMMIT two-phase pipeline load | Y | ConformanceTest #77-78 |
-| 7.9a | RECONCILE_AND_COMMIT rejected | R | ConformanceTest #80 |
+| 7.9a | RECONCILE_AND_COMMIT preserves entries on compatible reload | Y | ConformanceTest #80, #126-130 |
+| 7.9b | RECONCILE_AND_COMMIT rejects incompatible populated tables | Y | ConformanceTest #127 |
 | 7.10 | Cookie stored and returned | Y | ConformanceTest #59 |
 | 7.11 | Pipeline reload clears table entries | Y | ConformanceTest #58 |
 | 7.12 | Const table entries populated at load time | Y | ConformanceTest #65 |
@@ -342,13 +343,13 @@ of the P4Runtime spec. They are counted separately from spec compliance.
 | Other entity types (§9.6–§9.9) | 5 | 3 | 0 | 0 |
 | Write RPC (§10, §12) | 8 | 0 | 0 | 0 |
 | Read RPC (§11, §13) | 13 | 0 | 0 | 0 |
-| SetForwardingPipelineConfig (§14) | 12 | 1 | 0 | 0 |
+| SetForwardingPipelineConfig (§14) | 14 | 0 | 0 | 0 |
 | GetForwardingPipelineConfig (§15) | 6 | 0 | 0 | 0 |
 | StreamChannel (§16) | 5 | 0 | 0 | 3 |
 | Capabilities & versioning (§17, §19) | 2 | 0 | 0 | 0 |
 | @p4runtime_translation (§8.4.6, §18) | 6 | 0 | 0 | 0 |
 | Non-PSA extensions (§20) | 0 | 0 | 0 | 0 |
-| **Spec total** | **142** | **6** | **0** | **6** |
+| **Spec total** | **144** | **5** | **0** | **6** |
 
 ### Project extensions (not in P4Runtime spec)
 
@@ -358,8 +359,8 @@ of the P4Runtime spec. They are counted separately from spec compliance.
 | p4-constraints | 4 |
 | **Extensions total** | **10** |
 
-**Grand total: 142 spec implemented + 6 spec rejected + 6 N/A + 10 extensions
-= 164 catalogued. All previously uncatalogued spec sections are now resolved.**
+**Grand total: 144 spec implemented + 5 spec rejected + 6 N/A + 10 extensions
+= 165 catalogued. All previously uncatalogued spec sections are now resolved.**
 
 ---
 

@@ -153,6 +153,61 @@ class TableStore : TableDataReader {
 
   private var writeState = WriteState()
 
+  /**
+   * Returns the p4info alias names of tables that have at least one installed entry (excluding
+   * default actions and const entries — only explicitly written regular entries count).
+   */
+  fun populatedTableAliases(): Set<String> =
+    tables.entries
+      .filter { (_, entries) -> entries.isNotEmpty() }
+      .mapNotNull { (behavioralName, _) -> tableAliasByName[behavioralName] }
+      .toSet()
+
+  /** Snapshots the current write-state for later restoration (used by RECONCILE_AND_COMMIT). */
+  fun snapshotWriteState(): WriteState = writeState.deepCopy()
+
+  /**
+   * Restores table entries from a previous [WriteState] snapshot, matching tables by p4info alias.
+   *
+   * Only entries for tables whose alias appears in both the old and new pipeline are restored. The
+   * caller is responsible for verifying schema compatibility before calling this.
+   */
+  fun restoreTableEntries(snapshot: WriteState, oldAliasByName: Map<String, String>) {
+    for ((oldName, entries) in snapshot.tables) {
+      if (entries.isEmpty()) continue
+      val alias = oldAliasByName[oldName] ?: continue
+      val newName = tableAliasByName.entries.find { it.value == alias }?.key ?: continue
+      tables[newName] = entries.toMutableList()
+      // Restore associated direct counter/meter data.
+      for (entry in entries) {
+        snapshot.directCounterData[entry]?.let { directCounterData[entry] = it }
+        snapshot.directMeterData[entry]?.let { directMeterData[entry] = it }
+      }
+    }
+
+    // Restore default actions that were explicitly modified.
+    for (oldName in snapshot.modifiedDefaults) {
+      val alias = oldAliasByName[oldName] ?: continue
+      val newName = tableAliasByName.entries.find { it.value == alias }?.key ?: continue
+      snapshot.defaultActions[oldName]?.let {
+        defaultActions[newName] = it
+        modifiedDefaults.add(newName)
+      }
+    }
+
+    // Restore PRE entries (multicast groups, clone sessions) — these are table-independent.
+    cloneSessions.putAll(snapshot.cloneSessions)
+    multicastGroups.putAll(snapshot.multicastGroups)
+
+    // Restore action profile members and groups.
+    for ((profileId, members) in snapshot.profileMembers) {
+      profileMembers.getOrPut(profileId) { mutableMapOf() }.putAll(members)
+    }
+    for ((profileId, groups) in snapshot.profileGroups) {
+      profileGroups.getOrPut(profileId) { mutableMapOf() }.putAll(groups)
+    }
+  }
+
   // Delegating properties — all code transparently accesses writeState fields.
   private val tables
     get() = writeState.tables
@@ -220,7 +275,14 @@ class TableStore : TableDataReader {
   // Map behavioral (post-midend) names back to p4info aliases (the short names from the
   // P4 source). Used for human-readable trace output.
   private var actionAliasByName: Map<String, String> = emptyMap()
-  private var tableAliasByName: Map<String, String> = emptyMap()
+
+  /**
+   * Behavioral-name → p4info-alias mapping for tables. Populated by [loadMappings]. Public for
+   * [Simulator.loadPipelinePreservingEntries] to snapshot before reload.
+   */
+  var tableAliasByName: Map<String, String> = emptyMap()
+    private set
+
   private var registerInfoById: Map<Int, RegisterInfo> = emptyMap()
   private var counterInfoById: Map<Int, IndexedExternInfo> = emptyMap()
   private var meterInfoById: Map<Int, IndexedExternInfo> = emptyMap()
