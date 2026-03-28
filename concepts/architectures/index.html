@@ -881,6 +881,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#pna" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PNA
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PNA">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#key-metadata_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key metadata
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#externs_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Externs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#limitations" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1067,6 +1106,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#pna" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PNA
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PNA">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#key-metadata_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key metadata
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#externs_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Externs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#limitations" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1098,7 +1176,7 @@
 
 
 <h1 id="architectures">Architectures<a class="headerlink" href="#architectures" title="Permanent link">¶</a></h1>
-<p>4ward currently supports two P4 architectures: <strong>v1model</strong> and <strong>PSA</strong>. Each
+<p>4ward currently supports three P4 architectures: <strong>v1model</strong>, <strong>PSA</strong>, and <strong>PNA</strong>. Each
 defines a fixed pipeline of stages, a set of externs, and metadata structures.
 Adding more architectures is straightforward — see
 <a href="../architecture-modifications/">Architecture Modifications</a>.</p>
@@ -1288,8 +1366,81 @@ to forward. This is opposite to v1model where packets forward by default.</p>
 <ul>
 <li><code>Digest.pack(data)</code> — queues message to control plane (no-op in simulator)</li>
 </ul>
+<h2 id="pna">PNA<a class="headerlink" href="#pna" title="Permanent link">¶</a></h2>
+<p>The Portable NIC Architecture — designed for smart NICs with a single-pipeline
+structure. Defined in
+<a href="https://github.com/p4lang/p4c/blob/main/p4include/pna.p4">pna.p4</a>.</p>
+<p>Single-pipeline design (no separate egress):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>MainParser → PreControl → MainControl → MainDeparser
+</code></pre></div>
+<p><strong>Key difference from PSA:</strong> forwarding uses free functions (<code>send_to_port()</code>,
+<code>drop_packet()</code>) with last-writer-wins semantics instead of output metadata
+fields. Drops by default — <code>send_to_port()</code> must be called to forward.</p>
+<p><strong>Ports:</strong> 32-bit (<code>bit&lt;32&gt;</code>). Direction-aware: packets have a <code>PNA_Direction_t</code>
+(<code>NET_TO_HOST</code> or <code>HOST_TO_NET</code>).</p>
+<h3 id="key-metadata_1">Key metadata<a class="headerlink" href="#key-metadata_1" title="Permanent link">¶</a></h3>
+<p><strong>Main input</strong> (<code>pna_main_input_metadata_t</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>direction</code></td>
+<td><code>PNA_Direction_t</code></td>
+<td><code>NET_TO_HOST</code> or <code>HOST_TO_NET</code></td>
+</tr>
+<tr>
+<td><code>input_port</code></td>
+<td><code>bit&lt;32&gt;</code></td>
+<td>Input port</td>
+</tr>
+<tr>
+<td><code>parser_error</code></td>
+<td><code>error</code></td>
+<td>Parser error (set after parsing)</td>
+</tr>
+<tr>
+<td><code>pass</code></td>
+<td><code>bit&lt;3&gt;</code></td>
+<td>Recirculation pass number (0–7)</td>
+</tr>
+<tr>
+<td><code>loopedback</code></td>
+<td><code>bool</code></td>
+<td>True if recirculated</td>
+</tr>
+<tr>
+<td><code>timestamp</code></td>
+<td><code>bit&lt;64&gt;</code></td>
+<td>Packet arrival timestamp</td>
+</tr>
+</tbody>
+</table>
+<h3 id="externs_2">Externs<a class="headerlink" href="#externs_2" title="Permanent link">¶</a></h3>
+<p><strong>Forwarding (last-writer-wins):</strong></p>
+<ul>
+<li><code>send_to_port(port)</code> — forward to port</li>
+<li><code>drop_packet()</code> — drop (main control only per spec)</li>
+<li><code>recirculate()</code> — loop deparsed bytes back to parser</li>
+<li><code>mirror_packet(slot_id, session_id)</code> — mirror deparsed bytes to clone session</li>
+</ul>
+<p><strong>Direction:</strong></p>
+<ul>
+<li><code>SelectByDirection(direction, n2h_value, h2n_value)</code> — select value based on packet direction</li>
+</ul>
+<p><strong>Add-on-miss (data-plane table insertion):</strong></p>
+<ul>
+<li><code>add_entry(action_name, action_params, expire_time_profile_id) → bool</code> — insert table entry on miss</li>
+</ul>
+<p><strong>Stateful:</strong> Same as PSA — <code>Register</code>, <code>Counter</code>, <code>Meter</code> (GREEN), <code>Hash</code>,
+<code>InternetChecksum</code>, <code>Digest</code> (no-op), <code>Random</code>.</p>
 <h2 id="limitations">Limitations<a class="headerlink" href="#limitations" title="Permanent link">¶</a></h2>
-<p>Both architectures:</p>
+<p>All architectures:</p>
 <ul>
 <li><strong>Meters always return GREEN.</strong> No real packet rates in a simulator.</li>
 <li><strong>Counters are fire-and-forget.</strong> Not readable from P4 logic (control-plane
