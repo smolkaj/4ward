@@ -132,18 +132,23 @@ class PNAArchitecture : Architecture {
 
     ctx.addTraceEvent(packetIngressEvent(ingressPort))
 
-    // --- PreControl ---
-    // The PRE stage is minimally specified in PNA (decrypt is TBD). Run it as a normal control.
-    bindStageParams(env, pipeline.preControl.blockName, pipeline.blockParams, values)
-    runControlStage(interpreter, ctx, env, pipeline.preControl)
-
     // --- Main Parser ---
+    // Runs before PreControl so that parser_error is available in pre_input_metadata.
+    // This matches the DPDK SoftNIC execution order (parser → pre-control → main-control).
     bindStageParams(env, pipeline.mainParser.blockName, pipeline.blockParams, values)
     runParserStage(interpreter, ctx, env, pipeline.mainParser) { e ->
+      (values["pna_pre_input_metadata_t"] as? StructVal)?.let {
+        it.fields["parser_error"] = ErrorVal(e.errorName)
+      }
       (values["pna_main_input_metadata_t"] as? StructVal)?.let {
         it.fields["parser_error"] = ErrorVal(e.errorName)
       }
     }
+
+    // --- PreControl ---
+    // The PRE stage is minimally specified in PNA (decrypt is TBD). Run it as a normal control.
+    bindStageParams(env, pipeline.preControl.blockName, pipeline.blockParams, values)
+    runControlStage(interpreter, ctx, env, pipeline.preControl)
 
     try {
       // --- Main Control ---

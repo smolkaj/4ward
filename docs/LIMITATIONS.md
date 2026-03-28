@@ -24,16 +24,19 @@ guilt — just write it down so someone can find it later.
   `value_set`, header stacks, and top-level assignments. 73 additional PSA
   programs (BMv2 + DPDK targets) are verified to compile. TNA is not
   implemented.
-- **PNA: basic pipeline implemented, no corpus tests yet.** The PNA
-  single-pipeline architecture (PreControl → MainParser → MainControl →
+- **PNA: fully implemented, 68/68 programs covered.** The PNA
+  single-pipeline architecture (MainParser → PreControl → MainControl →
   MainDeparser) is implemented with support for `send_to_port`, `drop_packet`,
-  `recirculate`, `SelectByDirection`, registers, `Hash.get_hash`,
+  `recirculate`, `mirror_packet`, `SelectByDirection`, registers, `Hash.get_hash`,
   `Meter.execute` (stub GREEN), `InternetChecksum`, `Digest.pack` (stub no-op),
-  counters (stub no-op), and `Random.read()`. Not yet implemented:
-  `mirror_packet()` (rejects at runtime), `add_entry` / `allocate_flow_id` /
-  `set_entry_expire_time` / `restart_expire_timer` (stubs). No corpus STF tests
-  exist for PNA (p4c doesn't ship PNA STF files); p4testgen PNA support outputs
-  PTF format, not STF — format conversion or a PTF runner is needed.
+  counters (stub no-op), and `Random.read()`. Add-on-miss externs (`add_entry`,
+  `allocate_flow_id`, `set_entry_expire_time`, `restart_expire_timer`) are stubs.
+  22 STF corpus tests, 46 compile-only tests, 33 p4testgen symbolic tests.
+- **PNA mirror_packet uses original (pre-parse) bytes.** The DPDK SoftNIC
+  mirrors the packet at its current state when `mirror_packet()` executes
+  (post-modification). The PNA spec is underspecified on this point. Our
+  approach matches PSA's I2E clone semantics but may diverge from DPDK for
+  programs that modify headers before mirroring.
 
 ## Externs
 

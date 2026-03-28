@@ -59,6 +59,16 @@ class Environment {
     }
     error("undefined variable: $name")
   }
+
+  /** Returns an independent deep copy of this environment (all scopes and values). */
+  fun deepCopy(): Environment {
+    val copy = Environment()
+    copy.scopes.clear()
+    for (scope in scopes) {
+      copy.scopes.addLast(scope.mapValuesTo(mutableMapOf()) { it.value.deepCopy() })
+    }
+    return copy
+  }
 }
 
 /**
@@ -67,7 +77,7 @@ class Environment {
  * Holds the input packet buffer, the output (emit) buffer, and the execution trace. Created once
  * per packet in the architecture's [processPacket] and threaded through the interpreter.
  */
-class PacketContext(payload: ByteArray) {
+class PacketContext(payload: ByteArray, initialOffset: Int = 0) {
 
   /** Original ingress packet length in bytes (for direct counter byte counts). */
   val payloadSize: Int = payload.size
@@ -77,7 +87,11 @@ class PacketContext(payload: ByteArray) {
   // -------------------------------------------------------------------------
 
   /** Remaining bytes in the input packet, consumed by parser extract(). */
-  private val buffer: PacketBuffer = PacketBuffer(payload)
+  private val buffer: PacketBuffer = PacketBuffer(payload, initialOffset)
+
+  /** Number of bytes consumed from the input buffer so far (parser extract position). */
+  val bytesConsumed: Int
+    get() = buffer.bytesConsumed
 
   /** Output packet bytes, written by deparser emit(). */
   private val outputBuffer = ByteArrayOutputStream()
@@ -125,8 +139,12 @@ class PacketTooShortException(message: String) : ParserErrorException("PacketToo
 open class ParserErrorException(val errorName: String, message: String) : Exception(message)
 
 /** A simple byte-level cursor over a packet buffer. */
-private class PacketBuffer(private val data: ByteArray) {
-  private var offset: Int = 0
+private class PacketBuffer(private val data: ByteArray, initialOffset: Int = 0) {
+  private var offset: Int = initialOffset
+
+  /** Number of bytes consumed from the start of the buffer. */
+  val bytesConsumed: Int
+    get() = offset
 
   fun remaining(): Int = data.size - offset
 

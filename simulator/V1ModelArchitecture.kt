@@ -71,6 +71,9 @@ class V1ModelArchitecture(
   private val dropPortOverride: Int? = null
 ) : Architecture {
 
+  /** Set in [runPipeline] after parser; read in [forkSpecs] for selector fork re-executions. */
+  private var lastPostParserSnapshot: PostParserSnapshot? = null
+
   /** Invariant inputs to the pipeline, shared across fork re-executions. */
   private data class PipelineContext(
     val ingressPort: UInt,
@@ -209,12 +212,14 @@ class V1ModelArchitecture(
   ): Pair<ForkReason, List<BranchSpec>> =
     when (fork) {
       is ActionSelectorFork -> {
+        val parserSnapshot = lastPostParserSnapshot
         val specs =
           fork.members.map { member ->
             val d =
               decisions.copy(
                 selectorMembers = decisions.selectorMembers + (fork.tableName to member.memberId),
                 tableLookupCache = fork.preForkLookups,
+                postParserSnapshot = parserSnapshot,
               )
             BranchSpec("member_${member.memberId}", ctx, d, fork.eventsBeforeFork.size)
           }
@@ -392,29 +397,103 @@ class V1ModelArchitecture(
     )
   }
 
+  /**
+   * Creates a [PipelineState] by restoring from a post-parser [Environment] snapshot, skipping
+   * parser execution. The [snapshotEnv] is deep-copied and the [PacketContext] starts at
+   * [bytesConsumed] into the payload.
+   */
+  private fun initPipelineState(
+    ctx: PipelineContext,
+    decisions: V1ModelDecisions,
+    bytesConsumed: Int,
+    snapshotEnv: Environment,
+  ): PipelineState {
+    val packetCtx = PacketContext(ctx.payload, bytesConsumed)
+    val env = snapshotEnv.deepCopy()
+    val config = ctx.config
+    val typesByName = config.typesList.associateBy { it.name }
+
+    val ioTypes = setOf("packet_in", "packet_out")
+    val parserUserParams =
+      config.parsersList.first().paramsList.filter {
+        it.type.hasNamed() && it.type.named !in ioTypes
+      }
+    val standardMetaTypeName = parserUserParams[2].type.named
+
+    // Resolve standard_metadata from the restored environment.
+    val standardMetadata =
+      env.lookup(parserUserParams[2].name) as? StructVal
+        ?: error("standard_metadata not found in snapshot environment")
+
+    val portBits = standardMetadata.bitWidth("ingress_port")
+    val dropPort = dropPortOverride?.toLong() ?: ((1L shl portBits) - 1)
+
+    val pendingOps = V1ModelPendingOps()
+    val interpreter =
+      Interpreter(
+        ctx.config,
+        ctx.tableStore,
+        packetCtx,
+        decisions.selectorMembers,
+        createExternHandler(standardMetadata, pendingOps, ctx.tableStore, dropPort),
+        decisions.tableLookupCache,
+      )
+
+    val metaParamName = parserUserParams[1].name
+    val metaStructDecl = typesByName[parserUserParams[1].type.named]?.struct
+    return PipelineState(
+      packetCtx,
+      pendingOps,
+      interpreter,
+      env,
+      standardMetadata,
+      metaParamName,
+      metaStructDecl,
+      config,
+      dropPort,
+    )
+  }
+
   /** Executes the full v1model pipeline once, returning a flat trace tree with a leaf outcome. */
   @Suppress("CyclomaticComplexMethod", "ThrowsCount")
   private fun runPipeline(ctx: PipelineContext, decisions: V1ModelDecisions): TraceTree {
-    val s = initPipelineState(ctx, decisions)
-
-    // --- Packet ingress ---
-    s.packetCtx.addTraceEvent(packetIngressEvent(ctx.ingressPort))
-
-    // --- Parser ---
-    var parserExitDrop = false
-    if (s.parserStage != null) {
-      s.packetCtx.addTraceEvent(stageEvent(s.parserStage, PipelineStageEvent.Direction.ENTER))
-      try {
-        s.interpreter.runParser(s.parserStage.blockName, s.env)
-      } catch (_: ExitException) {
-        parserExitDrop = true
-      } catch (e: ParserErrorException) {
-        // BMv2 v1model: parser errors don't drop the packet. Set parser_error and
-        // continue to the ingress pipeline, letting the P4 program decide the fate.
-        s.standardMetadata.fields["parser_error"] = ErrorVal(e.errorName)
-      } finally {
-        s.packetCtx.addTraceEvent(stageEvent(s.parserStage, PipelineStageEvent.Direction.EXIT))
+    val snapshot = decisions.postParserSnapshot
+    val s =
+      if (snapshot != null) {
+        // Fork re-execution: restore from post-parser snapshot instead of re-parsing.
+        initPipelineState(ctx, decisions, snapshot.bytesConsumed, snapshot.env)
+      } else {
+        initPipelineState(ctx, decisions)
       }
+
+    // --- Parser (skipped on fork re-executions that have a snapshot) ---
+    var parserExitDrop = false
+    if (snapshot != null) {
+      // Replay parser trace events without re-executing.
+      for (event in snapshot.parserEvents) s.packetCtx.addTraceEvent(event)
+      parserExitDrop = snapshot.parserExitDrop
+    } else {
+      s.packetCtx.addTraceEvent(packetIngressEvent(ctx.ingressPort))
+      if (s.parserStage != null) {
+        s.packetCtx.addTraceEvent(stageEvent(s.parserStage, PipelineStageEvent.Direction.ENTER))
+        try {
+          s.interpreter.runParser(s.parserStage.blockName, s.env)
+        } catch (_: ExitException) {
+          parserExitDrop = true
+        } catch (e: ParserErrorException) {
+          s.standardMetadata.fields["parser_error"] = ErrorVal(e.errorName)
+        } finally {
+          s.packetCtx.addTraceEvent(stageEvent(s.parserStage, PipelineStageEvent.Direction.EXIT))
+        }
+      }
+      // Capture snapshot for potential fork re-executions.
+      lastPostParserSnapshot =
+        PostParserSnapshot(
+          env = s.env.deepCopy(),
+          bytesConsumed = s.packetCtx.bytesConsumed,
+          parserEvents = s.packetCtx.getEvents().toList(),
+          parserExitDrop = parserExitDrop,
+        )
     }
     if (parserExitDrop) return buildDropTrace(s.packetCtx.getEvents(), DropReason.MARK_TO_DROP)
 
@@ -971,6 +1050,14 @@ internal sealed class BranchMode {
  * @property preservedMetadata Pre-filtered metadata fields to restore from
  *   clone/resubmit/recirculate.
  */
+/** Post-parser state snapshot for reuse in fork re-executions (avoids re-parsing). */
+internal data class PostParserSnapshot(
+  val env: Environment,
+  val bytesConsumed: Int,
+  val parserEvents: List<TraceEvent>,
+  val parserExitDrop: Boolean,
+)
+
 internal data class V1ModelDecisions(
   val selectorMembers: Map<String, Int> = emptyMap(),
   val branchMode: BranchMode = BranchMode.Normal(),
@@ -979,6 +1066,8 @@ internal data class V1ModelDecisions(
   val preservedMetadata: Map<String, Value>? = null,
   /** Cached table lookup results from before a selector fork, to avoid redundant O(n) scans. */
   val tableLookupCache: Map<String, TableStore.LookupResult>? = null,
+  /** Post-parser state to restore instead of re-running the parser on fork re-executions. */
+  val postParserSnapshot: PostParserSnapshot? = null,
 )
 
 /**
