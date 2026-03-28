@@ -45,10 +45,10 @@ class InterpreterInlineActionTest {
       )
       .build()
 
-  private fun interp(vararg actions: ActionDecl): Interpreter {
+  private fun interp(vararg actions: ActionDecl): Interpreter.Execution {
     val config =
       BehavioralConfig.newBuilder().also { cfg -> actions.forEach { cfg.addActions(it) } }.build()
-    return Interpreter(config, TableStore())
+    return interpreterExecution(config, TableStore())
   }
 
   @Test

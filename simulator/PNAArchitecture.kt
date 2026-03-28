@@ -30,7 +30,9 @@ import java.math.BigInteger
  */
 class PNAArchitecture : Architecture {
 
-  /** Pipeline-invariant state derived from the [BehavioralConfig]. Computed once per packet. */
+  private val interpreterCache = Interpreter.Cache()
+
+  /** Pipeline-invariant state derived from the [BehavioralConfig]. */
   @Suppress("LongParameterList")
   private class PipelineConfig(
     val config: BehavioralConfig,
@@ -38,6 +40,7 @@ class PNAArchitecture : Architecture {
     val blockParams: Map<String, List<BlockParam>>,
     val typesByName: Map<String, TypeDecl>,
     val externInstances: Map<String, ExternInstanceDecl>,
+    val interpreter: Interpreter,
     val mainParser: PipelineStage,
     val preControl: PipelineStage,
     val mainControl: PipelineStage,
@@ -78,6 +81,7 @@ class PNAArchitecture : Architecture {
         blockParams = buildBlockParamsMap(config),
         typesByName = config.typesList.associateBy { it.name },
         externInstances = buildExternInstancesMap(config),
+        interpreter = interpreterCache.get(config),
         mainParser = stage("main_parser"),
         preControl = stage("pre_control"),
         mainControl = stage("main_control"),
@@ -124,8 +128,7 @@ class PNAArchitecture : Architecture {
 
     val checksumState = mutableMapOf<String, BigInteger>()
     val interpreter =
-      Interpreter(
-        pipeline.config,
+      pipeline.interpreter.execution(
         pipeline.tableStore,
         ctx,
         selectorMembers,

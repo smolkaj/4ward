@@ -77,6 +77,7 @@ class V1ModelArchitecture(
    * start of each [processPacket] to prevent stale state across packets.
    */
   private var postParserSnapshot: PostParserSnapshot? = null
+  private val interpreterCache = Interpreter.Cache()
 
   /** Invariant inputs to the pipeline, shared across fork re-executions. */
   private data class PipelineContext(
@@ -84,6 +85,7 @@ class V1ModelArchitecture(
     val payload: ByteArray,
     val config: BehavioralConfig,
     val tableStore: TableStore,
+    val interpreter: Interpreter,
   )
 
   /** Per-execution state created fresh for each pipeline run. */
@@ -91,7 +93,7 @@ class V1ModelArchitecture(
   private class PipelineState(
     val packetCtx: PacketContext,
     val pendingOps: V1ModelPendingOps,
-    val interpreter: Interpreter,
+    val interpreter: Interpreter.Execution,
     val env: Environment,
     val standardMetadata: StructVal,
     val metaParamName: String,
@@ -120,7 +122,8 @@ class V1ModelArchitecture(
     tableStore: TableStore,
   ): PipelineResult {
     postParserSnapshot = null
-    val ctx = PipelineContext(ingressPort, payload, config, tableStore)
+    val ctx =
+      PipelineContext(ingressPort, payload, config, tableStore, interpreterCache.get(config))
     return buildTraceTree(ctx, V1ModelDecisions(), prefixLength = 0)
   }
 
@@ -386,8 +389,7 @@ class V1ModelArchitecture(
 
     val pendingOps = V1ModelPendingOps()
     val interpreter =
-      Interpreter(
-        ctx.config,
+      ctx.interpreter.execution(
         ctx.tableStore,
         packetCtx,
         decisions.selectorMembers,

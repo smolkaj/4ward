@@ -48,14 +48,17 @@ class InterpreterParserTest {
     vararg states: ParserState,
     tableStore: TableStore = TableStore(),
     valueSets: List<ValueSetDecl> = emptyList(),
-  ): Interpreter {
+  ): Interpreter.Execution {
     val parser =
       ParserDecl.newBuilder()
         .setName("MyParser")
         .addAllStates(states.toList())
         .addAllValueSets(valueSets)
         .build()
-    return Interpreter(BehavioralConfig.newBuilder().addParsers(parser).build(), tableStore)
+    return interpreterExecution(
+      BehavioralConfig.newBuilder().addParsers(parser).build(),
+      tableStore,
+    )
   }
 
   @Test

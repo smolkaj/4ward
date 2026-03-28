@@ -34,7 +34,9 @@ import java.math.BigInteger
  */
 class PSAArchitecture : Architecture {
 
-  /** Pipeline-invariant state derived from the [BehavioralConfig]. Computed once per packet. */
+  private val interpreterCache = Interpreter.Cache()
+
+  /** Pipeline-invariant state derived from the [BehavioralConfig]. */
   @Suppress("LongParameterList")
   private class PipelineConfig(
     val config: BehavioralConfig,
@@ -42,6 +44,7 @@ class PSAArchitecture : Architecture {
     val blockParams: Map<String, List<BlockParam>>,
     val typesByName: Map<String, TypeDecl>,
     val externInstances: Map<String, ExternInstanceDecl>,
+    val interpreter: Interpreter,
     // Pre-resolved PSA pipeline stages (fail fast on misconfigured pipelines).
     val ingressParser: PipelineStage,
     val ingress: PipelineStage,
@@ -69,6 +72,7 @@ class PSAArchitecture : Architecture {
         blockParams = buildBlockParamsMap(config),
         typesByName = config.typesList.associateBy { it.name },
         externInstances = buildExternInstancesMap(config),
+        interpreter = interpreterCache.get(config),
         ingressParser = stage("ingress_parser"),
         ingress = stage("ingress"),
         ingressDeparser = stage("ingress_deparser"),
@@ -213,8 +217,7 @@ class PSAArchitecture : Architecture {
     val output = values["psa_ingress_output_metadata_t"] as? StructVal
 
     val interpreter =
-      Interpreter(
-        pipeline.config,
+      pipeline.interpreter.execution(
         pipeline.tableStore,
         ctx,
         selectorMembers,
@@ -411,7 +414,7 @@ class PSAArchitecture : Architecture {
     val egressOutput = egressValues["psa_egress_output_metadata_t"] as? StructVal
 
     val egressInterpreter =
-      Interpreter(p.config, p.tableStore, egressCtx, selectorMembers, createPsaExternHandler(p))
+      p.interpreter.execution(p.tableStore, egressCtx, selectorMembers, createPsaExternHandler(p))
 
     // --- Egress Parser ---
     bindStageParams(egressEnv, p.egressParser.blockName, p.blockParams, egressValues)

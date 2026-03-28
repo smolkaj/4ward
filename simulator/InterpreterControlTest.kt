@@ -92,7 +92,7 @@ class InterpreterControlTest {
   }
 
   private fun interp(config: BehavioralConfig, tableStore: TableStore = TableStore()) =
-    Interpreter(config, tableStore, externHandler = testExternHandler(tableStore))
+    interpreterExecution(config, tableStore, externHandler = testExternHandler(tableStore))
 
   /** Builds a `switch (tableName.apply().action_run)` statement. */
   private fun switchOn(
@@ -561,7 +561,7 @@ class InterpreterControlTest {
   fun `free-function extern without handler throws`() {
     val stmt = externCall("unknown_extern", bit(0, 8))
     val config = controlConfig(stmt)
-    val noHandler = Interpreter(config, TableStore())
+    val noHandler = interpreterExecution(config, TableStore())
     val e =
       assertThrows(IllegalStateException::class.java) {
         noHandler.runControl("MyControl", emptyEnv)
@@ -573,7 +573,7 @@ class InterpreterControlTest {
   fun `extern method without handler throws`() {
     val stmt = methodCallStmt("obj", "some_method", bit(0, 8), targetType = namedType("my_extern"))
     val config = controlConfig(stmt)
-    val noHandler = Interpreter(config, TableStore())
+    val noHandler = interpreterExecution(config, TableStore())
     val e =
       assertThrows(IllegalStateException::class.java) {
         noHandler.runControl("MyControl", emptyEnv)
@@ -611,7 +611,7 @@ class InterpreterControlTest {
     val stmt = externCall("capture_input")
     val config = controlConfig(stmt)
     val pktCtx = PacketContext(payload)
-    Interpreter(config, TableStore(), pktCtx, externHandler = handler)
+    interpreterExecution(config, TableStore(), pktCtx, externHandler = handler)
       .runControl("MyControl", emptyEnv)
     assertEquals(payload.toList(), captured?.toList())
   }
