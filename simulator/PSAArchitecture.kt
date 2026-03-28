@@ -100,7 +100,9 @@ class PSAArchitecture : Architecture {
     depth: Int,
     selectorMembers: Map<String, Int> = emptyMap(),
   ): TraceTree {
-    check(depth < MAX_RECIRCULATIONS) { "PSA recirculation depth exceeded ($MAX_RECIRCULATIONS)" }
+    check(depth < MAX_RECIRCULATIONS) {
+      "PSA recirculation depth exceeded ($MAX_RECIRCULATIONS) — possible infinite recirculate loop"
+    }
 
     // === Ingress pipeline ===
     val ingress: IngressResult
@@ -660,7 +662,7 @@ class PSAArchitecture : Architecture {
               ostd.fields["drop"] = BoolVal(true)
               UnitVal
             }
-            else -> error("unhandled PSA extern: ${call.name}")
+            else -> error("PSA extern '${call.name}' is not implemented")
           }
         is ExternCall.Method ->
           handleCommonExternMethod(
@@ -672,8 +674,8 @@ class PSAArchitecture : Architecture {
             PSA_HASH_ALGORITHMS,
           )
             ?: error(
-              "unhandled PSA extern method: ${call.externType}.${call.method}" +
-                " on ${call.instanceName}"
+              "PSA extern method '${call.externType}.${call.method}' is not implemented" +
+                " (on ${call.instanceName})"
             )
       }
     }

@@ -116,6 +116,17 @@ class Interpreter internal constructor(config: BehavioralConfig) {
     /** Name of the control block currently being executed, for BranchEvent. */
     private var currentControlName: String? = null
 
+    /** Formats current P4 source location for inclusion in error messages. */
+    private fun sourceContext(): String {
+      val src = currentSourceInfo ?: return ""
+      val loc = buildString {
+        if (src.file.isNotEmpty()) append(src.file)
+        if (src.line > 0) append(":${src.line}")
+        if (src.column > 0) append(":${src.column}")
+      }
+      return if (loc.isNotEmpty()) " (at $loc)" else ""
+    }
+
     /** Builds a TraceEvent with source info attached, if available. */
     private fun traceEventBuilder(sourceInfo: SourceInfo? = currentSourceInfo): TraceEvent.Builder {
       val b = TraceEvent.newBuilder()
@@ -249,7 +260,7 @@ class Interpreter internal constructor(config: BehavioralConfig) {
           val hi = (evalExpr(keyset.range.hi, constEnv) as BitVal).bits
           v >= lo && v <= hi
         }
-        else -> error("unhandled keyset kind: $keyset")
+        else -> error("unhandled keyset kind: $keyset${sourceContext()}")
       }
 
     /**
@@ -331,7 +342,7 @@ class Interpreter internal constructor(config: BehavioralConfig) {
         stmt.hasBlock() -> execBlock(stmt.block.stmtsList, env)
         stmt.hasExit() -> throw ExitException()
         stmt.hasReturnStmt() -> throw ReturnException(evalExpr(stmt.returnStmt.value, env))
-        else -> error("unhandled statement kind: $stmt")
+        else -> error("unhandled statement kind: $stmt${sourceContext()}")
       }
     }
 
@@ -371,7 +382,8 @@ class Interpreter internal constructor(config: BehavioralConfig) {
       when {
         expr.hasLiteral() -> evalLiteral(expr.literal, expr.type)
         expr.hasNameRef() ->
-          env.lookup(expr.nameRef.name) ?: error("undefined variable: ${expr.nameRef.name}")
+          env.lookup(expr.nameRef.name)
+            ?: error("undefined variable: ${expr.nameRef.name}${sourceContext()}")
         expr.hasFieldAccess() -> evalFieldAccess(expr.fieldAccess, env)
         expr.hasArrayIndex() -> evalArrayIndex(expr.arrayIndex, env)
         expr.hasSlice() -> evalSlice(expr.slice, env)
@@ -390,7 +402,7 @@ class Interpreter internal constructor(config: BehavioralConfig) {
             else -> UnitVal // RESULT / default: switch context
           }
         }
-        else -> error("unhandled expression kind: $expr")
+        else -> error("unhandled expression kind: $expr${sourceContext()}")
       }
 
     private fun evalLiteral(lit: Literal, type: fourward.ir.Type): Value =
@@ -412,10 +424,10 @@ class Interpreter internal constructor(config: BehavioralConfig) {
           when {
             type.hasSignedInt() -> IntVal(SignedBitVector.fromUnsignedBits(v, type.signedInt.width))
             type.hasBit() -> BitVal(BitVector(v, type.bit.width))
-            else -> error("big integer literal with unexpected type: $type")
+            else -> error("big integer literal with unexpected type: $type${sourceContext()}")
           }
         }
-        else -> error("unhandled literal kind: $lit")
+        else -> error("unhandled literal kind: $lit${sourceContext()}")
       }
 
     private fun evalFieldAccess(fa: fourward.ir.FieldAccess, env: Environment): Value {
@@ -427,19 +439,23 @@ class Interpreter internal constructor(config: BehavioralConfig) {
         return when (fa.fieldName) {
           "hit" -> BoolVal(result.hit)
           "miss" -> BoolVal(!result.hit)
-          else -> error("unknown field '${fa.fieldName}' on table apply result")
+          else -> error("unknown field '${fa.fieldName}' on table apply result${sourceContext()}")
         }
       }
       val target = evalExpr(fa.expr, env)
       return when (target) {
         is HeaderVal ->
           target.fields[fa.fieldName]
-            ?: error("field ${fa.fieldName} not found in header ${target.typeName}")
+            ?: error(
+              "field ${fa.fieldName} not found in header ${target.typeName}${sourceContext()}"
+            )
         is StructVal ->
           target.fields[fa.fieldName]
-            ?: error("field ${fa.fieldName} not found in struct ${target.typeName}")
+            ?: error(
+              "field ${fa.fieldName} not found in struct ${target.typeName}${sourceContext()}"
+            )
         is HeaderStackVal -> evalHeaderStackProperty(target, fa.fieldName)
-        else -> error("field access on non-aggregate value: $target")
+        else -> error("field access on non-aggregate value: $target${sourceContext()}")
       }
     }
 
@@ -460,13 +476,14 @@ class Interpreter internal constructor(config: BehavioralConfig) {
         "last" -> stack.headers[(stack.nextIndex - 1).coerceAtLeast(0)]
         "lastIndex" -> BitVal(stack.headers.size.toLong() - 1, STACK_PROPERTY_BITS)
         "size" -> BitVal(stack.headers.size.toLong(), STACK_PROPERTY_BITS)
-        else -> error("unknown header stack property: $name")
+        else -> error("unknown header stack property: $name${sourceContext()}")
       }
 
     // P4 spec §8.18: out-of-bounds reads return an invalid header with default values.
     private fun evalArrayIndex(ai: fourward.ir.ArrayIndex, env: Environment): Value {
       val stack =
-        evalExpr(ai.expr, env) as? HeaderStackVal ?: error("array index on non-stack value")
+        evalExpr(ai.expr, env) as? HeaderStackVal
+          ?: error("array index on non-stack value${sourceContext()}")
       val index = intValue(evalExpr(ai.index, env))
       if (index !in 0 until stack.size) return defaultValue(stack.elementTypeName, types)
       return stack.headers[index]
@@ -494,7 +511,7 @@ class Interpreter internal constructor(config: BehavioralConfig) {
               is InfIntVal -> inner.value
               is IntVal -> inner.bits.toUnsigned().value
               is BoolVal -> if (inner.value) BigInteger.ONE else BigInteger.ZERO
-              else -> error("cannot cast $inner to bit<$targetWidth>")
+              else -> error("cannot cast $inner to bit<$targetWidth>${sourceContext()}")
             }
           BitVal(BitVector(sourceBits.mod(BigInteger.TWO.pow(targetWidth)), targetWidth))
         }
@@ -519,7 +536,7 @@ class Interpreter internal constructor(config: BehavioralConfig) {
                 when (inner) {
                   is BitVal -> inner.bits.value
                   is InfIntVal -> inner.value
-                  else -> error("cannot cast $inner to int<$targetWidth>")
+                  else -> error("cannot cast $inner to int<$targetWidth>${sourceContext()}")
                 }
               IntVal(SignedBitVector.fromUnsignedBits(sourceBits, targetWidth))
             }
@@ -530,11 +547,11 @@ class Interpreter internal constructor(config: BehavioralConfig) {
             when (inner) {
               is BitVal -> inner.bits.value
               is InfIntVal -> inner.value
-              else -> error("cannot cast $inner to bool")
+              else -> error("cannot cast $inner to bool${sourceContext()}")
             }
           BoolVal(v != BigInteger.ZERO)
         }
-        else -> error("unsupported cast target type: ${cast.targetType}")
+        else -> error("unsupported cast target type: ${cast.targetType}${sourceContext()}")
       }
     }
 
@@ -573,13 +590,13 @@ class Interpreter internal constructor(config: BehavioralConfig) {
           when (left) {
             is BitVal -> BitVal(left.bits.addSat((right as BitVal).bits))
             is IntVal -> IntVal(left.bits.addSat((right as IntVal).bits))
-            else -> error("ADD_SAT on non-fixed-width: $left")
+            else -> error("ADD_SAT on non-fixed-width: $left${sourceContext()}")
           }
         BinaryOperator.SUB_SAT ->
           when (left) {
             is BitVal -> BitVal(left.bits.subSat((right as BitVal).bits))
             is IntVal -> IntVal(left.bits.subSat((right as IntVal).bits))
-            else -> error("SUB_SAT on non-fixed-width: $left")
+            else -> error("SUB_SAT on non-fixed-width: $left${sourceContext()}")
           }
         BinaryOperator.SHL -> BitVal((left as BitVal).bits.shl(intValue(right)))
         BinaryOperator.SHR -> BitVal((left as BitVal).bits.shr(intValue(right)))
@@ -593,7 +610,7 @@ class Interpreter internal constructor(config: BehavioralConfig) {
         BinaryOperator.GE -> liftCompare(left, right) { it >= 0 }
         BinaryOperator.AND -> BoolVal((left as BoolVal).value && (right as BoolVal).value)
         BinaryOperator.OR -> BoolVal((left as BoolVal).value || (right as BoolVal).value)
-        else -> error("unhandled binary operator: ${op.op}")
+        else -> error("unhandled binary operator: ${op.op}${sourceContext()}")
       }
     }
 
@@ -607,7 +624,7 @@ class Interpreter internal constructor(config: BehavioralConfig) {
         is BitVal -> BitVal(f(left.bits, (right as BitVal).bits))
         is IntVal ->
           IntVal(f(left.bits.toUnsigned(), (right as IntVal).bits.toUnsigned()).toSigned())
-        else -> error("expected fixed-width integer operands, got: $left, $right")
+        else -> error("expected fixed-width integer operands, got: $left, $right${sourceContext()}")
       }
 
     /** Compare two fixed-width values, dispatching to signed or unsigned comparison. */
@@ -615,7 +632,7 @@ class Interpreter internal constructor(config: BehavioralConfig) {
       when (left) {
         is BitVal -> BoolVal(pred(left.bits.compareTo((right as BitVal).bits)))
         is IntVal -> BoolVal(pred(left.bits.value.compareTo((right as IntVal).bits.value)))
-        else -> error("expected fixed-width integer operands for comparison")
+        else -> error("expected fixed-width integer operands for comparison${sourceContext()}")
       }
 
     /** Extract a small integer from a [BitVal], [IntVal], or [InfIntVal]. */
@@ -624,7 +641,7 @@ class Interpreter internal constructor(config: BehavioralConfig) {
         is BitVal -> v.bits.value.toInt()
         is IntVal -> v.bits.value.toInt()
         is InfIntVal -> v.value.toInt()
-        else -> error("expected integer value: $v")
+        else -> error("expected integer value: $v${sourceContext()}")
       }
 
     /** P4 spec §8.1: InfInt adopts the width of the fixed-width operand. */
@@ -646,11 +663,11 @@ class Interpreter internal constructor(config: BehavioralConfig) {
           when (inner) {
             is InfIntVal -> InfIntVal(inner.value.negate())
             is BitVal -> BitVal(BitVector.ofInt(0, inner.bits.width) - inner.bits)
-            else -> error("NEG on non-numeric: $inner")
+            else -> error("NEG on non-numeric: $inner${sourceContext()}")
           }
         UnaryOperator.BIT_NOT -> BitVal((inner as BitVal).bits.inv())
         UnaryOperator.NOT -> BoolVal(!(inner as BoolVal).value)
-        else -> error("unhandled unary operator: ${op.op}")
+        else -> error("unhandled unary operator: ${op.op}${sourceContext()}")
       }
     }
 
@@ -678,7 +695,7 @@ class Interpreter internal constructor(config: BehavioralConfig) {
           when (val target = evalExpr(call.target, env)) {
             is HeaderVal -> BoolVal(target.valid)
             is StructVal -> BoolVal(target.isUnionValid())
-            else -> error("isValid on non-header: $target")
+            else -> error("isValid on non-header: $target${sourceContext()}")
           }
         }
         "setValid" -> {
@@ -691,7 +708,7 @@ class Interpreter internal constructor(config: BehavioralConfig) {
           when (val target = evalExpr(call.target, env)) {
             is HeaderVal -> target.setInvalid()
             is StructVal -> target.invalidateUnion()
-            else -> error("setInvalid on non-header: $target")
+            else -> error("setInvalid on non-header: $target${sourceContext()}")
           }
           UnitVal
         }
@@ -748,7 +765,7 @@ class Interpreter internal constructor(config: BehavioralConfig) {
               ExternCall.Method(call.target.type.named, call.target.nameRef.name, call.method)
             handler.handle(externCall, createExternEvaluator(call, env, returnType))
           } else {
-            error("unhandled method call: ${call.method} on ${call.target}")
+            error("unhandled method call: ${call.method} on ${call.target}${sourceContext()}")
           }
         }
       }
@@ -1272,7 +1289,7 @@ class Interpreter internal constructor(config: BehavioralConfig) {
           when (target) {
             is HeaderVal -> target.fields[lhs.fieldAccess.fieldName] = copy
             is StructVal -> target.fields[lhs.fieldAccess.fieldName] = copy
-            else -> error("field assignment on non-aggregate: $target")
+            else -> error("field assignment on non-aggregate: $target${sourceContext()}")
           }
         }
         // P4 spec §8.18: out-of-bounds writes are no-ops.
@@ -1296,7 +1313,7 @@ class Interpreter internal constructor(config: BehavioralConfig) {
           val result = (target.bits and mask.inv()) or (shifted and mask)
           setLValue(lhs.slice.expr, BitVal(result), env)
         }
-        else -> error("unhandled lvalue kind: $lhs")
+        else -> error("unhandled lvalue kind: $lhs${sourceContext()}")
       }
     }
   } // end Execution
