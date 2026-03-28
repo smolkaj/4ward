@@ -1,3 +1,7 @@
+---
+description: "How 4ward handles forked P4 architectures with modified standard_metadata fields, custom headers, and architecture-specific extern behavior."
+---
+
 # Architecture Modifications
 
 4ward supports forked P4 architecture definitions out of the box — no changes

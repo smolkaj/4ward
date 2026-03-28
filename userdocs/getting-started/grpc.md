@@ -1,3 +1,7 @@
+---
+description: "Get started with 4ward's gRPC API: load pipelines, write table entries, inject packets, and read traces programmatically."
+---
+
 # Getting Started: gRPC API
 
 The gRPC API is how test infrastructure (DVaaS, sonic-pins) integrates with

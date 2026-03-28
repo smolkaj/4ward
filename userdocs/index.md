@@ -1,3 +1,7 @@
+---
+description: "4ward is a glass-box P4 simulator that traces every decision your packet makes — parser transitions, table lookups, actions, and branches — as structured trace trees."
+---
+
 <p align="center">
   <img src="assets/logo.svg" alt="4ward logo" width="160" class="off-glb">
 </p>

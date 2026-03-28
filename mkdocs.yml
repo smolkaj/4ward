@@ -10,7 +10,14 @@ site_dir: site
 exclude_docs: README.md
 
 plugins:
+  - search
   - glightbox
+  - meta
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/smolkaj/4ward
 
 extra_css:
   - stylesheets/extra.css
@@ -18,7 +25,8 @@ extra_css:
 theme:
   name: material
   logo: assets/logo.svg
-  favicon: assets/logo.svg
+  favicon: assets/favicon.png
+  custom_dir: userdocs/overrides
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default

@@ -1,3 +1,7 @@
+---
+description: "4ward gRPC API reference: P4Runtime and Dataplane service RPCs, connection setup, and proto message formats."
+---
+
 # gRPC API Reference
 
 4ward exposes two gRPC services on the same port (default: **9559**).

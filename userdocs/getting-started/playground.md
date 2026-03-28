@@ -1,3 +1,7 @@
+---
+description: "Get started with the 4ward web playground: edit P4, install table entries, inject packets, and explore trace trees in your browser."
+---
+
 # Getting Started: Web Playground
 
 The playground is the fastest way to try 4ward — edit, compile, and trace P4

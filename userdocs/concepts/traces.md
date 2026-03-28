@@ -1,3 +1,7 @@
+---
+description: "How 4ward trace trees capture every possible packet outcome — parser transitions, table hits, clones, and multicast — in a single structured proto."
+---
+
 # Trace Trees
 
 Every packet 4ward processes produces a **trace tree**
