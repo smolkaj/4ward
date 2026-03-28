@@ -31,18 +31,18 @@
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryMed">81.2&nbsp;%</td>
+            <td class="headerCovTableEntryMed">87.0&nbsp;%</td>
             <td class="headerCovTableEntry">223</td>
-            <td class="headerCovTableEntry">181</td>
+            <td class="headerCovTableEntry">194</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-28 06:31:32</td>
+            <td class="headerValue">2026-03-28 06:46:33</td>
             <td></td>
             <td class="headerItem">Functions:</td>
-            <td class="headerCovTableEntryHi">92.1&nbsp;%</td>
+            <td class="headerCovTableEntryHi">94.7&nbsp;%</td>
             <td class="headerCovTableEntry">38</td>
-            <td class="headerCovTableEntry">35</td>
+            <td class="headerCovTableEntry">36</td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
                 </table>
@@ -393,10 +393,10 @@
 <span id="L331"><span class="lineNum">     331</span> <span class="tlaGNC">           1 :         val direction = (eval.evalArg(0) as EnumVal).member</span></span>
 <span id="L332"><span class="lineNum">     332</span> <span class="tlaGNC">           1 :         if (direction == DIRECTION_NET_TO_HOST) eval.evalArg(1) else eval.evalArg(2)</span></span>
 <span id="L333"><span class="lineNum">     333</span>              :       }</span>
-<span id="L334"><span class="lineNum">     334</span> <span class="tlaUNC tlaBgUNC">           0 :       &quot;add_entry&quot; -&gt; execAddEntry(eval, pipeline)</span></span>
+<span id="L334"><span class="lineNum">     334</span> <span class="tlaGNC">           1 :       &quot;add_entry&quot; -&gt; execAddEntry(eval, pipeline)</span></span>
 <span id="L335"><span class="lineNum">     335</span>              :       // Stub: returns 0. Real NICs would allocate unique per-flow IDs, but a fixed value</span>
 <span id="L336"><span class="lineNum">     336</span>              :       // suffices for STF testing where flow ID values are not checked.</span>
-<span id="L337"><span class="lineNum">     337</span> <span class="tlaUNC">           0 :       &quot;allocate_flow_id&quot; -&gt; BitVal(BitVector(BigInteger.ZERO, 32))</span></span>
+<span id="L337"><span class="lineNum">     337</span> <span class="tlaUNC tlaBgUNC">           0 :       &quot;allocate_flow_id&quot; -&gt; BitVal(BitVector(BigInteger.ZERO, 32))</span></span>
 <span id="L338"><span class="lineNum">     338</span>              :       // No-op: the simulator has no real timers, so expiration is not modeled.</span>
 <span id="L339"><span class="lineNum">     339</span> <span class="tlaUNC">           0 :       &quot;set_entry_expire_time&quot; -&gt; UnitVal</span></span>
 <span id="L340"><span class="lineNum">     340</span> <span class="tlaUNC">           0 :       &quot;restart_expire_timer&quot; -&gt; UnitVal</span></span>
@@ -418,24 +418,24 @@
 <span id="L356"><span class="lineNum">     356</span>              :    * parameter) or a struct (for actions with multiple parameters).</span>
 <span id="L357"><span class="lineNum">     357</span>              :    */</span>
 <span id="L358"><span class="lineNum">     358</span>              :   private fun execAddEntry(eval: ExternEvaluator, pipeline: PipelineConfig): BoolVal {</span>
-<span id="L359"><span class="lineNum">     359</span> <span class="tlaUNC tlaBgUNC">           0 :     val missCtx = eval.lastTableMiss() ?: error(&quot;add_entry called but no table miss has occurred&quot;)</span></span>
-<span id="L360"><span class="lineNum">     360</span> <span class="tlaUNC">           0 :     val actionAlias = (eval.evalArg(0) as StringVal).value</span></span>
-<span id="L361"><span class="lineNum">     361</span> <span class="tlaUNC">           0 :     val actionName =</span></span>
-<span id="L362"><span class="lineNum">     362</span> <span class="tlaUNC">           0 :       pipeline.tableStore.resolveActionByAlias(actionAlias)</span></span>
-<span id="L363"><span class="lineNum">     363</span> <span class="tlaUNC">           0 :         ?: error(&quot;add_entry: unknown action '$actionAlias'&quot;)</span></span>
+<span id="L359"><span class="lineNum">     359</span> <span class="tlaGNC">           1 :     val missCtx = eval.lastTableMiss() ?: error(&quot;add_entry called but no table miss has occurred&quot;)</span></span>
+<span id="L360"><span class="lineNum">     360</span> <span class="tlaGNC">           1 :     val actionAlias = (eval.evalArg(0) as StringVal).value</span></span>
+<span id="L361"><span class="lineNum">     361</span> <span class="tlaGNC">           1 :     val actionName =</span></span>
+<span id="L362"><span class="lineNum">     362</span> <span class="tlaGNC">           1 :       pipeline.tableStore.resolveActionByAlias(actionAlias)</span></span>
+<span id="L363"><span class="lineNum">     363</span> <span class="tlaUNC tlaBgUNC">           0 :         ?: error(&quot;add_entry: unknown action '$actionAlias'&quot;)</span></span>
 <span id="L364"><span class="lineNum">     364</span>              : </span>
 <span id="L365"><span class="lineNum">     365</span>              :     // The action_params argument (arg 1) is either a single value (one-param actions)</span>
 <span id="L366"><span class="lineNum">     366</span>              :     // or a struct (multi-param actions, lowered to a tuple by the midend).</span>
-<span id="L367"><span class="lineNum">     367</span> <span class="tlaUNC">           0 :     val paramsValue = eval.evalArg(1)</span></span>
-<span id="L368"><span class="lineNum">     368</span> <span class="tlaUNC">           0 :     val actionParams: List&lt;Value&gt; =</span></span>
-<span id="L369"><span class="lineNum">     369</span> <span class="tlaUNC">           0 :       when (paramsValue) {</span></span>
-<span id="L370"><span class="lineNum">     370</span> <span class="tlaUNC">           0 :         is StructVal -&gt; paramsValue.fields.values.toList()</span></span>
-<span id="L371"><span class="lineNum">     371</span> <span class="tlaUNC">           0 :         else -&gt; listOf(paramsValue)</span></span>
+<span id="L367"><span class="lineNum">     367</span> <span class="tlaGNC tlaBgGNC">           1 :     val paramsValue = eval.evalArg(1)</span></span>
+<span id="L368"><span class="lineNum">     368</span> <span class="tlaGNC">           1 :     val actionParams: List&lt;Value&gt; =</span></span>
+<span id="L369"><span class="lineNum">     369</span> <span class="tlaGNC">           1 :       when (paramsValue) {</span></span>
+<span id="L370"><span class="lineNum">     370</span> <span class="tlaGNC">           1 :         is StructVal -&gt; paramsValue.fields.values.toList()</span></span>
+<span id="L371"><span class="lineNum">     371</span> <span class="tlaGNC">           1 :         else -&gt; listOf(paramsValue)</span></span>
 <span id="L372"><span class="lineNum">     372</span>              :       }</span>
 <span id="L373"><span class="lineNum">     373</span>              : </span>
-<span id="L374"><span class="lineNum">     374</span> <span class="tlaUNC">           0 :     val success =</span></span>
-<span id="L375"><span class="lineNum">     375</span> <span class="tlaUNC">           0 :       pipeline.tableStore.addEntry(missCtx.tableName, missCtx.keyValues, actionName, actionParams)</span></span>
-<span id="L376"><span class="lineNum">     376</span> <span class="tlaUNC">           0 :     return BoolVal(success)</span></span>
+<span id="L374"><span class="lineNum">     374</span> <span class="tlaGNC">           1 :     val success =</span></span>
+<span id="L375"><span class="lineNum">     375</span> <span class="tlaGNC">           1 :       pipeline.tableStore.addEntry(missCtx.tableName, missCtx.keyValues, actionName, actionParams)</span></span>
+<span id="L376"><span class="lineNum">     376</span> <span class="tlaGNC">           1 :     return BoolVal(success)</span></span>
 <span id="L377"><span class="lineNum">     377</span>              :   }</span>
 <span id="L378"><span class="lineNum">     378</span>              : </span>
 <span id="L379"><span class="lineNum">     379</span>              :   /** Handles PNA extern method calls (Register, Hash, Counter, Meter, Checksum, Digest). */</span>
@@ -445,7 +445,7 @@
 <span id="L383"><span class="lineNum">     383</span>              :     pipeline: PipelineConfig,</span>
 <span id="L384"><span class="lineNum">     384</span>              :     checksumState: MutableMap&lt;String, BigInteger&gt;,</span>
 <span id="L385"><span class="lineNum">     385</span>              :   ): Value =</span>
-<span id="L386"><span class="lineNum">     386</span> <span class="tlaGNC tlaBgGNC">           1 :     handleCommonExternMethod(</span></span>
+<span id="L386"><span class="lineNum">     386</span> <span class="tlaGNC">           1 :     handleCommonExternMethod(</span></span>
 <span id="L387"><span class="lineNum">     387</span> <span class="tlaGNC">           1 :       call,</span></span>
 <span id="L388"><span class="lineNum">     388</span> <span class="tlaGNC">           1 :       eval,</span></span>
 <span id="L389"><span class="lineNum">     389</span> <span class="tlaGNC">           1 :       pipeline.tableStore,</span></span>
