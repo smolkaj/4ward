@@ -31,18 +31,18 @@
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryLo">72.0&nbsp;%</td>
-            <td class="headerCovTableEntry">232</td>
-            <td class="headerCovTableEntry">167</td>
+            <td class="headerCovTableEntryMed">85.4&nbsp;%</td>
+            <td class="headerCovTableEntry">198</td>
+            <td class="headerCovTableEntry">169</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-28 00:12:45</td>
+            <td class="headerValue">2026-03-28 00:18:24</td>
             <td></td>
             <td class="headerItem">Functions:</td>
-            <td class="headerCovTableEntryHi">91.2&nbsp;%</td>
+            <td class="headerCovTableEntryHi">94.1&nbsp;%</td>
             <td class="headerCovTableEntry">34</td>
-            <td class="headerCovTableEntry">31</td>
+            <td class="headerCovTableEntry">32</td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
                 </table>
@@ -381,143 +381,77 @@
 <span id="L319"><span class="lineNum">     319</span> <span class="tlaGNC tlaBgGNC">           1 :     }</span></span>
 <span id="L320"><span class="lineNum">     320</span>              : </span>
 <span id="L321"><span class="lineNum">     321</span>              :   /** Handles PNA extern method calls (Register, Hash, Counter, Meter, Checksum, Digest). */</span>
-<span id="L322"><span class="lineNum">     322</span>              :   @Suppress(&quot;LongMethod&quot;)</span>
-<span id="L323"><span class="lineNum">     323</span>              :   private fun handlePnaMethod(</span>
-<span id="L324"><span class="lineNum">     324</span>              :     call: ExternCall.Method,</span>
-<span id="L325"><span class="lineNum">     325</span>              :     eval: ExternEvaluator,</span>
-<span id="L326"><span class="lineNum">     326</span>              :     pipeline: PipelineConfig,</span>
-<span id="L327"><span class="lineNum">     327</span>              :     checksumState: MutableMap&lt;String, BigInteger&gt;,</span>
-<span id="L328"><span class="lineNum">     328</span>              :   ): Value =</span>
-<span id="L329"><span class="lineNum">     329</span> <span class="tlaGNC">           1 :     when (call.method) {</span></span>
-<span id="L330"><span class="lineNum">     330</span>              :       // Register.read(index) returns T directly.</span>
-<span id="L331"><span class="lineNum">     331</span>              :       &quot;read&quot; -&gt;</span>
-<span id="L332"><span class="lineNum">     332</span> <span class="tlaUNC tlaBgUNC">           0 :         when (call.externType) {</span></span>
-<span id="L333"><span class="lineNum">     333</span> <span class="tlaUNC">           0 :           &quot;Register&quot; -&gt; {</span></span>
-<span id="L334"><span class="lineNum">     334</span> <span class="tlaUNC">           0 :             val index = (eval.evalArg(0) as BitVal).bits.value.toInt()</span></span>
-<span id="L335"><span class="lineNum">     335</span> <span class="tlaUNC">           0 :             pipeline.tableStore.registerRead(call.instanceName, index)</span></span>
-<span id="L336"><span class="lineNum">     336</span> <span class="tlaUNC">           0 :               ?: eval.defaultValue(eval.returnType())</span></span>
-<span id="L337"><span class="lineNum">     337</span>              :           }</span>
-<span id="L338"><span class="lineNum">     338</span>              :           // Random.read() — 0 args, returns a random value in [min, max].</span>
-<span id="L339"><span class="lineNum">     339</span> <span class="tlaUNC">           0 :           &quot;Random&quot; -&gt; {</span></span>
-<span id="L340"><span class="lineNum">     340</span> <span class="tlaUNC">           0 :             val instance = pipeline.externInstances[call.instanceName]</span></span>
-<span id="L341"><span class="lineNum">     341</span> <span class="tlaUNC">           0 :             val lo = instance?.constructorArgsList?.getOrNull(0)?.literal?.integer ?: 0L</span></span>
-<span id="L342"><span class="lineNum">     342</span> <span class="tlaUNC">           0 :             val hi = instance?.constructorArgsList?.getOrNull(1)?.literal?.integer ?: 0L</span></span>
-<span id="L343"><span class="lineNum">     343</span> <span class="tlaUNC">           0 :             val value = if (hi &gt; lo) kotlin.random.Random.nextLong(lo, hi + 1) else lo</span></span>
-<span id="L344"><span class="lineNum">     344</span> <span class="tlaUNC">           0 :             BitVal(BitVector(BigInteger.valueOf(value), eval.returnType().bit.width))</span></span>
-<span id="L345"><span class="lineNum">     345</span>              :           }</span>
-<span id="L346"><span class="lineNum">     346</span> <span class="tlaUNC">           0 :           else -&gt; error(&quot;unhandled PNA extern read: ${call.externType}.read&quot;)</span></span>
-<span id="L347"><span class="lineNum">     347</span>              :         }</span>
-<span id="L348"><span class="lineNum">     348</span>              :       &quot;write&quot; -&gt; {</span>
-<span id="L349"><span class="lineNum">     349</span> <span class="tlaGNC tlaBgGNC">           1 :         val index = (eval.evalArg(0) as BitVal).bits.value.toInt()</span></span>
-<span id="L350"><span class="lineNum">     350</span> <span class="tlaGNC">           1 :         pipeline.tableStore.registerWrite(call.instanceName, index, eval.evalArg(1))</span></span>
-<span id="L351"><span class="lineNum">     351</span> <span class="tlaGNC">           1 :         UnitVal</span></span>
-<span id="L352"><span class="lineNum">     352</span>              :       }</span>
-<span id="L353"><span class="lineNum">     353</span> <span class="tlaGNC">           1 :       &quot;count&quot; -&gt; UnitVal</span></span>
-<span id="L354"><span class="lineNum">     354</span>              :       // Hash.get_hash: 1-arg or 3-arg form. Algorithm from constructor args.</span>
-<span id="L355"><span class="lineNum">     355</span> <span class="tlaUNC tlaBgUNC">           0 :       &quot;get_hash&quot; -&gt; evalGetHash(call, eval, pipeline.externInstances, PNA_HASH_ALGORITHMS)</span></span>
-<span id="L356"><span class="lineNum">     356</span>              :       // Meter.execute(index): returns PNA_MeterColor_t. Always GREEN — no real</span>
-<span id="L357"><span class="lineNum">     357</span>              :       // packet rates in simulator.</span>
-<span id="L358"><span class="lineNum">     358</span> <span class="tlaUNC">           0 :       &quot;execute&quot; -&gt; EnumVal(&quot;GREEN&quot;)</span></span>
-<span id="L359"><span class="lineNum">     359</span>              :       // --- InternetChecksum extern ---</span>
-<span id="L360"><span class="lineNum">     360</span>              :       &quot;clear&quot; -&gt; {</span>
-<span id="L361"><span class="lineNum">     361</span> <span class="tlaUNC">           0 :         checksumState[call.instanceName] = BigInteger.ZERO</span></span>
-<span id="L362"><span class="lineNum">     362</span> <span class="tlaUNC">           0 :         UnitVal</span></span>
-<span id="L363"><span class="lineNum">     363</span>              :       }</span>
-<span id="L364"><span class="lineNum">     364</span>              :       &quot;add&quot; -&gt; {</span>
-<span id="L365"><span class="lineNum">     365</span> <span class="tlaUNC">           0 :         val data = eval.evalArg(0).asStructVal()</span></span>
-<span id="L366"><span class="lineNum">     366</span> <span class="tlaUNC">           0 :         val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)</span></span>
-<span id="L367"><span class="lineNum">     367</span> <span class="tlaUNC">           0 :         checksumState[call.instanceName] = onesComplementAdd(sum, sumWords(data))</span></span>
-<span id="L368"><span class="lineNum">     368</span> <span class="tlaUNC">           0 :         UnitVal</span></span>
-<span id="L369"><span class="lineNum">     369</span>              :       }</span>
-<span id="L370"><span class="lineNum">     370</span>              :       &quot;subtract&quot; -&gt; {</span>
-<span id="L371"><span class="lineNum">     371</span>              :         // RFC 1624: subtract by adding the ones' complement of the data's word sum.</span>
-<span id="L372"><span class="lineNum">     372</span> <span class="tlaUNC">           0 :         val data = eval.evalArg(0).asStructVal()</span></span>
-<span id="L373"><span class="lineNum">     373</span> <span class="tlaUNC">           0 :         val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)</span></span>
-<span id="L374"><span class="lineNum">     374</span> <span class="tlaUNC">           0 :         val dataSumComplement = CSUM_MASK.subtract(sumWords(data))</span></span>
-<span id="L375"><span class="lineNum">     375</span> <span class="tlaUNC">           0 :         checksumState[call.instanceName] = onesComplementAdd(sum, dataSumComplement)</span></span>
-<span id="L376"><span class="lineNum">     376</span> <span class="tlaUNC">           0 :         UnitVal</span></span>
-<span id="L377"><span class="lineNum">     377</span>              :       }</span>
-<span id="L378"><span class="lineNum">     378</span>              :       &quot;get&quot; -&gt; {</span>
-<span id="L379"><span class="lineNum">     379</span> <span class="tlaUNC">           0 :         val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)</span></span>
-<span id="L380"><span class="lineNum">     380</span> <span class="tlaUNC">           0 :         BitVal(BitVector(CSUM_MASK.subtract(sum), CSUM_WORD_BITS))</span></span>
-<span id="L381"><span class="lineNum">     381</span>              :       }</span>
-<span id="L382"><span class="lineNum">     382</span>              :       &quot;get_state&quot; -&gt; {</span>
-<span id="L383"><span class="lineNum">     383</span> <span class="tlaUNC">           0 :         val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)</span></span>
-<span id="L384"><span class="lineNum">     384</span> <span class="tlaUNC">           0 :         BitVal(BitVector(sum, CSUM_WORD_BITS))</span></span>
-<span id="L385"><span class="lineNum">     385</span>              :       }</span>
-<span id="L386"><span class="lineNum">     386</span>              :       &quot;set_state&quot; -&gt; {</span>
-<span id="L387"><span class="lineNum">     387</span> <span class="tlaUNC">           0 :         checksumState[call.instanceName] = (eval.evalArg(0) as BitVal).bits.value</span></span>
-<span id="L388"><span class="lineNum">     388</span> <span class="tlaUNC">           0 :         UnitVal</span></span>
-<span id="L389"><span class="lineNum">     389</span>              :       }</span>
-<span id="L390"><span class="lineNum">     390</span>              :       // Digest.pack() queues a digest message for the control plane. No-op in STF testing.</span>
-<span id="L391"><span class="lineNum">     391</span>              :       // TODO(PNA): implement digest delivery via P4Runtime StreamChannel.</span>
-<span id="L392"><span class="lineNum">     392</span> <span class="tlaUNC">           0 :       &quot;pack&quot; -&gt; UnitVal</span></span>
-<span id="L393"><span class="lineNum">     393</span>              :       // Checksum extern (PNA uses Checksum&lt;W&gt; in addition to InternetChecksum).</span>
-<span id="L394"><span class="lineNum">     394</span>              :       &quot;update&quot; -&gt; {</span>
-<span id="L395"><span class="lineNum">     395</span> <span class="tlaUNC">           0 :         val data = eval.evalArg(0).asStructVal()</span></span>
-<span id="L396"><span class="lineNum">     396</span> <span class="tlaUNC">           0 :         val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)</span></span>
-<span id="L397"><span class="lineNum">     397</span> <span class="tlaUNC">           0 :         checksumState[call.instanceName] = onesComplementAdd(sum, sumWords(data))</span></span>
-<span id="L398"><span class="lineNum">     398</span> <span class="tlaUNC">           0 :         UnitVal</span></span>
-<span id="L399"><span class="lineNum">     399</span>              :       }</span>
-<span id="L400"><span class="lineNum">     400</span>              :       else -&gt;</span>
-<span id="L401"><span class="lineNum">     401</span> <span class="tlaUNC">           0 :         error(</span></span>
-<span id="L402"><span class="lineNum">     402</span> <span class="tlaUNC">           0 :           &quot;unhandled PNA extern method: ${call.externType}.${call.method}&quot; +</span></span>
-<span id="L403"><span class="lineNum">     403</span> <span class="tlaUNC">           0 :             &quot; on ${call.instanceName}&quot;</span></span>
-<span id="L404"><span class="lineNum">     404</span>              :         )</span>
-<span id="L405"><span class="lineNum">     405</span> <span class="tlaGNC tlaBgGNC">           1 :     }</span></span>
-<span id="L406"><span class="lineNum">     406</span>              : </span>
-<span id="L407"><span class="lineNum">     407</span>              :   // ---------------------------------------------------------------------------</span>
-<span id="L408"><span class="lineNum">     408</span>              :   // Mirror branch construction</span>
-<span id="L409"><span class="lineNum">     409</span>              :   // ---------------------------------------------------------------------------</span>
-<span id="L410"><span class="lineNum">     410</span>              : </span>
-<span id="L411"><span class="lineNum">     411</span>              :   /**</span>
-<span id="L412"><span class="lineNum">     412</span>              :    * Builds mirror branches if `mirror_packet()` was called during main control.</span>
-<span id="L413"><span class="lineNum">     413</span>              :    *</span>
-<span id="L414"><span class="lineNum">     414</span>              :    * PNA mirroring uses the ORIGINAL input bytes (pre-parse), similar to PSA's I2E clone. Each</span>
-<span id="L415"><span class="lineNum">     415</span>              :    * replica in the clone session outputs the original bytes on the replica's egress port. Unlike</span>
-<span id="L416"><span class="lineNum">     416</span>              :    * PSA clones (which run through a separate egress pipeline), PNA mirror replicas emit directly</span>
-<span id="L417"><span class="lineNum">     417</span>              :    * because PNA has no separate egress stage for mirrored packets to traverse.</span>
-<span id="L418"><span class="lineNum">     418</span>              :    */</span>
-<span id="L419"><span class="lineNum">     419</span>              :   private fun buildMirrorBranches(</span>
-<span id="L420"><span class="lineNum">     420</span>              :     pipeline: PipelineConfig,</span>
-<span id="L421"><span class="lineNum">     421</span>              :     originalPayload: ByteArray,</span>
-<span id="L422"><span class="lineNum">     422</span>              :     forwardingState: ForwardingState,</span>
-<span id="L423"><span class="lineNum">     423</span>              :   ): List&lt;ForkBranch&gt; {</span>
-<span id="L424"><span class="lineNum">     424</span> <span class="tlaGNC">           1 :     val sessionId = forwardingState.mirrorSessionId ?: return emptyList()</span></span>
-<span id="L425"><span class="lineNum">     425</span> <span class="tlaGNC">           1 :     val session = pipeline.tableStore.getCloneSession(sessionId) ?: return emptyList()</span></span>
-<span id="L426"><span class="lineNum">     426</span> <span class="tlaGNC">           1 :     return session.replicasList.map { replica -&gt;</span></span>
-<span id="L427"><span class="lineNum">     427</span> <span class="tlaGNC">           1 :       val subtree = buildOutputTrace(emptyList(), replica.egressPort, originalPayload)</span></span>
-<span id="L428"><span class="lineNum">     428</span> <span class="tlaGNC">           1 :       ForkBranch.newBuilder()</span></span>
-<span id="L429"><span class="lineNum">     429</span> <span class="tlaGNC">           1 :         .setLabel(&quot;mirror_port_${replica.egressPort}&quot;)</span></span>
-<span id="L430"><span class="lineNum">     430</span> <span class="tlaGNC">           1 :         .setSubtree(subtree)</span></span>
-<span id="L431"><span class="lineNum">     431</span> <span class="tlaGNC">           1 :         .build()</span></span>
-<span id="L432"><span class="lineNum">     432</span>              :     }</span>
-<span id="L433"><span class="lineNum">     433</span>              :   }</span>
-<span id="L434"><span class="lineNum">     434</span>              : </span>
-<span id="L435"><span class="lineNum">     435</span>              :   private companion object {</span>
-<span id="L436"><span class="lineNum">     436</span>              :     // PNA_Direction_t enum values (pna.p4).</span>
-<span id="L437"><span class="lineNum">     437</span>              :     const val DIRECTION_NET_TO_HOST = &quot;NET_TO_HOST&quot;</span>
-<span id="L438"><span class="lineNum">     438</span>              : </span>
-<span id="L439"><span class="lineNum">     439</span>              :     // PNA_PacketPath_t enum values (pna.p4).</span>
-<span id="L440"><span class="lineNum">     440</span>              :     const val PACKET_PATH_FROM_NET_PORT = &quot;FROM_NET_PORT&quot;</span>
-<span id="L441"><span class="lineNum">     441</span>              :     const val PACKET_PATH_FROM_NET_RECIRCULATED = &quot;FROM_NET_RECIRCULATED&quot;</span>
-<span id="L442"><span class="lineNum">     442</span>              : </span>
-<span id="L443"><span class="lineNum">     443</span>              :     /**</span>
-<span id="L444"><span class="lineNum">     444</span>              :      * Maps PNA_HashAlgorithm_t enum members to the internal algorithm names used by Hash.kt.</span>
-<span id="L445"><span class="lineNum">     445</span>              :      *</span>
-<span id="L446"><span class="lineNum">     446</span>              :      * PNA's hash algorithm enum has the same values as PSA's, plus TARGET_DEFAULT which we map to</span>
-<span id="L447"><span class="lineNum">     447</span>              :      * identity as a safe fallback.</span>
-<span id="L448"><span class="lineNum">     448</span>              :      */</span>
-<span id="L449"><span class="lineNum">     449</span> <span class="tlaUNC tlaBgUNC">           0 :     val PNA_HASH_ALGORITHMS =</span></span>
-<span id="L450"><span class="lineNum">     450</span> <span class="tlaGNC tlaBgGNC">           1 :       mapOf(</span></span>
-<span id="L451"><span class="lineNum">     451</span> <span class="tlaGNC">           1 :         &quot;IDENTITY&quot; to &quot;identity&quot;,</span></span>
-<span id="L452"><span class="lineNum">     452</span> <span class="tlaGNC">           1 :         &quot;CRC16&quot; to &quot;crc16&quot;,</span></span>
-<span id="L453"><span class="lineNum">     453</span> <span class="tlaGNC">           1 :         &quot;CRC32&quot; to &quot;crc32&quot;,</span></span>
-<span id="L454"><span class="lineNum">     454</span> <span class="tlaGNC">           1 :         &quot;ONES_COMPLEMENT16&quot; to &quot;csum16&quot;,</span></span>
-<span id="L455"><span class="lineNum">     455</span> <span class="tlaGNC">           1 :         &quot;TARGET_DEFAULT&quot; to &quot;identity&quot;,</span></span>
-<span id="L456"><span class="lineNum">     456</span>              :       )</span>
-<span id="L457"><span class="lineNum">     457</span>              :   }</span>
-<span id="L458"><span class="lineNum">     458</span>              : }</span>
+<span id="L322"><span class="lineNum">     322</span>              :   private fun handlePnaMethod(</span>
+<span id="L323"><span class="lineNum">     323</span>              :     call: ExternCall.Method,</span>
+<span id="L324"><span class="lineNum">     324</span>              :     eval: ExternEvaluator,</span>
+<span id="L325"><span class="lineNum">     325</span>              :     pipeline: PipelineConfig,</span>
+<span id="L326"><span class="lineNum">     326</span>              :     checksumState: MutableMap&lt;String, BigInteger&gt;,</span>
+<span id="L327"><span class="lineNum">     327</span>              :   ): Value =</span>
+<span id="L328"><span class="lineNum">     328</span> <span class="tlaGNC">           1 :     handleCommonExternMethod(</span></span>
+<span id="L329"><span class="lineNum">     329</span> <span class="tlaGNC">           1 :       call,</span></span>
+<span id="L330"><span class="lineNum">     330</span> <span class="tlaGNC">           1 :       eval,</span></span>
+<span id="L331"><span class="lineNum">     331</span> <span class="tlaGNC">           1 :       pipeline.tableStore,</span></span>
+<span id="L332"><span class="lineNum">     332</span> <span class="tlaGNC">           1 :       pipeline.externInstances,</span></span>
+<span id="L333"><span class="lineNum">     333</span> <span class="tlaGNC">           1 :       checksumState,</span></span>
+<span id="L334"><span class="lineNum">     334</span> <span class="tlaGNC">           1 :       PNA_HASH_ALGORITHMS,</span></span>
+<span id="L335"><span class="lineNum">     335</span>              :     )</span>
+<span id="L336"><span class="lineNum">     336</span> <span class="tlaUNC tlaBgUNC">           0 :       ?: error(</span></span>
+<span id="L337"><span class="lineNum">     337</span> <span class="tlaUNC">           0 :         &quot;unhandled PNA extern method: ${call.externType}.${call.method}&quot; +</span></span>
+<span id="L338"><span class="lineNum">     338</span> <span class="tlaUNC">           0 :           &quot; on ${call.instanceName}&quot;</span></span>
+<span id="L339"><span class="lineNum">     339</span> <span class="tlaGNC tlaBgGNC">           1 :       )</span></span>
+<span id="L340"><span class="lineNum">     340</span>              : </span>
+<span id="L341"><span class="lineNum">     341</span>              :   // ---------------------------------------------------------------------------</span>
+<span id="L342"><span class="lineNum">     342</span>              :   // Mirror branch construction</span>
+<span id="L343"><span class="lineNum">     343</span>              :   // ---------------------------------------------------------------------------</span>
+<span id="L344"><span class="lineNum">     344</span>              : </span>
+<span id="L345"><span class="lineNum">     345</span>              :   /**</span>
+<span id="L346"><span class="lineNum">     346</span>              :    * Builds mirror branches if `mirror_packet()` was called during main control.</span>
+<span id="L347"><span class="lineNum">     347</span>              :    *</span>
+<span id="L348"><span class="lineNum">     348</span>              :    * PNA mirroring uses the ORIGINAL input bytes (pre-parse), similar to PSA's I2E clone. Each</span>
+<span id="L349"><span class="lineNum">     349</span>              :    * replica in the clone session outputs the original bytes on the replica's egress port. Unlike</span>
+<span id="L350"><span class="lineNum">     350</span>              :    * PSA clones (which run through a separate egress pipeline), PNA mirror replicas emit directly</span>
+<span id="L351"><span class="lineNum">     351</span>              :    * because PNA has no separate egress stage for mirrored packets to traverse.</span>
+<span id="L352"><span class="lineNum">     352</span>              :    */</span>
+<span id="L353"><span class="lineNum">     353</span>              :   private fun buildMirrorBranches(</span>
+<span id="L354"><span class="lineNum">     354</span>              :     pipeline: PipelineConfig,</span>
+<span id="L355"><span class="lineNum">     355</span>              :     originalPayload: ByteArray,</span>
+<span id="L356"><span class="lineNum">     356</span>              :     forwardingState: ForwardingState,</span>
+<span id="L357"><span class="lineNum">     357</span>              :   ): List&lt;ForkBranch&gt; {</span>
+<span id="L358"><span class="lineNum">     358</span> <span class="tlaGNC">           1 :     val sessionId = forwardingState.mirrorSessionId ?: return emptyList()</span></span>
+<span id="L359"><span class="lineNum">     359</span> <span class="tlaGNC">           1 :     val session = pipeline.tableStore.getCloneSession(sessionId) ?: return emptyList()</span></span>
+<span id="L360"><span class="lineNum">     360</span> <span class="tlaGNC">           1 :     return session.replicasList.map { replica -&gt;</span></span>
+<span id="L361"><span class="lineNum">     361</span> <span class="tlaGNC">           1 :       val subtree = buildOutputTrace(emptyList(), replica.egressPort, originalPayload)</span></span>
+<span id="L362"><span class="lineNum">     362</span> <span class="tlaGNC">           1 :       ForkBranch.newBuilder()</span></span>
+<span id="L363"><span class="lineNum">     363</span> <span class="tlaGNC">           1 :         .setLabel(&quot;mirror_port_${replica.egressPort}&quot;)</span></span>
+<span id="L364"><span class="lineNum">     364</span> <span class="tlaGNC">           1 :         .setSubtree(subtree)</span></span>
+<span id="L365"><span class="lineNum">     365</span> <span class="tlaGNC">           1 :         .build()</span></span>
+<span id="L366"><span class="lineNum">     366</span>              :     }</span>
+<span id="L367"><span class="lineNum">     367</span>              :   }</span>
+<span id="L368"><span class="lineNum">     368</span>              : </span>
+<span id="L369"><span class="lineNum">     369</span>              :   private companion object {</span>
+<span id="L370"><span class="lineNum">     370</span>              :     // PNA_Direction_t enum values (pna.p4).</span>
+<span id="L371"><span class="lineNum">     371</span>              :     const val DIRECTION_NET_TO_HOST = &quot;NET_TO_HOST&quot;</span>
+<span id="L372"><span class="lineNum">     372</span>              : </span>
+<span id="L373"><span class="lineNum">     373</span>              :     // PNA_PacketPath_t enum values (pna.p4).</span>
+<span id="L374"><span class="lineNum">     374</span>              :     const val PACKET_PATH_FROM_NET_PORT = &quot;FROM_NET_PORT&quot;</span>
+<span id="L375"><span class="lineNum">     375</span>              :     const val PACKET_PATH_FROM_NET_RECIRCULATED = &quot;FROM_NET_RECIRCULATED&quot;</span>
+<span id="L376"><span class="lineNum">     376</span>              : </span>
+<span id="L377"><span class="lineNum">     377</span>              :     /**</span>
+<span id="L378"><span class="lineNum">     378</span>              :      * Maps PNA_HashAlgorithm_t enum members to the internal algorithm names used by Hash.kt.</span>
+<span id="L379"><span class="lineNum">     379</span>              :      *</span>
+<span id="L380"><span class="lineNum">     380</span>              :      * PNA's hash algorithm enum has the same values as PSA's, plus TARGET_DEFAULT which we map to</span>
+<span id="L381"><span class="lineNum">     381</span>              :      * identity as a safe fallback.</span>
+<span id="L382"><span class="lineNum">     382</span>              :      */</span>
+<span id="L383"><span class="lineNum">     383</span> <span class="tlaUNC tlaBgUNC">           0 :     val PNA_HASH_ALGORITHMS =</span></span>
+<span id="L384"><span class="lineNum">     384</span> <span class="tlaGNC tlaBgGNC">           1 :       mapOf(</span></span>
+<span id="L385"><span class="lineNum">     385</span> <span class="tlaGNC">           1 :         &quot;IDENTITY&quot; to &quot;identity&quot;,</span></span>
+<span id="L386"><span class="lineNum">     386</span> <span class="tlaGNC">           1 :         &quot;CRC16&quot; to &quot;crc16&quot;,</span></span>
+<span id="L387"><span class="lineNum">     387</span> <span class="tlaGNC">           1 :         &quot;CRC32&quot; to &quot;crc32&quot;,</span></span>
+<span id="L388"><span class="lineNum">     388</span> <span class="tlaGNC">           1 :         &quot;ONES_COMPLEMENT16&quot; to &quot;csum16&quot;,</span></span>
+<span id="L389"><span class="lineNum">     389</span> <span class="tlaGNC">           1 :         &quot;TARGET_DEFAULT&quot; to &quot;identity&quot;,</span></span>
+<span id="L390"><span class="lineNum">     390</span>              :       )</span>
+<span id="L391"><span class="lineNum">     391</span>              :   }</span>
+<span id="L392"><span class="lineNum">     392</span>              : }</span>
         </pre>
               </td>
             </tr>
