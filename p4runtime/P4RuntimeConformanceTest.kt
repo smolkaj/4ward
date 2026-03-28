@@ -2099,9 +2099,11 @@ class P4RuntimeConformanceTest {
       )
     harness.modifyEntry(entry)
     val readBack = harness.readRegisterEntries(REG_ID)
-    val read = readBack.find { it.registerEntry.index.index == 0L }
-    assertNotNull("register entry should be readable", read)
-    assertEquals("register value must match", entry.registerEntry.data, read!!.registerEntry.data)
+    val read =
+      checkNotNull(readBack.find { it.registerEntry.index.index == 0L }) {
+        "register entry should be readable"
+      }
+    assertEquals("register value must match", entry.registerEntry.data, read.registerEntry.data)
   }
 
   // =========================================================================
@@ -2113,13 +2115,11 @@ class P4RuntimeConformanceTest {
   fun `114 - INSERT into const table returns INVALID_ARGUMENT`() {
     val config = loadConstEntriesConfig()
     harness.loadPipeline(config)
-    // Try to insert into the const table — should be rejected.
-    val constTable = config.p4Info.tablesList.find { it.isConstTable }
-    assertNotNull("fixture should have a const table", constTable)
+    val constTable = checkNotNull(config.p4Info.tablesList.find { it.isConstTable })
     val entry =
       Entity.newBuilder()
         .setTableEntry(
-          P4RuntimeOuterClass.TableEntry.newBuilder().setTableId(constTable!!.preamble.id)
+          P4RuntimeOuterClass.TableEntry.newBuilder().setTableId(constTable.preamble.id)
         )
         .build()
     assertGrpcError(Status.Code.INVALID_ARGUMENT) { harness.installEntry(entry) }
@@ -2130,9 +2130,8 @@ class P4RuntimeConformanceTest {
   fun `115 - wildcard read includes const table entries`() {
     val config = loadConstEntriesConfig()
     harness.loadPipeline(config)
-    val constTable = config.p4Info.tablesList.find { it.isConstTable }
-    assertNotNull(constTable)
-    val constEntries = harness.readRegularTableEntries(constTable!!.preamble.id)
+    val constTable = checkNotNull(config.p4Info.tablesList.find { it.isConstTable })
+    val constEntries = harness.readRegularTableEntries(constTable.preamble.id)
     assertTrue("const entries should appear in read", constEntries.isNotEmpty())
   }
 
@@ -2141,10 +2140,8 @@ class P4RuntimeConformanceTest {
   fun `116 - MODIFY const table entry returns INVALID_ARGUMENT`() {
     val config = loadConstEntriesConfig()
     harness.loadPipeline(config)
-    val constTable = config.p4Info.tablesList.find { it.isConstTable }
-    assertNotNull(constTable)
-    // Read an existing const entry and try to modify it.
-    val existing = harness.readRegularTableEntries(constTable!!.preamble.id)
+    val constTable = checkNotNull(config.p4Info.tablesList.find { it.isConstTable })
+    val existing = harness.readRegularTableEntries(constTable.preamble.id)
     assertTrue(existing.isNotEmpty())
     assertGrpcError(Status.Code.INVALID_ARGUMENT) { harness.modifyEntry(existing[0]) }
   }
@@ -2158,50 +2155,9 @@ class P4RuntimeConformanceTest {
   fun `117 - idle_timeout_ns on table entry returns UNIMPLEMENTED`() {
     val config = loadBasicTableConfig()
     harness.loadPipeline(config)
-    val table = config.p4Info.tablesList.first()
-    val fwdAction = P4RuntimeTestHarness.findAction(config, "forward")
+    val base = buildExactEntry(config, matchValue = 0x0800, port = 1)
     val entry =
-      Entity.newBuilder()
-        .setTableEntry(
-          P4RuntimeOuterClass.TableEntry.newBuilder()
-            .setTableId(table.preamble.id)
-            .addMatch(
-              P4RuntimeOuterClass.FieldMatch.newBuilder()
-                .setFieldId(table.matchFieldsList.first().id)
-                .setExact(
-                  P4RuntimeOuterClass.FieldMatch.Exact.newBuilder()
-                    .setValue(
-                      ByteString.copyFrom(
-                        P4RuntimeTestHarness.longToBytes(
-                          0x0800,
-                          (table.matchFieldsList.first().bitwidth + 7) / 8,
-                        )
-                      )
-                    )
-                )
-            )
-            .setAction(
-              P4RuntimeOuterClass.TableAction.newBuilder()
-                .setAction(
-                  P4RuntimeOuterClass.Action.newBuilder()
-                    .setActionId(fwdAction.preamble.id)
-                    .addParams(
-                      P4RuntimeOuterClass.Action.Param.newBuilder()
-                        .setParamId(fwdAction.paramsList.first().id)
-                        .setValue(
-                          ByteString.copyFrom(
-                            P4RuntimeTestHarness.longToBytes(
-                              1,
-                              (fwdAction.paramsList.first().bitwidth + 7) / 8,
-                            )
-                          )
-                        )
-                    )
-                )
-            )
-            .setIdleTimeoutNs(1000000)
-        )
-        .build()
+      base.toBuilder().setTableEntry(base.tableEntry.toBuilder().setIdleTimeoutNs(1000000)).build()
     assertGrpcError(Status.Code.UNIMPLEMENTED) { harness.installEntry(entry) }
   }
 
@@ -2261,12 +2217,9 @@ class P4RuntimeConformanceTest {
       harness.writeRaw(request)
       throw AssertionError("expected batch error")
     } catch (e: StatusException) {
-      val errors = P4RuntimeTestHarness.extractBatchErrors(e)
-      assertNotNull("should have batch error details", errors)
-      assertEquals("should have 2 per-update statuses", 2, errors!!.size)
-      // First update succeeded.
+      val errors = checkNotNull(P4RuntimeTestHarness.extractBatchErrors(e))
+      assertEquals("should have 2 per-update statuses", 2, errors.size)
       assertEquals(com.google.rpc.Code.OK_VALUE, errors[0].canonicalCode)
-      // Second update failed with a non-zero code and a message.
       assertTrue("bad update should have error code", errors[1].canonicalCode != 0)
       assertTrue("bad update should have error message", errors[1].message.isNotEmpty())
     }
@@ -2285,9 +2238,8 @@ class P4RuntimeConformanceTest {
       harness.installEntry(bad)
       throw AssertionError("expected error")
     } catch (e: StatusException) {
-      val errors = P4RuntimeTestHarness.extractBatchErrors(e)
-      assertNotNull("should have structured error details", errors)
-      assertEquals(1, errors!!.size)
+      val errors = checkNotNull(P4RuntimeTestHarness.extractBatchErrors(e))
+      assertEquals(1, errors.size)
       assertTrue("should have non-OK code", errors[0].canonicalCode != 0)
     }
   }
@@ -2321,11 +2273,11 @@ class P4RuntimeConformanceTest {
   /** §13.3: Single Read request with both table entries and action profile members. */
   @Test
   fun `123 - read batch with multiple entity types`() {
-    val (profileId, dropId) = loadActionSelector()
-    // Install a table entry and a profile member.
     val config = loadConfig("e2e_tests/trace_tree/action_selector_3.txtpb")
+    harness.loadPipeline(config)
+    val profileId = config.p4Info.actionProfilesList.first().preamble.id
+    val dropId = P4RuntimeTestHarness.findAction(config, "drop").preamble.id
     val table = config.p4Info.tablesList.first()
-    val fwdAction = P4RuntimeTestHarness.findAction(config, "drop")
     val tableEntry =
       Entity.newBuilder()
         .setTableEntry(
