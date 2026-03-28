@@ -154,8 +154,9 @@ class TableStore : TableDataReader {
   private var writeState = WriteState()
 
   /**
-   * Returns the p4info alias names of tables that have at least one installed entry (excluding
-   * default actions and const entries — only explicitly written regular entries count).
+   * Returns the p4info alias names of tables that have at least one installed entry. This includes
+   * const entries installed from `device.staticEntries` at load time, since those also need
+   * schema-compatible tables in the new pipeline to survive RECONCILE_AND_COMMIT.
    */
   fun populatedTableAliases(): Set<String> =
     tables.entries
@@ -173,22 +174,23 @@ class TableStore : TableDataReader {
    * caller is responsible for verifying schema compatibility before calling this.
    */
   fun restoreTableEntries(snapshot: WriteState, oldAliasByName: Map<String, String>) {
+    // Reverse of tableAliasByName: p4info alias → new behavioral name.
+    val newNameByAlias = tableAliasByName.entries.associate { (name, alias) -> alias to name }
+
     for ((oldName, entries) in snapshot.tables) {
       if (entries.isEmpty()) continue
       val alias = oldAliasByName[oldName] ?: continue
-      val newName = tableAliasByName.entries.find { it.value == alias }?.key ?: continue
+      val newName = newNameByAlias[alias] ?: continue
       tables[newName] = entries.toMutableList()
-      // Restore associated direct counter/meter data.
       for (entry in entries) {
         snapshot.directCounterData[entry]?.let { directCounterData[entry] = it }
         snapshot.directMeterData[entry]?.let { directMeterData[entry] = it }
       }
     }
 
-    // Restore default actions that were explicitly modified.
     for (oldName in snapshot.modifiedDefaults) {
       val alias = oldAliasByName[oldName] ?: continue
-      val newName = tableAliasByName.entries.find { it.value == alias }?.key ?: continue
+      val newName = newNameByAlias[alias] ?: continue
       snapshot.defaultActions[oldName]?.let {
         defaultActions[newName] = it
         modifiedDefaults.add(newName)

@@ -258,22 +258,13 @@ class P4RuntimeService(
       }
     }
 
-    try {
-      simulator.loadPipelinePreservingEntries(newState.config)
-    } catch (e: IllegalArgumentException) {
-      throw Status.INTERNAL.withDescription("Simulator rejected pipeline: ${e.message}")
-        .withCause(e)
-        .asException()
-    }
-    oldState.constraintValidator?.close()
-    val entityReader =
-      EntityReader.create(newState.config.p4Info, simulator.tableNameById, simulator.actionNameById)
-    pipeline = newState.copy(entityReader = entityReader)
+    activatePipeline(newState) { simulator.loadPipelinePreservingEntries(it) }
   }
 
   /**
    * Two tables are schema-compatible if they have the same match fields (same IDs, bitwidths, and
-   * match types) and the same set of action references (by ID).
+   * match types) and the same set of action references (by ID). Assumes tables are already matched
+   * by p4info alias; only verifies field and action compatibility.
    */
   private fun tablesSchemaCompatible(
     old: p4.config.v1.P4InfoOuterClass.Table,
@@ -292,16 +283,23 @@ class P4RuntimeService(
 
   /** Loads a verified pipeline into the simulator and activates it. */
   private fun commitPipeline(state: PipelineState) {
+    activatePipeline(state) { simulator.loadPipeline(it) }
+  }
+
+  /**
+   * Common tail for [commitPipeline] and [reconcileAndCommit]: loads the pipeline into the
+   * simulator via [load], creates an [EntityReader] from the simulator's post-load name maps, and
+   * atomically swaps the pipeline state.
+   */
+  private fun activatePipeline(state: PipelineState, load: (PipelineConfig) -> Unit) {
     try {
-      simulator.loadPipeline(state.config)
+      load(state.config)
     } catch (e: IllegalArgumentException) {
       throw Status.INTERNAL.withDescription("Simulator rejected pipeline: ${e.message}")
         .withCause(e)
         .asException()
     }
     pipeline?.constraintValidator?.close()
-
-    // EntityReader needs simulator name maps that are only populated after loadPipeline.
     val entityReader =
       EntityReader.create(state.config.p4Info, simulator.tableNameById, simulator.actionNameById)
     pipeline = state.copy(entityReader = entityReader)
