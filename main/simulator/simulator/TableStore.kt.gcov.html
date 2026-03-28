@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-28 22:43:25</td>
+            <td class="headerValue">2026-03-28 22:57:08</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">97.5&nbsp;%</td>
@@ -722,8 +722,8 @@
 <span id="L660"><span class="lineNum">     660</span> <span class="tlaGNC">           1 :     val info =</span></span>
 <span id="L661"><span class="lineNum">     661</span> <span class="tlaGNC">           1 :       registerInfoById[entry.registerId]</span></span>
 <span id="L662"><span class="lineNum">     662</span> <span class="tlaGNC">           1 :         ?: return WriteResult.NotFound(</span></span>
-<span id="L663"><span class="lineNum">     663</span> <span class="tlaGNC">           1 :           &quot;unknown register ID: ${entry.registerId}; valid registers: &quot; +</span></span>
-<span id="L664"><span class="lineNum">     664</span> <span class="tlaGNC">           1 :             formatOptions(registerInfoById.values.map { it.name })</span></span>
+<span id="L663"><span class="lineNum">     663</span> <span class="tlaGNC">           1 :           &quot;unknown register ID: ${entry.registerId} &quot; +</span></span>
+<span id="L664"><span class="lineNum">     664</span> <span class="tlaGNC">           1 :             &quot;(valid registers: ${formatOptions(registerInfoById.entries.map { &quot;'${it.value.name}' (${it.key})&quot; })})&quot;</span></span>
 <span id="L665"><span class="lineNum">     665</span>              :         )</span>
 <span id="L666"><span class="lineNum">     666</span> <span class="tlaGNC">           1 :     val index = entry.index.index.toInt()</span></span>
 <span id="L667"><span class="lineNum">     667</span> <span class="tlaGNC">           1 :     if (index &lt; 0 || index &gt;= info.size)</span></span>
@@ -794,8 +794,8 @@
 <span id="L732"><span class="lineNum">     732</span> <span class="tlaGNC">           1 :     val info =</span></span>
 <span id="L733"><span class="lineNum">     733</span> <span class="tlaGNC">           1 :       infoById[id]</span></span>
 <span id="L734"><span class="lineNum">     734</span> <span class="tlaGNC">           1 :         ?: return WriteResult.NotFound(</span></span>
-<span id="L735"><span class="lineNum">     735</span> <span class="tlaGNC">           1 :           &quot;unknown $entityName ID: $id; valid ${entityName} IDs: &quot; +</span></span>
-<span id="L736"><span class="lineNum">     736</span> <span class="tlaGNC">           1 :             formatOptions(infoById.keys.map { it.toString() })</span></span>
+<span id="L735"><span class="lineNum">     735</span> <span class="tlaGNC">           1 :           &quot;unknown $entityName ID: $id &quot; +</span></span>
+<span id="L736"><span class="lineNum">     736</span> <span class="tlaGNC">           1 :             &quot;(valid ${entityName} IDs: ${formatOptions(infoById.keys.sorted().map { it.toString() })})&quot;</span></span>
 <span id="L737"><span class="lineNum">     737</span>              :         )</span>
 <span id="L738"><span class="lineNum">     738</span> <span class="tlaGNC">           1 :     val idx = index.index.toInt()</span></span>
 <span id="L739"><span class="lineNum">     739</span> <span class="tlaGNC">           1 :     if (idx &lt; 0 || idx &gt;= info.size)</span></span>
@@ -929,8 +929,8 @@
 <span id="L867"><span class="lineNum">     867</span> <span class="tlaGNC">           1 :     val tableName =</span></span>
 <span id="L868"><span class="lineNum">     868</span> <span class="tlaGNC">           1 :       tableNameById[tableEntry.tableId]</span></span>
 <span id="L869"><span class="lineNum">     869</span> <span class="tlaGNC">           1 :         ?: return WriteResult.NotFound(</span></span>
-<span id="L870"><span class="lineNum">     870</span> <span class="tlaGNC">           1 :           &quot;unknown table ID ${tableEntry.tableId}; valid tables: &quot; +</span></span>
-<span id="L871"><span class="lineNum">     871</span> <span class="tlaGNC">           1 :             formatOptions(tableNameById.values.toList())</span></span>
+<span id="L870"><span class="lineNum">     870</span> <span class="tlaGNC">           1 :           &quot;unknown table ID ${tableEntry.tableId} &quot; +</span></span>
+<span id="L871"><span class="lineNum">     871</span> <span class="tlaGNC">           1 :             &quot;(valid tables: ${formatOptions(tableNameById.entries.map { &quot;'${it.value}' (${it.key})&quot; })})&quot;</span></span>
 <span id="L872"><span class="lineNum">     872</span>              :         )</span>
 <span id="L873"><span class="lineNum">     873</span> <span class="tlaGNC">           1 :     if (tableName !in knownTables)</span></span>
 <span id="L874"><span class="lineNum">     874</span> <span class="tlaUNC tlaBgUNC">           0 :       return WriteResult.InvalidArgument(&quot;table '$tableName' has no $entityName&quot;)</span></span>
@@ -1021,8 +1021,8 @@
 <span id="L959"><span class="lineNum">     959</span> <span class="tlaGNC">           1 :     val info =</span></span>
 <span id="L960"><span class="lineNum">     960</span> <span class="tlaGNC">           1 :       valueSetInfoById[entry.valueSetId]</span></span>
 <span id="L961"><span class="lineNum">     961</span> <span class="tlaGNC">           1 :         ?: return WriteResult.NotFound(</span></span>
-<span id="L962"><span class="lineNum">     962</span> <span class="tlaGNC">           1 :           &quot;unknown value_set ID: ${entry.valueSetId}; valid value_sets: &quot; +</span></span>
-<span id="L963"><span class="lineNum">     963</span> <span class="tlaGNC">           1 :             formatOptions(valueSetInfoById.values.map { it.name })</span></span>
+<span id="L962"><span class="lineNum">     962</span> <span class="tlaGNC">           1 :           &quot;unknown value_set ID: ${entry.valueSetId} &quot; +</span></span>
+<span id="L963"><span class="lineNum">     963</span> <span class="tlaGNC">           1 :             &quot;(valid value_sets: ${formatOptions(valueSetInfoById.entries.map { &quot;'${it.value.name}' (${it.key})&quot; })})&quot;</span></span>
 <span id="L964"><span class="lineNum">     964</span>              :         )</span>
 <span id="L965"><span class="lineNum">     965</span> <span class="tlaGNC">           1 :     val name = info.name</span></span>
 <span id="L966"><span class="lineNum">     966</span> <span class="tlaGNC">           1 :     val maxSize = info.size</span></span>
@@ -1087,8 +1087,8 @@
 <span id="L1025"><span class="lineNum">    1025</span> <span class="tlaGNC">           1 :     val tableName =</span></span>
 <span id="L1026"><span class="lineNum">    1026</span> <span class="tlaGNC">           1 :       tableNameById[entry.tableId]</span></span>
 <span id="L1027"><span class="lineNum">    1027</span> <span class="tlaGNC">           1 :         ?: return WriteResult.NotFound(</span></span>
-<span id="L1028"><span class="lineNum">    1028</span> <span class="tlaGNC">           1 :           &quot;unknown table ID ${entry.tableId}; valid tables: &quot; +</span></span>
-<span id="L1029"><span class="lineNum">    1029</span> <span class="tlaGNC">           1 :             formatOptions(tableNameById.values.toList())</span></span>
+<span id="L1028"><span class="lineNum">    1028</span> <span class="tlaGNC">           1 :           &quot;unknown table ID ${entry.tableId} &quot; +</span></span>
+<span id="L1029"><span class="lineNum">    1029</span> <span class="tlaGNC">           1 :             &quot;(valid tables: ${formatOptions(tableNameById.entries.map { &quot;'${it.value}' (${it.key})&quot; })})&quot;</span></span>
 <span id="L1030"><span class="lineNum">    1030</span>              :         )</span>
 <span id="L1031"><span class="lineNum">    1031</span>              : </span>
 <span id="L1032"><span class="lineNum">    1032</span>              :     // P4Runtime spec §9.1: default entries are stored separately and only support MODIFY.</span>
@@ -1506,8 +1506,8 @@
 <span id="L1444"><span class="lineNum">    1444</span>              :   private fun resolveActionName(actionId: Int): String =</span>
 <span id="L1445"><span class="lineNum">    1445</span> <span class="tlaGNC">           1 :     actionNameById[actionId]</span></span>
 <span id="L1446"><span class="lineNum">    1446</span> <span class="tlaUNC tlaBgUNC">           0 :       ?: error(</span></span>
-<span id="L1447"><span class="lineNum">    1447</span> <span class="tlaUNC">           0 :         &quot;unknown action ID: $actionId; valid actions: &quot; +</span></span>
-<span id="L1448"><span class="lineNum">    1448</span> <span class="tlaUNC">           0 :           formatOptions(actionNameById.values.toList())</span></span>
+<span id="L1447"><span class="lineNum">    1447</span> <span class="tlaUNC">           0 :         &quot;unknown action ID: $actionId &quot; +</span></span>
+<span id="L1448"><span class="lineNum">    1448</span> <span class="tlaUNC">           0 :           &quot;(valid actions: ${formatOptions(actionNameById.entries.map { &quot;'${it.value}' (${it.key})&quot; })})&quot;</span></span>
 <span id="L1449"><span class="lineNum">    1449</span> <span class="tlaGNC tlaBgGNC">           1 :       )</span></span>
 <span id="L1450"><span class="lineNum">    1450</span>              : </span>
 <span id="L1451"><span class="lineNum">    1451</span>              :   /** Resolves an action name (alias or behavioral) to its behavioral name. */</span>
