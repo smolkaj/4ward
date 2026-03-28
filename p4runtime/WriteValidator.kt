@@ -137,11 +137,15 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
     tableInfo: P4InfoOuterClass.Table,
   ) {
     val actionInfo =
-      actionInfoById[action.actionId] ?: throw invalidArg("unknown action ID: ${action.actionId}")
+      actionInfoById[action.actionId]
+        ?: throw invalidArg(
+          "unknown action ID ${action.actionId} in table '${tableInfo.tableName}'"
+        )
 
     if (action.actionId !in (actionRefIdsByTable[tableInfo.preamble.id] ?: emptySet())) {
       throw invalidArg(
-        "action ID ${action.actionId} is not valid for table '${tableInfo.tableName}'"
+        "action '${actionInfo.preamble.name}' (ID ${action.actionId}) " +
+          "is not valid for table '${tableInfo.tableName}'"
       )
     }
 
@@ -193,7 +197,10 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
           )
       // §9.1: each match field may appear at most once.
       if (!presentFieldIds.add(fm.fieldId)) {
-        throw invalidArg("duplicate match field ID ${fm.fieldId} in table '${tableInfo.tableName}'")
+        throw invalidArg(
+          "duplicate match field '${fieldInfo.name}' (ID ${fm.fieldId}) " +
+            "in table '${tableInfo.tableName}'"
+        )
       }
       validateMatchKind(fm, fieldInfo)
       validateMatchWidth(fm, fieldInfo)
@@ -296,7 +303,11 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
 
     val action = member.action
     val actionInfo =
-      actionInfoById[action.actionId] ?: throw invalidArg("unknown action ID: ${action.actionId}")
+      actionInfoById[action.actionId]
+        ?: throw invalidArg(
+          "unknown action ID ${action.actionId} in action profile " +
+            "'${profileInfo.preamble.alias.ifEmpty { profileInfo.preamble.name }}'"
+        )
 
     val validActionIds = actionRefIdsByProfile[profileId] ?: emptySet()
     if (action.actionId !in validActionIds) {

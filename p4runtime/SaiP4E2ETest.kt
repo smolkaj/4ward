@@ -437,9 +437,9 @@ class SaiP4E2ETest {
 
     val packet = buildIpv4Packet(dstMac = UNICAST_MAC, srcMac = SRC_MAC, ttl = 64)
     // The clone outputs on dataplane port 99, which has no reverse mapping.
-    // toDualEncoded should fail loudly per invariant #5. gRPC surfaces the uncaught
-    // IllegalStateException as UNKNOWN (server doesn't propagate exception details).
-    P4RuntimeTestHarness.assertGrpcError(Status.Code.UNKNOWN) {
+    // toDualEncoded should fail loudly per invariant #5. The IllegalStateException
+    // is caught and converted to a proper INTERNAL StatusException.
+    P4RuntimeTestHarness.assertGrpcError(Status.Code.INTERNAL) {
       harness.injectPacket(ingressPort = 0, payload = packet)
     }
   }

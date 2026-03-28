@@ -123,7 +123,7 @@ private constructor(
       if (!entryExists(ref.tableId, ref.fieldId, value)) {
         throw Status.INVALID_ARGUMENT.withDescription(
             "@refers_to violation: no entry in '${ref.tableName}' with " +
-              "'${ref.fieldName}' matching the given value"
+              "'${ref.fieldName}' = 0x${value.toByteArray().joinToString("") { "%02x".format(it) }}"
           )
           .asException()
       }

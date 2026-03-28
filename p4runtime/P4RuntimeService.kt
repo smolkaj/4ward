@@ -174,7 +174,8 @@ class P4RuntimeService(
         DeviceConfig.parseFrom(fwdConfig.p4DeviceConfig)
       } catch (e: com.google.protobuf.InvalidProtocolBufferException) {
         throw Status.INVALID_ARGUMENT.withDescription(
-            "p4_device_config is not a valid DeviceConfig: ${e.message}"
+            "p4_device_config is not a valid DeviceConfig proto " +
+              "(expected serialized fourward.ir.DeviceConfig): ${e.message}"
           )
           .withCause(e)
           .asException()
@@ -319,7 +320,10 @@ class P4RuntimeService(
         WriteRequest.Atomicity.CONTINUE_ON_ERROR ->
           writeContinueOnError(request.updatesList, state, roleName)
         WriteRequest.Atomicity.UNRECOGNIZED ->
-          throw Status.INVALID_ARGUMENT.withDescription("unrecognized write atomicity")
+          throw Status.INVALID_ARGUMENT.withDescription(
+              "unrecognized write atomicity; valid values: " +
+                "CONTINUE_ON_ERROR, ROLLBACK_ON_ERROR, DATAPLANE_ATOMIC"
+            )
             .asException()
         // P4Runtime spec §12.2: ROLLBACK_ON_ERROR and DATAPLANE_ATOMIC both guarantee
         // all-or-none semantics. DATAPLANE_ATOMIC additionally requires data-plane atomicity,
@@ -555,7 +559,11 @@ class P4RuntimeService(
             @Suppress("TooGenericExceptionCaught") // Any translation/encoding failure should
             e: Exception // terminate this P4RT stream, not crash the packet sender.
           ) {
-            close(e)
+            close(
+              Status.INTERNAL.withDescription("PacketIn translation failed: ${e.message}")
+                .withCause(e)
+                .asException()
+            )
           }
         }
 
@@ -950,16 +958,21 @@ class P4RuntimeService(
    * clients can extract per-update results (P4Runtime spec §10, §12.3).
    */
   private fun buildBatchError(errors: List<P4RuntimeOuterClass.Error>): StatusException {
+    val failedCount = errors.count { it.canonicalCode != OK_CODE }
+    val totalCount = errors.size
+    val message =
+      "$failedCount of $totalCount updates failed; " +
+        "see per-update status in grpc-status-details-bin trailer"
     val rpcStatus =
       com.google.rpc.Status.newBuilder()
         .setCode(com.google.rpc.Code.UNKNOWN_VALUE)
-        .setMessage("Write failure.")
+        .setMessage(message)
     for (error in errors) {
       rpcStatus.addDetails(ProtoAny.pack(error))
     }
     val metadata = Metadata()
     metadata.put(STATUS_DETAILS_KEY, rpcStatus.build().toByteArray())
-    return Status.UNKNOWN.withDescription("Write failure.").asException(metadata)
+    return Status.UNKNOWN.withDescription(message).asException(metadata)
   }
 
   override fun close() {
@@ -979,8 +992,11 @@ class P4RuntimeService(
     private const val NO_PIPELINE_MESSAGE =
       "No pipeline loaded; call SetForwardingPipelineConfig first"
 
-    private const val DIGEST_NOT_SUPPORTED = "digest is not supported"
-    private const val EXTERN_ENTRY_NOT_SUPPORTED = "ExternEntry is not supported"
+    private const val DIGEST_NOT_SUPPORTED =
+      "digest is not supported; the simulator does not implement digest extern generation"
+    private const val EXTERN_ENTRY_NOT_SUPPORTED =
+      "ExternEntry is not supported; use the dedicated entity types " +
+        "(TableEntry, CounterEntry, etc.) instead"
     private const val ROLE_CONFIG_NOT_SUPPORTED =
       "Role.config is not supported; use @p4runtime_role annotations in p4info instead"
 
