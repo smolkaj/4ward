@@ -31,13 +31,13 @@
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">94.8&nbsp;%</td>
+            <td class="headerCovTableEntryHi">94.9&nbsp;%</td>
             <td class="headerCovTableEntry">744</td>
-            <td class="headerCovTableEntry">705</td>
+            <td class="headerCovTableEntry">706</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-28 18:36:54</td>
+            <td class="headerValue">2026-03-28 21:25:31</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">97.4&nbsp;%</td>
@@ -890,8 +890,8 @@
 <span id="L828"><span class="lineNum">     828</span> <span class="tlaGNC">           1 :       tables[tableName] ?: return WriteResult.NotFound(&quot;no entries in table '$tableName'&quot;)</span></span>
 <span id="L829"><span class="lineNum">     829</span> <span class="tlaGNC">           1 :     val stored =</span></span>
 <span id="L830"><span class="lineNum">     830</span> <span class="tlaGNC">           1 :       entries.find { it.sameKey(tableEntry) }</span></span>
-<span id="L831"><span class="lineNum">     831</span> <span class="tlaUNC tlaBgUNC">           0 :         ?: return WriteResult.NotFound(&quot;no matching entry in table '$tableName'&quot;)</span></span>
-<span id="L832"><span class="lineNum">     832</span> <span class="tlaGNC tlaBgGNC">           1 :     update(stored)</span></span>
+<span id="L831"><span class="lineNum">     831</span> <span class="tlaGNC">           1 :         ?: return WriteResult.NotFound(&quot;no matching entry in table '$tableName'&quot;)</span></span>
+<span id="L832"><span class="lineNum">     832</span> <span class="tlaGNC">           1 :     update(stored)</span></span>
 <span id="L833"><span class="lineNum">     833</span> <span class="tlaGNC">           1 :     return WriteResult.Success</span></span>
 <span id="L834"><span class="lineNum">     834</span>              :   }</span>
 <span id="L835"><span class="lineNum">     835</span>              : </span>

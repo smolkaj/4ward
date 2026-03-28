@@ -31,13 +31,13 @@
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">94.1&nbsp;%</td>
+            <td class="headerCovTableEntryHi">94.9&nbsp;%</td>
             <td class="headerCovTableEntry">493</td>
-            <td class="headerCovTableEntry">464</td>
+            <td class="headerCovTableEntry">468</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-28 18:36:54</td>
+            <td class="headerValue">2026-03-28 21:25:31</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">97.3&nbsp;%</td>
@@ -477,15 +477,15 @@
 <span id="L415"><span class="lineNum">     415</span> <span class="tlaGNC">           1 :     val update =</span></span>
 <span id="L416"><span class="lineNum">     416</span> <span class="tlaGNC">           1 :       try {</span></span>
 <span id="L417"><span class="lineNum">     417</span> <span class="tlaGNC">           1 :         translator?.translateForWrite(rawUpdate) ?: rawUpdate</span></span>
-<span id="L418"><span class="lineNum">     418</span> <span class="tlaUNC tlaBgUNC">           0 :       } catch (e: TranslationException) {</span></span>
-<span id="L419"><span class="lineNum">     419</span> <span class="tlaUNC">           0 :         throw Status.INVALID_ARGUMENT.withDescription(&quot;type translation failed: ${e.message}&quot;)</span></span>
-<span id="L420"><span class="lineNum">     420</span> <span class="tlaUNC">           0 :           .withCause(e)</span></span>
-<span id="L421"><span class="lineNum">     421</span> <span class="tlaUNC">           0 :           .asException()</span></span>
+<span id="L418"><span class="lineNum">     418</span> <span class="tlaGNC">           1 :       } catch (e: TranslationException) {</span></span>
+<span id="L419"><span class="lineNum">     419</span> <span class="tlaGNC">           1 :         throw Status.INVALID_ARGUMENT.withDescription(&quot;type translation failed: ${e.message}&quot;)</span></span>
+<span id="L420"><span class="lineNum">     420</span> <span class="tlaGNC">           1 :           .withCause(e)</span></span>
+<span id="L421"><span class="lineNum">     421</span> <span class="tlaGNC">           1 :           .asException()</span></span>
 <span id="L422"><span class="lineNum">     422</span>              :       }</span>
 <span id="L423"><span class="lineNum">     423</span>              : </span>
 <span id="L424"><span class="lineNum">     424</span>              :     // Validate @refers_to referential integrity after translation so values</span>
 <span id="L425"><span class="lineNum">     425</span>              :     // are in dataplane form (matching what's stored in the simulator).</span>
-<span id="L426"><span class="lineNum">     426</span> <span class="tlaGNC tlaBgGNC">           1 :     state.referenceValidator?.validate(</span></span>
+<span id="L426"><span class="lineNum">     426</span> <span class="tlaGNC">           1 :     state.referenceValidator?.validate(</span></span>
 <span id="L427"><span class="lineNum">     427</span> <span class="tlaGNC">           1 :       update,</span></span>
 <span id="L428"><span class="lineNum">     428</span> <span class="tlaGNC">           1 :       simulator::hasTableEntryWithFieldValue,</span></span>
 <span id="L429"><span class="lineNum">     429</span> <span class="tlaGNC">           1 :       simulator::hasMulticastGroup,</span></span>
