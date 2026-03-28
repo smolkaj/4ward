@@ -1,0 +1,1 @@
+ALREADY_EXISTS: table 'port_table' already contains an entry with the same match key

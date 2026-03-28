@@ -198,7 +198,15 @@ class P4RuntimeService(
       writeValidator = WriteValidator(pipelineConfig.p4Info),
       referenceValidator = ReferenceValidator.create(fwdConfig.p4Info),
       constraintValidator =
-        constraintValidatorBinary?.let { ConstraintValidator.create(fwdConfig.p4Info, it) },
+        constraintValidatorBinary?.let {
+          try {
+            ConstraintValidator.create(fwdConfig.p4Info, it)
+          } catch (e: ConstraintValidatorException) {
+            throw Status.INTERNAL.withDescription("constraint validation failed: ${e.message}")
+              .withCause(e)
+              .asException()
+          }
+        },
       packetHeaderCodec =
         when (cpuPortConfig) {
           is CpuPortConfig.Disabled -> null
@@ -404,7 +412,14 @@ class P4RuntimeService(
     // are checked at canonical widths (P4Runtime spec §8.3, §9.1).
     state.writeValidator.validate(rawUpdate)
     val translator = state.typeTranslator?.takeIf { it.hasTranslations }
-    val update = translator?.translateForWrite(rawUpdate) ?: rawUpdate
+    val update =
+      try {
+        translator?.translateForWrite(rawUpdate) ?: rawUpdate
+      } catch (e: TranslationException) {
+        throw Status.INVALID_ARGUMENT.withDescription("type translation failed: ${e.message}")
+          .withCause(e)
+          .asException()
+      }
 
     // Validate @refers_to referential integrity after translation so values
     // are in dataplane form (matching what's stored in the simulator).
@@ -514,10 +529,16 @@ class P4RuntimeService(
             // For specific (non-wildcard) entities, check access upfront so the controller
             // gets a clear PERMISSION_DENIED. For wildcards, results are filtered post-read.
             requireEntityAccess(entity, state.roleMap, roleName)
-            if (entity.hasTableEntry()) {
-              state.entityReader.readTableEntities(entity.tableEntry, simulator)
-            } else {
-              simulator.readEntries(listOf(entity))
+            try {
+              if (entity.hasTableEntry()) {
+                state.entityReader.readTableEntities(entity.tableEntry, simulator)
+              } else {
+                simulator.readEntries(listOf(entity))
+              }
+            } catch (e: IllegalStateException) {
+              throw Status.INTERNAL.withDescription("read failed: ${e.message}")
+                .withCause(e)
+                .asException()
             }
           }
         // Filter results by role for named-role controllers. This handles wildcard reads
@@ -626,7 +647,13 @@ class P4RuntimeService(
         extractIngressPort(packetOut.metadataList) to packetOut.payload.toByteArray()
       }
 
-    broker.processPacket(ingressPort, payload)
+    try {
+      broker.processPacket(ingressPort, payload)
+    } catch (e: IllegalStateException) {
+      throw Status.INTERNAL.withDescription("PacketOut processing failed: ${e.message}")
+        .withCause(e)
+        .asException()
+    }
   }
 
   /**
