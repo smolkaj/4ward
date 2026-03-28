@@ -78,6 +78,7 @@ class V1ModelArchitecture(
    */
   private var postParserSnapshot: PostParserSnapshot? = null
   private val interpreterCache = Interpreter.Cache()
+  private val forkPool = java.util.concurrent.ForkJoinPool()
 
   /** Invariant inputs to the pipeline, shared across fork re-executions. */
   private data class PipelineContext(
@@ -128,80 +129,48 @@ class V1ModelArchitecture(
   }
 
   /**
-   * Iteratively builds a trace tree by re-executing the pipeline for each fork branch.
-   *
-   * Uses an explicit work stack instead of recursion so that deeply nested fork chains (clone →
-   * recirculate → clone → ...) don't overflow the JVM call stack. Each iteration runs one pipeline
-   * execution; forks push new work items instead of recursing.
+   * Recursively builds a trace tree by executing the pipeline and forking at non-deterministic
+   * choice points. Fork branches run in parallel on a shared thread pool.
    */
   private fun buildTraceTree(
     ctx: PipelineContext,
     decisions: V1ModelDecisions,
     prefixLength: Int,
   ): PipelineResult {
-    val workStack = ArrayDeque<Frame>()
-    val resultStack = ArrayDeque<TraceTree>()
-    var executions = 0
-    workStack.addFirst(Frame.Run(ctx, decisions, prefixLength))
+    val trace: TraceTree
+    try {
+      trace = runPipeline(ctx, decisions)
+    } catch (fork: ForkException) {
+      val levelEvents = fork.eventsBeforeFork.drop(prefixLength)
+      val (reason, specs) = forkSpecs(ctx, decisions, fork)
 
-    while (workStack.isNotEmpty()) {
-      when (val frame = workStack.removeFirst()) {
-        is Frame.Run -> {
-          if (++executions > MAX_PIPELINE_EXECUTIONS) {
-            resultStack.addFirst(
-              buildDropTrace(emptyList(), DropReason.PIPELINE_EXECUTION_LIMIT_REACHED)
-            )
-            continue
+      // Run fork branches in parallel. Each branch recursively builds its own subtree,
+      // handling nested forks (clone after selector, etc.) independently.
+      val subtrees =
+        forkPool
+          .submit<List<PipelineResult>> {
+            specs
+              .parallelStream()
+              .map { spec -> buildTraceTree(spec.ctx, spec.decisions, spec.prefixLength) }
+              .toList()
           }
-          try {
-            val trace = runPipeline(frame.ctx, frame.decisions)
-            val stripped =
-              TraceTree.newBuilder().addAllEvents(trace.eventsList.drop(frame.prefixLength))
-            if (trace.hasPacketOutcome()) stripped.setPacketOutcome(trace.packetOutcome)
-            resultStack.addFirst(stripped.build())
-          } catch (fork: ForkException) {
-            val levelEvents = fork.eventsBeforeFork.drop(frame.prefixLength)
-            val (reason, specs) = forkSpecs(frame.ctx, frame.decisions, fork)
-            // Push assemble frame first so it runs after all children complete.
-            workStack.addFirst(Frame.Assemble(reason, specs.map { it.label }, levelEvents))
-            // Push children in forward order: last child at top → processed first →
-            // result pushed first → popped last during assembly → correct order.
-            for (spec in specs) {
-              workStack.addFirst(Frame.Run(spec.ctx, spec.decisions, spec.prefixLength))
-            }
-          }
+          .get()
+
+      val branches =
+        specs.zip(subtrees).map { (spec, result) ->
+          ForkBranch.newBuilder().setLabel(spec.label).setSubtree(result.trace).build()
         }
-        is Frame.Assemble -> {
-          val branches =
-            frame.labels.map { label ->
-              ForkBranch.newBuilder().setLabel(label).setSubtree(resultStack.removeFirst()).build()
-            }
-          val tree =
-            TraceTree.newBuilder()
-              .addAllEvents(frame.events)
-              .setForkOutcome(Fork.newBuilder().setReason(frame.reason).addAllBranches(branches))
-              .build()
-          resultStack.addFirst(tree)
-        }
-      }
+      val tree =
+        TraceTree.newBuilder()
+          .addAllEvents(levelEvents)
+          .setForkOutcome(Fork.newBuilder().setReason(reason).addAllBranches(branches))
+          .build()
+      return PipelineResult(tree)
     }
 
-    return PipelineResult(resultStack.removeFirst())
-  }
-
-  /** Work stack frames for iterative [buildTraceTree]. */
-  private sealed class Frame {
-    data class Run(
-      val ctx: PipelineContext,
-      val decisions: V1ModelDecisions,
-      val prefixLength: Int,
-    ) : Frame()
-
-    data class Assemble(
-      val reason: ForkReason,
-      val labels: List<String>,
-      val events: List<TraceEvent>,
-    ) : Frame()
+    val stripped = TraceTree.newBuilder().addAllEvents(trace.eventsList.drop(prefixLength))
+    if (trace.hasPacketOutcome()) stripped.setPacketOutcome(trace.packetOutcome)
+    return PipelineResult(stripped.build())
   }
 
   /** A branch specification: everything needed to re-execute one fork branch. */
@@ -981,7 +950,9 @@ class V1ModelArchitecture(
 
     // Cap on total pipeline executions per packet to prevent exponential blowup
     // from nested clone/recirculate chains (e.g. clone → recirculate → clone → ...).
-    private const val MAX_PIPELINE_EXECUTIONS = 1000
+    // MAX_PIPELINE_EXECUTIONS removed: pipeline depth is now bounded by MAX_PIPELINE_DEPTH
+    // in V1ModelDecisions, and fork branches are bounded by the finite number of selector
+    // members / clone sessions / multicast replicas.
 
     // v1model instance_type values (BMv2 PktInstanceType convention).
     private const val CLONE_I2E_INSTANCE_TYPE = 1L

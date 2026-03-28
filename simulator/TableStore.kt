@@ -793,6 +793,7 @@ class TableStore : TableDataReader {
    * [entry] must be the same object reference returned by [lookup] (i.e. the object stored in
    * [tables]), since [directCounterData] uses identity-based keying.
    */
+  @Synchronized
   fun directCounterIncrement(tableName: String, entry: TableEntry, packetLengthBytes: Int) {
     if (tableName !in directCounterTables) return
     val existing = directCounterData[entry] ?: P4RuntimeOuterClass.CounterData.getDefaultInstance()
