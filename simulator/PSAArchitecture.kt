@@ -660,78 +660,18 @@ class PSAArchitecture : Architecture {
             else -> error("unhandled PSA extern: ${call.name}")
           }
         is ExternCall.Method ->
-          when (call.method) {
-            // Register.read(index) returns T directly (unlike v1model's void + out param).
-            "read" ->
-              when (call.externType) {
-                "Register" -> {
-                  val index = (eval.evalArg(0) as BitVal).bits.value.toInt()
-                  pipeline.tableStore.registerRead(call.instanceName, index)
-                    ?: eval.defaultValue(eval.returnType())
-                }
-                // PSA Random.read() — 0 args, returns a random value in [min, max] (PSA spec §7.5).
-                "Random" -> {
-                  val instance = pipeline.externInstances[call.instanceName]
-                  val lo = instance?.constructorArgsList?.getOrNull(0)?.literal?.integer ?: 0L
-                  val hi = instance?.constructorArgsList?.getOrNull(1)?.literal?.integer ?: 0L
-                  val value = if (hi > lo) kotlin.random.Random.nextLong(lo, hi + 1) else lo
-                  BitVal(BitVector(BigInteger.valueOf(value), eval.returnType().bit.width))
-                }
-                else -> error("unhandled PSA extern read: ${call.externType}.read")
-              }
-            "write" -> {
-              val index = (eval.evalArg(0) as BitVal).bits.value.toInt()
-              pipeline.tableStore.registerWrite(call.instanceName, index, eval.evalArg(1))
-              UnitVal
-            }
-            "count" -> UnitVal
-            // PSA Hash.get_hash: 1-arg form returns hash(data), 3-arg form returns
-            // (base + hash(data)) mod max. Algorithm comes from constructor args.
-            "get_hash" -> evalGetHash(call, eval, pipeline.externInstances, PSA_HASH_ALGORITHMS)
-            // PSA Meter.execute(index): returns PSA_MeterColor_t. Always GREEN — no real
-            // packet rates in simulator (same as v1model).
-            "execute" -> EnumVal("GREEN")
-            // --- InternetChecksum extern (PSA spec §7.7) ---
-            "clear" -> {
-              checksumState[call.instanceName] = BigInteger.ZERO
-              UnitVal
-            }
-            "add" -> {
-              val data = eval.evalArg(0).asStructVal()
-              val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)
-              checksumState[call.instanceName] = onesComplementAdd(sum, sumWords(data))
-              UnitVal
-            }
-            "subtract" -> {
-              // RFC 1624: subtract by adding the ones' complement of the data's word sum.
-              val data = eval.evalArg(0).asStructVal()
-              val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)
-              val dataSumComplement = CSUM_MASK.subtract(sumWords(data))
-              checksumState[call.instanceName] = onesComplementAdd(sum, dataSumComplement)
-              UnitVal
-            }
-            "get" -> {
-              val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)
-              BitVal(BitVector(CSUM_MASK.subtract(sum), CSUM_WORD_BITS))
-            }
-            "get_state" -> {
-              val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)
-              BitVal(BitVector(sum, CSUM_WORD_BITS))
-            }
-            "set_state" -> {
-              checksumState[call.instanceName] = (eval.evalArg(0) as BitVal).bits.value
-              UnitVal
-            }
-            // Digest.pack() queues a digest message for the control plane. No-op in STF
-            // testing since there's no control-plane receiver.
-            // TODO(PSA): implement digest delivery via P4Runtime StreamChannel.
-            "pack" -> UnitVal
-            else ->
-              error(
-                "unhandled PSA extern method: ${call.externType}.${call.method}" +
-                  " on ${call.instanceName}"
-              )
-          }
+          handleCommonExternMethod(
+            call,
+            eval,
+            pipeline.tableStore,
+            pipeline.externInstances,
+            checksumState,
+            PSA_HASH_ALGORITHMS,
+          )
+            ?: error(
+              "unhandled PSA extern method: ${call.externType}.${call.method}" +
+                " on ${call.instanceName}"
+            )
       }
     }
   }

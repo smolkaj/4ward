@@ -424,6 +424,11 @@ class P4RuntimeTestHarness(
 
     override fun close() {
       requestChannel.close()
+      // Wait for the server-side flow to complete (including handleDisconnect)
+      // before returning, so subsequent operations see the disconnected state.
+      // Without this, tests that assert on post-disconnect state can race with
+      // the asynchronous disconnect handler.
+      runBlocking { withTimeoutOrNull(STREAM_TIMEOUT_MS) { job.join() } }
       scope.cancel()
     }
   }

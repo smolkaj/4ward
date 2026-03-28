@@ -6,6 +6,7 @@ import fourward.ir.PipelineStage
 import fourward.ir.TypeDecl
 import fourward.sim.SimulatorProto.PipelineStageEvent
 import fourward.sim.SimulatorProto.TraceTree
+import java.math.BigInteger
 
 /** Simplified parameter descriptor: just name and type. */
 internal data class BlockParam(val name: String, val typeName: String)
@@ -157,3 +158,84 @@ internal fun handleActionSelectorFork(
     branches,
   )
 }
+
+/**
+ * Handles extern methods shared across PSA and PNA: Register, Random, Counter, Hash, Meter,
+ * InternetChecksum, Digest, and Checksum.
+ *
+ * Returns the result [Value], or `null` if [call] is not a common extern method (the caller should
+ * handle it as architecture-specific).
+ */
+@Suppress("LongParameterList")
+internal fun handleCommonExternMethod(
+  call: ExternCall.Method,
+  eval: ExternEvaluator,
+  tableStore: TableStore,
+  externInstances: Map<String, ExternInstanceDecl>,
+  checksumState: MutableMap<String, BigInteger>,
+  hashAlgorithms: Map<String, String>,
+): Value? =
+  when (call.method) {
+    "read" ->
+      when (call.externType) {
+        "Register" -> {
+          val index = (eval.evalArg(0) as BitVal).bits.value.toInt()
+          tableStore.registerRead(call.instanceName, index) ?: eval.defaultValue(eval.returnType())
+        }
+        "Random" -> {
+          val instance = externInstances[call.instanceName]
+          val lo = instance?.constructorArgsList?.getOrNull(0)?.literal?.integer ?: 0L
+          val hi = instance?.constructorArgsList?.getOrNull(1)?.literal?.integer ?: 0L
+          val value = if (hi > lo) kotlin.random.Random.nextLong(lo, hi + 1) else lo
+          BitVal(BitVector(BigInteger.valueOf(value), eval.returnType().bit.width))
+        }
+        else -> null
+      }
+    "write" -> {
+      val index = (eval.evalArg(0) as BitVal).bits.value.toInt()
+      tableStore.registerWrite(call.instanceName, index, eval.evalArg(1))
+      UnitVal
+    }
+    "count" -> UnitVal
+    "get_hash" -> evalGetHash(call, eval, externInstances, hashAlgorithms)
+    "execute" -> EnumVal("GREEN")
+    "clear" -> {
+      checksumState[call.instanceName] = BigInteger.ZERO
+      UnitVal
+    }
+    "add" -> {
+      val data = eval.evalArg(0).asStructVal()
+      val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)
+      checksumState[call.instanceName] = onesComplementAdd(sum, sumWords(data))
+      UnitVal
+    }
+    "subtract" -> {
+      // RFC 1624: subtract by adding the ones' complement of the data's word sum.
+      val data = eval.evalArg(0).asStructVal()
+      val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)
+      val dataSumComplement = CSUM_MASK.subtract(sumWords(data))
+      checksumState[call.instanceName] = onesComplementAdd(sum, dataSumComplement)
+      UnitVal
+    }
+    "get" -> {
+      val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)
+      BitVal(BitVector(CSUM_MASK.subtract(sum), CSUM_WORD_BITS))
+    }
+    "get_state" -> {
+      val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)
+      BitVal(BitVector(sum, CSUM_WORD_BITS))
+    }
+    "set_state" -> {
+      checksumState[call.instanceName] = (eval.evalArg(0) as BitVal).bits.value
+      UnitVal
+    }
+    "pack" -> UnitVal
+    // PNA's Checksum<W> extern uses `update` (same semantics as InternetChecksum `add`).
+    "update" -> {
+      val data = eval.evalArg(0).asStructVal()
+      val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)
+      checksumState[call.instanceName] = onesComplementAdd(sum, sumWords(data))
+      UnitVal
+    }
+    else -> null
+  }
