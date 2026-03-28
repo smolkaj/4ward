@@ -357,8 +357,6 @@ class P4RuntimeTestHarness(
     private val requestChannel = Channel<StreamMessageRequest>(Channel.UNLIMITED)
     private val responseChannel = Channel<StreamMessageResponse>(Channel.UNLIMITED)
 
-    // Launched eagerly; cancelled via scope.cancel() in close().
-    @Suppress("UnusedPrivateProperty")
     private val job =
       scope.launch {
         stub.streamChannel(requestChannel.consumeAsFlow()).collect { responseChannel.send(it) }
@@ -423,7 +421,12 @@ class P4RuntimeTestHarness(
     }
 
     override fun close() {
+      // Close the request channel to signal end-of-stream, then wait for the server-side
+      // disconnect handler (handleDisconnect) to complete before returning. Without this,
+      // tests that close a stream and immediately check arbitration state can race against
+      // the async disconnect processing.
       requestChannel.close()
+      runBlocking { withTimeout(STREAM_TIMEOUT_MS) { job.join() } }
       scope.cancel()
     }
   }
