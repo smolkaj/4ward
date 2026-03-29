@@ -11,23 +11,11 @@ Blocked on buf support for proto edition 2024.
 
 ---
 
-## Drop p4c fork
-
-The `smolkaj/p4c` fork adds `//p4include` package, `//testdata/p4_16_samples`
-exports, and a macOS build fix. Upstream PR:
-https://github.com/p4lang/p4c/pull/5533. Once merged and released to BCR,
-drop the `git_override` in `MODULE.bazel`.
-
----
-
 ## Pinned dependencies inventory
 
-Three deps use `git_override` with pinned commits. `behavioral_model` and
-`bazel_clang_tidy` are dev-only (`dev_dependency = True`) and invisible to
-BCR consumers.
+Two deps use `git_override` with pinned commits. Both are dev-only
+(`dev_dependency = True`) and invisible to BCR consumers.
 
-- **p4c** (`smolkaj/p4c` fork, `2a38af8`): adds `//p4include` package,
-  testdata exports, macOS build fix. See "Drop p4c fork" above.
 - **bazel_clang_tidy** (`9e54bbb`): pinned before a commit (`c4d35e0`) that
   broke `-isystem` include ordering. Upstream bug never fixed — permanent
   workaround. Re-check if upstream ever resolves the issue.
