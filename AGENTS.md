@@ -38,7 +38,6 @@ bazel test //...                               # run ALL tests (CI does this)
 ibazel build //...                             # rebuild on file changes (preferred)
 ./tools/format.sh                              # auto-format all files
 ./tools/lint.sh                                # lint (clang-tidy + detekt)
-./tools/coverage.sh                            # code coverage (--html, --baseline, --diff)
 ./tools/dev.sh help                            # show all developer commands
 ```
 
