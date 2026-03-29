@@ -102,10 +102,10 @@ guilt — just write it down so someone can find it later.
 - **Read API only returns table entries.** `GET /api/read` hard-codes a
   `TableEntry` filter. Clone sessions, counters, and other entity types
   cannot be read back through the REST API.
-- **Forking programs: output packets panel shows "dropped".** When the trace
-  tree forks (clone, multicast), output packets appear only in branch leaves
-  of the trace — the top-level `output_packets` list is empty. The user must
-  inspect the Trace tab.
+- **Forking programs: output packets panel flattens possible worlds.** For
+  programs with action selectors, the web playground's output panel shows
+  outputs from *all* possible worlds. The trace tab shows the full fork
+  structure. See [Trace Trees: Forks](../userdocs/concepts/traces.md#forks).
 - **No `StreamChannel`.** The web UI uses REST APIs, not the P4Runtime
   bidirectional stream. This means no PacketIO (`packet_in`/`packet_out`),
   no digest notifications, and no arbitration updates. Packets are injected

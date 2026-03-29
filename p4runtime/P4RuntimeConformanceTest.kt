@@ -1811,10 +1811,10 @@ class P4RuntimeConformanceTest {
     harness.loadPipeline(config)
     harness.installEntry(buildExactEntry(config, matchValue = 0x0800, port = 1))
     // Packet with etherType 0x0800 should hit the table entry and be forwarded.
-    val before = harness.simulatePacket(0, buildEthernetFrame(0x0800))
+    val before = harness.simulatePacket(0, buildEthernetFrame(0x0800)).single().packetsList
     assertTrue("packet should be forwarded before reconcile", before.isNotEmpty())
     sendPipelineAction(SetForwardingPipelineConfigRequest.Action.RECONCILE_AND_COMMIT, config)
-    val after = harness.simulatePacket(0, buildEthernetFrame(0x0800))
+    val after = harness.simulatePacket(0, buildEthernetFrame(0x0800)).single().packetsList
     assertTrue("packet should be forwarded after reconcile", after.isNotEmpty())
     assertEquals(
       "output port should match",
@@ -2172,7 +2172,7 @@ class P4RuntimeConformanceTest {
   fun `106 - InjectPacket returns output and trace`() {
     harness.loadPipeline(loadPassthroughConfig())
     val resp = harness.injectPacket(0, byteArrayOf(0x01, 0x02))
-    assertTrue("should have output packets", resp.outputPacketsList.isNotEmpty())
+    assertTrue("should have output packets", resp.possibleOutcomesList.any { it.packetsCount > 0 })
     assertTrue("trace should be present", resp.hasTrace())
   }
 

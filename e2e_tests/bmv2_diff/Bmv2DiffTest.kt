@@ -54,7 +54,9 @@ class Bmv2DiffTest(private val testName: String) {
     installStfEntries(sim, stf, config.p4Info)
     for (packet in stf.packets) {
       val result = sim.processPacket(packet.ingressPort, packet.payload)
-      for (pkt in result.outputPackets) {
+      // Flatten all possible outcomes — BMv2's sendPacketExploring also explores all
+      // action selector members, so both sides produce the same flat set of outputs.
+      for (pkt in result.possibleOutcomes.flatten()) {
         fourwardOutputs.add(pkt.dataplaneEgressPort to pkt.payload.toByteArray())
       }
     }

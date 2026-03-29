@@ -208,13 +208,17 @@ class WebServer(
 
     val result = runBlocking { lock.withReadLock { simulator.processPacket(ingressPort, payload) } }
 
-    val outputsJson = result.outputPackets.joinToString(",") { jsonPrinter.print(it) }
+    val outcomesJson =
+      result.possibleOutcomes.joinToString(",") { world ->
+        "[${world.joinToString(",") { jsonPrinter.print(it) }}]"
+      }
     val traceJson = jsonPrinter.print(result.trace)
     val traceProto = textPrinter.printToString(result.trace)
     sendJson(
       exchange,
       HTTP_OK,
-      """{"output_packets":[$outputsJson],"trace":$traceJson,"trace_proto":${jsonEscape(traceProto)}}""",
+      """{"possible_outcomes":[$outcomesJson],""" +
+        """"trace":$traceJson,"trace_proto":${jsonEscape(traceProto)}}""",
     )
   }
 

@@ -15,7 +15,7 @@ class PacketBrokerTest {
       .build()
 
   private fun result(vararg outputs: OutputPacket) =
-    ProcessPacketResult(outputs.toList(), TraceTree.getDefaultInstance())
+    ProcessPacketResult(listOf(outputs.toList()), TraceTree.getDefaultInstance())
 
   private fun fakeProcessor(
     vararg results: Pair<Int, ProcessPacketResult>
@@ -30,7 +30,7 @@ class PacketBrokerTest {
     val broker = PacketBroker(fakeProcessor(0 to expected))
 
     val actual = broker.processPacket(0, byteArrayOf(0x01))
-    assertEquals(expected.outputPackets, actual.outputPackets)
+    assertEquals(expected.possibleOutcomes, actual.possibleOutcomes)
   }
 
   @Test
@@ -45,7 +45,7 @@ class PacketBrokerTest {
 
     assertEquals(1, received.size)
     assertEquals(0, received[0].ingressPort)
-    assertEquals(outputs, received[0].outputPackets)
+    assertEquals(listOf(outputs), received[0].possibleOutcomes)
   }
 
   @Test
@@ -94,7 +94,7 @@ class PacketBrokerTest {
 
     // The caller should get the result even though the first subscriber threw.
     val callerResult = broker.processPacket(0, byteArrayOf())
-    assertEquals(1, callerResult.outputPackets.size)
+    assertEquals(1, callerResult.possibleOutcomes.single().size)
 
     // The second subscriber should still receive the result.
     assertEquals(1, received.size)

@@ -32,7 +32,7 @@ class PacketBroker(
   class SubscriptionResult(
     val ingressPort: Int,
     val payload: ByteArray,
-    val outputPackets: List<OutputPacket>,
+    val possibleOutcomes: List<List<OutputPacket>>,
     val trace: TraceTree,
   )
 
@@ -57,7 +57,8 @@ class PacketBroker(
     val result = processPacketFn(ingressPort, payload)
 
     if (subscribers.isNotEmpty()) {
-      val subResult = SubscriptionResult(ingressPort, payload, result.outputPackets, result.trace)
+      val subResult =
+        SubscriptionResult(ingressPort, payload, result.possibleOutcomes, result.trace)
       for (subscriber in subscribers) {
         try {
           subscriber(subResult)

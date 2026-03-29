@@ -45,10 +45,11 @@ export async function sendPacket() {
     const data = await api.sendPacket(port, payloadHex);
     state.lastTrace = data;
 
-    renderPacketResults(data.output_packets, data.trace);
+    const allOutputs = (data.possible_outcomes || []).flat();
+    renderPacketResults(allOutputs, data.trace);
     renderTraceTree(data.trace);
 
-    const nOut = data.output_packets.length;
+    const nOut = allOutputs.length;
     log(`Packet processed: ${nOut} output${nOut !== 1 ? 's' : ''}`, 'success');
     updateTabBadges();
 

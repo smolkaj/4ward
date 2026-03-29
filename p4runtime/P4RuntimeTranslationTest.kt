@@ -127,7 +127,7 @@ class P4RuntimeTranslationTest {
     // Send an Ethernet frame with etherType=0x0800 through the simulator directly.
     // translated_type.p4 has no @controller_header, so PacketOut would not produce PacketIn.
     val payload = buildEthernetFrame(etherType = 0x0800)
-    val outputs = harness.simulatePacket(ingressPort = 0, payload = payload)
+    val outputs = harness.simulatePacket(ingressPort = 0, payload = payload).single().packetsList
 
     // SDN port 1 is auto-allocated to data-plane port 0 (first available).
     assertEquals("expected 1 output packet", 1, outputs.size)
@@ -143,7 +143,7 @@ class P4RuntimeTranslationTest {
 
     // Verify forwarding through the simulator — no @controller_header, so no PacketIn.
     val payload = buildEthernetFrame(etherType = 0x0800)
-    val outputs = harness.simulatePacket(ingressPort = 0, payload = payload)
+    val outputs = harness.simulatePacket(ingressPort = 0, payload = payload).single().packetsList
 
     assertEquals("expected 1 output packet", 1, outputs.size)
     assertEquals(
