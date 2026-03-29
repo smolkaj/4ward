@@ -1295,6 +1295,27 @@ a zero-fork tree — structurally equivalent to a flat trace.</p>
 <h2 id="forks">Forks<a class="headerlink" href="#forks" title="Permanent link">¶</a></h2>
 <p>When execution reaches a non-deterministic choice point, the trace forks.
 Each branch gets its own subtree with the remaining pipeline events.</p>
+<p>There are two kinds of forks, and the distinction is important for
+understanding what the output packets mean:</p>
+<ul>
+<li><strong>Parallel forks</strong> (clone, multicast, resubmit, recirculate) — all branches
+  happen simultaneously in a single real execution. A clone creates both the
+  original <em>and</em> the clone; multicast creates all replicas at once.</li>
+<li><strong>Alternative forks</strong> (action selector) — exactly one branch happens at
+  runtime, determined by a hash function. Each branch represents one <em>possible
+  world</em> — a forwarding outcome that <em>could</em> happen, depending on the hash.</li>
+</ul>
+<p>For parallel forks, the output packets are the combined outputs from all
+branches. For alternative forks, each branch produces its own independent set
+of outputs — a "possible outcome." The <code>possible_outcomes</code> field in the gRPC
+response (and <code>possibleOutcomes</code> in the Kotlin API) gives you the full picture:
+each entry is one set of output packets that could result from a single real
+execution.</p>
+<p>Programs with only parallel forks have exactly one possible outcome. Programs
+with action selectors have one possible outcome per member — and when
+alternative forks are nested inside parallel forks (e.g., a clone where both
+original and clone hit an action selector), the outcomes multiply
+(Cartesian product).</p>
 <h3 id="clone">Clone<a class="headerlink" href="#clone" title="Permanent link">¶</a></h3>
 <p>A clone creates two branches — the <strong>original</strong> packet continues on its
 normal path, and the <strong>clone</strong> goes to the clone session's egress port:</p>
@@ -1326,9 +1347,11 @@ normal path, and the <strong>clone</strong> goes to the clone session's egress p
 </code></pre></div>
 <h3 id="action-selector">Action selector<a class="headerlink" href="#action-selector" title="Permanent link">¶</a></h3>
 <p>An action selector with multiple members forks into one branch per member —
-showing every possible forwarding decision:</p>
+showing every possible forwarding decision. This is an <strong>alternative fork</strong>:
+real hardware picks exactly one member (via hashing), but 4ward shows all
+possibilities so you can verify that every path is correct.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>├─ table ecmp: hit → set_port
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>└─ fork (action selector)
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>└─ fork (action selector)       ← alternative: one of these happens
 <a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>   ├─ branch: member_0
 <a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>   │  ├─ action set_port(port=1)
 <a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>   │  └─ output port 1
@@ -1339,6 +1362,9 @@ showing every possible forwarding decision:</p>
 <a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>      ├─ action set_port(port=3)
 <a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>      └─ output port 3
 </code></pre></div>
+<p>This trace has three <strong>possible outcomes</strong>: <code>{port 1}</code>, <code>{port 2}</code>, or
+<code>{port 3}</code>. Compare this with a clone fork, which has one possible outcome
+containing <em>all</em> branch outputs.</p>
 <h3 id="resubmit-and-recirculate">Resubmit and recirculate<a class="headerlink" href="#resubmit-and-recirculate" title="Permanent link">¶</a></h3>
 <p>Both create a fork where one branch is the resubmitted/recirculated packet
 re-entering the pipeline. The branch label is <code>resubmit</code> or <code>recirculate</code>.</p>
