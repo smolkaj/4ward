@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-29 00:48:37</td>
+            <td class="headerValue">2026-03-29 01:19:22</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">97.3&nbsp;%</td>
@@ -645,7 +645,7 @@
 <span id="L583"><span class="lineNum">     583</span> <span class="tlaGNC">           1 :         broker.subscribe { subResult -&gt;</span></span>
 <span id="L584"><span class="lineNum">     584</span> <span class="tlaGNC">           1 :           try {</span></span>
 <span id="L585"><span class="lineNum">     585</span> <span class="tlaGNC">           1 :             for (response in</span></span>
-<span id="L586"><span class="lineNum">     586</span> <span class="tlaGNC">           1 :               buildPacketInResponses(subResult.outputPackets, subResult.ingressPort)) {</span></span>
+<span id="L586"><span class="lineNum">     586</span> <span class="tlaGNC">           1 :               buildPacketInResponses(subResult.possibleOutcomes.flatten(), subResult.ingressPort)) {</span></span>
 <span id="L587"><span class="lineNum">     587</span> <span class="tlaGNC">           1 :               trySend(response)</span></span>
 <span id="L588"><span class="lineNum">     588</span>              :             }</span>
 <span id="L589"><span class="lineNum">     589</span> <span class="tlaUNC tlaBgUNC">           0 :           } catch (</span></span>

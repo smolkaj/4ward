@@ -32,17 +32,17 @@
             <td></td>
             <td class="headerItem">Lines:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
-            <td class="headerCovTableEntry">25</td>
-            <td class="headerCovTableEntry">25</td>
+            <td class="headerCovTableEntry">30</td>
+            <td class="headerCovTableEntry">30</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-29 00:48:37</td>
+            <td class="headerValue">2026-03-29 01:19:22</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
-            <td class="headerCovTableEntry">6</td>
-            <td class="headerCovTableEntry">6</td>
+            <td class="headerCovTableEntry">7</td>
+            <td class="headerCovTableEntry">7</td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
                 </table>
@@ -67,60 +67,72 @@
 <span id="L5"><span class="lineNum">       5</span>              : import fourward.sim.SimulatorProto.DropReason</span>
 <span id="L6"><span class="lineNum">       6</span>              : import fourward.sim.SimulatorProto.Fork</span>
 <span id="L7"><span class="lineNum">       7</span>              : import fourward.sim.SimulatorProto.ForkBranch</span>
-<span id="L8"><span class="lineNum">       8</span>              : import fourward.sim.SimulatorProto.ForkReason</span>
-<span id="L9"><span class="lineNum">       9</span>              : import fourward.sim.SimulatorProto.PacketIngressEvent</span>
-<span id="L10"><span class="lineNum">      10</span>              : import fourward.sim.SimulatorProto.PacketOutcome</span>
-<span id="L11"><span class="lineNum">      11</span>              : import fourward.sim.SimulatorProto.PipelineStageEvent</span>
-<span id="L12"><span class="lineNum">      12</span>              : import fourward.sim.SimulatorProto.TraceEvent</span>
-<span id="L13"><span class="lineNum">      13</span>              : import fourward.sim.SimulatorProto.TraceTree</span>
-<span id="L14"><span class="lineNum">      14</span>              : </span>
-<span id="L15"><span class="lineNum">      15</span>              : /** Builds a [TraceTree] representing a dropped packet with the given trace events and reason. */</span>
-<span id="L16"><span class="lineNum">      16</span> <span class="tlaGNC tlaBgGNC">           1 : internal fun buildDropTrace(</span></span>
-<span id="L17"><span class="lineNum">      17</span>              :   events: List&lt;TraceEvent&gt;,</span>
-<span id="L18"><span class="lineNum">      18</span> <span class="tlaGNC">           1 :   reason: DropReason = DropReason.MARK_TO_DROP,</span></span>
-<span id="L19"><span class="lineNum">      19</span>              : ): TraceTree {</span>
-<span id="L20"><span class="lineNum">      20</span> <span class="tlaGNC">           1 :   val outcome = PacketOutcome.newBuilder().setDrop(Drop.newBuilder().setReason(reason)).build()</span></span>
-<span id="L21"><span class="lineNum">      21</span> <span class="tlaGNC">           1 :   return TraceTree.newBuilder().addAllEvents(events).setPacketOutcome(outcome).build()</span></span>
-<span id="L22"><span class="lineNum">      22</span>              : }</span>
-<span id="L23"><span class="lineNum">      23</span>              : </span>
-<span id="L24"><span class="lineNum">      24</span>              : /** Builds a [TraceTree] representing a packet output on the given port. */</span>
-<span id="L25"><span class="lineNum">      25</span>              : internal fun buildOutputTrace(events: List&lt;TraceEvent&gt;, port: Int, payload: ByteArray): TraceTree {</span>
-<span id="L26"><span class="lineNum">      26</span> <span class="tlaGNC">           1 :   val output =</span></span>
-<span id="L27"><span class="lineNum">      27</span> <span class="tlaGNC">           1 :     fourward.sim.SimulatorProto.OutputPacket.newBuilder()</span></span>
-<span id="L28"><span class="lineNum">      28</span> <span class="tlaGNC">           1 :       .setDataplaneEgressPort(port)</span></span>
-<span id="L29"><span class="lineNum">      29</span> <span class="tlaGNC">           1 :       .setPayload(com.google.protobuf.ByteString.copyFrom(payload))</span></span>
-<span id="L30"><span class="lineNum">      30</span> <span class="tlaGNC">           1 :       .build()</span></span>
-<span id="L31"><span class="lineNum">      31</span> <span class="tlaGNC">           1 :   val outcome = PacketOutcome.newBuilder().setOutput(output).build()</span></span>
-<span id="L32"><span class="lineNum">      32</span> <span class="tlaGNC">           1 :   return TraceTree.newBuilder().addAllEvents(events).setPacketOutcome(outcome).build()</span></span>
-<span id="L33"><span class="lineNum">      33</span>              : }</span>
-<span id="L34"><span class="lineNum">      34</span>              : </span>
-<span id="L35"><span class="lineNum">      35</span>              : /** Creates a [TraceEvent] recording the packet's ingress port. */</span>
-<span id="L36"><span class="lineNum">      36</span>              : internal fun packetIngressEvent(ingressPort: UInt): TraceEvent =</span>
-<span id="L37"><span class="lineNum">      37</span> <span class="tlaGNC">           1 :   TraceEvent.newBuilder()</span></span>
-<span id="L38"><span class="lineNum">      38</span> <span class="tlaGNC">           1 :     .setPacketIngress(PacketIngressEvent.newBuilder().setDataplaneIngressPort(ingressPort.toInt()))</span></span>
-<span id="L39"><span class="lineNum">      39</span> <span class="tlaGNC">           1 :     .build()</span></span>
-<span id="L40"><span class="lineNum">      40</span>              : </span>
-<span id="L41"><span class="lineNum">      41</span>              : /** Creates a [TraceEvent] marking the entry/exit of a pipeline stage. */</span>
-<span id="L42"><span class="lineNum">      42</span>              : internal fun stageEvent(stage: PipelineStage, direction: PipelineStageEvent.Direction): TraceEvent =</span>
-<span id="L43"><span class="lineNum">      43</span> <span class="tlaGNC">           1 :   TraceEvent.newBuilder()</span></span>
-<span id="L44"><span class="lineNum">      44</span> <span class="tlaGNC">           1 :     .setPipelineStage(</span></span>
-<span id="L45"><span class="lineNum">      45</span> <span class="tlaGNC">           1 :       PipelineStageEvent.newBuilder()</span></span>
-<span id="L46"><span class="lineNum">      46</span> <span class="tlaGNC">           1 :         .setStageName(stage.name)</span></span>
-<span id="L47"><span class="lineNum">      47</span> <span class="tlaGNC">           1 :         .setStageKind(stage.kind)</span></span>
-<span id="L48"><span class="lineNum">      48</span> <span class="tlaGNC">           1 :         .setDirection(direction)</span></span>
-<span id="L49"><span class="lineNum">      49</span>              :     )</span>
-<span id="L50"><span class="lineNum">      50</span> <span class="tlaGNC">           1 :     .build()</span></span>
-<span id="L51"><span class="lineNum">      51</span>              : </span>
-<span id="L52"><span class="lineNum">      52</span>              : /** Builds a [TraceTree] with a fork outcome from accumulated events and branches. */</span>
-<span id="L53"><span class="lineNum">      53</span>              : internal fun buildForkTree(</span>
-<span id="L54"><span class="lineNum">      54</span>              :   events: List&lt;TraceEvent&gt;,</span>
-<span id="L55"><span class="lineNum">      55</span>              :   reason: ForkReason,</span>
-<span id="L56"><span class="lineNum">      56</span>              :   branches: List&lt;ForkBranch&gt;,</span>
-<span id="L57"><span class="lineNum">      57</span>              : ): TraceTree =</span>
-<span id="L58"><span class="lineNum">      58</span> <span class="tlaGNC">           1 :   TraceTree.newBuilder()</span></span>
-<span id="L59"><span class="lineNum">      59</span> <span class="tlaGNC">           1 :     .addAllEvents(events)</span></span>
-<span id="L60"><span class="lineNum">      60</span> <span class="tlaGNC">           1 :     .setForkOutcome(Fork.newBuilder().setReason(reason).addAllBranches(branches))</span></span>
-<span id="L61"><span class="lineNum">      61</span> <span class="tlaGNC">           1 :     .build()</span></span>
+<span id="L8"><span class="lineNum">       8</span>              : import fourward.sim.SimulatorProto.ForkMode</span>
+<span id="L9"><span class="lineNum">       9</span>              : import fourward.sim.SimulatorProto.ForkReason</span>
+<span id="L10"><span class="lineNum">      10</span>              : import fourward.sim.SimulatorProto.PacketIngressEvent</span>
+<span id="L11"><span class="lineNum">      11</span>              : import fourward.sim.SimulatorProto.PacketOutcome</span>
+<span id="L12"><span class="lineNum">      12</span>              : import fourward.sim.SimulatorProto.PipelineStageEvent</span>
+<span id="L13"><span class="lineNum">      13</span>              : import fourward.sim.SimulatorProto.TraceEvent</span>
+<span id="L14"><span class="lineNum">      14</span>              : import fourward.sim.SimulatorProto.TraceTree</span>
+<span id="L15"><span class="lineNum">      15</span>              : </span>
+<span id="L16"><span class="lineNum">      16</span>              : /** Builds a [TraceTree] representing a dropped packet with the given trace events and reason. */</span>
+<span id="L17"><span class="lineNum">      17</span> <span class="tlaGNC tlaBgGNC">           1 : internal fun buildDropTrace(</span></span>
+<span id="L18"><span class="lineNum">      18</span>              :   events: List&lt;TraceEvent&gt;,</span>
+<span id="L19"><span class="lineNum">      19</span> <span class="tlaGNC">           1 :   reason: DropReason = DropReason.MARK_TO_DROP,</span></span>
+<span id="L20"><span class="lineNum">      20</span>              : ): TraceTree {</span>
+<span id="L21"><span class="lineNum">      21</span> <span class="tlaGNC">           1 :   val outcome = PacketOutcome.newBuilder().setDrop(Drop.newBuilder().setReason(reason)).build()</span></span>
+<span id="L22"><span class="lineNum">      22</span> <span class="tlaGNC">           1 :   return TraceTree.newBuilder().addAllEvents(events).setPacketOutcome(outcome).build()</span></span>
+<span id="L23"><span class="lineNum">      23</span>              : }</span>
+<span id="L24"><span class="lineNum">      24</span>              : </span>
+<span id="L25"><span class="lineNum">      25</span>              : /** Builds a [TraceTree] representing a packet output on the given port. */</span>
+<span id="L26"><span class="lineNum">      26</span>              : internal fun buildOutputTrace(events: List&lt;TraceEvent&gt;, port: Int, payload: ByteArray): TraceTree {</span>
+<span id="L27"><span class="lineNum">      27</span> <span class="tlaGNC">           1 :   val output =</span></span>
+<span id="L28"><span class="lineNum">      28</span> <span class="tlaGNC">           1 :     fourward.sim.SimulatorProto.OutputPacket.newBuilder()</span></span>
+<span id="L29"><span class="lineNum">      29</span> <span class="tlaGNC">           1 :       .setDataplaneEgressPort(port)</span></span>
+<span id="L30"><span class="lineNum">      30</span> <span class="tlaGNC">           1 :       .setPayload(com.google.protobuf.ByteString.copyFrom(payload))</span></span>
+<span id="L31"><span class="lineNum">      31</span> <span class="tlaGNC">           1 :       .build()</span></span>
+<span id="L32"><span class="lineNum">      32</span> <span class="tlaGNC">           1 :   val outcome = PacketOutcome.newBuilder().setOutput(output).build()</span></span>
+<span id="L33"><span class="lineNum">      33</span> <span class="tlaGNC">           1 :   return TraceTree.newBuilder().addAllEvents(events).setPacketOutcome(outcome).build()</span></span>
+<span id="L34"><span class="lineNum">      34</span>              : }</span>
+<span id="L35"><span class="lineNum">      35</span>              : </span>
+<span id="L36"><span class="lineNum">      36</span>              : /** Creates a [TraceEvent] recording the packet's ingress port. */</span>
+<span id="L37"><span class="lineNum">      37</span>              : internal fun packetIngressEvent(ingressPort: UInt): TraceEvent =</span>
+<span id="L38"><span class="lineNum">      38</span> <span class="tlaGNC">           1 :   TraceEvent.newBuilder()</span></span>
+<span id="L39"><span class="lineNum">      39</span> <span class="tlaGNC">           1 :     .setPacketIngress(PacketIngressEvent.newBuilder().setDataplaneIngressPort(ingressPort.toInt()))</span></span>
+<span id="L40"><span class="lineNum">      40</span> <span class="tlaGNC">           1 :     .build()</span></span>
+<span id="L41"><span class="lineNum">      41</span>              : </span>
+<span id="L42"><span class="lineNum">      42</span>              : /** Creates a [TraceEvent] marking the entry/exit of a pipeline stage. */</span>
+<span id="L43"><span class="lineNum">      43</span>              : internal fun stageEvent(stage: PipelineStage, direction: PipelineStageEvent.Direction): TraceEvent =</span>
+<span id="L44"><span class="lineNum">      44</span> <span class="tlaGNC">           1 :   TraceEvent.newBuilder()</span></span>
+<span id="L45"><span class="lineNum">      45</span> <span class="tlaGNC">           1 :     .setPipelineStage(</span></span>
+<span id="L46"><span class="lineNum">      46</span> <span class="tlaGNC">           1 :       PipelineStageEvent.newBuilder()</span></span>
+<span id="L47"><span class="lineNum">      47</span> <span class="tlaGNC">           1 :         .setStageName(stage.name)</span></span>
+<span id="L48"><span class="lineNum">      48</span> <span class="tlaGNC">           1 :         .setStageKind(stage.kind)</span></span>
+<span id="L49"><span class="lineNum">      49</span> <span class="tlaGNC">           1 :         .setDirection(direction)</span></span>
+<span id="L50"><span class="lineNum">      50</span>              :     )</span>
+<span id="L51"><span class="lineNum">      51</span> <span class="tlaGNC">           1 :     .build()</span></span>
+<span id="L52"><span class="lineNum">      52</span>              : </span>
+<span id="L53"><span class="lineNum">      53</span>              : /**</span>
+<span id="L54"><span class="lineNum">      54</span>              :  * Maps a [ForkReason] to its [ForkMode]: alternative for action selectors, parallel for all else.</span>
+<span id="L55"><span class="lineNum">      55</span>              :  */</span>
+<span id="L56"><span class="lineNum">      56</span>              : internal fun forkModeOf(reason: ForkReason): ForkMode =</span>
+<span id="L57"><span class="lineNum">      57</span> <span class="tlaGNC">           1 :   when (reason) {</span></span>
+<span id="L58"><span class="lineNum">      58</span> <span class="tlaGNC">           1 :     ForkReason.ACTION_SELECTOR -&gt; ForkMode.FORK_MODE_ALTERNATIVE</span></span>
+<span id="L59"><span class="lineNum">      59</span> <span class="tlaGNC">           1 :     else -&gt; ForkMode.FORK_MODE_PARALLEL</span></span>
+<span id="L60"><span class="lineNum">      60</span> <span class="tlaGNC">           1 :   }</span></span>
+<span id="L61"><span class="lineNum">      61</span>              : </span>
+<span id="L62"><span class="lineNum">      62</span>              : /** Builds a [TraceTree] with a fork outcome from accumulated events and branches. */</span>
+<span id="L63"><span class="lineNum">      63</span>              : internal fun buildForkTree(</span>
+<span id="L64"><span class="lineNum">      64</span>              :   events: List&lt;TraceEvent&gt;,</span>
+<span id="L65"><span class="lineNum">      65</span>              :   reason: ForkReason,</span>
+<span id="L66"><span class="lineNum">      66</span>              :   branches: List&lt;ForkBranch&gt;,</span>
+<span id="L67"><span class="lineNum">      67</span>              : ): TraceTree =</span>
+<span id="L68"><span class="lineNum">      68</span> <span class="tlaGNC">           1 :   TraceTree.newBuilder()</span></span>
+<span id="L69"><span class="lineNum">      69</span> <span class="tlaGNC">           1 :     .addAllEvents(events)</span></span>
+<span id="L70"><span class="lineNum">      70</span> <span class="tlaGNC">           1 :     .setForkOutcome(</span></span>
+<span id="L71"><span class="lineNum">      71</span> <span class="tlaGNC">           1 :       Fork.newBuilder().setReason(reason).setMode(forkModeOf(reason)).addAllBranches(branches)</span></span>
+<span id="L72"><span class="lineNum">      72</span>              :     )</span>
+<span id="L73"><span class="lineNum">      73</span> <span class="tlaGNC">           1 :     .build()</span></span>
         </pre>
               </td>
             </tr>
