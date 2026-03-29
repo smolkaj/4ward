@@ -265,7 +265,7 @@ class PNAArchitectureTest {
     val config = pnaConfig(mainControlStmts = listOf(sendToPort(5)))
     val payload = byteArrayOf(0xAA.toByte(), 0xBB.toByte())
     val result = PNAArchitecture().processPacket(0u, payload, config, TableStore())
-    val outputs = collectAllOutputsFromTrace(result.trace)
+    val outputs = collectPossibleOutcomes(result.trace).single()
 
     assertEquals(1, outputs.size)
     assertEquals(5, outputs[0].dataplaneEgressPort)
@@ -287,7 +287,7 @@ class PNAArchitectureTest {
     // drop_packet then send_to_port — last writer wins, packet forwards.
     val config = pnaConfig(mainControlStmts = listOf(dropPacket(), sendToPort(5)))
     val result = PNAArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
-    val outputs = collectAllOutputsFromTrace(result.trace)
+    val outputs = collectPossibleOutcomes(result.trace).single()
 
     assertEquals(1, outputs.size)
     assertEquals(5, outputs[0].dataplaneEgressPort)
@@ -341,7 +341,7 @@ class PNAArchitectureTest {
     val result = PNAArchitecture().processPacket(0u, byteArrayOf(0x01), config, tableStore)
 
     // Packet should forward (register write doesn't affect drop).
-    val outputs = collectAllOutputsFromTrace(result.trace)
+    val outputs = collectPossibleOutcomes(result.trace).single()
     assertEquals(1, outputs.size)
 
     // Verify the register was actually written to the store.
@@ -388,7 +388,7 @@ class PNAArchitectureTest {
     writeCloneSession(store, 100, listOf(0 to 5))
 
     val result = PNAArchitecture().processPacket(0u, byteArrayOf(0xAA.toByte()), config, store)
-    val outputs = collectAllOutputsFromTrace(result.trace)
+    val outputs = collectPossibleOutcomes(result.trace).single()
 
     assertEquals(2, outputs.size)
     assertTrue(outputs.any { it.dataplaneEgressPort == 2 })
@@ -403,7 +403,7 @@ class PNAArchitectureTest {
     writeCloneSession(store, 100, listOf(0 to 7))
 
     val result = PNAArchitecture().processPacket(0u, byteArrayOf(0xBB.toByte()), config, store)
-    val outputs = collectAllOutputsFromTrace(result.trace)
+    val outputs = collectPossibleOutcomes(result.trace).single()
 
     assertEquals(1, outputs.size)
     assertEquals(7, outputs[0].dataplaneEgressPort)
@@ -427,7 +427,7 @@ class PNAArchitectureTest {
   fun `mirror_packet with unknown session silently ignores mirror`() {
     val config = pnaConfig(mainControlStmts = listOf(sendToPort(2), mirrorPacket(0, 999)))
     val result = PNAArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
-    val outputs = collectAllOutputsFromTrace(result.trace)
+    val outputs = collectPossibleOutcomes(result.trace).single()
 
     assertEquals(1, outputs.size)
     assertEquals(2, outputs[0].dataplaneEgressPort)
@@ -440,7 +440,7 @@ class PNAArchitectureTest {
     writeCloneSession(store, 100, listOf(0 to 5, 1 to 6, 2 to 7))
 
     val result = PNAArchitecture().processPacket(0u, byteArrayOf(0x01), config, store)
-    val outputs = collectAllOutputsFromTrace(result.trace)
+    val outputs = collectPossibleOutcomes(result.trace).single()
 
     // Original + 3 mirror replicas = 4 outputs.
     assertEquals(4, outputs.size)

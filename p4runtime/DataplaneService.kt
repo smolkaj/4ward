@@ -47,7 +47,6 @@ class DataplaneService(
             .build()
         }
       return InjectPacketResponse.newBuilder()
-        .addAllOutputPackets(possibleOutcomes.flatMap { it.packetsList })
         .addAllPossibleOutcomes(possibleOutcomes)
         .setTrace(enrichTrace(result.trace, translator))
         .build()
@@ -99,9 +98,6 @@ class DataplaneService(
                       pt?.dataplaneToP4rt(subResult.ingressPort)?.let { setP4RtIngressPort(it) }
                     }
                     .setPayload(ByteString.copyFrom(subResult.payload))
-                )
-                .addAllOutputPackets(
-                  subResult.possibleOutcomes.flatten().map { it.toDualEncoded(pt) }
                 )
                 .addAllPossibleOutcomes(
                   subResult.possibleOutcomes.map { world ->

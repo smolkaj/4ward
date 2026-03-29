@@ -37,7 +37,7 @@ export function updateTabBadges() {
   const packetsTab = document.querySelector('.tab[data-tab="packets"]');
   const n = state.entries.length;
   tablesTab.textContent = n > 0 ? `Tables (${n})` : 'Tables';
-  const lastOutputs = state.lastTrace?.output_packets?.length || 0;
+  const lastOutputs = (state.lastTrace?.possible_outcomes || []).flat().length;
   packetsTab.textContent = lastOutputs > 0 ? `Packets (${lastOutputs})` : 'Packets';
 }
 

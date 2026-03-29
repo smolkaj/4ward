@@ -233,18 +233,3 @@ fun collectPossibleOutcomes(tree: TraceTree): List<List<OutputPacket>> {
       }
   }
 }
-
-/**
- * Flattens all output packets from a trace tree into a single list, ignoring fork semantics.
- *
- * Equivalent to `collectPossibleOutcomes(tree).flatten().distinct()` for trees without nested
- * alternative-inside-parallel forks. Useful when callers only care about the set of all reachable
- * outputs, not which ones co-occur.
- */
-fun collectAllOutputsFromTrace(tree: TraceTree): List<OutputPacket> =
-  when {
-    tree.hasForkOutcome() ->
-      tree.forkOutcome.branchesList.flatMap { collectAllOutputsFromTrace(it.subtree) }
-    tree.hasPacketOutcome() && tree.packetOutcome.hasOutput() -> listOf(tree.packetOutcome.output)
-    else -> emptyList()
-  }

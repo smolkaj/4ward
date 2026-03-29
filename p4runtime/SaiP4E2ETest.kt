@@ -340,7 +340,7 @@ class SaiP4E2ETest {
 
     // Build and send an IPv4 packet.
     val packet = buildIpv4Packet(dstMac = UNICAST_MAC, srcMac = SRC_MAC, ttl = 64)
-    val outputs = harness.simulatePacket(ingressPort = 0, payload = packet)
+    val outputs = harness.simulatePacket(ingressPort = 0, payload = packet).single().packetsList
 
     assertEquals("expected exactly one output packet", 1, outputs.size)
     val output = outputs[0].payload.toByteArray()
@@ -378,8 +378,8 @@ class SaiP4E2ETest {
     val packet = buildIpv4Packet(dstMac = UNICAST_MAC, srcMac = SRC_MAC, ttl = 64)
     val response = harness.injectPacket(ingressPort = 0, payload = packet)
 
-    assertEquals("expected 1 output", 1, response.outputPacketsCount)
-    val output = response.getOutputPackets(0)
+    assertEquals("expected 1 output", 1, response.possibleOutcomesList.single().packetsCount)
+    val output = response.possibleOutcomesList.single().getPackets(0)
     assertTrue("dataplane port should be set", output.dataplaneEgressPort >= 0)
     // SAI P4 uses sdn_string ports — verify the P4RT value is a valid UTF-8 string, not just
     // non-empty bytes. This catches encoding bugs where raw dataplane values leak through.
@@ -399,8 +399,8 @@ class SaiP4E2ETest {
     val p4rtPort = ByteString.copyFromUtf8("Ethernet0")
     val response = harness.injectPacketP4rt(p4rtPort, packet)
 
-    assertEquals("expected 1 output", 1, response.outputPacketsCount)
-    val output = response.getOutputPackets(0)
+    assertEquals("expected 1 output", 1, response.possibleOutcomesList.single().packetsCount)
+    val output = response.possibleOutcomesList.single().getPackets(0)
     assertTrue("output should have p4rt port", !output.p4RtEgressPort.isEmpty)
     assertEquals(
       "p4rt_egress_port should be 'Ethernet1' (from routing chain)",
@@ -418,7 +418,10 @@ class SaiP4E2ETest {
     val packet = buildIpv4Packet(dstMac = UNICAST_MAC, srcMac = SRC_MAC, ttl = 64)
     val result = harness.injectPacket(ingressPort = 0, payload = packet)
 
-    val cpuOutput = result.outputPacketsList.find { it.dataplaneEgressPort == CPU_PORT }
+    val cpuOutput =
+      result.possibleOutcomesList
+        .flatMap { it.packetsList }
+        .find { it.dataplaneEgressPort == CPU_PORT }
     assertNotNull("expected CPU-port output from ACL trap", cpuOutput)
     // The clone session uses Replica.port (bytes) with P4RT value "510", which
     // forward-allocates 510 in the PortTranslator. Verify the reverse mapping works.
@@ -557,15 +560,15 @@ class SaiP4E2ETest {
     val result = harness.injectPacket(ingressPort = 0, payload = packet)
     assertTrue(
       "acl_copy should produce multiple outputs (forwarded + CPU clone)",
-      result.outputPacketsCount >= 2,
+      result.possibleOutcomesList.single().packetsCount >= 2,
     )
     assertTrue(
       "expected CPU-port output",
-      result.outputPacketsList.any { it.dataplaneEgressPort == CPU_PORT },
+      result.possibleOutcomesList.single().packetsList.any { it.dataplaneEgressPort == CPU_PORT },
     )
     assertTrue(
       "expected data-plane output",
-      result.outputPacketsList.any { it.dataplaneEgressPort != CPU_PORT },
+      result.possibleOutcomesList.single().packetsList.any { it.dataplaneEgressPort != CPU_PORT },
     )
 
     // Via StreamChannel: only the CPU clone becomes PacketIn.
@@ -652,7 +655,7 @@ class SaiP4E2ETest {
 
     // Send packet — should be dropped by ACL.
     val packet = buildIpv4Packet(dstMac = UNICAST_MAC, srcMac = SRC_MAC, ttl = 64)
-    val outputs = harness.simulatePacket(ingressPort = 0, payload = packet)
+    val outputs = harness.simulatePacket(ingressPort = 0, payload = packet).single().packetsList
     assertEquals("packet should be dropped by ACL", 0, outputs.size)
   }
 
@@ -688,7 +691,7 @@ class SaiP4E2ETest {
     )
 
     val packet = buildIpv4Packet(dstMac = UNICAST_MAC, srcMac = SRC_MAC, ttl = 64)
-    val outputs = harness.simulatePacket(ingressPort = 0, payload = packet)
+    val outputs = harness.simulatePacket(ingressPort = 0, payload = packet).single().packetsList
 
     assertEquals("expected exactly one output packet", 1, outputs.size)
     val output = outputs[0].payload.toByteArray()
@@ -729,7 +732,7 @@ class SaiP4E2ETest {
     // SAI P4 gates ipv4_multicast_table on IS_IPV4_MULTICAST_MAC(dst_addr).
     val packet =
       buildIpv4Packet(dstMac = MULTICAST_MAC, srcMac = SRC_MAC, ttl = 64, dstIp = mcastDstIp)
-    val outputs = harness.simulatePacket(ingressPort = 2, payload = packet)
+    val outputs = harness.simulatePacket(ingressPort = 2, payload = packet).single().packetsList
 
     assertTrue(
       "expected at least 2 output packets for multicast, got ${outputs.size}",

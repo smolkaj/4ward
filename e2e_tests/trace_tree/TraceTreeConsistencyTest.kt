@@ -8,7 +8,7 @@ import fourward.sim.SimulatorProto.PacketOutcome
 import fourward.sim.SimulatorProto.TraceTree
 import fourward.simulator.ProcessPacketResult
 import fourward.simulator.Simulator
-import fourward.simulator.collectAllOutputsFromTrace
+import fourward.simulator.collectPossibleOutcomes
 import java.nio.file.Paths
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -21,8 +21,8 @@ import org.junit.runners.Parameterized.Parameters
  * Verifies that output packets from [ProcessPacketResult] are consistent with the leaf outcomes in
  * the trace tree.
  *
- * The output_packets list should exactly match the union of all non-drop packet_outcome leaves,
- * whether the trace forks (multicast, clone, action selectors) or not.
+ * The possible outcomes (from [collectPossibleOutcomes]) should be consistent with the trace tree's
+ * leaf outcomes, whether the trace forks (multicast, clone, action selectors) or not.
  */
 @RunWith(Parameterized::class)
 class TraceTreeConsistencyTest(private val testName: String) {
@@ -66,21 +66,24 @@ class TraceTreeConsistencyTest(private val testName: String) {
 
     assertTrue("Trace tree for $testName has no leaf outcomes", leafOutcomes.isNotEmpty())
 
-    // All leaf outputs from the trace tree should equal the flat collection of all outputs
-    // (ignoring fork semantics — purely structural check that every leaf is accounted for).
-    val outputsFromResult =
-      collectAllOutputsFromTrace(trace).map { it.dataplaneEgressPort to it.payload }
+    // Verify possibleOutcomes is consistent with the trace tree: flattening all worlds
+    // should produce the same outputs as collecting all leaf outputs from the tree.
+    val outputsFromPossibleOutcomes =
+      result.possibleOutcomes.flatten().map { it.dataplaneEgressPort to it.payload }
 
     val outputsFromTree =
       leafOutcomes
         .filter { it.hasOutput() }
         .map { it.output.dataplaneEgressPort to it.output.payload }
 
+    // For trees without nested alternative-inside-parallel forks, these match exactly.
+    // For trees with such nesting, possibleOutcomes may have duplicates from the Cartesian
+    // product, so we compare as sets.
     assertEquals(
       "Output packets vs trace tree mismatch for $testName.\n" +
         "Trace:\n${TextFormat.printer().printToString(trace)}",
-      outputsFromResult,
-      outputsFromTree,
+      outputsFromPossibleOutcomes.toSet(),
+      outputsFromTree.toSet(),
     )
   }
 

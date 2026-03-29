@@ -50,12 +50,16 @@ class DataplaneServiceTest {
     val payload = byteArrayOf(0xCA.toByte(), 0xFE.toByte())
     val response = harness.injectPacket(ingressPort = 0, payload = payload)
 
-    assertEquals("passthrough produces 1 output", 1, response.outputPacketsCount)
+    assertEquals(
+      "passthrough produces 1 output",
+      1,
+      response.possibleOutcomesList.single().packetsCount,
+    )
     assertTrue("trace should be present", response.hasTrace())
     assertEquals(
       "output payload matches input",
       ByteString.copyFrom(payload),
-      response.getOutputPackets(0).payload,
+      response.possibleOutcomesList.single().getPackets(0).payload,
     )
   }
 
@@ -69,8 +73,12 @@ class DataplaneServiceTest {
     val payload = buildEthernetFrame(etherType = 0x0800)
     val response = harness.injectPacket(ingressPort = 0, payload = payload)
 
-    assertEquals("expected 1 output", 1, response.outputPacketsCount)
-    assertEquals("should exit on port 1", 1, response.getOutputPackets(0).dataplaneEgressPort)
+    assertEquals("expected 1 output", 1, response.possibleOutcomesList.single().packetsCount)
+    assertEquals(
+      "should exit on port 1",
+      1,
+      response.possibleOutcomesList.single().getPackets(0).dataplaneEgressPort,
+    )
   }
 
   @Test
@@ -81,7 +89,11 @@ class DataplaneServiceTest {
     val payload = buildEthernetFrame(etherType = 0x0800)
     val response = harness.injectPacket(ingressPort = 0, payload = payload)
 
-    assertEquals("dropped packet produces no outputs", 0, response.outputPacketsCount)
+    assertEquals(
+      "dropped packet produces no outputs",
+      0,
+      response.possibleOutcomesList.single().packetsCount,
+    )
   }
 
   // =========================================================================
@@ -179,7 +191,11 @@ class DataplaneServiceTest {
     val responses = results.map { it.await() }
     assertEquals("all $count should complete", count, responses.size)
     responses.forEach { response ->
-      assertEquals("each should produce 1 output", 1, response.outputPacketsCount)
+      assertEquals(
+        "each should produce 1 output",
+        1,
+        response.possibleOutcomesList.single().packetsCount,
+      )
     }
   }
 
@@ -229,8 +245,12 @@ class DataplaneServiceTest {
     harness.loadPipeline(loadPassthroughConfig())
     val response = harness.injectPacket(ingressPort = 0, payload = byteArrayOf(0x01))
 
-    assertEquals("passthrough produces 1 output", 1, response.outputPacketsCount)
-    val output = response.getOutputPackets(0)
+    assertEquals(
+      "passthrough produces 1 output",
+      1,
+      response.possibleOutcomesList.single().packetsCount,
+    )
+    val output = response.possibleOutcomesList.single().getPackets(0)
     assertTrue(
       "p4rt_egress_port should be empty without translation",
       output.p4RtEgressPort.isEmpty,

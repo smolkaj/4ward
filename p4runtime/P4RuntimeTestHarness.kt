@@ -159,9 +159,9 @@ class P4RuntimeTestHarness(
     )
   }
 
-  /** Injects a packet and returns only the output packets. */
-  fun simulatePacket(ingressPort: Int, payload: ByteArray): List<DataplaneProto.OutputPacket> =
-    injectPacket(ingressPort, payload).outputPacketsList
+  /** Injects a packet and returns the possible outcome sets. */
+  fun simulatePacket(ingressPort: Int, payload: ByteArray): List<DataplaneProto.PacketSet> =
+    injectPacket(ingressPort, payload).possibleOutcomesList
 
   /** Injects multiple packets concurrently via the streaming InjectPackets RPC. */
   fun injectPackets(packets: List<Pair<Int, ByteArray>>) = runBlocking {

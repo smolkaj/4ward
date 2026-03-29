@@ -277,7 +277,7 @@ class SimulatorTest {
     sim.loadPipeline(config)
 
     val result = sim.processPacket(ingressPort = 0, payload = byteArrayOf(0x01))
-    val outputs = collectAllOutputsFromTrace(result.trace)
+    val outputs = collectPossibleOutcomes(result.trace).single()
     assertEquals(1, outputs.size)
     assertEquals(V1ModelArchitecture.DEFAULT_DROP_PORT, outputs[0].dataplaneEgressPort)
   }

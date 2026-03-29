@@ -73,11 +73,11 @@ InjectPacketRequest {
 }
 ```
 
-The response contains output packets and a full trace tree:
+The response contains possible outcomes (output packet sets) and a full trace tree:
 
 ```protobuf
 InjectPacketResponse {
-  output_packets { dataplane_egress_port: 1  payload: <...> }
+  possible_outcomes { packets { dataplane_egress_port: 1  payload: <...> } }
   trace { events { ... } packet_outcome { ... } }
 }
 ```
@@ -99,7 +99,7 @@ recommended pattern for DVaaS and any workload with many test packets.
 ```protobuf
 // SubscribeResults delivers results from ALL sources.
 SubscribeResultsResponse { active {} }
-SubscribeResultsResponse { result { input_packet { ... } output_packets { ... } trace { ... } } }
+SubscribeResultsResponse { result { input_packet { ... } possible_outcomes { ... } trace { ... } } }
 ```
 
 !!! tip
