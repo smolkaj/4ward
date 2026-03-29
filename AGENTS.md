@@ -40,12 +40,8 @@ bazel test //...                               # run ALL tests (CI does this)
 ./tools/dev.sh help                            # show all developer commands
 ```
 
-**Use `--test_tag_filters=-heavy` locally.** The `heavy` tag marks tests
-that spawn many JVM processes (p4testgen: 186 separate JVMs). Skipping them
-keeps local test runs fast and avoids memory pressure. CI runs all tests
-including heavy ones.
-
-Builds must stay hermetic — do not install dependencies outside of Bazel.
+**Use `--test_tag_filters=-heavy` locally** to skip tests that spawn many
+JVM processes. CI runs all tests including heavy ones.
 
 ## CI
 
@@ -57,12 +53,11 @@ with `gh run view --log-failed`.
 
 1. **The proto IR uses names, not IDs.** All cross-references in `ir.proto` and
    `simulator.proto` use string names. Numeric IDs belong to p4info (the
-   control-plane API) only. Do not introduce ID-based cross-references into the
-   IR.
+   control-plane API) only.
 
 2. **Every Expr carries a Type.** The `type` field (field number 100) on `Expr`
    is always populated by the p4c backend. The simulator must never infer types
-   at runtime. Do not remove this field or make it optional.
+   at runtime.
 
 3. **The simulator is the source of truth for all data-plane state.** Table
    entries, counters, registers — all live in the Kotlin simulator. The
@@ -74,28 +69,17 @@ with `gh run view --log-failed`.
    testing tool.
 
 5. **Never fail silently.** Prefer compile-time failures (exhaustive `when`
-   expressions, type system constraints) over runtime checks. When
-   compile-time enforcement isn't feasible, fail loudly at runtime with an
-   explicit error (e.g. gRPC `UNIMPLEMENTED`, `error()`, `require()`).
-   Never let unhandled inputs fall through to a generic code path that
-   happens to "work" — that's the worst kind of bug: it looks correct.
-
-   Concretely: if a proto field, enum value, entity type, or RPC option is
-   parsed but not implemented, reject it. Avoid `else` catch-alls that
-   funnel unknown inputs into a default path. When adding validation for a
-   new case, also implement (or explicitly reject) the corresponding
-   behavior in all downstream layers — validation alone creates a false
-   sense of completeness.
+   expressions, type system constraints) over runtime checks. When runtime
+   checks are needed, fail loudly (`error()`, `require()`, gRPC
+   `UNIMPLEMENTED`). Never let unhandled inputs fall through to a default path.
 
 ## Shortcuts and workarounds
 
 If you take a shortcut or skip a corner case, note it in
-[LIMITATIONS.md](docs/LIMITATIONS.md) and leave a `TODO(<scope>)` comment at
-the site — e.g. `TODO(PR 3): update names to match actual simulator output`.
+[LIMITATIONS.md](docs/LIMITATIONS.md) with a `TODO` comment at the site.
 
-**Be loud about workarounds.** Mark workarounds with a prominent `WORKAROUND`
-comment explaining: (1) what is broken, (2) the upstream issue or root cause,
-and (3) what the code should look like once the bug is fixed.
+Mark workarounds with a prominent `WORKAROUND` comment explaining what is
+broken and what the code should look like once the upstream issue is fixed.
 
 ## P4 language notes
 
@@ -106,8 +90,8 @@ behavior and document the ambiguity with a comment citing the relevant spec
 section. For v1model architecture semantics, the de facto spec is the
 [BMv2 simple_switch documentation](https://github.com/p4lang/behavioral-model/blob/main/docs/simple_switch.md).
 
-The IR is emitted after p4c's midend, so it reflects a simplified program:
-no generics, no abstract types, no P4_14 constructs.
+The IR is emitted after p4c's midend, so it reflects a simplified,
+fully-resolved program.
 
 ## Commit messages
 
@@ -152,9 +136,7 @@ conflicts. Create one with:
 git worktree add ../4ward-<branch> -b <branch>
 ```
 
-**Clean up worktrees after merging.** Each worktree gets its own Bazel output
-base and server JVM. Stale worktrees accumulate idle JVMs that eat memory.
-After a PR is merged, remove the worktree:
+**Clean up worktrees after merging:**
 
 ```sh
 cd /path/to/main/tree
