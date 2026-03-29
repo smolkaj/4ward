@@ -1,4 +1,5 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary")
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
 load("//e2e_tests:bmv2_diff.bzl", "bmv2_diff_test_suite")
 
 cc_binary(
@@ -11,6 +12,23 @@ cc_binary(
         "//conditions:default": [],
     }),
     deps = ["@behavioral_model//:simple_switch_lib"],
+)
+
+kt_jvm_test(
+    name = "Bmv2Benchmark",
+    srcs = ["Bmv2Benchmark.kt"],
+    data = [
+        ":bmv2_driver",
+        "//e2e_tests/sai_p4:sai_middleblock_bmv2_json",
+        "//e2e_tests/sai_p4:sai_middleblock_bmv2_pb",
+    ],
+    tags = ["heavy"],
+    test_class = "fourward.e2e.bmv2.Bmv2Benchmark",
+    deps = [
+        "//simulator:ir_java_proto",
+        "@maven//:com_google_protobuf_protobuf_java",
+        "@maven//:junit_junit",
+    ],
 )
 
 bmv2_diff_test_suite(

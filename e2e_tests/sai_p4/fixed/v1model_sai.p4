@@ -5,6 +5,26 @@
 //   @p4runtime_translation for string port names.
 // - Port width uses PORT_BITWIDTH (from bitwidths.p4) instead of
 //   hardcoded 9 bits.
+//
+// BMv2's p4c backend (p4c-bm2-ss) hardcodes its extern converters against
+// the standard v1model.p4 architecture. Any structural change to
+// standard_metadata_t (e.g. using `type` instead of `typedef` for ports)
+// prevents p4c-bm2-ss from recognizing the architecture, causing spurious
+// "must be a constant" errors on clone/resubmit externs. On BMv2, we
+// include the standard v1model.p4 and define port_id_t as a plain typedef.
+
+#ifndef PORT_BITWIDTH
+#error "PORT_BITWIDTH must be defined before including v1model_sai.p4"
+#endif
+
+#ifdef PLATFORM_BMV2
+// Use stock v1model.p4 so p4c-bm2-ss recognizes the architecture.
+#include <v1model.p4>
+#ifndef _V1_MODEL_SAI_PORT_ID_
+#define _V1_MODEL_SAI_PORT_ID_
+typedef bit<PORT_BITWIDTH> port_id_t;
+#endif
+#else  // !PLATFORM_BMV2
 
 /*
 Copyright 2013-present Barefoot Networks, Inc.
@@ -64,12 +84,6 @@ match_kind {
 
 const bit<32> __v1model_version = V1MODEL_VERSION;
 
-// SAI P4 fork: port type is a newtype with @p4runtime_translation,
-// replacing the stock typedef. PORT_BITWIDTH must be defined before
-// including this file.
-#ifndef PORT_BITWIDTH
-#error "PORT_BITWIDTH must be defined before including v1model_sai.p4"
-#endif
 @p4runtime_translation("", string)
 type bit<PORT_BITWIDTH> port_id_t;
 
@@ -773,3 +787,4 @@ package V1Switch<H, M>(Parser<H, M> p,
                        );
 
 #endif  /* _V1_MODEL_P4_ */
+#endif  /* !PLATFORM_BMV2 */

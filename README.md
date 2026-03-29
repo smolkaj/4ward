@@ -44,8 +44,7 @@ packets, explore trace trees. No setup beyond Bazel.
 [P4₁₆ language](https://p4.org/wp-content/uploads/sites/53/p4-spec/docs/p4-16-working-draft.html)
 and [P4Runtime](https://p4lang.github.io/p4runtime/spec/main/P4Runtime-Spec.html),
 optimized for **correctness, observability, and extensibility** — yet fast
-enough for production test workloads ([thousands of packets/sec](docs/ROADMAP.md#track-10-dataplane-performance)
-with full trace trees).
+enough for production test workloads.
 
 | | BMv2 | 4ward goal | Status |
 |---|---|---|---|
@@ -56,6 +55,8 @@ with full trace trees).
 | Architecture-generic | ish | [**by design**](docs/ROADMAP.md#track-6-multi-architecture-support) | ✅ v1model + PSA + PNA |
 | Architecture customization | no | [**by design**](docs/ROADMAP.md#track-5-architecture-customization) | ✅ |
 | Interactive playground | no | [**browser-based IDE with trace playback & packet decoding**](#web-playground) | ✅ |
+| Throughput (16-way selector) | [~4,500 pps ÷ 16 paths](docs/PERFORMANCE.md#bmv2-comparison) | [**~1,400 pps, all 16 paths**](docs/PERFORMANCE.md) | ✅ [head-to-head on SAI P4](docs/PERFORMANCE.md#bmv2-comparison) |
+| Parallelism (16-way selector) | single-threaded | [**10,000 pps on 16 cores**](docs/PERFORMANCE.md) | ✅ parallel across packets and forks |
 | Easy to extend | ehh | [**if AI can extend it, anyone can**](docs/ROADMAP.md#why-4ward-is-easier-to-extend) | ✅ |
 | Fast, rigorous CI | slow | **[~2 min](https://4ward.buildbuddy.io/trends/)** | ✅ |
 | Development pace | slow | **[AI-fast](docs/AI_WORKFLOW.md)** | ✅ |
@@ -333,6 +334,7 @@ Developer docs (in [`docs/`](docs/)):
 | [STATUS.md](docs/STATUS.md) | Append-only log of daily progress |
 | [CONTRIBUTING.md](docs/CONTRIBUTING.md) | How to get involved |
 | [AI_WORKFLOW.md](docs/AI_WORKFLOW.md) | How to develop with AI agents |
+| [PERFORMANCE.md](docs/PERFORMANCE.md) | Benchmark methodology, results, and BMv2 comparison |
 | [TESTING_STRATEGY.md](docs/TESTING_STRATEGY.md) | Why three test oracles, and what that enables |
 | [P4RUNTIME_COMPLIANCE.md](docs/P4RUNTIME_COMPLIANCE.md) | P4Runtime spec compliance matrix |
 | [SAI_P4_CONFIDENCE.md](docs/SAI_P4_CONFIDENCE.md) | SAI P4 confidence gaps and action plan |

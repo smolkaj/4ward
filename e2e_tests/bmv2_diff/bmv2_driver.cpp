@@ -17,10 +17,12 @@
 //   MC_NODE_CREATE <rid> <ports...>
 //   MC_NODE_ASSOCIATE <gid> <node_handle>
 //   PACKET <port> <hex_payload>
+//   BENCHMARK <count> <expected_outputs> <port> <hex_payload>
 //
 // Output:
 //   OUTPUT <port> <hex_payload>
 //   DONE
+//   BENCHMARK <count> packets, <received> outputs, <ms> ms, <pps> pps
 //   ERROR <message>
 
 #include <bm/bm_sim/options_parse.h>
@@ -559,6 +561,50 @@ int main(int argc, char* argv[]) {
                   << to_hex(out_data.data(), out_data.size()) << std::endl;
       }
       std::cout << "DONE" << std::endl;
+
+    } else if (cmd == "BENCHMARK") {
+      // BENCHMARK <count> <expected_outputs> <port> <hex_payload>
+      // Injects <count> copies of the same packet and waits for
+      // <expected_outputs> total output packets. Reports wall-clock
+      // throughput without per-packet drain overhead.
+      if (tokens.size() < 5) {
+        std::cout << "ERROR bad BENCHMARK" << std::endl;
+        continue;
+      }
+      int count = std::stoi(tokens[1]);
+      int expected = std::stoi(tokens[2]);
+      int port = std::stoi(tokens[3]);
+      auto payload = from_hex(tokens[4]);
+
+      // Drain any stale outputs.
+      collector.drain();
+
+      auto start = std::chrono::steady_clock::now();
+
+      for (int i = 0; i < count; i++) {
+        dev_mgr_ptr->inject(port, payload.data(), payload.size());
+      }
+
+      // Poll until we have all expected outputs (or timeout).
+      int received = 0;
+      auto deadline = start + std::chrono::seconds(30);
+      while (received < expected &&
+             std::chrono::steady_clock::now() < deadline) {
+        auto batch = collector.drain();
+        received += batch.size();
+      }
+
+      auto end = std::chrono::steady_clock::now();
+      double elapsed_ms =
+          std::chrono::duration_cast<std::chrono::microseconds>(end - start)
+              .count() /
+          1000.0;
+      double pps = count / elapsed_ms * 1000;
+
+      std::cout << "BENCHMARK " << count << " packets, " << received
+                << " outputs, " << std::fixed << std::setprecision(1)
+                << elapsed_ms << " ms, " << std::setprecision(0) << pps
+                << " pps" << std::endl;
 
     } else {
       std::cout << "ERROR unknown command: " << cmd << std::endl;

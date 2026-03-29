@@ -187,12 +187,11 @@ message OutputPacket {
 
 ## Performance
 
-While 4ward optimizes for correctness and simplicity over raw speed, it
-achieves practical throughput for production test workloads.
-
-Representative numbers on SAI P4 middleblock with 10k table entries +
-500 ternary ACL entries. Measured on AMD Ryzen 9 7950X3D (16 cores,
-128 MB L3), OpenJDK 21. Throughput in packets/sec (higher is better).
+While 4ward optimizes for correctness and observability over raw speed,
+it is fast enough for production test workloads like DVaaS. The
+following numbers were measured on SAI P4 middleblock with 10k table
+entries and 500 ternary ACL entries, on an AMD Ryzen 9 7950X3D (16
+cores, 128 MB L3) running OpenJDK 21.
 
 | Workload | Sequential, 1 core | Sequential, 16 cores | Batch, 1 core | Batch, 16 cores |
 |----------|--------------------|----------------------|---------------|-----------------|
@@ -200,18 +199,41 @@ Representative numbers on SAI P4 middleblock with 10k table entries +
 | WCMP ×16 members | 1,400 | 1,700 | 1,200 | 10,000 |
 | WCMP ×16 + mirror | 970 | 1,200 | 710 | 5,200 |
 
-Sequential = `InjectPacket` (one packet at a time).
-Batch = `InjectPackets` (1000 packets streamed concurrently).
+"Sequential" means one `InjectPacket` call at a time — send a packet,
+wait for the result, repeat. "Batch" uses the `InjectPackets` streaming
+RPC to send 1,000 packets concurrently. The "16 cores" columns show the
+effect of parallelism: even sequential calls benefit from multi-core
+because fork branches (WCMP members, clones) within a single packet are
+processed in parallel. Batch mode adds a second level of parallelism by
+processing multiple packets at once.
 
-- **L3 forwarding** — VRF → LPM → nexthop → MAC rewrite. No forks.
-- **WCMP ×16** — 16-member action selector (16 trace tree branches).
-- **WCMP ×16 + mirror** — WCMP ×16 + ingress clone (32 branches).
-- **1 core** — no parallelism. Useful for estimating per-packet cost.
-- **16 cores** — `InjectPacket` parallelizes fork branches within each
-  packet. `InjectPackets` adds cross-packet parallelism.
+The three workloads exercise increasingly complex trace trees. **L3
+forwarding** is a straight-line pipeline (VRF, LPM, nexthop, MAC
+rewrite) with no forks. **WCMP ×16** adds a 16-member action selector,
+producing 16 trace tree branches per packet. **WCMP ×16 + mirror** adds
+an ingress clone on top, doubling to 32 branches.
 
-Throughput scales with available cores. See [Track 10](https://github.com/smolkaj/4ward/blob/main/docs/ROADMAP.md#track-10-dataplane-performance)
-in the roadmap for methodology and optimization details.
+### BMv2 comparison
+
+We ran a head-to-head benchmark against BMv2's `simple_switch` on the
+same SAI P4 program with the same table entries (10k LPM routes, 500
+ternary ACL entries). BMv2 was compiled with `-O2` and per-packet trace
+logging enabled — its analog of 4ward's trace trees.
+
+| Workload | BMv2 | 4ward, 1 core | 4ward, 16 cores |
+|----------|------|---------------|-----------------|
+| L3 forwarding | 4,500 | 2,500 | 29,000 |
+| WCMP ×16 | 4,400 | 1,400 | 10,000 |
+
+BMv2 is faster on single-core sequential throughput — it's a mature C++
+codebase and doesn't build trace trees. With concurrent processing,
+4ward pulls well ahead. The WCMP ×16 sequential number is additionally
+lower because the two simulators do different amounts of work per packet:
+BMv2 hashes to one action selector member, while 4ward explores all 16
+to build the complete trace tree — that's the whole point.
+
+For full details on the benchmark methodology, build flags, and caveats,
+see [PERFORMANCE.md](https://github.com/smolkaj/4ward/blob/main/docs/PERFORMANCE.md).
 
 ## Error codes
 
