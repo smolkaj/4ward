@@ -15,7 +15,7 @@ class PacketBrokerTest {
       .build()
 
   private fun result(vararg outputs: OutputPacket) =
-    ProcessPacketResult(listOf(outputs.toList()), TraceTree.getDefaultInstance())
+    ProcessPacketResult(TraceTree.getDefaultInstance(), listOf(outputs.toList()))
 
   private fun fakeProcessor(
     vararg results: Pair<Int, ProcessPacketResult>

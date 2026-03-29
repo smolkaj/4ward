@@ -20,7 +20,7 @@ import fourward.sim.SimulatorProto.TraceTree
  * Decouples the simulator from the gRPC wire format ([fourward.sim.SimulatorProto
  * .InjectPacketResponse]). Each RPC method builds its own wire proto from this data class.
  */
-data class ProcessPacketResult(val possibleOutcomes: List<List<OutputPacket>>, val trace: TraceTree)
+data class ProcessPacketResult(val trace: TraceTree, val possibleOutcomes: List<List<OutputPacket>>)
 
 /**
  * The top-level simulator state machine.
