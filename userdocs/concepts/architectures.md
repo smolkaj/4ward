@@ -48,8 +48,12 @@ present). Both can be overridden via `--drop-port` and `--cpu-port` flags.
 
 - `clone(CloneType, session_id)` creates an I2E or E2E clone.
 - `clone3(CloneType, session_id, data)` clones with a field list.
-- `resubmit(data)` re-injects the packet into ingress.
-- `recirculate(data)` feeds the deparsed packet back to the parser.
+- `clone_preserving_field_list(CloneType, session_id, field_list_id)` clones
+  and preserves metadata fields annotated with the matching `@field_list` ID.
+- `resubmit(data)` / `resubmit_preserving_field_list(field_list_id)`
+  re-injects the packet into ingress.
+- `recirculate(data)` / `recirculate_preserving_field_list(field_list_id)`
+  feeds the deparsed packet back to the parser.
 
 Multiple calls use last-writer-wins semantics. All of these produce
 [trace tree forks](traces.md#forks).
