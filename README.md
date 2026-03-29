@@ -56,6 +56,7 @@ with full trace trees).
 | Architecture-generic | ish | [**by design**](docs/ROADMAP.md#track-6-multi-architecture-support) | ✅ v1model + PSA + PNA |
 | Architecture customization | no | [**by design**](docs/ROADMAP.md#track-5-architecture-customization) | ✅ |
 | Interactive playground | no | [**browser-based IDE with trace playback & packet decoding**](#web-playground) | ✅ |
+| Error messages | opaque | [**actionable, with valid options**](docs/ROADMAP.md#track-11-error-quality) | ✅ [74 golden-tested](p4runtime/golden_errors/) |
 | Easy to extend | ehh | [**if AI can extend it, anyone can**](docs/ROADMAP.md#why-4ward-is-easier-to-extend) | ✅ |
 | Fast, rigorous CI | slow | **[~2 min](https://4ward.buildbuddy.io/trends/)** | ✅ |
 | Development pace | slow | **[AI-fast](docs/AI_WORKFLOW.md)** | ✅ |
