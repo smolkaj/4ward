@@ -31,13 +31,13 @@
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">98.7&nbsp;%</td>
-            <td class="headerCovTableEntry">78</td>
-            <td class="headerCovTableEntry">77</td>
+            <td class="headerCovTableEntryHi">98.6&nbsp;%</td>
+            <td class="headerCovTableEntry">74</td>
+            <td class="headerCovTableEntry">73</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-29 03:42:43</td>
+            <td class="headerValue">2026-03-29 04:00:38</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">96.2&nbsp;%</td>
@@ -261,49 +261,39 @@
 <span id="L199"><span class="lineNum">     199</span>              : }</span>
 <span id="L200"><span class="lineNum">     200</span>              : </span>
 <span id="L201"><span class="lineNum">     201</span>              : /**</span>
-<span id="L202"><span class="lineNum">     202</span>              :  * Maximum number of possible worlds before truncation. Guards against exponential blowup when</span>
-<span id="L203"><span class="lineNum">     203</span>              :  * alternative forks are nested inside parallel forks (e.g. 10 packets × 16-member selector each).</span>
-<span id="L204"><span class="lineNum">     204</span>              :  */</span>
-<span id="L205"><span class="lineNum">     205</span>              : const val MAX_POSSIBLE_OUTCOMES = 1024</span>
-<span id="L206"><span class="lineNum">     206</span>              : </span>
-<span id="L207"><span class="lineNum">     207</span>              : /**</span>
-<span id="L208"><span class="lineNum">     208</span>              :  * Collects all possible outcome sets from a trace tree, respecting fork semantics.</span>
-<span id="L209"><span class="lineNum">     209</span>              :  * - **Parallel forks** (clone, multicast, resubmit, recirculate): outputs from all branches are</span>
-<span id="L210"><span class="lineNum">     210</span>              :  *   combined within each possible world (Cartesian product of branch outcomes).</span>
-<span id="L211"><span class="lineNum">     211</span>              :  * - **Alternative forks** (action selector): each branch is a separate possible world; outcomes are</span>
-<span id="L212"><span class="lineNum">     212</span>              :  *   concatenated (union of branch outcomes).</span>
-<span id="L213"><span class="lineNum">     213</span>              :  * - **Leaf (output):** one possible world with one packet.</span>
-<span id="L214"><span class="lineNum">     214</span>              :  * - **Leaf (drop):** one possible world with no packets.</span>
-<span id="L215"><span class="lineNum">     215</span>              :  *</span>
-<span id="L216"><span class="lineNum">     216</span>              :  * Returns a non-empty list. Each inner list is one complete set of output packets that could result</span>
-<span id="L217"><span class="lineNum">     217</span>              :  * from a single real execution. Capped at [MAX_POSSIBLE_OUTCOMES] worlds to prevent blowup.</span>
-<span id="L218"><span class="lineNum">     218</span>              :  */</span>
-<span id="L219"><span class="lineNum">     219</span>              : fun collectPossibleOutcomes(tree: TraceTree): List&lt;List&lt;OutputPacket&gt;&gt; {</span>
-<span id="L220"><span class="lineNum">     220</span> <span class="tlaGNC tlaBgGNC">           1 :   if (!tree.hasForkOutcome()) {</span></span>
-<span id="L221"><span class="lineNum">     221</span> <span class="tlaGNC">           1 :     return if (tree.hasPacketOutcome() &amp;&amp; tree.packetOutcome.hasOutput()) {</span></span>
-<span id="L222"><span class="lineNum">     222</span> <span class="tlaGNC">           1 :       listOf(listOf(tree.packetOutcome.output))</span></span>
-<span id="L223"><span class="lineNum">     223</span>              :     } else {</span>
-<span id="L224"><span class="lineNum">     224</span> <span class="tlaGNC">           1 :       listOf(emptyList())</span></span>
-<span id="L225"><span class="lineNum">     225</span>              :     }</span>
-<span id="L226"><span class="lineNum">     226</span>              :   }</span>
-<span id="L227"><span class="lineNum">     227</span> <span class="tlaGNC">           1 :   val fork = tree.forkOutcome</span></span>
-<span id="L228"><span class="lineNum">     228</span> <span class="tlaGNC">           1 :   val branchOutcomes = fork.branchesList.map { collectPossibleOutcomes(it.subtree) }</span></span>
-<span id="L229"><span class="lineNum">     229</span> <span class="tlaGNC">           1 :   if (branchOutcomes.isEmpty()) return listOf(emptyList())</span></span>
-<span id="L230"><span class="lineNum">     230</span> <span class="tlaGNC">           1 :   val outcomes =</span></span>
-<span id="L231"><span class="lineNum">     231</span> <span class="tlaGNC">           1 :     when (forkModeOf(fork.reason)) {</span></span>
-<span id="L232"><span class="lineNum">     232</span>              :       // Alternative: each branch adds its worlds to the result.</span>
-<span id="L233"><span class="lineNum">     233</span> <span class="tlaGNC">           1 :       ForkMode.ALTERNATIVE -&gt; branchOutcomes.flatten()</span></span>
-<span id="L234"><span class="lineNum">     234</span>              :       // Parallel: Cartesian product across branches — for each combination of one world per</span>
-<span id="L235"><span class="lineNum">     235</span>              :       // branch, concatenate the packets.</span>
-<span id="L236"><span class="lineNum">     236</span>              :       ForkMode.PARALLEL -&gt;</span>
-<span id="L237"><span class="lineNum">     237</span> <span class="tlaGNC">           1 :         branchOutcomes.reduce { acc, next -&gt;</span></span>
-<span id="L238"><span class="lineNum">     238</span> <span class="tlaGNC">           1 :           val product = acc.flatMap { world -&gt; next.map { branchWorld -&gt; world + branchWorld } }</span></span>
-<span id="L239"><span class="lineNum">     239</span> <span class="tlaGNC">           1 :           if (product.size &gt; MAX_POSSIBLE_OUTCOMES) product.take(MAX_POSSIBLE_OUTCOMES) else product</span></span>
-<span id="L240"><span class="lineNum">     240</span>              :         }</span>
-<span id="L241"><span class="lineNum">     241</span>              :     }</span>
-<span id="L242"><span class="lineNum">     242</span> <span class="tlaGNC">           1 :   return if (outcomes.size &gt; MAX_POSSIBLE_OUTCOMES) outcomes.take(MAX_POSSIBLE_OUTCOMES)</span></span>
-<span id="L243"><span class="lineNum">     243</span> <span class="tlaGNC">           1 :   else outcomes</span></span>
-<span id="L244"><span class="lineNum">     244</span>              : }</span>
+<span id="L202"><span class="lineNum">     202</span>              :  * Collects all possible outcome sets from a trace tree, respecting fork semantics.</span>
+<span id="L203"><span class="lineNum">     203</span>              :  * - **Parallel forks** (clone, multicast, resubmit, recirculate): outputs from all branches are</span>
+<span id="L204"><span class="lineNum">     204</span>              :  *   combined within each possible world (Cartesian product of branch outcomes).</span>
+<span id="L205"><span class="lineNum">     205</span>              :  * - **Alternative forks** (action selector): each branch is a separate possible world; outcomes are</span>
+<span id="L206"><span class="lineNum">     206</span>              :  *   concatenated (union of branch outcomes).</span>
+<span id="L207"><span class="lineNum">     207</span>              :  * - **Leaf (output):** one possible world with one packet.</span>
+<span id="L208"><span class="lineNum">     208</span>              :  * - **Leaf (drop):** one possible world with no packets.</span>
+<span id="L209"><span class="lineNum">     209</span>              :  *</span>
+<span id="L210"><span class="lineNum">     210</span>              :  * Returns a non-empty list. Each inner list is one complete set of output packets that could result</span>
+<span id="L211"><span class="lineNum">     211</span>              :  * from a single real execution.</span>
+<span id="L212"><span class="lineNum">     212</span>              :  */</span>
+<span id="L213"><span class="lineNum">     213</span>              : fun collectPossibleOutcomes(tree: TraceTree): List&lt;List&lt;OutputPacket&gt;&gt; {</span>
+<span id="L214"><span class="lineNum">     214</span> <span class="tlaGNC tlaBgGNC">           1 :   if (!tree.hasForkOutcome()) {</span></span>
+<span id="L215"><span class="lineNum">     215</span> <span class="tlaGNC">           1 :     return if (tree.hasPacketOutcome() &amp;&amp; tree.packetOutcome.hasOutput()) {</span></span>
+<span id="L216"><span class="lineNum">     216</span> <span class="tlaGNC">           1 :       listOf(listOf(tree.packetOutcome.output))</span></span>
+<span id="L217"><span class="lineNum">     217</span>              :     } else {</span>
+<span id="L218"><span class="lineNum">     218</span> <span class="tlaGNC">           1 :       listOf(emptyList())</span></span>
+<span id="L219"><span class="lineNum">     219</span>              :     }</span>
+<span id="L220"><span class="lineNum">     220</span>              :   }</span>
+<span id="L221"><span class="lineNum">     221</span> <span class="tlaGNC">           1 :   val fork = tree.forkOutcome</span></span>
+<span id="L222"><span class="lineNum">     222</span> <span class="tlaGNC">           1 :   val branchOutcomes = fork.branchesList.map { collectPossibleOutcomes(it.subtree) }</span></span>
+<span id="L223"><span class="lineNum">     223</span> <span class="tlaGNC">           1 :   if (branchOutcomes.isEmpty()) return listOf(emptyList())</span></span>
+<span id="L224"><span class="lineNum">     224</span> <span class="tlaGNC">           1 :   return when (forkModeOf(fork.reason)) {</span></span>
+<span id="L225"><span class="lineNum">     225</span>              :     // Alternative: each branch adds its worlds to the result.</span>
+<span id="L226"><span class="lineNum">     226</span> <span class="tlaGNC">           1 :     ForkMode.ALTERNATIVE -&gt; branchOutcomes.flatten()</span></span>
+<span id="L227"><span class="lineNum">     227</span>              :     // Parallel: Cartesian product across branches — for each combination of one world per</span>
+<span id="L228"><span class="lineNum">     228</span>              :     // branch, concatenate the packets.</span>
+<span id="L229"><span class="lineNum">     229</span>              :     ForkMode.PARALLEL -&gt;</span>
+<span id="L230"><span class="lineNum">     230</span> <span class="tlaGNC">           1 :       branchOutcomes.reduce { acc, next -&gt;</span></span>
+<span id="L231"><span class="lineNum">     231</span> <span class="tlaGNC">           1 :         acc.flatMap { world -&gt; next.map { branchWorld -&gt; world + branchWorld } }</span></span>
+<span id="L232"><span class="lineNum">     232</span>              :       }</span>
+<span id="L233"><span class="lineNum">     233</span>              :   }</span>
+<span id="L234"><span class="lineNum">     234</span>              : }</span>
         </pre>
               </td>
             </tr>

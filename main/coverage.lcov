@@ -6790,7 +6790,7 @@ FN:179,fourward/simulator/Simulator::readEntries (Ljava/util/List;)Ljava/util/Li
 FNDA:1,fourward/simulator/Simulator::readEntries (Ljava/util/List;)Ljava/util/List;
 FN:198,fourward/simulator/Simulator::displayName (Ljava/lang/String;)Ljava/lang/String;
 FNDA:0,fourward/simulator/Simulator::displayName (Ljava/lang/String;)Ljava/lang/String;
-FN:220,fourward/simulator/SimulatorKt::collectPossibleOutcomes (Lfourward/sim/SimulatorProto$TraceTree;)Ljava/util/List;
+FN:214,fourward/simulator/SimulatorKt::collectPossibleOutcomes (Lfourward/sim/SimulatorProto$TraceTree;)Ljava/util/List;
 FNDA:1,fourward/simulator/SimulatorKt::collectPossibleOutcomes (Lfourward/sim/SimulatorProto$TraceTree;)Ljava/util/List;
 BRDA:62,0,0,1
 BRDA:62,0,1,0
@@ -6832,20 +6832,16 @@ BRDA:190,0,0,1
 BRDA:190,0,1,1
 BRDA:192,0,0,1
 BRDA:192,0,1,0
-BRDA:220,0,0,1
-BRDA:220,0,1,1
-BRDA:221,0,0,1
-BRDA:221,0,1,0
-BRDA:221,0,2,1
-BRDA:221,0,3,1
-BRDA:229,0,0,0
-BRDA:229,0,1,1
-BRDA:231,0,0,1
-BRDA:231,0,1,1
-BRDA:239,0,0,0
-BRDA:239,0,1,1
-BRDA:242,0,0,0
-BRDA:242,0,1,1
+BRDA:214,0,0,1
+BRDA:214,0,1,1
+BRDA:215,0,0,1
+BRDA:215,0,1,0
+BRDA:215,0,2,1
+BRDA:215,0,3,1
+BRDA:223,0,0,0
+BRDA:223,0,1,1
+BRDA:224,0,0,1
+BRDA:224,0,1,1
 DA:23,1
 DA:37,1
 DA:42,1
@@ -6909,23 +6905,19 @@ DA:193,1
 DA:194,1
 DA:195,1
 DA:198,0
-DA:220,1
+DA:214,1
+DA:215,1
+DA:216,1
+DA:218,1
 DA:221,1
 DA:222,1
+DA:223,1
 DA:224,1
-DA:227,1
-DA:228,1
-DA:229,1
+DA:226,1
 DA:230,1
 DA:231,1
-DA:233,1
-DA:237,1
-DA:238,1
-DA:239,1
-DA:242,1
-DA:243,1
-LH:77
-LF:78
+LH:73
+LF:74
 end_of_record
 SF:simulator/TableDataReader.kt
 LH:0
