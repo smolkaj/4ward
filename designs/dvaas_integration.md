@@ -1,6 +1,6 @@
 # DVaaS Integration Design
 
-**Status: proposal**
+**Status: in progress**
 
 ## Goal
 
@@ -60,20 +60,22 @@ runs on Linux and macOS, x86_64 and ARM64.
 DVaaS also needs gNMI for port discovery, but that's a sonic-pins concern — see
 [gNMI](#gnmi-port-discovery) below.
 
-## Design: direct integration, not a backend
+## Design: frontend integration
 
 Since 4ward has a hermetic build, we don't need the `DataplaneValidationBackend`
-indirection. Instead, we integrate 4ward **directly into DVaaS**:
+indirection. Output prediction and trace prediction move into the DVaaS
+**frontend** (`dataplane_validation.cc`) directly:
 
 - DVaaS checks whether a 4ward pipeline config is available.
 - If yes, DVaaS spawns a 4ward subprocess and uses it for output prediction and
   traces — no backend needed.
 - If no, the existing backend path (BMv2) works unchanged.
 
-This makes the integration **opt-in and backward compatible**. Existing DVaaS
-users keep using BMv2. Only when a 4ward pipeline config is present does DVaaS
-switch to 4ward. The change is purely additive — it can be upstreamed without
-touching any existing backend, test, or workflow.
+This makes the integration **opt-in and backward compatible**. The existing
+`DataplaneValidationBackend` stays untouched — BMv2 users keep using it. The
+4ward code path lives entirely in the frontend, gated on `fourward_config`
+presence. The change is purely additive — it can be upstreamed without touching
+any existing backend, test, or workflow.
 
 ### P4Specification gains a 4ward config
 
@@ -126,14 +128,17 @@ Two instances are needed: one for the SUT role, one for the control switch.
 ### Output prediction
 
 Same as BMv2: inject a tagged packet via `InjectPacket`, collect output packets
-from the response. The existing `GeneratePacketTestVectors` logic in
-`dataplane_validation.cc` gets a 4ward code path that talks directly to the
-4ward subprocess instead of going through a backend.
+from the response. The `dataplane_validation.cc` frontend gets a 4ward code
+path that talks directly to the 4ward subprocess — no backend involved. Ports
+use dual encoding (dataplane `uint32` + P4RT `bytes`) via 4ward's
+`InjectPacket` RPC, which supports both natively (see
+[dataplane_port_encoding.md](dataplane_port_encoding.md)).
 
 ### Traces: TraceTree → PacketTrace conversion
 
 4ward returns a `TraceTree` (recursive, with forks for non-deterministic choice
-points). DVaaS consumes `PacketTrace` (flat list of events). We convert:
+points). DVaaS consumes `PacketTrace` (`dvaas/packet_trace.proto` — flat list
+of events). We convert:
 
 | 4ward `TraceEvent`          | DVaaS `Event`          | Notes |
 |-----------------------------|------------------------|-------|
@@ -145,11 +150,17 @@ points). DVaaS consumes `PacketTrace` (flat list of events). We convert:
 | `PacketOutcome::Drop`       | `Drop`                 | Pipeline name from enclosing `PipelineStageEvent` |
 | `PacketOutcome::Output`     | `Transmit`             | Port + packet size |
 
+The `bmv2_textual_log` field in `PacketTrace` is left empty — it's
+BMv2-specific.
+
 For forks (non-deterministic traces), we flatten the tree: follow the branch
 whose output matches the actual SUT output, and emit events from that path.
 This is sufficient for DVaaS's current trace consumers (failure analysis, test
 minimization, Arriba test vectors). In the future, DVaaS could consume the full
 `TraceTree` directly for richer analysis.
+
+This conversion lives in the DVaaS frontend (`dataplane_validation.cc`),
+alongside the output prediction code path.
 
 ### Packet synthesis
 
@@ -159,11 +170,17 @@ generator.
 
 ## 4ward deliverables as a `bazel_dep`
 
-sonic-pins declares 4ward as a Bazel module dependency:
+sonic-pins declares 4ward as a Bazel module dependency via `git_override`
+(BCR registration to follow):
 
 ```starlark
 # sonic-pins MODULE.bazel
-bazel_dep(name = "fourward", version = "...")
+bazel_dep(name = "fourward", version = "0.0.0")
+git_override(
+    module_name = "fourward",
+    remote = "https://github.com/smolkaj/4ward.git",
+    commit = "...",
+)
 ```
 
 4ward provides three things:
@@ -262,41 +279,68 @@ It is not the upstream integration itself, but it is valuable long-term:
 
 ## Current state
 
-A working prototype exists on the
+### What's done (4ward side)
+
+- **Dual port encoding** — fully implemented. `InjectPacket` accepts both
+  dataplane `uint32` and P4RT `bytes` ports; responses include both encodings.
+  See [dataplane_port_encoding.md](dataplane_port_encoding.md).
+- **v1model fork for SAI P4** — merged
+  ([sonic-pins PR #11](https://github.com/smolkaj/sonic-pins/pull/11)).
+  `v1model_sai.p4` defines typed `port_id_t` with `@p4runtime_translation`,
+  eliminating cast hacks.
+- **SAI P4 E2E** — works end-to-end through 4ward's P4Runtime stack.
+- **Performance** — 1k pps target met (127× improvement). See
+  [PERFORMANCE.md](../docs/PERFORMANCE.md).
+
+### Prior prototype (reference only)
+
+A previous prototype exists on the
 [`fourward-dvaas-integration`](https://github.com/smolkaj/sonic-pins/tree/fourward-dvaas-integration/fourward)
-branch of the sonic-pins fork
-([PR #1](https://github.com/smolkaj/sonic-pins/pull/1)). It demonstrates:
+branch of the sonic-pins fork. It demonstrates the integration patterns
+(`FourwardServer`, `FourwardMirrorTestbed`, `FakeGnmiService`, subprocess
+lifecycle) but is stale — built on the old WORKSPACE-based sonic-pins, before
+the Bzlmod migration and before many 4ward improvements. Useful as reference,
+not as a base to build on.
 
-- `FourwardBackend` implementing `DataplaneValidationBackend` (the backend
-  approach — to be replaced by direct integration)
-- `FourwardServer` — RAII subprocess manager that fork/execs 4ward servers,
-  detects readiness via stdout banner, and kills on destruction
-- `FourwardMirrorTestbed` with two 4ward instances + `PacketBridge`
-- `FakeGnmiService` — in-process fake gNMI for DVaaS port discovery
-- Output prediction via `InjectPacket` (1 hardcoded test packet, 100% pass)
-- SAI P4 middleblock pipeline loaded via P4Runtime
-- Self-contained test — starts servers on random ports, loads pipeline, runs
-  DVaaS, tears down cleanly
+### What's left (sonic-pins side)
 
-Not yet implemented:
-- Trace conversion (`TraceTree` → `PacketTrace`)
-- Direct integration into `dataplane_validation.cc` (currently goes through
-  backend)
-- `bazel_dep` packaging (currently uses pre-built binaries)
-- p4-symbolic packet synthesis (currently hardcoded test packets)
-- Dual port encoding in DataplaneService — see
-  [dataplane_port_encoding.md](dataplane_port_encoding.md)
+Building on the
+[`bzlmod-migration`](https://github.com/smolkaj/sonic-pins/tree/bzlmod-migration)
+branch (Bazel 8, Bzlmod, C++20):
+
+1. **`bazel_dep` packaging** — make 4ward consumable via `git_override` from
+   sonic-pins. Define the `fourward_compile` rule.
+2. **`FourwardMirrorTestbed`** — development vehicle (two 4ward instances +
+   `PacketBridge`). Steel good patterns from the prior prototype.
+3. **Output prediction in frontend** — add `fourward_config` to
+   `P4Specification`, spawn 4ward subprocess from `dataplane_validation.cc`,
+   inject packets via `InjectPacket` RPC.
+4. **Trace conversion in frontend** — `TraceTree` → `PacketTrace` in
+   `dataplane_validation.cc`.
+5. **Upstream PR** — additive change, existing tests untouched.
+
+## Summary: three uses of 4ward in sonic-pins
+
+| Use | Where | Purpose |
+|-----|-------|---------|
+| `FourwardMirrorTestbed` | `fourward/` | Dev vehicle — two 4ward instances + `PacketBridge`, exercises all integration code without a real switch |
+| Output prediction | `dataplane_validation.cc` (frontend) | Inject packet via `InjectPacket` RPC, get output packets directly |
+| Trace prediction | `dataplane_validation.cc` (frontend) | Extract `TraceTree` from `InjectPacketResponse`, convert to `PacketTrace` |
 
 ## Sequencing
 
-1. **Trace conversion.** Implement `TraceTree` → `PacketTrace` in the fork.
-   Validates the mapping and unblocks failure analysis.
-2. **`bazel_dep` packaging.** Make 4ward consumable as a Bazel module. Define
-   the `fourward_compile` rule. This is prerequisite for upstream.
-3. **Direct integration.** Add `fourward_config` to `P4Specification`. Add the
-   4ward subprocess + gRPC code path to `dataplane_validation.cc`. Remove the
-   `FourwardBackend` class.
-4. **Upstream PR.** Submit to sonic-pins. The change is additive — existing
+1. **`bazel_dep` packaging.** Make 4ward consumable as a Bazel module via
+   `git_override`. Define the `fourward_compile` rule. This unblocks
+   everything else. BCR registration follows separately.
+2. **`FourwardMirrorTestbed`.** Development vehicle — exercises all gRPC
+   interfaces without a real switch. Fast iteration and CI regression.
+3. **Output prediction in frontend.** Add `fourward_config` to
+   `P4Specification`. Add the 4ward subprocess + gRPC code path to
+   `dataplane_validation.cc`.
+4. **Trace conversion in frontend.** `TraceTree` → `PacketTrace` in
+   `dataplane_validation.cc`. Validates the mapping and unblocks failure
+   analysis.
+5. **Upstream PR.** Submit to sonic-pins. The change is additive — existing
    tests and workflows are untouched.
-5. **Packet synthesis.** Once upstream, use p4-symbolic to synthesize test
+6. **Packet synthesis.** Once upstream, use p4-symbolic to synthesize test
    packets (replacing hardcoded ones). This gives real coverage.
