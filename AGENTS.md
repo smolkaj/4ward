@@ -109,12 +109,6 @@ section. For v1model architecture semantics, the de facto spec is the
 The IR is emitted after p4c's midend, so it reflects a simplified program:
 no generics, no abstract types, no P4_14 constructs.
 
-## Architecture implementations
-
-To add a new P4 architecture, follow the existing `V1ModelArchitecture.kt` as
-the reference implementation. Register the new architecture in the `when`
-expression inside `Simulator.loadPipeline()`.
-
 ## Commit messages
 
 Focus on *why* the change is being made and what problem it solves. Avoid
