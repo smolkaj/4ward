@@ -16,6 +16,7 @@ Commands:
   lint            Run all linters
   coverage        Run tests with coverage, open report
   diff-coverage   Compute incremental coverage from a diff + LCOV file
+  benchmark       Run dataplane performance benchmark
   help            Show this help
 EOF
 }
@@ -45,6 +46,13 @@ cmd_diff_coverage() {
   exec "${REPO_ROOT}/tools/diff-coverage.sh" "$@"
 }
 
+cmd_benchmark() {
+  bazel test //p4runtime:DataplaneBenchmark \
+    --test_output=streamed \
+    --nocache_test_results \
+    "$@"
+}
+
 # Dispatch.
 case "${1:-help}" in
   build)        shift; cmd_build "$@" ;;
@@ -53,6 +61,7 @@ case "${1:-help}" in
   lint)         shift; cmd_lint "$@" ;;
   coverage|cov)  shift; cmd_coverage "$@" ;;
   diff-coverage) shift; cmd_diff_coverage "$@" ;;
+  benchmark|bench) shift; cmd_benchmark "$@" ;;
   help|--help|-h) cmd_help ;;
   *)
     echo "Unknown command: $1" >&2

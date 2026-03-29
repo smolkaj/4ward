@@ -81,8 +81,11 @@ class DataplaneBenchmark {
         ),
       )
 
+    val cores = Runtime.getRuntime().availableProcessors()
+    val jsonResults = mutableListOf<String>()
+
     println()
-    println("${Runtime.getRuntime().availableProcessors()} cores available")
+    println("$cores cores available")
     println()
     println("Sequential (InjectPacket, one at a time):")
     println(HEADER)
@@ -101,6 +104,12 @@ class DataplaneBenchmark {
             result.meanMs,
             result.throughput,
           )
+      )
+      jsonResults.add(
+        """{"mode":"sequential","config":"${sp.label}","routes":${sp.routes},""" +
+          """"entries":${result.totalEntries},"p50_ms":%.3f,"p99_ms":%.3f,"""
+            .format(result.p50Ms, result.p99Ms) +
+          """"mean_ms":%.3f,"packets_per_sec":%.0f}""".format(result.meanMs, result.throughput)
       )
     }
 
@@ -137,10 +146,25 @@ class DataplaneBenchmark {
       println(
         "| %-12s | %6d | %10.0f | %10.1f |".format(sp.label, sp.routes, result.first, result.second)
       )
+      jsonResults.add(
+        """{"mode":"concurrent","config":"${sp.label}","routes":${sp.routes},""" +
+          """"packets_per_sec":%.0f,"elapsed_ms":%.1f}""".format(result.first, result.second)
+      )
     }
 
     println(CONCURRENT_SEPARATOR)
     println()
+
+    // Write JSON for machine consumption.
+    val jsonDir = System.getenv("TEST_UNDECLARED_OUTPUTS_DIR")
+    if (jsonDir != null) {
+      val jsonFile = java.io.File(jsonDir, "benchmark.json")
+      jsonFile.writeText(
+        """{"cores":$cores,"packets":$BENCHMARK_PACKETS,"acl_entries":$ACL_ENTRIES,""" +
+          """"results":[${jsonResults.joinToString(",")}]}"""
+      )
+      println("JSON results written to ${jsonFile.absolutePath}")
+    }
   }
 
   // ===========================================================================
