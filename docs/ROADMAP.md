@@ -512,8 +512,8 @@ entries and know where the time goes.
 
 **Current status: complete.** The 1k pps target is met across all
 workloads (sequential and concurrent). Benchmark, profiling, and five
-optimizations delivered **94× improvement** on the hardest workload
-(wcmp×16+mirr, batch on 16 cores) and **24× sequential single-core**.
+optimizations delivered **127× improvement** on the hardest workload
+(wcmp×16+mirr, batch on 16 cores) and **29× sequential single-core**.
 
 **Benchmark** (`bazel test //p4runtime:DataplaneBenchmark --test_output=streamed`).
 SAI P4 middleblock with 10k table entries + 500 ternary ACL entries.
@@ -525,10 +525,10 @@ sensitive workloads compared to typical server hardware.
 
 | Config       | Baseline | Sequential, 1 core | Sequential, 16 cores | Batch, 1 core | Batch, 16 cores |
 |--------------|----------|--------------------|----------------------|---------------|-----------------|
-| direct 10k   |    1,400 |              1,700 |                1,800 |         1,900 |          12,000 |
-| wcmp×4 10k   |      280 |              1,500 |                1,400 |               |                 |
-| wcmp×16 10k  |       83 |              1,200 |                1,300 |         1,000 |           6,100 |
-| wcmp×16+mirr |       41 |                800 |                  990 |           600 |           3,900 |
+| direct 10k   |    1,400 |              2,500 |                2,600 |         2,600 |          29,000 |
+| wcmp×4 10k   |      280 |              1,800 |                2,000 |               |                 |
+| wcmp×16 10k  |       83 |              1,400 |                1,700 |         1,200 |          10,000 |
+| wcmp×16+mirr |       41 |                970 |                1,200 |           710 |           5,200 |
 
 Sequential = `InjectPacket` (one packet at a time).
 Batch = `InjectPackets` (1000 packets streamed concurrently).
@@ -559,6 +559,9 @@ Batch = `InjectPackets` (1000 packets streamed concurrently).
    comparison. BigInteger cache for wide fields (IPv6).
 7. **Iterator elimination in table matching** (PR #429): indexed loops
    + HashMap replace iterator-heavy functional patterns in the hot loop.
+8. **Array-indexed field lookup** (PR #430): field ID array replaces
+   HashMap + String conversion in scoreEntry. Zero allocation per
+   match field.
 
 **What didn't help** (tried and reverted):
 - Caching `defaultValue()` templates — negligible.
