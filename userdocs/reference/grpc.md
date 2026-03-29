@@ -186,9 +186,9 @@ Representative numbers on SAI P4 middleblock with 10k table entries +
 
 | Workload | Sequential, 1 core | Sequential, 16 cores | Batch, 1 core | Batch, 16 cores |
 |----------|--------------------|----------------------|---------------|-----------------|
-| L3 forwarding | 1,700 | 1,800 | 1,900 | 12,000 |
-| WCMP ×16 members | 1,200 | 1,300 | 1,000 | 6,100 |
-| WCMP ×16 + mirror | 800 | 990 | 600 | 3,900 |
+| L3 forwarding | 2,500 | 2,600 | 2,600 | 29,000 |
+| WCMP ×16 members | 1,400 | 1,700 | 1,200 | 10,000 |
+| WCMP ×16 + mirror | 970 | 1,200 | 710 | 5,200 |
 
 Sequential = `InjectPacket` (one packet at a time).
 Batch = `InjectPackets` (1000 packets streamed concurrently).
