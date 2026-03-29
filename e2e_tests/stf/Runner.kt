@@ -3,7 +3,6 @@ package fourward.e2e
 import com.google.protobuf.ByteString
 import com.google.protobuf.TextFormat
 import fourward.ir.PipelineConfig
-import fourward.simulator.MAX_POSSIBLE_OUTCOMES
 import fourward.simulator.Simulator
 import fourward.simulator.WriteResult
 import java.math.BigInteger
@@ -58,10 +57,7 @@ class StfRunner(private val pipelineConfigPath: Path, private val dropPortOverri
       return TestResult.Failure(e.message ?: "WriteEntry failed")
     }
 
-    // Each packet may have multiple possible outcomes (alternative forks, e.g. action selectors).
-    // We accumulate one output queue per "possible world" — the Cartesian product of outcomes
-    // across packets. If any world satisfies all expects, the test passes.
-    var possibleWorlds: List<List<ReceivedPacket>> = listOf(emptyList())
+    val outputQueue = mutableListOf<ReceivedPacket>()
 
     for (packet in stf.packets) {
       val result = sim.processPacket(packet.ingressPort, packet.payload)
@@ -70,28 +66,39 @@ class StfRunner(private val pipelineConfigPath: Path, private val dropPortOverri
         print(TextFormat.printer().printToString(result.trace))
         println("--- End trace tree ---")
       }
-      possibleWorlds =
-        possibleWorlds
-          .flatMap { world ->
-            result.possibleOutcomes.map { outcome ->
-              world +
-                outcome.map { pkt ->
-                  ReceivedPacket(pkt.dataplaneEgressPort, pkt.payload.toByteArray())
-                }
-            }
-          }
-          .let { if (it.size > MAX_POSSIBLE_OUTCOMES) it.take(MAX_POSSIBLE_OUTCOMES) else it }
+      appendBestOutcome(result.possibleOutcomes, stf.expects, outputQueue)
     }
 
-    // Find the first world that satisfies all expects, or report the best failure.
-    val worldFailures =
-      possibleWorlds.map { world -> matchOutputAgainstExpects(stf.expects, world.toMutableList()) }
-    val passWorld = worldFailures.firstOrNull { it.isEmpty() }
-    if (passWorld != null) return TestResult.Pass
-    // Report failures from the world with fewest issues.
-    val bestFailures = worldFailures.minBy { it.size }
-    return TestResult.Failure(bestFailures.joinToString("\n"))
+    val failures = matchOutputAgainstExpects(stf.expects, outputQueue)
+    return if (failures.isEmpty()) TestResult.Pass
+    else TestResult.Failure(failures.joinToString("\n"))
   }
+}
+
+/**
+ * Appends the best-matching possible world's outputs to [outputQueue].
+ *
+ * For each world in [possibleOutcomes], scores how well it satisfies [expects] when combined with
+ * already-accumulated outputs, and picks the world with the fewest failures. For the common case of
+ * a single possible world (no alternative forks), skips scoring entirely.
+ */
+fun appendBestOutcome(
+  possibleOutcomes: List<List<fourward.sim.SimulatorProto.OutputPacket>>,
+  expects: List<StfExpectedOutput>,
+  outputQueue: MutableList<ReceivedPacket>,
+) {
+  val bestWorld =
+    if (possibleOutcomes.size == 1) {
+      possibleOutcomes[0]
+    } else {
+      possibleOutcomes.minBy { world ->
+        val candidate =
+          outputQueue +
+            world.map { ReceivedPacket(it.dataplaneEgressPort, it.payload.toByteArray()) }
+        matchOutputAgainstExpects(expects, candidate.toMutableList()).size
+      }
+    }
+  outputQueue += bestWorld.map { ReceivedPacket(it.dataplaneEgressPort, it.payload.toByteArray()) }
 }
 
 /**
