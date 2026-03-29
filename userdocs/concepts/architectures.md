@@ -4,9 +4,9 @@ description: "P4 architecture support in 4ward: v1model, PSA, and PNA — what w
 
 # Architectures
 
-4ward currently supports three P4 architectures: **v1model**, **PSA**, and **PNA**. Each
+4ward supports three P4 architectures: **v1model**, **PSA**, and **PNA**. Each
 defines a fixed pipeline of stages, a set of externs, and metadata structures.
-Adding more architectures is straightforward — see
+You can also fork or extend these — see
 [Architecture Modifications](architecture-modifications.md).
 
 ## v1model
@@ -17,15 +17,15 @@ programs compiled to P4_16. Defined in
 see the [simple_switch documentation](https://github.com/p4lang/behavioral-model/blob/main/docs/simple_switch.md)
 for the canonical behavioral spec.
 
-Six stages in fixed order:
+The pipeline has six stages in fixed order:
 
 ```
 MyParser → MyVerifyChecksum → MyIngress → MyEgress → MyComputeChecksum → MyDeparser
 ```
 
-**Ports:** 9-bit by default (`bit<9>`). Drop port: 511 (`2^9 - 1`). CPU port:
-510 (`2^9 - 2`, auto-enabled when `@controller_header` is present). Both can
-be overridden via `--drop-port` and `--cpu-port` flags.
+Ports are 9-bit by default (`bit<9>`). The drop port is 511 (`2^9 - 1`) and
+the CPU port is 510 (`2^9 - 2`, auto-enabled when `@controller_header` is
+present). Both can be overridden via `--drop-port` and `--cpu-port` flags.
 
 ### Key metadata (`standard_metadata_t`)
 
@@ -42,64 +42,82 @@ be overridden via `--drop-port` and `--cpu-port` flags.
 
 **Forwarding and drops:**
 
-- `mark_to_drop(standard_metadata)` — drop the packet
+- `mark_to_drop(standard_metadata)` drops the packet.
 
 **Cloning, resubmit, recirculate:**
 
-- `clone(CloneType, session_id)` — I2E or E2E clone
-- `clone3(CloneType, session_id, data)` — clone with field list
-- `resubmit(data)` — re-inject into ingress
-- `recirculate(data)` — feed deparsed packet back to parser
+- `clone(CloneType, session_id)` creates an I2E or E2E clone.
+- `clone_preserving_field_list(CloneType, session_id, field_list_id)` clones
+  and preserves metadata fields annotated with the matching `@field_list` ID.
+  Replaces the deprecated `clone3`.
+- `resubmit_preserving_field_list(field_list_id)` re-injects the packet into
+  ingress. Replaces the deprecated `resubmit(data)`.
+- `recirculate_preserving_field_list(field_list_id)` feeds the deparsed packet
+  back to the parser. Replaces the deprecated `recirculate(data)`.
 
-Multiple calls use last-writer-wins. All produce
+!!! warning "Avoid the deprecated `clone3`, `resubmit`, and `recirculate`"
+
+    These still compile but **do not reliably preserve metadata** with modern
+    p4c — field lists may be
+    [silently emitted as empty](https://github.com/p4lang/p4c/issues/2875),
+    and the underlying semantics
+    [violate P4_16 call conventions](https://github.com/p4lang/p4c/issues/1514).
+    Always use the `_preserving_field_list` variants. See the
+    [v1model special ops guide](https://github.com/jafingerhut/p4-guide/blob/master/v1model-special-ops/README.md)
+    for a thorough writeup.
+
+Multiple calls use last-writer-wins semantics. All of these produce
 [trace tree forks](traces.md#forks).
 
 **Checksums:**
 
-- `verify_checksum(condition, data, checksum, algo)` — validate
-- `update_checksum(condition, data, checksum, algo)` — compute
-- `_with_payload` variants include the packet payload
+- `verify_checksum(condition, data, checksum, algo)` validates a checksum.
+- `update_checksum(condition, data, checksum, algo)` computes a checksum.
+- The `_with_payload` variants include the packet payload.
 
 **Hashing:**
 
-- `hash(out result, algo, base, data, max)` — `result = base + hash(data) mod max`
+- `hash(out result, algo, base, data, max)` computes
+  `result = base + hash(data) mod max`.
 
 **Logging:**
 
-- `log_msg(msg)` / `log_msg(msg, data)` — debug output with `{}` placeholders
+- `log_msg(msg)` / `log_msg(msg, data)` prints debug output, with `{}`
+  as placeholders.
 
 **Stateful:**
 
-- `register<T>.read(out result, index)` / `.write(index, value)` — generic
-  array storage
-- `counter.count(index)` / `direct_counter.count()` — increment (fire-and-forget)
-- `meter.execute_meter(index, out color)` — always returns GREEN (no real
-  packet rates in the simulator)
+- `register<T>.read(out result, index)` / `.write(index, value)` provides
+  generic array storage.
+- `counter.count(index)` / `direct_counter.count()` increments a counter
+  (fire-and-forget).
+- `meter.execute_meter(index, out color)` always returns GREEN — there are no
+  real packet rates in the simulator.
 
 ## PSA
 
-The Portable Switch Architecture — a more modern design with a cleaner
+The Portable Switch Architecture is a more modern design with a cleaner
 separation between ingress and egress. Defined in
 [psa.p4](https://github.com/p4lang/p4-spec/blob/psa-v1.2/p4-16/psa/psa.p4);
 see the [PSA specification](https://p4lang.github.io/p4-spec/docs/PSA.pdf)
 for the canonical behavioral spec.
 
-Two-pipeline design with separate ingress and egress:
+It uses a two-pipeline design with separate ingress and egress:
 
 ```
 IngressParser → Ingress → IngressDeparser → EgressParser → Egress → EgressDeparser
 ```
 
-**Key difference from v1model:** egress re-parses the deparsed packet, so
-header and metadata state does not persist across the ingress→egress boundary.
+Unlike v1model, egress re-parses the deparsed packet, so header and metadata
+state does not persist across the ingress→egress boundary.
 
-**Ports:** 32-bit by default (`bit<32>`). Drop port: `2^32 - 1`. CPU port:
-`2^32 - 2` (when `@controller_header` is present).
+Ports are 32-bit by default (`bit<32>`). The drop port is `2^32 - 1` and the
+CPU port is `2^32 - 2` (when `@controller_header` is present).
 
 ### Key metadata
 
-**Ingress output** (`psa_ingress_output_metadata_t`) — set by ingress to
-control packet fate:
+The ingress output metadata (`psa_ingress_output_metadata_t`) controls the
+packet's fate after ingress:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
@@ -110,63 +128,68 @@ control packet fate:
 | `clone_session_id` | `bit<16>` | - | Clone session |
 | `resubmit` | `bool` | false | Resubmit requested |
 
-Note: **ingress drops by default** — you must explicitly call `send_to_port()`
-to forward. This is opposite to v1model where packets forward by default.
+Note that **ingress drops by default** — you must explicitly call
+`send_to_port()` to forward a packet. This is the opposite of v1model, where
+packets forward by default.
 
 ### Externs
 
 **Forwarding:**
 
-- `send_to_port(ostd, port)` — clear drop, set egress port
-- `multicast(ostd, group)` — clear drop, set multicast group
-- `ingress_drop(ostd)` / `egress_drop(ostd)` — set drop flag
+- `send_to_port(ostd, port)` clears the drop flag and sets the egress port.
+- `multicast(ostd, group)` clears the drop flag and sets the multicast group.
+- `ingress_drop(ostd)` / `egress_drop(ostd)` sets the drop flag.
 
 **Stateful:**
 
-- `Register<T>.read(index) → T` / `.write(index, value)` — note: returns
-  value directly (unlike v1model's `out` parameter)
-- `Counter.count()` / `DirectCounter.count()` — fire-and-forget
-- `Meter.execute(index) → color` — always GREEN
-- `Random.read() → T` — random value in constructor-specified range
+- `Register<T>.read(index) → T` / `.write(index, value)` returns the value
+  directly (unlike v1model's `out` parameter).
+- `Counter.count()` / `DirectCounter.count()` increments a counter
+  (fire-and-forget).
+- `Meter.execute(index) → color` always returns GREEN.
+- `Random.read() → T` returns a random value in the constructor-specified
+  range.
 
 **Hashing:**
 
-- `Hash.get_hash(data) → hash` — 1-arg form
-- `Hash.get_hash(base, data, max) → (base + hash) mod max` — 3-arg form
+- `Hash.get_hash(data) → hash` is the 1-arg form.
+- `Hash.get_hash(base, data, max) → (base + hash) mod max` is the 3-arg form.
 
 Supported algorithms: `IDENTITY`, `CRC16`, `CRC32`, `ONES_COMPLEMENT16`.
 
 **Checksum:**
 
-- `InternetChecksum` — `clear()`, `add(data)`, `subtract(data)`, `get()`,
-  `get_state()`, `set_state(value)`
+- `InternetChecksum` supports `clear()`, `add(data)`, `subtract(data)`,
+  `get()`, `get_state()`, and `set_state(value)`.
 
 **Other:**
 
-- `Digest.pack(data)` — queues message to control plane (no-op in simulator)
+- `Digest.pack(data)` queues a message to the control plane (no-op in the
+  simulator).
 
 ## PNA
 
-The Portable NIC Architecture — designed for smart NICs with a single-pipeline
+The Portable NIC Architecture is designed for smart NICs with a single-pipeline
 structure. Defined in
 [pna.p4](https://github.com/p4lang/p4c/blob/main/p4include/pna.p4).
 
-Single-pipeline design (no separate egress):
+It uses a single-pipeline design with no separate egress:
 
 ```
 MainParser → PreControl → MainControl → MainDeparser
 ```
 
-**Key difference from PSA:** forwarding uses free functions (`send_to_port()`,
+Unlike PSA, forwarding uses free functions (`send_to_port()`,
 `drop_packet()`) with last-writer-wins semantics instead of output metadata
-fields. Drops by default — `send_to_port()` must be called to forward.
+fields. Like PSA, it drops by default — you must call `send_to_port()` to
+forward a packet.
 
-**Ports:** 32-bit (`bit<32>`). Direction-aware: packets have a `PNA_Direction_t`
-(`NET_TO_HOST` or `HOST_TO_NET`).
+Ports are 32-bit (`bit<32>`) and direction-aware: each packet has a
+`PNA_Direction_t` (`NET_TO_HOST` or `HOST_TO_NET`).
 
 ### Key metadata
 
-**Main input** (`pna_main_input_metadata_t`):
+The main input metadata (`pna_main_input_metadata_t`):
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -181,30 +204,34 @@ fields. Drops by default — `send_to_port()` must be called to forward.
 
 **Forwarding (last-writer-wins):**
 
-- `send_to_port(port)` — forward to port
-- `drop_packet()` — drop (main control only per spec)
-- `recirculate()` — loop deparsed bytes back to parser
-- `mirror_packet(slot_id, session_id)` — mirror deparsed bytes to clone session
+- `send_to_port(port)` forwards to a port.
+- `drop_packet()` drops the packet (main control only per spec).
+- `recirculate()` loops the deparsed bytes back to the parser.
+- `mirror_packet(slot_id, session_id)` mirrors the deparsed bytes to a clone
+  session.
 
 **Direction:**
 
-- `SelectByDirection(direction, n2h_value, h2n_value)` — select value based on packet direction
+- `SelectByDirection(direction, n2h_value, h2n_value)` selects a value based
+  on the packet's direction.
 
 **Add-on-miss (data-plane table insertion):**
 
-- `add_entry(action_name, action_params, expire_time_profile_id) → bool` — insert table entry on miss
+- `add_entry(action_name, action_params, expire_time_profile_id) → bool`
+  inserts a table entry on a miss.
 
-**Stateful:** Same as PSA — `Register`, `Counter`, `Meter` (GREEN), `Hash`,
-`InternetChecksum`, `Digest` (no-op), `Random`.
+**Stateful:** Same as PSA — `Register`, `Counter`, `Meter` (always GREEN),
+`Hash`, `InternetChecksum`, `Digest` (no-op), `Random`.
 
 ## Limitations
 
-All architectures:
+These limitations apply to all architectures:
 
-- **Meters always return GREEN.** No real packet rates in a simulator.
-- **Counters are fire-and-forget.** Not readable from P4 logic (control-plane
-  only via P4Runtime Read).
-- **Digest is a no-op.** No control-plane receiver in the simulator.
+- **Meters always return GREEN** because the simulator has no real packet rates.
+- **Counters are fire-and-forget** and can't be read from P4 logic (only via
+  P4Runtime Read from the control plane).
+- **Digest is a no-op** because there's no control-plane receiver in the
+  simulator.
 
 See [LIMITATIONS.md](https://github.com/smolkaj/4ward/blob/main/docs/LIMITATIONS.md)
 for the full list.
