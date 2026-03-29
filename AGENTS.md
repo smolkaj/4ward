@@ -121,12 +121,6 @@ To add a new P4 architecture, follow the existing `V1ModelArchitecture.kt` as
 the reference implementation. Register the new architecture in the `when`
 expression inside `Simulator.loadPipeline()`.
 
-## Proto changes
-
-Proto changes affect both the p4c backend (C++) and the simulator (Kotlin).
-Update both sides. Never remove or renumber existing proto fields; add new ones
-instead.
-
 ## Commit messages
 
 Focus on *why* the change is being made and what problem it solves. Avoid
