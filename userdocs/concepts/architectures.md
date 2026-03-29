@@ -57,7 +57,9 @@ present). Both can be overridden via `--drop-port` and `--cpu-port` flags.
 
 The deprecated forms (`clone3`, `resubmit`, `recirculate`) are still supported
 but had [bugs in p4c's BMv2 backend](https://github.com/p4lang/p4c/issues/1514)
-and violated P4_16 call semantics. Prefer the `_preserving_field_list` variants.
+and violated P4_16 call semantics. Prefer the `_preserving_field_list`
+variants. See the [v1model special ops guide](https://github.com/jafingerhut/p4-guide/blob/master/v1model-special-ops/README.md)
+for a thorough writeup.
 
 Multiple calls use last-writer-wins semantics. All of these produce
 [trace tree forks](traces.md#forks).
