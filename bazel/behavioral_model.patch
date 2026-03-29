@@ -1,7 +1,7 @@
 diff --color -ruN a/BUILD.bazel b/BUILD.bazel
 --- a/BUILD.bazel	2026-03-06 06:27:42
 +++ b/BUILD.bazel	2026-03-06 06:47:28
-@@ -0,0 +1,217 @@
+@@ -0,0 +1,223 @@
 +# Native Bazel build for behavioral-model (BMv2).
 +# Minimal build: no Thrift, no nanomsg, no debugger, no PI.
 +
@@ -86,6 +86,12 @@ diff --color -ruN a/BUILD.bazel b/BUILD.bazel
 +        "#define BM_HAVE_UTILITY 1",
 +        "#define BM_HAVE_VECTOR 1",
 +        "#define BM_WP4_16_STACKS 1",
++        "/* Per-packet trace logging (parser transitions, table lookups, actions). */",
++        "/* Analogous to 4ward trace trees -- keep enabled for fair benchmarking. */",
++        "#define BM_LOG_DEBUG_ON 1",
++        "#define BM_LOG_TRACE_ON 1",
++        "/* BM_ELOG_ON intentionally omitted: the event logger writes a binary log */",
++        "/* to disk for offline analysis tools -- no 4ward equivalent. */",
 +        "#endif",
 +        "CONF",
 +    ]),
