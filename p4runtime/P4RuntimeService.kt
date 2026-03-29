@@ -331,8 +331,8 @@ class P4RuntimeService(
           writeContinueOnError(request.updatesList, state, roleName)
         WriteRequest.Atomicity.UNRECOGNIZED ->
           throw Status.INVALID_ARGUMENT.withDescription(
-              "unrecognized write atomicity; valid values: " +
-                "CONTINUE_ON_ERROR, ROLLBACK_ON_ERROR, DATAPLANE_ATOMIC"
+              "unrecognized write atomicity ${request.atomicityValue} " +
+                "(valid values: CONTINUE_ON_ERROR (1), ROLLBACK_ON_ERROR (2), DATAPLANE_ATOMIC (3))"
             )
             .asException()
         // P4Runtime spec §12.2: ROLLBACK_ON_ERROR and DATAPLANE_ATOMIC both guarantee
