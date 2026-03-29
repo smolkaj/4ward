@@ -8,7 +8,7 @@ directly.** See [Worktrees](#worktrees) for setup and cleanup.
 ```
 docs/ARCHITECTURE.md         Design rationale. Read this first.
 simulator/ir.proto           The behavioral IR. The core contract of the project.
-simulator/simulator.proto    The simulator service protocol (stdin/stdout IPC).
+simulator/simulator.proto    Shared types for simulator clients (P4Runtime, STF, tests).
 simulator/*.kt               Kotlin simulator (the heart of 4ward).
 p4c_backend/*.{h,cpp}        C++ p4c backend plugin (emits proto IR from P4 source).
 p4runtime/*.kt               P4Runtime gRPC server (Kotlin).
