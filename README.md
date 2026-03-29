@@ -43,9 +43,10 @@ packets, explore trace trees. No setup beyond Bazel.
 4ward is a **spec-compliant reference implementation** of the
 [P4₁₆ language](https://p4.org/wp-content/uploads/sites/53/p4-spec/docs/p4-16-working-draft.html)
 and [P4Runtime](https://p4lang.github.io/p4runtime/spec/main/P4Runtime-Spec.html),
-optimized for **correctness, observability, and extensibility** — yet fast
-enough for production test workloads ([thousands of packets/sec](docs/ROADMAP.md#track-10-dataplane-performance)
-with full trace trees).
+optimized for **correctness, observability, and extensibility** — yet
+[fast](docs/ROADMAP.md#track-10-dataplane-performance): up to 29k
+packets/sec on L3 forwarding and 5k packets/sec even with 32 trace tree
+branches, full ACLs, and 10k table entries.
 
 | | BMv2 | 4ward goal | Status |
 |---|---|---|---|
@@ -56,6 +57,8 @@ with full trace trees).
 | Architecture-generic | ish | [**by design**](docs/ROADMAP.md#track-6-multi-architecture-support) | ✅ v1model + PSA + PNA |
 | Architecture customization | no | [**by design**](docs/ROADMAP.md#track-5-architecture-customization) | ✅ |
 | Interactive playground | no | [**browser-based IDE with trace playback & packet decoding**](#web-playground) | ✅ |
+| Error messages | opaque | [**actionable, with valid options**](docs/ROADMAP.md#track-11-error-quality) | ✅ [74 golden-tested](p4runtime/golden_errors/) |
+| Performance | [~80k pps](https://github.com/p4lang/behavioral-model/blob/main/docs/performance.md) (simple router) | [**up to 29k pps**](docs/ROADMAP.md#track-10-dataplane-performance) (SAI P4, trace trees) | ✅ |
 | Easy to extend | ehh | [**if AI can extend it, anyone can**](docs/ROADMAP.md#why-4ward-is-easier-to-extend) | ✅ |
 | Fast, rigorous CI | slow | **[~2 min](https://4ward.buildbuddy.io/trends/)** | ✅ |
 | Development pace | slow | **[AI-fast](docs/AI_WORKFLOW.md)** | ✅ |
