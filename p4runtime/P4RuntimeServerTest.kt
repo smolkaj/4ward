@@ -22,8 +22,8 @@ import p4.v1.P4RuntimeOuterClass.Uint128
 /**
  * Regression test for the Netty event loop deadlock (#459).
  *
- * Uses the real [P4RuntimeServer] (Netty transport, TCP) to verify that a Read RPC completes while a
- * StreamChannel is open on the same HTTP/2 connection. Before the fix, gRPC-Java's Netty backend
+ * Uses the real [P4RuntimeServer] (Netty transport, TCP) to verify that a Read RPC completes while
+ * a StreamChannel is open on the same HTTP/2 connection. Before the fix, gRPC-Java's Netty backend
  * assigned a single event loop thread per connection, causing the suspended StreamChannel coroutine
  * and the Read coroutine to deadlock.
  */
@@ -36,9 +36,7 @@ class P4RuntimeServerTest {
   @Before
   fun setUp() {
     server = P4RuntimeServer(port = 0).start()
-    channel = ManagedChannelBuilder.forAddress("localhost", server.port())
-      .usePlaintext()
-      .build()
+    channel = ManagedChannelBuilder.forAddress("localhost", server.port()).usePlaintext().build()
     stub = P4RuntimeCoroutineStub(channel)
   }
 
@@ -74,24 +72,27 @@ class P4RuntimeServerTest {
     // Issue a Read RPC on the same channel (same HTTP/2 connection) while the
     // StreamChannel is open. Before #459, this would deadlock because Netty's
     // single event loop thread was blocked by the suspended StreamChannel.
-    val readCompleted = withTimeout(5_000) {
-      try {
-        stub.read(
-          ReadRequest.newBuilder()
-            .setDeviceId(1)
-            .addEntities(
-              p4.v1.P4RuntimeOuterClass.Entity.newBuilder()
-                .setTableEntry(TableEntry.newBuilder().setTableId(0))
+    val readCompleted =
+      withTimeout(5_000) {
+        try {
+          stub
+            .read(
+              ReadRequest.newBuilder()
+                .setDeviceId(1)
+                .addEntities(
+                  p4.v1.P4RuntimeOuterClass.Entity.newBuilder()
+                    .setTableEntry(TableEntry.newBuilder().setTableId(0))
+                )
+                .build()
             )
-            .build()
-        ).collect { /* drain */ }
-        true
-      } catch (e: io.grpc.StatusException) {
-        // FAILED_PRECONDITION (no pipeline loaded) is fine — the point is the
-        // RPC completed rather than deadlocking.
-        true
+            .collect { /* drain */ }
+          true
+        } catch (e: io.grpc.StatusException) {
+          // FAILED_PRECONDITION (no pipeline loaded) is fine — the point is the
+          // RPC completed rather than deadlocking.
+          true
+        }
       }
-    }
 
     assertTrue("Read RPC should complete without deadlock", readCompleted)
 
