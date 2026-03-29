@@ -6740,12 +6740,12 @@ LH:327
 LF:359
 end_of_record
 SF:simulator/Simulator.kt
-FN:23,fourward/simulator/ProcessPacketResult::<init> (Ljava/util/List;Lfourward/sim/SimulatorProto$TraceTree;)V
-FNDA:1,fourward/simulator/ProcessPacketResult::<init> (Ljava/util/List;Lfourward/sim/SimulatorProto$TraceTree;)V
-FN:23,fourward/simulator/ProcessPacketResult::getPossibleOutcomes ()Ljava/util/List;
-FNDA:1,fourward/simulator/ProcessPacketResult::getPossibleOutcomes ()Ljava/util/List;
+FN:23,fourward/simulator/ProcessPacketResult::<init> (Lfourward/sim/SimulatorProto$TraceTree;Ljava/util/List;)V
+FNDA:1,fourward/simulator/ProcessPacketResult::<init> (Lfourward/sim/SimulatorProto$TraceTree;Ljava/util/List;)V
 FN:23,fourward/simulator/ProcessPacketResult::getTrace ()Lfourward/sim/SimulatorProto$TraceTree;
 FNDA:1,fourward/simulator/ProcessPacketResult::getTrace ()Lfourward/sim/SimulatorProto$TraceTree;
+FN:23,fourward/simulator/ProcessPacketResult::getPossibleOutcomes ()Ljava/util/List;
+FNDA:1,fourward/simulator/ProcessPacketResult::getPossibleOutcomes ()Ljava/util/List;
 FN:37,fourward/simulator/Simulator::<init> (Ljava/lang/Integer;)V
 FNDA:1,fourward/simulator/Simulator::<init> (Ljava/lang/Integer;)V
 FN:37,fourward/simulator/Simulator::<init> (Ljava/lang/Integer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V

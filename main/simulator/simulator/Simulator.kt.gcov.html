@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-29 04:14:46</td>
+            <td class="headerValue">2026-03-29 04:23:25</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">96.2&nbsp;%</td>
@@ -82,7 +82,7 @@
 <span id="L20"><span class="lineNum">      20</span>              :  * Decouples the simulator from the gRPC wire format ([fourward.sim.SimulatorProto</span>
 <span id="L21"><span class="lineNum">      21</span>              :  * .InjectPacketResponse]). Each RPC method builds its own wire proto from this data class.</span>
 <span id="L22"><span class="lineNum">      22</span>              :  */</span>
-<span id="L23"><span class="lineNum">      23</span> <span class="tlaGNC tlaBgGNC">           1 : data class ProcessPacketResult(val possibleOutcomes: List&lt;List&lt;OutputPacket&gt;&gt;, val trace: TraceTree)</span></span>
+<span id="L23"><span class="lineNum">      23</span> <span class="tlaGNC tlaBgGNC">           1 : data class ProcessPacketResult(val trace: TraceTree, val possibleOutcomes: List&lt;List&lt;OutputPacket&gt;&gt;)</span></span>
 <span id="L24"><span class="lineNum">      24</span>              : </span>
 <span id="L25"><span class="lineNum">      25</span>              : /**</span>
 <span id="L26"><span class="lineNum">      26</span>              :  * The top-level simulator state machine.</span>
