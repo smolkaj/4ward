@@ -3,6 +3,7 @@ package fourward.p4runtime
 import fourward.simulator.Simulator
 import io.grpc.Server
 import io.grpc.netty.NettyServerBuilder
+import java.util.concurrent.Executors
 
 /** Wraps a P4Runtime + Dataplane gRPC server backed by a 4ward [Simulator]. */
 class P4RuntimeServer(
@@ -29,6 +30,14 @@ class P4RuntimeServer(
   fun start(): P4RuntimeServer {
     server =
       NettyServerBuilder.forPort(port)
+        // Decouple RPC processing from Netty I/O threads. Without this, gRPC-Java
+        // runs server call handlers on the Netty event loop, which assigns one thread
+        // per HTTP/2 connection. That causes deadlocks when a gRPC C++ client
+        // multiplexes a long-lived bidirectional stream (StreamChannel) and a
+        // server-streaming RPC (Read) on the same connection: the suspended
+        // StreamChannel coroutine and the Read coroutine contend for the single
+        // event loop thread assigned to that connection.
+        .executor(Executors.newCachedThreadPool())
         .addService(service)
         .addService(dataplaneService)
         .build()
