@@ -5,13 +5,40 @@ import fourward.sim.SimulatorProto.Drop
 import fourward.sim.SimulatorProto.DropReason
 import fourward.sim.SimulatorProto.Fork
 import fourward.sim.SimulatorProto.ForkBranch
-import fourward.sim.SimulatorProto.ForkMode
 import fourward.sim.SimulatorProto.ForkReason
 import fourward.sim.SimulatorProto.PacketIngressEvent
 import fourward.sim.SimulatorProto.PacketOutcome
 import fourward.sim.SimulatorProto.PipelineStageEvent
 import fourward.sim.SimulatorProto.TraceEvent
 import fourward.sim.SimulatorProto.TraceTree
+
+/**
+ * Whether a fork's branches all happen (parallel) or only one happens (alternative).
+ * - **Parallel** (clone, multicast, resubmit, recirculate): all branches execute simultaneously.
+ *   Output packets are the union of all branch outputs.
+ * - **Alternative** (action selector): exactly one branch executes at runtime. Each branch is a
+ *   "possible world" — a distinct possible outcome set.
+ */
+enum class ForkMode {
+  PARALLEL,
+  ALTERNATIVE,
+}
+
+/**
+ * Maps a [ForkReason] to its [ForkMode].
+ *
+ * Exhaustive — adding a new [ForkReason] without updating this function is a compile error.
+ */
+fun forkModeOf(reason: ForkReason): ForkMode =
+  when (reason) {
+    ForkReason.ACTION_SELECTOR -> ForkMode.ALTERNATIVE
+    ForkReason.CLONE,
+    ForkReason.MULTICAST,
+    ForkReason.RESUBMIT,
+    ForkReason.RECIRCULATE -> ForkMode.PARALLEL
+    ForkReason.FORK_REASON_UNSPECIFIED,
+    ForkReason.UNRECOGNIZED -> error("unexpected fork reason: $reason")
+  }
 
 /** Builds a [TraceTree] representing a dropped packet with the given trace events and reason. */
 internal fun buildDropTrace(
@@ -50,15 +77,6 @@ internal fun stageEvent(stage: PipelineStage, direction: PipelineStageEvent.Dire
     )
     .build()
 
-/**
- * Maps a [ForkReason] to its [ForkMode]: alternative for action selectors, parallel for all else.
- */
-internal fun forkModeOf(reason: ForkReason): ForkMode =
-  when (reason) {
-    ForkReason.ACTION_SELECTOR -> ForkMode.FORK_MODE_ALTERNATIVE
-    else -> ForkMode.FORK_MODE_PARALLEL
-  }
-
 /** Builds a [TraceTree] with a fork outcome from accumulated events and branches. */
 internal fun buildForkTree(
   events: List<TraceEvent>,
@@ -67,7 +85,5 @@ internal fun buildForkTree(
 ): TraceTree =
   TraceTree.newBuilder()
     .addAllEvents(events)
-    .setForkOutcome(
-      Fork.newBuilder().setReason(reason).setMode(forkModeOf(reason)).addAllBranches(branches)
-    )
+    .setForkOutcome(Fork.newBuilder().setReason(reason).addAllBranches(branches))
     .build()

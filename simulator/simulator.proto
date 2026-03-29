@@ -76,9 +76,6 @@ message TraceTree {
 message Fork {
   ForkReason reason = 1;
   repeated ForkBranch branches = 2;
-  // How to interpret the branches.  Derived from `reason` but explicit so
-  // consumers don't need their own reason→mode mapping.
-  ForkMode mode = 3;
 }
 
 // One branch of a fork.  The label describes this particular outcome (e.g. the
@@ -88,19 +85,8 @@ message ForkBranch {
   TraceTree subtree = 2;
 }
 
-// Whether a fork's branches all happen (parallel) or only one happens
-// (alternative).  See the Fork message for details.
-enum ForkMode {
-  FORK_MODE_UNSPECIFIED = 0;
-  // All branches execute simultaneously in a single real execution.
-  // Output packets are the union of all branch outputs.
-  FORK_MODE_PARALLEL = 1;
-  // Exactly one branch executes; each is an alternative possible outcome.
-  // The simulator explores all alternatives so consumers can reason about
-  // every possible forwarding decision.
-  FORK_MODE_ALTERNATIVE = 2;
-}
-
+// Whether a fork's branches all happen or only one happens is determined by
+// the ForkReason.  See ForkMode in the simulator Kotlin code.
 enum ForkReason {
   FORK_REASON_UNSPECIFIED = 0;
   ACTION_SELECTOR = 1;  // Alternative: one member is selected by hash.

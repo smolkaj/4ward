@@ -277,7 +277,7 @@ class SimulatorTest {
     sim.loadPipeline(config)
 
     val result = sim.processPacket(ingressPort = 0, payload = byteArrayOf(0x01))
-    val outputs = collectPossibleOutcomes(result.trace).single()
+    val outputs = result.possibleOutcomes.single()
     assertEquals(1, outputs.size)
     assertEquals(V1ModelArchitecture.DEFAULT_DROP_PORT, outputs[0].dataplaneEgressPort)
   }
@@ -309,19 +309,14 @@ class CollectPossibleOutcomesTest {
       )
       .build()
 
-  private fun parallelFork(
+  private fun fork(
     reason: fourward.sim.SimulatorProto.ForkReason,
     vararg branches: Pair<String, fourward.sim.SimulatorProto.TraceTree>,
-  ): fourward.sim.SimulatorProto.TraceTree {
-    val mode =
-      if (reason == fourward.sim.SimulatorProto.ForkReason.ACTION_SELECTOR)
-        fourward.sim.SimulatorProto.ForkMode.FORK_MODE_ALTERNATIVE
-      else fourward.sim.SimulatorProto.ForkMode.FORK_MODE_PARALLEL
-    return fourward.sim.SimulatorProto.TraceTree.newBuilder()
+  ): fourward.sim.SimulatorProto.TraceTree =
+    fourward.sim.SimulatorProto.TraceTree.newBuilder()
       .setForkOutcome(
         fourward.sim.SimulatorProto.Fork.newBuilder()
           .setReason(reason)
-          .setMode(mode)
           .addAllBranches(
             branches.map {
               fourward.sim.SimulatorProto.ForkBranch.newBuilder()
@@ -332,12 +327,11 @@ class CollectPossibleOutcomesTest {
           )
       )
       .build()
-  }
 
   private fun alternativeFork(
     vararg branches: Pair<String, fourward.sim.SimulatorProto.TraceTree>
   ): fourward.sim.SimulatorProto.TraceTree =
-    parallelFork(fourward.sim.SimulatorProto.ForkReason.ACTION_SELECTOR, *branches)
+    fork(fourward.sim.SimulatorProto.ForkReason.ACTION_SELECTOR, *branches)
 
   @Test
   fun `linear trace produces one world with one output`() {
@@ -355,7 +349,7 @@ class CollectPossibleOutcomesTest {
   @Test
   fun `parallel fork combines outputs within each world`() {
     val tree =
-      parallelFork(
+      fork(
         fourward.sim.SimulatorProto.ForkReason.CLONE,
         "original" to output(1),
         "clone" to output(2),
@@ -382,7 +376,7 @@ class CollectPossibleOutcomesTest {
   fun `alternative inside parallel produces Cartesian product`() {
     // Clone (parallel) with 2 branches, each containing a 2-member selector (alternative).
     val tree =
-      parallelFork(
+      fork(
         fourward.sim.SimulatorProto.ForkReason.CLONE,
         "original" to alternativeFork("m0" to output(1), "m1" to output(2)),
         "clone" to alternativeFork("m0" to output(3), "m1" to output(4)),
@@ -408,7 +402,7 @@ class CollectPossibleOutcomesTest {
   @Test
   fun `multicast fork is parallel`() {
     val tree =
-      parallelFork(
+      fork(
         fourward.sim.SimulatorProto.ForkReason.MULTICAST,
         "r0" to output(1),
         "r1" to output(2),

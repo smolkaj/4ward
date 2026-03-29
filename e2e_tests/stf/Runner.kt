@@ -3,6 +3,7 @@ package fourward.e2e
 import com.google.protobuf.ByteString
 import com.google.protobuf.TextFormat
 import fourward.ir.PipelineConfig
+import fourward.simulator.MAX_POSSIBLE_OUTCOMES
 import fourward.simulator.Simulator
 import fourward.simulator.WriteResult
 import java.math.BigInteger
@@ -70,14 +71,16 @@ class StfRunner(private val pipelineConfigPath: Path, private val dropPortOverri
         println("--- End trace tree ---")
       }
       possibleWorlds =
-        possibleWorlds.flatMap { world ->
-          result.possibleOutcomes.map { outcome ->
-            world +
-              outcome.map { pkt ->
-                ReceivedPacket(pkt.dataplaneEgressPort, pkt.payload.toByteArray())
-              }
+        possibleWorlds
+          .flatMap { world ->
+            result.possibleOutcomes.map { outcome ->
+              world +
+                outcome.map { pkt ->
+                  ReceivedPacket(pkt.dataplaneEgressPort, pkt.payload.toByteArray())
+                }
+            }
           }
-        }
+          .let { if (it.size > MAX_POSSIBLE_OUTCOMES) it.take(MAX_POSSIBLE_OUTCOMES) else it }
     }
 
     // Find the first world that satisfies all expects, or report the best failure.

@@ -8,7 +8,6 @@ import fourward.sim.SimulatorProto.PacketOutcome
 import fourward.sim.SimulatorProto.TraceTree
 import fourward.simulator.ProcessPacketResult
 import fourward.simulator.Simulator
-import fourward.simulator.collectPossibleOutcomes
 import java.nio.file.Paths
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -21,8 +20,8 @@ import org.junit.runners.Parameterized.Parameters
  * Verifies that output packets from [ProcessPacketResult] are consistent with the leaf outcomes in
  * the trace tree.
  *
- * The possible outcomes (from [collectPossibleOutcomes]) should be consistent with the trace tree's
- * leaf outcomes, whether the trace forks (multicast, clone, action selectors) or not.
+ * The possible outcomes should be consistent with the trace tree's leaf outcomes, whether the trace
+ * forks (multicast, clone, action selectors) or not.
  */
 @RunWith(Parameterized::class)
 class TraceTreeConsistencyTest(private val testName: String) {
