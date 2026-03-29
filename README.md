@@ -55,6 +55,7 @@ enough for production test workloads.
 | Architecture-generic | ish | [**by design**](docs/ROADMAP.md#track-6-multi-architecture-support) | ✅ v1model + PSA + PNA |
 | Architecture customization | no | [**by design**](docs/ROADMAP.md#track-5-architecture-customization) | ✅ |
 | Interactive playground | no | [**browser-based IDE with trace playback & packet decoding**](#web-playground) | ✅ |
+| Error messages | opaque | [**actionable, with valid options**](docs/ROADMAP.md#track-11-error-quality) | ✅ [74 golden-tested](p4runtime/golden_errors/) |
 | Throughput (16-way selector) | [~4,500 pps ÷ 16 paths](docs/PERFORMANCE.md#bmv2-comparison) | [**~1,400 pps, all 16 paths**](docs/PERFORMANCE.md) | ✅ [head-to-head on SAI P4](docs/PERFORMANCE.md#bmv2-comparison) |
 | Parallelism (16-way selector) | single-threaded | [**10,000 pps on 16 cores**](docs/PERFORMANCE.md) | ✅ parallel across packets and forks |
 | Easy to extend | ehh | [**if AI can extend it, anyone can**](docs/ROADMAP.md#why-4ward-is-easier-to-extend) | ✅ |
