@@ -53,6 +53,7 @@ events {
 events {
   table_lookup {
     table_name: "ecmp"
+    hit: false
     action_name: "drop"
   }
   source_info {

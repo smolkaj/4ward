@@ -83,6 +83,7 @@ fork_outcome {
       events {
         branch {
           control_name: "MyEgress"
+          taken: false
         }
         source_info {
           file: "e2e_tests/trace_tree/clone_preserve_meta.p4"

@@ -148,7 +148,8 @@ message ParserTransitionEvent {
 // action.
 message TableLookupEvent {
   string table_name = 1;
-  bool hit = 2;
+  // Explicit presence so `hit: false` (miss) is visible in text proto.
+  optional bool hit = 2;
   // Matched table entry in dataplane representation. Present on hit; absent on
   // miss.
   p4.v1.TableEntry matched_entry = 3;
@@ -167,7 +168,9 @@ message ActionExecutionEvent {
 // Fired on every if/else branch.
 message BranchEvent {
   string control_name = 1;
-  bool taken = 2;  // true = then-branch; false = else-branch
+  // Explicit presence so `taken: false` is visible in text proto output
+  // (plain `bool` would be suppressed as a proto3 default value).
+  optional bool taken = 2;  // true = then-branch; false = else-branch
 }
 
 // Fired on every extern method call.
@@ -191,7 +194,7 @@ message CloneEvent {
 // manager resolves a pending clone session.
 message CloneSessionLookupEvent {
   uint32 session_id = 1;
-  bool session_found =
+  optional bool session_found =
       2;  // false = session not configured, clone silently dropped
   uint32 dataplane_egress_port =
       3;  // clone destination; only meaningful when session_found

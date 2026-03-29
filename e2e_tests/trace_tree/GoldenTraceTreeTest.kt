@@ -2,13 +2,13 @@ package fourward.e2e.tracetree
 
 import com.google.protobuf.TextFormat
 import fourward.e2e.StfFile
+import fourward.e2e.assertMatchesGoldenFile
 import fourward.e2e.installStfEntries
 import fourward.e2e.loadPipelineConfig
+import fourward.e2e.runfilePath
 import fourward.sim.SimulatorProto.TraceTree
 import fourward.simulator.Simulator
 import java.nio.file.Path
-import java.nio.file.Paths
-import org.junit.Assert.fail
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -22,9 +22,8 @@ import org.junit.runners.Parameterized.Parameters
  * - An STF file (.stf) with optional table entries and at least one packet
  * - An expected TraceTree (.golden.txtpb)
  *
- * The test sends the first packet through the simulator and compares the resulting TraceTree
- * against the golden file. This is the TDD harness for Track 3 (trace trees): all tests are written
- * up front and expected to fail until the corresponding feature is implemented.
+ * To update golden files after an intentional change: bazel run
+ * //e2e_tests/trace_tree:golden_trace_tree_test -- --update
  */
 @RunWith(Parameterized::class)
 class GoldenTraceTreeTest(private val testName: String) {
@@ -35,8 +34,7 @@ class GoldenTraceTreeTest(private val testName: String) {
     @JvmStatic
     @Parameters(name = "{0}")
     fun testCases(): List<Array<String>> {
-      val r = System.getenv("JAVA_RUNFILES") ?: "."
-      val dir = Paths.get(r, "_main/$PKG").toFile()
+      val dir = runfilePath(PKG, "").toFile()
       return dir
         .listFiles { f -> f.name.endsWith(".golden.txtpb") }
         ?.map { arrayOf(it.name.removeSuffix(".golden.txtpb")) }
@@ -46,45 +44,23 @@ class GoldenTraceTreeTest(private val testName: String) {
 
   @Test
   fun `trace tree matches golden file`() {
-    val r = System.getenv("JAVA_RUNFILES") ?: "."
-    val configPath = Paths.get(r, "_main/$PKG/$testName.txtpb")
-    val stfPath = Paths.get(r, "_main/$PKG/$testName.stf")
-    val goldenPath = Paths.get(r, "_main/$PKG/$testName.golden.txtpb")
-
-    val expected = loadGoldenTraceTree(goldenPath)
+    val configPath = runfilePath(PKG, "$testName.txtpb")
+    val stfPath = runfilePath(PKG, "$testName.stf")
     val actual = captureTraceTree(configPath, stfPath)
-    if (System.getenv("PRINT_TRACE") != null) {
-      println("--- Trace tree for $testName ---")
-      print(TextFormat.printer().printToString(actual))
-      println("--- End trace tree ---")
-    }
-    if (expected != actual) {
-      fail(
-        "Trace tree mismatch for $testName.\n" +
-          "Expected:\n${TextFormat.printer().printToString(expected)}\n" +
-          "Actual:\n${TextFormat.printer().printToString(actual)}"
-      )
-    }
+
+    assertMatchesGoldenFile(
+      goldenFileName = "$testName.golden.txtpb",
+      pkg = PKG,
+      actual = TextFormat.printer().printToString(actual),
+    )
   }
 
-  private fun loadGoldenTraceTree(path: Path): TraceTree {
-    val builder = TraceTree.newBuilder()
-    TextFormat.merge(path.toFile().readText(), builder)
-    return builder.build()
-  }
-
-  /**
-   * Creates a simulator, loads the pipeline, installs table entries from the STF file, sends the
-   * first packet, and returns the TraceTree from the response.
-   */
   private fun captureTraceTree(configPath: Path, stfPath: Path): TraceTree {
     val config = loadPipelineConfig(configPath)
     val stf = StfFile.parse(stfPath)
-
     val sim = Simulator()
     sim.loadPipeline(config)
     installStfEntries(sim, stf, config.p4Info)
-
     val packet = stf.packets.first()
     return sim.processPacket(packet.ingressPort, packet.payload).trace
   }

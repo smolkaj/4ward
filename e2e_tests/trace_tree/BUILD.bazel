@@ -65,6 +65,7 @@ p4c_compile(
 )
 
 _TEST_DEPS = [
+    "//e2e_tests:golden_file",
     "//e2e_tests/stf:stf_runner",
     "//simulator:ir_java_proto",
     "//simulator:p4runtime_java_proto",
