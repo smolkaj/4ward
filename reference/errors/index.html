@@ -3,17 +3,17 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Get started with 4ward's gRPC API: load pipelines, write table entries, inject packets, and read traces programmatically.">
+        <meta name="description" content="Glass-box P4 simulator — trace every decision your packet makes.">
       
       
       
-        <link rel="canonical" href="https://smolka.st/4ward/getting-started/grpc/">
+        <link rel="canonical" href="https://smolka.st/4ward/reference/errors/">
       
       
-        <link rel="prev" href="../../reference/stf/">
+        <link rel="prev" href="../../concepts/architectures/">
       
       
-        <link rel="next" href="../../reference/grpc/">
+        <link rel="next" href="../../concepts/architecture-modifications/">
       
       
         
@@ -24,7 +24,7 @@
     
     
       
-        <title>Getting Started - 4ward</title>
+        <title>Error Messages - 4ward</title>
       
     
     
@@ -63,18 +63,18 @@
 
 <!-- Open Graph -->
 <meta property="og:type" content="website">
-<meta property="og:title" content="Getting Started - 4ward">
-<meta property="og:description" content="Get started with 4ward's gRPC API: load pipelines, write table entries, inject packets, and read traces programmatically.">
+<meta property="og:title" content="Error Messages - 4ward">
+<meta property="og:description" content="Glass-box P4 simulator — trace every decision your packet makes.">
 <meta property="og:image" content="https://smolka.st/4ward/assets/social-card.png">
-<meta property="og:url" content="https://smolka.st/4ward/getting-started/grpc/">
+<meta property="og:url" content="https://smolka.st/4ward/reference/errors/">
 <meta property="og:site_name" content="4ward">
 <meta property="article:author" content="Steffen Smolka">
 <meta property="article:published_time" content="2026-03-03T06:37:14Z">
 
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Getting Started - 4ward">
-<meta name="twitter:description" content="Get started with 4ward's gRPC API: load pipelines, write table entries, inject packets, and read traces programmatically.">
+<meta name="twitter:title" content="Error Messages - 4ward">
+<meta name="twitter:description" content="Glass-box P4 simulator — trace every decision your packet makes.">
 <meta name="twitter:image" content="https://smolka.st/4ward/assets/social-card.png">
 
 <!-- Author -->
@@ -112,7 +112,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#getting-started-grpc-api" class="md-skip">
+        <a href="#error-messages" class="md-skip">
           Skip to content
         </a>
       
@@ -147,7 +147,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Getting Started
+              Error Messages
             
           </span>
         </div>
@@ -373,7 +373,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../playground/" class="md-nav__link">
+      <a href="../../getting-started/playground/" class="md-nav__link">
         
   
   
@@ -401,7 +401,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/playground/" class="md-nav__link">
+      <a href="../playground/" class="md-nav__link">
         
   
   
@@ -490,6 +490,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../getting-started/cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../cli/" class="md-nav__link">
         
   
@@ -497,34 +525,6 @@
   <span class="md-ellipsis">
     
   
-    Getting Started
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../reference/cli/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
     Reference
   
 
@@ -546,7 +546,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/stf/" class="md-nav__link">
+      <a href="../stf/" class="md-nav__link">
         
   
   
@@ -554,264 +554,6 @@
     
   
     STF Test Format
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-    
-      
-      
-  
-  
-    
-  
-  
-  
-    
-    
-    
-    
-      
-        
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked="">
-        
-          
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    gRPC API
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_4">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    gRPC API
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix="">
-            
-              
-                
-  
-  
-    
-  
-  
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Getting Started
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Getting Started
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
-      
-        <li class="md-nav__item">
-  <a href="#start-the-server" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Start the server
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#typical-workflow" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Typical workflow
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Typical workflow">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#1-load-a-pipeline" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1. Load a pipeline
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#2-install-table-entries" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2. Install table entries
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#3-inject-a-packet" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3. Inject a packet
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#4-inject-many-packets-bulk-dvaas" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        4. Inject many packets (bulk / DVaaS)
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#dual-port-encoding" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Dual port encoding
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#whats-next" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What's next
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../reference/grpc/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Reference
   
 
     
@@ -854,7 +596,124 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5">
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4">
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    gRPC API
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    gRPC API
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/grpc/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../grpc/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked="">
         
           
           <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
@@ -875,7 +734,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             
@@ -974,10 +833,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../reference/errors/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Messages
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -993,6 +879,59 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#design-principles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Design principles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#all-error-messages" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        All error messages
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1087,10 +1026,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
       
         <li class="md-nav__item">
-  <a href="#start-the-server" class="md-nav__link">
+  <a href="#examples" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Start the server
+        Examples
       
     </span>
   </a>
@@ -1098,71 +1037,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#typical-workflow" class="md-nav__link">
+  <a href="#design-principles" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Typical workflow
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Typical workflow">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#1-load-a-pipeline" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1. Load a pipeline
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#2-install-table-entries" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2. Install table entries
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#3-inject-a-packet" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3. Inject a packet
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#4-inject-many-packets-bulk-dvaas" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        4. Inject many packets (bulk / DVaaS)
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#dual-port-encoding" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Dual port encoding
+        Design principles
       
     </span>
   </a>
@@ -1170,10 +1048,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#whats-next" class="md-nav__link">
+  <a href="#all-error-messages" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What's next
+        All error messages
       
     </span>
   </a>
@@ -1200,126 +1078,70 @@
   
 
 
-<h1 id="getting-started-grpc-api">Getting Started: gRPC API<a class="headerlink" href="#getting-started-grpc-api" title="Permanent link">¶</a></h1>
-<p>The gRPC API is how test infrastructure (DVaaS, sonic-pins) integrates with
-4ward programmatically. Two services are exposed on the same port:</p>
+<h1 id="error-messages">Error Messages<a class="headerlink" href="#error-messages" title="Permanent link">¶</a></h1>
+<p>4ward produces actionable, specific error messages for every P4Runtime
+operation. Every error tells you what went wrong, shows the value you sent,
+and lists the valid options.</p>
+<h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">¶</a></h2>
+<p><strong>Unknown table ID:</strong>
+</p><div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>NOT_FOUND: unknown table ID 99999 (valid tables: 'port_table' (44171635))
+</code></pre></div><p></p>
+<p><strong>Wrong action for a table:</strong>
+</p><div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>INVALID_ARGUMENT: unknown action ID 99999 in table 'port_table'
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  (valid actions: 'MyIngress.forward' (29683729),
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>   'MyIngress.drop' (25652968), 'NoAction' (21257015))
+</code></pre></div><p></p>
+<p><strong>Match field type mismatch:</strong>
+</p><div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>INVALID_ARGUMENT: match field 'hdr.ethernet.etherType' expects EXACT but got TERNARY
+</code></pre></div><p></p>
+<p><strong>Table full:</strong>
+</p><div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>RESOURCE_EXHAUSTED: table 'port_table' is full (1024 entries)
+</code></pre></div><p></p>
+<p><strong>@refers_to violation:</strong>
+</p><div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>INVALID_ARGUMENT: @refers_to violation: no entry in 'target_table'
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>  with 'id' = 0xaabbccddeeff
+</code></pre></div><p></p>
+<p><strong>Constraint violation</strong> (with source location from <code>@entry_restriction</code>):
+</p><div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>INVALID_ARGUMENT: All entries must satisfy:
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>In @entry_restriction of table 'MyIngress.acl'; at offset line 2, columns 9 to 58:
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>  |
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>2 |         ipv4_dst::mask != 0 -&gt; ether_type::value == 0x0800;
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>But your entry does not.
+</code></pre></div><p></p>
+<p><strong>Simulator error</strong> (with P4 source location):
+</p><div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>INTERNAL: undefined variable: x (at my_program.p4:42:3)
+</code></pre></div><p></p>
+<h2 id="design-principles">Design principles<a class="headerlink" href="#design-principles" title="Permanent link">¶</a></h2>
 <ul>
-<li><strong><a href="https://p4lang.github.io/p4runtime/spec/v1.5.0/P4Runtime-Spec.html">P4Runtime</a></strong> — the standard P4Runtime gRPC API for
-  pipeline management, table entries, and PacketIO.</li>
-<li><strong>DataplaneService</strong> — 4ward-specific API for packet injection with trace
-  trees.</li>
+<li><strong>What, not just that.</strong> Every error includes the entity name, the value
+  that caused the problem, and the constraint that was violated.</li>
+<li><strong>How to fix it.</strong> "Unknown" errors list valid options with their numeric
+  IDs. Enum errors list valid values.</li>
+<li><strong>Where in the P4 source.</strong> Simulator errors include the P4 file, line, and
+  column from the IR source info.</li>
+<li><strong>Proper gRPC status codes.</strong> <code>NOT_FOUND</code> for missing entities,
+  <code>INVALID_ARGUMENT</code> for malformed requests, <code>RESOURCE_EXHAUSTED</code> for capacity
+  limits, <code>FAILED_PRECONDITION</code> for state requirements, <code>PERMISSION_DENIED</code> for
+  arbitration, <code>UNIMPLEMENTED</code> for unsupported features.</li>
+<li><strong>Structured error details.</strong> Batch writes include per-update status with
+  <code>space</code> and <code>code</code> fields per P4Runtime spec section 12.3.</li>
+<li><strong>Golden-tested.</strong> All 74 error paths are locked down by golden tests.
+  Messages cannot silently degrade. Update with:
+  <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>bazel test //p4runtime:GoldenErrorTest --test_env=UPDATE_GOLDEN=1
+</code></pre></div></li>
 </ul>
-<h2 id="start-the-server">Start the server<a class="headerlink" href="#start-the-server" title="Permanent link">¶</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>bazel<span class="w"> </span>run<span class="w"> </span>//p4runtime:p4runtime_server
-</code></pre></div>
-<p>The server listens on port <strong>9559</strong> by default. Override with <code>--port</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>bazel<span class="w"> </span>run<span class="w"> </span>//p4runtime:p4runtime_server<span class="w"> </span>--<span class="w"> </span>--port<span class="o">=</span><span class="m">50051</span>
-</code></pre></div>
-<h2 id="typical-workflow">Typical workflow<a class="headerlink" href="#typical-workflow" title="Permanent link">¶</a></h2>
-<h3 id="1-load-a-pipeline">1. Load a pipeline<a class="headerlink" href="#1-load-a-pipeline" title="Permanent link">¶</a></h3>
-<p>Compile your P4 program, then load it via <code>SetForwardingPipelineConfig</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">SetForwardingPipelineConfigRequest</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="n">device_id</span><span class="o">:</span><span class="w"> </span><span class="mi">1</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="n">action</span><span class="o">:</span><span class="w"> </span><span class="n">VERIFY_AND_COMMIT</span>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="n">config</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span><span class="n">p4info</span><span class="o">:</span><span class="w"> </span><span class="p">&lt;</span><span class="n">from</span><span class="w"> </span><span class="n">compiled</span><span class="w"> </span><span class="n">output</span><span class="p">&gt;</span>
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">    </span><span class="n">p4_device_config</span><span class="o">:</span><span class="w"> </span><span class="p">&lt;</span><span class="n">from</span><span class="w"> </span><span class="n">compiled</span><span class="w"> </span><span class="n">output</span><span class="p">&gt;</span>
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">  </span><span class="p">}</span>
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="p">}</span>
-</code></pre></div>
-<h3 id="2-install-table-entries">2. Install table entries<a class="headerlink" href="#2-install-table-entries" title="Permanent link">¶</a></h3>
-<p>Use <code>Write</code> to install entries. The request follows the standard P4Runtime
-spec:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">WriteRequest</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="n">device_id</span><span class="o">:</span><span class="w"> </span><span class="mi">1</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="n">updates</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="n">type</span><span class="o">:</span><span class="w"> </span><span class="n">INSERT</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span><span class="n">entity</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">      </span><span class="n">table_entry</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">        </span><span class="n">table_id</span><span class="o">:</span><span class="w"> </span><span class="p">&lt;</span><span class="n">from</span><span class="w"> </span><span class="n">p4info</span><span class="p">&gt;</span>
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">        </span><span class="n">match</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">field_id</span><span class="o">:</span><span class="w"> </span><span class="mi">1</span><span class="w">  </span><span class="n">exact</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">value</span><span class="o">:</span><span class="w"> </span><span class="s">"\x08\x00"</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span>
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">        </span><span class="n">action</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">action</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">action_id</span><span class="o">:</span><span class="w"> </span><span class="p">&lt;</span><span class="n">from</span><span class="w"> </span><span class="n">p4info</span><span class="p">&gt;</span><span class="w">  </span><span class="n">params</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">...</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span>
-<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">      </span><span class="p">}</span>
-<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">    </span><span class="p">}</span>
-<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="w">  </span><span class="p">}</span>
-<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="p">}</span>
-</code></pre></div>
-<h3 id="3-inject-a-packet">3. Inject a packet<a class="headerlink" href="#3-inject-a-packet" title="Permanent link">¶</a></h3>
-<p>Use the <strong>DataplaneService</strong> <code>InjectPacket</code> RPC:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">InjectPacketRequest</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="n">dataplane_ingress_port</span><span class="o">:</span><span class="w"> </span><span class="mi">0</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="n">payload</span><span class="o">:</span><span class="w"> </span><span class="p">&lt;</span><span class="n">raw</span><span class="w"> </span><span class="kt">bytes</span><span class="p">&gt;</span>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="p">}</span>
-</code></pre></div>
-<p>The response contains possible outcomes (output packet sets) and a full trace tree:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">InjectPacketResponse</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="n">possible_outcomes</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">packets</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">dataplane_egress_port</span><span class="o">:</span><span class="w"> </span><span class="mi">1</span><span class="w">  </span><span class="n">payload</span><span class="o">:</span><span class="w"> </span><span class="p">&lt;</span><span class="o">...</span><span class="p">&gt;</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="n">trace</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">events</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">...</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="n">packet_outcome</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">...</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="p">}</span>
-</code></pre></div>
-<h3 id="4-inject-many-packets-bulk-dvaas">4. Inject many packets (bulk / DVaaS)<a class="headerlink" href="#4-inject-many-packets-bulk-dvaas" title="Permanent link">¶</a></h3>
-<p>For high throughput, use the streaming <code>InjectPackets</code> RPC with
-<code>SubscribeResults</code>:</p>
-<ol>
-<li>Open a <code>SubscribeResults</code> stream.</li>
-<li>Wait for the <code>active {}</code> confirmation — this guarantees the
-   subscription is registered and no results will be missed.</li>
-<li>Send all packets via <code>InjectPackets</code> (client-streaming).</li>
-<li>Collect results from the subscription.</li>
-</ol>
-<p>Packets process concurrently across available cores. This is the
-recommended pattern for DVaaS and any workload with many test packets.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1">// SubscribeResults delivers results from ALL sources.</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="n">SubscribeResultsResponse</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">active</span><span class="w"> </span><span class="p">{}</span><span class="w"> </span><span class="p">}</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">SubscribeResultsResponse</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">input_packet</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">...</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="n">possible_outcomes</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">...</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="n">trace</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">...</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span>
-</code></pre></div>
-<div class="admonition tip">
-<p class="admonition-title">Tip</p>
-<p><code>InjectPacket</code> (singular) returns the result inline — simpler for
-one-off debugging. <code>InjectPackets</code> (plural) processes concurrently
-but results come via <code>SubscribeResults</code>.</p>
-</div>
-<div class="admonition note">
-<p class="admonition-title">Matching results to packets</p>
-<p>Each result includes the full input packet (port + payload). With
-concurrent processing, results may arrive out of order — match by
-payload content, not position. See the
-<a href="../../reference/grpc/#matching-results-to-injected-packets">reference</a>
-for details on PacketIn interaction.</p>
-</div>
-<h2 id="dual-port-encoding">Dual port encoding<a class="headerlink" href="#dual-port-encoding" title="Permanent link">¶</a></h2>
-<p>When the pipeline uses
-<a href="../../concepts/type-translation/"><code>@p4runtime_translation</code></a> on port types,
-both representations appear in responses:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">OutputPacket</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span><span class="n">dataplane_egress_port</span><span class="o">:</span><span class="w"> </span><span class="mi">0</span><span class="w">        </span><span class="c1">// raw port number</span>
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span><span class="n">p4rt_egress_port</span><span class="o">:</span><span class="w"> </span><span class="s">"Ethernet1"</span><span class="w">   </span><span class="c1">// P4Runtime name</span>
-<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="p">}</span>
-</code></pre></div>
-<p>You can also inject packets using P4Runtime port names:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">InjectPacketRequest</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span><span class="n">p4rt_ingress_port</span><span class="o">:</span><span class="w"> </span><span class="s">"Ethernet0"</span>
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">  </span><span class="n">payload</span><span class="o">:</span><span class="w"> </span><span class="p">&lt;</span><span class="n">raw</span><span class="w"> </span><span class="kt">bytes</span><span class="p">&gt;</span>
-<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="p">}</span>
-</code></pre></div>
-<h2 id="whats-next">What's next<a class="headerlink" href="#whats-next" title="Permanent link">¶</a></h2>
-<ul>
-<li><strong>Reference</strong> — complete <a href="../../reference/grpc/">gRPC API reference</a> with all
-  RPCs, message types, and error codes.</li>
-<li><strong>Type translation</strong> — how <a href="../../concepts/type-translation/"><code>@p4runtime_translation</code>
-  types</a> flow through the API.</li>
-<li><strong>Trace trees</strong> — understanding the <a href="../../concepts/traces/">trace tree</a> in
-  the response.</li>
-</ul>
+<h2 id="all-error-messages">All error messages<a class="headerlink" href="#all-error-messages" title="Permanent link">¶</a></h2>
+<p>See <a href="https://github.com/smolkaj/4ward/tree/main/p4runtime/golden_errors"><code>p4runtime/golden_errors/</code></a>
+for the complete list of golden-tested error messages.</p>
 
 
 
 
 
 
-
-  
-  
 
 
 
