@@ -1475,8 +1475,9 @@ many PacketIns to expect.</p>
 <h2 id="performance">Performance<a class="headerlink" href="#performance" title="Permanent link">¶</a></h2>
 <p>While 4ward optimizes for correctness and simplicity over raw speed, it
 achieves practical throughput for production test workloads.</p>
-<p>Representative numbers on SAI P4 middleblock with 10k table entries.
-Measured on AMD Ryzen 9 7950X3D (16 cores, 128 MB L3), OpenJDK 21. Throughput in packets/sec (higher is better).</p>
+<p>Representative numbers on SAI P4 middleblock with 10k table entries +
+500 ternary ACL entries. Measured on AMD Ryzen 9 7950X3D (16 cores,
+128 MB L3), OpenJDK 21. Throughput in packets/sec (higher is better).</p>
 <table>
 <thead>
 <tr>
@@ -1490,24 +1491,24 @@ Measured on AMD Ryzen 9 7950X3D (16 cores, 128 MB L3), OpenJDK 21. Throughput in
 <tbody>
 <tr>
 <td>L3 forwarding</td>
+<td>1,700</td>
 <td>1,800</td>
 <td>1,900</td>
-<td>1,800</td>
-<td>9,700</td>
+<td>12,000</td>
 </tr>
 <tr>
 <td>WCMP ×16 members</td>
 <td>1,200</td>
-<td>1,400</td>
-<td>950</td>
-<td>5,400</td>
+<td>1,300</td>
+<td>1,000</td>
+<td>6,100</td>
 </tr>
 <tr>
 <td>WCMP ×16 + mirror</td>
-<td>810</td>
-<td>1,050</td>
+<td>800</td>
+<td>990</td>
 <td>600</td>
-<td>3,500</td>
+<td>3,900</td>
 </tr>
 </tbody>
 </table>
