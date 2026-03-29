@@ -95,7 +95,7 @@ fun appendBestOutcome(
         val candidate =
           outputQueue +
             world.map { ReceivedPacket(it.dataplaneEgressPort, it.payload.toByteArray()) }
-        matchOutputAgainstExpects(expects, candidate.toMutableList()).size
+        matchOutputAgainstExpects(expects, candidate).size
       }
     }
   outputQueue += bestWorld.map { ReceivedPacket(it.dataplaneEgressPort, it.payload.toByteArray()) }
@@ -111,16 +111,17 @@ fun appendBestOutcome(
  */
 fun matchOutputAgainstExpects(
   expects: List<StfExpectedOutput>,
-  outputs: MutableList<ReceivedPacket>,
+  outputs: List<ReceivedPacket>,
 ): List<String> {
+  val remaining = outputs.toMutableList()
   val failures = mutableListOf<String>()
 
   for (expected in expects) {
-    val idx = outputs.indexOfFirst { it.egressPort == expected.port }
+    val idx = remaining.indexOfFirst { it.egressPort == expected.port }
     if (idx < 0) {
       failures += "expected packet on port ${expected.port} but got none"
     } else {
-      val actual = outputs.removeAt(idx)
+      val actual = remaining.removeAt(idx)
       if (!actual.payload.matchesMasked(expected.payload, expected.mask, expected.exactLength)) {
         failures +=
           "port ${expected.port}: payload mismatch\n" +
@@ -133,7 +134,7 @@ fun matchOutputAgainstExpects(
   // Reject unexpected output only when the STF has explicit expects — otherwise
   // the test is "send-only" and doesn't make claims about output.
   if (expects.isNotEmpty()) {
-    for (unexpected in outputs) {
+    for (unexpected in remaining) {
       failures += "unexpected packet on port ${unexpected.egressPort}: ${unexpected.payload.hex()}"
     }
   }
