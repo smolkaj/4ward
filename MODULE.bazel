@@ -1,6 +1,6 @@
 module(
     name = "fourward",
-    version = "head",  # Updated to yyyymmdd.p on release branches.
+    version = "20260329.0",
     bazel_compatibility = [">=9.0.0"],
 )
 
