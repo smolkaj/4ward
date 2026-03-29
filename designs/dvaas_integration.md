@@ -112,26 +112,35 @@ No runtime compilation.
 
 ### Subprocess lifecycle
 
-DVaaS manages the 4ward process:
+`FourwardServer` manages the 4ward subprocess:
 
-1. **Spawn.** Start the 4ward P4Runtime server binary as a subprocess. The
-   binary is a `java_binary` Bazel target provided by the 4ward `bazel_dep`.
-2. **Connect.** Wait for the gRPC port to become ready.
-3. **Load pipeline.** Send `SetForwardingPipelineConfig` with the pre-compiled
+1. **Spawn.** Fork/exec the 4ward P4Runtime server binary (resolved from
+   Bazel runfiles) with `--port=0`.
+2. **Detect readiness.** Parse the actual port from the server's startup
+   banner on stdout.
+3. **Tear down.** SIGTERM on destruction (SIGKILL after 5s).
+
+`FourwardOracle` builds on top of a `FourwardServer`:
+
+1. **Start server.** Creates a `FourwardServer` instance.
+2. **Establish session.** Opens a P4Runtime session (arbitration).
+3. **Load pipeline.** `SetForwardingPipelineConfig` with the pre-compiled
    4ward pipeline config (from `P4Specification.fourward_config`).
-4. **Use.** Install table entries via P4Runtime Write. Predict outputs via the
-   Dataplane `InjectPacket` RPC. Collect traces from the response.
-5. **Tear down.** Kill the subprocess when validation is complete.
+4. **Predict.** Install table entries via P4Runtime Write. Predict outputs
+   via the streaming `InjectPackets` + `SubscribeResults` RPCs. Traces are
+   included in each result.
 
-Two instances are needed: one for the SUT role, one for the control switch.
+The `FourwardMirrorTestbed` (development vehicle, see below) uses *two*
+`FourwardServer` instances connected by a `PacketBridge` — a separate
+concern from the oracle.
 
 ### Output prediction
 
-Same as BMv2: inject a tagged packet via `InjectPacket`, collect output packets
-from the response. The `dataplane_validation.cc` frontend gets a 4ward code
-path that talks directly to the 4ward subprocess — no backend involved. Ports
-use dual encoding (dataplane `uint32` + P4RT `bytes`) via 4ward's
-`InjectPacket` RPC, which supports both natively (see
+Inject tagged packets via the streaming `InjectPackets` RPC, collect output
+packets and traces from `SubscribeResults`. The `dataplane_validation.cc`
+frontend gets a 4ward code path that talks directly to the `FourwardOracle`
+— no backend involved for prediction. Ports use dual encoding (dataplane
+`uint32` + P4RT `bytes`), which 4ward supports natively (see
 [dataplane_port_encoding.md](dataplane_port_encoding.md)).
 
 ### Traces: TraceTree → PacketTrace conversion
@@ -292,63 +301,40 @@ It is not the upstream integration itself, but it is valuable long-term:
 - **Performance** — 1k pps target met (127× improvement). See
   [PERFORMANCE.md](../docs/PERFORMANCE.md).
 
-### Prior prototype (reference only)
-
-A previous prototype exists on the
-[`fourward-dvaas-integration`](https://github.com/smolkaj/sonic-pins/tree/fourward-dvaas-integration/fourward)
-branch of the sonic-pins fork. It demonstrates the integration patterns
-(`FourwardServer`, `FourwardMirrorTestbed`, `FakeGnmiService`, subprocess
-lifecycle) but is stale — built on the old WORKSPACE-based sonic-pins, before
-the Bzlmod migration and before many 4ward improvements. Useful as reference,
-not as a base to build on.
-
 ### What's done (sonic-pins side)
 
-Building on `smolkaj/sonic-pins` `main` branch (Bazel 8.6, Bzlmod, C++20):
+All integration code lives on
+[`smolkaj/sonic-pins`](https://github.com/smolkaj/sonic-pins) `main`
+(Bazel 8.6, Bzlmod, C++20):
 
-1. **`bazel_dep` packaging** — done
-   ([PR #12](https://github.com/smolkaj/sonic-pins/pull/12)). 4ward consumed
-   via `git_override`. `fourward_pipeline` rule compiles SAI P4 for 4ward.
-2. **`FourwardOracle`** — done. Manages server subprocess, loads pipeline,
+1. **`bazel_dep` packaging** — 4ward consumed via `git_override`.
+   `fourward_pipeline` rule compiles SAI P4 for 4ward at build time.
+2. **`FourwardOracle`** — manages a 4ward subprocess, loads pipeline,
    installs entities, predicts outputs via streaming `InjectPackets` +
-   `SubscribeResults`. E2E test passes on SAI P4.
-3. **Trace conversion** — done. `FourwardTraceTreeToDvaasPacketTrace` with
-   golden tests covering all event types and fork flavors.
-4. **`fourward_config` in `P4Specification`** — done. The integration point
-   for the DVaaS frontend.
-5. **`FourwardMirrorTestbed`** — done. Two 4ward instances + `PacketBridge` +
-   `FakeGnmiService`.
+   `SubscribeResults`.
+3. **Trace conversion** — `FourwardTraceTreeToDvaasPacketTrace` flattens
+   4ward's recursive `TraceTree` into DVaaS's flat `PacketTrace`.
+4. **DVaaS frontend wiring** — `fourward_config` in `P4Specification`
+   gates the 4ward code path in `dataplane_validation.cc`.
+5. **`FourwardMirrorTestbed`** — two 4ward instances + `FakeGnmiService` +
+   `PacketBridge`. Transparent `thinkit::MirrorTestbed` for testing.
+6. **Portable PINS backend** — open-source `DataplaneValidationBackend`
+   using 4ward for prediction and SAI P4 helpers for punt/auxiliary entries.
+7. **Trace summary** — human-readable trace summary for debugging (table
+   hits/misses, drop reasons, packet fate).
 
 ### What's left
 
-1. **Wire `FourwardOracle` into `dataplane_validation.cc`** — the actual code
-   paths that use 4ward for output prediction and trace collection when
-   `fourward_config` is present.
-2. **Upstream PR** — submit to `sonic-net/sonic-pins`. Additive, existing
-   tests untouched.
+1. **Packet synthesis via p4-symbolic** — currently uses
+   `packet_test_vector_override` for manual test vectors.
+2. **Full `ValidateDataplane` E2E** — requires richer `FakeGnmiService`
+   (port discovery, counters) and careful memory management (multiple JVMs).
+3. **Upstream PR** — submit to `sonic-net/sonic-pins`.
 
-## Summary: three uses of 4ward in sonic-pins
+## Three uses of 4ward in sonic-pins
 
 | Use | Where | Purpose |
 |-----|-------|---------|
-| `FourwardMirrorTestbed` | `fourward/` | Dev vehicle — two 4ward instances + `PacketBridge`, exercises all integration code without a real switch |
-| Output prediction | `dataplane_validation.cc` (frontend) | Inject packet via `InjectPacket` RPC, get output packets directly |
-| Trace prediction | `dataplane_validation.cc` (frontend) | Extract `TraceTree` from `InjectPacketResponse`, convert to `PacketTrace` |
-
-## Sequencing
-
-1. **`bazel_dep` packaging.** Make 4ward consumable as a Bazel module via
-   `git_override`. Define the `fourward_compile` rule. This unblocks
-   everything else. BCR registration follows separately.
-2. **`FourwardMirrorTestbed`.** Development vehicle — exercises all gRPC
-   interfaces without a real switch. Fast iteration and CI regression.
-3. **Output prediction in frontend.** Add `fourward_config` to
-   `P4Specification`. Add the 4ward subprocess + gRPC code path to
-   `dataplane_validation.cc`.
-4. **Trace conversion in frontend.** `TraceTree` → `PacketTrace` in
-   `dataplane_validation.cc`. Validates the mapping and unblocks failure
-   analysis.
-5. **Upstream PR.** Submit to sonic-pins. The change is additive — existing
-   tests and workflows are untouched.
-6. **Packet synthesis.** Once upstream, use p4-symbolic to synthesize test
-   packets (replacing hardcoded ones). This gives real coverage.
+| `FourwardMirrorTestbed` | `fourward/` | Dev vehicle — two 4ward instances + `PacketBridge`, transparent `thinkit::MirrorTestbed` |
+| Output prediction | `dataplane_validation.cc` | `FourwardOracle.PredictAll` replaces BMv2 when `fourward_config` is set |
+| Trace prediction | `dataplane_validation.cc` | Traces attached during prediction, converted via `FourwardTraceTreeToDvaasPacketTrace` |
