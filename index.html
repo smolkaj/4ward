@@ -1125,22 +1125,23 @@ all possible outcomes in a single pass.</p>
 </ul>
 <h2 id="key-features">Key features<a class="headerlink" href="#key-features" title="Permanent link">¶</a></h2>
 <ul>
-<li><strong>Trace trees</strong> — every event recorded, every fork explored.
-  <a href="concepts/traces/">Learn more</a>.</li>
-<li><strong>v1model, PSA, and PNA</strong> — three P4 architectures fully implemented, with
-  support for architecture modifications like translated port types.
+<li><strong>Trace trees</strong> record every parser transition, table lookup, action, and
+  branch — and fork at non-deterministic choice points to show all possible
+  outcomes. <a href="concepts/traces/">Learn more</a>.</li>
+<li><strong>v1model, PSA, and PNA</strong> are fully implemented, with support for
+  architecture modifications like translated port types.
   <a href="concepts/architectures/">Learn more</a>.</li>
-<li><strong><a href="https://p4lang.github.io/p4runtime/spec/v1.5.0/P4Runtime-Spec.html">P4Runtime</a> server</strong> — spec-compliant gRPC server
-  with full arbitration, table management, PacketIO, and clone/multicast
-  support.</li>
-<li><strong>Actionable error messages</strong> — every error tells you what went wrong, shows
-  the value you sent, and lists the valid options. 74 golden-tested error paths.
+<li>A spec-compliant <strong><a href="https://p4lang.github.io/p4runtime/spec/v1.5.0/P4Runtime-Spec.html">P4Runtime</a> server</strong> provides full
+  arbitration, table management, PacketIO, and clone/multicast support.</li>
+<li><strong>Actionable error messages</strong> tell you what went wrong, show the value you
+  sent, and list the valid options — all 74 error paths are golden-tested.
   <a href="reference/errors/">Learn more</a>.</li>
-<li><strong>Type translation</strong> — <code>@p4runtime_translation</code> types (string port names,
+<li><strong>Type translation</strong> lets <code>@p4runtime_translation</code> types (string port names,
   translated IDs) flow through the entire stack, including traces.
   <a href="concepts/type-translation/">Learn more</a>.</li>
-<li><strong>Web playground</strong> — visual pipeline diagrams, animated trace playback,
-  packet dissection. <a href="getting-started/playground/">Try it</a>.</li>
+<li>The <strong>web playground</strong> gives you visual pipeline diagrams, animated trace
+  playback, and packet dissection right in the browser.
+  <a href="getting-started/playground/">Try it</a>.</li>
 </ul>
 
 

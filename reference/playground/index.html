@@ -1254,17 +1254,14 @@
 server, so you can use gRPC clients (grpcurl, P4Runtime libraries) against
 the same pipeline.</p>
 <h2 id="layout">Layout<a class="headerlink" href="#layout" title="Permanent link">¶</a></h2>
-<p><strong>Left panel:</strong> P4 source editor (Monaco) with syntax highlighting.</p>
-<p><strong>Right panel:</strong> Three tabs — Tables, Packets, Trace.</p>
-<p><strong>Bottom panel:</strong> Control-flow graph (appears after compilation).</p>
+<p>The <strong>left panel</strong> is a P4 source editor (Monaco) with syntax highlighting.
+The <strong>right panel</strong> has three tabs — Tables, Packets, and Trace. The
+<strong>control-flow graph</strong> appears at the bottom after compilation.</p>
 <h2 id="editor">Editor<a class="headerlink" href="#editor" title="Permanent link">¶</a></h2>
-<ul>
-<li><strong>Example selector</strong> — dropdown with built-in examples: <code>passthrough</code>,
-  <code>basic_table</code>, <code>mirror</code>, <code>sai_middleblock</code>.</li>
-<li><strong>Compile &amp; Load</strong> — compiles the P4 source and loads it into the
-  simulator. The status bar shows the pipeline summary (table count, action
-  count) or compilation errors.</li>
-</ul>
+<p>The <strong>example selector</strong> dropdown at the top loads built-in examples:
+<code>passthrough</code>, <code>basic_table</code>, <code>mirror</code>, <code>sai_middleblock</code>. Click
+<strong>Compile &amp; Load</strong> to compile the P4 source and load it into the simulator.
+The status bar shows the pipeline summary or any compilation errors.</p>
 <h2 id="tables-tab">Tables tab<a class="headerlink" href="#tables-tab" title="Permanent link">¶</a></h2>
 <p>Manage control-plane state for the loaded pipeline.</p>
 <p><strong>Add entry:</strong></p>
@@ -1280,38 +1277,31 @@ the same pipeline.</p>
 <p><strong>Installed entries:</strong> lists all current table entries (including <code>const
 entries</code> from the P4 source).</p>
 <h2 id="packets-tab">Packets tab<a class="headerlink" href="#packets-tab" title="Permanent link">¶</a></h2>
-<p><strong>Presets:</strong> IPv4, IPv6, ARP, Raw — each fills the payload textarea with a
-valid frame for that protocol.</p>
-<p><strong>Send Packet:</strong> specify ingress port and hex payload, then click <strong>Send
-Packet</strong>.</p>
-<p><strong>Output packets:</strong> shows each output packet with its egress port, byte
-count, and decoded header fields (Ethernet MAC addresses, IPv4 addresses,
-protocol numbers).</p>
+<p>Use the <strong>presets</strong> (IPv4, IPv6, ARP, Raw) to fill the payload textarea with
+a valid frame for that protocol. Set the <strong>ingress port</strong> and hex payload,
+then click <strong>Send Packet</strong>.</p>
+<p>The output section shows each output packet with its egress port, byte count,
+and decoded header fields (Ethernet MAC addresses, IPv4 addresses, protocol
+numbers).</p>
 <h2 id="trace-tab">Trace tab<a class="headerlink" href="#trace-tab" title="Permanent link">¶</a></h2>
-<p><strong>Visual view</strong> (default): interactive trace tree. Events are grouped by
-pipeline stage. Table hits show matched entry details. Forks display branches.</p>
-<p><strong>Playback:</strong> use <strong>← →</strong> arrow keys to step through events. Each step
-highlights:</p>
+<p>The default <strong>visual view</strong> shows an interactive trace tree with events
+grouped by pipeline stage. Table hits include matched entry details, and
+forks display their branches.</p>
+<p>Use the <strong>← →</strong> arrow keys to step through events. Each step highlights:</p>
 <ul>
 <li>The current event in the trace panel.</li>
 <li>The corresponding P4 source line in the editor.</li>
 <li>The active node in the control-flow graph.</li>
 </ul>
 <p>Press <strong>Escape</strong> to reset playback.</p>
-<p><strong>JSON view:</strong> raw JSON serialization of the trace tree proto. Includes
-<code>proto-file</code> / <code>proto-message</code> header.</p>
-<p><strong>Proto view:</strong> text-format protobuf. Includes <code>proto-file</code> /
-<code>proto-message</code> header.</p>
+<p>The <strong>JSON view</strong> and <strong>Proto view</strong> tabs show raw serializations of the trace
+tree proto, each with a <code>proto-file</code> / <code>proto-message</code> header.</p>
 <h2 id="control-flow-graph">Control-flow graph<a class="headerlink" href="#control-flow-graph" title="Permanent link">¶</a></h2>
-<p>Visual DAG of the pipeline's parser and control blocks. One tab per
-pipeline stage (parser, verify_checksum, ingress, egress, etc.).</p>
-<ul>
-<li><strong>Table nodes</strong> show table names.</li>
-<li><strong>Condition nodes</strong> show if/else branching.</li>
-<li><strong>Edge labels</strong> show branch conditions.</li>
-<li>The active node highlights during trace playback.</li>
-<li><strong>Fullscreen</strong> toggle in the corner.</li>
-</ul>
+<p>The control-flow graph is a visual DAG of the pipeline's parser and control
+blocks, with one tab per pipeline stage (parser, verify_checksum, ingress,
+egress, etc.). Table nodes show table names, condition nodes show if/else
+branching, and edge labels show branch conditions. During trace playback, the
+active node highlights automatically. A fullscreen toggle is in the corner.</p>
 <h2 id="rest-api">REST API<a class="headerlink" href="#rest-api" title="Permanent link">¶</a></h2>
 <p>The playground exposes a REST API used by the frontend. These are also
 available to external tools:</p>
@@ -1353,13 +1343,12 @@ available to external tools:</p>
 </table>
 <h2 id="limitations">Limitations<a class="headerlink" href="#limitations" title="Permanent link">¶</a></h2>
 <ul>
-<li><strong>No MODIFY</strong> for table entries — delete and re-add.</li>
-<li><strong>No default action changes</strong> via UI.</li>
-<li><strong>Single shared state</strong> — all browser tabs share one simulator.</li>
-<li><strong>No persistence</strong> — restarting the server clears everything.</li>
-<li><strong>No packet history</strong> — sending another packet overwrites the previous
-  result.</li>
-<li><strong>Monaco editor requires internet</strong> (loaded from CDN).</li>
+<li>Table entries can't be modified in place — delete and re-add instead.</li>
+<li>Default actions can't be changed through the UI.</li>
+<li>All browser tabs share a single simulator instance.</li>
+<li>Restarting the server clears all state.</li>
+<li>Sending another packet overwrites the previous result (no history).</li>
+<li>The Monaco editor requires an internet connection (loaded from CDN).</li>
 </ul>
 <p>See <a href="https://github.com/smolkaj/4ward/blob/main/docs/LIMITATIONS.md">LIMITATIONS.md</a>
 for the full list.</p>

@@ -1269,9 +1269,9 @@
 
 
 <h1 id="architectures">Architectures<a class="headerlink" href="#architectures" title="Permanent link">¶</a></h1>
-<p>4ward currently supports three P4 architectures: <strong>v1model</strong>, <strong>PSA</strong>, and <strong>PNA</strong>. Each
+<p>4ward supports three P4 architectures: <strong>v1model</strong>, <strong>PSA</strong>, and <strong>PNA</strong>. Each
 defines a fixed pipeline of stages, a set of externs, and metadata structures.
-Adding more architectures is straightforward — see
+You can also fork or extend these — see
 <a href="../architecture-modifications/">Architecture Modifications</a>.</p>
 <h2 id="v1model">v1model<a class="headerlink" href="#v1model" title="Permanent link">¶</a></h2>
 <p>The BMv2 simple_switch architecture, originally designed to support P4_14
@@ -1279,12 +1279,12 @@ programs compiled to P4_16. Defined in
 <a href="https://github.com/p4lang/p4c/blob/main/p4include/v1model.p4">v1model.p4</a>;
 see the <a href="https://github.com/p4lang/behavioral-model/blob/main/docs/simple_switch.md">simple_switch documentation</a>
 for the canonical behavioral spec.</p>
-<p>Six stages in fixed order:</p>
+<p>The pipeline has six stages in fixed order:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>MyParser → MyVerifyChecksum → MyIngress → MyEgress → MyComputeChecksum → MyDeparser
 </code></pre></div>
-<p><strong>Ports:</strong> 9-bit by default (<code>bit&lt;9&gt;</code>). Drop port: 511 (<code>2^9 - 1</code>). CPU port:
-510 (<code>2^9 - 2</code>, auto-enabled when <code>@controller_header</code> is present). Both can
-be overridden via <code>--drop-port</code> and <code>--cpu-port</code> flags.</p>
+<p>Ports are 9-bit by default (<code>bit&lt;9&gt;</code>). The drop port is 511 (<code>2^9 - 1</code>) and
+the CPU port is 510 (<code>2^9 - 2</code>, auto-enabled when <code>@controller_header</code> is
+present). Both can be overridden via <code>--drop-port</code> and <code>--cpu-port</code> flags.</p>
 <h3 id="key-metadata-standard_metadata_t">Key metadata (<code>standard_metadata_t</code>)<a class="headerlink" href="#key-metadata-standard_metadata_t" title="Permanent link">¶</a></h3>
 <table>
 <thead>
@@ -1330,55 +1330,73 @@ be overridden via <code>--drop-port</code> and <code>--cpu-port</code> flags.</p
 <h3 id="externs">Externs<a class="headerlink" href="#externs" title="Permanent link">¶</a></h3>
 <p><strong>Forwarding and drops:</strong></p>
 <ul>
-<li><code>mark_to_drop(standard_metadata)</code> — drop the packet</li>
+<li><code>mark_to_drop(standard_metadata)</code> drops the packet.</li>
 </ul>
 <p><strong>Cloning, resubmit, recirculate:</strong></p>
 <ul>
-<li><code>clone(CloneType, session_id)</code> — I2E or E2E clone</li>
-<li><code>clone3(CloneType, session_id, data)</code> — clone with field list</li>
-<li><code>resubmit(data)</code> — re-inject into ingress</li>
-<li><code>recirculate(data)</code> — feed deparsed packet back to parser</li>
+<li><code>clone(CloneType, session_id)</code> creates an I2E or E2E clone.</li>
+<li><code>clone_preserving_field_list(CloneType, session_id, field_list_id)</code> clones
+  and preserves metadata fields annotated with the matching <code>@field_list</code> ID.
+  Replaces the deprecated <code>clone3</code>.</li>
+<li><code>resubmit_preserving_field_list(field_list_id)</code> re-injects the packet into
+  ingress. Replaces the deprecated <code>resubmit(data)</code>.</li>
+<li><code>recirculate_preserving_field_list(field_list_id)</code> feeds the deparsed packet
+  back to the parser. Replaces the deprecated <code>recirculate(data)</code>.</li>
 </ul>
-<p>Multiple calls use last-writer-wins. All produce
+<div class="admonition warning">
+<p class="admonition-title">Avoid the deprecated <code>clone3</code>, <code>resubmit</code>, and <code>recirculate</code></p>
+<p>These still compile but <strong>do not reliably preserve metadata</strong> with modern
+p4c — field lists may be
+<a href="https://github.com/p4lang/p4c/issues/2875">silently emitted as empty</a>,
+and the underlying semantics
+<a href="https://github.com/p4lang/p4c/issues/1514">violate P4_16 call conventions</a>.
+Always use the <code>_preserving_field_list</code> variants. See the
+<a href="https://github.com/jafingerhut/p4-guide/blob/master/v1model-special-ops/README.md">v1model special ops guide</a>
+for a thorough writeup.</p>
+</div>
+<p>Multiple calls use last-writer-wins semantics. All of these produce
 <a href="../traces/#forks">trace tree forks</a>.</p>
 <p><strong>Checksums:</strong></p>
 <ul>
-<li><code>verify_checksum(condition, data, checksum, algo)</code> — validate</li>
-<li><code>update_checksum(condition, data, checksum, algo)</code> — compute</li>
-<li><code>_with_payload</code> variants include the packet payload</li>
+<li><code>verify_checksum(condition, data, checksum, algo)</code> validates a checksum.</li>
+<li><code>update_checksum(condition, data, checksum, algo)</code> computes a checksum.</li>
+<li>The <code>_with_payload</code> variants include the packet payload.</li>
 </ul>
 <p><strong>Hashing:</strong></p>
 <ul>
-<li><code>hash(out result, algo, base, data, max)</code> — <code>result = base + hash(data) mod max</code></li>
+<li><code>hash(out result, algo, base, data, max)</code> computes
+  <code>result = base + hash(data) mod max</code>.</li>
 </ul>
 <p><strong>Logging:</strong></p>
 <ul>
-<li><code>log_msg(msg)</code> / <code>log_msg(msg, data)</code> — debug output with <code>{}</code> placeholders</li>
+<li><code>log_msg(msg)</code> / <code>log_msg(msg, data)</code> prints debug output, with <code>{}</code>
+  as placeholders.</li>
 </ul>
 <p><strong>Stateful:</strong></p>
 <ul>
-<li><code>register&lt;T&gt;.read(out result, index)</code> / <code>.write(index, value)</code> — generic
-  array storage</li>
-<li><code>counter.count(index)</code> / <code>direct_counter.count()</code> — increment (fire-and-forget)</li>
-<li><code>meter.execute_meter(index, out color)</code> — always returns GREEN (no real
-  packet rates in the simulator)</li>
+<li><code>register&lt;T&gt;.read(out result, index)</code> / <code>.write(index, value)</code> provides
+  generic array storage.</li>
+<li><code>counter.count(index)</code> / <code>direct_counter.count()</code> increments a counter
+  (fire-and-forget).</li>
+<li><code>meter.execute_meter(index, out color)</code> always returns GREEN — there are no
+  real packet rates in the simulator.</li>
 </ul>
 <h2 id="psa">PSA<a class="headerlink" href="#psa" title="Permanent link">¶</a></h2>
-<p>The Portable Switch Architecture — a more modern design with a cleaner
+<p>The Portable Switch Architecture is a more modern design with a cleaner
 separation between ingress and egress. Defined in
 <a href="https://github.com/p4lang/p4-spec/blob/psa-v1.2/p4-16/psa/psa.p4">psa.p4</a>;
 see the <a href="https://p4lang.github.io/p4-spec/docs/PSA.pdf">PSA specification</a>
 for the canonical behavioral spec.</p>
-<p>Two-pipeline design with separate ingress and egress:</p>
+<p>It uses a two-pipeline design with separate ingress and egress:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>IngressParser → Ingress → IngressDeparser → EgressParser → Egress → EgressDeparser
 </code></pre></div>
-<p><strong>Key difference from v1model:</strong> egress re-parses the deparsed packet, so
-header and metadata state does not persist across the ingress→egress boundary.</p>
-<p><strong>Ports:</strong> 32-bit by default (<code>bit&lt;32&gt;</code>). Drop port: <code>2^32 - 1</code>. CPU port:
-<code>2^32 - 2</code> (when <code>@controller_header</code> is present).</p>
+<p>Unlike v1model, egress re-parses the deparsed packet, so header and metadata
+state does not persist across the ingress→egress boundary.</p>
+<p>Ports are 32-bit by default (<code>bit&lt;32&gt;</code>). The drop port is <code>2^32 - 1</code> and the
+CPU port is <code>2^32 - 2</code> (when <code>@controller_header</code> is present).</p>
 <h3 id="key-metadata">Key metadata<a class="headerlink" href="#key-metadata" title="Permanent link">¶</a></h3>
-<p><strong>Ingress output</strong> (<code>psa_ingress_output_metadata_t</code>) — set by ingress to
-control packet fate:</p>
+<p>The ingress output metadata (<code>psa_ingress_output_metadata_t</code>) controls the
+packet's fate after ingress:</p>
 <table>
 <thead>
 <tr>
@@ -1427,52 +1445,57 @@ control packet fate:</p>
 </tr>
 </tbody>
 </table>
-<p>Note: <strong>ingress drops by default</strong> — you must explicitly call <code>send_to_port()</code>
-to forward. This is opposite to v1model where packets forward by default.</p>
+<p>Note that <strong>ingress drops by default</strong> — you must explicitly call
+<code>send_to_port()</code> to forward a packet. This is the opposite of v1model, where
+packets forward by default.</p>
 <h3 id="externs_1">Externs<a class="headerlink" href="#externs_1" title="Permanent link">¶</a></h3>
 <p><strong>Forwarding:</strong></p>
 <ul>
-<li><code>send_to_port(ostd, port)</code> — clear drop, set egress port</li>
-<li><code>multicast(ostd, group)</code> — clear drop, set multicast group</li>
-<li><code>ingress_drop(ostd)</code> / <code>egress_drop(ostd)</code> — set drop flag</li>
+<li><code>send_to_port(ostd, port)</code> clears the drop flag and sets the egress port.</li>
+<li><code>multicast(ostd, group)</code> clears the drop flag and sets the multicast group.</li>
+<li><code>ingress_drop(ostd)</code> / <code>egress_drop(ostd)</code> sets the drop flag.</li>
 </ul>
 <p><strong>Stateful:</strong></p>
 <ul>
-<li><code>Register&lt;T&gt;.read(index) → T</code> / <code>.write(index, value)</code> — note: returns
-  value directly (unlike v1model's <code>out</code> parameter)</li>
-<li><code>Counter.count()</code> / <code>DirectCounter.count()</code> — fire-and-forget</li>
-<li><code>Meter.execute(index) → color</code> — always GREEN</li>
-<li><code>Random.read() → T</code> — random value in constructor-specified range</li>
+<li><code>Register&lt;T&gt;.read(index) → T</code> / <code>.write(index, value)</code> returns the value
+  directly (unlike v1model's <code>out</code> parameter).</li>
+<li><code>Counter.count()</code> / <code>DirectCounter.count()</code> increments a counter
+  (fire-and-forget).</li>
+<li><code>Meter.execute(index) → color</code> always returns GREEN.</li>
+<li><code>Random.read() → T</code> returns a random value in the constructor-specified
+  range.</li>
 </ul>
 <p><strong>Hashing:</strong></p>
 <ul>
-<li><code>Hash.get_hash(data) → hash</code> — 1-arg form</li>
-<li><code>Hash.get_hash(base, data, max) → (base + hash) mod max</code> — 3-arg form</li>
+<li><code>Hash.get_hash(data) → hash</code> is the 1-arg form.</li>
+<li><code>Hash.get_hash(base, data, max) → (base + hash) mod max</code> is the 3-arg form.</li>
 </ul>
 <p>Supported algorithms: <code>IDENTITY</code>, <code>CRC16</code>, <code>CRC32</code>, <code>ONES_COMPLEMENT16</code>.</p>
 <p><strong>Checksum:</strong></p>
 <ul>
-<li><code>InternetChecksum</code> — <code>clear()</code>, <code>add(data)</code>, <code>subtract(data)</code>, <code>get()</code>,
-  <code>get_state()</code>, <code>set_state(value)</code></li>
+<li><code>InternetChecksum</code> supports <code>clear()</code>, <code>add(data)</code>, <code>subtract(data)</code>,
+  <code>get()</code>, <code>get_state()</code>, and <code>set_state(value)</code>.</li>
 </ul>
 <p><strong>Other:</strong></p>
 <ul>
-<li><code>Digest.pack(data)</code> — queues message to control plane (no-op in simulator)</li>
+<li><code>Digest.pack(data)</code> queues a message to the control plane (no-op in the
+  simulator).</li>
 </ul>
 <h2 id="pna">PNA<a class="headerlink" href="#pna" title="Permanent link">¶</a></h2>
-<p>The Portable NIC Architecture — designed for smart NICs with a single-pipeline
+<p>The Portable NIC Architecture is designed for smart NICs with a single-pipeline
 structure. Defined in
 <a href="https://github.com/p4lang/p4c/blob/main/p4include/pna.p4">pna.p4</a>.</p>
-<p>Single-pipeline design (no separate egress):</p>
+<p>It uses a single-pipeline design with no separate egress:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>MainParser → PreControl → MainControl → MainDeparser
 </code></pre></div>
-<p><strong>Key difference from PSA:</strong> forwarding uses free functions (<code>send_to_port()</code>,
+<p>Unlike PSA, forwarding uses free functions (<code>send_to_port()</code>,
 <code>drop_packet()</code>) with last-writer-wins semantics instead of output metadata
-fields. Drops by default — <code>send_to_port()</code> must be called to forward.</p>
-<p><strong>Ports:</strong> 32-bit (<code>bit&lt;32&gt;</code>). Direction-aware: packets have a <code>PNA_Direction_t</code>
-(<code>NET_TO_HOST</code> or <code>HOST_TO_NET</code>).</p>
+fields. Like PSA, it drops by default — you must call <code>send_to_port()</code> to
+forward a packet.</p>
+<p>Ports are 32-bit (<code>bit&lt;32&gt;</code>) and direction-aware: each packet has a
+<code>PNA_Direction_t</code> (<code>NET_TO_HOST</code> or <code>HOST_TO_NET</code>).</p>
 <h3 id="key-metadata_1">Key metadata<a class="headerlink" href="#key-metadata_1" title="Permanent link">¶</a></h3>
-<p><strong>Main input</strong> (<code>pna_main_input_metadata_t</code>):</p>
+<p>The main input metadata (<code>pna_main_input_metadata_t</code>):</p>
 <table>
 <thead>
 <tr>
@@ -1517,28 +1540,32 @@ fields. Drops by default — <code>send_to_port()</code> must be called to forwa
 <h3 id="externs_2">Externs<a class="headerlink" href="#externs_2" title="Permanent link">¶</a></h3>
 <p><strong>Forwarding (last-writer-wins):</strong></p>
 <ul>
-<li><code>send_to_port(port)</code> — forward to port</li>
-<li><code>drop_packet()</code> — drop (main control only per spec)</li>
-<li><code>recirculate()</code> — loop deparsed bytes back to parser</li>
-<li><code>mirror_packet(slot_id, session_id)</code> — mirror deparsed bytes to clone session</li>
+<li><code>send_to_port(port)</code> forwards to a port.</li>
+<li><code>drop_packet()</code> drops the packet (main control only per spec).</li>
+<li><code>recirculate()</code> loops the deparsed bytes back to the parser.</li>
+<li><code>mirror_packet(slot_id, session_id)</code> mirrors the deparsed bytes to a clone
+  session.</li>
 </ul>
 <p><strong>Direction:</strong></p>
 <ul>
-<li><code>SelectByDirection(direction, n2h_value, h2n_value)</code> — select value based on packet direction</li>
+<li><code>SelectByDirection(direction, n2h_value, h2n_value)</code> selects a value based
+  on the packet's direction.</li>
 </ul>
 <p><strong>Add-on-miss (data-plane table insertion):</strong></p>
 <ul>
-<li><code>add_entry(action_name, action_params, expire_time_profile_id) → bool</code> — insert table entry on miss</li>
+<li><code>add_entry(action_name, action_params, expire_time_profile_id) → bool</code>
+  inserts a table entry on a miss.</li>
 </ul>
-<p><strong>Stateful:</strong> Same as PSA — <code>Register</code>, <code>Counter</code>, <code>Meter</code> (GREEN), <code>Hash</code>,
-<code>InternetChecksum</code>, <code>Digest</code> (no-op), <code>Random</code>.</p>
+<p><strong>Stateful:</strong> Same as PSA — <code>Register</code>, <code>Counter</code>, <code>Meter</code> (always GREEN),
+<code>Hash</code>, <code>InternetChecksum</code>, <code>Digest</code> (no-op), <code>Random</code>.</p>
 <h2 id="limitations">Limitations<a class="headerlink" href="#limitations" title="Permanent link">¶</a></h2>
-<p>All architectures:</p>
+<p>These limitations apply to all architectures:</p>
 <ul>
-<li><strong>Meters always return GREEN.</strong> No real packet rates in a simulator.</li>
-<li><strong>Counters are fire-and-forget.</strong> Not readable from P4 logic (control-plane
-  only via P4Runtime Read).</li>
-<li><strong>Digest is a no-op.</strong> No control-plane receiver in the simulator.</li>
+<li><strong>Meters always return GREEN</strong> because the simulator has no real packet rates.</li>
+<li><strong>Counters are fire-and-forget</strong> and can't be read from P4 logic (only via
+  P4Runtime Read from the control plane).</li>
+<li><strong>Digest is a no-op</strong> because there's no control-plane receiver in the
+  simulator.</li>
 </ul>
 <p>See <a href="https://github.com/smolkaj/4ward/blob/main/docs/LIMITATIONS.md">LIMITATIONS.md</a>
 for the full list.</p>
