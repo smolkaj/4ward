@@ -35,7 +35,6 @@ Unit tests live alongside the source they test (`FooTest.kt` next to `Foo.kt`).
 bazel build //...                              # build everything
 bazel test //... --test_tag_filters=-heavy     # run tests (skip heavy ones)
 bazel test //...                               # run ALL tests (CI does this)
-ibazel build //...                             # rebuild on file changes (preferred)
 ./tools/format.sh                              # auto-format all files
 ./tools/lint.sh                                # lint (clang-tidy + detekt)
 ./tools/dev.sh help                            # show all developer commands
@@ -45,10 +44,6 @@ ibazel build //...                             # rebuild on file changes (prefer
 that spawn many JVM processes (p4testgen: 186 separate JVMs). Skipping them
 keeps local test runs fast and avoids memory pressure. CI runs all tests
 including heavy ones.
-
-**Prefer `ibazel` over `bazel` for any work that spans multiple edit/build
-cycles.** It keeps the Bazel server warm and rebuilds only affected targets,
-catching errors within seconds rather than minutes.
 
 All builds are hermetic. Do not install dependencies outside of Bazel.
 
