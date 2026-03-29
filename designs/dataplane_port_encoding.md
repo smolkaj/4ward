@@ -1,6 +1,6 @@
 # DataplaneService Port Encoding
 
-**Status: proposal**
+**Status: implemented**
 
 ## Goal
 

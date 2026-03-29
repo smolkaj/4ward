@@ -1,7 +1,7 @@
 module(
     name = "fourward",
     version = "head",  # Updated to yyyymmdd.p on release branches.
-    bazel_compatibility = [">=9.0.0"],
+    bazel_compatibility = [">=8.0.0"],
 )
 
 # --- Core build rules ---
