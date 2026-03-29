@@ -47,6 +47,9 @@ all possible outcomes in a single pass.
 - **[P4Runtime](https://p4lang.github.io/p4runtime/spec/v1.5.0/P4Runtime-Spec.html) server** — spec-compliant gRPC server
   with full arbitration, table management, PacketIO, and clone/multicast
   support.
+- **Actionable error messages** — every error tells you what went wrong, shows
+  the value you sent, and lists the valid options. 74 golden-tested error paths.
+  [Learn more](reference/errors.md).
 - **Type translation** — `@p4runtime_translation` types (string port names,
   translated IDs) flow through the entire stack, including traces.
   [Learn more](concepts/type-translation.md).
