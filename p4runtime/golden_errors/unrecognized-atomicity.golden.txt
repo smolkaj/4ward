@@ -1,1 +1,1 @@
-INVALID_ARGUMENT: unrecognized write atomicity; valid values: CONTINUE_ON_ERROR, ROLLBACK_ON_ERROR, DATAPLANE_ATOMIC
+INVALID_ARGUMENT: unrecognized write atomicity 999 (valid values: CONTINUE_ON_ERROR (1), ROLLBACK_ON_ERROR (2), DATAPLANE_ATOMIC (3))

@@ -291,6 +291,7 @@ class TableStore : TableDataReader {
   private var tableSizeLimit: Map<String, Int> = emptyMap()
   private var profileMaxGroupSize: Map<Int, Int> = emptyMap()
   private var profileSizeLimit: Map<Int, Int> = emptyMap()
+  private var profileNameById: Map<Int, String> = emptyMap()
   private val tableActionProfile: MutableMap<String, Int> = mutableMapOf()
   private var directCounterTables: Set<String> = emptySet()
   private var directMeterTables: Set<String> = emptySet()
@@ -470,6 +471,10 @@ class TableStore : TableDataReader {
       p4info.actionProfilesList
         .filter { it.size > 0 }
         .associate { it.preamble.id to it.size.toInt() }
+    profileNameById =
+      p4info.actionProfilesList.associate {
+        it.preamble.id to it.preamble.alias.ifEmpty { it.preamble.name }
+      }
 
     // Register which tables use action profiles (implementation_id != 0).
     for (table in p4infoTables) {
@@ -660,7 +665,7 @@ class TableStore : TableDataReader {
     val info =
       registerInfoById[entry.registerId]
         ?: return WriteResult.NotFound(
-          "unknown register ID: ${entry.registerId} " +
+          "unknown register ID ${entry.registerId} " +
             "(valid registers: ${formatOptions(registerInfoById.entries.map { "'${it.value.name}' (${it.key})" })})"
         )
     val index = entry.index.index.toInt()
@@ -732,8 +737,8 @@ class TableStore : TableDataReader {
     val info =
       infoById[id]
         ?: return WriteResult.NotFound(
-          "unknown $entityName ID: $id " +
-            "(valid ${entityName} IDs: ${formatOptions(infoById.keys.sorted().map { it.toString() })})"
+          "unknown $entityName ID $id " +
+            "(valid ${entityName}s: ${formatOptions(infoById.keys.sorted().map { it.toString() })})"
         )
     val idx = index.index.toInt()
     if (idx < 0 || idx >= info.size)
@@ -959,7 +964,7 @@ class TableStore : TableDataReader {
     val info =
       valueSetInfoById[entry.valueSetId]
         ?: return WriteResult.NotFound(
-          "unknown value_set ID: ${entry.valueSetId} " +
+          "unknown value_set ID ${entry.valueSetId} " +
             "(valid value_sets: ${formatOptions(valueSetInfoById.entries.map { "'${it.value.name}' (${it.key})" })})"
         )
     val name = info.name
@@ -1147,7 +1152,8 @@ class TableStore : TableDataReader {
       val maxSize = profileMaxGroupSize[group.actionProfileId]
       if (maxSize != null && group.membersCount > maxSize) {
         return WriteResult.ResourceExhausted(
-          "group ${group.groupId} has ${group.membersCount} members, max is $maxSize"
+          "group ${group.groupId} in action profile '${profileNameById[group.actionProfileId] ?: group.actionProfileId}' " +
+            "has ${group.membersCount} members, max is $maxSize"
         )
       }
     }
@@ -1168,7 +1174,7 @@ class TableStore : TableDataReader {
     val current = memberCount + groupCount
     if (current >= limit) {
       return WriteResult.ResourceExhausted(
-        "action profile $profileId is at capacity ($current/$limit members+groups)"
+        "action profile '${profileNameById[profileId] ?: profileId}' is at capacity ($current/$limit members+groups)"
       )
     }
     return null
@@ -1450,7 +1456,7 @@ class TableStore : TableDataReader {
   private fun resolveActionName(actionId: Int): String =
     actionNameById[actionId]
       ?: error(
-        "unknown action ID: $actionId " +
+        "unknown action ID $actionId " +
           "(valid actions: ${formatOptions(actionNameById.entries.map { "'${it.value}' (${it.key})" })})"
       )
 
