@@ -66,20 +66,20 @@ message PacketSet {
 
 // InjectPacket response. Omits the input (the caller already has it).
 message InjectPacketResponse {
+  fourward.sim.TraceTree trace = 1;
   // Each entry is one possible set of output packets from a single real
   // execution.  Programs with only parallel forks have exactly one entry.
   // Programs with alternative forks (action selectors) have one entry per
   // alternative — each representing a "possible world".
-  repeated PacketSet possible_outcomes = 3;
-  fourward.sim.TraceTree trace = 2;
+  repeated PacketSet possible_outcomes = 2;
 }
 
 // Result bundle for SubscribeResults: input + outputs + trace.
 message ProcessPacketResult {
   InputPacket input_packet = 1;
-  fourward.sim.TraceTree trace = 3;
+  fourward.sim.TraceTree trace = 2;
   // Possible outcome sets (see InjectPacketResponse.possible_outcomes).
-  repeated PacketSet possible_outcomes = 4;
+  repeated PacketSet possible_outcomes = 3;
 }
 
 message SubscribeResultsRequest {}
