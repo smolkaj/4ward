@@ -6,6 +6,108 @@
 > Reverse-chronological log. Add new entries at the top (below this header).
 > See [ROADMAP.md](ROADMAP.md) for the big picture.
 
+## 2026-03-29
+
+|                | Delta      | Total     |
+|----------------|------------|-----------|
+| PRs merged     | 28         | 419       |
+| Kotlin prod    | +1.9k      | 12.5k    |
+| Kotlin test    | +2.8k      | 26.4k    |
+| C++ prod       | +0         | 1.6k     |
+| C++ test       | +0         | 1.3k     |
+| Proto          | +0         | 1.0k     |
+| Web frontend   | +0         | 5.2k     |
+| **Total**      | **+4.7k**  | **48.0k**|
+
+**Track 11 (error quality) reaches 100% coverage, table matching gets
+127× faster than baseline, and the nondeterminism model gets a
+correctness overhaul.**
+
+### Track 11: error quality — 100% golden coverage
+
+Every error the P4Runtime server can produce now has a golden test —
+74 tests across all RPC surfaces (#417–#421). Two bugs caught in the
+process: `ReferenceValidator` stripped quotes from `@refers_to` names,
+and `TypeTranslator` formatted hex values inconsistently.
+
+Every "unknown X" error now lists valid options with IDs (#424), making
+errors actionable without a round-trip to the p4info. Eight follow-up
+PRs (#425, #428, #430) normalized formatting project-wide: parenthesized
+valid-options lists, consistent casing, truncation at 10 items.
+
+Error message quality promoted as a first-class feature in the README
+and userdocs (#446), with a dedicated reference page showing examples
+and design principles.
+
+### Track 10 continued: table matching — 127× from baseline
+
+Three allocation-elimination passes on the table matching hot path,
+each identified via JFR profiling:
+
+1. **BigInteger caching** (#422) — `ByteString→BigInteger` conversion
+   on every lookup was 42% of heap allocations. `Long` fast-path for
+   widths ≤63 bits; `IdentityHashMap` cache for wide fields. +24–56%.
+2. **Iterator elimination** (#429) — `ArrayList$Itr` allocations were
+   33% of remaining heap. `mapNotNull` → indexed for loops;
+   `keyValues.find()` → pre-built `HashMap`. +48–165%.
+3. **Array-indexed field lookup** (#431) — field IDs are small integers;
+   direct array index replaces `HashMap` + `toString()`. +21–142%.
+
+Cumulative on WCMP×16+mirror (10k entries, 16 cores): 41 pps → 5,200
+pps (127×). Direct forwarding concurrent: 1,400 → 29,000 pps.
+
+New benchmark additions: 500 ternary ACL entries for realistic
+worst-case (#427), JSON machine-readable output (#435), `./tools/dev.sh
+benchmark` entry point.
+
+### BMv2 head-to-head benchmark
+
+Fair SAI P4 middleblock comparison (#441) — identical workload (10k LPM
+routes + 500 ternary ACL), BMv2 with `-O2`, 4ward with trace logging
+enabled:
+
+- **L3 forwarding:** BMv2 4,500 pps vs 4ward 2,500 pps (1 core) /
+  29,000 pps (16 cores)
+- **WCMP ×16:** BMv2 4,400 pps vs 4ward 1,400 pps (1 core) /
+  10,000 pps (16 cores)
+
+BMv2 is faster single-threaded (compiled C++, no trace trees). 4ward's
+concurrent mode (`InjectPackets`) pulls ahead by parallelizing across
+packets and within trace tree forks — 7–11× speedup on 16 cores.
+
+### Nondeterminism model: parallel vs alternative semantics
+
+Fixed a correctness bug where a 2-member action selector produced 2
+output packets instead of 2 possible worlds of 1 packet each (#433).
+Root cause: parallel forks (clone, multicast) and alternative forks
+(selectors) were conflated.
+
+New model: `ForkMode.PARALLEL` branches combine (Cartesian product);
+`ForkMode.ALTERNATIVE` branches produce separate possible worlds.
+`collectPossibleOutcomes()` returns `List<List<OutputPacket>>` — one
+inner list per world. STF runner passes if *any* world satisfies
+expects.
+
+Follow-up (#437) removed all backwards-compatibility shims and made
+`forkModeOf()` exhaustive — adding a new `ForkReason` without handling
+it is now a compile error. A second follow-up (#439) replaced the
+exponential cross-packet Cartesian product with greedy per-packet
+world selection — linear complexity, no silent truncation cap.
+
+### Documentation
+
+AGENTS.md trimmed from 267 to 145 lines (#438, #440, #442) — surprises
+and gotchas only. Userdocs rewritten for prose flow (#447). Added
+jafingerhut/p4-guide as a reference for v1model semantics (#448).
+
+### What's next
+
+- **Track 11** — fix the worst remaining error paths (opaque gRPC
+  `UNKNOWN` from simulator exceptions)
+- **DVaaS integration** — all building blocks are in place; the
+  head-to-head benchmark confirms 4ward exceeds BMv2 throughput in
+  concurrent mode
+
 ## 2026-03-28
 
 |                | Delta      | Total     |
