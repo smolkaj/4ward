@@ -73,7 +73,7 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
       tableInfoById[entry.tableId]
         ?: throw notFound(
           "unknown table ID ${entry.tableId} " +
-            "(available: ${formatOptions(
+            "(valid tables: ${formatOptions(
               tableInfoById.values.map { "'${it.tableName}' (${it.preamble.id})" }
             )})"
         )
@@ -182,7 +182,7 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
         paramLookup[param.paramId]
           ?: throw invalidArg(
             "unknown param ID ${param.paramId} for action '${actionInfo.preamble.name}' " +
-              "(valid params: ${formatOptions(paramLookup.values.map { it.name })})"
+              "(valid params: ${formatOptions(paramLookup.entries.map { "'${it.value.name}' (${it.key})" })})"
           )
       // §8.3: canonical byte width. Skip if bitwidth is 0
       // (e.g. @p4runtime_translation with sdn_string).
@@ -208,7 +208,7 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
         fieldLookup[fm.fieldId]
           ?: throw invalidArg(
             "unknown match field ID ${fm.fieldId} in table '${tableInfo.tableName}' " +
-              "(valid fields: ${formatOptions(fieldLookup.values.map { it.name })})"
+              "(valid fields: ${formatOptions(fieldLookup.entries.map { "'${it.value.name}' (${it.key})" })})"
           )
       // §9.1: each match field may appear at most once.
       if (!presentFieldIds.add(fm.fieldId)) {
@@ -313,8 +313,8 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
     val profileInfo =
       actionProfileInfoById[profileId]
         ?: throw notFound(
-          "unknown action_profile_id: $profileId " +
-            "(available: ${formatOptions(
+          "unknown action_profile_id $profileId " +
+            "(valid profiles: ${formatOptions(
               actionProfileInfoById.values.map {
                 "'${it.preamble.alias.ifEmpty { it.preamble.name }}' (${it.preamble.id})"
               }
@@ -338,7 +338,8 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
 
     if (action.actionId !in validActionIds) {
       throw invalidArg(
-        "action ID ${action.actionId} is not valid for action profile '$profileName' " +
+        "action '${actionInfo.preamble.name}' (ID ${action.actionId}) " +
+          "is not valid for action profile '$profileName' " +
           "(valid actions: ${formatOptions(validActionDescs)})"
       )
     }
@@ -355,8 +356,8 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
     val profileId = group.actionProfileId
     if (profileId !in actionProfileInfoById) {
       throw notFound(
-        "unknown action_profile_id: $profileId " +
-          "(available: ${formatOptions(
+        "unknown action_profile_id $profileId " +
+          "(valid profiles: ${formatOptions(
             actionProfileInfoById.values.map {
               "'${it.preamble.alias.ifEmpty { it.preamble.name }}' (${it.preamble.id})"
             }

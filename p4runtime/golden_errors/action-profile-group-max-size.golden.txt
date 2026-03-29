@@ -1,1 +1,1 @@
-RESOURCE_EXHAUSTED: group 1 has 2 members, max is 1
+RESOURCE_EXHAUSTED: group 1 in action profile 'ecmp_selector' has 2 members, max is 1
