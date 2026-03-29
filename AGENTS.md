@@ -135,6 +135,26 @@ Proto changes affect both the p4c backend (C++) and the simulator (Kotlin).
 Update both sides. Never remove or renumber existing proto fields; add new ones
 instead.
 
+## Commit messages
+
+Focus on *why* the change is being made and what problem it solves. Avoid
+restating what the diff already shows. Reference the STF test being fixed where
+applicable.
+
+## Code comments
+
+Write self-explanatory code. Add a comment when the code deviates from the
+obvious approach, works around a non-obvious constraint, or implements a
+subtle P4 spec requirement. Include spec references (section numbers, GitHub
+issues) where helpful. Do not add comments that merely restate the code.
+
+## Pull requests
+
+Open PRs in draft mode (`gh pr create --draft`). Rebase onto `origin/main`
+before submitting. Lead with the win — what changed for the project, how it
+fits into the big picture. Be concise and punchy. Don't drown achievements
+in low-level details; the diff already has those.
+
 ## Before submitting a PR
 
 - Run `./tools/format.sh` and `./tools/lint.sh`. Fix all warnings, even
