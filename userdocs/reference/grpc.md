@@ -180,14 +180,15 @@ message OutputPacket {
 While 4ward optimizes for correctness and simplicity over raw speed, it
 achieves practical throughput for production test workloads.
 
-Representative numbers on SAI P4 middleblock with 10k table entries.
-Measured on AMD Ryzen 9 7950X3D (16 cores, 128 MB L3), OpenJDK 21. Throughput in packets/sec (higher is better).
+Representative numbers on SAI P4 middleblock with 10k table entries +
+500 ternary ACL entries. Measured on AMD Ryzen 9 7950X3D (16 cores,
+128 MB L3), OpenJDK 21. Throughput in packets/sec (higher is better).
 
 | Workload | Sequential, 1 core | Sequential, 16 cores | Batch, 1 core | Batch, 16 cores |
 |----------|--------------------|----------------------|---------------|-----------------|
-| L3 forwarding | 1,800 | 1,900 | 1,800 | 9,700 |
-| WCMP ×16 members | 1,200 | 1,400 | 950 | 5,400 |
-| WCMP ×16 + mirror | 810 | 1,050 | 600 | 3,500 |
+| L3 forwarding | 1,700 | 1,800 | 1,900 | 12,000 |
+| WCMP ×16 members | 1,200 | 1,300 | 1,000 | 6,100 |
+| WCMP ×16 + mirror | 800 | 990 | 600 | 3,900 |
 
 Sequential = `InjectPacket` (one packet at a time).
 Batch = `InjectPackets` (1000 packets streamed concurrently).

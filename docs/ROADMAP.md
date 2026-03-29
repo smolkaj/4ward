@@ -512,12 +512,12 @@ entries and know where the time goes.
 
 **Current status: complete.** The 1k pps target is met across all
 workloads (sequential and concurrent). Benchmark, profiling, and five
-optimizations delivered **85× improvement** on the hardest workload
-(wcmp×16+mirr, batch on 16 cores) and **26× sequential single-core**.
+optimizations delivered **94× improvement** on the hardest workload
+(wcmp×16+mirr, batch on 16 cores) and **24× sequential single-core**.
 
 **Benchmark** (`bazel test //p4runtime:DataplaneBenchmark --test_output=streamed`).
-SAI P4 middleblock with 10k table entries, four workloads of increasing
-complexity. Throughput in packets/sec (higher is better).
+SAI P4 middleblock with 10k table entries + 500 ternary ACL entries.
+Throughput in packets/sec (higher is better).
 
 **Test machine:** AMD Ryzen 9 7950X3D (16 cores, 128 MB L3 V-Cache),
 OpenJDK 21, Linux 6.8. The large L3 cache may flatter cache-locality-
@@ -525,10 +525,10 @@ sensitive workloads compared to typical server hardware.
 
 | Config       | Baseline | Sequential, 1 core | Sequential, 16 cores | Batch, 1 core | Batch, 16 cores |
 |--------------|----------|--------------------|----------------------|---------------|-----------------|
-| direct 10k   |    1,400 |              1,800 |                1,900 |         1,800 |           9,700 |
-| wcmp×4 10k   |      280 |              1,500 |                1,500 |               |                 |
-| wcmp×16 10k  |       83 |              1,200 |                1,400 |           950 |           5,400 |
-| wcmp×16+mirr |       41 |                810 |                1,050 |           600 |           3,500 |
+| direct 10k   |    1,400 |              1,700 |                1,800 |         1,900 |          12,000 |
+| wcmp×4 10k   |      280 |              1,500 |                1,400 |               |                 |
+| wcmp×16 10k  |       83 |              1,200 |                1,300 |         1,000 |           6,100 |
+| wcmp×16+mirr |       41 |                800 |                  990 |           600 |           3,900 |
 
 Sequential = `InjectPacket` (one packet at a time).
 Batch = `InjectPackets` (1000 packets streamed concurrently).
@@ -536,6 +536,7 @@ Batch = `InjectPackets` (1000 packets streamed concurrently).
 - **direct** — L3 forwarding (VRF → LPM → nexthop → MAC rewrite).
 - **wcmp×N** — N-member WCMP action profile (N trace tree branches).
 - **wcmp×16+mirr** — WCMP×16 + ingress clone (32 branches per packet).
+- All workloads include 500 ternary ACL entries (worst-case full scan).
 - **1 core** — `ForkJoinPool.common.parallelism=1`. No parallelism.
 - **16 cores** — `InjectPacket` parallelizes fork branches within each
   packet. `InjectPackets` adds cross-packet parallelism.
@@ -556,6 +557,8 @@ Batch = `InjectPackets` (1000 packets streamed concurrently).
 6. **Long fast-path for table matching** (PR #422): `BitVector.longValue`
    + Long-based match for fields ≤ 63 bits. Zero heap allocation per
    comparison. BigInteger cache for wide fields (IPv6).
+7. **Iterator elimination in table matching** (PR #429): indexed loops
+   + HashMap replace iterator-heavy functional patterns in the hot loop.
 
 **What didn't help** (tried and reverted):
 - Caching `defaultValue()` templates — negligible.

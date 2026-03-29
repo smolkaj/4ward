@@ -1376,19 +1376,22 @@ class TableStore : TableDataReader {
     val entries = tables[tableName] ?: emptyList<TableEntry>()
     val default = defaultActions[tableName] ?: DefaultAction("NoAction")
 
-    data class Candidate(val entry: TableEntry, val score: Long)
+    // Index key values by field ID for O(1) lookup in scoreEntry.
+    val keyMap = HashMap<String, Value>(keyValues.size * 2)
+    for ((name, value) in keyValues) keyMap[name] = value
 
-    val candidates =
-      entries.mapNotNull { entry ->
-        val score = scoreEntry(entry, keyValues) ?: return@mapNotNull null
-        Candidate(entry, score)
+    var bestEntry: TableEntry? = null
+    var bestScore = -1L
+    for (entry in entries) {
+      val score = scoreEntry(entry, keyMap) ?: continue
+      if (score > bestScore) {
+        bestScore = score
+        bestEntry = entry
       }
+    }
 
-    val best =
-      candidates.maxByOrNull { it.score }
-        ?: return LookupResult(false, null, default.name, default.params)
-
-    val tableAction = best.entry.action
+    val entry = bestEntry ?: return LookupResult(false, null, default.name, default.params)
+    val tableAction = entry.action
 
     // Action profile group: resolve group → members → individual actions.
     if (tableAction.hasActionProfileGroupId() && tableAction.actionProfileGroupId != 0) {
@@ -1410,7 +1413,7 @@ class TableStore : TableDataReader {
         }
       // Use the first member's action name for the table_lookup event.
       val actionName = members.firstOrNull()?.actionName ?: "NoAction"
-      return LookupResult(true, best.entry, actionName, members = members)
+      return LookupResult(true, entry, actionName, members = members)
     }
 
     // One-shot action selector (P4Runtime spec §9.2.3): the entry embeds actions inline.
@@ -1421,7 +1424,7 @@ class TableStore : TableDataReader {
           MemberAction(i, resolveActionName(action.action.actionId), action.action.paramsList)
         }
       val actionName = members.firstOrNull()?.actionName ?: "NoAction"
-      return LookupResult(true, best.entry, actionName, members = members)
+      return LookupResult(true, entry, actionName, members = members)
     }
 
     // Action profile member (direct, no group): resolve to a single action.
@@ -1431,10 +1434,10 @@ class TableStore : TableDataReader {
       val member =
         profileMembers[profileId]?.get(tableAction.actionProfileMemberId)
           ?: error("unknown member ${tableAction.actionProfileMemberId} in profile $profileId")
-      return LookupResult(true, best.entry, resolveActionName(member.action.actionId))
+      return LookupResult(true, entry, resolveActionName(member.action.actionId))
     }
 
-    return LookupResult(true, best.entry, resolveActionName(best.entry.action.action.actionId))
+    return LookupResult(true, entry, resolveActionName(entry.action.action.actionId))
   }
 
   private fun formatOptions(options: List<String>): String =
@@ -1484,16 +1487,14 @@ class TableStore : TableDataReader {
     tableAliasByName[behavioralName] ?: actionAliasByName[behavioralName] ?: behavioralName
 
   /**
-   * Scores an entry against [keyValues]. Returns null if the entry does not match. Returns a
+   * Scores an entry against [keyMap]. Returns null if the entry does not match. Returns a
    * non-negative score where a higher value means a better match (used to implement LPM
    * longest-prefix and ternary priority semantics).
    */
-  private fun scoreEntry(entry: TableEntry, keyValues: List<Pair<String, Value>>): Long? {
+  private fun scoreEntry(entry: TableEntry, keyMap: Map<String, Value>): Long? {
     var score = 0L
     for (match in entry.matchList) {
-      val (_, value) =
-        keyValues.find { it.first == match.fieldId.toString() }
-          ?: return null // no key value for this match field
+      val value = keyMap[match.fieldId.toString()] ?: return null
 
       val bits =
         when (value) {
@@ -1505,12 +1506,11 @@ class TableStore : TableDataReader {
       if (!matchesFieldMatch(bits, match)) return null
 
       // Accumulate score for priority-based match kinds.
+      // Exact and optional don't contribute — all exact fields either match or don't.
       when {
         match.hasLpm() -> score += match.lpm.prefixLen.toLong()
         match.hasTernary() -> score += entry.priority.toLong()
         match.hasRange() -> score += entry.priority.toLong()
-      // Exact and optional don't contribute to relative scoring — all exact
-      // fields either match or don't.
       }
     }
     return score
