@@ -199,12 +199,6 @@ class Simulator(
 }
 
 /**
- * Maximum number of possible worlds before truncation. Guards against exponential blowup when
- * alternative forks are nested inside parallel forks (e.g. 10 packets × 16-member selector each).
- */
-const val MAX_POSSIBLE_OUTCOMES = 1024
-
-/**
  * Collects all possible outcome sets from a trace tree, respecting fork semantics.
  * - **Parallel forks** (clone, multicast, resubmit, recirculate): outputs from all branches are
  *   combined within each possible world (Cartesian product of branch outcomes).
@@ -214,7 +208,7 @@ const val MAX_POSSIBLE_OUTCOMES = 1024
  * - **Leaf (drop):** one possible world with no packets.
  *
  * Returns a non-empty list. Each inner list is one complete set of output packets that could result
- * from a single real execution. Capped at [MAX_POSSIBLE_OUTCOMES] worlds to prevent blowup.
+ * from a single real execution.
  */
 fun collectPossibleOutcomes(tree: TraceTree): List<List<OutputPacket>> {
   if (!tree.hasForkOutcome()) {
@@ -227,18 +221,14 @@ fun collectPossibleOutcomes(tree: TraceTree): List<List<OutputPacket>> {
   val fork = tree.forkOutcome
   val branchOutcomes = fork.branchesList.map { collectPossibleOutcomes(it.subtree) }
   if (branchOutcomes.isEmpty()) return listOf(emptyList())
-  val outcomes =
-    when (forkModeOf(fork.reason)) {
-      // Alternative: each branch adds its worlds to the result.
-      ForkMode.ALTERNATIVE -> branchOutcomes.flatten()
-      // Parallel: Cartesian product across branches — for each combination of one world per
-      // branch, concatenate the packets.
-      ForkMode.PARALLEL ->
-        branchOutcomes.reduce { acc, next ->
-          val product = acc.flatMap { world -> next.map { branchWorld -> world + branchWorld } }
-          if (product.size > MAX_POSSIBLE_OUTCOMES) product.take(MAX_POSSIBLE_OUTCOMES) else product
-        }
-    }
-  return if (outcomes.size > MAX_POSSIBLE_OUTCOMES) outcomes.take(MAX_POSSIBLE_OUTCOMES)
-  else outcomes
+  return when (forkModeOf(fork.reason)) {
+    // Alternative: each branch adds its worlds to the result.
+    ForkMode.ALTERNATIVE -> branchOutcomes.flatten()
+    // Parallel: Cartesian product across branches — for each combination of one world per
+    // branch, concatenate the packets.
+    ForkMode.PARALLEL ->
+      branchOutcomes.reduce { acc, next ->
+        acc.flatMap { world -> next.map { branchWorld -> world + branchWorld } }
+      }
+  }
 }
