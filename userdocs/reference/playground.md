@@ -24,19 +24,16 @@ the same pipeline.
 
 ## Layout
 
-**Left panel:** P4 source editor (Monaco) with syntax highlighting.
-
-**Right panel:** Three tabs — Tables, Packets, Trace.
-
-**Bottom panel:** Control-flow graph (appears after compilation).
+The **left panel** is a P4 source editor (Monaco) with syntax highlighting.
+The **right panel** has three tabs — Tables, Packets, and Trace. The
+**control-flow graph** appears at the bottom after compilation.
 
 ## Editor
 
-- **Example selector** — dropdown with built-in examples: `passthrough`,
-  `basic_table`, `mirror`, `sai_middleblock`.
-- **Compile & Load** — compiles the P4 source and loads it into the
-  simulator. The status bar shows the pipeline summary (table count, action
-  count) or compilation errors.
+The **example selector** dropdown at the top loads built-in examples:
+`passthrough`, `basic_table`, `mirror`, `sai_middleblock`. Click
+**Compile & Load** to compile the P4 source and load it into the simulator.
+The status bar shows the pipeline summary or any compilation errors.
 
 ## Tables tab
 
@@ -59,23 +56,21 @@ entries` from the P4 source).
 
 ## Packets tab
 
-**Presets:** IPv4, IPv6, ARP, Raw — each fills the payload textarea with a
-valid frame for that protocol.
+Use the **presets** (IPv4, IPv6, ARP, Raw) to fill the payload textarea with
+a valid frame for that protocol. Set the **ingress port** and hex payload,
+then click **Send Packet**.
 
-**Send Packet:** specify ingress port and hex payload, then click **Send
-Packet**.
-
-**Output packets:** shows each output packet with its egress port, byte
-count, and decoded header fields (Ethernet MAC addresses, IPv4 addresses,
-protocol numbers).
+The output section shows each output packet with its egress port, byte count,
+and decoded header fields (Ethernet MAC addresses, IPv4 addresses, protocol
+numbers).
 
 ## Trace tab
 
-**Visual view** (default): interactive trace tree. Events are grouped by
-pipeline stage. Table hits show matched entry details. Forks display branches.
+The default **visual view** shows an interactive trace tree with events
+grouped by pipeline stage. Table hits include matched entry details, and
+forks display their branches.
 
-**Playback:** use **← →** arrow keys to step through events. Each step
-highlights:
+Use the **← →** arrow keys to step through events. Each step highlights:
 
 - The current event in the trace panel.
 - The corresponding P4 source line in the editor.
@@ -83,22 +78,16 @@ highlights:
 
 Press **Escape** to reset playback.
 
-**JSON view:** raw JSON serialization of the trace tree proto. Includes
-`proto-file` / `proto-message` header.
-
-**Proto view:** text-format protobuf. Includes `proto-file` /
-`proto-message` header.
+The **JSON view** and **Proto view** tabs show raw serializations of the trace
+tree proto, each with a `proto-file` / `proto-message` header.
 
 ## Control-flow graph
 
-Visual DAG of the pipeline's parser and control blocks. One tab per
-pipeline stage (parser, verify_checksum, ingress, egress, etc.).
-
-- **Table nodes** show table names.
-- **Condition nodes** show if/else branching.
-- **Edge labels** show branch conditions.
-- The active node highlights during trace playback.
-- **Fullscreen** toggle in the corner.
+The control-flow graph is a visual DAG of the pipeline's parser and control
+blocks, with one tab per pipeline stage (parser, verify_checksum, ingress,
+egress, etc.). Table nodes show table names, condition nodes show if/else
+branching, and edge labels show branch conditions. During trace playback, the
+active node highlights automatically. A fullscreen toggle is in the corner.
 
 ## REST API
 
@@ -115,13 +104,12 @@ available to external tools:
 
 ## Limitations
 
-- **No MODIFY** for table entries — delete and re-add.
-- **No default action changes** via UI.
-- **Single shared state** — all browser tabs share one simulator.
-- **No persistence** — restarting the server clears everything.
-- **No packet history** — sending another packet overwrites the previous
-  result.
-- **Monaco editor requires internet** (loaded from CDN).
+- Table entries can't be modified in place — delete and re-add instead.
+- Default actions can't be changed through the UI.
+- All browser tabs share a single simulator instance.
+- Restarting the server clears all state.
+- Sending another packet overwrites the previous result (no history).
+- The Monaco editor requires an internet connection (loaded from CDN).
 
 See [LIMITATIONS.md](https://github.com/smolkaj/4ward/blob/main/docs/LIMITATIONS.md)
 for the full list.

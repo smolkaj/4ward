@@ -39,19 +39,20 @@ all possible outcomes in a single pass.
 
 ## Key features
 
-- **Trace trees** — every event recorded, every fork explored.
-  [Learn more](concepts/traces.md).
-- **v1model, PSA, and PNA** — three P4 architectures fully implemented, with
-  support for architecture modifications like translated port types.
+- **Trace trees** record every parser transition, table lookup, action, and
+  branch — and fork at non-deterministic choice points to show all possible
+  outcomes. [Learn more](concepts/traces.md).
+- **v1model, PSA, and PNA** are fully implemented, with support for
+  architecture modifications like translated port types.
   [Learn more](concepts/architectures.md).
-- **[P4Runtime](https://p4lang.github.io/p4runtime/spec/v1.5.0/P4Runtime-Spec.html) server** — spec-compliant gRPC server
-  with full arbitration, table management, PacketIO, and clone/multicast
-  support.
-- **Actionable error messages** — every error tells you what went wrong, shows
-  the value you sent, and lists the valid options. 74 golden-tested error paths.
+- A spec-compliant **[P4Runtime](https://p4lang.github.io/p4runtime/spec/v1.5.0/P4Runtime-Spec.html) server** provides full
+  arbitration, table management, PacketIO, and clone/multicast support.
+- **Actionable error messages** tell you what went wrong, show the value you
+  sent, and list the valid options — all 74 error paths are golden-tested.
   [Learn more](reference/errors.md).
-- **Type translation** — `@p4runtime_translation` types (string port names,
+- **Type translation** lets `@p4runtime_translation` types (string port names,
   translated IDs) flow through the entire stack, including traces.
   [Learn more](concepts/type-translation.md).
-- **Web playground** — visual pipeline diagrams, animated trace playback,
-  packet dissection. [Try it](getting-started/playground.md).
+- The **web playground** gives you visual pipeline diagrams, animated trace
+  playback, and packet dissection right in the browser.
+  [Try it](getting-started/playground.md).
