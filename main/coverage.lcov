@@ -7079,20 +7079,20 @@ FN:1333,fourward/simulator/TableStore::hasEntryWithFieldValue (IILcom/google/pro
 FNDA:1,fourward/simulator/TableStore::hasEntryWithFieldValue (IILcom/google/protobuf/ByteString;)Z
 FN:1372,fourward/simulator/TableStore::lookup (Ljava/lang/String;Ljava/util/List;)Lfourward/simulator/TableStore$LookupResult;
 FNDA:1,fourward/simulator/TableStore::lookup (Ljava/lang/String;Ljava/util/List;)Lfourward/simulator/TableStore$LookupResult;
-FN:1441,fourward/simulator/TableStore::formatOptions (Ljava/util/List;)Ljava/lang/String;
+FN:1444,fourward/simulator/TableStore::formatOptions (Ljava/util/List;)Ljava/lang/String;
 FNDA:1,fourward/simulator/TableStore::formatOptions (Ljava/util/List;)Ljava/lang/String;
-FN:1448,fourward/simulator/TableStore::resolveActionName (I)Ljava/lang/String;
+FN:1451,fourward/simulator/TableStore::resolveActionName (I)Ljava/lang/String;
 FNDA:1,fourward/simulator/TableStore::resolveActionName (I)Ljava/lang/String;
-FN:1456,fourward/simulator/TableStore::resolveActionByAlias (Ljava/lang/String;)Ljava/lang/String;
+FN:1459,fourward/simulator/TableStore::resolveActionByAlias (Ljava/lang/String;)Ljava/lang/String;
 FNDA:1,fourward/simulator/TableStore::resolveActionByAlias (Ljava/lang/String;)Ljava/lang/String;
-FN:1476,fourward/simulator/TableStore::actionDisplayName (Ljava/lang/String;)Ljava/lang/String;
+FN:1479,fourward/simulator/TableStore::actionDisplayName (Ljava/lang/String;)Ljava/lang/String;
 FNDA:1,fourward/simulator/TableStore::actionDisplayName (Ljava/lang/String;)Ljava/lang/String;
-FN:1480,fourward/simulator/TableStore::tableDisplayName (Ljava/lang/String;)Ljava/lang/String;
+FN:1483,fourward/simulator/TableStore::tableDisplayName (Ljava/lang/String;)Ljava/lang/String;
 FNDA:1,fourward/simulator/TableStore::tableDisplayName (Ljava/lang/String;)Ljava/lang/String;
-FN:1484,fourward/simulator/TableStore::displayName (Ljava/lang/String;)Ljava/lang/String;
+FN:1487,fourward/simulator/TableStore::displayName (Ljava/lang/String;)Ljava/lang/String;
 FNDA:0,fourward/simulator/TableStore::displayName (Ljava/lang/String;)Ljava/lang/String;
-FN:1492,fourward/simulator/TableStore::scoreEntry (Lp4/v1/P4RuntimeOuterClass$TableEntry;Ljava/util/List;)Ljava/lang/Long;
-FNDA:1,fourward/simulator/TableStore::scoreEntry (Lp4/v1/P4RuntimeOuterClass$TableEntry;Ljava/util/List;)Ljava/lang/Long;
+FN:1495,fourward/simulator/TableStore::scoreEntry (Lp4/v1/P4RuntimeOuterClass$TableEntry;Ljava/util/Map;)Ljava/lang/Long;
+FNDA:1,fourward/simulator/TableStore::scoreEntry (Lp4/v1/P4RuntimeOuterClass$TableEntry;Ljava/util/Map;)Ljava/lang/Long;
 FN:377,fourward/simulator/TableStore::loadMappings$resolveName (Ljava/lang/String;Ljava/util/List;)Ljava/lang/String;
 FNDA:1,fourward/simulator/TableStore::loadMappings$resolveName (Ljava/lang/String;Ljava/util/List;)Ljava/lang/String;
 FN:1520,fourward/simulator/TableStore::<clinit> ()V
@@ -7167,12 +7167,6 @@ FN:165,fourward/simulator/TableStore$WriteState::getValueSets$simulator_simulato
 FNDA:1,fourward/simulator/TableStore$WriteState::getValueSets$simulator_simulator_lib ()Ljava/util/Map;
 FN:170,fourward/simulator/TableStore$WriteState::deepCopy ()Lfourward/simulator/TableStore$WriteState;
 FNDA:1,fourward/simulator/TableStore$WriteState::deepCopy ()Lfourward/simulator/TableStore$WriteState;
-FN:1379,fourward/simulator/TableStore$lookup$Candidate::<init> (Lp4/v1/P4RuntimeOuterClass$TableEntry;J)V
-FNDA:1,fourward/simulator/TableStore$lookup$Candidate::<init> (Lp4/v1/P4RuntimeOuterClass$TableEntry;J)V
-FN:1379,fourward/simulator/TableStore$lookup$Candidate::getEntry ()Lp4/v1/P4RuntimeOuterClass$TableEntry;
-FNDA:1,fourward/simulator/TableStore$lookup$Candidate::getEntry ()Lp4/v1/P4RuntimeOuterClass$TableEntry;
-FN:1379,fourward/simulator/TableStore$lookup$Candidate::getScore ()J
-FNDA:1,fourward/simulator/TableStore$lookup$Candidate::getScore ()J
 FN:1227,fourward/simulator/TableStore$readPreEntries$1$1::invoke (Lp4/v1/P4RuntimeOuterClass$PacketReplicationEngineEntry$Builder;Lp4/v1/P4RuntimeOuterClass$CloneSessionEntry;)V
 FNDA:1,fourward/simulator/TableStore$readPreEntries$1$1::invoke (Lp4/v1/P4RuntimeOuterClass$PacketReplicationEngineEntry$Builder;Lp4/v1/P4RuntimeOuterClass$CloneSessionEntry;)V
 FN:1234,fourward/simulator/TableStore$readPreEntries$1$2::invoke (Lp4/v1/P4RuntimeOuterClass$PacketReplicationEngineEntry$Builder;Lp4/v1/P4RuntimeOuterClass$MulticastGroupEntry;)V
@@ -7620,98 +7614,100 @@ BRDA:1376,0,0,1
 BRDA:1376,0,1,1
 BRDA:1377,0,0,1
 BRDA:1377,0,1,1
-BRDA:1383,0,0,1
-BRDA:1383,0,1,1
-BRDA:1388,0,0,1
-BRDA:1388,0,1,1
-BRDA:1394,0,0,1
-BRDA:1394,0,1,1
-BRDA:1394,0,2,1
-BRDA:1394,0,3,0
-BRDA:1396,0,0,1
-BRDA:1396,0,1,0
-BRDA:1398,0,0,1
-BRDA:1398,0,1,0
-BRDA:1398,0,2,0
-BRDA:1398,0,3,1
-BRDA:1403,0,0,1
-BRDA:1403,0,1,0
-BRDA:1403,0,2,0
-BRDA:1403,0,3,1
-BRDA:1412,0,0,1
-BRDA:1412,0,1,0
-BRDA:1412,0,2,0
-BRDA:1412,0,3,1
-BRDA:1418,0,0,1
-BRDA:1418,0,1,1
-BRDA:1423,0,0,1
-BRDA:1423,0,1,0
-BRDA:1423,0,2,0
-BRDA:1423,0,3,1
-BRDA:1428,0,0,1
-BRDA:1428,0,1,1
-BRDA:1428,0,2,1
-BRDA:1428,0,3,0
-BRDA:1430,0,0,1
-BRDA:1430,0,1,0
-BRDA:1432,0,0,1
-BRDA:1432,0,1,0
-BRDA:1432,0,2,0
-BRDA:1432,0,3,1
-BRDA:1442,0,0,1
-BRDA:1442,0,1,1
-BRDA:1443,0,0,1
-BRDA:1443,0,1,0
-BRDA:1448,0,0,0
-BRDA:1448,0,1,1
-BRDA:1456,0,0,1
-BRDA:1456,0,1,1
+BRDA:1381,0,0,1
+BRDA:1381,0,1,1
+BRDA:1385,0,0,1
+BRDA:1385,0,1,1
+BRDA:1386,0,0,1
+BRDA:1386,0,1,1
+BRDA:1387,0,0,1
+BRDA:1387,0,1,1
+BRDA:1393,0,0,1
+BRDA:1393,0,1,1
+BRDA:1397,0,0,1
+BRDA:1397,0,1,1
+BRDA:1397,0,2,1
+BRDA:1397,0,3,0
+BRDA:1399,0,0,1
+BRDA:1399,0,1,0
+BRDA:1401,0,0,1
+BRDA:1401,0,1,0
+BRDA:1401,0,2,0
+BRDA:1401,0,3,1
+BRDA:1406,0,0,1
+BRDA:1406,0,1,0
+BRDA:1406,0,2,0
+BRDA:1406,0,3,1
+BRDA:1415,0,0,1
+BRDA:1415,0,1,0
+BRDA:1415,0,2,0
+BRDA:1415,0,3,1
+BRDA:1421,0,0,1
+BRDA:1421,0,1,1
+BRDA:1426,0,0,1
+BRDA:1426,0,1,0
+BRDA:1426,0,2,0
+BRDA:1426,0,3,1
+BRDA:1431,0,0,1
+BRDA:1431,0,1,1
+BRDA:1431,0,2,1
+BRDA:1431,0,3,0
+BRDA:1433,0,0,1
+BRDA:1433,0,1,0
+BRDA:1435,0,0,1
+BRDA:1435,0,1,0
+BRDA:1435,0,2,0
+BRDA:1435,0,3,1
+BRDA:1445,0,0,1
+BRDA:1445,0,1,1
+BRDA:1446,0,0,1
+BRDA:1446,0,1,0
+BRDA:1451,0,0,0
+BRDA:1451,0,1,1
 BRDA:1459,0,0,1
 BRDA:1459,0,1,1
-BRDA:1459,0,2,1
-BRDA:1459,0,3,1
-BRDA:1460,0,0,1
-BRDA:1460,0,1,1
-BRDA:1467,0,0,1
-BRDA:1467,0,1,0
-BRDA:1467,0,2,1
-BRDA:1467,0,3,1
-BRDA:1467,0,4,0
-BRDA:1467,0,5,1
-BRDA:1467,0,6,1
-BRDA:1467,0,7,1
-BRDA:1468,0,0,1
-BRDA:1468,0,1,0
-BRDA:1476,0,0,1
-BRDA:1476,0,1,1
-BRDA:1480,0,0,0
-BRDA:1480,0,1,1
-BRDA:1484,0,0,-
-BRDA:1484,0,1,-
-BRDA:1484,0,2,-
-BRDA:1484,0,3,-
-BRDA:1493,0,0,1
-BRDA:1493,0,1,1
-BRDA:1495,0,0,1
-BRDA:1495,0,1,1
-BRDA:1495,0,2,1
-BRDA:1495,0,3,1
-BRDA:1495,0,4,1
-BRDA:1495,0,5,1
-BRDA:1500,0,0,1
-BRDA:1500,0,1,1
+BRDA:1462,0,0,1
+BRDA:1462,0,1,1
+BRDA:1462,0,2,1
+BRDA:1462,0,3,1
+BRDA:1463,0,0,1
+BRDA:1463,0,1,1
+BRDA:1470,0,0,1
+BRDA:1470,0,1,0
+BRDA:1470,0,2,1
+BRDA:1470,0,3,1
+BRDA:1470,0,4,0
+BRDA:1470,0,5,1
+BRDA:1470,0,6,1
+BRDA:1470,0,7,1
+BRDA:1471,0,0,1
+BRDA:1471,0,1,0
+BRDA:1479,0,0,1
+BRDA:1479,0,1,1
+BRDA:1483,0,0,0
+BRDA:1483,0,1,1
+BRDA:1487,0,0,-
+BRDA:1487,0,1,-
+BRDA:1487,0,2,-
+BRDA:1487,0,3,-
+BRDA:1496,0,0,1
+BRDA:1496,0,1,1
+BRDA:1497,0,0,1
+BRDA:1497,0,1,1
 BRDA:1501,0,0,1
-BRDA:1501,0,1,0
-BRDA:1501,0,2,1
-BRDA:1501,0,3,1
-BRDA:1505,0,0,1
-BRDA:1505,0,1,1
-BRDA:1509,0,0,1
-BRDA:1509,0,1,1
-BRDA:1510,0,0,1
-BRDA:1510,0,1,1
+BRDA:1501,0,1,1
+BRDA:1502,0,0,1
+BRDA:1502,0,1,0
+BRDA:1502,0,2,1
+BRDA:1502,0,3,1
+BRDA:1506,0,0,1
+BRDA:1506,0,1,1
 BRDA:1511,0,0,1
 BRDA:1511,0,1,1
+BRDA:1512,0,0,1
+BRDA:1512,0,1,1
+BRDA:1513,0,0,1
+BRDA:1513,0,1,1
 BRDA:25,0,0,1
 BRDA:25,0,1,1
 BRDA:38,0,0,1
@@ -8461,87 +8457,87 @@ DA:1372,1
 DA:1373,1
 DA:1376,1
 DA:1377,1
-DA:1379,1
+DA:1380,1
 DA:1381,1
-DA:1382,1
 DA:1383,1
 DA:1384,1
+DA:1385,1
+DA:1386,1
 DA:1387,1
 DA:1388,1
 DA:1389,1
-DA:1391,1
+DA:1393,1
 DA:1394,1
-DA:1395,1
-DA:1396,1
 DA:1397,1
 DA:1398,1
-DA:1399,0
+DA:1399,1
 DA:1400,1
 DA:1401,1
-DA:1402,1
+DA:1402,0
 DA:1403,1
-DA:1404,0
+DA:1404,1
 DA:1405,1
 DA:1406,1
-DA:1407,1
+DA:1407,0
 DA:1408,1
 DA:1409,1
+DA:1410,1
+DA:1411,1
 DA:1412,1
-DA:1413,1
-DA:1418,1
-DA:1419,1
-DA:1420,1
+DA:1415,1
+DA:1416,1
 DA:1421,1
+DA:1422,1
 DA:1423,1
 DA:1424,1
-DA:1428,1
-DA:1429,1
-DA:1430,1
+DA:1426,1
+DA:1427,1
 DA:1431,1
 DA:1432,1
-DA:1433,0
+DA:1433,1
 DA:1434,1
+DA:1435,1
+DA:1436,0
 DA:1437,1
-DA:1441,1
-DA:1442,1
-DA:1443,1
-DA:1444,0
+DA:1440,1
+DA:1444,1
 DA:1445,1
+DA:1446,1
+DA:1447,0
 DA:1448,1
-DA:1449,0
-DA:1450,0
-DA:1451,0
-DA:1452,1
-DA:1456,1
-DA:1458,1
+DA:1451,1
+DA:1452,0
+DA:1453,0
+DA:1454,0
+DA:1455,1
 DA:1459,1
-DA:1460,1
 DA:1461,1
+DA:1462,1
+DA:1463,1
 DA:1464,1
-DA:1465,1
-DA:1466,1
 DA:1467,1
 DA:1468,1
 DA:1469,1
-DA:1471,0
-DA:1476,1
-DA:1480,1
-DA:1484,0
-DA:1492,1
-DA:1493,1
-DA:1494,1
+DA:1470,1
+DA:1471,1
+DA:1472,1
+DA:1474,0
+DA:1479,1
+DA:1483,1
+DA:1487,0
 DA:1495,1
 DA:1496,1
-DA:1498,1
+DA:1497,1
 DA:1499,1
 DA:1500,1
 DA:1501,1
-DA:1502,0
-DA:1505,1
-DA:1508,1
-DA:1509,1
+DA:1502,1
+DA:1503,0
+DA:1506,1
 DA:1510,1
 DA:1511,1
+DA:1512,1
+DA:1513,1
 DA:1516,1
 DA:1520,1
 DA:1521,1
