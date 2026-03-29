@@ -90,6 +90,16 @@ behavior and document the ambiguity with a comment citing the relevant spec
 section. For v1model architecture semantics, the de facto spec is the
 [BMv2 simple_switch documentation](https://github.com/p4lang/behavioral-model/blob/main/docs/simple_switch.md).
 
+[jafingerhut/p4-guide](https://github.com/jafingerhut/p4-guide) is a
+community knowledge base with worked examples and detailed write-ups for
+many P4 features. Especially useful:
+- [`v1model-special-ops/`](https://github.com/jafingerhut/p4-guide/tree/master/v1model-special-ops) —
+  clone, resubmit, recirculate, and multicast examples with packet
+  traces. Essential reference for v1model semantics the spec leaves
+  underspecified.
+- [`docs/p4-table-behaviors.md`](https://github.com/jafingerhut/p4-guide/blob/master/docs/p4-table-behaviors.md) —
+  exhaustive catalog of table match/miss/default-action edge cases.
+
 The IR is emitted after p4c's midend, so it reflects a simplified,
 fully-resolved program.
 
