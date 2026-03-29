@@ -31,13 +31,13 @@
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">92.9&nbsp;%</td>
-            <td class="headerCovTableEntry">788</td>
-            <td class="headerCovTableEntry">732</td>
+            <td class="headerCovTableEntryHi">93.0&nbsp;%</td>
+            <td class="headerCovTableEntry">795</td>
+            <td class="headerCovTableEntry">739</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-29 00:31:32</td>
+            <td class="headerValue">2026-03-29 00:36:20</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">97.4&nbsp;%</td>
@@ -1445,150 +1445,159 @@
 <span id="L1383"><span class="lineNum">    1383</span> <span class="tlaGNC">           1 :     val default = defaultActions[tableName] ?: DefaultAction(&quot;NoAction&quot;)</span></span>
 <span id="L1384"><span class="lineNum">    1384</span>              : </span>
 <span id="L1385"><span class="lineNum">    1385</span>              :     // Index key values by field ID for O(1) lookup in scoreEntry.</span>
-<span id="L1386"><span class="lineNum">    1386</span> <span class="tlaGNC">           1 :     val keyMap = HashMap&lt;String, Value&gt;(keyValues.size * 2)</span></span>
-<span id="L1387"><span class="lineNum">    1387</span> <span class="tlaGNC">           1 :     for ((name, value) in keyValues) keyMap[name] = value</span></span>
-<span id="L1388"><span class="lineNum">    1388</span>              : </span>
-<span id="L1389"><span class="lineNum">    1389</span> <span class="tlaGNC">           1 :     var bestEntry: TableEntry? = null</span></span>
-<span id="L1390"><span class="lineNum">    1390</span> <span class="tlaGNC">           1 :     var bestScore = -1L</span></span>
-<span id="L1391"><span class="lineNum">    1391</span> <span class="tlaGNC">           1 :     for (entry in entries) {</span></span>
-<span id="L1392"><span class="lineNum">    1392</span> <span class="tlaGNC">           1 :       val score = scoreEntry(entry, keyMap) ?: continue</span></span>
-<span id="L1393"><span class="lineNum">    1393</span> <span class="tlaGNC">           1 :       if (score &gt; bestScore) {</span></span>
-<span id="L1394"><span class="lineNum">    1394</span> <span class="tlaGNC">           1 :         bestScore = score</span></span>
-<span id="L1395"><span class="lineNum">    1395</span> <span class="tlaGNC">           1 :         bestEntry = entry</span></span>
-<span id="L1396"><span class="lineNum">    1396</span>              :       }</span>
-<span id="L1397"><span class="lineNum">    1397</span>              :     }</span>
-<span id="L1398"><span class="lineNum">    1398</span>              : </span>
-<span id="L1399"><span class="lineNum">    1399</span> <span class="tlaGNC">           1 :     val entry = bestEntry ?: return LookupResult(false, null, default.name, default.params)</span></span>
-<span id="L1400"><span class="lineNum">    1400</span> <span class="tlaGNC">           1 :     val tableAction = entry.action</span></span>
-<span id="L1401"><span class="lineNum">    1401</span>              : </span>
-<span id="L1402"><span class="lineNum">    1402</span>              :     // Action profile group: resolve group → members → individual actions.</span>
-<span id="L1403"><span class="lineNum">    1403</span> <span class="tlaGNC">           1 :     if (tableAction.hasActionProfileGroupId() &amp;&amp; tableAction.actionProfileGroupId != 0) {</span></span>
-<span id="L1404"><span class="lineNum">    1404</span> <span class="tlaGNC">           1 :       val profileId =</span></span>
-<span id="L1405"><span class="lineNum">    1405</span> <span class="tlaGNC">           1 :         tableActionProfile[tableName] ?: error(&quot;table $tableName has no action profile&quot;)</span></span>
-<span id="L1406"><span class="lineNum">    1406</span> <span class="tlaGNC">           1 :       val group =</span></span>
-<span id="L1407"><span class="lineNum">    1407</span> <span class="tlaGNC">           1 :         profileGroups[profileId]?.get(tableAction.actionProfileGroupId)</span></span>
-<span id="L1408"><span class="lineNum">    1408</span> <span class="tlaUNC tlaBgUNC">           0 :           ?: error(&quot;unknown group ${tableAction.actionProfileGroupId} in profile $profileId&quot;)</span></span>
-<span id="L1409"><span class="lineNum">    1409</span> <span class="tlaGNC tlaBgGNC">           1 :       val members =</span></span>
-<span id="L1410"><span class="lineNum">    1410</span> <span class="tlaGNC">           1 :         group.membersList.map { groupMember -&gt;</span></span>
-<span id="L1411"><span class="lineNum">    1411</span> <span class="tlaGNC">           1 :           val member =</span></span>
-<span id="L1412"><span class="lineNum">    1412</span> <span class="tlaGNC">           1 :             profileMembers[profileId]?.get(groupMember.memberId)</span></span>
-<span id="L1413"><span class="lineNum">    1413</span> <span class="tlaUNC tlaBgUNC">           0 :               ?: error(&quot;unknown member ${groupMember.memberId} in profile $profileId&quot;)</span></span>
-<span id="L1414"><span class="lineNum">    1414</span> <span class="tlaGNC tlaBgGNC">           1 :           MemberAction(</span></span>
-<span id="L1415"><span class="lineNum">    1415</span> <span class="tlaGNC">           1 :             groupMember.memberId,</span></span>
-<span id="L1416"><span class="lineNum">    1416</span> <span class="tlaGNC">           1 :             resolveActionName(member.action.actionId),</span></span>
-<span id="L1417"><span class="lineNum">    1417</span> <span class="tlaGNC">           1 :             member.action.paramsList,</span></span>
-<span id="L1418"><span class="lineNum">    1418</span> <span class="tlaGNC">           1 :           )</span></span>
-<span id="L1419"><span class="lineNum">    1419</span>              :         }</span>
-<span id="L1420"><span class="lineNum">    1420</span>              :       // Use the first member's action name for the table_lookup event.</span>
-<span id="L1421"><span class="lineNum">    1421</span> <span class="tlaGNC">           1 :       val actionName = members.firstOrNull()?.actionName ?: &quot;NoAction&quot;</span></span>
-<span id="L1422"><span class="lineNum">    1422</span> <span class="tlaGNC">           1 :       return LookupResult(true, entry, actionName, members = members)</span></span>
-<span id="L1423"><span class="lineNum">    1423</span>              :     }</span>
-<span id="L1424"><span class="lineNum">    1424</span>              : </span>
-<span id="L1425"><span class="lineNum">    1425</span>              :     // One-shot action selector (P4Runtime spec §9.2.3): the entry embeds actions inline.</span>
-<span id="L1426"><span class="lineNum">    1426</span>              :     // Member IDs are synthetic (list indices) since one-shot entries have no real member IDs.</span>
-<span id="L1427"><span class="lineNum">    1427</span> <span class="tlaGNC">           1 :     if (tableAction.hasActionProfileActionSet()) {</span></span>
-<span id="L1428"><span class="lineNum">    1428</span> <span class="tlaGNC">           1 :       val members =</span></span>
-<span id="L1429"><span class="lineNum">    1429</span> <span class="tlaGNC">           1 :         tableAction.actionProfileActionSet.actionProfileActionsList.mapIndexed { i, action -&gt;</span></span>
-<span id="L1430"><span class="lineNum">    1430</span> <span class="tlaGNC">           1 :           MemberAction(i, resolveActionName(action.action.actionId), action.action.paramsList)</span></span>
-<span id="L1431"><span class="lineNum">    1431</span>              :         }</span>
-<span id="L1432"><span class="lineNum">    1432</span> <span class="tlaGNC">           1 :       val actionName = members.firstOrNull()?.actionName ?: &quot;NoAction&quot;</span></span>
-<span id="L1433"><span class="lineNum">    1433</span> <span class="tlaGNC">           1 :       return LookupResult(true, entry, actionName, members = members)</span></span>
-<span id="L1434"><span class="lineNum">    1434</span>              :     }</span>
-<span id="L1435"><span class="lineNum">    1435</span>              : </span>
-<span id="L1436"><span class="lineNum">    1436</span>              :     // Action profile member (direct, no group): resolve to a single action.</span>
-<span id="L1437"><span class="lineNum">    1437</span> <span class="tlaGNC">           1 :     if (tableAction.hasActionProfileMemberId() &amp;&amp; tableAction.actionProfileMemberId != 0) {</span></span>
-<span id="L1438"><span class="lineNum">    1438</span> <span class="tlaGNC">           1 :       val profileId =</span></span>
-<span id="L1439"><span class="lineNum">    1439</span> <span class="tlaGNC">           1 :         tableActionProfile[tableName] ?: error(&quot;table $tableName has no action profile&quot;)</span></span>
-<span id="L1440"><span class="lineNum">    1440</span> <span class="tlaGNC">           1 :       val member =</span></span>
-<span id="L1441"><span class="lineNum">    1441</span> <span class="tlaGNC">           1 :         profileMembers[profileId]?.get(tableAction.actionProfileMemberId)</span></span>
-<span id="L1442"><span class="lineNum">    1442</span> <span class="tlaUNC tlaBgUNC">           0 :           ?: error(&quot;unknown member ${tableAction.actionProfileMemberId} in profile $profileId&quot;)</span></span>
-<span id="L1443"><span class="lineNum">    1443</span> <span class="tlaGNC tlaBgGNC">           1 :       return LookupResult(true, entry, resolveActionName(member.action.actionId))</span></span>
-<span id="L1444"><span class="lineNum">    1444</span>              :     }</span>
-<span id="L1445"><span class="lineNum">    1445</span>              : </span>
-<span id="L1446"><span class="lineNum">    1446</span> <span class="tlaGNC">           1 :     return LookupResult(true, entry, resolveActionName(entry.action.action.actionId))</span></span>
-<span id="L1447"><span class="lineNum">    1447</span>              :   }</span>
-<span id="L1448"><span class="lineNum">    1448</span>              : </span>
-<span id="L1449"><span class="lineNum">    1449</span>              :   private fun formatOptions(options: List&lt;String&gt;): String =</span>
-<span id="L1450"><span class="lineNum">    1450</span> <span class="tlaGNC">           1 :     when {</span></span>
-<span id="L1451"><span class="lineNum">    1451</span> <span class="tlaGNC">           1 :       options.isEmpty() -&gt; &quot;none&quot;</span></span>
-<span id="L1452"><span class="lineNum">    1452</span> <span class="tlaGNC">           1 :       options.size &lt;= 10 -&gt; options.joinToString(&quot;, &quot;)</span></span>
-<span id="L1453"><span class="lineNum">    1453</span> <span class="tlaUNC tlaBgUNC">           0 :       else -&gt; options.take(10).joinToString(&quot;, &quot;) + &quot; ... and ${options.size - 10} more&quot;</span></span>
-<span id="L1454"><span class="lineNum">    1454</span> <span class="tlaGNC tlaBgGNC">           1 :     }</span></span>
-<span id="L1455"><span class="lineNum">    1455</span>              : </span>
-<span id="L1456"><span class="lineNum">    1456</span>              :   private fun resolveActionName(actionId: Int): String =</span>
-<span id="L1457"><span class="lineNum">    1457</span> <span class="tlaGNC">           1 :     actionNameById[actionId]</span></span>
-<span id="L1458"><span class="lineNum">    1458</span> <span class="tlaUNC tlaBgUNC">           0 :       ?: error(</span></span>
-<span id="L1459"><span class="lineNum">    1459</span> <span class="tlaUNC">           0 :         &quot;unknown action ID $actionId &quot; +</span></span>
-<span id="L1460"><span class="lineNum">    1460</span> <span class="tlaUNC">           0 :           &quot;(valid actions: ${formatOptions(actionNameById.entries.map { &quot;'${it.value}' (${it.key})&quot; })})&quot;</span></span>
-<span id="L1461"><span class="lineNum">    1461</span> <span class="tlaGNC tlaBgGNC">           1 :       )</span></span>
-<span id="L1462"><span class="lineNum">    1462</span>              : </span>
-<span id="L1463"><span class="lineNum">    1463</span>              :   /** Resolves an action name (alias or behavioral) to its behavioral name. */</span>
-<span id="L1464"><span class="lineNum">    1464</span>              :   fun resolveActionByAlias(name: String): String? {</span>
-<span id="L1465"><span class="lineNum">    1465</span> <span class="tlaGNC">           1 :     if (name in actionIdByName) return name</span></span>
-<span id="L1466"><span class="lineNum">    1466</span>              :     // Exact alias match.</span>
-<span id="L1467"><span class="lineNum">    1467</span> <span class="tlaGNC">           1 :     actionAliasByName.entries</span></span>
-<span id="L1468"><span class="lineNum">    1468</span> <span class="tlaGNC">           1 :       .find { it.value == name }</span></span>
-<span id="L1469"><span class="lineNum">    1469</span> <span class="tlaGNC">           1 :       ?.let {</span></span>
-<span id="L1470"><span class="lineNum">    1470</span> <span class="tlaGNC">           1 :         return it.key</span></span>
-<span id="L1471"><span class="lineNum">    1471</span>              :       }</span>
-<span id="L1472"><span class="lineNum">    1472</span>              :     // Fuzzy match: nested controls use underscored behavioral names for dotted aliases.</span>
-<span id="L1473"><span class="lineNum">    1473</span> <span class="tlaGNC">           1 :     val candidates = actionIdByName.keys.toList()</span></span>
-<span id="L1474"><span class="lineNum">    1474</span> <span class="tlaGNC">           1 :     val underscored = name.replace('.', '_')</span></span>
-<span id="L1475"><span class="lineNum">    1475</span> <span class="tlaGNC">           1 :     candidates</span></span>
-<span id="L1476"><span class="lineNum">    1476</span> <span class="tlaGNC">           1 :       .find { it.endsWith(&quot;_$name&quot;) || it.endsWith(&quot;_$underscored&quot;) }</span></span>
-<span id="L1477"><span class="lineNum">    1477</span> <span class="tlaGNC">           1 :       ?.let {</span></span>
-<span id="L1478"><span class="lineNum">    1478</span> <span class="tlaGNC">           1 :         return it</span></span>
-<span id="L1479"><span class="lineNum">    1479</span>              :       }</span>
-<span id="L1480"><span class="lineNum">    1480</span> <span class="tlaUNC tlaBgUNC">           0 :     return null</span></span>
-<span id="L1481"><span class="lineNum">    1481</span>              :   }</span>
-<span id="L1482"><span class="lineNum">    1482</span>              : </span>
-<span id="L1483"><span class="lineNum">    1483</span>              :   /** Returns the short p4info alias for a behavioral action name, or the name itself if unknown. */</span>
-<span id="L1484"><span class="lineNum">    1484</span>              :   fun actionDisplayName(behavioralName: String): String =</span>
-<span id="L1485"><span class="lineNum">    1485</span> <span class="tlaGNC tlaBgGNC">           1 :     actionAliasByName[behavioralName] ?: behavioralName</span></span>
-<span id="L1486"><span class="lineNum">    1486</span>              : </span>
-<span id="L1487"><span class="lineNum">    1487</span>              :   /** Returns the short p4info alias for a behavioral table name, or the name itself if unknown. */</span>
-<span id="L1488"><span class="lineNum">    1488</span>              :   fun tableDisplayName(behavioralName: String): String =</span>
-<span id="L1489"><span class="lineNum">    1489</span> <span class="tlaGNC">           1 :     tableAliasByName[behavioralName] ?: behavioralName</span></span>
-<span id="L1490"><span class="lineNum">    1490</span>              : </span>
-<span id="L1491"><span class="lineNum">    1491</span>              :   /** Returns the short p4info alias for a behavioral name (table or action), or the name itself. */</span>
-<span id="L1492"><span class="lineNum">    1492</span>              :   fun displayName(behavioralName: String): String =</span>
-<span id="L1493"><span class="lineNum">    1493</span> <span class="tlaUNC tlaBgUNC">           0 :     tableAliasByName[behavioralName] ?: actionAliasByName[behavioralName] ?: behavioralName</span></span>
-<span id="L1494"><span class="lineNum">    1494</span>              : </span>
-<span id="L1495"><span class="lineNum">    1495</span>              :   /**</span>
-<span id="L1496"><span class="lineNum">    1496</span>              :    * Scores an entry against [keyMap]. Returns null if the entry does not match. Returns a</span>
-<span id="L1497"><span class="lineNum">    1497</span>              :    * non-negative score where a higher value means a better match (used to implement LPM</span>
-<span id="L1498"><span class="lineNum">    1498</span>              :    * longest-prefix and ternary priority semantics).</span>
-<span id="L1499"><span class="lineNum">    1499</span>              :    */</span>
-<span id="L1500"><span class="lineNum">    1500</span>              :   private fun scoreEntry(entry: TableEntry, keyMap: Map&lt;String, Value&gt;): Long? {</span>
-<span id="L1501"><span class="lineNum">    1501</span> <span class="tlaGNC tlaBgGNC">           1 :     var score = 0L</span></span>
-<span id="L1502"><span class="lineNum">    1502</span> <span class="tlaGNC">           1 :     for (match in entry.matchList) {</span></span>
-<span id="L1503"><span class="lineNum">    1503</span> <span class="tlaGNC">           1 :       val value = keyMap[match.fieldId.toString()] ?: return null</span></span>
-<span id="L1504"><span class="lineNum">    1504</span>              : </span>
-<span id="L1505"><span class="lineNum">    1505</span> <span class="tlaGNC">           1 :       val bits =</span></span>
-<span id="L1506"><span class="lineNum">    1506</span> <span class="tlaGNC">           1 :         when (value) {</span></span>
-<span id="L1507"><span class="lineNum">    1507</span> <span class="tlaGNC">           1 :           is BitVal -&gt; value.bits</span></span>
-<span id="L1508"><span class="lineNum">    1508</span> <span class="tlaGNC">           1 :           is BoolVal -&gt; if (value.value) BOOL_TRUE_BITS else BOOL_FALSE_BITS</span></span>
-<span id="L1509"><span class="lineNum">    1509</span> <span class="tlaUNC tlaBgUNC">           0 :           else -&gt; return null</span></span>
-<span id="L1510"><span class="lineNum">    1510</span>              :         }</span>
-<span id="L1511"><span class="lineNum">    1511</span>              : </span>
-<span id="L1512"><span class="lineNum">    1512</span> <span class="tlaGNC tlaBgGNC">           1 :       if (!matchesFieldMatch(bits, match)) return null</span></span>
+<span id="L1386"><span class="lineNum">    1386</span>              :     // Field IDs are small positive integers; a sparse array avoids both</span>
+<span id="L1387"><span class="lineNum">    1387</span>              :     // iterator allocation (HashMap) and boxing (Int → Integer).</span>
+<span id="L1388"><span class="lineNum">    1388</span> <span class="tlaGNC">           1 :     var maxId = 0</span></span>
+<span id="L1389"><span class="lineNum">    1389</span> <span class="tlaGNC">           1 :     for ((name, _) in keyValues) maxId = maxOf(maxId, name.toInt())</span></span>
+<span id="L1390"><span class="lineNum">    1390</span> <span class="tlaGNC">           1 :     val keyByFieldId = arrayOfNulls&lt;Value&gt;(maxId + 1)</span></span>
+<span id="L1391"><span class="lineNum">    1391</span> <span class="tlaGNC">           1 :     for ((name, value) in keyValues) keyByFieldId[name.toInt()] = value</span></span>
+<span id="L1392"><span class="lineNum">    1392</span>              : </span>
+<span id="L1393"><span class="lineNum">    1393</span> <span class="tlaGNC">           1 :     var bestEntry: TableEntry? = null</span></span>
+<span id="L1394"><span class="lineNum">    1394</span> <span class="tlaGNC">           1 :     var bestScore = -1L</span></span>
+<span id="L1395"><span class="lineNum">    1395</span> <span class="tlaGNC">           1 :     for (j in 0 until entries.size) {</span></span>
+<span id="L1396"><span class="lineNum">    1396</span> <span class="tlaGNC">           1 :       val entry = entries[j]</span></span>
+<span id="L1397"><span class="lineNum">    1397</span> <span class="tlaGNC">           1 :       val score = scoreEntry(entry, keyByFieldId) ?: continue</span></span>
+<span id="L1398"><span class="lineNum">    1398</span> <span class="tlaGNC">           1 :       if (score &gt; bestScore) {</span></span>
+<span id="L1399"><span class="lineNum">    1399</span> <span class="tlaGNC">           1 :         bestScore = score</span></span>
+<span id="L1400"><span class="lineNum">    1400</span> <span class="tlaGNC">           1 :         bestEntry = entry</span></span>
+<span id="L1401"><span class="lineNum">    1401</span>              :       }</span>
+<span id="L1402"><span class="lineNum">    1402</span>              :     }</span>
+<span id="L1403"><span class="lineNum">    1403</span>              : </span>
+<span id="L1404"><span class="lineNum">    1404</span> <span class="tlaGNC">           1 :     val entry = bestEntry ?: return LookupResult(false, null, default.name, default.params)</span></span>
+<span id="L1405"><span class="lineNum">    1405</span> <span class="tlaGNC">           1 :     val tableAction = entry.action</span></span>
+<span id="L1406"><span class="lineNum">    1406</span>              : </span>
+<span id="L1407"><span class="lineNum">    1407</span>              :     // Action profile group: resolve group → members → individual actions.</span>
+<span id="L1408"><span class="lineNum">    1408</span> <span class="tlaGNC">           1 :     if (tableAction.hasActionProfileGroupId() &amp;&amp; tableAction.actionProfileGroupId != 0) {</span></span>
+<span id="L1409"><span class="lineNum">    1409</span> <span class="tlaGNC">           1 :       val profileId =</span></span>
+<span id="L1410"><span class="lineNum">    1410</span> <span class="tlaGNC">           1 :         tableActionProfile[tableName] ?: error(&quot;table $tableName has no action profile&quot;)</span></span>
+<span id="L1411"><span class="lineNum">    1411</span> <span class="tlaGNC">           1 :       val group =</span></span>
+<span id="L1412"><span class="lineNum">    1412</span> <span class="tlaGNC">           1 :         profileGroups[profileId]?.get(tableAction.actionProfileGroupId)</span></span>
+<span id="L1413"><span class="lineNum">    1413</span> <span class="tlaUNC tlaBgUNC">           0 :           ?: error(&quot;unknown group ${tableAction.actionProfileGroupId} in profile $profileId&quot;)</span></span>
+<span id="L1414"><span class="lineNum">    1414</span> <span class="tlaGNC tlaBgGNC">           1 :       val members =</span></span>
+<span id="L1415"><span class="lineNum">    1415</span> <span class="tlaGNC">           1 :         group.membersList.map { groupMember -&gt;</span></span>
+<span id="L1416"><span class="lineNum">    1416</span> <span class="tlaGNC">           1 :           val member =</span></span>
+<span id="L1417"><span class="lineNum">    1417</span> <span class="tlaGNC">           1 :             profileMembers[profileId]?.get(groupMember.memberId)</span></span>
+<span id="L1418"><span class="lineNum">    1418</span> <span class="tlaUNC tlaBgUNC">           0 :               ?: error(&quot;unknown member ${groupMember.memberId} in profile $profileId&quot;)</span></span>
+<span id="L1419"><span class="lineNum">    1419</span> <span class="tlaGNC tlaBgGNC">           1 :           MemberAction(</span></span>
+<span id="L1420"><span class="lineNum">    1420</span> <span class="tlaGNC">           1 :             groupMember.memberId,</span></span>
+<span id="L1421"><span class="lineNum">    1421</span> <span class="tlaGNC">           1 :             resolveActionName(member.action.actionId),</span></span>
+<span id="L1422"><span class="lineNum">    1422</span> <span class="tlaGNC">           1 :             member.action.paramsList,</span></span>
+<span id="L1423"><span class="lineNum">    1423</span> <span class="tlaGNC">           1 :           )</span></span>
+<span id="L1424"><span class="lineNum">    1424</span>              :         }</span>
+<span id="L1425"><span class="lineNum">    1425</span>              :       // Use the first member's action name for the table_lookup event.</span>
+<span id="L1426"><span class="lineNum">    1426</span> <span class="tlaGNC">           1 :       val actionName = members.firstOrNull()?.actionName ?: &quot;NoAction&quot;</span></span>
+<span id="L1427"><span class="lineNum">    1427</span> <span class="tlaGNC">           1 :       return LookupResult(true, entry, actionName, members = members)</span></span>
+<span id="L1428"><span class="lineNum">    1428</span>              :     }</span>
+<span id="L1429"><span class="lineNum">    1429</span>              : </span>
+<span id="L1430"><span class="lineNum">    1430</span>              :     // One-shot action selector (P4Runtime spec §9.2.3): the entry embeds actions inline.</span>
+<span id="L1431"><span class="lineNum">    1431</span>              :     // Member IDs are synthetic (list indices) since one-shot entries have no real member IDs.</span>
+<span id="L1432"><span class="lineNum">    1432</span> <span class="tlaGNC">           1 :     if (tableAction.hasActionProfileActionSet()) {</span></span>
+<span id="L1433"><span class="lineNum">    1433</span> <span class="tlaGNC">           1 :       val members =</span></span>
+<span id="L1434"><span class="lineNum">    1434</span> <span class="tlaGNC">           1 :         tableAction.actionProfileActionSet.actionProfileActionsList.mapIndexed { i, action -&gt;</span></span>
+<span id="L1435"><span class="lineNum">    1435</span> <span class="tlaGNC">           1 :           MemberAction(i, resolveActionName(action.action.actionId), action.action.paramsList)</span></span>
+<span id="L1436"><span class="lineNum">    1436</span>              :         }</span>
+<span id="L1437"><span class="lineNum">    1437</span> <span class="tlaGNC">           1 :       val actionName = members.firstOrNull()?.actionName ?: &quot;NoAction&quot;</span></span>
+<span id="L1438"><span class="lineNum">    1438</span> <span class="tlaGNC">           1 :       return LookupResult(true, entry, actionName, members = members)</span></span>
+<span id="L1439"><span class="lineNum">    1439</span>              :     }</span>
+<span id="L1440"><span class="lineNum">    1440</span>              : </span>
+<span id="L1441"><span class="lineNum">    1441</span>              :     // Action profile member (direct, no group): resolve to a single action.</span>
+<span id="L1442"><span class="lineNum">    1442</span> <span class="tlaGNC">           1 :     if (tableAction.hasActionProfileMemberId() &amp;&amp; tableAction.actionProfileMemberId != 0) {</span></span>
+<span id="L1443"><span class="lineNum">    1443</span> <span class="tlaGNC">           1 :       val profileId =</span></span>
+<span id="L1444"><span class="lineNum">    1444</span> <span class="tlaGNC">           1 :         tableActionProfile[tableName] ?: error(&quot;table $tableName has no action profile&quot;)</span></span>
+<span id="L1445"><span class="lineNum">    1445</span> <span class="tlaGNC">           1 :       val member =</span></span>
+<span id="L1446"><span class="lineNum">    1446</span> <span class="tlaGNC">           1 :         profileMembers[profileId]?.get(tableAction.actionProfileMemberId)</span></span>
+<span id="L1447"><span class="lineNum">    1447</span> <span class="tlaUNC tlaBgUNC">           0 :           ?: error(&quot;unknown member ${tableAction.actionProfileMemberId} in profile $profileId&quot;)</span></span>
+<span id="L1448"><span class="lineNum">    1448</span> <span class="tlaGNC tlaBgGNC">           1 :       return LookupResult(true, entry, resolveActionName(member.action.actionId))</span></span>
+<span id="L1449"><span class="lineNum">    1449</span>              :     }</span>
+<span id="L1450"><span class="lineNum">    1450</span>              : </span>
+<span id="L1451"><span class="lineNum">    1451</span> <span class="tlaGNC">           1 :     return LookupResult(true, entry, resolveActionName(entry.action.action.actionId))</span></span>
+<span id="L1452"><span class="lineNum">    1452</span>              :   }</span>
+<span id="L1453"><span class="lineNum">    1453</span>              : </span>
+<span id="L1454"><span class="lineNum">    1454</span>              :   private fun formatOptions(options: List&lt;String&gt;): String =</span>
+<span id="L1455"><span class="lineNum">    1455</span> <span class="tlaGNC">           1 :     when {</span></span>
+<span id="L1456"><span class="lineNum">    1456</span> <span class="tlaGNC">           1 :       options.isEmpty() -&gt; &quot;none&quot;</span></span>
+<span id="L1457"><span class="lineNum">    1457</span> <span class="tlaGNC">           1 :       options.size &lt;= 10 -&gt; options.joinToString(&quot;, &quot;)</span></span>
+<span id="L1458"><span class="lineNum">    1458</span> <span class="tlaUNC tlaBgUNC">           0 :       else -&gt; options.take(10).joinToString(&quot;, &quot;) + &quot; ... and ${options.size - 10} more&quot;</span></span>
+<span id="L1459"><span class="lineNum">    1459</span> <span class="tlaGNC tlaBgGNC">           1 :     }</span></span>
+<span id="L1460"><span class="lineNum">    1460</span>              : </span>
+<span id="L1461"><span class="lineNum">    1461</span>              :   private fun resolveActionName(actionId: Int): String =</span>
+<span id="L1462"><span class="lineNum">    1462</span> <span class="tlaGNC">           1 :     actionNameById[actionId]</span></span>
+<span id="L1463"><span class="lineNum">    1463</span> <span class="tlaUNC tlaBgUNC">           0 :       ?: error(</span></span>
+<span id="L1464"><span class="lineNum">    1464</span> <span class="tlaUNC">           0 :         &quot;unknown action ID $actionId &quot; +</span></span>
+<span id="L1465"><span class="lineNum">    1465</span> <span class="tlaUNC">           0 :           &quot;(valid actions: ${formatOptions(actionNameById.entries.map { &quot;'${it.value}' (${it.key})&quot; })})&quot;</span></span>
+<span id="L1466"><span class="lineNum">    1466</span> <span class="tlaGNC tlaBgGNC">           1 :       )</span></span>
+<span id="L1467"><span class="lineNum">    1467</span>              : </span>
+<span id="L1468"><span class="lineNum">    1468</span>              :   /** Resolves an action name (alias or behavioral) to its behavioral name. */</span>
+<span id="L1469"><span class="lineNum">    1469</span>              :   fun resolveActionByAlias(name: String): String? {</span>
+<span id="L1470"><span class="lineNum">    1470</span> <span class="tlaGNC">           1 :     if (name in actionIdByName) return name</span></span>
+<span id="L1471"><span class="lineNum">    1471</span>              :     // Exact alias match.</span>
+<span id="L1472"><span class="lineNum">    1472</span> <span class="tlaGNC">           1 :     actionAliasByName.entries</span></span>
+<span id="L1473"><span class="lineNum">    1473</span> <span class="tlaGNC">           1 :       .find { it.value == name }</span></span>
+<span id="L1474"><span class="lineNum">    1474</span> <span class="tlaGNC">           1 :       ?.let {</span></span>
+<span id="L1475"><span class="lineNum">    1475</span> <span class="tlaGNC">           1 :         return it.key</span></span>
+<span id="L1476"><span class="lineNum">    1476</span>              :       }</span>
+<span id="L1477"><span class="lineNum">    1477</span>              :     // Fuzzy match: nested controls use underscored behavioral names for dotted aliases.</span>
+<span id="L1478"><span class="lineNum">    1478</span> <span class="tlaGNC">           1 :     val candidates = actionIdByName.keys.toList()</span></span>
+<span id="L1479"><span class="lineNum">    1479</span> <span class="tlaGNC">           1 :     val underscored = name.replace('.', '_')</span></span>
+<span id="L1480"><span class="lineNum">    1480</span> <span class="tlaGNC">           1 :     candidates</span></span>
+<span id="L1481"><span class="lineNum">    1481</span> <span class="tlaGNC">           1 :       .find { it.endsWith(&quot;_$name&quot;) || it.endsWith(&quot;_$underscored&quot;) }</span></span>
+<span id="L1482"><span class="lineNum">    1482</span> <span class="tlaGNC">           1 :       ?.let {</span></span>
+<span id="L1483"><span class="lineNum">    1483</span> <span class="tlaGNC">           1 :         return it</span></span>
+<span id="L1484"><span class="lineNum">    1484</span>              :       }</span>
+<span id="L1485"><span class="lineNum">    1485</span> <span class="tlaUNC tlaBgUNC">           0 :     return null</span></span>
+<span id="L1486"><span class="lineNum">    1486</span>              :   }</span>
+<span id="L1487"><span class="lineNum">    1487</span>              : </span>
+<span id="L1488"><span class="lineNum">    1488</span>              :   /** Returns the short p4info alias for a behavioral action name, or the name itself if unknown. */</span>
+<span id="L1489"><span class="lineNum">    1489</span>              :   fun actionDisplayName(behavioralName: String): String =</span>
+<span id="L1490"><span class="lineNum">    1490</span> <span class="tlaGNC tlaBgGNC">           1 :     actionAliasByName[behavioralName] ?: behavioralName</span></span>
+<span id="L1491"><span class="lineNum">    1491</span>              : </span>
+<span id="L1492"><span class="lineNum">    1492</span>              :   /** Returns the short p4info alias for a behavioral table name, or the name itself if unknown. */</span>
+<span id="L1493"><span class="lineNum">    1493</span>              :   fun tableDisplayName(behavioralName: String): String =</span>
+<span id="L1494"><span class="lineNum">    1494</span> <span class="tlaGNC">           1 :     tableAliasByName[behavioralName] ?: behavioralName</span></span>
+<span id="L1495"><span class="lineNum">    1495</span>              : </span>
+<span id="L1496"><span class="lineNum">    1496</span>              :   /** Returns the short p4info alias for a behavioral name (table or action), or the name itself. */</span>
+<span id="L1497"><span class="lineNum">    1497</span>              :   fun displayName(behavioralName: String): String =</span>
+<span id="L1498"><span class="lineNum">    1498</span> <span class="tlaUNC tlaBgUNC">           0 :     tableAliasByName[behavioralName] ?: actionAliasByName[behavioralName] ?: behavioralName</span></span>
+<span id="L1499"><span class="lineNum">    1499</span>              : </span>
+<span id="L1500"><span class="lineNum">    1500</span>              :   /**</span>
+<span id="L1501"><span class="lineNum">    1501</span>              :    * Scores an entry against [keyMap]. Returns null if the entry does not match. Returns a</span>
+<span id="L1502"><span class="lineNum">    1502</span>              :    * non-negative score where a higher value means a better match (used to implement LPM</span>
+<span id="L1503"><span class="lineNum">    1503</span>              :    * longest-prefix and ternary priority semantics).</span>
+<span id="L1504"><span class="lineNum">    1504</span>              :    */</span>
+<span id="L1505"><span class="lineNum">    1505</span>              :   private fun scoreEntry(entry: TableEntry, keyByFieldId: Array&lt;Value?&gt;): Long? {</span>
+<span id="L1506"><span class="lineNum">    1506</span> <span class="tlaGNC tlaBgGNC">           1 :     var score = 0L</span></span>
+<span id="L1507"><span class="lineNum">    1507</span> <span class="tlaGNC">           1 :     val matchList = entry.matchList</span></span>
+<span id="L1508"><span class="lineNum">    1508</span> <span class="tlaGNC">           1 :     for (i in 0 until matchList.size) {</span></span>
+<span id="L1509"><span class="lineNum">    1509</span> <span class="tlaGNC">           1 :       val match = matchList[i]</span></span>
+<span id="L1510"><span class="lineNum">    1510</span> <span class="tlaGNC">           1 :       val id = match.fieldId</span></span>
+<span id="L1511"><span class="lineNum">    1511</span> <span class="tlaGNC">           1 :       val value = if (id in keyByFieldId.indices) keyByFieldId[id] else null</span></span>
+<span id="L1512"><span class="lineNum">    1512</span> <span class="tlaGNC">           1 :       value ?: return null</span></span>
 <span id="L1513"><span class="lineNum">    1513</span>              : </span>
-<span id="L1514"><span class="lineNum">    1514</span>              :       // Accumulate score for priority-based match kinds.</span>
-<span id="L1515"><span class="lineNum">    1515</span>              :       // Exact and optional don't contribute — all exact fields either match or don't.</span>
-<span id="L1516"><span class="lineNum">    1516</span> <span class="tlaGNC">           1 :       when {</span></span>
-<span id="L1517"><span class="lineNum">    1517</span> <span class="tlaGNC">           1 :         match.hasLpm() -&gt; score += match.lpm.prefixLen.toLong()</span></span>
-<span id="L1518"><span class="lineNum">    1518</span> <span class="tlaGNC">           1 :         match.hasTernary() -&gt; score += entry.priority.toLong()</span></span>
-<span id="L1519"><span class="lineNum">    1519</span> <span class="tlaGNC">           1 :         match.hasRange() -&gt; score += entry.priority.toLong()</span></span>
-<span id="L1520"><span class="lineNum">    1520</span>              :       }</span>
-<span id="L1521"><span class="lineNum">    1521</span>              :     }</span>
-<span id="L1522"><span class="lineNum">    1522</span> <span class="tlaGNC">           1 :     return score</span></span>
-<span id="L1523"><span class="lineNum">    1523</span>              :   }</span>
-<span id="L1524"><span class="lineNum">    1524</span>              : </span>
-<span id="L1525"><span class="lineNum">    1525</span>              :   companion object {</span>
-<span id="L1526"><span class="lineNum">    1526</span> <span class="tlaGNC">           1 :     private val BOOL_TRUE_BITS = BitVector.ofInt(1, 1)</span></span>
-<span id="L1527"><span class="lineNum">    1527</span> <span class="tlaGNC">           1 :     private val BOOL_FALSE_BITS = BitVector.ofInt(0, 1)</span></span>
-<span id="L1528"><span class="lineNum">    1528</span>              :   }</span>
-<span id="L1529"><span class="lineNum">    1529</span>              : }</span>
+<span id="L1514"><span class="lineNum">    1514</span> <span class="tlaGNC">           1 :       val bits =</span></span>
+<span id="L1515"><span class="lineNum">    1515</span> <span class="tlaGNC">           1 :         when (value) {</span></span>
+<span id="L1516"><span class="lineNum">    1516</span> <span class="tlaGNC">           1 :           is BitVal -&gt; value.bits</span></span>
+<span id="L1517"><span class="lineNum">    1517</span> <span class="tlaGNC">           1 :           is BoolVal -&gt; if (value.value) BOOL_TRUE_BITS else BOOL_FALSE_BITS</span></span>
+<span id="L1518"><span class="lineNum">    1518</span> <span class="tlaUNC tlaBgUNC">           0 :           else -&gt; return null</span></span>
+<span id="L1519"><span class="lineNum">    1519</span>              :         }</span>
+<span id="L1520"><span class="lineNum">    1520</span>              : </span>
+<span id="L1521"><span class="lineNum">    1521</span> <span class="tlaGNC tlaBgGNC">           1 :       if (!matchesFieldMatch(bits, match)) return null</span></span>
+<span id="L1522"><span class="lineNum">    1522</span>              : </span>
+<span id="L1523"><span class="lineNum">    1523</span>              :       // Accumulate score for priority-based match kinds.</span>
+<span id="L1524"><span class="lineNum">    1524</span>              :       // Exact and optional don't contribute — all exact fields either match or don't.</span>
+<span id="L1525"><span class="lineNum">    1525</span> <span class="tlaGNC">           1 :       when {</span></span>
+<span id="L1526"><span class="lineNum">    1526</span> <span class="tlaGNC">           1 :         match.hasLpm() -&gt; score += match.lpm.prefixLen.toLong()</span></span>
+<span id="L1527"><span class="lineNum">    1527</span> <span class="tlaGNC">           1 :         match.hasTernary() -&gt; score += entry.priority.toLong()</span></span>
+<span id="L1528"><span class="lineNum">    1528</span> <span class="tlaGNC">           1 :         match.hasRange() -&gt; score += entry.priority.toLong()</span></span>
+<span id="L1529"><span class="lineNum">    1529</span>              :       }</span>
+<span id="L1530"><span class="lineNum">    1530</span>              :     }</span>
+<span id="L1531"><span class="lineNum">    1531</span> <span class="tlaGNC">           1 :     return score</span></span>
+<span id="L1532"><span class="lineNum">    1532</span>              :   }</span>
+<span id="L1533"><span class="lineNum">    1533</span>              : </span>
+<span id="L1534"><span class="lineNum">    1534</span>              :   companion object {</span>
+<span id="L1535"><span class="lineNum">    1535</span> <span class="tlaGNC">           1 :     private val BOOL_TRUE_BITS = BitVector.ofInt(1, 1)</span></span>
+<span id="L1536"><span class="lineNum">    1536</span> <span class="tlaGNC">           1 :     private val BOOL_FALSE_BITS = BitVector.ofInt(0, 1)</span></span>
+<span id="L1537"><span class="lineNum">    1537</span>              :   }</span>
+<span id="L1538"><span class="lineNum">    1538</span>              : }</span>
         </pre>
               </td>
             </tr>
