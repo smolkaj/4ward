@@ -1376,14 +1376,16 @@ class TableStore : TableDataReader {
     val entries = tables[tableName] ?: emptyList<TableEntry>()
     val default = defaultActions[tableName] ?: DefaultAction("NoAction")
 
-    // Index key values by field ID for O(1) lookup in scoreEntry.
-    val keyMap = HashMap<String, Value>(keyValues.size * 2)
-    for ((name, value) in keyValues) keyMap[name] = value
+    // Index key values by field ID for O(1) array lookup in scoreEntry.
+    val keyByFieldId =
+      if (keyValues.isEmpty()) emptyArray()
+      else arrayOfNulls<Value>(keyValues.maxOf { it.first.toInt() } + 1)
+    for ((name, value) in keyValues) keyByFieldId[name.toInt()] = value
 
     var bestEntry: TableEntry? = null
     var bestScore = -1L
     for (entry in entries) {
-      val score = scoreEntry(entry, keyMap) ?: continue
+      val score = scoreEntry(entry, keyByFieldId) ?: continue
       if (score > bestScore) {
         bestScore = score
         bestEntry = entry
@@ -1487,14 +1489,16 @@ class TableStore : TableDataReader {
     tableAliasByName[behavioralName] ?: actionAliasByName[behavioralName] ?: behavioralName
 
   /**
-   * Scores an entry against [keyMap]. Returns null if the entry does not match. Returns a
+   * Scores an entry against [keyByFieldId]. Returns null if the entry does not match. Returns a
    * non-negative score where a higher value means a better match (used to implement LPM
    * longest-prefix and ternary priority semantics).
    */
-  private fun scoreEntry(entry: TableEntry, keyMap: Map<String, Value>): Long? {
+  private fun scoreEntry(entry: TableEntry, keyByFieldId: Array<Value?>): Long? {
     var score = 0L
-    for (match in entry.matchList) {
-      val value = keyMap[match.fieldId.toString()] ?: return null
+    val matchList = entry.matchList
+    for (i in 0 until matchList.size) {
+      val match = matchList[i]
+      val value = keyByFieldId.getOrNull(match.fieldId) ?: return null
 
       val bits =
         when (value) {
