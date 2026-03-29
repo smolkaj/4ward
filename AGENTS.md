@@ -93,14 +93,9 @@ with `gh run view --log-failed`.
    behavior in all downstream layers — validation alone creates a false
    sense of completeness.
 
-## Making a test pass
+## Shortcuts and workarounds
 
-Do not add features that are not exercised by an STF test in `e2e_tests/`.
-Find the relevant failing test, implement the missing feature in `simulator/`,
-and confirm no other tests regress: `bazel test //...`. A test that was green
-before your change must still be green after it.
-
-If you take a shortcut or skip a corner case to make progress, note it in
+If you take a shortcut or skip a corner case, note it in
 [LIMITATIONS.md](docs/LIMITATIONS.md) and leave a `TODO(<scope>)` comment at
 the site — e.g. `TODO(PR 3): update names to match actual simulator output`.
 
