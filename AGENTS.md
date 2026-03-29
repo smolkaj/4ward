@@ -45,7 +45,7 @@ that spawn many JVM processes (p4testgen: 186 separate JVMs). Skipping them
 keeps local test runs fast and avoids memory pressure. CI runs all tests
 including heavy ones.
 
-All builds are hermetic. Do not install dependencies outside of Bazel.
+Do not install dependencies outside of Bazel.
 
 ## CI
 
