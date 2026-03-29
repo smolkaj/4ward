@@ -55,11 +55,16 @@ present). Both can be overridden via `--drop-port` and `--cpu-port` flags.
 - `recirculate_preserving_field_list(field_list_id)` feeds the deparsed packet
   back to the parser. Replaces the deprecated `recirculate(data)`.
 
-The deprecated forms (`clone3`, `resubmit`, `recirculate`) are still supported
-but had [bugs in p4c's BMv2 backend](https://github.com/p4lang/p4c/issues/1514)
-and violated P4_16 call semantics. Prefer the `_preserving_field_list`
-variants. See the [v1model special ops guide](https://github.com/jafingerhut/p4-guide/blob/master/v1model-special-ops/README.md)
-for a thorough writeup.
+!!! warning "Avoid the deprecated `clone3`, `resubmit`, and `recirculate`"
+
+    These still compile but **do not reliably preserve metadata** with modern
+    p4c — field lists may be
+    [silently emitted as empty](https://github.com/p4lang/p4c/issues/2875),
+    and the underlying semantics
+    [violate P4_16 call conventions](https://github.com/p4lang/p4c/issues/1514).
+    Always use the `_preserving_field_list` variants. See the
+    [v1model special ops guide](https://github.com/jafingerhut/p4-guide/blob/master/v1model-special-ops/README.md)
+    for a thorough writeup.
 
 Multiple calls use last-writer-wins semantics. All of these produce
 [trace tree forks](traces.md#forks).
