@@ -76,6 +76,29 @@ packet_outcome {
 When execution reaches a non-deterministic choice point, the trace forks.
 Each branch gets its own subtree with the remaining pipeline events.
 
+There are two kinds of forks, and the distinction is important for
+understanding what the output packets mean:
+
+- **Parallel forks** (clone, multicast, resubmit, recirculate) — all branches
+  happen simultaneously in a single real execution. A clone creates both the
+  original *and* the clone; multicast creates all replicas at once.
+- **Alternative forks** (action selector) — exactly one branch happens at
+  runtime, determined by a hash function. Each branch represents one *possible
+  world* — a forwarding outcome that *could* happen, depending on the hash.
+
+For parallel forks, the output packets are the combined outputs from all
+branches. For alternative forks, each branch produces its own independent set
+of outputs — a "possible outcome." The `possible_outcomes` field in the gRPC
+response (and `possibleOutcomes` in the Kotlin API) gives you the full picture:
+each entry is one set of output packets that could result from a single real
+execution.
+
+Programs with only parallel forks have exactly one possible outcome. Programs
+with action selectors have one possible outcome per member — and when
+alternative forks are nested inside parallel forks (e.g., a clone where both
+original and clone hit an action selector), the outcomes multiply
+(Cartesian product).
+
 ### Clone
 
 A clone creates two branches — the **original** packet continues on its
@@ -116,11 +139,13 @@ Multicast creates one branch per replica in the multicast group:
 ### Action selector
 
 An action selector with multiple members forks into one branch per member —
-showing every possible forwarding decision:
+showing every possible forwarding decision. This is an **alternative fork**:
+real hardware picks exactly one member (via hashing), but 4ward shows all
+possibilities so you can verify that every path is correct.
 
 ```
 ├─ table ecmp: hit → set_port
-└─ fork (action selector)
+└─ fork (action selector)       ← alternative: one of these happens
    ├─ branch: member_0
    │  ├─ action set_port(port=1)
    │  └─ output port 1
@@ -131,6 +156,10 @@ showing every possible forwarding decision:
       ├─ action set_port(port=3)
       └─ output port 3
 ```
+
+This trace has three **possible outcomes**: `{port 1}`, `{port 2}`, or
+`{port 3}`. Compare this with a clone fork, which has one possible outcome
+containing *all* branch outputs.
 
 ### Resubmit and recirculate
 

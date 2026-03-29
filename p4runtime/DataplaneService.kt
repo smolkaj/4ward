@@ -39,16 +39,21 @@ class DataplaneService(
     val ingressPort = resolveIngressPort(request, pt)
     val payload = request.payload.toByteArray()
     val result = lock.withReadLock { broker.processPacket(ingressPort, payload) }
-    val outputPackets =
-      try {
-        result.outputPackets.map { it.toDualEncoded(pt) }
-      } catch (e: IllegalStateException) {
-        throw Status.INTERNAL.withDescription(e.message).withCause(e).asException()
-      }
-    return InjectPacketResponse.newBuilder()
-      .addAllOutputPackets(outputPackets)
-      .setTrace(enrichTrace(result.trace, translator))
-      .build()
+    try {
+      val possibleOutcomes =
+        result.possibleOutcomes.map { world ->
+          DataplaneProto.PacketSet.newBuilder()
+            .addAllPackets(world.map { it.toDualEncoded(pt) })
+            .build()
+        }
+      return InjectPacketResponse.newBuilder()
+        .addAllOutputPackets(possibleOutcomes.flatMap { it.packetsList })
+        .addAllPossibleOutcomes(possibleOutcomes)
+        .setTrace(enrichTrace(result.trace, translator))
+        .build()
+    } catch (e: IllegalStateException) {
+      throw Status.INTERNAL.withDescription(e.message).withCause(e).asException()
+    }
   }
 
   override suspend fun injectPackets(
@@ -95,7 +100,16 @@ class DataplaneService(
                     }
                     .setPayload(ByteString.copyFrom(subResult.payload))
                 )
-                .addAllOutputPackets(subResult.outputPackets.map { it.toDualEncoded(pt) })
+                .addAllOutputPackets(
+                  subResult.possibleOutcomes.flatten().map { it.toDualEncoded(pt) }
+                )
+                .addAllPossibleOutcomes(
+                  subResult.possibleOutcomes.map { world ->
+                    DataplaneProto.PacketSet.newBuilder()
+                      .addAllPackets(world.map { it.toDualEncoded(pt) })
+                      .build()
+                  }
+                )
                 .setTrace(enrichTrace(subResult.trace, translator))
                 .build()
             trySend(SubscribeResultsResponse.newBuilder().setResult(result).build())

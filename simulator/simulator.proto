@@ -59,9 +59,26 @@ message TraceTree {
 
 // A non-deterministic choice point where execution forks into multiple
 // possible paths.
+//
+// Forks come in two flavors (see ForkMode):
+//
+//  • **Parallel** (clone, multicast, resubmit, recirculate) — all branches
+//    execute simultaneously in a single real execution.  The packet outputs
+//    are the union of all branch outputs.
+//
+//  • **Alternative** (action selector) — exactly one branch executes at
+//    runtime (determined by a hash function).  Each branch represents one
+//    *possible world*; the trace tree explores all of them.
+//
+// This distinction matters when collecting output packets from the tree:
+// parallel branches are combined (union), while alternative branches are
+// kept separate (each is a distinct possible outcome set).
 message Fork {
   ForkReason reason = 1;
   repeated ForkBranch branches = 2;
+  // How to interpret the branches.  Derived from `reason` but explicit so
+  // consumers don't need their own reason→mode mapping.
+  ForkMode mode = 3;
 }
 
 // One branch of a fork.  The label describes this particular outcome (e.g. the
@@ -71,13 +88,26 @@ message ForkBranch {
   TraceTree subtree = 2;
 }
 
+// Whether a fork's branches all happen (parallel) or only one happens
+// (alternative).  See the Fork message for details.
+enum ForkMode {
+  FORK_MODE_UNSPECIFIED = 0;
+  // All branches execute simultaneously in a single real execution.
+  // Output packets are the union of all branch outputs.
+  FORK_MODE_PARALLEL = 1;
+  // Exactly one branch executes; each is an alternative possible outcome.
+  // The simulator explores all alternatives so consumers can reason about
+  // every possible forwarding decision.
+  FORK_MODE_ALTERNATIVE = 2;
+}
+
 enum ForkReason {
   FORK_REASON_UNSPECIFIED = 0;
-  ACTION_SELECTOR = 1;
-  CLONE = 2;
-  MULTICAST = 3;
-  RESUBMIT = 4;
-  RECIRCULATE = 5;
+  ACTION_SELECTOR = 1;  // Alternative: one member is selected by hash.
+  CLONE = 2;            // Parallel: original + clone(s) all execute.
+  MULTICAST = 3;        // Parallel: one replica per multicast group member.
+  RESUBMIT = 4;         // Parallel: packet re-enters the pipeline.
+  RECIRCULATE = 5;      // Parallel: deparsed packet loops back.
 }
 
 // The terminal fate of a packet: either output on a port or dropped.

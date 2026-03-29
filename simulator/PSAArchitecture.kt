@@ -300,7 +300,12 @@ class PSAArchitecture : Architecture {
           .build()
       }
     return TraceTree.newBuilder()
-      .setForkOutcome(Fork.newBuilder().setReason(ForkReason.MULTICAST).addAllBranches(branches))
+      .setForkOutcome(
+        Fork.newBuilder()
+          .setReason(ForkReason.MULTICAST)
+          .setMode(forkModeOf(ForkReason.MULTICAST))
+          .addAllBranches(branches)
+      )
       .build()
   }
 
@@ -379,6 +384,7 @@ class PSAArchitecture : Architecture {
           .setForkOutcome(
             Fork.newBuilder()
               .setReason(ForkReason.RECIRCULATE)
+              .setMode(forkModeOf(ForkReason.RECIRCULATE))
               .addBranches(ForkBranch.newBuilder().setLabel("recirculate").setSubtree(recircTree))
           )
           .build()

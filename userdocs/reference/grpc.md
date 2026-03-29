@@ -75,10 +75,21 @@ The `p4rt_ingress_port` variant requires a loaded pipeline with
 
 ```protobuf
 message InjectPacketResponse {
-  repeated OutputPacket output_packets = 1;
-  TraceTree trace = 2;  // P4RT-enriched when translation is available
+  repeated OutputPacket output_packets = 1;   // flattened across all possible outcomes
+  TraceTree trace = 2;                        // P4RT-enriched when translation is available
+  repeated PacketSet possible_outcomes = 3;   // one entry per possible real execution
 }
 ```
+
+The `possible_outcomes` field captures the distinction between
+[parallel and alternative forks](../concepts/traces.md#forks).
+Each `PacketSet` is one possible set of output packets from a single real
+execution. Programs with only parallel forks (clone, multicast) have exactly
+one entry. Programs with action selectors have one entry per alternative.
+
+The `output_packets` field is a flat union of all possible outcomes — convenient
+when you don't need per-world tracking, but it over-counts for programs with
+action selectors.
 
 ### `InjectPackets`
 
@@ -116,8 +127,9 @@ SubscribeResultsResponse { active: {} }
 SubscribeResultsResponse {
   result: {
     input_packet: { ... }
-    output_packets: [ ... ]
+    output_packets: [ ... ]         // flattened
     trace: { ... }
+    possible_outcomes: [ { ... } ]  // per-world output sets
   }
 }
 ```

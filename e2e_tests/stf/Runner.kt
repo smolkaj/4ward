@@ -57,8 +57,10 @@ class StfRunner(private val pipelineConfigPath: Path, private val dropPortOverri
       return TestResult.Failure(e.message ?: "WriteEntry failed")
     }
 
-    val failures = mutableListOf<String>()
-    val outputQueue = mutableListOf<ReceivedPacket>()
+    // Each packet may have multiple possible outcomes (alternative forks, e.g. action selectors).
+    // We accumulate one output queue per "possible world" — the Cartesian product of outcomes
+    // across packets. If any world satisfies all expects, the test passes.
+    var possibleWorlds: List<List<ReceivedPacket>> = listOf(emptyList())
 
     for (packet in stf.packets) {
       val result = sim.processPacket(packet.ingressPort, packet.payload)
@@ -67,16 +69,25 @@ class StfRunner(private val pipelineConfigPath: Path, private val dropPortOverri
         print(TextFormat.printer().printToString(result.trace))
         println("--- End trace tree ---")
       }
-      val pkts = result.outputPackets
-      for (pkt in pkts) {
-        outputQueue += ReceivedPacket(pkt.dataplaneEgressPort, pkt.payload.toByteArray())
-      }
+      possibleWorlds =
+        possibleWorlds.flatMap { world ->
+          result.possibleOutcomes.map { outcome ->
+            world +
+              outcome.map { pkt ->
+                ReceivedPacket(pkt.dataplaneEgressPort, pkt.payload.toByteArray())
+              }
+          }
+        }
     }
 
-    failures += matchOutputAgainstExpects(stf.expects, outputQueue)
-
-    return if (failures.isEmpty()) TestResult.Pass
-    else TestResult.Failure(failures.joinToString("\n"))
+    // Find the first world that satisfies all expects, or report the best failure.
+    val worldFailures =
+      possibleWorlds.map { world -> matchOutputAgainstExpects(stf.expects, world.toMutableList()) }
+    val passWorld = worldFailures.firstOrNull { it.isEmpty() }
+    if (passWorld != null) return TestResult.Pass
+    // Report failures from the world with fewest issues.
+    val bestFailures = worldFailures.minBy { it.size }
+    return TestResult.Failure(bestFailures.joinToString("\n"))
   }
 }
 

@@ -55,7 +55,7 @@ fun simulate(pipelinePath: Path, stfPath: Path, format: OutputFormat, dropPort: 
     return ExitCode.INTERNAL_ERROR
   }
 
-  val outputQueue = mutableListOf<ReceivedPacket>()
+  var possibleWorlds: List<List<ReceivedPacket>> = listOf(emptyList())
   val textProtoPrinter = TextFormat.printer()
   val jsonPrinter = JsonFormat.printer().preservingProtoFieldNames()
 
@@ -75,13 +75,23 @@ fun simulate(pipelinePath: Path, stfPath: Path, format: OutputFormat, dropPort: 
         println(jsonPrinter.print(result.trace))
       }
     }
-    val pkts = result.outputPackets
-    for (pkt in pkts) {
-      outputQueue += ReceivedPacket(pkt.dataplaneEgressPort, pkt.payload.toByteArray())
-    }
+    // Each packet may have multiple possible outcomes (alternative forks, e.g. action selectors).
+    // Expand the Cartesian product of outcomes across packets.
+    possibleWorlds =
+      possibleWorlds.flatMap { world ->
+        result.possibleOutcomes.map { outcome ->
+          world +
+            outcome.map { pkt ->
+              ReceivedPacket(pkt.dataplaneEgressPort, pkt.payload.toByteArray())
+            }
+        }
+      }
   }
 
-  val failures = matchOutputAgainstExpects(stf.expects, outputQueue)
+  // Find the first world that satisfies all expects, or report the best failure.
+  val worldFailures =
+    possibleWorlds.map { world -> matchOutputAgainstExpects(stf.expects, world.toMutableList()) }
+  val failures = worldFailures.firstOrNull { it.isEmpty() } ?: worldFailures.minBy { it.size }
   if (failures.isNotEmpty()) {
     System.err.println("FAIL")
     for (f in failures) System.err.println("  $f")

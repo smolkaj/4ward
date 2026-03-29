@@ -77,6 +77,7 @@ events {
 }
 fork_outcome {
   reason: ACTION_SELECTOR
+  mode: FORK_MODE_ALTERNATIVE
   branches {
     label: "member_0"
     subtree {
@@ -122,6 +123,7 @@ fork_outcome {
       }
       fork_outcome {
         reason: ACTION_SELECTOR
+        mode: FORK_MODE_ALTERNATIVE
         branches {
           label: "member_0"
           subtree {
@@ -332,6 +334,7 @@ fork_outcome {
       }
       fork_outcome {
         reason: ACTION_SELECTOR
+        mode: FORK_MODE_ALTERNATIVE
         branches {
           label: "member_0"
           subtree {

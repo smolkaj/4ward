@@ -158,6 +158,24 @@ deterministic, it's often more useful to reason about them as
 non-deterministic — "what *could* happen to my packet?" rather than "what
 happens with this specific hash seed?"
 
+### Parallel vs alternative forks
+
+Not all forks are created equal. The simulator distinguishes two kinds of
+nondeterminism (see `ForkMode` in `simulator.proto`):
+
+- **Parallel forks** (clone, multicast, resubmit, recirculate) — all branches
+  execute simultaneously in a single real execution. The output packets are the
+  union of all branch outputs.
+- **Alternative forks** (action selector) — exactly one branch executes at
+  runtime (determined by a hash function). Each branch represents one *possible
+  world*; the trace tree explores all of them.
+
+This distinction matters when collecting output packets from the tree:
+`collectPossibleOutcomes()` in `Simulator.kt` returns a `List<List<OutputPacket>>`
+where each inner list is one possible set of outputs from a single real execution.
+Parallel branches are combined (union), while alternative branches produce separate
+possible worlds (Cartesian product when nested inside parallel forks).
+
 **Status:** Complete. The simulator produces full trace trees with forking at
 all non-deterministic choice points: action selectors, clone (I2E/E2E),
 multicast replication, resubmit, and recirculate.

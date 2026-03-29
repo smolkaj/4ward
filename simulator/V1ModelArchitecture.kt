@@ -160,7 +160,9 @@ class V1ModelArchitecture(
       val tree =
         TraceTree.newBuilder()
           .addAllEvents(levelEvents)
-          .setForkOutcome(Fork.newBuilder().setReason(reason).addAllBranches(branches))
+          .setForkOutcome(
+            Fork.newBuilder().setReason(reason).setMode(forkModeOf(reason)).addAllBranches(branches)
+          )
           .build()
       return PipelineResult(tree)
     }

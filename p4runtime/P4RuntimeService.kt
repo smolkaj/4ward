@@ -583,7 +583,7 @@ class P4RuntimeService(
         broker.subscribe { subResult ->
           try {
             for (response in
-              buildPacketInResponses(subResult.outputPackets, subResult.ingressPort)) {
+              buildPacketInResponses(subResult.possibleOutcomes.flatten(), subResult.ingressPort)) {
               trySend(response)
             }
           } catch (

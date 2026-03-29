@@ -217,7 +217,9 @@ class PNAArchitecture : Architecture {
       val reason = if (mirrorBranches.isNotEmpty()) ForkReason.CLONE else ForkReason.RECIRCULATE
       return TraceTree.newBuilder()
         .addAllEvents(ctx.getEvents())
-        .setForkOutcome(Fork.newBuilder().setReason(reason).addAllBranches(branches))
+        .setForkOutcome(
+          Fork.newBuilder().setReason(reason).setMode(forkModeOf(reason)).addAllBranches(branches)
+        )
         .build()
     }
 

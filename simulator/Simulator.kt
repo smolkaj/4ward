@@ -1,16 +1,27 @@
 package fourward.simulator
 
 import fourward.ir.PipelineConfig
+import fourward.sim.SimulatorProto.ForkMode
 import fourward.sim.SimulatorProto.OutputPacket
 import fourward.sim.SimulatorProto.TraceTree
 
 /**
  * Result of processing a single packet through the pipeline.
  *
+ * [possibleOutcomes] captures both kinds of nondeterminism in the trace tree:
+ * - **Parallel forks** (clone, multicast, resubmit, recirculate): all branches execute
+ *   simultaneously, so their outputs are combined within each possible outcome.
+ * - **Alternative forks** (action selector): exactly one branch executes at runtime, so each branch
+ *   produces a separate possible outcome.
+ *
+ * Programs with no alternative forks have exactly one possible outcome. Programs with action
+ * selectors have one possible outcome per alternative (Cartesian product when nested inside
+ * parallel forks).
+ *
  * Decouples the simulator from the gRPC wire format ([fourward.sim.SimulatorProto
  * .InjectPacketResponse]). Each RPC method builds its own wire proto from this data class.
  */
-data class ProcessPacketResult(val outputPackets: List<OutputPacket>, val trace: TraceTree)
+data class ProcessPacketResult(val possibleOutcomes: List<List<OutputPacket>>, val trace: TraceTree)
 
 /**
  * The top-level simulator state machine.
@@ -89,10 +100,10 @@ class Simulator(
       )
 
     // Output packets are extracted from trace tree leaves — the tree is the single source
-    // of truth for packet outcomes. Non-forking trees have a single leaf; forking trees
-    // (multicast, clone) have multiple leaves whose outputs are collected recursively.
+    // of truth for packet outcomes. Parallel forks (clone, multicast) combine outputs within
+    // each world; alternative forks (action selector) produce separate possible worlds.
     val trace = result.trace
-    return ProcessPacketResult(outputPackets = collectOutputsFromTrace(trace), trace = trace)
+    return ProcessPacketResult(possibleOutcomes = collectPossibleOutcomes(trace), trace = trace)
   }
 
   /**
@@ -188,11 +199,52 @@ class Simulator(
   fun displayName(behavioralName: String): String = tableStore.displayName(behavioralName)
 }
 
-/** Recursively collects output packets from trace tree leaves (for forking programs). */
-fun collectOutputsFromTrace(tree: TraceTree): List<OutputPacket> =
+/**
+ * Collects all possible outcome sets from a trace tree, respecting fork semantics.
+ * - **Parallel forks** (clone, multicast, resubmit, recirculate): outputs from all branches are
+ *   combined within each possible world (Cartesian product of branch outcomes).
+ * - **Alternative forks** (action selector): each branch is a separate possible world; outcomes are
+ *   concatenated (union of branch outcomes).
+ * - **Leaf (output):** one possible world with one packet.
+ * - **Leaf (drop):** one possible world with no packets.
+ *
+ * Returns a non-empty list. Each inner list is one complete set of output packets that could result
+ * from a single real execution.
+ */
+fun collectPossibleOutcomes(tree: TraceTree): List<List<OutputPacket>> {
+  if (!tree.hasForkOutcome()) {
+    return if (tree.hasPacketOutcome() && tree.packetOutcome.hasOutput()) {
+      listOf(listOf(tree.packetOutcome.output))
+    } else {
+      listOf(emptyList())
+    }
+  }
+  val fork = tree.forkOutcome
+  val branchOutcomes = fork.branchesList.map { collectPossibleOutcomes(it.subtree) }
+  if (branchOutcomes.isEmpty()) return listOf(emptyList())
+  return when (fork.mode) {
+    // Alternative: each branch adds its worlds to the result.
+    ForkMode.FORK_MODE_ALTERNATIVE -> branchOutcomes.flatten()
+    // Parallel (and unspecified, for forward compatibility): Cartesian product across
+    // branches — for each combination of one world per branch, concatenate the packets.
+    else ->
+      branchOutcomes.reduce { acc, next ->
+        acc.flatMap { world -> next.map { branchWorld -> world + branchWorld } }
+      }
+  }
+}
+
+/**
+ * Flattens all output packets from a trace tree into a single list, ignoring fork semantics.
+ *
+ * Equivalent to `collectPossibleOutcomes(tree).flatten().distinct()` for trees without nested
+ * alternative-inside-parallel forks. Useful when callers only care about the set of all reachable
+ * outputs, not which ones co-occur.
+ */
+fun collectAllOutputsFromTrace(tree: TraceTree): List<OutputPacket> =
   when {
     tree.hasForkOutcome() ->
-      tree.forkOutcome.branchesList.flatMap { collectOutputsFromTrace(it.subtree) }
+      tree.forkOutcome.branchesList.flatMap { collectAllOutputsFromTrace(it.subtree) }
     tree.hasPacketOutcome() && tree.packetOutcome.hasOutput() -> listOf(tree.packetOutcome.output)
     else -> emptyList()
   }

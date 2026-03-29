@@ -281,6 +281,19 @@ kt_jvm_test(
 )
 
 kt_jvm_test(
+    name = "CollectPossibleOutcomesTest",
+    srcs = ["SimulatorTest.kt"],
+    test_class = "fourward.simulator.CollectPossibleOutcomesTest",
+    deps = [
+        ":ir_java_proto",
+        ":p4runtime_java_proto",
+        ":simulator_java_proto",
+        ":simulator_lib",
+        "@maven//:junit_junit",
+    ],
+)
+
+kt_jvm_test(
     name = "InterpreterTraceEventTest",
     srcs = ["InterpreterTraceEventTest.kt"],
     test_class = "fourward.simulator.InterpreterTraceEventTest",
