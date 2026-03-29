@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-29 00:12:17</td>
+            <td class="headerValue">2026-03-29 00:31:32</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">97.3&nbsp;%</td>
@@ -393,8 +393,8 @@
 <span id="L331"><span class="lineNum">     331</span> <span class="tlaGNC">           1 :           writeContinueOnError(request.updatesList, state, roleName)</span></span>
 <span id="L332"><span class="lineNum">     332</span>              :         WriteRequest.Atomicity.UNRECOGNIZED -&gt;</span>
 <span id="L333"><span class="lineNum">     333</span> <span class="tlaGNC">           1 :           throw Status.INVALID_ARGUMENT.withDescription(</span></span>
-<span id="L334"><span class="lineNum">     334</span> <span class="tlaGNC">           1 :               &quot;unrecognized write atomicity; valid values: &quot; +</span></span>
-<span id="L335"><span class="lineNum">     335</span>              :                 &quot;CONTINUE_ON_ERROR, ROLLBACK_ON_ERROR, DATAPLANE_ATOMIC&quot;</span>
+<span id="L334"><span class="lineNum">     334</span> <span class="tlaGNC">           1 :               &quot;unrecognized write atomicity ${request.atomicityValue} &quot; +</span></span>
+<span id="L335"><span class="lineNum">     335</span>              :                 &quot;(valid values: CONTINUE_ON_ERROR (1), ROLLBACK_ON_ERROR (2), DATAPLANE_ATOMIC (3))&quot;</span>
 <span id="L336"><span class="lineNum">     336</span>              :             )</span>
 <span id="L337"><span class="lineNum">     337</span> <span class="tlaGNC">           1 :             .asException()</span></span>
 <span id="L338"><span class="lineNum">     338</span>              :         // P4Runtime spec §12.2: ROLLBACK_ON_ERROR and DATAPLANE_ATOMIC both guarantee</span>

@@ -32,12 +32,12 @@
             <td></td>
             <td class="headerItem">Lines:</td>
             <td class="headerCovTableEntryHi">99.1&nbsp;%</td>
-            <td class="headerCovTableEntry">223</td>
-            <td class="headerCovTableEntry">221</td>
+            <td class="headerCovTableEntry">224</td>
+            <td class="headerCovTableEntry">222</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-29 00:12:17</td>
+            <td class="headerValue">2026-03-29 00:31:32</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -135,7 +135,7 @@
 <span id="L73"><span class="lineNum">      73</span> <span class="tlaGNC">           1 :       tableInfoById[entry.tableId]</span></span>
 <span id="L74"><span class="lineNum">      74</span> <span class="tlaGNC">           1 :         ?: throw notFound(</span></span>
 <span id="L75"><span class="lineNum">      75</span> <span class="tlaGNC">           1 :           &quot;unknown table ID ${entry.tableId} &quot; +</span></span>
-<span id="L76"><span class="lineNum">      76</span> <span class="tlaGNC">           1 :             &quot;(available: ${formatOptions(</span></span>
+<span id="L76"><span class="lineNum">      76</span> <span class="tlaGNC">           1 :             &quot;(valid tables: ${formatOptions(</span></span>
 <span id="L77"><span class="lineNum">      77</span> <span class="tlaGNC">           1 :               tableInfoById.values.map { &quot;'${it.tableName}' (${it.preamble.id})&quot; }</span></span>
 <span id="L78"><span class="lineNum">      78</span>              :             )})&quot;</span>
 <span id="L79"><span class="lineNum">      79</span>              :         )</span>
@@ -244,7 +244,7 @@
 <span id="L182"><span class="lineNum">     182</span> <span class="tlaGNC">           1 :         paramLookup[param.paramId]</span></span>
 <span id="L183"><span class="lineNum">     183</span> <span class="tlaGNC">           1 :           ?: throw invalidArg(</span></span>
 <span id="L184"><span class="lineNum">     184</span> <span class="tlaGNC">           1 :             &quot;unknown param ID ${param.paramId} for action '${actionInfo.preamble.name}' &quot; +</span></span>
-<span id="L185"><span class="lineNum">     185</span> <span class="tlaGNC">           1 :               &quot;(valid params: ${formatOptions(paramLookup.values.map { it.name })})&quot;</span></span>
+<span id="L185"><span class="lineNum">     185</span> <span class="tlaGNC">           1 :               &quot;(valid params: ${formatOptions(paramLookup.entries.map { &quot;'${it.value.name}' (${it.key})&quot; })})&quot;</span></span>
 <span id="L186"><span class="lineNum">     186</span>              :           )</span>
 <span id="L187"><span class="lineNum">     187</span>              :       // §8.3: canonical byte width. Skip if bitwidth is 0</span>
 <span id="L188"><span class="lineNum">     188</span>              :       // (e.g. @p4runtime_translation with sdn_string).</span>
@@ -270,7 +270,7 @@
 <span id="L208"><span class="lineNum">     208</span> <span class="tlaGNC">           1 :         fieldLookup[fm.fieldId]</span></span>
 <span id="L209"><span class="lineNum">     209</span> <span class="tlaGNC">           1 :           ?: throw invalidArg(</span></span>
 <span id="L210"><span class="lineNum">     210</span> <span class="tlaGNC">           1 :             &quot;unknown match field ID ${fm.fieldId} in table '${tableInfo.tableName}' &quot; +</span></span>
-<span id="L211"><span class="lineNum">     211</span> <span class="tlaGNC">           1 :               &quot;(valid fields: ${formatOptions(fieldLookup.values.map { it.name })})&quot;</span></span>
+<span id="L211"><span class="lineNum">     211</span> <span class="tlaGNC">           1 :               &quot;(valid fields: ${formatOptions(fieldLookup.entries.map { &quot;'${it.value.name}' (${it.key})&quot; })})&quot;</span></span>
 <span id="L212"><span class="lineNum">     212</span>              :           )</span>
 <span id="L213"><span class="lineNum">     213</span>              :       // §9.1: each match field may appear at most once.</span>
 <span id="L214"><span class="lineNum">     214</span> <span class="tlaGNC">           1 :       if (!presentFieldIds.add(fm.fieldId)) {</span></span>
@@ -375,8 +375,8 @@
 <span id="L313"><span class="lineNum">     313</span> <span class="tlaGNC">           1 :     val profileInfo =</span></span>
 <span id="L314"><span class="lineNum">     314</span> <span class="tlaGNC">           1 :       actionProfileInfoById[profileId]</span></span>
 <span id="L315"><span class="lineNum">     315</span> <span class="tlaGNC">           1 :         ?: throw notFound(</span></span>
-<span id="L316"><span class="lineNum">     316</span> <span class="tlaGNC">           1 :           &quot;unknown action_profile_id: $profileId &quot; +</span></span>
-<span id="L317"><span class="lineNum">     317</span> <span class="tlaGNC">           1 :             &quot;(available: ${formatOptions(</span></span>
+<span id="L316"><span class="lineNum">     316</span> <span class="tlaGNC">           1 :           &quot;unknown action_profile_id $profileId &quot; +</span></span>
+<span id="L317"><span class="lineNum">     317</span> <span class="tlaGNC">           1 :             &quot;(valid profiles: ${formatOptions(</span></span>
 <span id="L318"><span class="lineNum">     318</span> <span class="tlaGNC">           1 :               actionProfileInfoById.values.map {</span></span>
 <span id="L319"><span class="lineNum">     319</span> <span class="tlaGNC">           1 :                 &quot;'${it.preamble.alias.ifEmpty { it.preamble.name }}' (${it.preamble.id})&quot;</span></span>
 <span id="L320"><span class="lineNum">     320</span>              :               }</span>
@@ -400,127 +400,128 @@
 <span id="L338"><span class="lineNum">     338</span>              : </span>
 <span id="L339"><span class="lineNum">     339</span> <span class="tlaGNC">           1 :     if (action.actionId !in validActionIds) {</span></span>
 <span id="L340"><span class="lineNum">     340</span> <span class="tlaGNC">           1 :       throw invalidArg(</span></span>
-<span id="L341"><span class="lineNum">     341</span> <span class="tlaGNC">           1 :         &quot;action ID ${action.actionId} is not valid for action profile '$profileName' &quot; +</span></span>
-<span id="L342"><span class="lineNum">     342</span> <span class="tlaGNC">           1 :           &quot;(valid actions: ${formatOptions(validActionDescs)})&quot;</span></span>
-<span id="L343"><span class="lineNum">     343</span>              :       )</span>
-<span id="L344"><span class="lineNum">     344</span>              :     }</span>
-<span id="L345"><span class="lineNum">     345</span>              : </span>
-<span id="L346"><span class="lineNum">     346</span> <span class="tlaGNC">           1 :     validateActionParams(action, actionInfo)</span></span>
-<span id="L347"><span class="lineNum">     347</span> <span class="tlaGNC">           1 :   }</span></span>
-<span id="L348"><span class="lineNum">     348</span>              : </span>
-<span id="L349"><span class="lineNum">     349</span>              :   // ---------------------------------------------------------------------------</span>
-<span id="L350"><span class="lineNum">     350</span>              :   // Action profile group validation (§9.2.2)</span>
-<span id="L351"><span class="lineNum">     351</span>              :   // ---------------------------------------------------------------------------</span>
-<span id="L352"><span class="lineNum">     352</span>              : </span>
-<span id="L353"><span class="lineNum">     353</span>              :   private fun validateGroup(update: P4RuntimeOuterClass.Update) {</span>
-<span id="L354"><span class="lineNum">     354</span> <span class="tlaGNC">           1 :     val group = update.entity.actionProfileGroup</span></span>
-<span id="L355"><span class="lineNum">     355</span> <span class="tlaGNC">           1 :     val profileId = group.actionProfileId</span></span>
-<span id="L356"><span class="lineNum">     356</span> <span class="tlaGNC">           1 :     if (profileId !in actionProfileInfoById) {</span></span>
-<span id="L357"><span class="lineNum">     357</span> <span class="tlaGNC">           1 :       throw notFound(</span></span>
-<span id="L358"><span class="lineNum">     358</span> <span class="tlaGNC">           1 :         &quot;unknown action_profile_id: $profileId &quot; +</span></span>
-<span id="L359"><span class="lineNum">     359</span> <span class="tlaGNC">           1 :           &quot;(available: ${formatOptions(</span></span>
-<span id="L360"><span class="lineNum">     360</span> <span class="tlaGNC">           1 :             actionProfileInfoById.values.map {</span></span>
-<span id="L361"><span class="lineNum">     361</span> <span class="tlaGNC">           1 :               &quot;'${it.preamble.alias.ifEmpty { it.preamble.name }}' (${it.preamble.id})&quot;</span></span>
-<span id="L362"><span class="lineNum">     362</span>              :             }</span>
-<span id="L363"><span class="lineNum">     363</span>              :           )})&quot;</span>
-<span id="L364"><span class="lineNum">     364</span>              :       )</span>
-<span id="L365"><span class="lineNum">     365</span>              :     }</span>
-<span id="L366"><span class="lineNum">     366</span>              :     // Group members reference member_ids, which are validated at write time by the simulator.</span>
-<span id="L367"><span class="lineNum">     367</span>              :     // Schema-level validation only checks the profile ID exists.</span>
-<span id="L368"><span class="lineNum">     368</span> <span class="tlaGNC">           1 :   }</span></span>
-<span id="L369"><span class="lineNum">     369</span>              : </span>
-<span id="L370"><span class="lineNum">     370</span>              :   companion object {</span>
-<span id="L371"><span class="lineNum">     371</span>              :     private val PRIORITY_MATCH_TYPES =</span>
-<span id="L372"><span class="lineNum">     372</span> <span class="tlaGNC">           1 :       setOf(</span></span>
-<span id="L373"><span class="lineNum">     373</span> <span class="tlaGNC">           1 :         P4InfoOuterClass.MatchField.MatchType.TERNARY,</span></span>
-<span id="L374"><span class="lineNum">     374</span> <span class="tlaGNC">           1 :         P4InfoOuterClass.MatchField.MatchType.RANGE,</span></span>
-<span id="L375"><span class="lineNum">     375</span> <span class="tlaGNC">           1 :         P4InfoOuterClass.MatchField.MatchType.OPTIONAL,</span></span>
-<span id="L376"><span class="lineNum">     376</span>              :       )</span>
-<span id="L377"><span class="lineNum">     377</span>              : </span>
-<span id="L378"><span class="lineNum">     378</span>              :     /** §8.3: values must be exactly ceil(bitwidth/8) bytes. Skips if bitwidth is 0. */</span>
-<span id="L379"><span class="lineNum">     379</span>              :     private fun checkWidth(bitwidth: Int, actual: Int, label: String) {</span>
-<span id="L380"><span class="lineNum">     380</span> <span class="tlaGNC">           1 :       val expected = (bitwidth + 7) / 8</span></span>
-<span id="L381"><span class="lineNum">     381</span> <span class="tlaGNC">           1 :       if (expected &gt; 0 &amp;&amp; actual != expected) {</span></span>
-<span id="L382"><span class="lineNum">     382</span> <span class="tlaGNC">           1 :         throw invalidArg(&quot;$label expects $expected bytes, got $actual&quot;)</span></span>
-<span id="L383"><span class="lineNum">     383</span>              :       }</span>
-<span id="L384"><span class="lineNum">     384</span> <span class="tlaGNC">           1 :     }</span></span>
-<span id="L385"><span class="lineNum">     385</span>              : </span>
-<span id="L386"><span class="lineNum">     386</span>              :     /** §8.3: ternary value bits must be zero where the mask is zero. */</span>
-<span id="L387"><span class="lineNum">     387</span>              :     private fun checkTernaryMaskedBits(value: ByteString, mask: ByteString, fieldName: String) {</span>
-<span id="L388"><span class="lineNum">     388</span> <span class="tlaGNC">           1 :       for (i in 0 until value.size()) {</span></span>
-<span id="L389"><span class="lineNum">     389</span> <span class="tlaGNC">           1 :         val v = value.byteAt(i).toInt() and 0xFF</span></span>
-<span id="L390"><span class="lineNum">     390</span> <span class="tlaGNC">           1 :         val m = mask.byteAt(i).toInt() and 0xFF</span></span>
-<span id="L391"><span class="lineNum">     391</span> <span class="tlaGNC">           1 :         if (v and m != v) {</span></span>
-<span id="L392"><span class="lineNum">     392</span> <span class="tlaGNC">           1 :           throw invalidArg(</span></span>
-<span id="L393"><span class="lineNum">     393</span> <span class="tlaGNC">           1 :             &quot;match field '$fieldName' has masked-off bits set in value (value &amp; ~mask != 0)&quot;</span></span>
-<span id="L394"><span class="lineNum">     394</span>              :           )</span>
-<span id="L395"><span class="lineNum">     395</span>              :         }</span>
-<span id="L396"><span class="lineNum">     396</span>              :       }</span>
-<span id="L397"><span class="lineNum">     397</span> <span class="tlaGNC">           1 :     }</span></span>
-<span id="L398"><span class="lineNum">     398</span>              : </span>
-<span id="L399"><span class="lineNum">     399</span>              :     /** §9.1.1: range match low must be &lt;= high (unsigned comparison). */</span>
-<span id="L400"><span class="lineNum">     400</span>              :     private fun checkRangeOrder(low: ByteString, high: ByteString, fieldName: String) {</span>
-<span id="L401"><span class="lineNum">     401</span> <span class="tlaGNC">           1 :       for (i in 0 until low.size()) {</span></span>
-<span id="L402"><span class="lineNum">     402</span> <span class="tlaGNC">           1 :         val l = low.byteAt(i).toInt() and 0xFF</span></span>
-<span id="L403"><span class="lineNum">     403</span> <span class="tlaGNC">           1 :         val h = high.byteAt(i).toInt() and 0xFF</span></span>
-<span id="L404"><span class="lineNum">     404</span> <span class="tlaGNC">           1 :         if (l &lt; h) return // low &lt; high — valid</span></span>
-<span id="L405"><span class="lineNum">     405</span> <span class="tlaGNC">           1 :         if (l &gt; h) {</span></span>
-<span id="L406"><span class="lineNum">     406</span> <span class="tlaGNC">           1 :           throw invalidArg(&quot;match field '$fieldName' has range low &gt; high&quot;)</span></span>
-<span id="L407"><span class="lineNum">     407</span>              :         }</span>
-<span id="L408"><span class="lineNum">     408</span>              :         // l == h — continue to next byte</span>
-<span id="L409"><span class="lineNum">     409</span>              :       }</span>
-<span id="L410"><span class="lineNum">     410</span>              :       // low == high — valid (single-value range)</span>
-<span id="L411"><span class="lineNum">     411</span> <span class="tlaGNC">           1 :     }</span></span>
-<span id="L412"><span class="lineNum">     412</span>              : </span>
-<span id="L413"><span class="lineNum">     413</span>              :     /** §8.3: LPM value bits beyond prefix_len must be zero. */</span>
-<span id="L414"><span class="lineNum">     414</span>              :     private fun checkLpmTrailingBits(value: ByteString, prefixLen: Int, fieldName: String) {</span>
-<span id="L415"><span class="lineNum">     415</span> <span class="tlaGNC">           1 :       for (i in 0 until value.size()) {</span></span>
-<span id="L416"><span class="lineNum">     416</span> <span class="tlaGNC">           1 :         val bitStart = i * 8</span></span>
-<span id="L417"><span class="lineNum">     417</span> <span class="tlaGNC">           1 :         val b = value.byteAt(i).toInt() and 0xFF</span></span>
-<span id="L418"><span class="lineNum">     418</span> <span class="tlaGNC">           1 :         if (bitStart &gt;= prefixLen) {</span></span>
-<span id="L419"><span class="lineNum">     419</span> <span class="tlaGNC">           1 :           if (b != 0) {</span></span>
-<span id="L420"><span class="lineNum">     420</span> <span class="tlaGNC">           1 :             throw invalidArg(</span></span>
-<span id="L421"><span class="lineNum">     421</span> <span class="tlaGNC">           1 :               &quot;match field '$fieldName' has non-zero bits beyond prefix length $prefixLen&quot;</span></span>
-<span id="L422"><span class="lineNum">     422</span>              :             )</span>
-<span id="L423"><span class="lineNum">     423</span>              :           }</span>
-<span id="L424"><span class="lineNum">     424</span> <span class="tlaGNC">           1 :         } else if (bitStart + 8 &gt; prefixLen) {</span></span>
-<span id="L425"><span class="lineNum">     425</span>              :           // Partial byte: only the high (prefixLen - bitStart) bits are valid.</span>
-<span id="L426"><span class="lineNum">     426</span> <span class="tlaGNC">           1 :           val trailingBits = 8 - (prefixLen - bitStart)</span></span>
-<span id="L427"><span class="lineNum">     427</span> <span class="tlaGNC">           1 :           val trailingMask = (1 shl trailingBits) - 1</span></span>
-<span id="L428"><span class="lineNum">     428</span> <span class="tlaGNC">           1 :           if (b and trailingMask != 0) {</span></span>
-<span id="L429"><span class="lineNum">     429</span> <span class="tlaGNC">           1 :             throw invalidArg(</span></span>
-<span id="L430"><span class="lineNum">     430</span> <span class="tlaGNC">           1 :               &quot;match field '$fieldName' has non-zero bits beyond prefix length $prefixLen&quot;</span></span>
-<span id="L431"><span class="lineNum">     431</span>              :             )</span>
-<span id="L432"><span class="lineNum">     432</span>              :           }</span>
-<span id="L433"><span class="lineNum">     433</span>              :         }</span>
-<span id="L434"><span class="lineNum">     434</span>              :       }</span>
-<span id="L435"><span class="lineNum">     435</span> <span class="tlaGNC">           1 :     }</span></span>
-<span id="L436"><span class="lineNum">     436</span>              : </span>
-<span id="L437"><span class="lineNum">     437</span>              :     private val P4InfoOuterClass.Table.tableName: String</span>
-<span id="L438"><span class="lineNum">     438</span> <span class="tlaGNC">           1 :       get() = preamble.alias.ifEmpty { preamble.name }</span></span>
-<span id="L439"><span class="lineNum">     439</span>              : </span>
-<span id="L440"><span class="lineNum">     440</span>              :     private const val MAX_LISTED_OPTIONS = 10</span>
-<span id="L441"><span class="lineNum">     441</span>              : </span>
-<span id="L442"><span class="lineNum">     442</span>              :     /** Formats a list of option names for inclusion in an error message, truncating if needed. */</span>
-<span id="L443"><span class="lineNum">     443</span>              :     private fun formatOptions(options: List&lt;String&gt;): String =</span>
-<span id="L444"><span class="lineNum">     444</span> <span class="tlaGNC">           1 :       when {</span></span>
-<span id="L445"><span class="lineNum">     445</span> <span class="tlaGNC">           1 :         options.isEmpty() -&gt; &quot;none&quot;</span></span>
-<span id="L446"><span class="lineNum">     446</span> <span class="tlaGNC">           1 :         options.size &lt;= MAX_LISTED_OPTIONS -&gt; options.joinToString(&quot;, &quot;)</span></span>
-<span id="L447"><span class="lineNum">     447</span>              :         else -&gt;</span>
-<span id="L448"><span class="lineNum">     448</span> <span class="tlaUNC tlaBgUNC">           0 :           options.take(MAX_LISTED_OPTIONS).joinToString(&quot;, &quot;) +</span></span>
-<span id="L449"><span class="lineNum">     449</span> <span class="tlaUNC">           0 :             &quot;, ... and ${options.size - MAX_LISTED_OPTIONS} more&quot;</span></span>
-<span id="L450"><span class="lineNum">     450</span> <span class="tlaGNC tlaBgGNC">           1 :       }</span></span>
-<span id="L451"><span class="lineNum">     451</span>              : </span>
-<span id="L452"><span class="lineNum">     452</span>              :     private fun invalidArg(msg: String): StatusException =</span>
-<span id="L453"><span class="lineNum">     453</span> <span class="tlaGNC">           1 :       Status.INVALID_ARGUMENT.withDescription(msg).asException()</span></span>
-<span id="L454"><span class="lineNum">     454</span>              : </span>
-<span id="L455"><span class="lineNum">     455</span>              :     private fun notFound(msg: String): StatusException =</span>
-<span id="L456"><span class="lineNum">     456</span> <span class="tlaGNC">           1 :       Status.NOT_FOUND.withDescription(msg).asException()</span></span>
-<span id="L457"><span class="lineNum">     457</span>              : </span>
-<span id="L458"><span class="lineNum">     458</span>              :     private fun unimplemented(msg: String): StatusException =</span>
-<span id="L459"><span class="lineNum">     459</span> <span class="tlaGNC">           1 :       Status.UNIMPLEMENTED.withDescription(msg).asException()</span></span>
-<span id="L460"><span class="lineNum">     460</span>              :   }</span>
-<span id="L461"><span class="lineNum">     461</span>              : }</span>
+<span id="L341"><span class="lineNum">     341</span> <span class="tlaGNC">           1 :         &quot;action '${actionInfo.preamble.name}' (ID ${action.actionId}) &quot; +</span></span>
+<span id="L342"><span class="lineNum">     342</span> <span class="tlaGNC">           1 :           &quot;is not valid for action profile '$profileName' &quot; +</span></span>
+<span id="L343"><span class="lineNum">     343</span> <span class="tlaGNC">           1 :           &quot;(valid actions: ${formatOptions(validActionDescs)})&quot;</span></span>
+<span id="L344"><span class="lineNum">     344</span>              :       )</span>
+<span id="L345"><span class="lineNum">     345</span>              :     }</span>
+<span id="L346"><span class="lineNum">     346</span>              : </span>
+<span id="L347"><span class="lineNum">     347</span> <span class="tlaGNC">           1 :     validateActionParams(action, actionInfo)</span></span>
+<span id="L348"><span class="lineNum">     348</span> <span class="tlaGNC">           1 :   }</span></span>
+<span id="L349"><span class="lineNum">     349</span>              : </span>
+<span id="L350"><span class="lineNum">     350</span>              :   // ---------------------------------------------------------------------------</span>
+<span id="L351"><span class="lineNum">     351</span>              :   // Action profile group validation (§9.2.2)</span>
+<span id="L352"><span class="lineNum">     352</span>              :   // ---------------------------------------------------------------------------</span>
+<span id="L353"><span class="lineNum">     353</span>              : </span>
+<span id="L354"><span class="lineNum">     354</span>              :   private fun validateGroup(update: P4RuntimeOuterClass.Update) {</span>
+<span id="L355"><span class="lineNum">     355</span> <span class="tlaGNC">           1 :     val group = update.entity.actionProfileGroup</span></span>
+<span id="L356"><span class="lineNum">     356</span> <span class="tlaGNC">           1 :     val profileId = group.actionProfileId</span></span>
+<span id="L357"><span class="lineNum">     357</span> <span class="tlaGNC">           1 :     if (profileId !in actionProfileInfoById) {</span></span>
+<span id="L358"><span class="lineNum">     358</span> <span class="tlaGNC">           1 :       throw notFound(</span></span>
+<span id="L359"><span class="lineNum">     359</span> <span class="tlaGNC">           1 :         &quot;unknown action_profile_id $profileId &quot; +</span></span>
+<span id="L360"><span class="lineNum">     360</span> <span class="tlaGNC">           1 :           &quot;(valid profiles: ${formatOptions(</span></span>
+<span id="L361"><span class="lineNum">     361</span> <span class="tlaGNC">           1 :             actionProfileInfoById.values.map {</span></span>
+<span id="L362"><span class="lineNum">     362</span> <span class="tlaGNC">           1 :               &quot;'${it.preamble.alias.ifEmpty { it.preamble.name }}' (${it.preamble.id})&quot;</span></span>
+<span id="L363"><span class="lineNum">     363</span>              :             }</span>
+<span id="L364"><span class="lineNum">     364</span>              :           )})&quot;</span>
+<span id="L365"><span class="lineNum">     365</span>              :       )</span>
+<span id="L366"><span class="lineNum">     366</span>              :     }</span>
+<span id="L367"><span class="lineNum">     367</span>              :     // Group members reference member_ids, which are validated at write time by the simulator.</span>
+<span id="L368"><span class="lineNum">     368</span>              :     // Schema-level validation only checks the profile ID exists.</span>
+<span id="L369"><span class="lineNum">     369</span> <span class="tlaGNC">           1 :   }</span></span>
+<span id="L370"><span class="lineNum">     370</span>              : </span>
+<span id="L371"><span class="lineNum">     371</span>              :   companion object {</span>
+<span id="L372"><span class="lineNum">     372</span>              :     private val PRIORITY_MATCH_TYPES =</span>
+<span id="L373"><span class="lineNum">     373</span> <span class="tlaGNC">           1 :       setOf(</span></span>
+<span id="L374"><span class="lineNum">     374</span> <span class="tlaGNC">           1 :         P4InfoOuterClass.MatchField.MatchType.TERNARY,</span></span>
+<span id="L375"><span class="lineNum">     375</span> <span class="tlaGNC">           1 :         P4InfoOuterClass.MatchField.MatchType.RANGE,</span></span>
+<span id="L376"><span class="lineNum">     376</span> <span class="tlaGNC">           1 :         P4InfoOuterClass.MatchField.MatchType.OPTIONAL,</span></span>
+<span id="L377"><span class="lineNum">     377</span>              :       )</span>
+<span id="L378"><span class="lineNum">     378</span>              : </span>
+<span id="L379"><span class="lineNum">     379</span>              :     /** §8.3: values must be exactly ceil(bitwidth/8) bytes. Skips if bitwidth is 0. */</span>
+<span id="L380"><span class="lineNum">     380</span>              :     private fun checkWidth(bitwidth: Int, actual: Int, label: String) {</span>
+<span id="L381"><span class="lineNum">     381</span> <span class="tlaGNC">           1 :       val expected = (bitwidth + 7) / 8</span></span>
+<span id="L382"><span class="lineNum">     382</span> <span class="tlaGNC">           1 :       if (expected &gt; 0 &amp;&amp; actual != expected) {</span></span>
+<span id="L383"><span class="lineNum">     383</span> <span class="tlaGNC">           1 :         throw invalidArg(&quot;$label expects $expected bytes, got $actual&quot;)</span></span>
+<span id="L384"><span class="lineNum">     384</span>              :       }</span>
+<span id="L385"><span class="lineNum">     385</span> <span class="tlaGNC">           1 :     }</span></span>
+<span id="L386"><span class="lineNum">     386</span>              : </span>
+<span id="L387"><span class="lineNum">     387</span>              :     /** §8.3: ternary value bits must be zero where the mask is zero. */</span>
+<span id="L388"><span class="lineNum">     388</span>              :     private fun checkTernaryMaskedBits(value: ByteString, mask: ByteString, fieldName: String) {</span>
+<span id="L389"><span class="lineNum">     389</span> <span class="tlaGNC">           1 :       for (i in 0 until value.size()) {</span></span>
+<span id="L390"><span class="lineNum">     390</span> <span class="tlaGNC">           1 :         val v = value.byteAt(i).toInt() and 0xFF</span></span>
+<span id="L391"><span class="lineNum">     391</span> <span class="tlaGNC">           1 :         val m = mask.byteAt(i).toInt() and 0xFF</span></span>
+<span id="L392"><span class="lineNum">     392</span> <span class="tlaGNC">           1 :         if (v and m != v) {</span></span>
+<span id="L393"><span class="lineNum">     393</span> <span class="tlaGNC">           1 :           throw invalidArg(</span></span>
+<span id="L394"><span class="lineNum">     394</span> <span class="tlaGNC">           1 :             &quot;match field '$fieldName' has masked-off bits set in value (value &amp; ~mask != 0)&quot;</span></span>
+<span id="L395"><span class="lineNum">     395</span>              :           )</span>
+<span id="L396"><span class="lineNum">     396</span>              :         }</span>
+<span id="L397"><span class="lineNum">     397</span>              :       }</span>
+<span id="L398"><span class="lineNum">     398</span> <span class="tlaGNC">           1 :     }</span></span>
+<span id="L399"><span class="lineNum">     399</span>              : </span>
+<span id="L400"><span class="lineNum">     400</span>              :     /** §9.1.1: range match low must be &lt;= high (unsigned comparison). */</span>
+<span id="L401"><span class="lineNum">     401</span>              :     private fun checkRangeOrder(low: ByteString, high: ByteString, fieldName: String) {</span>
+<span id="L402"><span class="lineNum">     402</span> <span class="tlaGNC">           1 :       for (i in 0 until low.size()) {</span></span>
+<span id="L403"><span class="lineNum">     403</span> <span class="tlaGNC">           1 :         val l = low.byteAt(i).toInt() and 0xFF</span></span>
+<span id="L404"><span class="lineNum">     404</span> <span class="tlaGNC">           1 :         val h = high.byteAt(i).toInt() and 0xFF</span></span>
+<span id="L405"><span class="lineNum">     405</span> <span class="tlaGNC">           1 :         if (l &lt; h) return // low &lt; high — valid</span></span>
+<span id="L406"><span class="lineNum">     406</span> <span class="tlaGNC">           1 :         if (l &gt; h) {</span></span>
+<span id="L407"><span class="lineNum">     407</span> <span class="tlaGNC">           1 :           throw invalidArg(&quot;match field '$fieldName' has range low &gt; high&quot;)</span></span>
+<span id="L408"><span class="lineNum">     408</span>              :         }</span>
+<span id="L409"><span class="lineNum">     409</span>              :         // l == h — continue to next byte</span>
+<span id="L410"><span class="lineNum">     410</span>              :       }</span>
+<span id="L411"><span class="lineNum">     411</span>              :       // low == high — valid (single-value range)</span>
+<span id="L412"><span class="lineNum">     412</span> <span class="tlaGNC">           1 :     }</span></span>
+<span id="L413"><span class="lineNum">     413</span>              : </span>
+<span id="L414"><span class="lineNum">     414</span>              :     /** §8.3: LPM value bits beyond prefix_len must be zero. */</span>
+<span id="L415"><span class="lineNum">     415</span>              :     private fun checkLpmTrailingBits(value: ByteString, prefixLen: Int, fieldName: String) {</span>
+<span id="L416"><span class="lineNum">     416</span> <span class="tlaGNC">           1 :       for (i in 0 until value.size()) {</span></span>
+<span id="L417"><span class="lineNum">     417</span> <span class="tlaGNC">           1 :         val bitStart = i * 8</span></span>
+<span id="L418"><span class="lineNum">     418</span> <span class="tlaGNC">           1 :         val b = value.byteAt(i).toInt() and 0xFF</span></span>
+<span id="L419"><span class="lineNum">     419</span> <span class="tlaGNC">           1 :         if (bitStart &gt;= prefixLen) {</span></span>
+<span id="L420"><span class="lineNum">     420</span> <span class="tlaGNC">           1 :           if (b != 0) {</span></span>
+<span id="L421"><span class="lineNum">     421</span> <span class="tlaGNC">           1 :             throw invalidArg(</span></span>
+<span id="L422"><span class="lineNum">     422</span> <span class="tlaGNC">           1 :               &quot;match field '$fieldName' has non-zero bits beyond prefix length $prefixLen&quot;</span></span>
+<span id="L423"><span class="lineNum">     423</span>              :             )</span>
+<span id="L424"><span class="lineNum">     424</span>              :           }</span>
+<span id="L425"><span class="lineNum">     425</span> <span class="tlaGNC">           1 :         } else if (bitStart + 8 &gt; prefixLen) {</span></span>
+<span id="L426"><span class="lineNum">     426</span>              :           // Partial byte: only the high (prefixLen - bitStart) bits are valid.</span>
+<span id="L427"><span class="lineNum">     427</span> <span class="tlaGNC">           1 :           val trailingBits = 8 - (prefixLen - bitStart)</span></span>
+<span id="L428"><span class="lineNum">     428</span> <span class="tlaGNC">           1 :           val trailingMask = (1 shl trailingBits) - 1</span></span>
+<span id="L429"><span class="lineNum">     429</span> <span class="tlaGNC">           1 :           if (b and trailingMask != 0) {</span></span>
+<span id="L430"><span class="lineNum">     430</span> <span class="tlaGNC">           1 :             throw invalidArg(</span></span>
+<span id="L431"><span class="lineNum">     431</span> <span class="tlaGNC">           1 :               &quot;match field '$fieldName' has non-zero bits beyond prefix length $prefixLen&quot;</span></span>
+<span id="L432"><span class="lineNum">     432</span>              :             )</span>
+<span id="L433"><span class="lineNum">     433</span>              :           }</span>
+<span id="L434"><span class="lineNum">     434</span>              :         }</span>
+<span id="L435"><span class="lineNum">     435</span>              :       }</span>
+<span id="L436"><span class="lineNum">     436</span> <span class="tlaGNC">           1 :     }</span></span>
+<span id="L437"><span class="lineNum">     437</span>              : </span>
+<span id="L438"><span class="lineNum">     438</span>              :     private val P4InfoOuterClass.Table.tableName: String</span>
+<span id="L439"><span class="lineNum">     439</span> <span class="tlaGNC">           1 :       get() = preamble.alias.ifEmpty { preamble.name }</span></span>
+<span id="L440"><span class="lineNum">     440</span>              : </span>
+<span id="L441"><span class="lineNum">     441</span>              :     private const val MAX_LISTED_OPTIONS = 10</span>
+<span id="L442"><span class="lineNum">     442</span>              : </span>
+<span id="L443"><span class="lineNum">     443</span>              :     /** Formats a list of option names for inclusion in an error message, truncating if needed. */</span>
+<span id="L444"><span class="lineNum">     444</span>              :     private fun formatOptions(options: List&lt;String&gt;): String =</span>
+<span id="L445"><span class="lineNum">     445</span> <span class="tlaGNC">           1 :       when {</span></span>
+<span id="L446"><span class="lineNum">     446</span> <span class="tlaGNC">           1 :         options.isEmpty() -&gt; &quot;none&quot;</span></span>
+<span id="L447"><span class="lineNum">     447</span> <span class="tlaGNC">           1 :         options.size &lt;= MAX_LISTED_OPTIONS -&gt; options.joinToString(&quot;, &quot;)</span></span>
+<span id="L448"><span class="lineNum">     448</span>              :         else -&gt;</span>
+<span id="L449"><span class="lineNum">     449</span> <span class="tlaUNC tlaBgUNC">           0 :           options.take(MAX_LISTED_OPTIONS).joinToString(&quot;, &quot;) +</span></span>
+<span id="L450"><span class="lineNum">     450</span> <span class="tlaUNC">           0 :             &quot;, ... and ${options.size - MAX_LISTED_OPTIONS} more&quot;</span></span>
+<span id="L451"><span class="lineNum">     451</span> <span class="tlaGNC tlaBgGNC">           1 :       }</span></span>
+<span id="L452"><span class="lineNum">     452</span>              : </span>
+<span id="L453"><span class="lineNum">     453</span>              :     private fun invalidArg(msg: String): StatusException =</span>
+<span id="L454"><span class="lineNum">     454</span> <span class="tlaGNC">           1 :       Status.INVALID_ARGUMENT.withDescription(msg).asException()</span></span>
+<span id="L455"><span class="lineNum">     455</span>              : </span>
+<span id="L456"><span class="lineNum">     456</span>              :     private fun notFound(msg: String): StatusException =</span>
+<span id="L457"><span class="lineNum">     457</span> <span class="tlaGNC">           1 :       Status.NOT_FOUND.withDescription(msg).asException()</span></span>
+<span id="L458"><span class="lineNum">     458</span>              : </span>
+<span id="L459"><span class="lineNum">     459</span>              :     private fun unimplemented(msg: String): StatusException =</span>
+<span id="L460"><span class="lineNum">     460</span> <span class="tlaGNC">           1 :       Status.UNIMPLEMENTED.withDescription(msg).asException()</span></span>
+<span id="L461"><span class="lineNum">     461</span>              :   }</span>
+<span id="L462"><span class="lineNum">     462</span>              : }</span>
         </pre>
               </td>
             </tr>
