@@ -59,9 +59,6 @@ All builds are hermetic. Do not install dependencies outside of Bazel.
 build.** Push early and use `gh run watch` to monitor results. Check CI logs
 with `gh run view --log-failed`.
 
-On PRs, a coverage report is published to GitHub Pages and linked from a bot
-comment. Reports are browsable at `https://smolkaj.github.io/4ward/pr/<number>/`.
-
 ## Key design invariants — do not break these
 
 1. **The proto IR uses names, not IDs.** All cross-references in `ir.proto` and
