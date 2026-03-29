@@ -31,7 +31,7 @@ def _fourward_pipeline_impl(ctx):
         arguments += ["-I", directory]
     arguments += ["-I", ctx.file._p4include_anchor.dirname]
     for define in ctx.attr.defines:
-        arguments += ["-D" + define]
+        arguments.append("-D" + define)
 
     if ctx.attr.out_format == "p4runtime":
         arguments += ["--format", "p4runtime"]
