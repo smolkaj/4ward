@@ -1,4 +1,4 @@
-"""Bazel rule for compiling P4 programs to 4ward pipeline configs.
+"""Bazel rule for compiling P4 programs using p4c-4ward.
 
 Usage:
 
@@ -7,69 +7,78 @@ Usage:
     fourward_pipeline(
         name = "sai_middleblock",
         src = "//sai_p4/instantiations/google:middleblock.p4",
+        out = "sai_middleblock.binpb",
+        out_format = "p4runtime",
     )
 
-This produces two outputs, accessible as `name.pipeline` and `name.p4rt`:
-  - `<name>.pipeline.txtpb` — 4ward-native PipelineConfig (text proto)
-  - `<name>.p4rt.binpb` — P4Runtime ForwardingPipelineConfig (binary proto)
+Output formats (`out_format`):
+  - `"native"` (default): `fourward.ir.PipelineConfig`
+  - `"p4runtime"`: `p4.v1.ForwardingPipelineConfig` (for `SetForwardingPipelineConfig`)
+
+File extension of `out` determines serialization: `.txtpb` for text proto,
+`.binpb` for binary proto.
 """
+
+_VALID_OUT_FORMATS = ["native", "p4runtime"]
 
 def _fourward_pipeline_impl(ctx):
     include_dirs = []
     for inc in ctx.files.includes:
         include_dirs.append(inc.dirname)
 
-    # Shared arguments for both compilation modes.
-    shared_args = []
-    for d in include_dirs:
-        shared_args += ["-I", d]
-    shared_args += ["-I", ctx.file._p4include_anchor.dirname]
+    arguments = []
+    for directory in include_dirs:
+        arguments += ["-I", directory]
+    arguments += ["-I", ctx.file._p4include_anchor.dirname]
     for define in ctx.attr.defines:
-        shared_args += ["-D" + define]
+        arguments += ["-D" + define]
 
-    # All input files (source + includes + extra_srcs + p4include).
+    if ctx.attr.out_format == "p4runtime":
+        arguments += ["--format", "p4runtime"]
+
+    arguments += ["-o", ctx.outputs.out.path, ctx.file.src.path]
+
     inputs = depset(
         [ctx.file.src] + ctx.files.includes + ctx.files.extra_srcs,
         transitive = [ctx.attr._p4include[DefaultInfo].files],
     )
 
-    # p4c shells out to the system C preprocessor (cpp → cc1), which needs
-    # PATH to resolve. use_default_shell_env ensures the tool action
-    # inherits the host environment.
-    run_kwargs = dict(
+    # p4c shells out to the system C preprocessor (cpp -> cc1), which needs
+    # PATH to resolve.
+    ctx.actions.run(
+        outputs = [ctx.outputs.out],
         inputs = inputs,
         executable = ctx.executable._p4c_4ward,
+        arguments = arguments,
         use_default_shell_env = True,
-    )
-
-    # 4ward-native PipelineConfig (text proto).
-    ctx.actions.run(
-        outputs = [ctx.outputs.pipeline],
-        arguments = shared_args + ["-o", ctx.outputs.pipeline.path, ctx.file.src.path],
-        mnemonic = "FourwardCompile",
+        mnemonic = "FourwardPipeline",
         progress_message = "Compiling %{input} to 4ward pipeline",
-        **run_kwargs
     )
 
-    # P4Runtime ForwardingPipelineConfig (binary proto).
-    ctx.actions.run(
-        outputs = [ctx.outputs.p4rt],
-        arguments = shared_args + ["--format", "p4runtime", "-o", ctx.outputs.p4rt.path, ctx.file.src.path],
-        mnemonic = "FourwardP4rt",
-        progress_message = "Compiling %{input} to P4Runtime config",
-        **run_kwargs
-    )
-
-    return [DefaultInfo(files = depset([ctx.outputs.pipeline, ctx.outputs.p4rt]))]
+    return [DefaultInfo(files = depset([ctx.outputs.out]))]
 
 fourward_pipeline = rule(
     implementation = _fourward_pipeline_impl,
-    doc = "Compiles a P4 source file to a 4ward PipelineConfig and a P4Runtime ForwardingPipelineConfig.",
+    doc = "Compiles a P4 source file using p4c-4ward.",
     attrs = {
         "src": attr.label(
             mandatory = True,
             allow_single_file = [".p4"],
             doc = "P4 source file.",
+        ),
+        "out": attr.output(
+            mandatory = True,
+            doc = "Output file. Extension determines serialization: " +
+                  "`.txtpb` for text proto, `.binpb` for binary proto. " +
+                  "The proto message type is determined by `out_format`.",
+        ),
+        "out_format": attr.string(
+            default = "native",
+            doc = "Output proto message type. " +
+                  "`\"native\"` (default): `fourward.ir.PipelineConfig`. " +
+                  "`\"p4runtime\"`: `p4.v1.ForwardingPipelineConfig` " +
+                  "(suitable for `SetForwardingPipelineConfig`).",
+            values = _VALID_OUT_FORMATS,
         ),
         "includes": attr.label_list(
             allow_files = True,
@@ -96,9 +105,5 @@ fourward_pipeline = rule(
         "_p4include": attr.label(
             default = "@p4c//p4include",
         ),
-    },
-    outputs = {
-        "pipeline": "%{name}.pipeline.txtpb",
-        "p4rt": "%{name}.p4rt.binpb",
     },
 )
