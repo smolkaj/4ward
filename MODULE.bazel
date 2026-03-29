@@ -12,7 +12,11 @@ bazel_dep(name = "rules_cc", version = "0.2.17")
 bazel_dep(name = "rules_license", version = "1.0.0")
 bazel_dep(name = "rules_proto", version = "7.1.0")
 bazel_dep(name = "rules_kotlin", version = "2.3.0")
-bazel_dep(name = "rules_java", version = "9.3.0")
+bazel_dep(name = "rules_java", version = "8.12.0")
+
+# protobuf@33.5 and grpc@1.80.0-pre1 pull rules_java@9.3.0, which requires
+# Bazel 9. Pin to 8.12.0 for Bazel 8 compatibility.
+single_version_override(module_name = "rules_java", version = "8.12.0")
 bazel_dep(name = "rules_python", version = "1.4.1")
 bazel_dep(name = "rules_jvm_external", version = "6.10")
 
