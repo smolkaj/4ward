@@ -1382,12 +1382,10 @@ class TableStore : TableDataReader {
     val entries = tables[tableName] ?: emptyList<TableEntry>()
     val default = defaultActions[tableName] ?: DefaultAction("NoAction")
 
-    // Index key values by field ID for O(1) lookup in scoreEntry.
-    // Field IDs are small positive integers; a sparse array avoids both
-    // iterator allocation (HashMap) and boxing (Int → Integer).
-    var maxId = 0
-    for ((name, _) in keyValues) maxId = maxOf(maxId, name.toInt())
-    val keyByFieldId = arrayOfNulls<Value>(maxId + 1)
+    // Index key values by field ID for O(1) array lookup in scoreEntry.
+    val keyByFieldId =
+      if (keyValues.isEmpty()) emptyArray()
+      else arrayOfNulls<Value>(keyValues.maxOf { it.first.toInt() } + 1)
     for ((name, value) in keyValues) keyByFieldId[name.toInt()] = value
 
     var bestEntry: TableEntry? = null
@@ -1498,7 +1496,7 @@ class TableStore : TableDataReader {
     tableAliasByName[behavioralName] ?: actionAliasByName[behavioralName] ?: behavioralName
 
   /**
-   * Scores an entry against [keyMap]. Returns null if the entry does not match. Returns a
+   * Scores an entry against [keyByFieldId]. Returns null if the entry does not match. Returns a
    * non-negative score where a higher value means a better match (used to implement LPM
    * longest-prefix and ternary priority semantics).
    */
@@ -1507,9 +1505,7 @@ class TableStore : TableDataReader {
     val matchList = entry.matchList
     for (i in 0 until matchList.size) {
       val match = matchList[i]
-      val id = match.fieldId
-      val value = if (id in keyByFieldId.indices) keyByFieldId[id] else null
-      value ?: return null
+      val value = keyByFieldId.getOrNull(match.fieldId) ?: return null
 
       val bits =
         when (value) {
