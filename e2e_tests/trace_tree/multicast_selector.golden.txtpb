@@ -59,7 +59,6 @@ events {
 }
 fork_outcome {
   reason: MULTICAST
-  mode: FORK_MODE_PARALLEL
   branches {
     label: "replica_0_port_1"
     subtree {
@@ -97,7 +96,6 @@ fork_outcome {
       }
       fork_outcome {
         reason: ACTION_SELECTOR
-        mode: FORK_MODE_ALTERNATIVE
         branches {
           label: "member_0"
           subtree {
@@ -264,7 +262,6 @@ fork_outcome {
       }
       fork_outcome {
         reason: ACTION_SELECTOR
-        mode: FORK_MODE_ALTERNATIVE
         branches {
           label: "member_0"
           subtree {

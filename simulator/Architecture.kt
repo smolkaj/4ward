@@ -1,6 +1,7 @@
 package fourward.simulator
 
 import fourward.ir.BehavioralConfig
+import fourward.sim.SimulatorProto.OutputPacket
 import fourward.sim.SimulatorProto.TraceTree
 
 /**
@@ -42,4 +43,7 @@ interface Architecture {
  * The [trace] tree carries the complete execution trace. Leaf nodes contain [PacketOutcome]s
  * (output packets or drops); fork nodes represent non-deterministic choice points.
  */
-data class PipelineResult(val trace: TraceTree)
+data class PipelineResult(val trace: TraceTree) {
+  /** All possible outcome sets, derived from the trace tree's fork structure. */
+  val possibleOutcomes: List<List<OutputPacket>> by lazy { collectPossibleOutcomes(trace) }
+}

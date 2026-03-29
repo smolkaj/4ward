@@ -77,13 +77,11 @@ events {
 }
 fork_outcome {
   reason: CLONE
-  mode: FORK_MODE_PARALLEL
   branches {
     label: "original"
     subtree {
       fork_outcome {
         reason: MULTICAST
-        mode: FORK_MODE_PARALLEL
         branches {
           label: "replica_0_port_1"
           subtree {
