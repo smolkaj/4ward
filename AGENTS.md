@@ -1,5 +1,8 @@
 # 4ward — Agent Guide
 
+**Always work in a dedicated git worktree — never modify the main tree
+directly.** See [Worktrees](#worktrees) for setup and cleanup.
+
 ## Repository map
 
 ```
@@ -10,6 +13,7 @@ simulator/*.kt               Kotlin simulator (the heart of 4ward).
 p4c_backend/*.{h,cpp}        C++ p4c backend plugin (emits proto IR from P4 source).
 p4runtime/*.kt               P4Runtime gRPC server (Kotlin).
 cli/*.kt                     Standalone CLI (4ward compile / sim / run).
+web/*.kt                     Web playground server and graph extractors (Kotlin).
 examples/*.p4                Ready-to-run example programs.
 examples/tutorial.t          CLI tutorial (also a cram regression test).
 e2e_tests/stf/               STF test runner (drives the simulator subprocess).
@@ -17,7 +21,9 @@ e2e_tests/corpus/            Corpus-based STF test harness (bulk p4c test suite)
 e2e_tests/trace_tree/        Golden trace-tree tests (proto-based, not STF).
 e2e_tests/p4testgen/         p4testgen-generated STF tests (one target per P4 program).
 e2e_tests/*/                 Per-feature STF tests (passthrough, basic_table, lpm, …).
+designs/                     Design documents (architecture decisions, feature proposals).
 docs/                        Project documentation.
+userdocs/                    User-facing documentation site (mkdocs).
 tools/                       Developer scripts (format, lint, coverage, …).
 ```
 
@@ -153,7 +159,7 @@ Key points:
 
 To add a new P4 architecture, follow the existing `V1ModelArchitecture.kt` as
 the reference implementation. Register the new architecture in the `when`
-expression inside `Simulator.handleLoadPipeline()`.
+expression inside `Simulator.loadPipeline()`.
 
 ## Proto changes
 
