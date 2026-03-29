@@ -137,8 +137,8 @@ semantics, and pipeline orchestration belong in the architecture layer.
 **Current status:** v1model, PSA, and PNA are all implemented. The interpreter is
 a pure IR tree-walker with no architecture-specific code — extern dispatch,
 fork semantics, and pipeline orchestration all live in the architecture layer
-(`V1ModelArchitecture.kt`, `PSAArchitecture.kt`). See [ROADMAP.md](ROADMAP.md)
-Track 6 for the multi-architecture plan.
+(`V1ModelArchitecture.kt`, `PSAArchitecture.kt`). See [ROADMAP_V1.md](ROADMAP_V1.md#track-6-multi-architecture-support)
+for the multi-architecture plan.
 
 ## Testing strategy
 
