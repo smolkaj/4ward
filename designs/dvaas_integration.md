@@ -302,22 +302,30 @@ lifecycle) but is stale — built on the old WORKSPACE-based sonic-pins, before
 the Bzlmod migration and before many 4ward improvements. Useful as reference,
 not as a base to build on.
 
-### What's left (sonic-pins side)
+### What's done (sonic-pins side)
 
-Building on the
-[`bzlmod-migration`](https://github.com/smolkaj/sonic-pins/tree/bzlmod-migration)
-branch (Bazel 8, Bzlmod, C++20):
+Building on `smolkaj/sonic-pins` `main` branch (Bazel 8.6, Bzlmod, C++20):
 
-1. **`bazel_dep` packaging** — make 4ward consumable via `git_override` from
-   sonic-pins. Define the `fourward_compile` rule.
-2. **`FourwardMirrorTestbed`** — development vehicle (two 4ward instances +
-   `PacketBridge`). Steel good patterns from the prior prototype.
-3. **Output prediction in frontend** — add `fourward_config` to
-   `P4Specification`, spawn 4ward subprocess from `dataplane_validation.cc`,
-   inject packets via `InjectPacket` RPC.
-4. **Trace conversion in frontend** — `TraceTree` → `PacketTrace` in
-   `dataplane_validation.cc`.
-5. **Upstream PR** — additive change, existing tests untouched.
+1. **`bazel_dep` packaging** — done
+   ([PR #12](https://github.com/smolkaj/sonic-pins/pull/12)). 4ward consumed
+   via `git_override`. `fourward_pipeline` rule compiles SAI P4 for 4ward.
+2. **`FourwardOracle`** — done. Manages server subprocess, loads pipeline,
+   installs entities, predicts outputs via streaming `InjectPackets` +
+   `SubscribeResults`. E2E test passes on SAI P4.
+3. **Trace conversion** — done. `FourwardTraceTreeToDvaasPacketTrace` with
+   golden tests covering all event types and fork flavors.
+4. **`fourward_config` in `P4Specification`** — done. The integration point
+   for the DVaaS frontend.
+5. **`FourwardMirrorTestbed`** — done. Two 4ward instances + `PacketBridge` +
+   `FakeGnmiService`.
+
+### What's left
+
+1. **Wire `FourwardOracle` into `dataplane_validation.cc`** — the actual code
+   paths that use 4ward for output prediction and trace collection when
+   `fourward_config` is present.
+2. **Upstream PR** — submit to `sonic-net/sonic-pins`. Additive, existing
+   tests untouched.
 
 ## Summary: three uses of 4ward in sonic-pins
 
