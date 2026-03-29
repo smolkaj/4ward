@@ -13,10 +13,14 @@ Blocked on buf support for proto edition 2024.
 
 ## Drop p4c fork
 
-The `smolkaj/p4c` fork adds `//p4include` package, `//testdata/p4_16_samples`
-exports, and a macOS build fix. Upstream PR:
-https://github.com/p4lang/p4c/pull/5533. Once merged and released to BCR,
-drop the `git_override` in `MODULE.bazel`.
+The `smolkaj/p4c` fork adds the PNA STF backend for p4testgen and a
+PNA drop-by-default fix. Upstream PRs:
+- https://github.com/p4lang/p4c/pull/5570 (PNA STF backend)
+- https://github.com/p4lang/p4c/issues/5569 (drop-by-default)
+
+The `//p4include` and macOS fixes (p4lang/p4c#5533) already landed and
+are available in BCR as p4c 1.2.5.11.bcr.1. Once the remaining changes
+are merged and released, drop the `git_override` in `MODULE.bazel`.
 
 ---
 

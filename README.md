@@ -340,6 +340,7 @@ Developer docs (in [`docs/`](docs/)):
 | [P4RUNTIME_COMPLIANCE.md](docs/P4RUNTIME_COMPLIANCE.md) | P4Runtime spec compliance matrix |
 | [SAI_P4_CONFIDENCE.md](docs/SAI_P4_CONFIDENCE.md) | SAI P4 confidence gaps and action plan |
 | [LIMITATIONS.md](docs/LIMITATIONS.md) | Known shortcuts and gaps |
+| [RELEASING.md](docs/RELEASING.md) | How to cut a release and publish to the BCR |
 | [REFACTORING.md](docs/REFACTORING.md) | Tech debt and cleanup backlog |
 | [AGENTS.md](AGENTS.md) | Guide for AI coding agents |
 | [designs/](designs/) | Design proposals |

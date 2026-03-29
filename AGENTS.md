@@ -23,6 +23,7 @@ e2e_tests/p4testgen/         p4testgen-generated STF tests (one target per P4 pr
 e2e_tests/*/                 Per-feature STF tests (passthrough, basic_table, lpm, …).
 designs/                     Design documents (architecture decisions, feature proposals).
 docs/                        Project documentation.
+docs/RELEASING.md            How to cut a release and publish to the BCR.
 userdocs/                    User-facing documentation site (mkdocs).
 tools/                       Developer scripts (format, lint, coverage, …).
 ```
