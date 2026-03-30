@@ -37,6 +37,15 @@ you want before you write the code. If you can't write a clear test, you
 don't understand the problem yet. A failing test is the starting point for
 every change, not an afterthought.
 
+## Understand ideal before settling for less
+
+Before committing to any design or implementation, define what the ideal
+solution looks like — unconstrained by schedule, legacy, or expedience.
+You don't have to build the ideal, but you must understand it. A pragmatic
+shortcut is a legitimate engineering choice; a shortcut you took because you
+never considered the alternative is just a blind spot. Name the north star,
+name what you're trading away, and name why.
+
 ## Build and test
 
 ```sh
