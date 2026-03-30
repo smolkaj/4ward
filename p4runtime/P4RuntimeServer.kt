@@ -30,6 +30,7 @@ class P4RuntimeServer(
       lock,
       typeTranslator = { service.typeTranslator },
       readAllEntities = { service.readAllEntities() },
+      readP4Info = { service.p4Info() },
       applyUpdates = { updates -> service.applyHookUpdates(updates) },
     )
   private lateinit var server: Server
