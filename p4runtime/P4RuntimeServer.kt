@@ -30,13 +30,10 @@ class P4RuntimeServer(
   fun start(): P4RuntimeServer {
     server =
       NettyServerBuilder.forPort(port)
-        // Decouple RPC processing from Netty I/O threads. Without this, gRPC-Java
-        // runs server call handlers on the Netty event loop, which assigns one thread
-        // per HTTP/2 connection. That causes deadlocks when a gRPC C++ client
-        // multiplexes a long-lived bidirectional stream (StreamChannel) and a
-        // server-streaming RPC (Read) on the same connection: the suspended
-        // StreamChannel coroutine and the Read coroutine contend for the single
-        // event loop thread assigned to that connection.
+        // Without a dedicated executor, gRPC-Java runs RPC handlers on Netty's
+        // I/O event loop threads. Suspended Kotlin coroutines (e.g. a StreamChannel
+        // awaiting the next client message) can prevent other RPCs on the same
+        // HTTP/2 connection from being dispatched.
         .executor(Executors.newCachedThreadPool())
         .addService(service)
         .addService(dataplaneService)
