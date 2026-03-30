@@ -32,16 +32,16 @@
             <td></td>
             <td class="headerItem">Lines:</td>
             <td class="headerCovTableEntryLo">0.0&nbsp;%</td>
-            <td class="headerCovTableEntry">45</td>
+            <td class="headerCovTableEntry">46</td>
             <td class="headerCovTableEntry">0</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-03-30 06:23:41</td>
+            <td class="headerValue">2026-03-30 06:44:00</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryLo">0.0&nbsp;%</td>
-            <td class="headerCovTableEntry">11</td>
+            <td class="headerCovTableEntry">12</td>
             <td class="headerCovTableEntry">0</td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
@@ -91,57 +91,58 @@
 <span id="L29"><span class="lineNum">      29</span> <span class="tlaUNC">           0 :       broker,</span></span>
 <span id="L30"><span class="lineNum">      30</span> <span class="tlaUNC">           0 :       lock,</span></span>
 <span id="L31"><span class="lineNum">      31</span> <span class="tlaUNC">           0 :       typeTranslator = { service.typeTranslator },</span></span>
-<span id="L32"><span class="lineNum">      32</span> <span class="tlaUNC">           0 :       applyUpdates = { updates -&gt; service.applyHookUpdates(updates) },</span></span>
-<span id="L33"><span class="lineNum">      33</span>              :     )</span>
-<span id="L34"><span class="lineNum">      34</span>              :   private lateinit var server: Server</span>
-<span id="L35"><span class="lineNum">      35</span>              : </span>
-<span id="L36"><span class="lineNum">      36</span>              :   fun start(): P4RuntimeServer {</span>
-<span id="L37"><span class="lineNum">      37</span> <span class="tlaUNC">           0 :     server =</span></span>
-<span id="L38"><span class="lineNum">      38</span> <span class="tlaUNC">           0 :       NettyServerBuilder.forPort(port)</span></span>
-<span id="L39"><span class="lineNum">      39</span>              :         // Without a dedicated executor, gRPC-Java runs RPC handlers on Netty's</span>
-<span id="L40"><span class="lineNum">      40</span>              :         // I/O event loop threads. Suspended Kotlin coroutines (e.g. a StreamChannel</span>
-<span id="L41"><span class="lineNum">      41</span>              :         // awaiting the next client message) can prevent other RPCs on the same</span>
-<span id="L42"><span class="lineNum">      42</span>              :         // HTTP/2 connection from being dispatched.</span>
-<span id="L43"><span class="lineNum">      43</span> <span class="tlaUNC">           0 :         .executor(Executors.newCachedThreadPool())</span></span>
-<span id="L44"><span class="lineNum">      44</span> <span class="tlaUNC">           0 :         .addService(service)</span></span>
-<span id="L45"><span class="lineNum">      45</span> <span class="tlaUNC">           0 :         .addService(dataplaneService)</span></span>
-<span id="L46"><span class="lineNum">      46</span> <span class="tlaUNC">           0 :         .build()</span></span>
-<span id="L47"><span class="lineNum">      47</span> <span class="tlaUNC">           0 :         .start()</span></span>
-<span id="L48"><span class="lineNum">      48</span> <span class="tlaUNC">           0 :     Runtime.getRuntime().addShutdownHook(Thread { stop() })</span></span>
-<span id="L49"><span class="lineNum">      49</span> <span class="tlaUNC">           0 :     return this</span></span>
-<span id="L50"><span class="lineNum">      50</span>              :   }</span>
-<span id="L51"><span class="lineNum">      51</span>              : </span>
-<span id="L52"><span class="lineNum">      52</span>              :   fun stop() {</span>
-<span id="L53"><span class="lineNum">      53</span> <span class="tlaUNC">           0 :     if (::server.isInitialized) {</span></span>
-<span id="L54"><span class="lineNum">      54</span> <span class="tlaUNC">           0 :       server.shutdown()</span></span>
-<span id="L55"><span class="lineNum">      55</span>              :     }</span>
-<span id="L56"><span class="lineNum">      56</span> <span class="tlaUNC">           0 :   }</span></span>
-<span id="L57"><span class="lineNum">      57</span>              : </span>
-<span id="L58"><span class="lineNum">      58</span>              :   fun blockUntilShutdown() {</span>
-<span id="L59"><span class="lineNum">      59</span> <span class="tlaUNC">           0 :     server.awaitTermination()</span></span>
-<span id="L60"><span class="lineNum">      60</span> <span class="tlaUNC">           0 :   }</span></span>
-<span id="L61"><span class="lineNum">      61</span>              : </span>
-<span id="L62"><span class="lineNum">      62</span> <span class="tlaUNC">           0 :   fun port(): Int = server.port</span></span>
-<span id="L63"><span class="lineNum">      63</span>              : </span>
-<span id="L64"><span class="lineNum">      64</span>              :   companion object {</span>
-<span id="L65"><span class="lineNum">      65</span>              :     const val DEFAULT_PORT = 9559</span>
-<span id="L66"><span class="lineNum">      66</span>              :   }</span>
-<span id="L67"><span class="lineNum">      67</span>              : }</span>
-<span id="L68"><span class="lineNum">      68</span>              : </span>
-<span id="L69"><span class="lineNum">      69</span>              : fun main(args: Array&lt;String&gt;) {</span>
-<span id="L70"><span class="lineNum">      70</span> <span class="tlaUNC">           0 :   val port = flagValue(args, &quot;--port&quot;)?.toIntOrNull() ?: P4RuntimeServer.DEFAULT_PORT</span></span>
-<span id="L71"><span class="lineNum">      71</span> <span class="tlaUNC">           0 :   val deviceId =</span></span>
-<span id="L72"><span class="lineNum">      72</span> <span class="tlaUNC">           0 :     flagValue(args, &quot;--device-id&quot;)?.toLongOrNull() ?: P4RuntimeService.DEFAULT_DEVICE_ID</span></span>
-<span id="L73"><span class="lineNum">      73</span> <span class="tlaUNC">           0 :   val dropPort = flagValue(args, &quot;--drop-port&quot;)?.toIntOrNull()</span></span>
-<span id="L74"><span class="lineNum">      74</span> <span class="tlaUNC">           0 :   val cpuPortConfig = CpuPortConfig.fromFlag(flagValue(args, &quot;--cpu-port&quot;))</span></span>
-<span id="L75"><span class="lineNum">      75</span>              : </span>
-<span id="L76"><span class="lineNum">      76</span> <span class="tlaUNC">           0 :   val server = P4RuntimeServer(port, deviceId, dropPort, cpuPortConfig).start()</span></span>
-<span id="L77"><span class="lineNum">      77</span> <span class="tlaUNC">           0 :   println(&quot;P4Runtime server listening on port ${server.port()}&quot;)</span></span>
-<span id="L78"><span class="lineNum">      78</span> <span class="tlaUNC">           0 :   server.blockUntilShutdown()</span></span>
-<span id="L79"><span class="lineNum">      79</span> <span class="tlaUNC">           0 : }</span></span>
-<span id="L80"><span class="lineNum">      80</span>              : </span>
-<span id="L81"><span class="lineNum">      81</span>              : private fun flagValue(args: Array&lt;String&gt;, flag: String): String? =</span>
-<span id="L82"><span class="lineNum">      82</span> <span class="tlaUNC">           0 :   args.find { it.startsWith(&quot;$flag=&quot;) }?.substringAfter(&quot;=&quot;)</span></span>
+<span id="L32"><span class="lineNum">      32</span> <span class="tlaUNC">           0 :       readAllEntities = { service.readAllEntities() },</span></span>
+<span id="L33"><span class="lineNum">      33</span> <span class="tlaUNC">           0 :       applyUpdates = { updates -&gt; service.applyHookUpdates(updates) },</span></span>
+<span id="L34"><span class="lineNum">      34</span>              :     )</span>
+<span id="L35"><span class="lineNum">      35</span>              :   private lateinit var server: Server</span>
+<span id="L36"><span class="lineNum">      36</span>              : </span>
+<span id="L37"><span class="lineNum">      37</span>              :   fun start(): P4RuntimeServer {</span>
+<span id="L38"><span class="lineNum">      38</span> <span class="tlaUNC">           0 :     server =</span></span>
+<span id="L39"><span class="lineNum">      39</span> <span class="tlaUNC">           0 :       NettyServerBuilder.forPort(port)</span></span>
+<span id="L40"><span class="lineNum">      40</span>              :         // Without a dedicated executor, gRPC-Java runs RPC handlers on Netty's</span>
+<span id="L41"><span class="lineNum">      41</span>              :         // I/O event loop threads. Suspended Kotlin coroutines (e.g. a StreamChannel</span>
+<span id="L42"><span class="lineNum">      42</span>              :         // awaiting the next client message) can prevent other RPCs on the same</span>
+<span id="L43"><span class="lineNum">      43</span>              :         // HTTP/2 connection from being dispatched.</span>
+<span id="L44"><span class="lineNum">      44</span> <span class="tlaUNC">           0 :         .executor(Executors.newCachedThreadPool())</span></span>
+<span id="L45"><span class="lineNum">      45</span> <span class="tlaUNC">           0 :         .addService(service)</span></span>
+<span id="L46"><span class="lineNum">      46</span> <span class="tlaUNC">           0 :         .addService(dataplaneService)</span></span>
+<span id="L47"><span class="lineNum">      47</span> <span class="tlaUNC">           0 :         .build()</span></span>
+<span id="L48"><span class="lineNum">      48</span> <span class="tlaUNC">           0 :         .start()</span></span>
+<span id="L49"><span class="lineNum">      49</span> <span class="tlaUNC">           0 :     Runtime.getRuntime().addShutdownHook(Thread { stop() })</span></span>
+<span id="L50"><span class="lineNum">      50</span> <span class="tlaUNC">           0 :     return this</span></span>
+<span id="L51"><span class="lineNum">      51</span>              :   }</span>
+<span id="L52"><span class="lineNum">      52</span>              : </span>
+<span id="L53"><span class="lineNum">      53</span>              :   fun stop() {</span>
+<span id="L54"><span class="lineNum">      54</span> <span class="tlaUNC">           0 :     if (::server.isInitialized) {</span></span>
+<span id="L55"><span class="lineNum">      55</span> <span class="tlaUNC">           0 :       server.shutdown()</span></span>
+<span id="L56"><span class="lineNum">      56</span>              :     }</span>
+<span id="L57"><span class="lineNum">      57</span> <span class="tlaUNC">           0 :   }</span></span>
+<span id="L58"><span class="lineNum">      58</span>              : </span>
+<span id="L59"><span class="lineNum">      59</span>              :   fun blockUntilShutdown() {</span>
+<span id="L60"><span class="lineNum">      60</span> <span class="tlaUNC">           0 :     server.awaitTermination()</span></span>
+<span id="L61"><span class="lineNum">      61</span> <span class="tlaUNC">           0 :   }</span></span>
+<span id="L62"><span class="lineNum">      62</span>              : </span>
+<span id="L63"><span class="lineNum">      63</span> <span class="tlaUNC">           0 :   fun port(): Int = server.port</span></span>
+<span id="L64"><span class="lineNum">      64</span>              : </span>
+<span id="L65"><span class="lineNum">      65</span>              :   companion object {</span>
+<span id="L66"><span class="lineNum">      66</span>              :     const val DEFAULT_PORT = 9559</span>
+<span id="L67"><span class="lineNum">      67</span>              :   }</span>
+<span id="L68"><span class="lineNum">      68</span>              : }</span>
+<span id="L69"><span class="lineNum">      69</span>              : </span>
+<span id="L70"><span class="lineNum">      70</span>              : fun main(args: Array&lt;String&gt;) {</span>
+<span id="L71"><span class="lineNum">      71</span> <span class="tlaUNC">           0 :   val port = flagValue(args, &quot;--port&quot;)?.toIntOrNull() ?: P4RuntimeServer.DEFAULT_PORT</span></span>
+<span id="L72"><span class="lineNum">      72</span> <span class="tlaUNC">           0 :   val deviceId =</span></span>
+<span id="L73"><span class="lineNum">      73</span> <span class="tlaUNC">           0 :     flagValue(args, &quot;--device-id&quot;)?.toLongOrNull() ?: P4RuntimeService.DEFAULT_DEVICE_ID</span></span>
+<span id="L74"><span class="lineNum">      74</span> <span class="tlaUNC">           0 :   val dropPort = flagValue(args, &quot;--drop-port&quot;)?.toIntOrNull()</span></span>
+<span id="L75"><span class="lineNum">      75</span> <span class="tlaUNC">           0 :   val cpuPortConfig = CpuPortConfig.fromFlag(flagValue(args, &quot;--cpu-port&quot;))</span></span>
+<span id="L76"><span class="lineNum">      76</span>              : </span>
+<span id="L77"><span class="lineNum">      77</span> <span class="tlaUNC">           0 :   val server = P4RuntimeServer(port, deviceId, dropPort, cpuPortConfig).start()</span></span>
+<span id="L78"><span class="lineNum">      78</span> <span class="tlaUNC">           0 :   println(&quot;P4Runtime server listening on port ${server.port()}&quot;)</span></span>
+<span id="L79"><span class="lineNum">      79</span> <span class="tlaUNC">           0 :   server.blockUntilShutdown()</span></span>
+<span id="L80"><span class="lineNum">      80</span> <span class="tlaUNC">           0 : }</span></span>
+<span id="L81"><span class="lineNum">      81</span>              : </span>
+<span id="L82"><span class="lineNum">      82</span>              : private fun flagValue(args: Array&lt;String&gt;, flag: String): String? =</span>
+<span id="L83"><span class="lineNum">      83</span> <span class="tlaUNC">           0 :   args.find { it.startsWith(&quot;$flag=&quot;) }?.substringAfter(&quot;=&quot;)</span></span>
         </pre>
               </td>
             </tr>
