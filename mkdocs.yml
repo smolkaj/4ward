@@ -71,6 +71,7 @@ nav:
   - Concepts:
       - Trace Trees: concepts/traces.md
       - Type Translation: concepts/type-translation.md
+      - P4Runtime Features: concepts/p4runtime-features.md
       - Architectures: concepts/architectures.md
       - Error Messages: reference/errors.md
       - Architecture Modifications: concepts/architecture-modifications.md
