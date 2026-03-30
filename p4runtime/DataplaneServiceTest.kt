@@ -271,7 +271,12 @@ class DataplaneServiceTest {
     harness.loadPipeline(loadPassthroughConfig())
     val dataplaneStub = DataplaneCoroutineStub(harness.channel)
 
-    val invocationsReceived = kotlinx.coroutines.channels.Channel<Unit>(10)
+    val invocationsReceived =
+      kotlinx.coroutines.channels.Channel<
+        fourward.dataplane.DataplaneProto.PrePacketHookInvocation
+      >(
+        10
+      )
     val responseChannel =
       kotlinx.coroutines.channels.Channel<fourward.dataplane.DataplaneProto.PrePacketHookResponse>(
         UNLIMITED
@@ -280,8 +285,8 @@ class DataplaneServiceTest {
     // Register the hook — collect invocations and send responses.
     val hookJob =
       async(Dispatchers.IO) {
-        dataplaneStub.registerPrePacketHook(responseChannel.consumeAsFlow()).collect {
-          invocationsReceived.send(Unit)
+        dataplaneStub.registerPrePacketHook(responseChannel.consumeAsFlow()).collect { invocation ->
+          invocationsReceived.send(invocation)
           responseChannel.send(
             fourward.dataplane.DataplaneProto.PrePacketHookResponse.getDefaultInstance()
           )
@@ -299,8 +304,59 @@ class DataplaneServiceTest {
         .build()
     )
 
-    // Verify the hook was invoked.
-    withTimeout(5000) { invocationsReceived.receive() }
+    // Verify the hook was invoked and carries a snapshot of installed entities.
+    // With no entries installed, the entities list should be empty.
+    val invocation = withTimeout(5000) { invocationsReceived.receive() }
+    assertTrue("entities should be empty before any writes", invocation.entitiesList.isEmpty())
+
+    hookJob.cancel()
+  }
+
+  @Test
+  fun `pre-packet hook invocation carries installed entities`() = runBlocking {
+    val config = loadBasicTableConfig()
+    harness.loadPipeline(config)
+
+    // Install a table entry before registering the hook.
+    harness.installEntry(buildExactEntry(config, matchValue = 0x0800, port = 1))
+
+    val dataplaneStub = DataplaneCoroutineStub(harness.channel)
+    val invocationsReceived =
+      kotlinx.coroutines.channels.Channel<
+        fourward.dataplane.DataplaneProto.PrePacketHookInvocation
+      >(
+        10
+      )
+    val responseChannel =
+      kotlinx.coroutines.channels.Channel<fourward.dataplane.DataplaneProto.PrePacketHookResponse>(
+        UNLIMITED
+      )
+
+    val hookJob =
+      async(Dispatchers.IO) {
+        dataplaneStub.registerPrePacketHook(responseChannel.consumeAsFlow()).collect { invocation ->
+          invocationsReceived.send(invocation)
+          responseChannel.send(
+            fourward.dataplane.DataplaneProto.PrePacketHookResponse.getDefaultInstance()
+          )
+        }
+      }
+
+    delay(200)
+
+    val packet = buildEthernetFrame(42)
+    dataplaneStub.injectPacket(
+      fourward.dataplane.DataplaneProto.InjectPacketRequest.newBuilder()
+        .setDataplaneIngressPort(0)
+        .setPayload(ByteString.copyFrom(packet))
+        .build()
+    )
+
+    val invocation = withTimeout(5000) { invocationsReceived.receive() }
+    assertTrue(
+      "hook invocation should carry the installed table entry",
+      invocation.entitiesList.any { it.hasTableEntry() },
+    )
 
     hookJob.cancel()
   }

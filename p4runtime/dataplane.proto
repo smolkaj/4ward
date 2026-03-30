@@ -109,7 +109,13 @@ message SubscriptionActive {}
 
 // Sent by the server before processing packets. The server holds the
 // write lock and waits for the client's response before proceeding.
-message PrePacketHookInvocation {}
+message PrePacketHookInvocation {
+  // Snapshot of all P4Runtime entities currently installed on the server,
+  // read under the write lock. The client can use this to derive entries
+  // that depend on the current forwarding state (e.g. auxiliary entries
+  // mirroring gNMI config).
+  repeated p4.v1.Entity entities = 1;
+}
 
 // Sent by the client in response to a PrePacketHookInvocation. Contains
 // P4Runtime updates to apply atomically before packet processing.
