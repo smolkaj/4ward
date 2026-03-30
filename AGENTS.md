@@ -30,6 +30,13 @@ tools/                       Developer scripts (format, lint, coverage, …).
 
 Unit tests live alongside the source they test (`FooTest.kt` next to `Foo.kt`).
 
+## Test-driven development
+
+**Write the test first.** The test is the spec — it defines the behavior
+you want before you write the code. If you can't write a clear test, you
+don't understand the problem yet. A failing test is the starting point for
+every change, not an afterthought.
+
 ## Build and test
 
 ```sh
