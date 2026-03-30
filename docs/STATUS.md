@@ -6,6 +6,93 @@
 > Reverse-chronological log. Add new entries at the top (below this header).
 > See [ROADMAP.md](ROADMAP.md) for the big picture.
 
+## 2026-03-30
+
+|                | Delta      | Total     |
+|----------------|------------|-----------|
+| PRs merged     | 16         | 435       |
+| Kotlin prod    | +1.1k      | 13.6k    |
+| Kotlin test    | -0.8k      | 25.6k    |
+| C++ prod       | +0         | 1.6k     |
+| C++ test       | +0         | 1.3k     |
+| Proto          | +0.1k      | 1.1k     |
+| Web frontend   | +0         | 5.2k     |
+| **Total**      | **+0.4k**  | **48.4k**|
+
+**Auxiliary entries work end-to-end. `FourwardPinsSwitch` now behaves
+like a real PINS switch — auxiliary P4 entries are derived and installed
+transparently before each packet, enabling two previously disabled
+contract tests. Packet synthesis is wired up. The gap between 4ward
+and an upstream DVaaS PR is closing fast.**
+
+### DVaaS integration — auxiliary entries land
+
+The big unlock this cycle: 4ward's new `RegisterPrePacketHook` RPC
+(#466) lets a client receive a callback before every dataplane RPC
+while holding the write lock, respond with P4Runtime updates, and have
+them applied atomically before packet processing. Two follow-ups (#469,
+#471) enrich the invocation with the full entity snapshot and P4Info,
+so hook clients can derive auxiliary entries from forwarding state
+without a separate Read (which would deadlock under the write lock).
+
+On the sonic-pins side, `FourwardPinsSwitch` immediately puts the hook
+to work (#52): before each packet, it derives the complete set of
+auxiliary entries — PRE clone sessions, `ingress_clone_table` bridging
+ACL trap to v1model `clone()`, VLAN disable entries, VLAN membership
+mirroring, L3 admit for port RIFs (#54). Delta-based updates keep it
+efficient. Two contract tests that were previously `DISABLED` now pass:
+`AclTrapPuntsPacketWithAuxEntries` and
+`L3ForwardingWorksWithAuxEntries`.
+
+Systematic E2E test gap analysis (#46) mapped all 9 disabled tests to
+implementation tracks and identified the critical path. Five of those
+gaps are now resolved (#55).
+
+### Packet synthesis + P4 platform guards
+
+Packet synthesis wired up via p4-symbolic (#50) — replaces the
+`UNIMPLEMENTED` stub with criteria-based test packet generation using
+SAI default coverage goals (entry coverage × packet fate).
+
+The SAI P4 platform split cleaned up (#50, #53): `v1model_sai.p4`
+typed ports gated behind `#ifdef PLATFORM_4WARD`, SAI source files
+reverted to upstream with minimal `#ifdef` guards (~9 lines) instead
+of wholesale forks. This unblocks p4-symbolic, BMv2, and p4testgen
+backends that previously rejected `@p4runtime_translation` on extern
+arguments.
+
+### Infrastructure and packaging
+
+4ward published as a `bazel_dep` for sonic-pins (#452), with release
+process and version scheme documented (#453). `FourwardPinsSwitch`
+renamed to reflect its full PINS scope (#49). `PacketBridge` routes by
+gNMI interface name instead of assuming matching port numbers (#48).
+`FakeGnmiService` implements `Set` for port ID changes (#49).
+
+### P4Runtime hardening
+
+Fixed a gRPC stream multiplexing issue (#459) — `NettyServerBuilder`
+without an explicit executor ran handlers on the Netty event loop,
+failing when `StreamChannel` and `Read` shared one HTTP/2 connection.
+Follow-up investigation (#462, #463, #465) traced the original
+sonic-pins symptom to a `RETURN_IF_ERROR(status)` self-initialization
+bug in gutil, not Netty threading. The executor kept as gRPC-Java
+convention; the deadlock claim retracted.
+
+Trace booleans (`taken`, `hit`) made visible in text proto output
+(#455) — proto3 was suppressing `false` defaults, hiding critical
+debugging information in SAI P4 traces. Golden error test for
+wrong-role writes (#468). P4Runtime annotation support documented in
+userdocs (#461).
+
+### What's next
+
+- **Close the remaining 5 E2E test gaps** — the test gap doc (#55)
+  has the roadmap
+- **Wire `FourwardOracle` into the DVaaS frontend** — the last
+  integration milestone before the upstream PR
+- **Upstream PR** — the finish line
+
 ## 2026-03-29
 
 |                | Delta      | Total     |
