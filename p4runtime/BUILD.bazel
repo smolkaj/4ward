@@ -17,7 +17,10 @@ proto_library(
     srcs = ["dataplane.proto"],
     strip_import_prefix = "/p4runtime",
     visibility = ["//visibility:public"],
-    deps = ["//simulator:simulator_proto"],
+    deps = [
+        "//simulator:simulator_proto",
+        "@p4runtime//proto/p4/v1:p4runtime_proto",
+    ],
 )
 
 java_proto_library(

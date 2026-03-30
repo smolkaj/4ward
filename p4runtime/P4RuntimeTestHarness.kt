@@ -66,17 +66,23 @@ class P4RuntimeTestHarness(
       lock,
       cpuPortConfig = cpuPortConfig,
     )
-  private val dataplaneService = DataplaneService(broker, lock) { service.typeTranslator }
+  private val dataplaneService =
+    DataplaneService(broker, lock, typeTranslator = { service.typeTranslator })
+
+  private val executor = java.util.concurrent.Executors.newCachedThreadPool()
 
   private val server =
     InProcessServerBuilder.forName(serverName)
-      .directExecutor()
+      // A multi-threaded executor is required for bidirectional streaming RPCs
+      // (e.g. RegisterPrePacketHook) where the server suspends on a rendezvous
+      // channel while waiting for the client response.
+      .executor(executor)
       .addService(service)
       .addService(dataplaneService)
       .build()
       .start()
 
-  val channel: ManagedChannel = InProcessChannelBuilder.forName(serverName).directExecutor().build()
+  val channel: ManagedChannel = InProcessChannelBuilder.forName(serverName).build()
 
   val stub: P4RuntimeCoroutineStub = P4RuntimeCoroutineStub(channel)
   private val dataplaneStub: DataplaneCoroutineStub = DataplaneCoroutineStub(channel)
@@ -449,6 +455,7 @@ class P4RuntimeTestHarness(
   override fun close() {
     channel.shutdownNow()
     server.shutdownNow()
+    executor.shutdownNow()
     service.close()
   }
 

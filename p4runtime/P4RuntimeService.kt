@@ -320,6 +320,15 @@ class P4RuntimeService(
   // Write
   // ---------------------------------------------------------------------------
 
+  /**
+   * Applies P4Runtime updates from the pre-packet hook. Called by [DataplaneService] while holding
+   * the write lock. Uses the default role (full access) since these are server-internal updates.
+   */
+  fun applyHookUpdates(updates: List<Update>) {
+    val state = requirePipeline()
+    writeAtomic(updates, state, roleName = "")
+  }
+
   override suspend fun write(request: WriteRequest): WriteResponse =
     lock.withWriteLock {
       requireDeviceId(request.deviceId)

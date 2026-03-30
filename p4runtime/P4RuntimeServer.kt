@@ -24,7 +24,13 @@ class P4RuntimeServer(
       deviceId = deviceId,
       cpuPortConfig = cpuPortConfig,
     )
-  private val dataplaneService = DataplaneService(broker, lock) { service.typeTranslator }
+  private val dataplaneService =
+    DataplaneService(
+      broker,
+      lock,
+      typeTranslator = { service.typeTranslator },
+      applyUpdates = { updates -> service.applyHookUpdates(updates) },
+    )
   private lateinit var server: Server
 
   fun start(): P4RuntimeServer {
