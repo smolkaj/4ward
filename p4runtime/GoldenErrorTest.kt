@@ -167,6 +167,7 @@ class GoldenErrorTest(private val testName: String) {
       "refers-to-violation-no-entry" -> triggerRefersToViolationNoEntry()
       "refers-to-violation-no-multicast" -> triggerRefersToViolationNoMulticast()
       "type-translation-failed" -> triggerTypeTranslationFailed()
+      "wrong-role-write" -> triggerWrongRoleWrite()
       else -> error("unknown test: $name")
     }
   }
@@ -1479,6 +1480,31 @@ class GoldenErrorTest(private val testName: String) {
     harness.installEntry(entity)
   }
 
+  @Suppress("MagicNumber")
+  private fun triggerWrongRoleWrite() {
+    val config = loadBasicTable()
+    val table = config.p4Info.tablesList.first()
+    // Patch the table to belong to "packet_replication_engine_manager".
+    val patchedP4Info =
+      config.p4Info
+        .toBuilder()
+        .setTables(
+          0,
+          table
+            .toBuilder()
+            .setPreamble(
+              table.preamble
+                .toBuilder()
+                .addAnnotations("""@p4runtime_role("packet_replication_engine_manager")""")
+            ),
+        )
+        .build()
+    val patched = config.toBuilder().setP4Info(patchedP4Info).build()
+    harness.loadPipeline(patched)
+    val entry = buildExactEntry(patched, matchValue = 0x0800, port = 1)
+    harness.installEntry(entry, role = "sdn_controller")
+  }
+
   // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
@@ -1637,6 +1663,7 @@ class GoldenErrorTest(private val testName: String) {
         "refers-to-violation-no-entry",
         "refers-to-violation-no-multicast",
         "type-translation-failed",
+        "wrong-role-write",
       )
 
     private val VALIDATOR_BINARY: Path =
