@@ -23,6 +23,7 @@ import p4.v1.P4RuntimeGrpcKt
 import p4.v1.P4RuntimeOuterClass
 import p4.v1.P4RuntimeOuterClass.CapabilitiesRequest
 import p4.v1.P4RuntimeOuterClass.CapabilitiesResponse
+import p4.v1.P4RuntimeOuterClass.Entity
 import p4.v1.P4RuntimeOuterClass.ForwardingPipelineConfig
 import p4.v1.P4RuntimeOuterClass.GetForwardingPipelineConfigRequest
 import p4.v1.P4RuntimeOuterClass.GetForwardingPipelineConfigResponse
@@ -34,6 +35,7 @@ import p4.v1.P4RuntimeOuterClass.SetForwardingPipelineConfigRequest
 import p4.v1.P4RuntimeOuterClass.SetForwardingPipelineConfigResponse
 import p4.v1.P4RuntimeOuterClass.StreamMessageRequest
 import p4.v1.P4RuntimeOuterClass.StreamMessageResponse
+import p4.v1.P4RuntimeOuterClass.TableEntry
 import p4.v1.P4RuntimeOuterClass.Uint128
 import p4.v1.P4RuntimeOuterClass.Update
 import p4.v1.P4RuntimeOuterClass.WriteRequest
@@ -327,6 +329,30 @@ class P4RuntimeService(
   fun applyHookUpdates(updates: List<Update>) {
     val state = requirePipeline()
     writeAtomic(updates, state, roleName = "")
+  }
+
+  /**
+   * Returns all P4Runtime entities currently installed. Called by [DataplaneService] while holding
+   * the write lock, so no additional locking is needed.
+   */
+  fun readAllEntities(): List<Entity> {
+    val state = pipeline ?: return emptyList()
+    val tableEntities =
+      state.entityReader.readTableEntities(TableEntry.getDefaultInstance(), simulator)
+    val preEntities =
+      simulator.readEntries(
+        listOf(
+          Entity.newBuilder()
+            .setPacketReplicationEngineEntry(
+              P4RuntimeOuterClass.PacketReplicationEngineEntry.getDefaultInstance()
+            )
+            .build()
+        )
+      )
+    val result = mutableListOf<Entity>()
+    result.addAll(tableEntities)
+    result.addAll(preEntities)
+    return result
   }
 
   override suspend fun write(request: WriteRequest): WriteResponse =

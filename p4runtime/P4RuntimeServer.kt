@@ -29,6 +29,7 @@ class P4RuntimeServer(
       broker,
       lock,
       typeTranslator = { service.typeTranslator },
+      readAllEntities = { service.readAllEntities() },
       applyUpdates = { updates -> service.applyHookUpdates(updates) },
     )
   private lateinit var server: Server

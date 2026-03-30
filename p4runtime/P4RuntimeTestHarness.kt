@@ -67,7 +67,12 @@ class P4RuntimeTestHarness(
       cpuPortConfig = cpuPortConfig,
     )
   private val dataplaneService =
-    DataplaneService(broker, lock, typeTranslator = { service.typeTranslator })
+    DataplaneService(
+      broker,
+      lock,
+      typeTranslator = { service.typeTranslator },
+      readAllEntities = { service.readAllEntities() },
+    )
 
   private val executor = java.util.concurrent.Executors.newCachedThreadPool()
 

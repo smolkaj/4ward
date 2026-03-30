@@ -36,6 +36,7 @@ class DataplaneService(
   private val broker: PacketBroker,
   private val lock: ReadWriteMutex,
   private val typeTranslator: () -> TypeTranslator? = { null },
+  private val readAllEntities: () -> List<P4RuntimeOuterClass.Entity> = { emptyList() },
   private val applyUpdates: (List<P4RuntimeOuterClass.Update>) -> Unit = {},
 ) : DataplaneGrpcKt.DataplaneCoroutineImplBase() {
 
@@ -63,7 +64,11 @@ class DataplaneService(
   private fun fireHookIfRegistered() {
     val h = hook.get() ?: return
     runBlocking {
-      h.invocations.send(DataplaneProto.PrePacketHookInvocation.getDefaultInstance())
+      val invocation =
+        DataplaneProto.PrePacketHookInvocation.newBuilder()
+          .addAllEntities(readAllEntities())
+          .build()
+      h.invocations.send(invocation)
       val response = h.responses.receive()
       if (response.updatesList.isNotEmpty()) {
         applyUpdates(response.updatesList)
