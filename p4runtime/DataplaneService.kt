@@ -13,9 +13,14 @@ import fourward.sim.SimulatorProto.TraceTree
 import io.grpc.Status
 import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.ForkJoinTask
+import java.util.concurrent.atomic.AtomicReference
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import p4.v1.P4RuntimeOuterClass
 
 /**
  * Dataplane gRPC service: injects packets into the simulator and returns output packets with dual
@@ -31,14 +36,55 @@ class DataplaneService(
   private val broker: PacketBroker,
   private val lock: ReadWriteMutex,
   private val typeTranslator: () -> TypeTranslator? = { null },
+  private val applyUpdates: (List<P4RuntimeOuterClass.Update>) -> Unit = {},
 ) : DataplaneGrpcKt.DataplaneCoroutineImplBase() {
+
+  /**
+   * The currently registered pre-packet hook, or null if none. The hook is a pair of channels:
+   * - invocations: server sends [DataplaneProto.PrePacketHookInvocation] to the client
+   * - responses: client sends [DataplaneProto.PrePacketHookResponse] back
+   */
+  private data class Hook(
+    val invocations: Channel<DataplaneProto.PrePacketHookInvocation>,
+    val responses: Channel<DataplaneProto.PrePacketHookResponse>,
+  )
+
+  private val hook = AtomicReference<Hook?>(null)
+
+  /**
+   * Fires the pre-packet hook if one is registered. Must be called while holding the write lock.
+   * Sends an invocation to the client, waits for the response, and applies any P4Runtime updates.
+   *
+   * Uses [runBlocking] because this is called under a Java
+   * [java.util.concurrent.locks.ReentrantReadWriteLock] which must be released on the same thread
+   * that acquired it. Suspend functions can resume on a different thread, which would cause
+   * [IllegalMonitorStateException] on unlock.
+   */
+  private fun fireHookIfRegistered() {
+    val h = hook.get() ?: return
+    runBlocking {
+      h.invocations.send(DataplaneProto.PrePacketHookInvocation.getDefaultInstance())
+      val response = h.responses.receive()
+      if (response.updatesList.isNotEmpty()) {
+        applyUpdates(response.updatesList)
+      }
+    }
+  }
 
   override suspend fun injectPacket(request: InjectPacketRequest): InjectPacketResponse {
     val translator = typeTranslator()
     val pt = translator?.portTranslator
     val ingressPort = resolveIngressPort(request, pt)
     val payload = request.payload.toByteArray()
-    val result = lock.withReadLock { broker.processPacket(ingressPort, payload) }
+    val result =
+      if (hook.get() != null) {
+        lock.withWriteLock {
+          fireHookIfRegistered()
+          broker.processPacket(ingressPort, payload)
+        }
+      } else {
+        lock.withReadLock { broker.processPacket(ingressPort, payload) }
+      }
     try {
       val possibleOutcomes =
         result.possibleOutcomes.map { world ->
@@ -59,18 +105,34 @@ class DataplaneService(
     requests: Flow<InjectPacketRequest>
   ): DataplaneProto.InjectPacketsResponse {
     val pt = typeTranslator()?.portTranslator
-    // Submit each packet to the ForkJoinPool as it arrives from the stream.
-    val futures = mutableListOf<ForkJoinTask<*>>()
-    requests.collect { req ->
-      val port = resolveIngressPort(req, pt)
-      val payload = req.payload.toByteArray()
-      futures.add(
-        ForkJoinPool.commonPool().submit {
-          lock.withReadLockBlocking { broker.processPacket(port, payload) }
+    if (hook.get() != null) {
+      // With a hook registered, acquire the write lock for the entire stream
+      // and fire the hook once at the start.
+      lock.withWriteLock {
+        fireHookIfRegistered()
+        val futures = mutableListOf<ForkJoinTask<*>>()
+        requests.collect { req ->
+          val port = resolveIngressPort(req, pt)
+          val payload = req.payload.toByteArray()
+          // Process under the already-held write lock (no additional locking).
+          futures.add(ForkJoinPool.commonPool().submit { broker.processPacket(port, payload) })
         }
-      )
+        futures.forEach { it.join() }
+      }
+    } else {
+      // No hook — use read lock per packet for maximum concurrency.
+      val futures = mutableListOf<ForkJoinTask<*>>()
+      requests.collect { req ->
+        val port = resolveIngressPort(req, pt)
+        val payload = req.payload.toByteArray()
+        futures.add(
+          ForkJoinPool.commonPool().submit {
+            lock.withReadLockBlocking { broker.processPacket(port, payload) }
+          }
+        )
+      }
+      futures.forEach { it.join() }
     }
-    futures.forEach { it.join() }
     return DataplaneProto.InjectPacketsResponse.getDefaultInstance()
   }
 
@@ -119,6 +181,35 @@ class DataplaneService(
 
       awaitClose { handle.unsubscribe() }
     }
+
+  override fun registerPrePacketHook(
+    requests: Flow<DataplaneProto.PrePacketHookResponse>
+  ): Flow<DataplaneProto.PrePacketHookInvocation> = callbackFlow {
+    val invocations = Channel<DataplaneProto.PrePacketHookInvocation>(Channel.RENDEZVOUS)
+    val responses = Channel<DataplaneProto.PrePacketHookResponse>(Channel.RENDEZVOUS)
+    val newHook = Hook(invocations, responses)
+
+    if (!hook.compareAndSet(null, newHook)) {
+      throw Status.ALREADY_EXISTS.withDescription("A pre-packet hook is already registered")
+        .asException()
+    }
+
+    // Forward invocations from the internal channel to the gRPC stream.
+    launch {
+      for (invocation in invocations) {
+        send(invocation)
+      }
+    }
+
+    // Forward responses from the gRPC stream to the internal channel.
+    launch { requests.collect { response -> responses.send(response) } }
+
+    awaitClose {
+      hook.set(null)
+      invocations.close()
+      responses.close()
+    }
+  }
 
   private fun resolveIngressPort(request: InjectPacketRequest, pt: PortTranslator?): Int =
     when (request.ingressPortCase) {

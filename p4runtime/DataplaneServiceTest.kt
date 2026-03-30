@@ -10,7 +10,9 @@ import fourward.p4runtime.P4RuntimeTestHarness.Companion.loadConfig
 import io.grpc.Status
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.channels.Channel.Factory.UNLIMITED
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
@@ -259,4 +261,47 @@ class DataplaneServiceTest {
 
   // Positive dual-encoding tests (P4RT port injection and response population) are in
   // SaiP4E2ETest, which uses a program with @controller_header and @p4runtime_translation.
+
+  // =========================================================================
+  // Pre-packet hook
+  // =========================================================================
+
+  @Test
+  fun `pre-packet hook fires before InjectPacket`() = runBlocking {
+    harness.loadPipeline(loadPassthroughConfig())
+    val dataplaneStub = DataplaneCoroutineStub(harness.channel)
+
+    val invocationsReceived = kotlinx.coroutines.channels.Channel<Unit>(10)
+    val responseChannel =
+      kotlinx.coroutines.channels.Channel<fourward.dataplane.DataplaneProto.PrePacketHookResponse>(
+        UNLIMITED
+      )
+
+    // Register the hook — collect invocations and send responses.
+    val hookJob =
+      async(Dispatchers.IO) {
+        dataplaneStub.registerPrePacketHook(responseChannel.consumeAsFlow()).collect {
+          invocationsReceived.send(Unit)
+          responseChannel.send(
+            fourward.dataplane.DataplaneProto.PrePacketHookResponse.getDefaultInstance()
+          )
+        }
+      }
+
+    delay(200) // Let the hook register.
+
+    // Inject a packet — the hook should fire first.
+    val packet = buildEthernetFrame(42)
+    dataplaneStub.injectPacket(
+      fourward.dataplane.DataplaneProto.InjectPacketRequest.newBuilder()
+        .setDataplaneIngressPort(0)
+        .setPayload(ByteString.copyFrom(packet))
+        .build()
+    )
+
+    // Verify the hook was invoked.
+    withTimeout(5000) { invocationsReceived.receive() }
+
+    hookJob.cancel()
+  }
 }
