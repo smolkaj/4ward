@@ -20,7 +20,7 @@ git worktree prune
 
 Before committing to any design or implementation, define what the ideal
 solution looks like — unconstrained by schedule, legacy, or expedience.
-You don't have to build the ideal, but you must understand it. A pragmatic
+You don't have to build the ideal, but YOU MUST UNDERSTAND IT. A pragmatic
 shortcut is a legitimate engineering choice; a shortcut you took because you
 never considered the alternative is just a blind spot. Name the north star,
 name what you're trading away, and name why.
@@ -32,29 +32,81 @@ you want before you write the code. If you can't write a clear test, you
 don't understand the problem yet. A failing test is the starting point for
 every change, not an afterthought.
 
+## Code style
+
+Write self-explanatory code. Add a comment when the code deviates from the
+obvious approach, works around a non-obvious constraint, or implements a
+subtle spec requirement. Include spec references (section numbers, GitHub
+issues) where helpful. Do not add comments that merely restate the code.
+
+If you take a shortcut or skip a corner case, note it in
+[LIMITATIONS.md](docs/LIMITATIONS.md) with a `TODO` comment at the site.
+Mark workarounds with a prominent `WORKAROUND` comment explaining what is
+broken and what the code should look like once the upstream issue is fixed.
+
+## Build and test
+
+```sh
+bazel build //...                              # build everything
+bazel test //... --test_tag_filters=-heavy     # run tests (skip heavy ones)
+bazel test //...                               # run ALL tests (CI does this)
+./tools/format.sh                              # auto-format all files
+./tools/lint.sh                                # lint (clang-tidy + detekt)
+./tools/dev.sh help                            # show all developer commands
+```
+
+**Use `--test_tag_filters=-heavy` locally** to skip tests that spawn many
+JVM processes. CI runs all tests including heavy ones.
+
+**CI is fast and has a warm remote cache — often faster than a cold local
+build.** Push early and monitor results.
+
+## Commits and pull requests
+
+Focus commit messages on *why* the change is being made and what problem it
+solves. Don't restate what the diff already shows.
+
+Open PRs in draft mode (`gh pr create --draft`). Rebase onto `origin/main`
+before submitting. Lead with the win — what changed for the project, how it
+fits into the big picture. Be concise and punchy. Don't drown achievements
+in low-level details; the diff already has those.
+
+Before submitting:
+
+- Proactively add unit test.
+- Run `./tools/format.sh` and `./tools/lint.sh`. Fix all warnings, even
+  pre-existing ones.
+- Check whether your change affects [LIMITATIONS.md](docs/LIMITATIONS.md) or
+  [REFACTORING.md](docs/REFACTORING.md).
+- **NEVER edit docs/STATUS.md.** It is maintained exclusively by the project
+  owner.
+- **The linter serves us, not the other way around.** When a rule doesn't fit
+  the code's natural structure, adjust the threshold rather than contorting the
+  code.
+
 ## Key design invariants — do not break these
 
-1. **The proto IR uses names, not IDs.** All cross-references in `ir.proto` and
-   `simulator.proto` use string names. Numeric IDs belong to p4info (the
-   control-plane API) only.
-
-2. **Every Expr carries a Type.** The `type` field (field number 100) on `Expr`
-   is always populated by the p4c backend. The simulator must never infer types
-   at runtime.
-
-3. **The simulator is the source of truth for all data-plane state.** Table
-   entries, counters, registers — all live in the Kotlin simulator. The
-   P4Runtime server (`p4runtime/`) is a thin adapter that forwards requests;
-   it holds no P4 state of its own.
-
-4. **Correctness over performance.** If you are tempted to optimize something at
+1. **Correctness over performance.** If you are tempted to optimize something at
    the cost of readability or correctness, don't. This is a development and
    testing tool.
 
-5. **Never fail silently.** Prefer compile-time failures (exhaustive `when`
+2. **Never fail silently.** Prefer compile-time failures (exhaustive `when`
    expressions, type system constraints) over runtime checks. When runtime
    checks are needed, fail loudly (`error()`, `require()`, gRPC
    `UNIMPLEMENTED`). Never let unhandled inputs fall through to a default path.
+
+3. **The proto IR uses names, not IDs.** All cross-references in `ir.proto` and
+   `simulator.proto` use string names. Numeric IDs belong to p4info (the
+   control-plane API) only.
+
+4. **Every Expr carries a Type.** The `type` field (field number 100) on `Expr`
+   is always populated by the p4c backend. The simulator must never infer types
+   at runtime.
+
+5. **The simulator is the source of truth for all data-plane state.** Table
+   entries, counters, registers — all live in the Kotlin simulator. The
+   P4Runtime server (`p4runtime/`) is a thin adapter that forwards requests;
+   it holds no P4 state of its own.
 
 ## P4 language notes
 
@@ -104,57 +156,3 @@ tools/                       Developer scripts (format, lint, coverage, …).
 ```
 
 Unit tests live alongside the source they test (`FooTest.kt` next to `Foo.kt`).
-
-## Code style
-
-Write self-explanatory code. Add a comment when the code deviates from the
-obvious approach, works around a non-obvious constraint, or implements a
-subtle P4 spec requirement. Include spec references (section numbers, GitHub
-issues) where helpful. Do not add comments that merely restate the code.
-
-If you take a shortcut or skip a corner case, note it in
-[LIMITATIONS.md](docs/LIMITATIONS.md) with a `TODO` comment at the site.
-Mark workarounds with a prominent `WORKAROUND` comment explaining what is
-broken and what the code should look like once the upstream issue is fixed.
-
-## Build and test
-
-```sh
-bazel build //...                              # build everything
-bazel test //... --test_tag_filters=-heavy     # run tests (skip heavy ones)
-bazel test //...                               # run ALL tests (CI does this)
-./tools/format.sh                              # auto-format all files
-./tools/lint.sh                                # lint (clang-tidy + detekt)
-./tools/dev.sh help                            # show all developer commands
-```
-
-**Use `--test_tag_filters=-heavy` locally** to skip tests that spawn many
-JVM processes. CI runs all tests including heavy ones.
-
-**CI is fast and has a warm remote cache — often faster than a cold local
-build.** Push early and use `gh run watch` to monitor results. Check CI logs
-with `gh run view --log-failed`.
-
-## Commits and pull requests
-
-Focus commit messages on *why* the change is being made and what problem it
-solves. Avoid restating what the diff already shows. Reference the STF test
-being fixed where applicable.
-
-Open PRs in draft mode (`gh pr create --draft`). Rebase onto `origin/main`
-before submitting. Lead with the win — what changed for the project, how it
-fits into the big picture. Be concise and punchy. Don't drown achievements
-in low-level details; the diff already has those.
-
-Before submitting:
-
-- Run `./tools/format.sh` and `./tools/lint.sh`. Fix all warnings, even
-  pre-existing ones.
-- Proactively add unit tests for new simulator behavior.
-- Check whether your change affects [LIMITATIONS.md](docs/LIMITATIONS.md) or
-  [REFACTORING.md](docs/REFACTORING.md).
-- **NEVER edit docs/STATUS.md.** It is maintained exclusively by the project
-  owner.
-- **The linter serves us, not the other way around.** When a rule doesn't fit
-  the code's natural structure, adjust the threshold rather than contorting the
-  code.
