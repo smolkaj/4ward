@@ -72,6 +72,7 @@ class P4RuntimeTestHarness(
       lock,
       typeTranslator = { service.typeTranslator },
       readAllEntities = { service.readAllEntities() },
+      readP4Info = { service.p4Info() },
     )
 
   private val executor = java.util.concurrent.Executors.newCachedThreadPool()

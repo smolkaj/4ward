@@ -37,6 +37,7 @@ class DataplaneService(
   private val lock: ReadWriteMutex,
   private val typeTranslator: () -> TypeTranslator? = { null },
   private val readAllEntities: () -> List<P4RuntimeOuterClass.Entity> = { emptyList() },
+  private val readP4Info: () -> p4.config.v1.P4InfoOuterClass.P4Info? = { null },
   private val applyUpdates: (List<P4RuntimeOuterClass.Update>) -> Unit = {},
 ) : DataplaneGrpcKt.DataplaneCoroutineImplBase() {
 
@@ -67,6 +68,7 @@ class DataplaneService(
       val invocation =
         DataplaneProto.PrePacketHookInvocation.newBuilder()
           .addAllEntities(readAllEntities())
+          .apply { readP4Info()?.let { setP4Info(it) } }
           .build()
       h.invocations.send(invocation)
       val response = h.responses.receive()

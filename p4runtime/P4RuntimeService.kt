@@ -331,6 +331,9 @@ class P4RuntimeService(
     writeAtomic(updates, state, roleName = "")
   }
 
+  /** Returns the P4Info from the loaded pipeline, or null if no pipeline is loaded. */
+  fun p4Info(): p4.config.v1.P4InfoOuterClass.P4Info? = pipeline?.config?.p4Info
+
   /**
    * Returns all P4Runtime entities currently installed. Called by [DataplaneService] while holding
    * the write lock, so no additional locking is needed.

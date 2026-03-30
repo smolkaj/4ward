@@ -8,6 +8,7 @@ syntax = "proto3";
 
 package fourward.dataplane;
 
+import "p4/config/v1/p4info.proto";
 import "p4/v1/p4runtime.proto";
 import "simulator.proto";
 
@@ -28,11 +29,20 @@ service Dataplane {
   rpc SubscribeResults(SubscribeResultsRequest)
       returns (stream SubscribeResultsResponse);
 
-  // Registers a pre-packet hook. Before processing any dataplane RPC
-  // (InjectPacket, InjectPackets, PacketOut), the server acquires the
-  // write lock and sends a PrePacketHookInvocation. The client responds
-  // with a PrePacketHookResponse containing P4Runtime updates to apply
-  // atomically before packet processing.
+  // Registers a pre-packet hook that fires before every dataplane RPC.
+  //
+  // Some systems need to update P4 state in response to external
+  // configuration right before a packet is processed — but without racing
+  // with the packet itself. For example, a simulated PINS switch derives
+  // auxiliary P4 table entries from gNMI config; these entries must be
+  // installed atomically with the packet that depends on them.
+  //
+  // The hook solves this: before processing any packet, the server holds
+  // the write lock (preventing concurrent P4Runtime writes) and sends the
+  // client the current P4 state. The client inspects it, computes any
+  // updates needed, and responds. The server applies the updates and
+  // processes the packet — all under the same lock, so no other write or
+  // packet can interleave.
   //
   // Only one hook can be registered at a time. The stream stays open for
   // the lifetime of the hook registration.
@@ -115,6 +125,10 @@ message PrePacketHookInvocation {
   // that depend on the current forwarding state (e.g. auxiliary entries
   // mirroring gNMI config).
   repeated p4.v1.Entity entities = 1;
+
+  // The P4Info from the loaded pipeline, enabling the client to interpret
+  // the entities above (e.g. map table/action IDs to names).
+  p4.config.v1.P4Info p4info = 2;
 }
 
 // Sent by the client in response to a PrePacketHookInvocation. Contains
