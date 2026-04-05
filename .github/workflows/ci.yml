@@ -208,6 +208,48 @@ jobs:
           key: bazel-${{ matrix.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', 'bazel/*.patch') }}-${{ github.run_id }}
 
 
+  # Exercises @fourward via local_path_override from bcr_test_module/, the
+  # same way BCR consumers will see it. Catches problems that don't surface
+  # when fourward is the root module — dev-dep leaks into public packages,
+  # shared @maven namespace conflicts, git_overrides that don't apply to
+  # non-root modules, etc. Without this, those bugs first appear in the BCR
+  # submission PR, where iteration is slow and shared.
+  bcr-consumer-check:
+    if: github.event.action != 'closed'
+    name: BCR consumer check
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Configure remote cache
+        env:
+          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
+        run: |
+          if [[ -n "${BUILDBUDDY_API_KEY}" ]]; then
+            echo "build --config=ci" >> ~/.bazelrc
+            echo "common --remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY}" >> ~/.bazelrc
+          fi
+
+      - name: Restore Bazel cache
+        uses: actions/cache/restore@v5
+        with:
+          path: ~/.cache/bazel
+          key: bazel-ubuntu-24.04-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', 'bazel/*.patch') }}
+          restore-keys: bazel-ubuntu-24.04-
+
+      - name: Build public targets via bcr_test_module
+        run: |
+          cd bcr_test_module
+          bazel build \
+            @fourward//simulator:simulator_lib \
+            @fourward//simulator:ir_java_proto \
+            @fourward//simulator:ir_cc_proto \
+            @fourward//simulator:simulator_java_proto \
+            @fourward//p4runtime:p4runtime_lib \
+            @fourward//p4c_backend:p4c_backend_lib \
+            @fourward//p4c_backend:p4c-4ward
+
+
   coverage:
     # TODO: re-enable for PRs once coverage runs are faster/more reliable.
     if: github.event_name == 'push'
