@@ -81,13 +81,13 @@ maven.install(
         # gRPC runtime. We depend on these via @fourward_maven rather
         # than @grpc-java//... so that BCR consumers don't need to bless
         # grpc-java as a contributor to the shared @maven repo.
-        "io.grpc:grpc-api:1.68.1",
-        "io.grpc:grpc-inprocess:1.68.1",
+        "io.grpc:grpc-api:1.78.0",
+        "io.grpc:grpc-inprocess:1.78.0",
         "io.grpc:grpc-kotlin-stub:1.4.3",
-        "io.grpc:grpc-netty:1.68.1",
-        "io.grpc:grpc-netty-shaded:1.68.1",
-        "io.grpc:grpc-services:1.68.1",
-        "io.grpc:grpc-stub:1.68.1",
+        "io.grpc:grpc-netty:1.78.0",
+        "io.grpc:grpc-netty-shaded:1.78.0",
+        "io.grpc:grpc-services:1.78.0",
+        "io.grpc:grpc-stub:1.78.0",
         "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.1",
         "org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.10.1",
         "javax.annotation:javax.annotation-api:1.3.2",
@@ -98,14 +98,9 @@ maven.install(
 )
 use_repo(maven, "fourward_maven")
 
-# Bless grpc-java's and protobuf's contributions to the shared @maven repo.
-# Both modules contribute artifacts there via rules_jvm_external; without
-# this, grpc-java's internal BUILD files can't resolve their netty/animal-
-# sniffer deps when fourward is the root module. Consumers of @fourward
-# need the same bless in their own MODULE.bazel only if they pull in
-# //p4runtime:p4runtime_lib (which transitively hits java_grpc_library's
-# hardcoded @io_grpc_grpc_java//stub dep). See bcr_test_module/ for the
-# minimal working example.
+# Bless grpc-java and protobuf as contributors to the shared @maven repo
+# so grpc-java's internal BUILD files resolve. See bcr_test_module/ for
+# the rationale and the boilerplate BCR consumers need to replicate.
 maven.install(
     known_contributing_modules = [
         "grpc-java",
