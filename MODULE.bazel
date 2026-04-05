@@ -29,13 +29,14 @@ bazel_dep(name = "grpc_kotlin", version = "1.5.0")
 bazel_dep(name = "p4runtime", version = "1.5.0.bcr.1")
 
 # p4c provides the compiler frontend and midend that our backend builds on.
-# The git_override adds targets not yet in upstream p4c:
-#   - //p4include package (exports_files + filegroup for individual includes)
-#   - //testdata/p4_16_samples:* (exports_files for corpus/BMv2 tests)
-#   - macOS build fix (HAVE_PIPE2 / HAVE_UCONTEXT_H)
-# Upstream PR: https://github.com/p4lang/p4c/pull/5533
-# Once merged and released to BCR, drop the git_override.
-bazel_dep(name = "p4c", version = "1.2.5.11")
+# BCR consumers get p4c 1.2.5.11.bcr.1 (which has //p4include, testdata
+# exports, and the macOS build fix). Our own dev builds additionally pin
+# to the smolkaj/p4c fork via git_override — only honored when fourward
+# is the root module — because the fork carries the PNA p4testgen STF
+# backend (p4lang/p4c#5570) and drop-by-default fix (p4lang/p4c#5569)
+# that our e2e_tests/p4testgen PNA suite needs. Drop the git_override
+# once both are merged and released to BCR.
+bazel_dep(name = "p4c", version = "1.2.5.11.bcr.1")
 git_override(
     module_name = "p4c",
     commit = "c7e38ae7a338973098ab73d08f631c98c470b71c",
@@ -69,6 +70,7 @@ git_override(
 
 maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
 maven.install(
+    name = "fourward_maven",
     artifacts = [
         "com.google.protobuf:protobuf-java:4.29.3",
         "com.google.protobuf:protobuf-java-util:4.29.3",
@@ -76,20 +78,33 @@ maven.install(
         "junit:junit:4.13.2",
         "com.facebook:ktfmt:0.61",
         "io.gitlab.arturbosch.detekt:detekt-cli:1.23.8",
-        # gRPC Kotlin runtime
+        # gRPC runtime. We depend on these via @fourward_maven rather
+        # than @grpc-java//... so that BCR consumers don't need to bless
+        # grpc-java as a contributor to the shared @maven repo.
+        "io.grpc:grpc-api:1.78.0",
+        "io.grpc:grpc-inprocess:1.78.0",
         "io.grpc:grpc-kotlin-stub:1.4.3",
-        "io.grpc:grpc-netty-shaded:1.68.1",
-        "io.grpc:grpc-services:1.68.1",
+        "io.grpc:grpc-netty:1.78.0",
+        "io.grpc:grpc-netty-shaded:1.78.0",
+        "io.grpc:grpc-services:1.78.0",
+        "io.grpc:grpc-stub:1.78.0",
         "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.1",
         "org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.10.1",
         "javax.annotation:javax.annotation-api:1.3.2",
     ],
+    repositories = [
+        "https://repo1.maven.org/maven2",
+    ],
+)
+use_repo(maven, "fourward_maven")
+
+# Bless grpc-java and protobuf as contributors to the shared @maven repo
+# so grpc-java's internal BUILD files resolve. See bcr_test_module/ for
+# the rationale and the boilerplate BCR consumers need to replicate.
+maven.install(
     known_contributing_modules = [
         "grpc-java",
         "protobuf",
-    ],
-    repositories = [
-        "https://repo1.maven.org/maven2",
     ],
 )
 use_repo(maven, "maven")

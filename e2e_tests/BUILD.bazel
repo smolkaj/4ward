@@ -12,6 +12,6 @@ kt_jvm_library(
     srcs = ["GoldenFile.kt"],
     visibility = ["//visibility:public"],
     deps = [
-        "@maven//:junit_junit",
+        "@fourward_maven//:junit_junit",
     ],
 )

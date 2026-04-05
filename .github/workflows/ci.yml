@@ -208,6 +208,58 @@ jobs:
           key: bazel-${{ matrix.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', 'bazel/*.patch') }}-${{ github.run_id }}
 
 
+  # Exercises @fourward via local_path_override from bcr_test_module/, the
+  # same way BCR consumers will see it. Catches problems that don't surface
+  # when fourward is the root module — dev-dep leaks into public packages,
+  # shared @maven namespace conflicts, git_overrides that don't apply to
+  # non-root modules, etc. Without this, those bugs first appear in the BCR
+  # submission PR, where iteration is slow and shared.
+  bcr-consumer-check:
+    if: github.event.action != 'closed'
+    name: BCR consumer check
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      # Can't `--config=ci` via the root workspace's .bazelrc — that config
+      # references fourward-specific targets (e.g. //:clang_tidy_config) that
+      # don't exist from bcr_test_module's perspective. Pass remote-cache
+      # flags inline instead.
+      #
+      # Mirrors the build targets and Bazel version in
+      # modules/fourward/*/presubmit.yml on the BCR. Keep the two in sync.
+      # Bazel 8 rather than 9 because BCR grpc@1.80.0 pulls rules_swift@2.5.0,
+      # which conflicts with the rules_swift@3.1.2 bazel_tools carries in
+      # Bazel 9. (fourward-as-root uses a grpc git_override that avoids this,
+      # but overrides don't apply to non-root modules.)
+      - name: Build public targets via bcr_test_module
+        env:
+          USE_BAZEL_VERSION: 8.x
+          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
+        run: |
+          FLAGS=(
+            --cxxopt=-std=c++20
+            --host_cxxopt=-std=c++20
+            --java_runtime_version=remotejdk_21
+            --tool_java_runtime_version=remotejdk_21
+          )
+          if [[ -n "${BUILDBUDDY_API_KEY}" ]]; then
+            FLAGS+=(
+              --remote_cache=grpcs://4ward.buildbuddy.io
+              --remote_header=x-buildbuddy-api-key="${BUILDBUDDY_API_KEY}"
+              --remote_download_toplevel
+              --remote_upload_local_results
+              --remote_timeout=3s
+              --remote_cache_compression
+            )
+          fi
+          cd bcr_test_module
+          bazel build "${FLAGS[@]}" -- \
+            @fourward//... \
+            -@fourward//e2e_tests/... \
+            -@fourward//examples/...
+
+
   coverage:
     # TODO: re-enable for PRs once coverage runs are faster/more reliable.
     if: github.event_name == 'push'

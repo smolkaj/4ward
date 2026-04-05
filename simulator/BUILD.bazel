@@ -78,8 +78,8 @@ kt_jvm_library(
         ":ir_java_proto",
         ":p4runtime_java_proto",
         ":simulator_java_proto",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:com_google_protobuf_protobuf_kotlin",
+        "@fourward_maven//:com_google_protobuf_protobuf_java",
+        "@fourward_maven//:com_google_protobuf_protobuf_kotlin",
     ],
 )
 
@@ -108,7 +108,7 @@ kt_jvm_test(
     test_class = "fourward.simulator.HashTest",
     deps = [
         ":simulator_lib",
-        "@maven//:junit_junit",
+        "@fourward_maven//:junit_junit",
     ],
 )
 
@@ -118,7 +118,7 @@ kt_jvm_test(
     test_class = "fourward.simulator.BitVectorTest",
     deps = [
         ":simulator_lib",
-        "@maven//:junit_junit",
+        "@fourward_maven//:junit_junit",
     ],
 )
 
@@ -128,8 +128,8 @@ kt_jvm_test(
     test_class = "fourward.simulator.MatchesFieldMatchTest",
     deps = [
         ":simulator_lib",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:junit_junit",
+        "@fourward_maven//:com_google_protobuf_protobuf_java",
+        "@fourward_maven//:junit_junit",
     ],
 )
 
@@ -141,7 +141,7 @@ kt_jvm_test(
         ":interpreter_test_dsl",
         ":ir_java_proto",
         ":simulator_lib",
-        "@maven//:junit_junit",
+        "@fourward_maven//:junit_junit",
     ],
 )
 
@@ -153,7 +153,7 @@ kt_jvm_test(
         ":interpreter_test_dsl",
         ":ir_java_proto",
         ":simulator_lib",
-        "@maven//:junit_junit",
+        "@fourward_maven//:junit_junit",
     ],
 )
 
@@ -164,8 +164,8 @@ kt_jvm_test(
     deps = [
         ":p4runtime_java_proto",
         ":simulator_lib",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:junit_junit",
+        "@fourward_maven//:com_google_protobuf_protobuf_java",
+        "@fourward_maven//:junit_junit",
     ],
 )
 
@@ -177,7 +177,7 @@ kt_jvm_test(
         ":interpreter_test_dsl",
         ":ir_java_proto",
         ":simulator_lib",
-        "@maven//:junit_junit",
+        "@fourward_maven//:junit_junit",
     ],
 )
 
@@ -188,7 +188,7 @@ kt_jvm_test(
     deps = [
         ":simulator_java_proto",
         ":simulator_lib",
-        "@maven//:junit_junit",
+        "@fourward_maven//:junit_junit",
     ],
 )
 
@@ -200,7 +200,7 @@ kt_jvm_test(
         ":interpreter_test_dsl",
         ":ir_java_proto",
         ":simulator_lib",
-        "@maven//:junit_junit",
+        "@fourward_maven//:junit_junit",
     ],
 )
 
@@ -214,8 +214,8 @@ kt_jvm_test(
         ":p4runtime_java_proto",
         ":simulator_java_proto",
         ":simulator_lib",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:junit_junit",
+        "@fourward_maven//:com_google_protobuf_protobuf_java",
+        "@fourward_maven//:junit_junit",
     ],
 )
 
@@ -229,8 +229,8 @@ kt_jvm_test(
         ":p4runtime_java_proto",
         ":simulator_java_proto",
         ":simulator_lib",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:junit_junit",
+        "@fourward_maven//:com_google_protobuf_protobuf_java",
+        "@fourward_maven//:junit_junit",
     ],
 )
 
@@ -244,8 +244,8 @@ kt_jvm_test(
         ":p4runtime_java_proto",
         ":simulator_java_proto",
         ":simulator_lib",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:junit_junit",
+        "@fourward_maven//:com_google_protobuf_protobuf_java",
+        "@fourward_maven//:junit_junit",
     ],
 )
 
@@ -257,7 +257,7 @@ kt_jvm_test(
     deps = [
         ":interpreter_test_dsl",
         ":ir_java_proto",
-        "@maven//:junit_junit",
+        "@fourward_maven//:junit_junit",
     ],
 )
 
@@ -269,7 +269,7 @@ kt_jvm_test(
     deps = [
         ":interpreter_test_dsl",
         ":ir_java_proto",
-        "@maven//:junit_junit",
+        "@fourward_maven//:junit_junit",
     ],
 )
 
@@ -282,7 +282,7 @@ kt_jvm_test(
         ":p4runtime_java_proto",
         ":simulator_java_proto",
         ":simulator_lib",
-        "@maven//:junit_junit",
+        "@fourward_maven//:junit_junit",
     ],
 )
 
@@ -295,7 +295,7 @@ kt_jvm_test(
         ":p4runtime_java_proto",
         ":simulator_java_proto",
         ":simulator_lib",
-        "@maven//:junit_junit",
+        "@fourward_maven//:junit_junit",
     ],
 )
 
@@ -308,6 +308,6 @@ kt_jvm_test(
         ":ir_java_proto",
         ":simulator_java_proto",
         ":simulator_lib",
-        "@maven//:junit_junit",
+        "@fourward_maven//:junit_junit",
     ],
 )

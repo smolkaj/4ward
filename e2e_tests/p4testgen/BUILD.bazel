@@ -7,7 +7,7 @@ kt_jvm_library(
     visibility = ["//e2e_tests:__subpackages__"],
     deps = [
         "//e2e_tests/stf:stf_runner",
-        "@maven//:junit_junit",
+        "@fourward_maven//:junit_junit",
     ],
 )
 

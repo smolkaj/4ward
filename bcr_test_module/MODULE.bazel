@@ -1,0 +1,27 @@
+module(name = "fourward_bcr_test")
+
+bazel_dep(name = "fourward")
+local_path_override(
+    module_name = "fourward",
+    path = "..",
+)
+
+# Everything below is only needed if you use @fourward//p4runtime:p4runtime_lib
+# (the P4Runtime gRPC server). p4runtime_lib transitively invokes
+# kt_jvm_grpc_library → java_grpc_library, which hardcodes deps on
+# @io_grpc_grpc_java//stub and reaches into the shared @maven repo.
+# Blessing grpc-java and protobuf as contributors makes those artifacts
+# available.
+#
+# Consumers that only use //simulator, //p4c_backend, //web, or //cli can
+# skip this — those targets resolve entirely through @fourward_maven.
+bazel_dep(name = "rules_jvm_external", version = "6.10")
+
+maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
+maven.install(
+    known_contributing_modules = [
+        "grpc-java",
+        "protobuf",
+    ],
+)
+use_repo(maven, "maven")

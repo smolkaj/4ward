@@ -150,7 +150,7 @@ def p4_testgen_test(name, src_p4 = None, includes = [], max_tests = 0, seed = 0,
         data = data,
         deps = [
             "//e2e_tests/p4testgen:p4testgen_test_class",
-            "@maven//:junit_junit",
+            "@fourward_maven//:junit_junit",
         ],
     )
 
@@ -183,6 +183,6 @@ def p4_testgen_suite(name, tests, includes = {}, max_tests = {}, tags = [], targ
         data = data,
         deps = [
             "//e2e_tests/p4testgen:p4testgen_test_class",
-            "@maven//:junit_junit",
+            "@fourward_maven//:junit_junit",
         ],
     )

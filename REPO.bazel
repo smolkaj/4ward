@@ -1,0 +1,11 @@
+repo(default_package_metadata = ["//:license"])
+
+ignore_directories([
+    # Bazel output symlinks. The last component depends on the workspace
+    # directory name (bazel-4ward, bazel-bcr_test_module, …) so use a glob
+    # rather than listing each one.
+    "bazel-*",
+    "**/bazel-*",
+    # Claude Code workspace directory.
+    ".claude",
+])
