@@ -11,10 +11,15 @@ local_path_override(
 
 bazel_dep(name = "rules_jvm_external", version = "6.10")
 
-# grpc-java and protobuf both contribute to the default @maven repo via
-# rules_jvm_external. Bless both so their artifacts are available when
-# fourward is consumed as a dependency. Consumers of @fourward must do
-# the same in their own MODULE.bazel.
+# Consumers that use @fourward//p4runtime:p4runtime_lib (the P4Runtime
+# gRPC server) need this boilerplate. p4runtime_lib transitively invokes
+# kt_jvm_grpc_library → java_grpc_library, which hardcodes deps on
+# @io_grpc_grpc_java//stub and reaches into the shared @maven repo.
+# Blessing grpc-java and protobuf as contributors makes those artifacts
+# available.
+#
+# Consumers that only use //simulator, //p4c_backend, //web, or //cli can
+# skip this — those targets resolve entirely through @fourward_maven.
 maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
 maven.install(
     known_contributing_modules = [
