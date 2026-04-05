@@ -237,17 +237,15 @@ jobs:
           key: bazel-ubuntu-24.04-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', 'bazel/*.patch') }}
           restore-keys: bazel-ubuntu-24.04-
 
+      # Mirrors the build targets in modules/fourward/*/presubmit.yml on
+      # the BCR. Keep the two in sync.
       - name: Build public targets via bcr_test_module
         run: |
           cd bcr_test_module
-          bazel build \
-            @fourward//simulator:simulator_lib \
-            @fourward//simulator:ir_java_proto \
-            @fourward//simulator:ir_cc_proto \
-            @fourward//simulator:simulator_java_proto \
-            @fourward//p4runtime:p4runtime_lib \
-            @fourward//p4c_backend:p4c_backend_lib \
-            @fourward//p4c_backend:p4c-4ward
+          bazel build -- \
+            @fourward//... \
+            -@fourward//e2e_tests/... \
+            -@fourward//examples/...
 
 
   coverage:
