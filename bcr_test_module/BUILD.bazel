@@ -1,0 +1,2 @@
+# Empty — this module just exists to drive BCR presubmit validation of
+# @fourward's public targets with maven dependencies wired up correctly.

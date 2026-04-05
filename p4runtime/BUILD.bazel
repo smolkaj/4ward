@@ -119,12 +119,12 @@ kt_jvm_library(
         "@grpc-java//api",
         "@grpc-java//netty",
         "@grpc-java//stub",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:io_grpc_grpc_kotlin_stub",
-        "@maven//:io_grpc_grpc_netty_shaded",
-        "@maven//:javax_annotation_javax_annotation_api",
-        "@maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
-        "@maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core_jvm",
+        "@fourward_maven//:com_google_protobuf_protobuf_java",
+        "@fourward_maven//:io_grpc_grpc_kotlin_stub",
+        "@fourward_maven//:io_grpc_grpc_netty_shaded",
+        "@fourward_maven//:javax_annotation_javax_annotation_api",
+        "@fourward_maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
+        "@fourward_maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core_jvm",
     ],
 )
 
@@ -168,10 +168,10 @@ kt_jvm_test(
         "//simulator:simulator_java_proto",
         "@grpc-java//api",
         "@grpc-java//inprocess",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:io_grpc_grpc_kotlin_stub",
-        "@maven//:junit_junit",
-        "@maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
+        "@fourward_maven//:com_google_protobuf_protobuf_java",
+        "@fourward_maven//:io_grpc_grpc_kotlin_stub",
+        "@fourward_maven//:junit_junit",
+        "@fourward_maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
     ],
 )
 
@@ -194,10 +194,10 @@ kt_jvm_test(
         "//simulator:simulator_java_proto",
         "@grpc-java//api",
         "@grpc-java//inprocess",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:io_grpc_grpc_kotlin_stub",
-        "@maven//:junit_junit",
-        "@maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
+        "@fourward_maven//:com_google_protobuf_protobuf_java",
+        "@fourward_maven//:io_grpc_grpc_kotlin_stub",
+        "@fourward_maven//:junit_junit",
+        "@fourward_maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
     ],
 )
 
@@ -231,10 +231,10 @@ kt_jvm_test(
         "//simulator:simulator_java_proto",
         "@grpc-java//api",
         "@grpc-java//inprocess",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:io_grpc_grpc_kotlin_stub",
-        "@maven//:junit_junit",
-        "@maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
+        "@fourward_maven//:com_google_protobuf_protobuf_java",
+        "@fourward_maven//:io_grpc_grpc_kotlin_stub",
+        "@fourward_maven//:junit_junit",
+        "@fourward_maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
     ],
 )
 
@@ -247,8 +247,8 @@ kt_jvm_test(
         ":p4runtime_java_proto",
         ":p4runtime_lib",
         "@grpc-java//api",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:junit_junit",
+        "@fourward_maven//:com_google_protobuf_protobuf_java",
+        "@fourward_maven//:junit_junit",
     ],
 )
 
@@ -261,8 +261,8 @@ kt_jvm_test(
         ":p4runtime_java_proto",
         ":p4runtime_lib",
         "//simulator:simulator_lib",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:junit_junit",
+        "@fourward_maven//:com_google_protobuf_protobuf_java",
+        "@fourward_maven//:junit_junit",
     ],
 )
 
@@ -275,8 +275,8 @@ kt_jvm_test(
         ":p4runtime_java_proto",
         ":p4runtime_lib",
         "@grpc-java//api",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:junit_junit",
+        "@fourward_maven//:com_google_protobuf_protobuf_java",
+        "@fourward_maven//:junit_junit",
     ],
 )
 
@@ -287,8 +287,8 @@ kt_jvm_test(
     deps = [
         ":p4info_java_proto",
         ":p4runtime_lib",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:junit_junit",
+        "@fourward_maven//:com_google_protobuf_protobuf_java",
+        "@fourward_maven//:junit_junit",
     ],
 )
 
@@ -302,8 +302,8 @@ kt_jvm_test(
         ":p4runtime_lib",
         "//simulator:ir_java_proto",
         "//simulator:simulator_java_proto",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:junit_junit",
+        "@fourward_maven//:com_google_protobuf_protobuf_java",
+        "@fourward_maven//:junit_junit",
     ],
 )
 
@@ -316,8 +316,8 @@ kt_jvm_test(
         ":p4runtime_java_proto",
         ":p4runtime_lib",
         "//simulator:ir_java_proto",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:junit_junit",
+        "@fourward_maven//:com_google_protobuf_protobuf_java",
+        "@fourward_maven//:junit_junit",
     ],
 )
 
@@ -334,8 +334,8 @@ kt_jvm_test(
         ":p4runtime_lib",
         "//simulator:ir_java_proto",
         "//simulator:p4runtime_java_proto",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:junit_junit",
+        "@fourward_maven//:com_google_protobuf_protobuf_java",
+        "@fourward_maven//:junit_junit",
     ],
 )
 
@@ -391,10 +391,10 @@ kt_jvm_test(
         "//simulator:ir_java_proto",
         "@grpc-java//api",
         "@grpc-java//inprocess",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:io_grpc_grpc_kotlin_stub",
-        "@maven//:junit_junit",
-        "@maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
+        "@fourward_maven//:com_google_protobuf_protobuf_java",
+        "@fourward_maven//:io_grpc_grpc_kotlin_stub",
+        "@fourward_maven//:junit_junit",
+        "@fourward_maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
     ],
 )
 
@@ -417,10 +417,10 @@ kt_jvm_test(
         "//simulator:simulator_java_proto",
         "@grpc-java//api",
         "@grpc-java//inprocess",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:io_grpc_grpc_kotlin_stub",
-        "@maven//:junit_junit",
-        "@maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
+        "@fourward_maven//:com_google_protobuf_protobuf_java",
+        "@fourward_maven//:io_grpc_grpc_kotlin_stub",
+        "@fourward_maven//:junit_junit",
+        "@fourward_maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
     ],
 )
 
@@ -442,10 +442,10 @@ kt_jvm_test(
         "//simulator:simulator_java_proto",
         "@grpc-java//api",
         "@grpc-java//inprocess",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:io_grpc_grpc_kotlin_stub",
-        "@maven//:junit_junit",
-        "@maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
+        "@fourward_maven//:com_google_protobuf_protobuf_java",
+        "@fourward_maven//:io_grpc_grpc_kotlin_stub",
+        "@fourward_maven//:junit_junit",
+        "@fourward_maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
     ],
 )
 
@@ -466,10 +466,10 @@ kt_jvm_test(
         "//simulator:simulator_java_proto",
         "@grpc-java//api",
         "@grpc-java//inprocess",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:io_grpc_grpc_kotlin_stub",
-        "@maven//:junit_junit",
-        "@maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
+        "@fourward_maven//:com_google_protobuf_protobuf_java",
+        "@fourward_maven//:io_grpc_grpc_kotlin_stub",
+        "@fourward_maven//:junit_junit",
+        "@fourward_maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
     ],
 )
 
@@ -481,8 +481,8 @@ kt_jvm_test(
         ":p4runtime_lib",
         "//simulator:simulator_java_proto",
         "//simulator:simulator_lib",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:junit_junit",
+        "@fourward_maven//:com_google_protobuf_protobuf_java",
+        "@fourward_maven//:junit_junit",
     ],
 )
 
@@ -504,10 +504,10 @@ kt_jvm_test(
         "//simulator:simulator_java_proto",
         "@grpc-java//api",
         "@grpc-java//inprocess",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:io_grpc_grpc_kotlin_stub",
-        "@maven//:junit_junit",
-        "@maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
+        "@fourward_maven//:com_google_protobuf_protobuf_java",
+        "@fourward_maven//:io_grpc_grpc_kotlin_stub",
+        "@fourward_maven//:junit_junit",
+        "@fourward_maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
     ],
 )
 
@@ -520,8 +520,8 @@ kt_jvm_test(
         ":p4runtime_java_proto",
         ":p4runtime_lib",
         "//simulator:ir_java_proto",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:junit_junit",
+        "@fourward_maven//:com_google_protobuf_protobuf_java",
+        "@fourward_maven//:junit_junit",
     ],
 )
 
@@ -543,10 +543,10 @@ kt_jvm_test(
         "//simulator:simulator_java_proto",
         "@grpc-java//api",
         "@grpc-java//inprocess",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:io_grpc_grpc_kotlin_stub",
-        "@maven//:junit_junit",
-        "@maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
+        "@fourward_maven//:com_google_protobuf_protobuf_java",
+        "@fourward_maven//:io_grpc_grpc_kotlin_stub",
+        "@fourward_maven//:junit_junit",
+        "@fourward_maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
     ],
 )
 
@@ -567,10 +567,10 @@ kt_jvm_test(
         "//simulator:simulator_java_proto",
         "@grpc-java//api",
         "@grpc-java//inprocess",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:io_grpc_grpc_kotlin_stub",
-        "@maven//:junit_junit",
-        "@maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
+        "@fourward_maven//:com_google_protobuf_protobuf_java",
+        "@fourward_maven//:io_grpc_grpc_kotlin_stub",
+        "@fourward_maven//:junit_junit",
+        "@fourward_maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
     ],
 )
 
@@ -592,9 +592,9 @@ kt_jvm_test(
         "//simulator:simulator_java_proto",
         "@grpc-java//api",
         "@grpc-java//inprocess",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:io_grpc_grpc_kotlin_stub",
-        "@maven//:junit_junit",
-        "@maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
+        "@fourward_maven//:com_google_protobuf_protobuf_java",
+        "@fourward_maven//:io_grpc_grpc_kotlin_stub",
+        "@fourward_maven//:junit_junit",
+        "@fourward_maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
     ],
 )

@@ -71,8 +71,8 @@ _TEST_DEPS = [
     "//simulator:p4runtime_java_proto",
     "//simulator:simulator_java_proto",
     "//simulator:simulator_lib",
-    "@maven//:com_google_protobuf_protobuf_java",
-    "@maven//:junit_junit",
+    "@fourward_maven//:com_google_protobuf_protobuf_java",
+    "@fourward_maven//:junit_junit",
 ]
 
 kt_jvm_test(

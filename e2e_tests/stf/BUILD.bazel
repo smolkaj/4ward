@@ -9,8 +9,8 @@ kt_jvm_library(
         "//simulator:p4runtime_java_proto",
         "//simulator:simulator_java_proto",
         "//simulator:simulator_lib",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:com_google_protobuf_protobuf_kotlin",
+        "@fourward_maven//:com_google_protobuf_protobuf_java",
+        "@fourward_maven//:com_google_protobuf_protobuf_kotlin",
     ],
 )
 
@@ -20,7 +20,7 @@ kt_jvm_test(
     test_class = "fourward.e2e.StfParserTest",
     deps = [
         ":stf_runner",
-        "@maven//:junit_junit",
+        "@fourward_maven//:junit_junit",
     ],
 )
 
@@ -30,6 +30,6 @@ kt_jvm_test(
     test_class = "fourward.e2e.RunnerTest",
     deps = [
         ":stf_runner",
-        "@maven//:junit_junit",
+        "@fourward_maven//:junit_junit",
     ],
 )

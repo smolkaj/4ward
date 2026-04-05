@@ -62,6 +62,6 @@ def corpus_test_suite(name, tests, tags = [], includes = [], stf_overrides = {})
         data = data,
         deps = [
             "//e2e_tests/stf:stf_runner",
-            "@maven//:junit_junit",
+            "@fourward_maven//:junit_junit",
         ],
     )

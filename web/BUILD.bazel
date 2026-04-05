@@ -18,9 +18,9 @@ kt_jvm_library(
         "//simulator:simulator_java_proto",
         "//simulator:simulator_lib",
         "@grpc-java//api",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:com_google_protobuf_protobuf_java_util",
-        "@maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
+        "@fourward_maven//:com_google_protobuf_protobuf_java",
+        "@fourward_maven//:com_google_protobuf_protobuf_java_util",
+        "@fourward_maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
     ],
 )
 
@@ -38,8 +38,8 @@ kt_jvm_binary(
         "//p4runtime:p4runtime_lib",
         "//simulator:simulator_lib",
         "@grpc-java//netty",
-        "@maven//:io_grpc_grpc_netty_shaded",
-        "@maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
+        "@fourward_maven//:io_grpc_grpc_netty_shaded",
+        "@fourward_maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
     ],
 )
 
@@ -50,7 +50,7 @@ kt_jvm_test(
     deps = [
         ":web_lib",
         "//simulator:ir_java_proto",
-        "@maven//:junit_junit",
+        "@fourward_maven//:junit_junit",
     ],
 )
 
@@ -61,7 +61,7 @@ kt_jvm_test(
     deps = [
         ":web_lib",
         "//simulator:ir_java_proto",
-        "@maven//:junit_junit",
+        "@fourward_maven//:junit_junit",
     ],
 )
 
@@ -72,6 +72,6 @@ kt_jvm_test(
     deps = [
         ":web_lib",
         "//simulator:ir_java_proto",
-        "@maven//:junit_junit",
+        "@fourward_maven//:junit_junit",
     ],
 )

@@ -16,8 +16,8 @@ kt_jvm_library(
         "//e2e_tests/stf:stf_runner",
         "//simulator:simulator_java_proto",
         "//simulator:simulator_lib",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:com_google_protobuf_protobuf_java_util",
+        "@fourward_maven//:com_google_protobuf_protobuf_java",
+        "@fourward_maven//:com_google_protobuf_protobuf_java_util",
     ],
 )
 
@@ -39,7 +39,7 @@ kt_jvm_test(
     deps = [
         ":cli_lib",
         "//simulator:simulator_java_proto",
-        "@maven//:com_google_protobuf_protobuf_java",
-        "@maven//:junit_junit",
+        "@fourward_maven//:com_google_protobuf_protobuf_java",
+        "@fourward_maven//:junit_junit",
     ],
 )
