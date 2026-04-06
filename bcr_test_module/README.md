@@ -1,8 +1,8 @@
 # BCR test module
 
 A minimal Bzlmod module that depends on `@fourward` via
-`local_path_override`, exercising the same resolution path BCR
-consumers use. It serves two purposes:
+`local_path_override`, exercising the same resolution path 
+[BCR](https://registry.bazel.build/) consumers use. It serves two purposes:
 
 - **BCR presubmit validation.** Referenced by `bcr_test_module:` in the
   fourward BCR entry's `presubmit.yml`. BCR's CI builds `@fourward//...`
