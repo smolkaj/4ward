@@ -10,7 +10,7 @@ package fourward.dataplane;
 
 import "p4/config/v1/p4info.proto";
 import "p4/v1/p4runtime.proto";
-import "simulator.proto";
+import "simulator/simulator.proto";
 
 option java_package = "fourward.dataplane";
 option java_outer_classname = "DataplaneProto";

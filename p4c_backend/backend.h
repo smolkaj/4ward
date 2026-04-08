@@ -22,11 +22,11 @@
 
 #include "frontends/common/resolveReferences/referenceMap.h"
 #include "frontends/p4/typeMap.h"
-#include "ir.pb.h"
 #include "ir/ir.h"
 #include "ir/visitor.h"
 #include "p4/v1/p4runtime.pb.h"
 #include "p4c_backend/options.h"
+#include "simulator/ir.pb.h"
 
 namespace P4::FourWard {
 
