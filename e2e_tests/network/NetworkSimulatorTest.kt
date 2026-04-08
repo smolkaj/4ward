@@ -99,6 +99,66 @@ class NetworkSimulatorTest {
     assertTrue("no packet reaches s2", root.nextHops.isEmpty())
   }
 
+  @Test
+  fun `packet traverses three-switch chain`() {
+    // s1:1 ↔ s2:1, s2:2 ↔ s3:1. s1 forwards to port 1, s2 to port 2, s3 to port 2 (edge).
+    val topology =
+      NetworkTopology(
+        links =
+          listOf(
+            Link(Endpoint("s1", 1), Endpoint("s2", 1)),
+            Link(Endpoint("s2", 2), Endpoint("s3", 1)),
+          )
+      )
+    val network = NetworkSimulator(topology)
+    loadSwitch(network, "s1", "s1.stf") // forward to port 1
+    loadSwitch(network, "s2", "s2.stf") // forward to port 2
+    loadSwitch(network, "s3", "s2.stf") // forward to port 2 (edge)
+
+    val payload = hexToBytes("FFFFFFFFFFFF 000000000001 0800 DEADBEEF")
+    val root = network.processPacket("s1", 0, payload)
+
+    // s1 → s2 → s3 → edge.
+    assertEquals(1, root.nextHops.size)
+    val hop2 = root.nextHops[0]
+    assertEquals("s2", hop2.switchId)
+    assertEquals(1, hop2.ingressPort)
+    assertEquals(1, hop2.nextHops.size)
+
+    val hop3 = hop2.nextHops[0]
+    assertEquals("s3", hop3.switchId)
+    assertEquals(1, hop3.ingressPort)
+    assertTrue(hop3.nextHops.isEmpty())
+    assertEquals(1, hop3.edgeOutputs.size)
+    assertEquals(2, hop3.edgeOutputs[0].egressPort)
+    assertEquals(ByteString.copyFrom(payload), hop3.edgeOutputs[0].payload)
+  }
+
+  @Test(expected = IllegalStateException::class)
+  fun `routing loop hits hop limit`() {
+    // s1:1 ↔ s2:1. Both forward to port 1 → infinite loop.
+    val topology = NetworkTopology(links = listOf(Link(Endpoint("s1", 1), Endpoint("s2", 1))))
+    val network = NetworkSimulator(topology)
+    loadSwitch(network, "s1", "s1.stf") // forward to port 1
+    loadSwitch(network, "s2", "s1.stf") // forward to port 1
+
+    val payload = hexToBytes("FFFFFFFFFFFF 000000000001 0800 DEADBEEF")
+    network.processPacket("s1", 0, payload) // should throw
+  }
+
+  @Test(expected = IllegalArgumentException::class)
+  fun `duplicate port in topology is rejected`() {
+    // Port s1:1 appears in two links.
+    NetworkTopology(
+        links =
+          listOf(
+            Link(Endpoint("s1", 1), Endpoint("s2", 1)),
+            Link(Endpoint("s1", 1), Endpoint("s3", 1)),
+          )
+      )
+      .let { NetworkSimulator(it) }
+  }
+
   companion object {
     private const val CONFIG_PKG = "e2e_tests/basic_table"
     private const val TEST_PKG = "e2e_tests/network"
