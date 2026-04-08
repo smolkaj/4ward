@@ -48,32 +48,30 @@ enough for production test workloads.
 
 | | BMv2 | 4ward goal | Status |
 |---|---|---|---|
-| P4Runtime support | outdated | [**100% spec-compliant**](docs/ROADMAP.md#track-4-p4runtime-reference-implementation) | ✅ [124 spec + 10 extension requirements](docs/P4RUNTIME_COMPLIANCE.md) |
+| P4Runtime support | outdated | [**100% spec-compliant**](docs/ROADMAP_V1.md#track-4-p4runtime-reference-implementation) | ✅ [124 spec + 10 extension requirements](docs/P4RUNTIME_COMPLIANCE.md) |
 | Trace format | text | **text/JSON/[proto](e2e_tests/trace_tree/clone_with_egress.golden.txtpb)** | ✅ |
-| All possible traces | not natively | [**trace trees!**](docs/ROADMAP.md#track-3-trace-trees) | ✅ |
+| All possible traces | not natively | [**trace trees!**](docs/ROADMAP_V1.md#track-3-trace-trees) | ✅ |
 | `@p4runtime_translation` | no | [**built-in translation engine**](#p4runtime_translation-done-right) | ✅ |
-| Architecture-generic | ish | [**by design**](docs/ROADMAP.md#track-6-multi-architecture-support) | ✅ v1model + PSA + PNA |
-| Architecture customization | no | [**by design**](docs/ROADMAP.md#track-5-architecture-customization) | ✅ |
+| Architecture-generic | ish | [**by design**](docs/ROADMAP_V1.md#track-6-multi-architecture-support) | ✅ v1model + PSA + PNA |
+| Architecture customization | no | [**by design**](docs/ROADMAP_V1.md#track-5-architecture-customization) | ✅ |
 | Interactive playground | no | [**browser-based IDE with trace playback & packet decoding**](#web-playground) | ✅ |
-| Error messages | opaque | [**actionable, with valid options**](docs/ROADMAP.md#track-11-error-quality) | ✅ [74 golden-tested](p4runtime/golden_errors/) |
+| Error messages | opaque | [**actionable, with valid options**](docs/ROADMAP_V1.md#track-11-error-quality) | ✅ [74 golden-tested](p4runtime/golden_errors/) |
 | Throughput (16-way selector) | [~4,500 pps ÷ 16 paths](docs/PERFORMANCE.md#bmv2-comparison) | [**~1,400 pps, all 16 paths**](docs/PERFORMANCE.md) | ✅ [head-to-head on SAI P4](docs/PERFORMANCE.md#bmv2-comparison) |
 | Parallelism (16-way selector) | single-threaded | [**10,000 pps on 16 cores**](docs/PERFORMANCE.md) | ✅ parallel across packets and forks |
-| Easy to extend | ehh | [**if AI can extend it, anyone can**](docs/ROADMAP.md#why-4ward-is-easier-to-extend) | ✅ |
+| Easy to extend | ehh | [**if AI can extend it, anyone can**](docs/ROADMAP_V1.md#why-4ward-is-easier-to-extend) | ✅ |
 | Fast, rigorous CI | slow | **[~2 min](https://4ward.buildbuddy.io/trends/)** | ✅ |
 | Development pace | slow | **[AI-fast](docs/AI_WORKFLOW.md)** | ✅ |
 
 ## Where we're headed
 
-We have an **[ambitious roadmap](docs/ROADMAP.md)**: to build the **definitive P4 reference implementation**. In addition, we are targeting unique capabilities like *trace trees* and *architecture customization*, while ensuring the simulator is production-ready for industry-grade P4 programs — complexities, edge cases, and all.
+4ward is feature-complete and moving to real-world integration. The
+**[V2 roadmap](docs/ROADMAP.md)** targets three goals:
 
-We are driving development by building towards two demanding real-world applications as forcing functions:
+1. **Ship it.** Integrate 4ward into [DVaaS](https://github.com/sonic-net/sonic-pins/tree/main/dvaas) as a drop-in BMv2 replacement and publish to the [Bazel Central Registry](https://registry.bazel.build/).
+2. **Own P4Runtime.** Validate compliance with external test suites and position 4ward as *the* P4Runtime reference server.
+3. **Own P4 education.** Host the playground publicly so anyone can learn P4 without installing anything.
 
-1. **[SAI P4](https://github.com/sonic-net/sonic-pins/tree/main/sai_p4)**
-   — A 30-table program that exercises `@p4runtime_translation` with string port names, `@entry_restriction`, and everything the ecosystem currently papers over with hardcoded workarounds.
-2. **[DVaaS](https://github.com/sonic-net/sonic-pins/tree/main/dvaas)**
-   — SONiC's dataplane validation service. We are building 4ward to be a modern, highly capable drop-in replacement for its current BMv2 backend.
-
-4ward is pre-1.0 and moving fast. Check out the **[Roadmap](docs/ROADMAP.md)** for the big picture and **[STATUS.md](docs/STATUS.md)** for  progress updates.
+Check out the **[Roadmap](docs/ROADMAP.md)** for the big picture and **[STATUS.md](docs/STATUS.md)** for progress updates.
 
 > [!WARNING]
 > **Pre-1.0 Notice:** We are aggressively refactoring to build the best system possible. Until we reach 1.0, nothing is sacred except correctness and the test suite.
@@ -331,7 +329,8 @@ Developer docs (in [`docs/`](docs/)):
 |---|---|
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Design rationale and component overview |
 | [ENTRY_POINTS.md](docs/ENTRY_POINTS.md) | CLI, P4Runtime server, web playground, test APIs |
-| [ROADMAP.md](docs/ROADMAP.md) | Development tracks, priorities, and sequencing |
+| [ROADMAP.md](docs/ROADMAP.md) | V2 roadmap: ship, own P4Runtime, own P4 education |
+| [ROADMAP_V1.md](docs/ROADMAP_V1.md) | Original roadmap (Tracks 1–11, all complete) |
 | [STATUS.md](docs/STATUS.md) | Append-only log of daily progress |
 | [CONTRIBUTING.md](docs/CONTRIBUTING.md) | How to get involved |
 | [AI_WORKFLOW.md](docs/AI_WORKFLOW.md) | How to develop with AI agents |
