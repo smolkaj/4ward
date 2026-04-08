@@ -1156,7 +1156,7 @@ and lists the valid options.</p>
   arbitration, <code>UNIMPLEMENTED</code> for unsupported features.</li>
 <li><strong>Structured error details.</strong> Batch writes include per-update status with
   <code>space</code> and <code>code</code> fields per P4Runtime spec section 12.3.</li>
-<li><strong>Golden-tested.</strong> All 74 error paths are locked down by golden tests.
+<li><strong>Golden-tested.</strong> All 75 error paths are locked down by golden tests.
   Messages cannot silently degrade. Update with:
   <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>bazel test //p4runtime:GoldenErrorTest --test_env=UPDATE_GOLDEN=1
 </code></pre></div></li>
