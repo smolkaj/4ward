@@ -520,6 +520,14 @@ comparison, methodology, and the full optimization log.
 
 #### Phase 2: future optimizations (if needed)
 
+- **Lock-free dataplane.** Replace the global `ReadWriteMutex` with
+  immutable forwarding snapshots and a volatile pointer swap. Packet
+  threads read a `@Volatile` reference (one pointer load, no lock) and
+  execute against an immutable snapshot. Control-plane writes build a new
+  snapshot via `deepCopy()` and swap the pointer. Direct counters and
+  registers move to `ConcurrentHashMap` / `AtomicLongArray`. Eliminates
+  all 9 lock acquisition sites and `ReadWriteMutex.kt` entirely. See
+  [`designs/lock_free_dataplane.md`](../designs/lock_free_dataplane.md).
 - **Hash index for exact-match tables.** O(1) lookup instead of O(n).
   Helps the direct path and post-fork tables that aren't cached.
 
