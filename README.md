@@ -48,14 +48,14 @@ enough for production test workloads.
 
 | | BMv2 | 4ward |
 |---|---|---|
-| P4Runtime support | outdated | [**100% spec-compliant**](docs/P4RUNTIME_COMPLIANCE.md) — 124 spec + 10 extension requirements |
+| P4Runtime support | outdated | [**100% spec-compliant**](docs/P4RUNTIME_COMPLIANCE.md) — 144 spec + 10 extension requirements |
 | Trace format | text | **text / JSON / [proto](e2e_tests/trace_tree/clone_with_egress.golden.txtpb)** |
 | All possible traces | not natively | [**trace trees**](#trace-trees) — every path through the program |
 | `@p4runtime_translation` | no | [**built-in translation engine**](#p4runtime_translation-done-right) |
 | Architectures | v1model only | **v1model + PSA + PNA**, [extensible by design](docs/ROADMAP.md#track-6-multi-architecture-support) |
 | Architecture customization | no | [**first-class support**](docs/ROADMAP.md#track-5-architecture-customization) |
 | Interactive playground | no | [**browser-based IDE**](#web-playground) with trace playback & packet decoding |
-| Error messages | opaque | [**actionable, with valid options**](docs/ROADMAP.md#track-11-error-quality) — [74 golden-tested](p4runtime/golden_errors/) |
+| Error messages | opaque | [**actionable, with valid options**](docs/ROADMAP.md#track-11-error-quality) — [75 golden-tested](p4runtime/golden_errors/) |
 | Throughput (16-way selector) | [~4,500 pps ÷ 16 paths](docs/PERFORMANCE.md#bmv2-comparison) | [**~1,400 pps, all 16 paths**](docs/PERFORMANCE.md) ([head-to-head on SAI P4](docs/PERFORMANCE.md#bmv2-comparison)) |
 | Parallelism (16-way selector) | single-threaded | [**10,000 pps on 16 cores**](docs/PERFORMANCE.md) — parallel across packets and forks |
 | Extensibility | limited | [**AI-friendly codebase**](docs/ROADMAP.md#why-4ward-is-easier-to-extend) — if AI can extend it, anyone can |
@@ -66,14 +66,18 @@ enough for production test workloads.
 
 We have an **[ambitious roadmap](docs/ROADMAP.md)**: to become the **definitive P4 reference implementation**, production-ready for industry-grade P4 programs — complexities, edge cases, and all.
 
-We are driving development by building towards two demanding real-world applications as forcing functions:
+Development is driven by two demanding real-world applications:
 
 1. **[SAI P4](https://github.com/sonic-net/sonic-pins/tree/main/sai_p4)**
-   — A 30-table program that exercises `@p4runtime_translation` with string port names, `@entry_restriction`, and everything the ecosystem currently papers over with hardcoded workarounds.
+   — SONiC's 25-table middleblock program, exercising `@p4runtime_translation`
+   with string port names, `@entry_restriction`, and everything the ecosystem
+   currently papers over with hardcoded workarounds. All 25 tables are
+   [tested E2E through the full P4Runtime stack](docs/SAI_P4_CONFIDENCE.md).
 2. **[DVaaS](https://github.com/sonic-net/sonic-pins/tree/main/dvaas)**
-   — SONiC's dataplane validation service. We are building 4ward to be a modern, highly capable drop-in replacement for its current BMv2 backend.
+   — SONiC's dataplane validation service. We are building 4ward to be a
+   modern, highly capable drop-in replacement for its current BMv2 backend.
 
-4ward is pre-1.0 and moving fast. Check out the **[Roadmap](docs/ROADMAP.md)** for the big picture and **[STATUS.md](docs/STATUS.md)** for  progress updates.
+4ward is pre-1.0 and moving fast. Check out the **[Roadmap](docs/ROADMAP.md)** for the big picture and **[STATUS.md](docs/STATUS.md)** for progress updates.
 
 > [!WARNING]
 > **Pre-1.0 Notice:** We are aggressively refactoring to build the best system possible. Until we reach 1.0, nothing is sacred except correctness and the test suite.
@@ -244,10 +248,10 @@ The answer isn't "trust the AI." It's **trust the tests.**
 4ward uses three independent testing layers, each with a different source of
 truth:
 
-- **200+ conformance tests** from p4c's own test suite — hand-written
-  expectations by the people who built the language.
-- **Symbolic path exploration** via p4testgen — auto-generated tests that
-  systematically cover execution paths humans wouldn't think to exercise.
+- **Conformance tests** from p4c's own test suite — 87 hand-written STF
+  tests by the people who built the language.
+- **Symbolic path exploration** via p4testgen — 500+ auto-generated tests
+  that systematically cover execution paths humans wouldn't think to exercise.
 - **Differential testing** against BMv2 — run identical inputs through the
   reference implementation and 4ward, compare every output.
 
