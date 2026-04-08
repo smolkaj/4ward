@@ -2,6 +2,7 @@ package fourward.e2e.network
 
 import com.google.protobuf.ByteString
 import fourward.e2e.StfFile
+import fourward.e2e.decodeHex
 import fourward.e2e.installStfEntries
 import fourward.e2e.loadPipelineConfig
 import fourward.e2e.runfilePath
@@ -10,6 +11,7 @@ import fourward.simulator.Link
 import fourward.simulator.NetworkSimulator
 import fourward.simulator.NetworkTopology
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -43,7 +45,7 @@ class NetworkSimulatorTest {
     loadSwitch(network, "s1", "s1.stf")
     loadSwitch(network, "s2", "s2.stf")
 
-    val payload = hexToBytes("FFFFFFFFFFFF 000000000001 0800 DEADBEEF")
+    val payload = PAYLOAD.decodeHex()
     val root = network.processPacket("s1", 0, payload)
 
     // s1 forwards to port 1 (link) → no edge outputs, one next hop.
@@ -74,7 +76,7 @@ class NetworkSimulatorTest {
     loadSwitch(network, "s1", "s1.stf")
     loadSwitch(network, "s2", "s2.stf")
 
-    val payload = hexToBytes("FFFFFFFFFFFF 000000000001 0806 DEADBEEF")
+    val payload = "FFFFFFFFFFFF 000000000001 0806 DEADBEEF".decodeHex()
     val root = network.processPacket("s1", 0, payload)
 
     assertTrue("dropped packet should have no edge outputs", root.edgeOutputs.isEmpty())
@@ -90,11 +92,12 @@ class NetworkSimulatorTest {
     loadSwitch(network, "s1", "s2.stf")
     loadSwitch(network, "s2", "s2.stf")
 
-    val payload = hexToBytes("FFFFFFFFFFFF 000000000001 0800 DEADBEEF")
+    val payload = PAYLOAD.decodeHex()
     val root = network.processPacket("s1", 0, payload)
 
     // s1 forwards to port 2 (edge, not connected to link).
     assertEquals("packet exits on s1 edge port", 1, root.edgeOutputs.size)
+    assertEquals("s1", root.edgeOutputs[0].switchId)
     assertEquals(2, root.edgeOutputs[0].egressPort)
     assertTrue("no packet reaches s2", root.nextHops.isEmpty())
   }
@@ -115,7 +118,7 @@ class NetworkSimulatorTest {
     loadSwitch(network, "s2", "s2.stf") // forward to port 2
     loadSwitch(network, "s3", "s2.stf") // forward to port 2 (edge)
 
-    val payload = hexToBytes("FFFFFFFFFFFF 000000000001 0800 DEADBEEF")
+    val payload = PAYLOAD.decodeHex()
     val root = network.processPacket("s1", 0, payload)
 
     // s1 → s2 → s3 → edge.
@@ -134,7 +137,7 @@ class NetworkSimulatorTest {
     assertEquals(ByteString.copyFrom(payload), hop3.edgeOutputs[0].payload)
   }
 
-  @Test(expected = IllegalStateException::class)
+  @Test
   fun `routing loop hits hop limit`() {
     // s1:1 ↔ s2:1. Both forward to port 1 → infinite loop.
     val topology = NetworkTopology(links = listOf(Link(Endpoint("s1", 1), Endpoint("s2", 1))))
@@ -142,30 +145,29 @@ class NetworkSimulatorTest {
     loadSwitch(network, "s1", "s1.stf") // forward to port 1
     loadSwitch(network, "s2", "s1.stf") // forward to port 1
 
-    val payload = hexToBytes("FFFFFFFFFFFF 000000000001 0800 DEADBEEF")
-    network.processPacket("s1", 0, payload) // should throw
+    val payload = PAYLOAD.decodeHex()
+    val e =
+      assertThrows(IllegalStateException::class.java) { network.processPacket("s1", 0, payload) }
+    assertTrue("should mention hop limit", e.message!!.contains("hop limit"))
   }
 
-  @Test(expected = IllegalArgumentException::class)
+  @Test
   fun `duplicate port in topology is rejected`() {
     // Port s1:1 appears in two links.
-    NetworkTopology(
+    val topology =
+      NetworkTopology(
         links =
           listOf(
             Link(Endpoint("s1", 1), Endpoint("s2", 1)),
             Link(Endpoint("s1", 1), Endpoint("s3", 1)),
           )
       )
-      .let { NetworkSimulator(it) }
+    assertThrows(IllegalArgumentException::class.java) { NetworkSimulator(topology) }
   }
 
   companion object {
     private const val CONFIG_PKG = "e2e_tests/basic_table"
     private const val TEST_PKG = "e2e_tests/network"
+    private const val PAYLOAD = "FFFFFFFFFFFF 000000000001 0800 DEADBEEF"
   }
-}
-
-private fun hexToBytes(hex: String): ByteArray {
-  val clean = hex.replace(" ", "")
-  return ByteArray(clean.length / 2) { i -> clean.substring(2 * i, 2 * i + 2).toInt(16).toByte() }
 }

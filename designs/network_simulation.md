@@ -102,7 +102,7 @@ processPacket(switch_id, ingress_port, payload) -> NetworkHop:
     return processHop(switch_id, ingress_port, payload, hop_count=0)
 
 processHop(switch_id, ingress_port, payload, hop_count) -> NetworkHop:
-    if hop_count > MAX_HOP_COUNT:
+    if hop_count >= MAX_HOP_COUNT:
         error("routing loop")
 
     result = simulators[switch_id].processPacket(ingress_port, payload)
@@ -134,9 +134,9 @@ Key properties:
   output. DFS is the natural fit for building a tree.
 
 - **Hop limit.** `MAX_HOP_COUNT` (e.g., 64) prevents infinite loops from
-  routing misconfigurations. When exceeded, the packet is dropped and the
-  trace records the reason. This is a simulator safety net, not a P4 TTL —
-  the P4 program's own TTL handling is orthogonal.
+  routing misconfigurations. When exceeded, simulation fails with an error.
+  This is a simulator safety net, not a P4 TTL — the P4 program's own TTL
+  handling is orthogonal.
 
 ### Cross-switch trace trees
 

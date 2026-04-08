@@ -10,8 +10,9 @@ import fourward.sim.SimulatorProto.TraceTree
  * the existing [Simulator.processPacket] API. Individual simulators are unchanged — the network
  * layer is purely additive.
  *
- * Packet delivery is instant and FIFO per link. A [MAX_HOP_COUNT] limit prevents infinite loops
- * from routing misconfigurations.
+ * Packet delivery is instant. A [MAX_HOP_COUNT] limit prevents infinite loops from routing
+ * misconfigurations. Single-threaded — callers must serialise concurrent requests (inherited from
+ * [Simulator]).
  */
 class NetworkSimulator(private val topology: NetworkTopology) {
 
@@ -56,12 +57,17 @@ class NetworkSimulator(private val topology: NetworkTopology) {
     payload: ByteArray,
     hopCount: Int,
   ): NetworkHop {
-    check(hopCount <= MAX_HOP_COUNT) { "hop limit ($MAX_HOP_COUNT) exceeded — routing loop?" }
+    check(hopCount < MAX_HOP_COUNT) {
+      "switch '$switchId': hop limit ($MAX_HOP_COUNT) exceeded — routing loop?"
+    }
 
     val sim = checkNotNull(simulators[switchId]) { "unknown switch: '$switchId'" }
     val result = sim.processPacket(ingressPort, payload)
 
     // TODO: handle alternative forks (action selectors) across switches.
+    check(result.possibleOutcomes.size <= 1) {
+      "switch '$switchId': multiple possible outcomes (action selectors) not yet supported"
+    }
     val outputs = result.possibleOutcomes.firstOrNull() ?: emptyList()
 
     val edgeOutputs = mutableListOf<EdgeOutput>()
