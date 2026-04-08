@@ -14,11 +14,11 @@ import fourward.sim.SimulatorProto.TraceTree
  * misconfigurations. Single-threaded — callers must serialise concurrent requests (inherited from
  * [Simulator]).
  */
-class NetworkSimulator(private val topology: NetworkTopology) {
+class NetworkSimulator(topology: NetworkTopology) {
 
   private val simulators = mutableMapOf<String, Simulator>()
 
-  /** Link lookup: endpoint → endpoint. Built from topology, bidirectional. */
+  /** Bidirectional link lookup: endpoint → endpoint. */
   private val linkMap: Map<Endpoint, Endpoint> = buildMap {
     for (link in topology.links) {
       require(link.a !in this) { "port ${link.a} is connected to multiple links" }
@@ -38,23 +38,17 @@ class NetworkSimulator(private val topology: NetworkTopology) {
   }
 
   /**
-   * Processes a packet through the network, following it across links until all copies either exit
-   * on edge ports, are dropped, or exceed the hop limit.
-   *
-   * Returns a [NetworkHop] tree capturing the full cross-switch journey. For packets that fan out
-   * (multicast, clone), the tree branches — one child hop per copy that crosses a link.
-   *
-   * For the walking skeleton, only the first possible outcome (world) from each switch is followed.
-   * Handling alternative forks (action selectors) across switches is future work.
+   * Processes a packet through the network. Returns a [NetworkHop] tree capturing the full
+   * cross-switch journey.
    */
   fun processPacket(switchId: String, ingressPort: Int, payload: ByteArray): NetworkHop {
-    return processHop(switchId, ingressPort, payload, hopCount = 0)
+    return processHop(switchId, ingressPort, ByteString.copyFrom(payload), hopCount = 0)
   }
 
   private fun processHop(
     switchId: String,
     ingressPort: Int,
-    payload: ByteArray,
+    payload: ByteString,
     hopCount: Int,
   ): NetworkHop {
     check(hopCount < MAX_HOP_COUNT) {
@@ -62,9 +56,10 @@ class NetworkSimulator(private val topology: NetworkTopology) {
     }
 
     val sim = checkNotNull(simulators[switchId]) { "unknown switch: '$switchId'" }
-    val result = sim.processPacket(ingressPort, payload)
+    val result = sim.processPacket(ingressPort, payload.toByteArray())
 
     // TODO: handle alternative forks (action selectors) across switches.
+    // See docs/LIMITATIONS.md, "Network simulation".
     check(result.possibleOutcomes.size <= 1) {
       "switch '$switchId': multiple possible outcomes (action selectors) not yet supported"
     }
@@ -76,7 +71,7 @@ class NetworkSimulator(private val topology: NetworkTopology) {
     for (output in outputs) {
       val dst = linkMap[Endpoint(switchId, output.dataplaneEgressPort)]
       if (dst != null) {
-        nextHops.add(processHop(dst.switchId, dst.port, output.payload.toByteArray(), hopCount + 1))
+        nextHops.add(processHop(dst.switchId, dst.port, output.payload, hopCount + 1))
       } else {
         edgeOutputs.add(EdgeOutput(switchId, output.dataplaneEgressPort, output.payload))
       }
@@ -85,7 +80,7 @@ class NetworkSimulator(private val topology: NetworkTopology) {
     return NetworkHop(
       switchId = switchId,
       ingressPort = ingressPort,
-      ingressPayload = ByteString.copyFrom(payload),
+      ingressPayload = payload,
       trace = result.trace,
       edgeOutputs = edgeOutputs,
       nextHops = nextHops,
