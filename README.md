@@ -64,23 +64,22 @@ enough for production test workloads.
 
 ## Where we're headed
 
-We have an **[ambitious roadmap](docs/ROADMAP.md)**: to become the **definitive P4 reference implementation**, production-ready for industry-grade P4 programs — complexities, edge cases, and all.
+The core vision is realized: spec-compliant v1model/PSA/PNA, trace trees,
+full P4Runtime, and
+[SAI P4 end-to-end](docs/SAI_P4_CONFIDENCE.md) through the full P4Runtime
+stack. The **[roadmap](docs/ROADMAP.md)** tracks what's next: adversarial
+testing, network simulation, and
+**[DVaaS](https://github.com/sonic-net/sonic-pins/tree/main/dvaas)**
+integration — making 4ward a drop-in replacement for BMv2 in SONiC's
+dataplane validation service.
 
-Development is driven by two demanding real-world applications:
-
-1. **[SAI P4](https://github.com/sonic-net/sonic-pins/tree/main/sai_p4)**
-   — SONiC's 25-table middleblock program, exercising `@p4runtime_translation`
-   with string port names, `@entry_restriction`, and everything the ecosystem
-   currently papers over with hardcoded workarounds. All 25 tables are
-   [tested E2E through the full P4Runtime stack](docs/SAI_P4_CONFIDENCE.md).
-2. **[DVaaS](https://github.com/sonic-net/sonic-pins/tree/main/dvaas)**
-   — SONiC's dataplane validation service. We are building 4ward to be a
-   modern, highly capable drop-in replacement for its current BMv2 backend.
-
-4ward is pre-1.0 and moving fast. Check out the **[Roadmap](docs/ROADMAP.md)** for the big picture and **[STATUS.md](docs/STATUS.md)** for progress updates.
+4ward is pre-1.0 and moving fast. See **[STATUS.md](docs/STATUS.md)** for
+progress updates.
 
 > [!WARNING]
-> **Pre-1.0 Notice:** We are aggressively refactoring to build the best system possible. Until we reach 1.0, nothing is sacred except correctness and the test suite.
+> **Pre-1.0 Notice:** We are aggressively refactoring to build the best
+> system possible. Until we reach 1.0, nothing is sacred except correctness
+> and the test suite.
 
 ## Quick start
 
