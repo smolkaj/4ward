@@ -1,0 +1,19 @@
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
+
+kt_jvm_test(
+    name = "NetworkSimulatorTest",
+    srcs = ["NetworkSimulatorTest.kt"],
+    data = [
+        "s1.stf",
+        "s2.stf",
+        "//e2e_tests/basic_table:basic_table_pb",
+    ],
+    test_class = "fourward.e2e.network.NetworkSimulatorTest",
+    deps = [
+        "//e2e_tests:golden_file",
+        "//e2e_tests/stf:stf_runner",
+        "//simulator:simulator_lib",
+        "@fourward_maven//:com_google_protobuf_protobuf_java",
+        "@fourward_maven//:junit_junit",
+    ],
+)
