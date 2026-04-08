@@ -83,30 +83,13 @@ message NetworkTopology {
 Links are bidirectional: a packet egressing on endpoint A's port arrives at
 endpoint B's port, and vice versa.
 
-### Network configuration
+### Per-switch configuration
 
-A network configuration pairs a topology with per-switch pipeline configs and
-table entries:
-
-```
-message NetworkConfig {
-  NetworkTopology topology = 1;
-  repeated SwitchConfig switches = 2;
-
-  message SwitchConfig {
-    string switch_id = 1;
-    // Pipeline config (IR + p4info), same as single-switch.
-    PipelineConfig pipeline = 2;
-    // Initial table entries, PRE entries, etc.
-    repeated TableEntry table_entries = 3;
-    repeated MulticastGroupEntry multicast_entries = 4;
-    repeated CloneSessionEntry clone_entries = 5;
-  }
-}
-```
-
-Every switch in the topology must have a corresponding `SwitchConfig`. Switches
-may run different P4 programs.
+There is no bundled "network config" proto. Each switch is configured the same
+way a single switch is today — pipeline loaded via `SetForwardingPipelineConfig`,
+entries written via `Write`, or via STF-style directives in test files. The
+network simulator only adds the topology; per-switch configuration uses existing
+mechanisms. Switches may run different P4 programs.
 
 ### Packet processing
 
