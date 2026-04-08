@@ -162,24 +162,30 @@ A `NetworkTrace` chains per-switch trace trees into a full path:
 
 ```
 message NetworkTrace {
-  repeated Hop hops = 1;
+  Hop root = 1;
 
   message Hop {
     string switch_id = 1;
     uint32 ingress_port = 2;
-    TraceTree trace = 3;          // Existing per-switch trace.
-    repeated OutputPacket outputs = 4;
+    bytes ingress_payload = 3;
+    TraceTree trace = 4;              // Existing per-switch trace.
+    repeated EdgeOutput edge_outputs = 5;  // Leaves: packets exiting the network.
+    repeated Hop next_hops = 6;            // Children: packets forwarded via internal links.
+  }
+
+  message EdgeOutput {
+    string switch_id = 1;
+    uint32 egress_port = 2;
+    bytes payload = 3;
   }
 }
 ```
 
-Each hop records which switch processed the packet, the per-switch trace tree,
-and the output packets. Outputs that land on internal links become the input
-of the next hop. Outputs on edge ports are terminal.
-
-For packets that fan out (multicast, clone), the trace branches — one `Hop`
-per copy, each potentially spawning further hops downstream. The full trace is
-a tree mirroring the packet's journey through the network.
+The trace is a tree, not a list — a packet can fan out at any switch
+(multicast, clone), and each copy may traverse further switches. Each `Hop`
+records one switch processing one packet: what it received (`ingress_payload`),
+the full per-switch trace tree, and the results. Outputs on internal links
+become child hops; outputs on edge ports are leaves (`EdgeOutput`).
 
 ## Test format
 
