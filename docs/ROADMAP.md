@@ -594,6 +594,9 @@ Start with errors that users actually hit:
               │                           │    │          │    │          │
   Track 11    │                           │    │ error    │    │          │
               │                           │    │ quality  │    │          │
+              │                           │    │          │    │          │
+  Track 12    │                           │    │ network  │    │ 1k–10k   │
+              │                           │    │ sim ~100 │    │ switches │
               └───────────────────────────┘    └──────────┘    └──────────┘
 ```
 
@@ -610,3 +613,6 @@ Start with errors that users actually hit:
   (benchmark + profile) informs all subsequent optimization work.
 - Track 11 (error quality) has no blockers. Complements Track 9 (P4Runtime
   hardening) but covers the full stack, not just P4Runtime compliance.
+- Track 12 (network simulation) has no blockers — builds on existing
+  `Simulator` and P4Runtime server. Design doc:
+  [designs/network_simulation.md](../designs/network_simulation.md).
