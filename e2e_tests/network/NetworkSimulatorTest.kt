@@ -1,14 +1,14 @@
 package fourward.e2e.network
 
+import com.google.protobuf.ByteString
 import fourward.e2e.StfFile
 import fourward.e2e.installStfEntries
 import fourward.e2e.loadPipelineConfig
 import fourward.e2e.runfilePath
+import fourward.simulator.Endpoint
 import fourward.simulator.Link
 import fourward.simulator.NetworkSimulator
 import fourward.simulator.NetworkTopology
-import fourward.simulator.Simulator
-import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -31,17 +31,16 @@ class NetworkSimulatorTest {
     loadPipelineConfig(runfilePath(CONFIG_PKG, "basic_table.txtpb"))
   }
 
-  private fun loadSwitch(network: NetworkSimulator, id: String, stfFile: String): Simulator {
+  private fun loadSwitch(network: NetworkSimulator, id: String, stfFile: String) {
     val sim = network.addSwitch(id)
     sim.loadPipeline(config)
     val stf = StfFile.parse(runfilePath(TEST_PKG, stfFile))
     installStfEntries(sim, stf, config.p4Info)
-    return sim
   }
 
   @Test
   fun `packet traverses two switches via link`() {
-    val topology = NetworkTopology(links = listOf(Link("s1", 1, "s2", 1)))
+    val topology = NetworkTopology(links = listOf(Link(Endpoint("s1", 1), Endpoint("s2", 1))))
     val network = NetworkSimulator(topology)
     loadSwitch(network, "s1", "s1.stf")
     loadSwitch(network, "s2", "s2.stf")
@@ -65,12 +64,12 @@ class NetworkSimulatorTest {
     val output = hop2.edgeOutputs[0]
     assertEquals("s2", output.switchId)
     assertEquals(2, output.egressPort)
-    assertArrayEquals(payload, output.payload)
+    assertEquals(ByteString.copyFrom(payload), output.payload)
   }
 
   @Test
   fun `dropped packet produces no output`() {
-    val topology = NetworkTopology(links = listOf(Link("s1", 1, "s2", 1)))
+    val topology = NetworkTopology(links = listOf(Link(Endpoint("s1", 1), Endpoint("s2", 1))))
     val network = NetworkSimulator(topology)
 
     // s1 has no table entry for etherType 0x0806 → default action is drop.
@@ -86,7 +85,7 @@ class NetworkSimulatorTest {
 
   @Test
   fun `edge port output does not cross link`() {
-    val topology = NetworkTopology(links = listOf(Link("s1", 1, "s2", 1)))
+    val topology = NetworkTopology(links = listOf(Link(Endpoint("s1", 1), Endpoint("s2", 1))))
     val network = NetworkSimulator(topology)
 
     // s2 forwards to port 2 (edge) — use s2.stf for s1 so it forwards to an edge port (port 2).

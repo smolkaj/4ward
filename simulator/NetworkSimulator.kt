@@ -1,6 +1,6 @@
 package fourward.simulator
 
-import fourward.ir.PipelineConfig
+import com.google.protobuf.ByteString
 import fourward.sim.SimulatorProto.TraceTree
 
 /**
@@ -17,15 +17,13 @@ class NetworkSimulator(private val topology: NetworkTopology) {
 
   private val simulators = mutableMapOf<String, Simulator>()
 
-  /** Link lookup: (switchId, port) → (switchId, port). Built from topology, bidirectional. */
-  private val linkMap: Map<Pair<String, Int>, Pair<String, Int>> = buildMap {
+  /** Link lookup: endpoint → endpoint. Built from topology, bidirectional. */
+  private val linkMap: Map<Endpoint, Endpoint> = buildMap {
     for (link in topology.links) {
-      val a = Pair(link.switchA, link.portA)
-      val b = Pair(link.switchB, link.portB)
-      require(a !in this) { "port ${link.switchA}:${link.portA} is connected to multiple links" }
-      require(b !in this) { "port ${link.switchB}:${link.portB} is connected to multiple links" }
-      put(a, b)
-      put(b, a)
+      require(link.a !in this) { "port ${link.a} is connected to multiple links" }
+      require(link.b !in this) { "port ${link.b} is connected to multiple links" }
+      put(link.a, link.b)
+      put(link.b, link.a)
     }
   }
 
@@ -72,18 +70,18 @@ class NetworkSimulator(private val topology: NetworkTopology) {
     val nextHops = mutableListOf<NetworkHop>()
 
     for (output in outputs) {
-      val dst = linkMap[Pair(switchId, output.dataplaneEgressPort)]
+      val dst = linkMap[Endpoint(switchId, output.dataplaneEgressPort)]
       if (dst != null) {
-        nextHops.add(processHop(dst.first, dst.second, output.payload.toByteArray(), hopCount + 1))
+        nextHops.add(processHop(dst.switchId, dst.port, output.payload.toByteArray(), hopCount + 1))
       } else {
-        edgeOutputs.add(EdgeOutput(switchId, output.dataplaneEgressPort, output.payload.toByteArray()))
+        edgeOutputs.add(EdgeOutput(switchId, output.dataplaneEgressPort, output.payload))
       }
     }
 
     return NetworkHop(
       switchId = switchId,
       ingressPort = ingressPort,
-      ingressPayload = payload,
+      ingressPayload = ByteString.copyFrom(payload),
       trace = result.trace,
       edgeOutputs = edgeOutputs,
       nextHops = nextHops,
@@ -95,14 +93,19 @@ class NetworkSimulator(private val topology: NetworkTopology) {
   }
 }
 
+/** A switch port: (switch ID, port number). */
+data class Endpoint(val switchId: String, val port: Int) {
+  override fun toString(): String = "$switchId:$port"
+}
+
 /** A point-to-point link between two switch ports. Bidirectional. */
-data class Link(val switchA: String, val portA: Int, val switchB: String, val portB: Int)
+data class Link(val a: Endpoint, val b: Endpoint)
 
 /** A set of switches connected by point-to-point links. */
 data class NetworkTopology(val links: List<Link>)
 
 /** A packet that exited the network on an edge port (a port not connected to any link). */
-data class EdgeOutput(val switchId: String, val egressPort: Int, val payload: ByteArray)
+data class EdgeOutput(val switchId: String, val egressPort: Int, val payload: ByteString)
 
 /**
  * One switch processing one packet in the network trace tree.
@@ -115,7 +118,7 @@ data class EdgeOutput(val switchId: String, val egressPort: Int, val payload: By
 data class NetworkHop(
   val switchId: String,
   val ingressPort: Int,
-  val ingressPayload: ByteArray,
+  val ingressPayload: ByteString,
   val trace: TraceTree,
   val edgeOutputs: List<EdgeOutput>,
   val nextHops: List<NetworkHop>,
