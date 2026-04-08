@@ -43,4 +43,16 @@ class ReadWriteMutex {
         rwLock.writeLock().unlock()
       }
     }
+
+  /**
+   * Non-suspend variant of [withWriteLock] for use from blocking contexts (e.g., [PacketBroker]).
+   */
+  fun <T> withWriteLockBlocking(block: () -> T): T {
+    rwLock.writeLock().lock()
+    try {
+      return block()
+    } finally {
+      rwLock.writeLock().unlock()
+    }
+  }
 }

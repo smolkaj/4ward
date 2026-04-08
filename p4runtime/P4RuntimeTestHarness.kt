@@ -57,7 +57,7 @@ class P4RuntimeTestHarness(
   private val serverName = InProcessServerBuilder.generateName()
   private val simulator = Simulator(dropPortOverride)
   private val lock = ReadWriteMutex()
-  private val broker = PacketBroker(simulator::processPacket)
+  private val broker = PacketBroker(simulator::processPacket, lock)
   private val service =
     P4RuntimeService(
       simulator,
@@ -67,13 +67,12 @@ class P4RuntimeTestHarness(
       cpuPortConfig = cpuPortConfig,
     )
   private val dataplaneService =
-    DataplaneService(
-      broker,
-      lock,
-      typeTranslator = { service.typeTranslator },
-      readAllEntities = { service.readAllEntities() },
-      readP4Info = { service.p4Info() },
-    )
+    DataplaneService(broker, typeTranslator = { service.typeTranslator })
+
+  init {
+    broker.readAllEntities = { service.readAllEntities() }
+    broker.readP4Info = { service.p4Info() }
+  }
 
   private val executor = java.util.concurrent.Executors.newCachedThreadPool()
 

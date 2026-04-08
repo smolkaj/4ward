@@ -15,7 +15,7 @@ class P4RuntimeServer(
 
   private val simulator = Simulator(dropPortOverride)
   private val lock = ReadWriteMutex()
-  private val broker = PacketBroker(simulator::processPacket)
+  private val broker = PacketBroker(simulator::processPacket, lock)
   private val service =
     P4RuntimeService(
       simulator,
@@ -25,14 +25,15 @@ class P4RuntimeServer(
       cpuPortConfig = cpuPortConfig,
     )
   private val dataplaneService =
-    DataplaneService(
-      broker,
-      lock,
-      typeTranslator = { service.typeTranslator },
-      readAllEntities = { service.readAllEntities() },
-      readP4Info = { service.p4Info() },
-      applyUpdates = { updates -> service.applyHookUpdates(updates) },
-    )
+    DataplaneService(broker, typeTranslator = { service.typeTranslator })
+
+  init {
+    // Wire P4RuntimeService lambdas into the broker for hook support.
+    broker.readAllEntities = { service.readAllEntities() }
+    broker.readP4Info = { service.p4Info() }
+    broker.applyUpdates = { updates -> service.applyHookUpdates(updates) }
+  }
+
   private lateinit var server: Server
 
   fun start(): P4RuntimeServer {

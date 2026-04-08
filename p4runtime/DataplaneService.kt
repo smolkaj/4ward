@@ -11,87 +11,34 @@ import fourward.dataplane.DataplaneProto.SubscribeResultsResponse
 import fourward.dataplane.DataplaneProto.SubscriptionActive
 import fourward.sim.SimulatorProto.TraceTree
 import io.grpc.Status
-import java.util.concurrent.ForkJoinPool
-import java.util.concurrent.ForkJoinTask
-import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import p4.v1.P4RuntimeOuterClass
 
 /**
  * Dataplane gRPC service: injects packets into the simulator and returns output packets with dual
  * port encoding (dataplane + P4Runtime) and P4RT-enriched traces.
  *
- * Serialized via a shared [lock] with [P4RuntimeService] to prevent races between control-plane
- * writes and data-plane packet processing.
+ * Packet processing (lock, hook, simulator, subscriber dispatch) is handled by [PacketBroker]. This
+ * service is responsible for gRPC protocol: request/response translation, port resolution, trace
+ * enrichment, and hook stream management.
  *
  * @param typeTranslator provides the current [TypeTranslator] from the loaded pipeline, or null if
  *   no pipeline is loaded or the pipeline has no type translation.
  */
 class DataplaneService(
   private val broker: PacketBroker,
-  private val lock: ReadWriteMutex,
   private val typeTranslator: () -> TypeTranslator? = { null },
-  private val readAllEntities: () -> List<P4RuntimeOuterClass.Entity> = { emptyList() },
-  private val readP4Info: () -> p4.config.v1.P4InfoOuterClass.P4Info? = { null },
-  private val applyUpdates: (List<P4RuntimeOuterClass.Update>) -> Unit = {},
 ) : DataplaneGrpcKt.DataplaneCoroutineImplBase() {
-
-  /**
-   * The currently registered pre-packet hook, or null if none. The hook is a pair of channels:
-   * - invocations: server sends [DataplaneProto.PrePacketHookInvocation] to the client
-   * - responses: client sends [DataplaneProto.PrePacketHookResponse] back
-   */
-  private data class Hook(
-    val invocations: Channel<DataplaneProto.PrePacketHookInvocation>,
-    val responses: Channel<DataplaneProto.PrePacketHookResponse>,
-  )
-
-  private val hook = AtomicReference<Hook?>(null)
-
-  /**
-   * Fires the pre-packet hook if one is registered. Must be called while holding the write lock.
-   * Sends an invocation to the client, waits for the response, and applies any P4Runtime updates.
-   *
-   * Uses [runBlocking] because this is called under a Java
-   * [java.util.concurrent.locks.ReentrantReadWriteLock] which must be released on the same thread
-   * that acquired it. Suspend functions can resume on a different thread, which would cause
-   * [IllegalMonitorStateException] on unlock.
-   */
-  private fun fireHookIfRegistered() {
-    val h = hook.get() ?: return
-    runBlocking {
-      val invocation =
-        DataplaneProto.PrePacketHookInvocation.newBuilder()
-          .addAllEntities(readAllEntities())
-          .apply { readP4Info()?.let { setP4Info(it) } }
-          .build()
-      h.invocations.send(invocation)
-      val response = h.responses.receive()
-      if (response.updatesList.isNotEmpty()) {
-        applyUpdates(response.updatesList)
-      }
-    }
-  }
 
   override suspend fun injectPacket(request: InjectPacketRequest): InjectPacketResponse {
     val translator = typeTranslator()
     val pt = translator?.portTranslator
     val ingressPort = resolveIngressPort(request, pt)
     val payload = request.payload.toByteArray()
-    val result =
-      if (hook.get() != null) {
-        lock.withWriteLock {
-          fireHookIfRegistered()
-          broker.processPacket(ingressPort, payload)
-        }
-      } else {
-        lock.withReadLock { broker.processPacket(ingressPort, payload) }
-      }
+    val result = broker.processPacket(ingressPort, payload)
     try {
       val possibleOutcomes =
         result.possibleOutcomes.map { world ->
@@ -112,31 +59,16 @@ class DataplaneService(
     requests: Flow<InjectPacketRequest>
   ): DataplaneProto.InjectPacketsResponse {
     val pt = typeTranslator()?.portTranslator
-    if (hook.get() != null) {
-      // With a hook registered, acquire the write lock for the entire stream
-      // and fire the hook once at the start.
-      lock.withWriteLock {
-        fireHookIfRegistered()
-        val futures = mutableListOf<ForkJoinTask<*>>()
-        requests.collect { req ->
-          val port = resolveIngressPort(req, pt)
-          val payload = req.payload.toByteArray()
-          // Process under the already-held write lock (no additional locking).
-          futures.add(ForkJoinPool.commonPool().submit { broker.processPacket(port, payload) })
+    broker.withHookOnce { processPacket ->
+      val futures = mutableListOf<java.util.concurrent.ForkJoinTask<*>>()
+      kotlinx.coroutines.runBlocking {
+        requests.collect { request ->
+          val port = resolveIngressPort(request, pt)
+          val payload = request.payload.toByteArray()
+          futures.add(
+            java.util.concurrent.ForkJoinPool.commonPool().submit { processPacket(port, payload) }
+          )
         }
-        futures.forEach { it.join() }
-      }
-    } else {
-      // No hook — use read lock per packet for maximum concurrency.
-      val futures = mutableListOf<ForkJoinTask<*>>()
-      requests.collect { req ->
-        val port = resolveIngressPort(req, pt)
-        val payload = req.payload.toByteArray()
-        futures.add(
-          ForkJoinPool.commonPool().submit {
-            lock.withReadLockBlocking { broker.processPacket(port, payload) }
-          }
-        )
       }
       futures.forEach { it.join() }
     }
@@ -194,9 +126,9 @@ class DataplaneService(
   ): Flow<DataplaneProto.PrePacketHookInvocation> = callbackFlow {
     val invocations = Channel<DataplaneProto.PrePacketHookInvocation>(Channel.RENDEZVOUS)
     val responses = Channel<DataplaneProto.PrePacketHookResponse>(Channel.RENDEZVOUS)
-    val newHook = Hook(invocations, responses)
+    val newHook = PacketBroker.Hook(invocations, responses)
 
-    if (!hook.compareAndSet(null, newHook)) {
+    if (!broker.registerHook(newHook)) {
       throw Status.ALREADY_EXISTS.withDescription("A pre-packet hook is already registered")
         .asException()
     }
@@ -212,7 +144,7 @@ class DataplaneService(
     launch { requests.collect { response -> responses.send(response) } }
 
     awaitClose {
-      hook.set(null)
+      broker.deregisterHook()
       invocations.close()
       responses.close()
     }

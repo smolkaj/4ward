@@ -1,34 +1,98 @@
 package fourward.p4runtime
 
+import fourward.dataplane.DataplaneProto
 import fourward.sim.SimulatorProto.OutputPacket
 import fourward.sim.SimulatorProto.TraceTree
 import fourward.simulator.ProcessPacketResult
+import java.util.concurrent.atomic.AtomicReference
 import java.util.logging.Level
 import java.util.logging.Logger
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.runBlocking
+import p4.v1.P4RuntimeOuterClass
 
 /**
  * Fan-out layer between packet sources and the simulator.
  *
  * All callers — [DataplaneService.injectPacket], [P4RuntimeService] PacketOut — go through
- * [processPacket]. The broker delegates to the simulator and delivers the result to all [subscribe]
- * subscribers (powering the [DataplaneService.subscribeResults] RPC).
+ * [processPacket]. The broker:
+ * 1. Fires the pre-packet hook if one is registered (acquiring the write lock).
+ * 2. Calls the simulator.
+ * 3. Delivers the result to all subscribers.
  *
- * CPU-port routing (PacketOut → PacketIn) is handled by [P4RuntimeService.handlePacketOut], not
- * here, because it requires pipeline state (codec, translator) that only P4RuntimeService has.
+ * The hook ensures auxiliary entries (PRE clone sessions, etc.) are installed before every packet,
+ * regardless of injection path.
  *
- * @param processPacketFn function that processes a single packet (wraps
+ * @param simulatorFn processes a single packet (wraps
  *   [fourward.simulator.Simulator.processPacket]).
+ * @param lock shared read-write lock (also used by [P4RuntimeService] for Write/Read).
  */
 class PacketBroker(
-  private val processPacketFn: (ingressPort: Int, payload: ByteArray) -> ProcessPacketResult
+  private val simulatorFn: (ingressPort: Int, payload: ByteArray) -> ProcessPacketResult,
+  private val lock: ReadWriteMutex,
 ) {
 
+  // ---------------------------------------------------------------------------
+  // Pre-packet hook
+  // ---------------------------------------------------------------------------
+
   /**
-   * Delivered to each [subscribe] subscriber for every processed packet.
-   *
-   * Not a `data class` because [ByteArray] has identity-based `equals`/`hashCode`, which would make
-   * the generated `equals` silently wrong.
+   * A registered hook: a pair of channels for server→client invocations and client→server
+   * responses.
    */
+  data class Hook(
+    val invocations: Channel<DataplaneProto.PrePacketHookInvocation>,
+    val responses: Channel<DataplaneProto.PrePacketHookResponse>,
+  )
+
+  private val hook = AtomicReference<Hook?>(null)
+
+  private fun hasHook(): Boolean = hook.get() != null
+
+  /**
+   * Atomically registers a hook. Returns true if successful, false if a hook is already registered.
+   */
+  fun registerHook(newHook: Hook): Boolean = hook.compareAndSet(null, newHook)
+
+  /** Deregisters the current hook. */
+  fun deregisterHook() {
+    hook.set(null)
+  }
+
+  /**
+   * Lambdas for building hook invocations and applying hook responses. Set by [P4RuntimeServer]
+   * after construction (avoids circular dependency with [P4RuntimeService]).
+   */
+  var readAllEntities: () -> List<P4RuntimeOuterClass.Entity> = { emptyList() }
+  var readP4Info: () -> p4.config.v1.P4InfoOuterClass.P4Info? = { null }
+  var applyUpdates: (List<P4RuntimeOuterClass.Update>) -> Unit = {}
+
+  /**
+   * Fires the pre-packet hook if one is registered. Must be called while holding the write lock.
+   * Uses [runBlocking] to stay on the lock-holding thread
+   * ([java.util.concurrent.locks.ReentrantReadWriteLock] thread affinity).
+   */
+  private fun fireHookIfRegistered() {
+    val h = hook.get() ?: return
+    runBlocking {
+      val invocation =
+        DataplaneProto.PrePacketHookInvocation.newBuilder()
+          .addAllEntities(readAllEntities())
+          .apply { readP4Info()?.let { setP4Info(it) } }
+          .build()
+      h.invocations.send(invocation)
+      val response = h.responses.receive()
+      if (response.updatesList.isNotEmpty()) {
+        applyUpdates(response.updatesList)
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Packet processing
+  // ---------------------------------------------------------------------------
+
+  /** Delivered to each [subscribe] subscriber for every processed packet. */
   class SubscriptionResult(
     val ingressPort: Int,
     val payload: ByteArray,
@@ -45,39 +109,75 @@ class PacketBroker(
     java.util.concurrent.CopyOnWriteArrayList<(SubscriptionResult) -> Unit>()
 
   /**
-   * Processes a packet through the simulator and dispatches results.
-   * 1. Calls the simulator.
-   * 2. Delivers the result to all subscribers.
-   * 3. Returns the result to the caller.
-   *
-   * Subscriber exceptions are caught to protect the caller and other subscribers. Well-behaved
-   * subscribers handle their own errors (e.g. by closing their stream); this catch is a safety net.
+   * Processes a packet: fires the hook (if registered), runs the simulator, and dispatches results
+   * to subscribers. Acquires the write lock if a hook is registered, the read lock otherwise.
    */
   fun processPacket(ingressPort: Int, payload: ByteArray): ProcessPacketResult {
-    val result = processPacketFn(ingressPort, payload)
-
-    if (subscribers.isNotEmpty()) {
-      val subResult =
-        SubscriptionResult(ingressPort, payload, result.possibleOutcomes, result.trace)
-      for (subscriber in subscribers) {
-        try {
-          subscriber(subResult)
-        } catch (
-          @Suppress("TooGenericExceptionCaught") // Safety net: any subscriber failure must not
-          e: Exception // crash the sender or block other subscribers.
-        ) {
-          logger.log(Level.WARNING, "Subscriber threw during packet dispatch", e)
+    val result =
+      if (hook.get() != null) {
+        lock.withWriteLockBlocking {
+          fireHookIfRegistered()
+          simulatorFn(ingressPort, payload)
         }
+      } else {
+        lock.withReadLockBlocking { simulatorFn(ingressPort, payload) }
       }
-    }
 
+    dispatchToSubscribers(ingressPort, payload, result)
     return result
+  }
+
+  /**
+   * Fires the hook once (if registered), then runs [block] with a processor that handles locking.
+   *
+   * If a hook is registered: acquires the write lock, fires the hook, then calls [block] with a
+   * processor that runs under the already-held write lock (no per-packet locking).
+   *
+   * If no hook: calls [block] with a processor that acquires a read lock per packet.
+   *
+   * Used by [DataplaneService.injectPackets] to stream packets without buffering the entire batch.
+   */
+  fun <T> withHookOnce(block: (processor: (Int, ByteArray) -> Unit) -> T): T {
+    val processAndDispatch = { port: Int, payload: ByteArray ->
+      val result = simulatorFn(port, payload)
+      dispatchToSubscribers(port, payload, result)
+    }
+    return if (hook.get() != null) {
+      lock.withWriteLockBlocking {
+        fireHookIfRegistered()
+        // Note: subscriber dispatch runs under the write lock here (unlike processPacket where
+        // it runs after the lock is released). This is intentional — the write lock is held for
+        // the entire streaming batch anyway.
+        block { port, payload -> processAndDispatch(port, payload) }
+      }
+    } else {
+      block { port, payload -> lock.withReadLockBlocking { processAndDispatch(port, payload) } }
+    }
   }
 
   /** Registers a subscriber that receives results for every processed packet. */
   fun subscribe(callback: (SubscriptionResult) -> Unit): SubscriptionHandle {
     subscribers.add(callback)
     return SubscriptionHandle { subscribers.remove(callback) }
+  }
+
+  private fun dispatchToSubscribers(
+    ingressPort: Int,
+    payload: ByteArray,
+    result: ProcessPacketResult,
+  ) {
+    if (subscribers.isEmpty()) return
+    val subResult = SubscriptionResult(ingressPort, payload, result.possibleOutcomes, result.trace)
+    for (subscriber in subscribers) {
+      try {
+        subscriber(subResult)
+      } catch (
+        @Suppress("TooGenericExceptionCaught") // Safety net: any subscriber failure must not
+        e: Exception // crash the sender or block other subscribers.
+      ) {
+        logger.log(Level.WARNING, "Subscriber threw during packet dispatch", e)
+      }
+    }
   }
 
   private companion object {
