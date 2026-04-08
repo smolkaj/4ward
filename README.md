@@ -84,7 +84,7 @@ progress updates.
 ## Quick start
 
 [Tested on](https://4ward.buildbuddy.io/tests/) macOS and Ubuntu. You need
-[Bazel](https://bazel.build) 9+ (or just grab
+[Bazel](https://bazel.build) 8+ (or just grab
 [Bazelisk](https://github.com/bazelbuild/bazelisk) and forget about it) and a
 C++20 compiler for the p4c backend. Everything else is hermetic — Bazel
 handles it.
@@ -350,9 +350,8 @@ Developer docs (in [`docs/`](docs/)):
 
 ## Want to help?
 
-We'd love that! The easiest way to contribute is to pick a failing STF test and
-make it pass — they're naturally well-scoped and self-contained. See
-[CONTRIBUTING.md](docs/CONTRIBUTING.md) for the full details.
+We'd love that! See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for how to get
+started.
 
 ## License
 

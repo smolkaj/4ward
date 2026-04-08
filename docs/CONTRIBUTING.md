@@ -5,15 +5,11 @@ thousandth, you're welcome.
 
 ## The easiest way to contribute
 
-Our backlog is literally a list of failing tests. The p4c project ships hundreds
-of STF (Simple Test Framework) tests, and each one we can't pass yet is a
-feature waiting to be built. Pick one, make it green, open a PR. That's it.
-
-These contributions are great because they're **naturally well-scoped** — you
-know exactly when you're done (the test passes), and you don't need to
+Check the [roadmap](ROADMAP.md) and [issue tracker](https://github.com/smolkaj/4ward/issues)
+for open work — or add a new STF test for an untested edge case and make it
+pass. STF contributions are great because they're **naturally well-scoped** —
+you know exactly when you're done (the test passes), and you don't need to
 understand the whole codebase to get started.
-
-Run `bazel test //...` to see what's passing and what's not.
 
 ## Getting started
 
@@ -26,7 +22,7 @@ bazel test //...
 ```
 
 Builds are hermetic — Bazel grabs everything it needs. You just need a C++20
-compiler and Bazel 9+ (or grab
+compiler and Bazel 8+ (or grab
 [Bazelisk](https://github.com/bazelbuild/bazelisk) so you never think about
 Bazel versions again). Works on macOS and Ubuntu.
 

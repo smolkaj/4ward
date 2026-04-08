@@ -65,7 +65,7 @@ INTERNAL: undefined variable: x (at my_program.p4:42:3)
   arbitration, `UNIMPLEMENTED` for unsupported features.
 - **Structured error details.** Batch writes include per-update status with
   `space` and `code` fields per P4Runtime spec section 12.3.
-- **Golden-tested.** All 74 error paths are locked down by golden tests.
+- **Golden-tested.** All 75 error paths are locked down by golden tests.
   Messages cannot silently degrade. Update with:
   ```
   bazel test //p4runtime:GoldenErrorTest --test_env=UPDATE_GOLDEN=1
