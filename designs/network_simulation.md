@@ -232,6 +232,22 @@ forwarding outputs across links.
 | STF runner | Extend | Parse network topology + multi-switch commands |
 | CLI | Extend | `4ward network` subcommand |
 
+## Scale target
+
+**~100 switches** in a single JVM. This covers leaf-spine fabrics, small
+campus networks, and most topologies people would realistically test P4
+programs against.
+
+Each `Simulator` is lightweight — a tree-walking interpreter holding table
+entries and counters in memory, with no per-switch thread or background
+processing. The main scaling concern is P4Runtime: each switch gets its own
+gRPC server (Netty event loop, file descriptors). At 100 switches this is
+fine; at 1000+ it would need attention (lazy server startup, connection
+pooling, or a multiplexed server).
+
+Scaling to ~1,000 and ~10,000 switches is future work, not precluded by the
+design but not a v1 target.
+
 ## Future extensions
 
 These are explicitly out of scope for v1 but should not be precluded by the
