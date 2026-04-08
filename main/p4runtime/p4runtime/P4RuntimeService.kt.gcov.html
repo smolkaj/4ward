@@ -37,12 +37,12 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-04-08 23:52:19</td>
+            <td class="headerValue">2026-04-08 23:57:26</td>
             <td></td>
             <td class="headerItem">Functions:</td>
-            <td class="headerCovTableEntryHi">96.2&nbsp;%</td>
-            <td class="headerCovTableEntry">78</td>
-            <td class="headerCovTableEntry">75</td>
+            <td class="headerCovTableEntryHi">96.1&nbsp;%</td>
+            <td class="headerCovTableEntry">77</td>
+            <td class="headerCovTableEntry">74</td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
                 </table>
@@ -703,7 +703,7 @@
 <span id="L641"><span class="lineNum">     641</span> <span class="tlaGNC">           1 :           when {</span></span>
 <span id="L642"><span class="lineNum">     642</span> <span class="tlaGNC">           1 :             msg.hasArbitration() -&gt;</span></span>
 <span id="L643"><span class="lineNum">     643</span> <span class="tlaGNC">           1 :               send(handleArbitration(streamId, msg.arbitration, notifications))</span></span>
-<span id="L644"><span class="lineNum">     644</span> <span class="tlaGNC">           1 :             msg.hasPacket() -&gt; lock.withReadLock { handlePacketOut(msg.packet) }</span></span>
+<span id="L644"><span class="lineNum">     644</span> <span class="tlaGNC">           1 :             msg.hasPacket() -&gt; handlePacketOut(msg.packet)</span></span>
 <span id="L645"><span class="lineNum">     645</span> <span class="tlaGNC">           1 :             msg.hasDigestAck() -&gt;</span></span>
 <span id="L646"><span class="lineNum">     646</span> <span class="tlaGNC">           1 :               throw Status.UNIMPLEMENTED.withDescription(DIGEST_NOT_SUPPORTED).asException()</span></span>
 <span id="L647"><span class="lineNum">     647</span>              :             // P4Runtime spec §16: unrecognized stream messages get an error response.</span>
@@ -730,7 +730,7 @@
 <span id="L668"><span class="lineNum">     668</span>              :   /**</span>
 <span id="L669"><span class="lineNum">     669</span>              :    * Processes a PacketOut: translates metadata, serializes the packet header, and runs the packet</span>
 <span id="L670"><span class="lineNum">     670</span>              :    * through the broker. PacketIn delivery is handled by the broker subscription in [streamChannel],</span>
-<span id="L671"><span class="lineNum">     671</span>              :    * not here. Must be called under [lock].</span>
+<span id="L671"><span class="lineNum">     671</span>              :    * not here. The broker handles locking and the pre-packet hook.</span>
 <span id="L672"><span class="lineNum">     672</span>              :    */</span>
 <span id="L673"><span class="lineNum">     673</span>              :   private fun handlePacketOut(packet: p4.v1.P4RuntimeOuterClass.PacketOut) {</span>
 <span id="L674"><span class="lineNum">     674</span> <span class="tlaGNC">           1 :     val state = pipeline ?: return</span></span>

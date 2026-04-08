@@ -99,184 +99,157 @@ LH:49
 LF:62
 end_of_record
 SF:p4runtime/DataplaneService.kt
-FN:35,fourward/p4runtime/DataplaneService::<init> (Lfourward/p4runtime/PacketBroker;Lfourward/p4runtime/ReadWriteMutex;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;)V
-FNDA:1,fourward/p4runtime/DataplaneService::<init> (Lfourward/p4runtime/PacketBroker;Lfourward/p4runtime/ReadWriteMutex;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;)V
-FN:35,fourward/p4runtime/DataplaneService::<init> (Lfourward/p4runtime/PacketBroker;Lfourward/p4runtime/ReadWriteMutex;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-FNDA:1,fourward/p4runtime/DataplaneService::<init> (Lfourward/p4runtime/PacketBroker;Lfourward/p4runtime/ReadWriteMutex;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-FN:66,fourward/p4runtime/DataplaneService::fireHookIfRegistered ()V
-FNDA:1,fourward/p4runtime/DataplaneService::fireHookIfRegistered ()V
-FN:81,fourward/p4runtime/DataplaneService::injectPacket (Lfourward/dataplane/DataplaneProto$InjectPacketRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+FN:31,fourward/p4runtime/DataplaneService::<init> (Lfourward/p4runtime/PacketBroker;Lkotlin/jvm/functions/Function0;)V
+FNDA:1,fourward/p4runtime/DataplaneService::<init> (Lfourward/p4runtime/PacketBroker;Lkotlin/jvm/functions/Function0;)V
+FN:31,fourward/p4runtime/DataplaneService::<init> (Lfourward/p4runtime/PacketBroker;Lkotlin/jvm/functions/Function0;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+FNDA:0,fourward/p4runtime/DataplaneService::<init> (Lfourward/p4runtime/PacketBroker;Lkotlin/jvm/functions/Function0;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+FN:37,fourward/p4runtime/DataplaneService::injectPacket (Lfourward/dataplane/DataplaneProto$InjectPacketRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 FNDA:1,fourward/p4runtime/DataplaneService::injectPacket (Lfourward/dataplane/DataplaneProto$InjectPacketRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-FN:114,fourward/p4runtime/DataplaneService::injectPackets (Lkotlinx/coroutines/flow/Flow;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+FN:61,fourward/p4runtime/DataplaneService::injectPackets (Lkotlinx/coroutines/flow/Flow;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 FNDA:0,fourward/p4runtime/DataplaneService::injectPackets (Lkotlinx/coroutines/flow/Flow;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-FN:147,fourward/p4runtime/DataplaneService::subscribeResults (Lfourward/dataplane/DataplaneProto$SubscribeResultsRequest;)Lkotlinx/coroutines/flow/Flow;
+FN:79,fourward/p4runtime/DataplaneService::subscribeResults (Lfourward/dataplane/DataplaneProto$SubscribeResultsRequest;)Lkotlinx/coroutines/flow/Flow;
 FNDA:1,fourward/p4runtime/DataplaneService::subscribeResults (Lfourward/dataplane/DataplaneProto$SubscribeResultsRequest;)Lkotlinx/coroutines/flow/Flow;
-FN:194,fourward/p4runtime/DataplaneService::registerPrePacketHook (Lkotlinx/coroutines/flow/Flow;)Lkotlinx/coroutines/flow/Flow;
+FN:126,fourward/p4runtime/DataplaneService::registerPrePacketHook (Lkotlinx/coroutines/flow/Flow;)Lkotlinx/coroutines/flow/Flow;
 FNDA:1,fourward/p4runtime/DataplaneService::registerPrePacketHook (Lkotlinx/coroutines/flow/Flow;)Lkotlinx/coroutines/flow/Flow;
-FN:222,fourward/p4runtime/DataplaneService::resolveIngressPort (Lfourward/dataplane/DataplaneProto$InjectPacketRequest;Lfourward/p4runtime/PortTranslator;)I
+FN:154,fourward/p4runtime/DataplaneService::resolveIngressPort (Lfourward/dataplane/DataplaneProto$InjectPacketRequest;Lfourward/p4runtime/PortTranslator;)I
 FNDA:1,fourward/p4runtime/DataplaneService::resolveIngressPort (Lfourward/dataplane/DataplaneProto$InjectPacketRequest;Lfourward/p4runtime/PortTranslator;)I
-FN:38,fourward/p4runtime/DataplaneService$1::invoke ()Ljava/lang/Void;
+FN:33,fourward/p4runtime/DataplaneService$1::invoke ()Ljava/lang/Void;
 FNDA:0,fourward/p4runtime/DataplaneService$1::invoke ()Ljava/lang/Void;
-FN:39,fourward/p4runtime/DataplaneService$2::invoke ()Ljava/util/List;
-FNDA:0,fourward/p4runtime/DataplaneService$2::invoke ()Ljava/util/List;
-FN:40,fourward/p4runtime/DataplaneService$3::invoke ()Ljava/lang/Void;
-FNDA:0,fourward/p4runtime/DataplaneService$3::invoke ()Ljava/lang/Void;
-FN:41,fourward/p4runtime/DataplaneService$4::invoke (Ljava/util/List;)V
-FNDA:0,fourward/p4runtime/DataplaneService$4::invoke (Ljava/util/List;)V
-FN:49,fourward/p4runtime/DataplaneService$Hook::<init> (Lkotlinx/coroutines/channels/Channel;Lkotlinx/coroutines/channels/Channel;)V
-FNDA:1,fourward/p4runtime/DataplaneService$Hook::<init> (Lkotlinx/coroutines/channels/Channel;Lkotlinx/coroutines/channels/Channel;)V
-FN:50,fourward/p4runtime/DataplaneService$Hook::getInvocations ()Lkotlinx/coroutines/channels/Channel;
-FNDA:1,fourward/p4runtime/DataplaneService$Hook::getInvocations ()Lkotlinx/coroutines/channels/Channel;
-FN:51,fourward/p4runtime/DataplaneService$Hook::getResponses ()Lkotlinx/coroutines/channels/Channel;
-FNDA:1,fourward/p4runtime/DataplaneService$Hook::getResponses ()Lkotlinx/coroutines/channels/Channel;
-FN:67,fourward/p4runtime/DataplaneService$fireHookIfRegistered$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
-FNDA:1,fourward/p4runtime/DataplaneService$fireHookIfRegistered$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
-FN:89,fourward/p4runtime/DataplaneService$injectPacket$result$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
-FNDA:1,fourward/p4runtime/DataplaneService$injectPacket$result$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
-FN:93,fourward/p4runtime/DataplaneService$injectPacket$result$2::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
-FNDA:1,fourward/p4runtime/DataplaneService$injectPacket$result$2::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
-FN:119,fourward/p4runtime/DataplaneService$injectPackets$2::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
-FNDA:0,fourward/p4runtime/DataplaneService$injectPackets$2::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
-FN:122,fourward/p4runtime/DataplaneService$injectPackets$2$1::emit (Lfourward/dataplane/DataplaneProto$InjectPacketRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-FNDA:0,fourward/p4runtime/DataplaneService$injectPackets$2$1::emit (Lfourward/dataplane/DataplaneProto$InjectPacketRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-FN:125,fourward/p4runtime/DataplaneService$injectPackets$2$1$1::run ()V
-FNDA:0,fourward/p4runtime/DataplaneService$injectPackets$2$1$1::run ()V
-FN:133,fourward/p4runtime/DataplaneService$injectPackets$3::emit (Lfourward/dataplane/DataplaneProto$InjectPacketRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-FNDA:0,fourward/p4runtime/DataplaneService$injectPackets$3::emit (Lfourward/dataplane/DataplaneProto$InjectPacketRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-FN:137,fourward/p4runtime/DataplaneService$injectPackets$3$1::run ()V
-FNDA:0,fourward/p4runtime/DataplaneService$injectPackets$3$1::run ()V
-FN:137,fourward/p4runtime/DataplaneService$injectPackets$3$1$1::invoke ()V
-FNDA:0,fourward/p4runtime/DataplaneService$injectPackets$3$1$1::invoke ()V
-FN:194,fourward/p4runtime/DataplaneService$registerPrePacketHook$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
+FN:63,fourward/p4runtime/DataplaneService$injectPackets$2::invoke (Lkotlin/jvm/functions/Function2;)V
+FNDA:0,fourward/p4runtime/DataplaneService$injectPackets$2::invoke (Lkotlin/jvm/functions/Function2;)V
+FN:65,fourward/p4runtime/DataplaneService$injectPackets$2$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
+FNDA:0,fourward/p4runtime/DataplaneService$injectPackets$2$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
+FN:66,fourward/p4runtime/DataplaneService$injectPackets$2$1$1::emit (Lfourward/dataplane/DataplaneProto$InjectPacketRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+FNDA:0,fourward/p4runtime/DataplaneService$injectPackets$2$1$1::emit (Lfourward/dataplane/DataplaneProto$InjectPacketRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+FN:69,fourward/p4runtime/DataplaneService$injectPackets$2$1$1$1::run ()V
+FNDA:0,fourward/p4runtime/DataplaneService$injectPackets$2$1$1$1::run ()V
+FN:126,fourward/p4runtime/DataplaneService$registerPrePacketHook$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
 FNDA:1,fourward/p4runtime/DataplaneService$registerPrePacketHook$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
-FN:206,fourward/p4runtime/DataplaneService$registerPrePacketHook$1$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
+FN:138,fourward/p4runtime/DataplaneService$registerPrePacketHook$1$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
 FNDA:1,fourward/p4runtime/DataplaneService$registerPrePacketHook$1$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
-FN:212,fourward/p4runtime/DataplaneService$registerPrePacketHook$1$2::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
+FN:144,fourward/p4runtime/DataplaneService$registerPrePacketHook$1$2::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
 FNDA:1,fourward/p4runtime/DataplaneService$registerPrePacketHook$1$2::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
-FN:212,fourward/p4runtime/DataplaneService$registerPrePacketHook$1$2$1::emit (Lfourward/dataplane/DataplaneProto$PrePacketHookResponse;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+FN:144,fourward/p4runtime/DataplaneService$registerPrePacketHook$1$2$1::emit (Lfourward/dataplane/DataplaneProto$PrePacketHookResponse;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 FNDA:1,fourward/p4runtime/DataplaneService$registerPrePacketHook$1$2$1::emit (Lfourward/dataplane/DataplaneProto$PrePacketHookResponse;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-FN:215,fourward/p4runtime/DataplaneService$registerPrePacketHook$1$3::invoke ()V
+FN:147,fourward/p4runtime/DataplaneService$registerPrePacketHook$1$3::invoke ()V
 FNDA:1,fourward/p4runtime/DataplaneService$registerPrePacketHook$1$3::invoke ()V
-FN:147,fourward/p4runtime/DataplaneService$subscribeResults$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
+FN:79,fourward/p4runtime/DataplaneService$subscribeResults$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
 FNDA:1,fourward/p4runtime/DataplaneService$subscribeResults$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
-FN:189,fourward/p4runtime/DataplaneService$subscribeResults$1$1::invoke ()V
+FN:121,fourward/p4runtime/DataplaneService$subscribeResults$1$1::invoke ()V
 FNDA:1,fourward/p4runtime/DataplaneService$subscribeResults$1$1::invoke ()V
-FN:156,fourward/p4runtime/DataplaneService$subscribeResults$1$handle$1::invoke (Lfourward/p4runtime/PacketBroker$SubscriptionResult;)V
+FN:88,fourward/p4runtime/DataplaneService$subscribeResults$1$handle$1::invoke (Lfourward/p4runtime/PacketBroker$SubscriptionResult;)V
 FNDA:1,fourward/p4runtime/DataplaneService$subscribeResults$1$handle$1::invoke (Lfourward/p4runtime/PacketBroker$SubscriptionResult;)V
-FN:240,fourward/p4runtime/DataplaneServiceKt::enrichTrace (Lfourward/sim/SimulatorProto$TraceTree;Lfourward/p4runtime/TypeTranslator;)Lfourward/sim/SimulatorProto$TraceTree;
+FN:172,fourward/p4runtime/DataplaneServiceKt::enrichTrace (Lfourward/sim/SimulatorProto$TraceTree;Lfourward/p4runtime/TypeTranslator;)Lfourward/sim/SimulatorProto$TraceTree;
 FNDA:1,fourward/p4runtime/DataplaneServiceKt::enrichTrace (Lfourward/sim/SimulatorProto$TraceTree;Lfourward/p4runtime/TypeTranslator;)Lfourward/sim/SimulatorProto$TraceTree;
-FN:254,fourward/p4runtime/DataplaneServiceKt::toDualEncoded (Lfourward/sim/SimulatorProto$OutputPacket;Lfourward/p4runtime/PortTranslator;)Lfourward/dataplane/DataplaneProto$OutputPacket;
+FN:186,fourward/p4runtime/DataplaneServiceKt::toDualEncoded (Lfourward/sim/SimulatorProto$OutputPacket;Lfourward/p4runtime/PortTranslator;)Lfourward/dataplane/DataplaneProto$OutputPacket;
 FNDA:1,fourward/p4runtime/DataplaneServiceKt::toDualEncoded (Lfourward/sim/SimulatorProto$OutputPacket;Lfourward/p4runtime/PortTranslator;)Lfourward/dataplane/DataplaneProto$OutputPacket;
-BRDA:66,0,0,0
-BRDA:66,0,1,1
-BRDA:83,0,0,1
-BRDA:83,0,1,1
-BRDA:87,0,0,1
-BRDA:87,0,1,1
-BRDA:114,0,0,-
-BRDA:114,0,1,-
-BRDA:115,0,0,-
-BRDA:115,0,1,-
-BRDA:222,0,0,0
-BRDA:222,0,1,0
-BRDA:222,0,2,1
-BRDA:226,0,0,1
-BRDA:226,0,1,1
-BRDA:71,0,0,1
-BRDA:71,0,1,0
-BRDA:75,0,0,0
-BRDA:75,0,1,1
-BRDA:75,0,2,0
-BRDA:75,0,3,1
-BRDA:199,0,0,0
-BRDA:199,0,1,1
-BRDA:206,0,0,1
-BRDA:206,0,1,0
+BRDA:38,0,0,1
+BRDA:38,0,1,1
+BRDA:61,0,0,-
+BRDA:61,0,1,-
+BRDA:154,0,0,0
+BRDA:154,0,1,0
+BRDA:154,0,2,1
 BRDA:158,0,0,1
-BRDA:158,0,1,0
-BRDA:167,0,0,0
-BRDA:167,0,1,1
-BRDA:167,0,2,0
-BRDA:167,0,3,1
-BRDA:240,0,0,1
-BRDA:240,0,1,0
-BRDA:240,0,2,0
-BRDA:240,0,3,1
-BRDA:257,0,0,1
-BRDA:257,0,1,1
-BRDA:259,0,0,1
-BRDA:259,0,1,1
-DA:35,1
-DA:36,1
+BRDA:158,0,1,1
+BRDA:131,0,0,0
+BRDA:131,0,1,1
+BRDA:138,0,0,1
+BRDA:138,0,1,0
+BRDA:90,0,0,1
+BRDA:90,0,1,0
+BRDA:99,0,0,0
+BRDA:99,0,1,1
+BRDA:99,0,2,0
+BRDA:99,0,3,1
+BRDA:172,0,0,1
+BRDA:172,0,1,0
+BRDA:172,0,2,0
+BRDA:172,0,3,1
+BRDA:189,0,0,1
+BRDA:189,0,1,1
+BRDA:191,0,0,1
+BRDA:191,0,1,1
+DA:31,1
+DA:32,1
+DA:33,1
+DA:34,0
 DA:37,1
 DA:38,1
 DA:39,1
 DA:40,1
 DA:41,1
 DA:42,1
+DA:43,1
+DA:44,1
+DA:45,1
+DA:46,1
+DA:47,1
 DA:49,1
 DA:50,1
 DA:51,1
+DA:52,1
+DA:53,1
 DA:54,1
-DA:66,1
-DA:67,1
-DA:68,1
-DA:69,1
-DA:70,1
-DA:71,1
-DA:72,1
-DA:73,1
-DA:74,1
-DA:75,1
-DA:76,0
-DA:78,1
+DA:61,0
+DA:62,0
+DA:63,0
+DA:64,0
+DA:65,0
+DA:66,0
+DA:67,0
+DA:68,0
+DA:69,0
+DA:71,0
+DA:72,0
+DA:73,0
+DA:74,0
+DA:75,0
 DA:79,1
+DA:80,1
 DA:81,1
 DA:82,1
 DA:83,1
-DA:84,1
-DA:85,1
 DA:86,1
 DA:87,1
 DA:88,1
 DA:89,1
 DA:90,1
+DA:91,1
+DA:92,1
 DA:93,1
+DA:94,1
 DA:95,1
 DA:96,1
-DA:97,1
-DA:98,1
 DA:99,1
 DA:100,1
-DA:102,1
+DA:101,1
 DA:103,1
 DA:104,1
 DA:105,1
 DA:106,1
 DA:107,1
-DA:114,0
-DA:115,0
-DA:118,0
-DA:119,0
-DA:120,0
-DA:121,0
-DA:122,0
-DA:123,0
-DA:125,0
-DA:126,0
-DA:127,0
-DA:128,0
-DA:131,0
+DA:110,1
+DA:111,1
+DA:112,1
+DA:113,0
+DA:117,0
+DA:119,1
+DA:121,1
+DA:122,1
+DA:126,1
+DA:127,1
+DA:128,1
+DA:129,1
+DA:131,1
 DA:132,0
 DA:133,0
-DA:134,0
-DA:135,0
-DA:136,0
-DA:137,0
-DA:138,0
-DA:140,0
+DA:137,1
+DA:138,1
+DA:139,1
 DA:141,0
-DA:143,0
+DA:144,1
+DA:146,1
 DA:147,1
 DA:148,1
 DA:149,1
@@ -284,75 +257,30 @@ DA:150,1
 DA:151,1
 DA:154,1
 DA:155,1
-DA:156,1
 DA:157,1
 DA:158,1
 DA:159,1
 DA:160,1
-DA:161,1
-DA:162,1
 DA:163,1
 DA:164,1
-DA:167,1
+DA:167,0
 DA:168,1
-DA:169,1
-DA:171,1
 DA:172,1
-DA:173,1
-DA:174,1
-DA:175,1
-DA:178,1
-DA:179,1
-DA:180,1
-DA:181,0
-DA:185,0
+DA:186,1
 DA:187,1
+DA:188,1
 DA:189,1
 DA:190,1
+DA:191,1
+DA:192,1
+DA:193,1
 DA:194,1
-DA:195,1
-DA:196,1
-DA:197,1
-DA:199,1
-DA:200,0
-DA:201,0
-DA:205,1
-DA:206,1
-DA:207,1
-DA:209,0
-DA:212,1
-DA:214,1
-DA:215,1
-DA:216,1
-DA:217,1
-DA:218,1
-DA:219,1
-DA:222,1
-DA:223,1
-DA:225,1
-DA:226,1
-DA:227,1
-DA:228,1
-DA:231,1
-DA:232,1
-DA:235,0
-DA:236,1
-DA:240,1
-DA:254,1
-DA:255,1
-DA:256,1
-DA:257,1
-DA:258,1
-DA:259,1
-DA:260,1
-DA:261,1
-DA:262,1
-DA:266,1
-DA:268,1
-DA:269,1
-DA:270,1
-LH:115
-LF:145
+DA:198,1
+DA:200,1
+DA:201,1
+DA:202,1
+LH:88
+LF:109
 end_of_record
 SF:p4runtime/EntityReader.kt
 FN:18,fourward/p4runtime/EntityReader::<init> (Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;I)V
@@ -476,46 +404,46 @@ FN:9,fourward/p4runtime/P4RuntimeServer::<init> (IJLjava/lang/Integer;Lfourward/
 FNDA:0,fourward/p4runtime/P4RuntimeServer::<init> (IJLjava/lang/Integer;Lfourward/p4runtime/CpuPortConfig;)V
 FN:9,fourward/p4runtime/P4RuntimeServer::<init> (IJLjava/lang/Integer;Lfourward/p4runtime/CpuPortConfig;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 FNDA:0,fourward/p4runtime/P4RuntimeServer::<init> (IJLjava/lang/Integer;Lfourward/p4runtime/CpuPortConfig;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-FN:39,fourward/p4runtime/P4RuntimeServer::start ()Lfourward/p4runtime/P4RuntimeServer;
+FN:40,fourward/p4runtime/P4RuntimeServer::start ()Lfourward/p4runtime/P4RuntimeServer;
 FNDA:0,fourward/p4runtime/P4RuntimeServer::start ()Lfourward/p4runtime/P4RuntimeServer;
-FN:55,fourward/p4runtime/P4RuntimeServer::stop ()V
+FN:56,fourward/p4runtime/P4RuntimeServer::stop ()V
 FNDA:0,fourward/p4runtime/P4RuntimeServer::stop ()V
-FN:61,fourward/p4runtime/P4RuntimeServer::blockUntilShutdown ()V
+FN:62,fourward/p4runtime/P4RuntimeServer::blockUntilShutdown ()V
 FNDA:0,fourward/p4runtime/P4RuntimeServer::blockUntilShutdown ()V
-FN:64,fourward/p4runtime/P4RuntimeServer::port ()I
+FN:65,fourward/p4runtime/P4RuntimeServer::port ()I
 FNDA:0,fourward/p4runtime/P4RuntimeServer::port ()I
-FN:31,fourward/p4runtime/P4RuntimeServer$dataplaneService$1::invoke ()Lfourward/p4runtime/TypeTranslator;
+FN:32,fourward/p4runtime/P4RuntimeServer$1::invoke ()Ljava/util/List;
+FNDA:0,fourward/p4runtime/P4RuntimeServer$1::invoke ()Ljava/util/List;
+FN:33,fourward/p4runtime/P4RuntimeServer$2::invoke ()Lp4/config/v1/P4InfoOuterClass$P4Info;
+FNDA:0,fourward/p4runtime/P4RuntimeServer$2::invoke ()Lp4/config/v1/P4InfoOuterClass$P4Info;
+FN:34,fourward/p4runtime/P4RuntimeServer$3::invoke (Ljava/util/List;)V
+FNDA:0,fourward/p4runtime/P4RuntimeServer$3::invoke (Ljava/util/List;)V
+FN:28,fourward/p4runtime/P4RuntimeServer$dataplaneService$1::invoke ()Lfourward/p4runtime/TypeTranslator;
 FNDA:0,fourward/p4runtime/P4RuntimeServer$dataplaneService$1::invoke ()Lfourward/p4runtime/TypeTranslator;
-FN:32,fourward/p4runtime/P4RuntimeServer$dataplaneService$2::invoke ()Ljava/util/List;
-FNDA:0,fourward/p4runtime/P4RuntimeServer$dataplaneService$2::invoke ()Ljava/util/List;
-FN:33,fourward/p4runtime/P4RuntimeServer$dataplaneService$3::invoke ()Lp4/config/v1/P4InfoOuterClass$P4Info;
-FNDA:0,fourward/p4runtime/P4RuntimeServer$dataplaneService$3::invoke ()Lp4/config/v1/P4InfoOuterClass$P4Info;
-FN:34,fourward/p4runtime/P4RuntimeServer$dataplaneService$4::invoke (Ljava/util/List;)V
-FNDA:0,fourward/p4runtime/P4RuntimeServer$dataplaneService$4::invoke (Ljava/util/List;)V
-FN:50,fourward/p4runtime/P4RuntimeServer$start$1::run ()V
+FN:51,fourward/p4runtime/P4RuntimeServer$start$1::run ()V
 FNDA:0,fourward/p4runtime/P4RuntimeServer$start$1::run ()V
-FN:72,fourward/p4runtime/P4RuntimeServerKt::main ([Ljava/lang/String;)V
+FN:73,fourward/p4runtime/P4RuntimeServerKt::main ([Ljava/lang/String;)V
 FNDA:0,fourward/p4runtime/P4RuntimeServerKt::main ([Ljava/lang/String;)V
-FN:84,fourward/p4runtime/P4RuntimeServerKt::flagValue ([Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+FN:85,fourward/p4runtime/P4RuntimeServerKt::flagValue ([Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
 FNDA:0,fourward/p4runtime/P4RuntimeServerKt::flagValue ([Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
-BRDA:55,0,0,-
-BRDA:55,0,1,-
-BRDA:72,0,0,-
-BRDA:72,0,1,-
-BRDA:72,0,2,-
-BRDA:72,0,3,-
-BRDA:74,0,0,-
-BRDA:74,0,1,-
-BRDA:74,0,2,-
-BRDA:74,0,3,-
+BRDA:56,0,0,-
+BRDA:56,0,1,-
+BRDA:73,0,0,-
+BRDA:73,0,1,-
+BRDA:73,0,2,-
+BRDA:73,0,3,-
 BRDA:75,0,0,-
 BRDA:75,0,1,-
-BRDA:84,0,0,-
-BRDA:84,0,1,-
-BRDA:84,0,2,-
-BRDA:84,0,3,-
-BRDA:84,0,4,-
-BRDA:84,0,5,-
+BRDA:75,0,2,-
+BRDA:75,0,3,-
+BRDA:76,0,0,-
+BRDA:76,0,1,-
+BRDA:85,0,0,-
+BRDA:85,0,1,-
+BRDA:85,0,2,-
+BRDA:85,0,3,-
+BRDA:85,0,4,-
+BRDA:85,0,5,-
 DA:9,0
 DA:10,0
 DA:11,0
@@ -532,39 +460,38 @@ DA:23,0
 DA:24,0
 DA:25,0
 DA:28,0
-DA:29,0
 DA:30,0
-DA:31,0
 DA:32,0
 DA:33,0
 DA:34,0
-DA:39,0
+DA:35,0
 DA:40,0
-DA:45,0
+DA:41,0
 DA:46,0
 DA:47,0
 DA:48,0
 DA:49,0
 DA:50,0
 DA:51,0
-DA:55,0
+DA:52,0
 DA:56,0
-DA:58,0
-DA:61,0
+DA:57,0
+DA:59,0
 DA:62,0
-DA:64,0
-DA:72,0
+DA:63,0
+DA:65,0
 DA:73,0
 DA:74,0
 DA:75,0
 DA:76,0
-DA:78,0
+DA:77,0
 DA:79,0
 DA:80,0
 DA:81,0
-DA:84,0
+DA:82,0
+DA:85,0
 LH:0
-LF:47
+LF:46
 end_of_record
 SF:p4runtime/P4RuntimeService.kt
 FN:62,fourward/p4runtime/P4RuntimeService::<init> (Lfourward/simulator/Simulator;Lfourward/p4runtime/PacketBroker;Ljava/nio/file/Path;Lfourward/p4runtime/ReadWriteMutex;JLfourward/p4runtime/CpuPortConfig;)V
@@ -715,8 +642,6 @@ FN:615,fourward/p4runtime/P4RuntimeService$streamChannel$1$1::invokeSuspend (Lja
 FNDA:1,fourward/p4runtime/P4RuntimeService$streamChannel$1$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
 FN:640,fourward/p4runtime/P4RuntimeService$streamChannel$1$2::emit (Lp4/v1/P4RuntimeOuterClass$StreamMessageRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 FNDA:1,fourward/p4runtime/P4RuntimeService$streamChannel$1$2::emit (Lp4/v1/P4RuntimeOuterClass$StreamMessageRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-FN:644,fourward/p4runtime/P4RuntimeService$streamChannel$1$2$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
-FNDA:1,fourward/p4runtime/P4RuntimeService$streamChannel$1$2$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
 FN:622,fourward/p4runtime/P4RuntimeService$streamChannel$1$packetInHandle$1::invoke (Lfourward/p4runtime/PacketBroker$SubscriptionResult;)V
 FNDA:1,fourward/p4runtime/P4RuntimeService$streamChannel$1$packetInHandle$1::invoke (Lfourward/p4runtime/PacketBroker$SubscriptionResult;)V
 FN:363,fourward/p4runtime/P4RuntimeService$write$2::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
@@ -1552,57 +1477,161 @@ LH:485
 LF:513
 end_of_record
 SF:p4runtime/PacketBroker.kt
-FN:22,fourward/p4runtime/PacketBroker::<init> (Lkotlin/jvm/functions/Function2;)V
-FNDA:1,fourward/p4runtime/PacketBroker::<init> (Lkotlin/jvm/functions/Function2;)V
-FN:57,fourward/p4runtime/PacketBroker::processPacket (I[B)Lfourward/simulator/ProcessPacketResult;
+FN:30,fourward/p4runtime/PacketBroker::<init> (Lkotlin/jvm/functions/Function2;Lfourward/p4runtime/ReadWriteMutex;)V
+FNDA:1,fourward/p4runtime/PacketBroker::<init> (Lkotlin/jvm/functions/Function2;Lfourward/p4runtime/ReadWriteMutex;)V
+FN:50,fourward/p4runtime/PacketBroker::hasHook ()Z
+FNDA:0,fourward/p4runtime/PacketBroker::hasHook ()Z
+FN:55,fourward/p4runtime/PacketBroker::registerHook (Lfourward/p4runtime/PacketBroker$Hook;)Z
+FNDA:1,fourward/p4runtime/PacketBroker::registerHook (Lfourward/p4runtime/PacketBroker$Hook;)Z
+FN:59,fourward/p4runtime/PacketBroker::deregisterHook ()V
+FNDA:1,fourward/p4runtime/PacketBroker::deregisterHook ()V
+FN:66,fourward/p4runtime/PacketBroker::getReadAllEntities ()Lkotlin/jvm/functions/Function0;
+FNDA:1,fourward/p4runtime/PacketBroker::getReadAllEntities ()Lkotlin/jvm/functions/Function0;
+FN:66,fourward/p4runtime/PacketBroker::setReadAllEntities (Lkotlin/jvm/functions/Function0;)V
+FNDA:1,fourward/p4runtime/PacketBroker::setReadAllEntities (Lkotlin/jvm/functions/Function0;)V
+FN:67,fourward/p4runtime/PacketBroker::getReadP4Info ()Lkotlin/jvm/functions/Function0;
+FNDA:1,fourward/p4runtime/PacketBroker::getReadP4Info ()Lkotlin/jvm/functions/Function0;
+FN:67,fourward/p4runtime/PacketBroker::setReadP4Info (Lkotlin/jvm/functions/Function0;)V
+FNDA:1,fourward/p4runtime/PacketBroker::setReadP4Info (Lkotlin/jvm/functions/Function0;)V
+FN:68,fourward/p4runtime/PacketBroker::getApplyUpdates ()Lkotlin/jvm/functions/Function1;
+FNDA:1,fourward/p4runtime/PacketBroker::getApplyUpdates ()Lkotlin/jvm/functions/Function1;
+FN:68,fourward/p4runtime/PacketBroker::setApplyUpdates (Lkotlin/jvm/functions/Function1;)V
+FNDA:1,fourward/p4runtime/PacketBroker::setApplyUpdates (Lkotlin/jvm/functions/Function1;)V
+FN:76,fourward/p4runtime/PacketBroker::fireHookIfRegistered ()V
+FNDA:1,fourward/p4runtime/PacketBroker::fireHookIfRegistered ()V
+FN:116,fourward/p4runtime/PacketBroker::processPacket (I[B)Lfourward/simulator/ProcessPacketResult;
 FNDA:1,fourward/p4runtime/PacketBroker::processPacket (I[B)Lfourward/simulator/ProcessPacketResult;
-FN:79,fourward/p4runtime/PacketBroker::subscribe (Lkotlin/jvm/functions/Function1;)Lfourward/p4runtime/PacketBroker$SubscriptionHandle;
+FN:141,fourward/p4runtime/PacketBroker::withHookOnce (Lkotlin/jvm/functions/Function1;)Ljava/lang/Object;
+FNDA:1,fourward/p4runtime/PacketBroker::withHookOnce (Lkotlin/jvm/functions/Function1;)Ljava/lang/Object;
+FN:160,fourward/p4runtime/PacketBroker::subscribe (Lkotlin/jvm/functions/Function1;)Lfourward/p4runtime/PacketBroker$SubscriptionHandle;
 FNDA:1,fourward/p4runtime/PacketBroker::subscribe (Lkotlin/jvm/functions/Function1;)Lfourward/p4runtime/PacketBroker$SubscriptionHandle;
-FN:84,fourward/p4runtime/PacketBroker::<clinit> ()V
+FN:169,fourward/p4runtime/PacketBroker::dispatchToSubscribers (I[BLfourward/simulator/ProcessPacketResult;)V
+FNDA:1,fourward/p4runtime/PacketBroker::dispatchToSubscribers (I[BLfourward/simulator/ProcessPacketResult;)V
+FN:184,fourward/p4runtime/PacketBroker::<clinit> ()V
 FNDA:1,fourward/p4runtime/PacketBroker::<clinit> ()V
-FN:84,fourward/p4runtime/PacketBroker$Companion::getLogger ()Ljava/util/logging/Logger;
+FN:184,fourward/p4runtime/PacketBroker$Companion::getLogger ()Ljava/util/logging/Logger;
 FNDA:0,fourward/p4runtime/PacketBroker$Companion::getLogger ()Ljava/util/logging/Logger;
-FN:32,fourward/p4runtime/PacketBroker$SubscriptionResult::<init> (I[BLjava/util/List;Lfourward/sim/SimulatorProto$TraceTree;)V
+FN:43,fourward/p4runtime/PacketBroker$Hook::<init> (Lkotlinx/coroutines/channels/Channel;Lkotlinx/coroutines/channels/Channel;)V
+FNDA:1,fourward/p4runtime/PacketBroker$Hook::<init> (Lkotlinx/coroutines/channels/Channel;Lkotlinx/coroutines/channels/Channel;)V
+FN:44,fourward/p4runtime/PacketBroker$Hook::getInvocations ()Lkotlinx/coroutines/channels/Channel;
+FNDA:1,fourward/p4runtime/PacketBroker$Hook::getInvocations ()Lkotlinx/coroutines/channels/Channel;
+FN:45,fourward/p4runtime/PacketBroker$Hook::getResponses ()Lkotlinx/coroutines/channels/Channel;
+FNDA:1,fourward/p4runtime/PacketBroker$Hook::getResponses ()Lkotlinx/coroutines/channels/Channel;
+FN:96,fourward/p4runtime/PacketBroker$SubscriptionResult::<init> (I[BLjava/util/List;Lfourward/sim/SimulatorProto$TraceTree;)V
 FNDA:1,fourward/p4runtime/PacketBroker$SubscriptionResult::<init> (I[BLjava/util/List;Lfourward/sim/SimulatorProto$TraceTree;)V
-FN:33,fourward/p4runtime/PacketBroker$SubscriptionResult::getIngressPort ()I
+FN:97,fourward/p4runtime/PacketBroker$SubscriptionResult::getIngressPort ()I
 FNDA:1,fourward/p4runtime/PacketBroker$SubscriptionResult::getIngressPort ()I
-FN:34,fourward/p4runtime/PacketBroker$SubscriptionResult::getPayload ()[B
+FN:98,fourward/p4runtime/PacketBroker$SubscriptionResult::getPayload ()[B
 FNDA:1,fourward/p4runtime/PacketBroker$SubscriptionResult::getPayload ()[B
-FN:35,fourward/p4runtime/PacketBroker$SubscriptionResult::getPossibleOutcomes ()Ljava/util/List;
+FN:99,fourward/p4runtime/PacketBroker$SubscriptionResult::getPossibleOutcomes ()Ljava/util/List;
 FNDA:1,fourward/p4runtime/PacketBroker$SubscriptionResult::getPossibleOutcomes ()Ljava/util/List;
-FN:36,fourward/p4runtime/PacketBroker$SubscriptionResult::getTrace ()Lfourward/sim/SimulatorProto$TraceTree;
+FN:100,fourward/p4runtime/PacketBroker$SubscriptionResult::getTrace ()Lfourward/sim/SimulatorProto$TraceTree;
 FNDA:1,fourward/p4runtime/PacketBroker$SubscriptionResult::getTrace ()Lfourward/sim/SimulatorProto$TraceTree;
-FN:80,fourward/p4runtime/PacketBroker$subscribe$1::unsubscribe ()V
+FN:68,fourward/p4runtime/PacketBroker$applyUpdates$1::invoke (Ljava/util/List;)V
+FNDA:0,fourward/p4runtime/PacketBroker$applyUpdates$1::invoke (Ljava/util/List;)V
+FN:77,fourward/p4runtime/PacketBroker$fireHookIfRegistered$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
+FNDA:1,fourward/p4runtime/PacketBroker$fireHookIfRegistered$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
+FN:119,fourward/p4runtime/PacketBroker$processPacket$result$1::invoke ()Lfourward/simulator/ProcessPacketResult;
+FNDA:1,fourward/p4runtime/PacketBroker$processPacket$result$1::invoke ()Lfourward/simulator/ProcessPacketResult;
+FN:123,fourward/p4runtime/PacketBroker$processPacket$result$2::invoke ()Lfourward/simulator/ProcessPacketResult;
+FNDA:1,fourward/p4runtime/PacketBroker$processPacket$result$2::invoke ()Lfourward/simulator/ProcessPacketResult;
+FN:66,fourward/p4runtime/PacketBroker$readAllEntities$1::invoke ()Ljava/util/List;
+FNDA:1,fourward/p4runtime/PacketBroker$readAllEntities$1::invoke ()Ljava/util/List;
+FN:67,fourward/p4runtime/PacketBroker$readP4Info$1::invoke ()Ljava/lang/Void;
+FNDA:1,fourward/p4runtime/PacketBroker$readP4Info$1::invoke ()Ljava/lang/Void;
+FN:161,fourward/p4runtime/PacketBroker$subscribe$1::unsubscribe ()V
 FNDA:1,fourward/p4runtime/PacketBroker$subscribe$1::unsubscribe ()V
-BRDA:59,0,0,1
-BRDA:59,0,1,1
-BRDA:59,0,2,1
-BRDA:59,0,3,1
-BRDA:62,0,0,1
-BRDA:62,0,1,1
-DA:22,1
-DA:23,1
+FN:147,fourward/p4runtime/PacketBroker$withHookOnce$1::invoke ()Ljava/lang/Object;
+FNDA:1,fourward/p4runtime/PacketBroker$withHookOnce$1::invoke ()Ljava/lang/Object;
+FN:151,fourward/p4runtime/PacketBroker$withHookOnce$1$1::invoke (I[B)V
+FNDA:1,fourward/p4runtime/PacketBroker$withHookOnce$1$1::invoke (I[B)V
+FN:154,fourward/p4runtime/PacketBroker$withHookOnce$2::invoke (I[B)V
+FNDA:1,fourward/p4runtime/PacketBroker$withHookOnce$2::invoke (I[B)V
+FN:154,fourward/p4runtime/PacketBroker$withHookOnce$2$1::invoke ()V
+FNDA:1,fourward/p4runtime/PacketBroker$withHookOnce$2$1::invoke ()V
+FN:142,fourward/p4runtime/PacketBroker$withHookOnce$processAndDispatch$1::invoke (I[B)V
+FNDA:1,fourward/p4runtime/PacketBroker$withHookOnce$processAndDispatch$1::invoke (I[B)V
+BRDA:50,0,0,-
+BRDA:50,0,1,-
+BRDA:76,0,0,0
+BRDA:76,0,1,1
+BRDA:117,0,0,1
+BRDA:117,0,1,1
+BRDA:145,0,0,1
+BRDA:145,0,1,1
+BRDA:169,0,0,1
+BRDA:169,0,1,1
+BRDA:171,0,0,1
+BRDA:171,0,1,1
+BRDA:81,0,0,1
+BRDA:81,0,1,1
+BRDA:85,0,0,1
+BRDA:85,0,1,1
+BRDA:85,0,2,1
+BRDA:85,0,3,1
+DA:30,1
+DA:31,1
 DA:32,1
-DA:33,1
-DA:34,1
-DA:35,1
-DA:36,1
+DA:43,1
+DA:44,1
 DA:45,1
-DA:57,1
+DA:48,1
+DA:50,0
+DA:55,1
 DA:59,1
 DA:60,1
-DA:61,1
-DA:62,1
-DA:63,1
-DA:64,1
-DA:65,1
-DA:69,1
-DA:74,1
+DA:66,1
+DA:67,1
+DA:68,1
+DA:76,1
+DA:77,1
+DA:78,1
 DA:79,1
 DA:80,1
+DA:81,1
+DA:82,1
+DA:83,1
 DA:84,1
-LH:21
-LF:21
+DA:85,1
+DA:86,1
+DA:88,1
+DA:89,1
+DA:96,1
+DA:97,1
+DA:98,1
+DA:99,1
+DA:100,1
+DA:109,1
+DA:116,1
+DA:117,1
+DA:118,1
+DA:119,1
+DA:120,1
+DA:123,1
+DA:126,1
+DA:127,1
+DA:141,1
+DA:142,1
+DA:143,1
+DA:144,1
+DA:145,1
+DA:146,1
+DA:147,1
+DA:151,1
+DA:154,1
+DA:160,1
+DA:161,1
+DA:169,1
+DA:170,1
+DA:171,1
+DA:172,1
+DA:173,1
+DA:174,1
+DA:178,1
+DA:181,1
+DA:184,1
+LH:60
+LF:61
 end_of_record
 SF:p4runtime/PacketHeaderCodec.kt
 FN:31,fourward/p4runtime/CpuPortConfig$Companion::fromFlag (Ljava/lang/String;)Lfourward/p4runtime/CpuPortConfig;
@@ -1798,9 +1827,11 @@ FNDA:1,fourward/p4runtime/ReadWriteMutex::<init> ()V
 FN:15,fourward/p4runtime/ReadWriteMutex::withReadLock (Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 FNDA:1,fourward/p4runtime/ReadWriteMutex::withReadLock (Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 FN:29,fourward/p4runtime/ReadWriteMutex::withReadLockBlocking (Lkotlin/jvm/functions/Function0;)Ljava/lang/Object;
-FNDA:0,fourward/p4runtime/ReadWriteMutex::withReadLockBlocking (Lkotlin/jvm/functions/Function0;)Ljava/lang/Object;
+FNDA:1,fourward/p4runtime/ReadWriteMutex::withReadLockBlocking (Lkotlin/jvm/functions/Function0;)Ljava/lang/Object;
 FN:38,fourward/p4runtime/ReadWriteMutex::withWriteLock (Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 FNDA:1,fourward/p4runtime/ReadWriteMutex::withWriteLock (Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+FN:51,fourward/p4runtime/ReadWriteMutex::withWriteLockBlocking (Lkotlin/jvm/functions/Function0;)Ljava/lang/Object;
+FNDA:1,fourward/p4runtime/ReadWriteMutex::withWriteLockBlocking (Lkotlin/jvm/functions/Function0;)Ljava/lang/Object;
 FN:15,fourward/p4runtime/ReadWriteMutex$withReadLock$2::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
 FNDA:1,fourward/p4runtime/ReadWriteMutex$withReadLock$2::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
 FN:38,fourward/p4runtime/ReadWriteMutex$withWriteLock$2::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
@@ -1814,10 +1845,10 @@ DA:18,1
 DA:20,1
 DA:21,1
 DA:22,1
-DA:29,0
-DA:30,0
-DA:31,0
-DA:33,0
+DA:29,1
+DA:30,1
+DA:31,1
+DA:33,1
 DA:38,1
 DA:39,1
 DA:40,1
@@ -1825,8 +1856,12 @@ DA:41,1
 DA:43,1
 DA:44,1
 DA:45,1
-LH:16
-LF:20
+DA:51,1
+DA:52,1
+DA:53,1
+DA:55,1
+LH:24
+LF:24
 end_of_record
 SF:p4runtime/ReferenceValidator.kt
 FN:21,fourward/p4runtime/ReferenceValidator::<init> (Ljava/util/Map;Ljava/util/Map;)V
