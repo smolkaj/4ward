@@ -15,7 +15,6 @@ load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_binary", "kt_jvm_library", "kt_jvm
 proto_library(
     name = "dataplane_proto",
     srcs = ["dataplane.proto"],
-    strip_import_prefix = "/p4runtime",
     visibility = ["//visibility:public"],
     deps = [
         "//simulator:simulator_proto",

@@ -7,12 +7,9 @@ load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_library", "kt_jvm_test")
 # Proto
 # =============================================================================
 
-# strip_import_prefix = "/simulator" lets other protos use `import "ir.proto"`
-# instead of the full workspace-relative path.
 proto_library(
     name = "ir_proto",
     srcs = ["ir.proto"],
-    strip_import_prefix = "/simulator",
     visibility = ["//visibility:public"],
     deps = [
         "@p4runtime//proto/p4/config/v1:p4info_proto",
@@ -35,7 +32,6 @@ cc_proto_library(
 proto_library(
     name = "simulator_proto",
     srcs = ["simulator.proto"],
-    strip_import_prefix = "/simulator",
     visibility = ["//visibility:public"],
     deps = [
         ":ir_proto",

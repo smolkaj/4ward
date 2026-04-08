@@ -10,7 +10,7 @@ syntax = "proto3";
 
 package fourward.sim;
 
-import "ir.proto";
+import "simulator/ir.proto";
 import "p4/v1/p4runtime.proto";
 
 option java_package = "fourward.sim";
