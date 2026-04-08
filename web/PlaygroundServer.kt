@@ -3,7 +3,6 @@ package fourward.web
 import fourward.p4runtime.DataplaneService
 import fourward.p4runtime.P4RuntimeService
 import fourward.p4runtime.PacketBroker
-import fourward.p4runtime.ReadWriteMutex
 import fourward.simulator.Simulator
 import io.grpc.netty.NettyServerBuilder
 import java.awt.Desktop
@@ -27,9 +26,10 @@ fun main(args: Array<String>) {
   val cpuPortConfig = fourward.p4runtime.CpuPortConfig.fromFlag(flagValue(args, "--cpu-port"))
 
   val simulator = Simulator(dropPort)
-  val lock = ReadWriteMutex()
-  val broker = PacketBroker(simulator::processPacket, lock)
-  val service = P4RuntimeService(simulator, broker, lock = lock, cpuPortConfig = cpuPortConfig)
+  val writeMutex = kotlinx.coroutines.sync.Mutex()
+  val broker = PacketBroker(simulator::processPacket, writeMutex)
+  val service =
+    P4RuntimeService(simulator, broker, writeMutex = writeMutex, cpuPortConfig = cpuPortConfig)
   val dataplaneService = DataplaneService(broker, typeTranslator = { service.typeTranslator })
   broker.readAllEntities = { service.readAllEntities() }
   broker.readP4Info = { service.p4Info() }
@@ -45,13 +45,7 @@ fun main(args: Array<String>) {
 
   // Start HTTP server.
   val webServer =
-    WebServer(
-        simulator = simulator,
-        service = service,
-        lock = lock,
-        httpPort = httpPort,
-        staticDir = staticDir,
-      )
+    WebServer(simulator = simulator, service = service, httpPort = httpPort, staticDir = staticDir)
       .start()
 
   val url = "http://localhost:$httpPort"

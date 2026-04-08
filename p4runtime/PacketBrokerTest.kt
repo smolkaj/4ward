@@ -32,7 +32,7 @@ class PacketBrokerTest {
   }
 
   private fun broker(vararg results: Pair<Int, ProcessPacketResult>) =
-    PacketBroker(fakeProcessor(*results), ReadWriteMutex())
+    PacketBroker(fakeProcessor(*results), kotlinx.coroutines.sync.Mutex())
 
   @Test
   fun `processPacket returns outputs and trace`() {

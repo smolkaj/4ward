@@ -28,12 +28,11 @@ import p4.v1.P4RuntimeOuterClass.WriteRequest
  *
  * All P4Runtime operations go through [P4RuntimeService][fourward.p4runtime.P4RuntimeService]:
  * pipeline loading via SetForwardingPipelineConfig, table writes via Write, and reads via Read.
- * Packet injection goes directly to the simulator (with the shared lock) to get trace trees.
+ * Packet injection goes directly to the simulator (lock-free — reads the published snapshot).
  */
 class WebServer(
   private val simulator: Simulator,
   private val service: fourward.p4runtime.P4RuntimeService,
-  private val lock: fourward.p4runtime.ReadWriteMutex,
   private val httpPort: Int = DEFAULT_HTTP_PORT,
   private val staticDir: Path? = null,
 ) {
@@ -206,7 +205,7 @@ class WebServer(
       extractJsonString(body, "payload_hex") ?: throw badRequest("Missing payload_hex")
     val payload = hexToBytes(payloadHex)
 
-    val result = runBlocking { lock.withReadLock { simulator.processPacket(ingressPort, payload) } }
+    val result = simulator.processPacket(ingressPort, payload)
 
     val outcomesJson =
       result.possibleOutcomes.joinToString(",") { world ->

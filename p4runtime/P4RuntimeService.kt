@@ -63,7 +63,12 @@ class P4RuntimeService(
   private val simulator: Simulator,
   private val broker: PacketBroker,
   private val constraintValidatorBinary: Path? = null,
-  private val lock: ReadWriteMutex = ReadWriteMutex(),
+  /**
+   * Serializes control-plane writes (Write RPC, SetForwardingPipelineConfig, hook updates).
+   * Data-plane reads are lock-free — they read from the published [TableStore.snapshot]. Shared
+   * with [PacketBroker] so that pre-packet hook updates are atomic with other writes.
+   */
+  private val writeMutex: Mutex = Mutex(),
   private val deviceId: Long = DEFAULT_DEVICE_ID,
   private val cpuPortConfig: CpuPortConfig = CpuPortConfig.Auto,
 ) : P4RuntimeGrpcKt.P4RuntimeCoroutineImplBase(), Closeable {
@@ -87,7 +92,7 @@ class P4RuntimeService(
   val typeTranslator: TypeTranslator?
     get() = pipeline?.typeTranslator
 
-  // Only accessed under lock; @Volatile not needed.
+  // Only accessed under writeMutex; @Volatile not needed.
   private var savedPipeline: PipelineState? = null
 
   // ---------------------------------------------------------------------------
@@ -125,7 +130,7 @@ class P4RuntimeService(
   override suspend fun setForwardingPipelineConfig(
     request: SetForwardingPipelineConfigRequest
   ): SetForwardingPipelineConfigResponse =
-    lock.withWriteLock {
+    writeMutex.withLock {
       requireDeviceId(request.deviceId)
       requirePrimaryOrNoArbitration(request.electionId, request.role)
       when (request.action) {
@@ -323,12 +328,13 @@ class P4RuntimeService(
   // ---------------------------------------------------------------------------
 
   /**
-   * Applies P4Runtime updates from the pre-packet hook. Called by [DataplaneService] while holding
-   * the write lock. Uses the default role (full access) since these are server-internal updates.
+   * Applies P4Runtime updates from the pre-packet hook. Called by [PacketBroker] while holding the
+   * [writeMutex]. Uses the default role (full access) since these are server-internal updates.
    */
   fun applyHookUpdates(updates: List<Update>) {
     val state = requirePipeline()
     writeAtomic(updates, state, roleName = "")
+    simulator.publishSnapshot()
   }
 
   /** Returns the P4Info from the loaded pipeline, or null if no pipeline is loaded. */
@@ -359,26 +365,30 @@ class P4RuntimeService(
   }
 
   override suspend fun write(request: WriteRequest): WriteResponse =
-    lock.withWriteLock {
+    writeMutex.withLock {
       requireDeviceId(request.deviceId)
       val state = requirePipeline()
       val roleName = request.role // empty = default role
       requirePrimaryOrNoArbitration(request.electionId, roleName)
-      when (request.atomicity) {
-        WriteRequest.Atomicity.CONTINUE_ON_ERROR ->
-          writeContinueOnError(request.updatesList, state, roleName)
-        WriteRequest.Atomicity.UNRECOGNIZED ->
-          throw Status.INVALID_ARGUMENT.withDescription(
-              "unrecognized write atomicity ${request.atomicityValue} " +
-                "(valid values: CONTINUE_ON_ERROR (1), ROLLBACK_ON_ERROR (2), DATAPLANE_ATOMIC (3))"
-            )
-            .asException()
-        // P4Runtime spec §12.2: ROLLBACK_ON_ERROR and DATAPLANE_ATOMIC both guarantee
-        // all-or-none semantics. DATAPLANE_ATOMIC additionally requires data-plane atomicity,
-        // which we get for free because the write lock serializes all operations.
-        WriteRequest.Atomicity.ROLLBACK_ON_ERROR,
-        WriteRequest.Atomicity.DATAPLANE_ATOMIC -> writeAtomic(request.updatesList, state, roleName)
-      }
+      val response =
+        when (request.atomicity) {
+          WriteRequest.Atomicity.CONTINUE_ON_ERROR ->
+            writeContinueOnError(request.updatesList, state, roleName)
+          WriteRequest.Atomicity.UNRECOGNIZED ->
+            throw Status.INVALID_ARGUMENT.withDescription(
+                "unrecognized write atomicity ${request.atomicityValue} " +
+                  "(valid values: CONTINUE_ON_ERROR (1), ROLLBACK_ON_ERROR (2), DATAPLANE_ATOMIC (3))"
+              )
+              .asException()
+          // P4Runtime spec §12.2: ROLLBACK_ON_ERROR and DATAPLANE_ATOMIC both guarantee
+          // all-or-none semantics. DATAPLANE_ATOMIC additionally requires data-plane atomicity,
+          // which we get for free because publishSnapshot() is an atomic pointer swap.
+          WriteRequest.Atomicity.ROLLBACK_ON_ERROR,
+          WriteRequest.Atomicity.DATAPLANE_ATOMIC ->
+            writeAtomic(request.updatesList, state, roleName)
+        }
+      simulator.publishSnapshot()
+      response
     }
 
   /**
@@ -432,13 +442,13 @@ class P4RuntimeService(
     state: PipelineState,
     roleName: String,
   ): WriteResponse {
-    val snapshot = simulator.snapshotWriteState()
+    val snapshot = simulator.snapshot()
     try {
       for (rawUpdate in updates) {
         processUpdate(rawUpdate, state, roleName)
       }
     } catch (e: StatusException) {
-      simulator.restoreWriteState(snapshot)
+      simulator.restore(snapshot)
       throw e
     }
     return WriteResponse.getDefaultInstance()
@@ -554,49 +564,48 @@ class P4RuntimeService(
   // ---------------------------------------------------------------------------
 
   override fun read(request: ReadRequest): Flow<ReadResponse> = flow {
-    // Acquire the lock for the entire read (pipeline check + read + translation)
-    // so the pipeline can't be swapped mid-read.
-    val response =
-      lock.withReadLock {
-        requireDeviceId(request.deviceId)
-        val state = requirePipeline()
-        val roleName = request.role // empty = default role
-        // Table entries are assembled by EntityReader (P4Runtime presentation layer);
-        // all other entity types are read directly from the simulator.
-        val entities =
-          request.entitiesList.flatMap { entity ->
-            rejectUnsupportedEntity(entity)
-            // For specific (non-wildcard) entities, check access upfront so the controller
-            // gets a clear PERMISSION_DENIED. For wildcards, results are filtered post-read.
-            requireEntityAccess(entity, state.roleMap, roleName)
-            try {
-              if (entity.hasTableEntry()) {
-                state.entityReader.readTableEntities(entity.tableEntry, simulator)
-              } else {
-                simulator.readEntries(listOf(entity))
-              }
-            } catch (e: IllegalStateException) {
-              throw Status.INTERNAL.withDescription("read failed: ${e.message}")
-                .withCause(e)
-                .asException()
+    // Reads are lock-free — they read from the published snapshot. A concurrent write may
+    // publish a new snapshot mid-read; the read sees a consistent state at each entity access.
+    val response = run {
+      requireDeviceId(request.deviceId)
+      val state = requirePipeline()
+      val roleName = request.role // empty = default role
+      // Table entries are assembled by EntityReader (P4Runtime presentation layer);
+      // all other entity types are read directly from the simulator.
+      val entities =
+        request.entitiesList.flatMap { entity ->
+          rejectUnsupportedEntity(entity)
+          // For specific (non-wildcard) entities, check access upfront so the controller
+          // gets a clear PERMISSION_DENIED. For wildcards, results are filtered post-read.
+          requireEntityAccess(entity, state.roleMap, roleName)
+          try {
+            if (entity.hasTableEntry()) {
+              state.entityReader.readTableEntities(entity.tableEntry, simulator)
+            } else {
+              simulator.readEntries(listOf(entity))
             }
+          } catch (e: IllegalStateException) {
+            throw Status.INTERNAL.withDescription("read failed: ${e.message}")
+              .withCause(e)
+              .asException()
           }
-        // Filter results by role for named-role controllers. This handles wildcard reads
-        // (where the request entity doesn't carry a specific ID) by returning only entities
-        // the controller's role can access.
-        val filtered =
-          if (roleName.isNotEmpty()) filterByRole(entities, state.roleMap, roleName) else entities
-        if (filtered.isNotEmpty()) {
-          val translator = state.typeTranslator?.takeIf { it.hasTranslations }
-          if (translator != null) {
-            filtered.map { translator.translateForRead(it) }
-          } else {
-            filtered
-          }
-        } else {
-          null
         }
+      // Filter results by role for named-role controllers. This handles wildcard reads
+      // (where the request entity doesn't carry a specific ID) by returning only entities
+      // the controller's role can access.
+      val filtered =
+        if (roleName.isNotEmpty()) filterByRole(entities, state.roleMap, roleName) else entities
+      if (filtered.isNotEmpty()) {
+        val translator = state.typeTranslator?.takeIf { it.hasTranslations }
+        if (translator != null) {
+          filtered.map { translator.translateForRead(it) }
+        } else {
+          filtered
+        }
+      } else {
+        null
       }
+    }
     if (response != null) {
       emit(ReadResponse.newBuilder().addAllEntities(response).build())
     }

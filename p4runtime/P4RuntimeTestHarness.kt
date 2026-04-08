@@ -58,14 +58,14 @@ class P4RuntimeTestHarness(
 
   private val serverName = InProcessServerBuilder.generateName()
   private val simulator = Simulator(dropPortOverride)
-  private val lock = ReadWriteMutex()
-  private val broker = PacketBroker(simulator::processPacket, lock)
+  private val writeMutex = kotlinx.coroutines.sync.Mutex()
+  private val broker = PacketBroker(simulator::processPacket, writeMutex)
   private val service =
     P4RuntimeService(
       simulator,
       broker,
       constraintValidatorBinary,
-      lock,
+      writeMutex = writeMutex,
       cpuPortConfig = cpuPortConfig,
     )
   private val dataplaneService =
