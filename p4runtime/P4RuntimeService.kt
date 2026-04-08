@@ -641,7 +641,7 @@ class P4RuntimeService(
           when {
             msg.hasArbitration() ->
               send(handleArbitration(streamId, msg.arbitration, notifications))
-            msg.hasPacket() -> lock.withReadLock { handlePacketOut(msg.packet) }
+            msg.hasPacket() -> handlePacketOut(msg.packet)
             msg.hasDigestAck() ->
               throw Status.UNIMPLEMENTED.withDescription(DIGEST_NOT_SUPPORTED).asException()
             // P4Runtime spec §16: unrecognized stream messages get an error response.
@@ -668,7 +668,7 @@ class P4RuntimeService(
   /**
    * Processes a PacketOut: translates metadata, serializes the packet header, and runs the packet
    * through the broker. PacketIn delivery is handled by the broker subscription in [streamChannel],
-   * not here. Must be called under [lock].
+   * not here. The broker handles locking and the pre-packet hook.
    */
   private fun handlePacketOut(packet: p4.v1.P4RuntimeOuterClass.PacketOut) {
     val state = pipeline ?: return

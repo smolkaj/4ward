@@ -360,4 +360,45 @@ class DataplaneServiceTest {
 
     hookJob.cancel()
   }
+
+  @Test
+  fun `pre-packet hook fires before PacketOut`() = runBlocking {
+    harness.loadPipeline(loadPassthroughConfig())
+    val dataplaneStub = DataplaneCoroutineStub(harness.channel)
+
+    val invocationsReceived =
+      kotlinx.coroutines.channels.Channel<
+        fourward.dataplane.DataplaneProto.PrePacketHookInvocation
+      >(
+        10
+      )
+    val responseChannel =
+      kotlinx.coroutines.channels.Channel<fourward.dataplane.DataplaneProto.PrePacketHookResponse>(
+        UNLIMITED
+      )
+
+    val hookJob =
+      async(Dispatchers.IO) {
+        dataplaneStub.registerPrePacketHook(responseChannel.consumeAsFlow()).collect { invocation ->
+          invocationsReceived.send(invocation)
+          responseChannel.send(
+            fourward.dataplane.DataplaneProto.PrePacketHookResponse.getDefaultInstance()
+          )
+        }
+      }
+
+    delay(200) // Let the hook register.
+
+    // Send a PacketOut via P4Runtime StreamChannel — the hook must fire.
+    val stream = harness.openStream()
+    stream.arbitrate()
+    val packet = buildEthernetFrame(42)
+    stream.sendPacket(packet, ingressPort = 0, timeoutMs = 100)
+
+    // Verify the hook was invoked. withTimeout throws if no invocation arrives.
+    withTimeout(5000) { invocationsReceived.receive() }
+
+    hookJob.cancel()
+    stream.close()
+  }
 }

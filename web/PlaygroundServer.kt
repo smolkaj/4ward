@@ -28,9 +28,12 @@ fun main(args: Array<String>) {
 
   val simulator = Simulator(dropPort)
   val lock = ReadWriteMutex()
-  val broker = PacketBroker(simulator::processPacket)
+  val broker = PacketBroker(simulator::processPacket, lock)
   val service = P4RuntimeService(simulator, broker, lock = lock, cpuPortConfig = cpuPortConfig)
-  val dataplaneService = DataplaneService(broker, lock) { service.typeTranslator }
+  val dataplaneService = DataplaneService(broker, typeTranslator = { service.typeTranslator })
+  broker.readAllEntities = { service.readAllEntities() }
+  broker.readP4Info = { service.p4Info() }
+  broker.applyUpdates = { updates -> service.applyHookUpdates(updates) }
 
   // Start gRPC server.
   val grpcServer =
