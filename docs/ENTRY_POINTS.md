@@ -116,7 +116,7 @@ fun `basic table forwarding`() {
 
 **When to use:** Automated conformance and regression testing. Every feature in
 4ward has an STF test that exercises it. The STF runner is also used for
-corpus-level bulk testing (200+ tests from p4c's own suite) and differential
+corpus-level bulk testing (87 tests from p4c's own suite) and differential
 testing against BMv2.
 
 ## P4Runtime test harness

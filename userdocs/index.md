@@ -48,7 +48,7 @@ all possible outcomes in a single pass.
 - A spec-compliant **[P4Runtime](https://p4lang.github.io/p4runtime/spec/v1.5.0/P4Runtime-Spec.html) server** provides full
   arbitration, table management, PacketIO, and clone/multicast support.
 - **Actionable error messages** tell you what went wrong, show the value you
-  sent, and list the valid options — all 74 error paths are golden-tested.
+  sent, and list the valid options — all 75 error paths are golden-tested.
   [Learn more](reference/errors.md).
 - **Type translation** lets `@p4runtime_translation` types (string port names,
   translated IDs) flow through the entire stack, including traces.
