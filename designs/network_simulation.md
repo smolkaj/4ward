@@ -98,41 +98,40 @@ through the network until it either exits on an edge port, is dropped, or
 exceeds the hop limit:
 
 ```
-processPacket(switch_id, ingress_port, payload):
-    pending = [(switch_id, ingress_port, payload, hop_count=0)]
+processPacket(switch_id, ingress_port, payload) -> NetworkHop:
+    return processHop(switch_id, ingress_port, payload, hop_count=0)
+
+processHop(switch_id, ingress_port, payload, hop_count) -> NetworkHop:
+    if hop_count > MAX_HOP_COUNT:
+        error("routing loop")
+
+    result = simulators[switch_id].processPacket(ingress_port, payload)
+
     edge_outputs = []
+    next_hops = []
+    for output in result.outputs:
+        link = topology.lookup(switch_id, output.port)
+        if link exists:
+            // Internal link — follow the packet recursively.
+            next_hops.append(
+                processHop(link.dst_switch, link.dst_port,
+                           output.payload, hop_count + 1))
+        else:
+            // Edge port — packet leaves the network.
+            edge_outputs.append(EdgeOutput(switch_id, output.port,
+                                           output.payload))
 
-    while pending is not empty:
-        (sw, port, pkt, hops) = pending.pop()     // FIFO
-
-        if hops > MAX_HOP_COUNT:
-            record drop (loop detected)
-            continue
-
-        result = simulators[sw].processPacket(port, pkt)
-
-        for output in result.outputs:
-            link = topology.lookup(sw, output.port)
-            if link exists:
-                // Internal link — forward to connected switch.
-                pending.append((link.dst_switch, link.dst_port,
-                                output.payload, hops + 1))
-            else:
-                // Edge port — packet leaves the network.
-                edge_outputs.append((sw, output.port, output.payload))
-
-    return edge_outputs
+    return NetworkHop(switch_id, ingress_port, payload,
+                      result.trace, edge_outputs, next_hops)
 ```
 
 Key properties:
 
-- **FIFO within a switch.** Outputs from one `processPacket` call are enqueued
-  in order. This matches the single-switch guarantee.
-
-- **Breadth-first across switches.** All outputs from switch A are forwarded
-  before processing any outputs from switch B (within one generation).
-  This is a deterministic scheduling policy — any deterministic policy would
-  work, but BFS is easy to reason about.
+- **Recursive depth-first traversal.** Each output that crosses an internal
+  link is followed immediately, building the `NetworkHop` tree naturally. Since
+  delivery is instant and switches have no shared mutable state, traversal
+  order does not affect results — any deterministic policy produces the same
+  output. DFS is the natural fit for building a tree.
 
 - **Hop limit.** `MAX_HOP_COUNT` (e.g., 64) prevents infinite loops from
   routing misconfigurations. When exceeded, the packet is dropped and the

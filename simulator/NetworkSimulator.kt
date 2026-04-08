@@ -56,9 +56,7 @@ class NetworkSimulator(private val topology: NetworkTopology) {
     payload: ByteArray,
     hopCount: Int,
   ): NetworkHop {
-    check(hopCount <= MAX_HOP_COUNT) {
-      "hop limit ($MAX_HOP_COUNT) exceeded — routing loop?"
-    }
+    check(hopCount <= MAX_HOP_COUNT) { "hop limit ($MAX_HOP_COUNT) exceeded — routing loop?" }
 
     val sim = checkNotNull(simulators[switchId]) { "unknown switch: '$switchId'" }
     val result = sim.processPacket(ingressPort, payload)

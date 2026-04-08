@@ -22,14 +22,12 @@ import org.junit.Test
  *   (edge)       (link)       (link)      (edge)
  * ```
  *
- * Both switches run basic_table.p4. s1 forwards etherType 0x0800 to port 1 (toward s2). s2
- * forwards etherType 0x0800 to port 2 (edge). A packet injected at s1:0 should exit at s2:2.
+ * Both switches run basic_table.p4. s1 forwards etherType 0x0800 to port 1 (toward s2). s2 forwards
+ * etherType 0x0800 to port 2 (edge). A packet injected at s1:0 should exit at s2:2.
  */
 class NetworkSimulatorTest {
 
-  private val config by lazy {
-    loadPipelineConfig(runfilePath(CONFIG_PKG, "basic_table.txtpb"))
-  }
+  private val config by lazy { loadPipelineConfig(runfilePath(CONFIG_PKG, "basic_table.txtpb")) }
 
   private fun loadSwitch(network: NetworkSimulator, id: String, stfFile: String) {
     val sim = network.addSwitch(id)
