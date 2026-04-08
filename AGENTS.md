@@ -32,6 +32,15 @@ you want before you write the code. If you can't write a clear test, you
 don't understand the problem yet. A failing test is the starting point for
 every change, not an afterthought.
 
+## Walking skeleton first
+
+Build a minimal end-to-end slice through the entire system before filling in
+any one layer. Get an ugly-but-working pipeline — compiling, wiring, passing
+one trivial test — before polishing internals. This forces integration
+problems to surface immediately, when they're cheap to fix, instead of at
+the end when everything is "done" but nothing works together. Depth comes
+second; connectivity comes first.
+
 ## Code style
 
 Write self-explanatory code. Add a comment when the code deviates from the
