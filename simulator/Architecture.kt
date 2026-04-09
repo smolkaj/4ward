@@ -1,8 +1,8 @@
 package fourward.simulator
 
 import fourward.ir.BehavioralConfig
-import fourward.sim.SimulatorProto.OutputPacket
-import fourward.sim.SimulatorProto.TraceTree
+import fourward.sim.OutputPacket
+import fourward.sim.TraceTree
 
 /**
  * Interface for architecture-specific pipeline behaviour.

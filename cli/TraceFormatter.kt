@@ -1,8 +1,8 @@
 package fourward.cli
 
-import fourward.sim.SimulatorProto.DropReason
-import fourward.sim.SimulatorProto.TraceEvent
-import fourward.sim.SimulatorProto.TraceTree
+import fourward.sim.DropReason
+import fourward.sim.TraceEvent
+import fourward.sim.TraceTree
 
 /** Renders a [TraceTree] as a human-readable indented string. */
 object TraceFormatter {
@@ -93,6 +93,6 @@ object TraceFormatter {
       else -> "unknown"
     }
 
-  private fun fourward.sim.SimulatorProto.ForkReason.humanName(): String =
+  private fun fourward.sim.ForkReason.humanName(): String =
     name.removePrefix("ACTION_").lowercase().replace('_', ' ')
 }

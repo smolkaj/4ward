@@ -1,8 +1,9 @@
 package fourward.p4runtime
 
-import fourward.dataplane.DataplaneProto
-import fourward.sim.SimulatorProto.OutputPacket
-import fourward.sim.SimulatorProto.TraceTree
+import fourward.dataplane.PrePacketHookInvocation
+import fourward.dataplane.PrePacketHookResponse
+import fourward.sim.OutputPacket
+import fourward.sim.TraceTree
 import fourward.simulator.ProcessPacketResult
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.channels.Channel
@@ -119,8 +120,8 @@ class PacketBrokerTest {
    */
   private fun registerAutoRespondHook(broker: PacketBroker): AtomicInteger {
     val hookCount = AtomicInteger(0)
-    val invocations = Channel<DataplaneProto.PrePacketHookInvocation>(Channel.UNLIMITED)
-    val responses = Channel<DataplaneProto.PrePacketHookResponse>(Channel.UNLIMITED)
+    val invocations = Channel<PrePacketHookInvocation>(Channel.UNLIMITED)
+    val responses = Channel<PrePacketHookResponse>(Channel.UNLIMITED)
     assertTrue(broker.registerHook(PacketBroker.Hook(invocations, responses)))
 
     // Background: drain invocations and auto-respond.
@@ -128,7 +129,7 @@ class PacketBrokerTest {
         runBlocking {
           for (invocation in invocations) {
             hookCount.incrementAndGet()
-            responses.send(DataplaneProto.PrePacketHookResponse.getDefaultInstance())
+            responses.send(PrePacketHookResponse.getDefaultInstance())
           }
         }
       }
@@ -227,8 +228,8 @@ class PacketBrokerTest {
     val appliedUpdates = mutableListOf<p4.v1.P4RuntimeOuterClass.Update>()
     broker.applyUpdates = { updates -> appliedUpdates.addAll(updates) }
 
-    val invocations = Channel<DataplaneProto.PrePacketHookInvocation>(Channel.UNLIMITED)
-    val responses = Channel<DataplaneProto.PrePacketHookResponse>(Channel.UNLIMITED)
+    val invocations = Channel<PrePacketHookInvocation>(Channel.UNLIMITED)
+    val responses = Channel<PrePacketHookResponse>(Channel.UNLIMITED)
     broker.registerHook(PacketBroker.Hook(invocations, responses))
 
     // Respond with one update.
@@ -239,9 +240,7 @@ class PacketBrokerTest {
     Thread {
         runBlocking {
           invocations.receive()
-          responses.send(
-            DataplaneProto.PrePacketHookResponse.newBuilder().addUpdates(update).build()
-          )
+          responses.send(PrePacketHookResponse.newBuilder().addUpdates(update).build())
         }
       }
       .apply {

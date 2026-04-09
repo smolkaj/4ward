@@ -1,8 +1,9 @@
 package fourward.p4runtime
 
-import fourward.dataplane.DataplaneProto
-import fourward.sim.SimulatorProto.OutputPacket
-import fourward.sim.SimulatorProto.TraceTree
+import fourward.dataplane.PrePacketHookInvocation
+import fourward.dataplane.PrePacketHookResponse
+import fourward.sim.OutputPacket
+import fourward.sim.TraceTree
 import fourward.simulator.ProcessPacketResult
 import java.util.concurrent.atomic.AtomicReference
 import java.util.logging.Level
@@ -41,8 +42,8 @@ class PacketBroker(
    * responses.
    */
   data class Hook(
-    val invocations: Channel<DataplaneProto.PrePacketHookInvocation>,
-    val responses: Channel<DataplaneProto.PrePacketHookResponse>,
+    val invocations: Channel<PrePacketHookInvocation>,
+    val responses: Channel<PrePacketHookResponse>,
   )
 
   private val hook = AtomicReference<Hook?>(null)
@@ -76,7 +77,7 @@ class PacketBroker(
     val h = hook.get() ?: return
     runBlocking {
       val invocation =
-        DataplaneProto.PrePacketHookInvocation.newBuilder()
+        PrePacketHookInvocation.newBuilder()
           .addAllEntities(readAllEntities())
           .apply { readP4Info()?.let { setP4Info(it) } }
           .build()

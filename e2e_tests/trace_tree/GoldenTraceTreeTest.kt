@@ -6,7 +6,7 @@ import fourward.e2e.assertMatchesGoldenFile
 import fourward.e2e.installStfEntries
 import fourward.e2e.loadPipelineConfig
 import fourward.e2e.runfilePath
-import fourward.sim.SimulatorProto.TraceTree
+import fourward.sim.TraceTree
 import fourward.simulator.Simulator
 import java.nio.file.Path
 import org.junit.Test

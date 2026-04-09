@@ -2,7 +2,7 @@ package fourward.p4runtime
 
 import com.google.protobuf.ByteString
 import fourward.dataplane.DataplaneGrpcKt.DataplaneCoroutineStub
-import fourward.dataplane.DataplaneProto.SubscribeResultsRequest
+import fourward.dataplane.SubscribeResultsRequest
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.assertGrpcError
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildEthernetFrame
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildExactEntry
@@ -272,24 +272,16 @@ class DataplaneServiceTest {
     val dataplaneStub = DataplaneCoroutineStub(harness.channel)
 
     val invocationsReceived =
-      kotlinx.coroutines.channels.Channel<
-        fourward.dataplane.DataplaneProto.PrePacketHookInvocation
-      >(
-        10
-      )
+      kotlinx.coroutines.channels.Channel<fourward.dataplane.PrePacketHookInvocation>(10)
     val responseChannel =
-      kotlinx.coroutines.channels.Channel<fourward.dataplane.DataplaneProto.PrePacketHookResponse>(
-        UNLIMITED
-      )
+      kotlinx.coroutines.channels.Channel<fourward.dataplane.PrePacketHookResponse>(UNLIMITED)
 
     // Register the hook — collect invocations and send responses.
     val hookJob =
       async(Dispatchers.IO) {
         dataplaneStub.registerPrePacketHook(responseChannel.consumeAsFlow()).collect { invocation ->
           invocationsReceived.send(invocation)
-          responseChannel.send(
-            fourward.dataplane.DataplaneProto.PrePacketHookResponse.getDefaultInstance()
-          )
+          responseChannel.send(fourward.dataplane.PrePacketHookResponse.getDefaultInstance())
         }
       }
 
@@ -298,7 +290,7 @@ class DataplaneServiceTest {
     // Inject a packet — the hook should fire first.
     val packet = buildEthernetFrame(42)
     dataplaneStub.injectPacket(
-      fourward.dataplane.DataplaneProto.InjectPacketRequest.newBuilder()
+      fourward.dataplane.InjectPacketRequest.newBuilder()
         .setDataplaneIngressPort(0)
         .setPayload(ByteString.copyFrom(packet))
         .build()
@@ -322,23 +314,15 @@ class DataplaneServiceTest {
 
     val dataplaneStub = DataplaneCoroutineStub(harness.channel)
     val invocationsReceived =
-      kotlinx.coroutines.channels.Channel<
-        fourward.dataplane.DataplaneProto.PrePacketHookInvocation
-      >(
-        10
-      )
+      kotlinx.coroutines.channels.Channel<fourward.dataplane.PrePacketHookInvocation>(10)
     val responseChannel =
-      kotlinx.coroutines.channels.Channel<fourward.dataplane.DataplaneProto.PrePacketHookResponse>(
-        UNLIMITED
-      )
+      kotlinx.coroutines.channels.Channel<fourward.dataplane.PrePacketHookResponse>(UNLIMITED)
 
     val hookJob =
       async(Dispatchers.IO) {
         dataplaneStub.registerPrePacketHook(responseChannel.consumeAsFlow()).collect { invocation ->
           invocationsReceived.send(invocation)
-          responseChannel.send(
-            fourward.dataplane.DataplaneProto.PrePacketHookResponse.getDefaultInstance()
-          )
+          responseChannel.send(fourward.dataplane.PrePacketHookResponse.getDefaultInstance())
         }
       }
 
@@ -346,7 +330,7 @@ class DataplaneServiceTest {
 
     val packet = buildEthernetFrame(42)
     dataplaneStub.injectPacket(
-      fourward.dataplane.DataplaneProto.InjectPacketRequest.newBuilder()
+      fourward.dataplane.InjectPacketRequest.newBuilder()
         .setDataplaneIngressPort(0)
         .setPayload(ByteString.copyFrom(packet))
         .build()
@@ -367,23 +351,15 @@ class DataplaneServiceTest {
     val dataplaneStub = DataplaneCoroutineStub(harness.channel)
 
     val invocationsReceived =
-      kotlinx.coroutines.channels.Channel<
-        fourward.dataplane.DataplaneProto.PrePacketHookInvocation
-      >(
-        10
-      )
+      kotlinx.coroutines.channels.Channel<fourward.dataplane.PrePacketHookInvocation>(10)
     val responseChannel =
-      kotlinx.coroutines.channels.Channel<fourward.dataplane.DataplaneProto.PrePacketHookResponse>(
-        UNLIMITED
-      )
+      kotlinx.coroutines.channels.Channel<fourward.dataplane.PrePacketHookResponse>(UNLIMITED)
 
     val hookJob =
       async(Dispatchers.IO) {
         dataplaneStub.registerPrePacketHook(responseChannel.consumeAsFlow()).collect { invocation ->
           invocationsReceived.send(invocation)
-          responseChannel.send(
-            fourward.dataplane.DataplaneProto.PrePacketHookResponse.getDefaultInstance()
-          )
+          responseChannel.send(fourward.dataplane.PrePacketHookResponse.getDefaultInstance())
         }
       }
 

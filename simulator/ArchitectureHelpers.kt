@@ -4,8 +4,8 @@ import fourward.ir.BehavioralConfig
 import fourward.ir.ExternInstanceDecl
 import fourward.ir.PipelineStage
 import fourward.ir.TypeDecl
-import fourward.sim.SimulatorProto.PipelineStageEvent
-import fourward.sim.SimulatorProto.TraceTree
+import fourward.sim.PipelineStageEvent
+import fourward.sim.TraceTree
 import java.math.BigInteger
 
 /** Simplified parameter descriptor: just name and type. */
@@ -147,16 +147,12 @@ internal fun handleActionSelectorFork(
       val stripped = TraceTree.newBuilder().addAllEvents(subtree.eventsList.drop(prefixLength))
       if (subtree.hasPacketOutcome()) stripped.setPacketOutcome(subtree.packetOutcome)
       if (subtree.hasForkOutcome()) stripped.setForkOutcome(subtree.forkOutcome)
-      fourward.sim.SimulatorProto.ForkBranch.newBuilder()
+      fourward.sim.ForkBranch.newBuilder()
         .setLabel("member_${member.memberId}")
         .setSubtree(stripped.build())
         .build()
     }
-  return buildForkTree(
-    fork.eventsBeforeFork,
-    fourward.sim.SimulatorProto.ForkReason.ACTION_SELECTOR,
-    branches,
-  )
+  return buildForkTree(fork.eventsBeforeFork, fourward.sim.ForkReason.ACTION_SELECTOR, branches)
 }
 
 /**

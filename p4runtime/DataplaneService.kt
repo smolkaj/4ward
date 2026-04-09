@@ -2,14 +2,19 @@ package fourward.p4runtime
 
 import com.google.protobuf.ByteString
 import fourward.dataplane.DataplaneGrpcKt
-import fourward.dataplane.DataplaneProto
-import fourward.dataplane.DataplaneProto.InjectPacketRequest
-import fourward.dataplane.DataplaneProto.InjectPacketResponse
-import fourward.dataplane.DataplaneProto.ProcessPacketResult as ProcessPacketResultProto
-import fourward.dataplane.DataplaneProto.SubscribeResultsRequest
-import fourward.dataplane.DataplaneProto.SubscribeResultsResponse
-import fourward.dataplane.DataplaneProto.SubscriptionActive
-import fourward.sim.SimulatorProto.TraceTree
+import fourward.dataplane.InjectPacketRequest
+import fourward.dataplane.InjectPacketResponse
+import fourward.dataplane.InjectPacketsResponse
+import fourward.dataplane.InputPacket
+import fourward.dataplane.OutputPacket
+import fourward.dataplane.PacketSet
+import fourward.dataplane.PrePacketHookInvocation
+import fourward.dataplane.PrePacketHookResponse
+import fourward.dataplane.ProcessPacketResult as ProcessPacketResultProto
+import fourward.dataplane.SubscribeResultsRequest
+import fourward.dataplane.SubscribeResultsResponse
+import fourward.dataplane.SubscriptionActive
+import fourward.sim.TraceTree
 import io.grpc.Status
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
@@ -42,9 +47,7 @@ class DataplaneService(
     try {
       val possibleOutcomes =
         result.possibleOutcomes.map { world ->
-          DataplaneProto.PacketSet.newBuilder()
-            .addAllPackets(world.map { it.toDualEncoded(pt) })
-            .build()
+          PacketSet.newBuilder().addAllPackets(world.map { it.toDualEncoded(pt) }).build()
         }
       return InjectPacketResponse.newBuilder()
         .addAllPossibleOutcomes(possibleOutcomes)
@@ -55,9 +58,7 @@ class DataplaneService(
     }
   }
 
-  override suspend fun injectPackets(
-    requests: Flow<InjectPacketRequest>
-  ): DataplaneProto.InjectPacketsResponse {
+  override suspend fun injectPackets(requests: Flow<InjectPacketRequest>): InjectPacketsResponse {
     val pt = typeTranslator()?.portTranslator
     broker.withHookOnce { processPacket ->
       val futures = mutableListOf<java.util.concurrent.ForkJoinTask<*>>()
@@ -72,7 +73,7 @@ class DataplaneService(
       }
       futures.forEach { it.join() }
     }
-    return DataplaneProto.InjectPacketsResponse.getDefaultInstance()
+    return InjectPacketsResponse.getDefaultInstance()
   }
 
   override fun subscribeResults(request: SubscribeResultsRequest): Flow<SubscribeResultsResponse> =
@@ -91,7 +92,7 @@ class DataplaneService(
             val result =
               ProcessPacketResultProto.newBuilder()
                 .setInputPacket(
-                  DataplaneProto.InputPacket.newBuilder()
+                  InputPacket.newBuilder()
                     .setDataplaneIngressPort(subResult.ingressPort)
                     .apply {
                       // Ingress ports may come from InjectPacket.dataplane_ingress_port (raw int,
@@ -102,9 +103,7 @@ class DataplaneService(
                 )
                 .addAllPossibleOutcomes(
                   subResult.possibleOutcomes.map { world ->
-                    DataplaneProto.PacketSet.newBuilder()
-                      .addAllPackets(world.map { it.toDualEncoded(pt) })
-                      .build()
+                    PacketSet.newBuilder().addAllPackets(world.map { it.toDualEncoded(pt) }).build()
                   }
                 )
                 .setTrace(enrichTrace(subResult.trace, translator))
@@ -122,10 +121,10 @@ class DataplaneService(
     }
 
   override fun registerPrePacketHook(
-    requests: Flow<DataplaneProto.PrePacketHookResponse>
-  ): Flow<DataplaneProto.PrePacketHookInvocation> = callbackFlow {
-    val invocations = Channel<DataplaneProto.PrePacketHookInvocation>(Channel.RENDEZVOUS)
-    val responses = Channel<DataplaneProto.PrePacketHookResponse>(Channel.RENDEZVOUS)
+    requests: Flow<PrePacketHookResponse>
+  ): Flow<PrePacketHookInvocation> = callbackFlow {
+    val invocations = Channel<PrePacketHookInvocation>(Channel.RENDEZVOUS)
+    val responses = Channel<PrePacketHookResponse>(Channel.RENDEZVOUS)
     val newHook = PacketBroker.Hook(invocations, responses)
 
     if (!broker.registerHook(newHook)) {
@@ -172,18 +171,15 @@ private fun enrichTrace(trace: TraceTree, translator: TypeTranslator?): TraceTre
   translator?.let { TraceEnricher.enrich(trace, it) } ?: trace
 
 /**
- * Converts a simulator [fourward.sim.SimulatorProto.OutputPacket] to a dual-encoded
- * [DataplaneProto.OutputPacket].
+ * Converts a simulator [fourward.sim.OutputPacket] to a dual-encoded [OutputPacket].
  *
  * When a [PortTranslator] is present, every egress port must be reverse-translatable — either
  * forward-allocated by a controller Write or installed via `Replica.port` (bytes). A missing
  * mapping means the clone session or multicast group used the deprecated `Replica.egress_port`
  * (int32), which bypasses port translation.
  */
-private fun fourward.sim.SimulatorProto.OutputPacket.toDualEncoded(
-  pt: PortTranslator?
-): DataplaneProto.OutputPacket =
-  DataplaneProto.OutputPacket.newBuilder()
+private fun fourward.sim.OutputPacket.toDualEncoded(pt: PortTranslator?): OutputPacket =
+  OutputPacket.newBuilder()
     .setDataplaneEgressPort(dataplaneEgressPort)
     .apply {
       if (pt != null) {

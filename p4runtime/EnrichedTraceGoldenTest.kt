@@ -6,7 +6,7 @@ import fourward.ir.PipelineConfig
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildEthernetFrame
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.loadConfig
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.longToBytes
-import fourward.sim.SimulatorProto.TraceTree
+import fourward.sim.TraceTree
 import java.nio.file.Paths
 import org.junit.After
 import org.junit.Assert.fail
