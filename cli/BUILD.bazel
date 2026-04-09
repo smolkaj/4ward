@@ -64,6 +64,7 @@ kt_jvm_test(
         "//e2e_tests/network:s2.stf",
         "//e2e_tests/network:two_switch.nstf",
         "//e2e_tests/network:two_switch_fail.nstf",
+        "//e2e_tests/network:two_switch_inline.nstf",
     ],
     test_class = "fourward.cli.NetworkSimCliTest",
     deps = [

@@ -15,6 +15,13 @@ class NetworkSimCliTest {
   }
 
   @Test
+  fun `inline table entries work`() {
+    val nstfPath = runfilePath(PKG, "two_switch_inline.nstf")
+    val exitCode = networkSim(nstfPath, OutputFormat.HUMAN)
+    assertEquals("expected PASS", ExitCode.SUCCESS, exitCode)
+  }
+
+  @Test
   fun `wrong expectation fails`() {
     val nstfPath = runfilePath(PKG, "two_switch_fail.nstf")
     val exitCode = networkSim(nstfPath, OutputFormat.HUMAN)
