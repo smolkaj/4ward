@@ -756,9 +756,7 @@ private fun resolveStfMatchField(
       }
       ?: run {
         val available = table.matchFieldsList.map { it.name }.sorted().joinToString(", ")
-        error(
-          "unknown match field '${m.fieldName}' " + "in table '$tableName' (available: $available)"
-        )
+        error("unknown match field '${m.fieldName}' in table '$tableName' (available: $available)")
       }
   val fmBuilder = P4RuntimeOuterClass.FieldMatch.newBuilder().setFieldId(mf.id)
   val encodedValue = encodeValue(m.value, mf.bitwidth)

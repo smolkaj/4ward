@@ -1450,11 +1450,13 @@ class TableStore : TableDataReader {
     return LookupResult(true, entry, resolveActionName(entry.action.action.actionId))
   }
 
-  private fun formatOptions(options: List<String>, limit: Int = MAX_DISPLAYED_OPTIONS): String =
+  private fun formatOptions(options: List<String>): String =
     when {
       options.isEmpty() -> "none"
-      options.size <= limit -> options.joinToString(", ")
-      else -> options.take(limit).joinToString(", ") + " ... and ${options.size - limit} more"
+      options.size <= MAX_DISPLAYED_OPTIONS -> options.joinToString(", ")
+      else ->
+        options.take(MAX_DISPLAYED_OPTIONS).joinToString(", ") +
+          " ... and ${options.size - MAX_DISPLAYED_OPTIONS} more"
     }
 
   private fun resolveActionName(actionId: Int): String =
