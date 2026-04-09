@@ -15,8 +15,8 @@ import java.nio.file.Path
  * configs and table entries from the .nstf), prints a port map, and blocks until shutdown.
  * Controllers connect to individual switches via standard P4Runtime RPCs.
  *
- * Each switch operates independently — cross-switch packet forwarding is not wired through P4Runtime
- * in this version. Use `4ward network <test.nstf>` for cross-switch simulation.
+ * Each switch operates independently — cross-switch packet forwarding is not wired through
+ * P4Runtime in this version. Use `4ward network <test.nstf>` for cross-switch simulation.
  */
 fun networkServe(nstfPath: Path, basePort: Int): Int {
   val nstf =
@@ -59,7 +59,8 @@ fun startNetworkServers(nstf: NetworkStf, basePort: Int): List<P4RuntimeServer> 
   val servers = mutableListOf<P4RuntimeServer>()
 
   for ((idx, sw) in nstf.switches.withIndex()) {
-    val port = basePort + idx
+    // Port 0 = ephemeral (each server gets its own OS-assigned port).
+    val port = if (basePort == 0) 0 else basePort + idx
     val server = P4RuntimeServer(port = port, deviceId = idx.toLong() + 1)
 
     try {

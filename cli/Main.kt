@@ -125,7 +125,6 @@ private fun handleNetwork(args: List<String>): Int {
     return ExitCode.SUCCESS
   }
 
-  // Dispatch to "serve" subcommand if present.
   if (args.isNotEmpty() && args[0] == "serve") return handleNetworkServe(args.drop(1))
 
   var format = OutputFormat.HUMAN
