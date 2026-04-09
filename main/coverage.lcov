@@ -5870,7 +5870,7 @@ FNDA:1,fourward/simulator/NetworkHop::getIngressPort ()I
 FN:120,fourward/simulator/NetworkHop::getIngressPayload ()Lcom/google/protobuf/ByteString;
 FNDA:0,fourward/simulator/NetworkHop::getIngressPayload ()Lcom/google/protobuf/ByteString;
 FN:121,fourward/simulator/NetworkHop::getTrace ()Lfourward/sim/TraceTree;
-FNDA:0,fourward/simulator/NetworkHop::getTrace ()Lfourward/sim/TraceTree;
+FNDA:1,fourward/simulator/NetworkHop::getTrace ()Lfourward/sim/TraceTree;
 FN:122,fourward/simulator/NetworkHop::getEdgeOutputs ()Ljava/util/List;
 FNDA:1,fourward/simulator/NetworkHop::getEdgeOutputs ()Ljava/util/List;
 FN:123,fourward/simulator/NetworkHop::getNextHops ()Ljava/util/List;
