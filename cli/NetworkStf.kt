@@ -1,5 +1,7 @@
 package fourward.cli
 
+import fourward.e2e.decodeHex
+import fourward.simulator.Endpoint
 import java.nio.file.Path
 
 /**
@@ -22,15 +24,22 @@ data class NetworkStf(
   val expects: List<NetworkExpect>,
 ) {
   data class SwitchDecl(val id: String, val pipelinePath: Path, val stfPath: Path)
-  data class LinkDecl(val switchA: String, val portA: Int, val switchB: String, val portB: Int)
-  data class NetworkPacket(val switchId: String, val port: Int, val payload: ByteArray)
-  data class NetworkExpect(val switchId: String, val port: Int, val payload: ByteArray)
+
+  data class LinkDecl(val a: Endpoint, val b: Endpoint)
+
+  data class NetworkPacket(val endpoint: Endpoint, val payload: ByteArray)
+
+  data class NetworkExpect(val endpoint: Endpoint, val payload: ByteArray)
 
   companion object {
     fun parse(path: Path): NetworkStf {
       val dir = path.parent ?: Path.of(".")
       val lines =
-        path.toFile().readLines().map { it.trim() }.filter { it.isNotEmpty() && !it.startsWith("#") }
+        path
+          .toFile()
+          .readLines()
+          .map { it.trim() }
+          .filter { it.isNotEmpty() && !it.startsWith("#") }
 
       val switches = mutableListOf<SwitchDecl>()
       val links = mutableListOf<LinkDecl>()
@@ -45,20 +54,30 @@ data class NetworkStf(
             switches.add(SwitchDecl(tokens[1], dir.resolve(tokens[2]), dir.resolve(tokens[3])))
           }
           "link" -> {
-            require(tokens.size == 3) { "line ${lineNum + 1}: link needs <switch:port> <switch:port>" }
-            val (sA, pA) = parseEndpoint(tokens[1], lineNum)
-            val (sB, pB) = parseEndpoint(tokens[2], lineNum)
-            links.add(LinkDecl(sA, pA, sB, pB))
+            require(tokens.size == 3) {
+              "line ${lineNum + 1}: link needs <switch:port> <switch:port>"
+            }
+            links.add(
+              LinkDecl(parseEndpoint(tokens[1], lineNum), parseEndpoint(tokens[2], lineNum))
+            )
           }
           "packet" -> {
             require(tokens.size >= 3) { "line ${lineNum + 1}: packet needs <switch:port> <hex>" }
-            val (sw, port) = parseEndpoint(tokens[1], lineNum)
-            packets.add(NetworkPacket(sw, port, parseHex(tokens.drop(2))))
+            packets.add(
+              NetworkPacket(
+                parseEndpoint(tokens[1], lineNum),
+                tokens.drop(2).joinToString("").decodeHex(),
+              )
+            )
           }
           "expect" -> {
             require(tokens.size >= 3) { "line ${lineNum + 1}: expect needs <switch:port> <hex>" }
-            val (sw, port) = parseEndpoint(tokens[1], lineNum)
-            expects.add(NetworkExpect(sw, port, parseHex(tokens.drop(2))))
+            expects.add(
+              NetworkExpect(
+                parseEndpoint(tokens[1], lineNum),
+                tokens.drop(2).joinToString("").decodeHex(),
+              )
+            )
           }
           else -> error("line ${lineNum + 1}: unknown directive '${tokens[0]}'")
         }
@@ -68,17 +87,12 @@ data class NetworkStf(
       return NetworkStf(switches, links, packets, expects)
     }
 
-    private fun parseEndpoint(token: String, lineNum: Int): Pair<String, Int> {
+    private fun parseEndpoint(token: String, lineNum: Int): Endpoint {
       val parts = token.split(":")
       require(parts.size == 2) { "line ${lineNum + 1}: expected <switch:port>, got '$token'" }
       val port = parts[1].toIntOrNull()
       require(port != null) { "line ${lineNum + 1}: invalid port number '${parts[1]}'" }
-      return Pair(parts[0], port)
-    }
-
-    private fun parseHex(tokens: List<String>): ByteArray {
-      val hex = tokens.joinToString("")
-      return ByteArray(hex.length / 2) { i -> hex.substring(2 * i, 2 * i + 2).toInt(16).toByte() }
+      return Endpoint(parts[0], port)
     }
   }
 }

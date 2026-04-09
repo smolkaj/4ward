@@ -3,8 +3,9 @@ package fourward.cli
 import fourward.e2e.StfFile
 import fourward.e2e.installStfEntries
 import fourward.e2e.loadPipelineConfig
-import fourward.simulator.Endpoint
+import fourward.simulator.EdgeOutput
 import fourward.simulator.Link
+import fourward.simulator.NetworkHop
 import fourward.simulator.NetworkSimulator
 import fourward.simulator.NetworkTopology
 import java.io.FileNotFoundException
@@ -15,8 +16,8 @@ import java.nio.file.Path
  * `4ward network test.nstf` — run a multi-switch network simulation.
  *
  * Parses a `.nstf` file describing the topology, per-switch pipeline configs and table entries,
- * input packets, and expected outputs. Builds a [NetworkSimulator], processes packets, prints
- * trace trees, and verifies expectations.
+ * input packets, and expected outputs. Builds a [NetworkSimulator], processes packets, prints trace
+ * trees, and verifies expectations.
  */
 fun networkSim(nstfPath: Path, format: OutputFormat): Int {
   val nstf =
@@ -36,10 +37,7 @@ fun networkSim(nstfPath: Path, format: OutputFormat): Int {
       return ExitCode.USAGE_ERROR
     }
 
-  val topology =
-    NetworkTopology(
-      nstf.links.map { Link(Endpoint(it.switchA, it.portA), Endpoint(it.switchB, it.portB)) }
-    )
+  val topology = NetworkTopology(nstf.links.map { Link(it.a, it.b) })
   val network =
     try {
       NetworkSimulator(topology)
@@ -48,7 +46,6 @@ fun networkSim(nstfPath: Path, format: OutputFormat): Int {
       return ExitCode.USAGE_ERROR
     }
 
-  // Load each switch's pipeline and install table entries.
   for (sw in nstf.switches) {
     val config =
       try {
@@ -74,37 +71,24 @@ fun networkSim(nstfPath: Path, format: OutputFormat): Int {
     }
   }
 
-  // Process packets and collect edge outputs for expectation matching.
-  val edgeOutputs = mutableListOf<Pair<String, fourward.simulator.EdgeOutput>>()
-  var failed = false
+  val edgeOutputs = mutableListOf<EdgeOutput>()
 
   for (packet in nstf.packets) {
     val root =
       try {
-        network.processPacket(packet.switchId, packet.port, packet.payload)
+        network.processPacket(packet.endpoint.switchId, packet.endpoint.port, packet.payload)
       } catch (e: IllegalStateException) {
         System.err.println("error: ${e.message}")
         return ExitCode.INTERNAL_ERROR
       }
 
-    when (format) {
-      OutputFormat.HUMAN -> {
-        println("packet injected: ${packet.switchId}:${packet.port}, ${packet.payload.size} bytes")
-        printNetworkHop(root, indent = "  ")
-      }
-      OutputFormat.TEXTPROTO,
-      OutputFormat.JSON -> {
-        // For now, print per-switch traces in human format.
-        // Full network trace proto format is future work.
-        println("packet injected: ${packet.switchId}:${packet.port}")
-        printNetworkHop(root, indent = "  ")
-      }
-    }
+    // TODO: support textproto/json output for NetworkHop once the proto is defined.
+    println("packet injected: ${packet.endpoint}, ${packet.payload.size} bytes")
+    printNetworkHop(root, indent = "  ")
 
     collectEdgeOutputs(root, edgeOutputs)
   }
 
-  // Match outputs against expectations.
   val failures = matchNetworkExpects(nstf.expects, edgeOutputs)
   if (failures.isNotEmpty()) {
     System.err.println("FAIL")
@@ -115,31 +99,28 @@ fun networkSim(nstfPath: Path, format: OutputFormat): Int {
   return ExitCode.SUCCESS
 }
 
-/** Recursively prints a [NetworkHop] tree in human-readable format. */
-private fun printNetworkHop(hop: fourward.simulator.NetworkHop, indent: String) {
+private fun printNetworkHop(hop: NetworkHop, indent: String) {
   println("${indent}switch ${hop.switchId} (ingress port ${hop.ingressPort}):")
-  println("${indent}  ${TraceFormatter.format(hop.trace).trim().prependIndent("${indent}  ").trimStart()}")
+  val trace = TraceFormatter.format(hop.trace).trim().prependIndent("$indent  ")
+  println(trace)
   for (output in hop.edgeOutputs) {
-    println("${indent}  → edge output: ${output.switchId}:${output.egressPort} (${output.payload.size()} bytes)")
+    println(
+      "$indent  → edge output: ${output.switchId}:${output.egressPort} (${output.payload.size()} bytes)"
+    )
   }
   for (next in hop.nextHops) {
     printNetworkHop(next, "$indent  ")
   }
 }
 
-/** Recursively collects all edge outputs from a [NetworkHop] tree. */
-private fun collectEdgeOutputs(
-  hop: fourward.simulator.NetworkHop,
-  out: MutableList<Pair<String, fourward.simulator.EdgeOutput>>,
-) {
-  for (edge in hop.edgeOutputs) out.add(Pair(hop.switchId, edge))
+private fun collectEdgeOutputs(hop: NetworkHop, out: MutableList<EdgeOutput>) {
+  out.addAll(hop.edgeOutputs)
   for (next in hop.nextHops) collectEdgeOutputs(next, out)
 }
 
-/** Matches expected outputs against actual edge outputs. Returns a list of failure messages. */
 private fun matchNetworkExpects(
   expects: List<NetworkStf.NetworkExpect>,
-  edgeOutputs: List<Pair<String, fourward.simulator.EdgeOutput>>,
+  edgeOutputs: List<EdgeOutput>,
 ): List<String> {
   if (expects.isEmpty()) return emptyList()
 
@@ -148,24 +129,20 @@ private fun matchNetworkExpects(
 
   for (expect in expects) {
     val idx =
-      remaining.indexOfFirst { (_, output) ->
-        output.switchId == expect.switchId &&
-          output.egressPort == expect.port &&
+      remaining.indexOfFirst { output ->
+        output.switchId == expect.endpoint.switchId &&
+          output.egressPort == expect.endpoint.port &&
           output.payload.toByteArray().contentEquals(expect.payload)
       }
     if (idx >= 0) {
       remaining.removeAt(idx)
     } else {
-      failures.add(
-        "expected output on ${expect.switchId}:${expect.port} not found"
-      )
+      failures.add("expected output on ${expect.endpoint} not found")
     }
   }
 
-  for ((_, output) in remaining) {
-    failures.add(
-      "unexpected output on ${output.switchId}:${output.egressPort}"
-    )
+  for (output in remaining) {
+    failures.add("unexpected output on ${output.switchId}:${output.egressPort}")
   }
 
   return failures
