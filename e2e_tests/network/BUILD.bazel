@@ -4,9 +4,11 @@ kt_jvm_test(
     name = "NetworkSimulatorTest",
     srcs = ["NetworkSimulatorTest.kt"],
     data = [
+        "multicast.stf",
         "s1.stf",
         "s2.stf",
         "//e2e_tests/basic_table:basic_table_pb",
+        "//e2e_tests/trace_tree:multicast_pb",
     ],
     test_class = "fourward.e2e.network.NetworkSimulatorTest",
     deps = [
