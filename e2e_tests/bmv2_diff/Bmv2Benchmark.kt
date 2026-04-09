@@ -91,13 +91,12 @@ class Bmv2Benchmark {
       while (true) {
         val line = reader.readLine() ?: break
         lines.add(line)
-        if (
+        val isTerminator =
           line.startsWith("OK") ||
             line.startsWith("ERROR") ||
             line == "DONE" ||
             line.startsWith("BENCHMARK")
-        )
-          break
+        if (isTerminator) break
       }
       return lines.joinToString("\n")
     }
@@ -296,8 +295,8 @@ class Bmv2Benchmark {
     private const val BENCHMARK_PACKETS = 1_000
     private const val ACL_ENTRIES = 500
 
-    private val RIF_MAC_HEX = "001122334455"
-    private val NEIGHBOR_MAC_HEX = "00aabbccddee"
+    private const val RIF_MAC_HEX = "001122334455"
+    private const val NEIGHBOR_MAC_HEX = "00aabbccddee"
     // IPv6 neighbor ID: ::1
     private val NEIGHBOR_ID = ByteArray(16) { if (it == 15) 1.toByte() else 0 }
 
