@@ -60,11 +60,14 @@ kt_jvm_test(
     srcs = ["NetworkSimCliTest.kt"],
     data = [
         "//e2e_tests/basic_table:basic_table_pb",
+        "//e2e_tests/network:inline_multicast.nstf",
+        "//e2e_tests/network:mixed_entries.nstf",
         "//e2e_tests/network:s1.stf",
         "//e2e_tests/network:s2.stf",
         "//e2e_tests/network:two_switch.nstf",
         "//e2e_tests/network:two_switch_fail.nstf",
         "//e2e_tests/network:two_switch_inline.nstf",
+        "//e2e_tests/trace_tree:multicast_pb",
     ],
     test_class = "fourward.cli.NetworkSimCliTest",
     deps = [

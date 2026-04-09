@@ -22,6 +22,20 @@ class NetworkSimCliTest {
   }
 
   @Test
+  fun `mixed external and inline entries work`() {
+    val nstfPath = runfilePath(PKG, "mixed_entries.nstf")
+    val exitCode = networkSim(nstfPath, OutputFormat.HUMAN)
+    assertEquals("expected PASS", ExitCode.SUCCESS, exitCode)
+  }
+
+  @Test
+  fun `inline multicast PRE directives work`() {
+    val nstfPath = runfilePath(PKG, "inline_multicast.nstf")
+    val exitCode = networkSim(nstfPath, OutputFormat.HUMAN)
+    assertEquals("expected PASS", ExitCode.SUCCESS, exitCode)
+  }
+
+  @Test
   fun `wrong expectation fails`() {
     val nstfPath = runfilePath(PKG, "two_switch_fail.nstf")
     val exitCode = networkSim(nstfPath, OutputFormat.HUMAN)
