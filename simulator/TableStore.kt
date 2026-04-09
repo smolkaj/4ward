@@ -1152,7 +1152,8 @@ class TableStore : TableDataReader {
       val maxSize = profileMaxGroupSize[group.actionProfileId]
       if (maxSize != null && group.membersCount > maxSize) {
         return WriteResult.ResourceExhausted(
-          "group ${group.groupId} in action profile '${profileNameById[group.actionProfileId] ?: group.actionProfileId}' " +
+          "group ${group.groupId} in action profile " +
+            "'${profileNameById[group.actionProfileId] ?: group.actionProfileId}' " +
             "has ${group.membersCount} members, max is $maxSize"
         )
       }
@@ -1449,11 +1450,11 @@ class TableStore : TableDataReader {
     return LookupResult(true, entry, resolveActionName(entry.action.action.actionId))
   }
 
-  private fun formatOptions(options: List<String>): String =
+  private fun formatOptions(options: List<String>, limit: Int = MAX_DISPLAYED_OPTIONS): String =
     when {
       options.isEmpty() -> "none"
-      options.size <= 10 -> options.joinToString(", ")
-      else -> options.take(10).joinToString(", ") + " ... and ${options.size - 10} more"
+      options.size <= limit -> options.joinToString(", ")
+      else -> options.take(limit).joinToString(", ") + " ... and ${options.size - limit} more"
     }
 
   private fun resolveActionName(actionId: Int): String =
@@ -1528,6 +1529,7 @@ class TableStore : TableDataReader {
   }
 
   companion object {
+    private const val MAX_DISPLAYED_OPTIONS = 10
     private val BOOL_TRUE_BITS = BitVector.ofInt(1, 1)
     private val BOOL_FALSE_BITS = BitVector.ofInt(0, 1)
   }

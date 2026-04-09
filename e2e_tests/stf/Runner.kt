@@ -734,9 +734,10 @@ fun findActionProfile(
 ): P4InfoOuterClass.ActionProfile =
   p4info.actionProfilesList.find { it.preamble.alias == name || it.preamble.name == name }
     ?: p4info.actionProfilesList.find { it.preamble.name.endsWith(".$name") }
-    ?: error(
-      "unknown action profile: $name (available: ${p4info.actionProfilesList.map { it.preamble.name }.sorted().joinToString(", ")})"
-    )
+    ?: run {
+      val available = p4info.actionProfilesList.map { it.preamble.name }.sorted().joinToString(", ")
+      error("unknown action profile: $name (available: $available)")
+    }
 
 private fun resolveStfMatchField(
   m: StfMatchField,
@@ -753,9 +754,12 @@ private fun resolveStfMatchField(
         val suffix = it.name.substringAfter(".")
         suffix == m.fieldName || suffix == stfNorm
       }
-      ?: error(
-        "unknown match field '${m.fieldName}' in table '$tableName' (available: ${table.matchFieldsList.map { it.name }.sorted().joinToString(", ")})"
-      )
+      ?: run {
+        val available = table.matchFieldsList.map { it.name }.sorted().joinToString(", ")
+        error(
+          "unknown match field '${m.fieldName}' " + "in table '$tableName' (available: $available)"
+        )
+      }
   val fmBuilder = P4RuntimeOuterClass.FieldMatch.newBuilder().setFieldId(mf.id)
   val encodedValue = encodeValue(m.value, mf.bitwidth)
 

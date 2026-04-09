@@ -127,6 +127,9 @@ class PacketBrokerTest {
     // Background: drain invocations and auto-respond.
     Thread {
         runBlocking {
+          // Consume each invocation from the channel; the value
+          // itself is unused — only the side effect matters.
+          @Suppress("UnusedPrivateProperty")
           for (invocation in invocations) {
             hookCount.incrementAndGet()
             responses.send(PrePacketHookResponse.getDefaultInstance())

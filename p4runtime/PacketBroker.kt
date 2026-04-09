@@ -48,8 +48,6 @@ class PacketBroker(
 
   private val hook = AtomicReference<Hook?>(null)
 
-  private fun hasHook(): Boolean = hook.get() != null
-
   /**
    * Atomically registers a hook. Returns true if successful, false if a hook is already registered.
    */
