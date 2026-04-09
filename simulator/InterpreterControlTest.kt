@@ -189,7 +189,11 @@ class InterpreterControlTest {
   @Test
   fun `switch executes matching case block`() {
     // Table default action is "drop"; the switch case for "drop" sets x=1.
-    val ts = TableStore().also { it.setDefaultAction("t", "drop") }
+    val ts =
+      TableStore().also {
+        it.setDefaultAction("t", "drop")
+        it.publishSnapshot()
+      }
     val config =
       BehavioralConfig.newBuilder()
         .addTables(TableBehavior.newBuilder().setName("t"))
@@ -215,7 +219,11 @@ class InterpreterControlTest {
   @Test
   fun `switch executes default block when no case matches action`() {
     // Table default action is "NoAction"; the only declared case is for "drop" (won't match).
-    val ts = TableStore().also { it.setDefaultAction("t", "NoAction") }
+    val ts =
+      TableStore().also {
+        it.setDefaultAction("t", "NoAction")
+        it.publishSnapshot()
+      }
     val config =
       BehavioralConfig.newBuilder()
         .addTables(TableBehavior.newBuilder().setName("t"))

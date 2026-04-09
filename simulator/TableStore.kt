@@ -225,31 +225,12 @@ class TableStore : TableDataReader {
   /**
    * Publishes the current [writeState] as a new immutable [snapshot] for data-plane threads.
    *
-   * Batch callers (e.g. [P4RuntimeService]) can suppress per-update publishing by incrementing
-   * [batchDepth] via [beginBatch]/[endBatch], and publish once when the batch completes. Standalone
-   * callers (e.g. tests calling [write] directly) get auto-publishing on every successful mutation.
+   * Callers are responsible for calling this after mutations. This is intentionally not automatic —
+   * it makes publish points explicit and allows batch callers to publish once instead of
+   * per-update.
    */
   fun publishSnapshot() {
-    if (batchDepth == 0) snapshot = writeState.deepCopy()
-  }
-
-  private var batchDepth = 0
-
-  /**
-   * Suppresses [publishSnapshot] calls until [endBatch]. Batches can nest (e.g. [loadMappings]
-   * calling [write] which calls [publishSnapshot]). The snapshot is published once when the
-   * outermost batch ends.
-   */
-  fun beginBatch() {
-    batchDepth++
-  }
-
-  /**
-   * Ends a batch started by [beginBatch]. When the outermost batch ends, publishes the snapshot.
-   */
-  fun endBatch() {
-    check(batchDepth > 0) { "endBatch without matching beginBatch" }
-    if (--batchDepth == 0) snapshot = writeState.deepCopy()
+    snapshot = writeState.deepCopy()
   }
 
   /**
@@ -308,8 +289,6 @@ class TableStore : TableDataReader {
     for ((profileId, groups) in oldSnapshot.profileGroups) {
       writeState.profileGroups.getOrPut(profileId) { mutableMapOf() }.putAll(groups)
     }
-
-    publishSnapshot()
   }
 
   // -------------------------------------------------------------------------
@@ -514,7 +493,6 @@ class TableStore : TableDataReader {
     registers.clear()
     forcedHits.clear()
     tableActionProfile.clear()
-    beginBatch()
 
     // Cache proto repeated-field accessor (each call creates a defensive copy).
     val p4infoTables = p4info.tablesList
@@ -580,7 +558,7 @@ class TableStore : TableDataReader {
       write(update)
     }
 
-    endBatch()
+    publishSnapshot()
   }
 
   fun setDefaultAction(
@@ -589,7 +567,6 @@ class TableStore : TableDataReader {
     params: List<p4.v1.P4RuntimeOuterClass.Action.Param> = emptyList(),
   ) {
     writeState.defaultActions[tableName] = DefaultAction(actionName, params)
-    publishSnapshot()
   }
 
   // -------------------------------------------------------------------------
@@ -677,6 +654,8 @@ class TableStore : TableDataReader {
     if (limit != null && entries.size >= limit) return false
 
     entries.add(entry)
+    // Unlike control-plane writes (where the caller publishes), addEntry self-publishes
+    // because it runs during packet processing and the new entry must be immediately visible.
     publishSnapshot()
     return true
   }
@@ -1032,7 +1011,6 @@ class TableStore : TableDataReader {
   /** Directly sets value_set members by name, bypassing P4Runtime write path. For testing. */
   internal fun populateValueSet(name: String, members: List<P4RuntimeOuterClass.ValueSetMember>) {
     writeState.valueSets[name] = members.toMutableList()
-    publishSnapshot()
   }
 
   private fun writeValueSetEntry(
@@ -1085,29 +1063,25 @@ class TableStore : TableDataReader {
 
   fun write(update: Update): WriteResult {
     val entity = update.entity
-    val result =
-      when {
-        entity.hasActionProfileMember() ->
-          writeProfileMember(update.type, entity.actionProfileMember)
-        entity.hasActionProfileGroup() -> writeProfileGroup(update.type, entity.actionProfileGroup)
-        entity.hasRegisterEntry() -> writeRegisterEntry(update.type, entity.registerEntry)
-        entity.hasCounterEntry() -> writeCounterEntry(update.type, entity.counterEntry)
-        entity.hasMeterEntry() -> writeMeterEntry(update.type, entity.meterEntry)
-        entity.hasDirectCounterEntry() ->
-          writeDirectCounterEntry(update.type, entity.directCounterEntry)
-        entity.hasDirectMeterEntry() -> writeDirectMeterEntry(update.type, entity.directMeterEntry)
-        entity.hasPacketReplicationEngineEntry() ->
-          writePreEntry(update.type, entity.packetReplicationEngineEntry)
-        entity.hasValueSetEntry() -> writeValueSetEntry(update.type, entity.valueSetEntry)
-        entity.hasTableEntry() -> writeTableEntry(update)
-        else ->
-          WriteResult.InvalidArgument(
-            "unsupported entity type; only table entries, action profiles, counters, meters, " +
-              "registers, value sets, and PRE entries are supported"
-          )
-      }
-    if (result is WriteResult.Success) publishSnapshot()
-    return result
+    return when {
+      entity.hasActionProfileMember() -> writeProfileMember(update.type, entity.actionProfileMember)
+      entity.hasActionProfileGroup() -> writeProfileGroup(update.type, entity.actionProfileGroup)
+      entity.hasRegisterEntry() -> writeRegisterEntry(update.type, entity.registerEntry)
+      entity.hasCounterEntry() -> writeCounterEntry(update.type, entity.counterEntry)
+      entity.hasMeterEntry() -> writeMeterEntry(update.type, entity.meterEntry)
+      entity.hasDirectCounterEntry() ->
+        writeDirectCounterEntry(update.type, entity.directCounterEntry)
+      entity.hasDirectMeterEntry() -> writeDirectMeterEntry(update.type, entity.directMeterEntry)
+      entity.hasPacketReplicationEngineEntry() ->
+        writePreEntry(update.type, entity.packetReplicationEngineEntry)
+      entity.hasValueSetEntry() -> writeValueSetEntry(update.type, entity.valueSetEntry)
+      entity.hasTableEntry() -> writeTableEntry(update)
+      else ->
+        WriteResult.InvalidArgument(
+          "unsupported entity type; only table entries, action profiles, counters, meters, " +
+            "registers, value sets, and PRE entries are supported"
+        )
+    }
   }
 
   private fun writeTableEntry(update: Update): WriteResult {
@@ -1360,7 +1334,6 @@ class TableStore : TableDataReader {
     writeState = checkpoint.forwarding
     restoreCounters(checkpoint.counters)
     restoreRegisters(checkpoint.registers)
-    publishSnapshot()
   }
 
   /**

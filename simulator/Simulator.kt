@@ -79,6 +79,7 @@ class Simulator(
     val oldAliasByName = tableStore.tableAliasByName
     loadPipeline(config)
     tableStore.restoreTableEntries(snapshot.forwarding, oldAliasByName)
+    tableStore.publishSnapshot()
   }
 
   /**
@@ -123,12 +124,6 @@ class Simulator(
 
   /** Publishes the current write-state as a new immutable snapshot for data-plane threads. */
   fun publishSnapshot() = tableStore.publishSnapshot()
-
-  /** Suppresses snapshot publishing until [endBatch]. See [TableStore.beginBatch]. */
-  fun beginBatch() = tableStore.beginBatch()
-
-  /** Ends a batch and publishes the snapshot. See [TableStore.endBatch]. */
-  fun endBatch() = tableStore.endBatch()
 
   /**
    * Returns true if the table with p4info [tableId] has an entry with match field [fieldId] equal

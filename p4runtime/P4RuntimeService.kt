@@ -333,12 +333,8 @@ class P4RuntimeService(
    */
   fun applyHookUpdates(updates: List<Update>) {
     val state = requirePipeline()
-    simulator.beginBatch()
-    try {
-      writeAtomic(updates, state, roleName = "")
-    } finally {
-      simulator.endBatch()
-    }
+    writeAtomic(updates, state, roleName = "")
+    simulator.publishSnapshot()
   }
 
   /** Returns the P4Info from the loaded pipeline, or null if no pipeline is loaded. */
@@ -374,27 +370,20 @@ class P4RuntimeService(
       val state = requirePipeline()
       val roleName = request.role // empty = default role
       requirePrimaryOrNoArbitration(request.electionId, roleName)
-      // Batch all updates — publish the snapshot once at the end, not per-update.
-      simulator.beginBatch()
-      try {
-        when (request.atomicity) {
-          WriteRequest.Atomicity.CONTINUE_ON_ERROR ->
-            writeContinueOnError(request.updatesList, state, roleName)
-          WriteRequest.Atomicity.UNRECOGNIZED ->
-            throw Status.INVALID_ARGUMENT.withDescription(
-                "unrecognized write atomicity ${request.atomicityValue} " +
-                  "(valid values: CONTINUE_ON_ERROR (1), ROLLBACK_ON_ERROR (2), DATAPLANE_ATOMIC (3))"
-              )
-              .asException()
-          // P4Runtime spec §12.2: ROLLBACK_ON_ERROR and DATAPLANE_ATOMIC both guarantee
-          // all-or-none semantics. DATAPLANE_ATOMIC additionally requires data-plane atomicity,
-          // which we get for free because publishSnapshot() is an atomic pointer swap.
-          WriteRequest.Atomicity.ROLLBACK_ON_ERROR,
-          WriteRequest.Atomicity.DATAPLANE_ATOMIC ->
-            writeAtomic(request.updatesList, state, roleName)
-        }
-      } finally {
-        simulator.endBatch()
+      when (request.atomicity) {
+        WriteRequest.Atomicity.CONTINUE_ON_ERROR ->
+          writeContinueOnError(request.updatesList, state, roleName)
+        WriteRequest.Atomicity.UNRECOGNIZED ->
+          throw Status.INVALID_ARGUMENT.withDescription(
+              "unrecognized write atomicity ${request.atomicityValue} " +
+                "(valid values: CONTINUE_ON_ERROR (1), ROLLBACK_ON_ERROR (2), DATAPLANE_ATOMIC (3))"
+            )
+            .asException()
+        // P4Runtime spec §12.2: ROLLBACK_ON_ERROR and DATAPLANE_ATOMIC both guarantee
+        // all-or-none semantics. DATAPLANE_ATOMIC additionally requires data-plane atomicity,
+        // which we get for free because publishSnapshot() is an atomic pointer swap.
+        WriteRequest.Atomicity.ROLLBACK_ON_ERROR,
+        WriteRequest.Atomicity.DATAPLANE_ATOMIC -> writeAtomic(request.updatesList, state, roleName)
       }
     }
 
@@ -433,6 +422,8 @@ class P4RuntimeService(
         )
       }
     }
+    // Publish even on partial failure — successful updates must be visible to subsequent reads.
+    simulator.publishSnapshot()
     if (hasError) {
       throw buildBatchError(errors)
     }
@@ -449,15 +440,17 @@ class P4RuntimeService(
     state: PipelineState,
     roleName: String,
   ): WriteResponse {
-    val snapshot = simulator.snapshot()
+    val checkpoint = simulator.snapshot()
     try {
       for (rawUpdate in updates) {
         processUpdate(rawUpdate, state, roleName)
       }
     } catch (e: StatusException) {
-      simulator.restore(snapshot)
+      simulator.restore(checkpoint)
+      simulator.publishSnapshot()
       throw e
     }
+    simulator.publishSnapshot()
     return WriteResponse.getDefaultInstance()
   }
 
