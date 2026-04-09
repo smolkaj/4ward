@@ -68,12 +68,10 @@ fun networkSim(nstfPath: Path, format: OutputFormat): Int {
       }
     try {
       sim.loadPipeline(config)
-      // Install entries from external STF file (if provided).
       if (sw.stfPath != null) {
         val stf = StfFile.parse(sw.stfPath)
         installStfEntries(sim, stf, config.p4Info)
       }
-      // Install inline entries (if any).
       val inlineLines = nstf.inlineEntries[sw.id]
       if (inlineLines != null) {
         val stf = StfFile.parse(inlineLines)

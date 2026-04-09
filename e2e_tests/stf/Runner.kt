@@ -251,7 +251,7 @@ data class StfFile(
 
     @Suppress("CyclomaticComplexMethod")
     fun parse(lines: List<String>): StfFile {
-      val lines = lines.map { it.trim() }.filter { it.isNotEmpty() && !it.startsWith("#") }
+      val directives = lines.map { it.trim() }.filter { it.isNotEmpty() && !it.startsWith("#") }
 
       val tableEntries = mutableListOf<StfTableDirective>()
       val memberDirectives = mutableListOf<StfMemberDirective>()
@@ -264,7 +264,7 @@ data class StfFile(
       val packets = mutableListOf<StfPacket>()
       val expects = mutableListOf<StfExpectedOutput>()
 
-      for (line in lines) {
+      for (line in directives) {
         val tokens = tokenizeQuoteAware(line)
         when (tokens[0].lowercase()) {
           "packet" -> {
