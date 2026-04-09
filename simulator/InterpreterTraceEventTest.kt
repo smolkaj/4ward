@@ -9,8 +9,8 @@ import fourward.ir.ParserState
 import fourward.ir.SourceInfo
 import fourward.ir.Stmt
 import fourward.ir.Transition
-import fourward.sim.SimulatorProto.DropReason
-import fourward.sim.SimulatorProto.MarkToDropEvent
+import fourward.sim.DropReason
+import fourward.sim.MarkToDropEvent
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows

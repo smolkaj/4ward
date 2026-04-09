@@ -14,8 +14,8 @@
 
 package fourward.simulator
 
-import fourward.sim.SimulatorProto.MarkToDropEvent
-import fourward.sim.SimulatorProto.TraceEvent
+import fourward.sim.MarkToDropEvent
+import fourward.sim.TraceEvent
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotSame

@@ -1,8 +1,8 @@
 package fourward.simulator
 
 import fourward.ir.PipelineConfig
-import fourward.sim.SimulatorProto.OutputPacket
-import fourward.sim.SimulatorProto.TraceTree
+import fourward.sim.OutputPacket
+import fourward.sim.TraceTree
 
 /**
  * Result of processing a single packet through the pipeline.
@@ -17,8 +17,8 @@ import fourward.sim.SimulatorProto.TraceTree
  * selectors have one possible outcome per alternative (Cartesian product when nested inside
  * parallel forks).
  *
- * Decouples the simulator from the gRPC wire format ([fourward.sim.SimulatorProto
- * .InjectPacketResponse]). Each RPC method builds its own wire proto from this data class.
+ * Decouples the simulator from the gRPC wire format ([fourward.dataplane.InjectPacketResponse]).
+ * Each RPC method builds its own wire proto from this data class.
  */
 data class ProcessPacketResult(val trace: TraceTree, val possibleOutcomes: List<List<OutputPacket>>)
 

@@ -1,7 +1,7 @@
 package fourward.simulator
 
 import fourward.ir.Type
-import fourward.sim.SimulatorProto.TraceEvent
+import fourward.sim.TraceEvent
 
 /**
  * Describes the extern being called — either a free function or an object method.

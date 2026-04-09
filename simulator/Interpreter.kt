@@ -15,13 +15,13 @@ import fourward.ir.TableApplyExpr
 import fourward.ir.TableBehavior
 import fourward.ir.Type
 import fourward.ir.UnaryOperator
-import fourward.sim.SimulatorProto.ActionExecutionEvent
-import fourward.sim.SimulatorProto.AssertionEvent
-import fourward.sim.SimulatorProto.BranchEvent
-import fourward.sim.SimulatorProto.DeparserEmitEvent
-import fourward.sim.SimulatorProto.ParserTransitionEvent
-import fourward.sim.SimulatorProto.TableLookupEvent
-import fourward.sim.SimulatorProto.TraceEvent
+import fourward.sim.ActionExecutionEvent
+import fourward.sim.AssertionEvent
+import fourward.sim.BranchEvent
+import fourward.sim.DeparserEmitEvent
+import fourward.sim.ParserTransitionEvent
+import fourward.sim.TableLookupEvent
+import fourward.sim.TraceEvent
 import java.math.BigInteger
 
 /**

@@ -3,7 +3,7 @@ package fourward.p4runtime
 import com.google.protobuf.Any as ProtoAny
 import fourward.ir.DeviceConfig
 import fourward.ir.PipelineConfig
-import fourward.sim.SimulatorProto.OutputPacket
+import fourward.sim.OutputPacket
 import fourward.simulator.Simulator
 import fourward.simulator.WriteResult
 import io.grpc.Metadata

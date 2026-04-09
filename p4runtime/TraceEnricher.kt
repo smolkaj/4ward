@@ -1,7 +1,7 @@
 package fourward.p4runtime
 
-import fourward.sim.SimulatorProto.TraceEvent
-import fourward.sim.SimulatorProto.TraceTree
+import fourward.sim.TraceEvent
+import fourward.sim.TraceTree
 import p4.v1.P4RuntimeOuterClass.Entity
 
 /**

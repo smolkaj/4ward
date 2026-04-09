@@ -2,7 +2,9 @@ package fourward.p4runtime
 
 import com.google.protobuf.ByteString
 import fourward.dataplane.DataplaneGrpcKt.DataplaneCoroutineStub
-import fourward.dataplane.DataplaneProto
+import fourward.dataplane.InjectPacketRequest
+import fourward.dataplane.InjectPacketResponse
+import fourward.dataplane.PacketSet
 import fourward.ir.PipelineConfig
 import fourward.simulator.Simulator
 import io.grpc.ManagedChannel
@@ -147,31 +149,28 @@ class P4RuntimeTestHarness(
   // ---------------------------------------------------------------------------
 
   /** Injects a packet via the InjectPacket RPC. Returns outputs + trace. */
-  fun injectPacket(ingressPort: Int, payload: ByteArray): DataplaneProto.InjectPacketResponse =
-    runBlocking {
-      dataplaneStub.injectPacket(
-        DataplaneProto.InjectPacketRequest.newBuilder()
-          .setDataplaneIngressPort(ingressPort)
-          .setPayload(ByteString.copyFrom(payload))
-          .build()
-      )
-    }
-
-  /** Injects a packet using a P4Runtime port ID. Returns outputs + trace. */
-  fun injectPacketP4rt(
-    p4rtPort: ByteString,
-    payload: ByteArray,
-  ): DataplaneProto.InjectPacketResponse = runBlocking {
+  fun injectPacket(ingressPort: Int, payload: ByteArray): InjectPacketResponse = runBlocking {
     dataplaneStub.injectPacket(
-      DataplaneProto.InjectPacketRequest.newBuilder()
-        .setP4RtIngressPort(p4rtPort)
+      InjectPacketRequest.newBuilder()
+        .setDataplaneIngressPort(ingressPort)
         .setPayload(ByteString.copyFrom(payload))
         .build()
     )
   }
 
+  /** Injects a packet using a P4Runtime port ID. Returns outputs + trace. */
+  fun injectPacketP4rt(p4rtPort: ByteString, payload: ByteArray): InjectPacketResponse =
+    runBlocking {
+      dataplaneStub.injectPacket(
+        InjectPacketRequest.newBuilder()
+          .setP4RtIngressPort(p4rtPort)
+          .setPayload(ByteString.copyFrom(payload))
+          .build()
+      )
+    }
+
   /** Injects a packet and returns the possible outcome sets. */
-  fun simulatePacket(ingressPort: Int, payload: ByteArray): List<DataplaneProto.PacketSet> =
+  fun simulatePacket(ingressPort: Int, payload: ByteArray): List<PacketSet> =
     injectPacket(ingressPort, payload).possibleOutcomesList
 
   /** Injects multiple packets concurrently via the streaming InjectPackets RPC. */
@@ -180,7 +179,7 @@ class P4RuntimeTestHarness(
       kotlinx.coroutines.flow.flow {
         for ((port, payload) in packets) {
           emit(
-            DataplaneProto.InjectPacketRequest.newBuilder()
+            InjectPacketRequest.newBuilder()
               .setDataplaneIngressPort(port)
               .setPayload(ByteString.copyFrom(payload))
               .build()

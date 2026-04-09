@@ -27,9 +27,9 @@ import fourward.ir.StructExprField
 import fourward.ir.Transition
 import fourward.ir.Type
 import fourward.ir.TypeDecl
-import fourward.sim.SimulatorProto.DropReason
-import fourward.sim.SimulatorProto.ForkReason
-import fourward.sim.SimulatorProto.PipelineStageEvent.Direction
+import fourward.sim.DropReason
+import fourward.sim.ForkReason
+import fourward.sim.PipelineStageEvent.Direction
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail

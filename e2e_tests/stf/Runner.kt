@@ -83,7 +83,7 @@ class StfRunner(private val pipelineConfigPath: Path, private val dropPortOverri
  * a single possible world (no alternative forks), skips scoring entirely.
  */
 fun appendBestOutcome(
-  possibleOutcomes: List<List<fourward.sim.SimulatorProto.OutputPacket>>,
+  possibleOutcomes: List<List<fourward.sim.OutputPacket>>,
   expects: List<StfExpectedOutput>,
   outputQueue: MutableList<ReceivedPacket>,
 ) {

@@ -4,12 +4,12 @@ import fourward.ir.BehavioralConfig
 import fourward.ir.ExternInstanceDecl
 import fourward.ir.PipelineStage
 import fourward.ir.TypeDecl
-import fourward.sim.SimulatorProto.DropReason
-import fourward.sim.SimulatorProto.Fork
-import fourward.sim.SimulatorProto.ForkBranch
-import fourward.sim.SimulatorProto.ForkReason
-import fourward.sim.SimulatorProto.TraceEvent
-import fourward.sim.SimulatorProto.TraceTree
+import fourward.sim.DropReason
+import fourward.sim.Fork
+import fourward.sim.ForkBranch
+import fourward.sim.ForkReason
+import fourward.sim.TraceEvent
+import fourward.sim.TraceTree
 import java.math.BigInteger
 
 /**

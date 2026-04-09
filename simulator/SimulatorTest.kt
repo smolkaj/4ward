@@ -286,52 +286,45 @@ class SimulatorTest {
 /** Unit tests for [collectPossibleOutcomes] — the parallel vs alternative fork semantics. */
 class CollectPossibleOutcomesTest {
 
-  private fun output(port: Int): fourward.sim.SimulatorProto.TraceTree =
-    fourward.sim.SimulatorProto.TraceTree.newBuilder()
+  private fun output(port: Int): fourward.sim.TraceTree =
+    fourward.sim.TraceTree.newBuilder()
       .setPacketOutcome(
-        fourward.sim.SimulatorProto.PacketOutcome.newBuilder()
+        fourward.sim.PacketOutcome.newBuilder()
           .setOutput(
-            fourward.sim.SimulatorProto.OutputPacket.newBuilder()
+            fourward.sim.OutputPacket.newBuilder()
               .setDataplaneEgressPort(port)
               .setPayload(com.google.protobuf.ByteString.copyFrom(byteArrayOf(0x01)))
           )
       )
       .build()
 
-  private fun drop(): fourward.sim.SimulatorProto.TraceTree =
-    fourward.sim.SimulatorProto.TraceTree.newBuilder()
+  private fun drop(): fourward.sim.TraceTree =
+    fourward.sim.TraceTree.newBuilder()
       .setPacketOutcome(
-        fourward.sim.SimulatorProto.PacketOutcome.newBuilder()
-          .setDrop(
-            fourward.sim.SimulatorProto.Drop.newBuilder()
-              .setReason(fourward.sim.SimulatorProto.DropReason.MARK_TO_DROP)
-          )
+        fourward.sim.PacketOutcome.newBuilder()
+          .setDrop(fourward.sim.Drop.newBuilder().setReason(fourward.sim.DropReason.MARK_TO_DROP))
       )
       .build()
 
   private fun fork(
-    reason: fourward.sim.SimulatorProto.ForkReason,
-    vararg branches: Pair<String, fourward.sim.SimulatorProto.TraceTree>,
-  ): fourward.sim.SimulatorProto.TraceTree =
-    fourward.sim.SimulatorProto.TraceTree.newBuilder()
+    reason: fourward.sim.ForkReason,
+    vararg branches: Pair<String, fourward.sim.TraceTree>,
+  ): fourward.sim.TraceTree =
+    fourward.sim.TraceTree.newBuilder()
       .setForkOutcome(
-        fourward.sim.SimulatorProto.Fork.newBuilder()
+        fourward.sim.Fork.newBuilder()
           .setReason(reason)
           .addAllBranches(
             branches.map {
-              fourward.sim.SimulatorProto.ForkBranch.newBuilder()
-                .setLabel(it.first)
-                .setSubtree(it.second)
-                .build()
+              fourward.sim.ForkBranch.newBuilder().setLabel(it.first).setSubtree(it.second).build()
             }
           )
       )
       .build()
 
   private fun alternativeFork(
-    vararg branches: Pair<String, fourward.sim.SimulatorProto.TraceTree>
-  ): fourward.sim.SimulatorProto.TraceTree =
-    fork(fourward.sim.SimulatorProto.ForkReason.ACTION_SELECTOR, *branches)
+    vararg branches: Pair<String, fourward.sim.TraceTree>
+  ): fourward.sim.TraceTree = fork(fourward.sim.ForkReason.ACTION_SELECTOR, *branches)
 
   @Test
   fun `linear trace produces one world with one output`() {
@@ -348,12 +341,7 @@ class CollectPossibleOutcomesTest {
 
   @Test
   fun `parallel fork combines outputs within each world`() {
-    val tree =
-      fork(
-        fourward.sim.SimulatorProto.ForkReason.CLONE,
-        "original" to output(1),
-        "clone" to output(2),
-      )
+    val tree = fork(fourward.sim.ForkReason.CLONE, "original" to output(1), "clone" to output(2))
     val outcomes = collectPossibleOutcomes(tree)
     assertEquals("one world", 1, outcomes.size)
     assertEquals("two outputs", 2, outcomes[0].size)
@@ -377,7 +365,7 @@ class CollectPossibleOutcomesTest {
     // Clone (parallel) with 2 branches, each containing a 2-member selector (alternative).
     val tree =
       fork(
-        fourward.sim.SimulatorProto.ForkReason.CLONE,
+        fourward.sim.ForkReason.CLONE,
         "original" to alternativeFork("m0" to output(1), "m1" to output(2)),
         "clone" to alternativeFork("m0" to output(3), "m1" to output(4)),
       )
@@ -403,7 +391,7 @@ class CollectPossibleOutcomesTest {
   fun `multicast fork is parallel`() {
     val tree =
       fork(
-        fourward.sim.SimulatorProto.ForkReason.MULTICAST,
+        fourward.sim.ForkReason.MULTICAST,
         "r0" to output(1),
         "r1" to output(2),
         "r2" to output(3),

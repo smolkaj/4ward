@@ -1,7 +1,7 @@
 package fourward.simulator
 
 import com.google.protobuf.ByteString
-import fourward.sim.SimulatorProto.TraceTree
+import fourward.sim.TraceTree
 
 /**
  * A network of P4 switches connected by point-to-point links.

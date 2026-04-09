@@ -24,11 +24,11 @@ import fourward.ir.Transition
 import fourward.ir.Type
 import fourward.ir.TypeDecl
 import fourward.ir.VarDecl
-import fourward.sim.SimulatorProto.DropReason
-import fourward.sim.SimulatorProto.ForkReason
-import fourward.sim.SimulatorProto.PipelineStageEvent.Direction
-import fourward.sim.SimulatorProto.TraceEvent
-import fourward.sim.SimulatorProto.TraceTree
+import fourward.sim.DropReason
+import fourward.sim.ForkReason
+import fourward.sim.PipelineStageEvent.Direction
+import fourward.sim.TraceEvent
+import fourward.sim.TraceTree
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
