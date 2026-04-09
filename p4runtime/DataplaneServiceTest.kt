@@ -12,10 +12,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel.Factory.UNLIMITED
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.After
@@ -144,14 +146,16 @@ class DataplaneServiceTest {
     harness.loadPipeline(loadPassthroughConfig())
     val stub = DataplaneCoroutineStub(harness.channel)
 
-    // Collect 3 messages: SubscriptionActive + 2 results (one from each source).
-    val messages = async {
-      withTimeout(5000) {
-        stub.subscribeResults(SubscribeResultsRequest.getDefaultInstance()).take(3).toList()
+    val channel = kotlinx.coroutines.channels.Channel<fourward.dataplane.DataplaneProto.SubscribeResultsResponse>(UNLIMITED)
+    val job = launch {
+      stub.subscribeResults(SubscribeResultsRequest.getDefaultInstance()).collect {
+        channel.send(it)
       }
     }
 
-    delay(100) // Let the subscription start.
+    // Wait for subscription to be active.
+    val first = withTimeout(5000) { channel.receive() }
+    assertTrue("first message should be SubscriptionActive", first.hasActive())
 
     // Source 1: InjectPacket via DataplaneService.
     harness.injectPacket(ingressPort = 0, payload = byteArrayOf(0xAA.toByte()))
@@ -167,11 +171,15 @@ class DataplaneServiceTest {
       )
     }
 
-    val result = messages.await()
-    assertEquals("expected 3 messages", 3, result.size)
-    assertTrue("first is SubscriptionActive", result[0].hasActive())
-    assertTrue("second is a result", result[1].hasResult())
-    assertTrue("third is a result", result[2].hasResult())
+    // Collect 2 results.
+    val results = withTimeout(5000) {
+      listOf(channel.receive(), channel.receive())
+    }
+
+    assertTrue("should be a result", results[0].hasResult())
+    assertTrue("should be a result", results[1].hasResult())
+
+    job.cancel()
   }
 
   // =========================================================================
