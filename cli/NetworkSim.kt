@@ -8,7 +8,6 @@ import fourward.simulator.NetworkHop
 import fourward.simulator.NetworkSimulator
 import fourward.simulator.NetworkTopology
 import java.io.FileNotFoundException
-import java.nio.file.Files
 import java.nio.file.NoSuchFileException
 import java.nio.file.Path
 
@@ -77,10 +76,7 @@ fun networkSim(nstfPath: Path, format: OutputFormat): Int {
       // Install inline entries (if any).
       val inlineLines = nstf.inlineEntries[sw.id]
       if (inlineLines != null) {
-        val tempStf = Files.createTempFile("4ward-inline-", ".stf")
-        tempStf.toFile().deleteOnExit()
-        tempStf.toFile().writeText(inlineLines.joinToString("\n"))
-        val stf = StfFile.parse(tempStf)
+        val stf = StfFile.parse(inlineLines)
         installStfEntries(sim, stf, config.p4Info)
       }
     } catch (e: Exception) {

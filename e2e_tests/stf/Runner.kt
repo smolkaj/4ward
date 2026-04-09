@@ -247,14 +247,11 @@ data class StfFile(
      * - `mc_node_associate <group_id> <node_handle>` — associate node with group
      * - `# comment`
      */
+    fun parse(path: Path): StfFile = parse(path.toFile().readLines())
+
     @Suppress("CyclomaticComplexMethod")
-    fun parse(path: Path): StfFile {
-      val lines =
-        path
-          .toFile()
-          .readLines()
-          .map { it.trim() }
-          .filter { it.isNotEmpty() && !it.startsWith("#") }
+    fun parse(lines: List<String>): StfFile {
+      val lines = lines.map { it.trim() }.filter { it.isNotEmpty() && !it.startsWith("#") }
 
       val tableEntries = mutableListOf<StfTableDirective>()
       val memberDirectives = mutableListOf<StfMemberDirective>()
