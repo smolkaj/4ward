@@ -7,34 +7,34 @@ FN:22,fourward/p4runtime/ConstraintValidator::<init> (Ljava/lang/Process;Ljava/i
 FNDA:1,fourward/p4runtime/ConstraintValidator::<init> (Ljava/lang/Process;Ljava/io/DataInputStream;Ljava/io/DataOutputStream;)V
 FN:37,fourward/p4runtime/ConstraintValidator::validateEntry (Lp4/v1/P4RuntimeOuterClass$TableEntry;)Ljava/lang/String;
 FNDA:1,fourward/p4runtime/ConstraintValidator::validateEntry (Lp4/v1/P4RuntimeOuterClass$TableEntry;)Ljava/lang/String;
-FN:57,fourward/p4runtime/ConstraintValidator::close ()V
+FN:58,fourward/p4runtime/ConstraintValidator::close ()V
 FNDA:1,fourward/p4runtime/ConstraintValidator::close ()V
-FN:74,fourward/p4runtime/ConstraintValidator$Companion::call (Ljava/io/DataInputStream;Ljava/io/DataOutputStream;Lfourward/constraints/ConstraintRequest;)Lfourward/constraints/ConstraintResponse;
+FN:75,fourward/p4runtime/ConstraintValidator$Companion::call (Ljava/io/DataInputStream;Ljava/io/DataOutputStream;Lfourward/constraints/ConstraintRequest;)Lfourward/constraints/ConstraintResponse;
 FNDA:1,fourward/p4runtime/ConstraintValidator$Companion::call (Ljava/io/DataInputStream;Ljava/io/DataOutputStream;Lfourward/constraints/ConstraintRequest;)Lfourward/constraints/ConstraintResponse;
-FN:93,fourward/p4runtime/ConstraintValidator$Companion::create (Lp4/config/v1/P4InfoOuterClass$P4Info;Ljava/nio/file/Path;)Lfourward/p4runtime/ConstraintValidator;
+FN:94,fourward/p4runtime/ConstraintValidator$Companion::create (Lp4/config/v1/P4InfoOuterClass$P4Info;Ljava/nio/file/Path;)Lfourward/p4runtime/ConstraintValidator;
 FNDA:1,fourward/p4runtime/ConstraintValidator$Companion::create (Lp4/config/v1/P4InfoOuterClass$P4Info;Ljava/nio/file/Path;)Lfourward/p4runtime/ConstraintValidator;
-FN:135,fourward/p4runtime/ConstraintValidatorException::<init> (Ljava/lang/String;Ljava/lang/Throwable;)V
+FN:136,fourward/p4runtime/ConstraintValidatorException::<init> (Ljava/lang/String;Ljava/lang/Throwable;)V
 FNDA:0,fourward/p4runtime/ConstraintValidatorException::<init> (Ljava/lang/String;Ljava/lang/Throwable;)V
-FN:135,fourward/p4runtime/ConstraintValidatorException::<init> (Ljava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+FN:136,fourward/p4runtime/ConstraintValidatorException::<init> (Ljava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 FNDA:0,fourward/p4runtime/ConstraintValidatorException::<init> (Ljava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-BRDA:49,0,0,0
-BRDA:49,0,1,1
-BRDA:53,0,0,1
-BRDA:53,0,1,1
-BRDA:53,0,2,1
-BRDA:53,0,3,1
-BRDA:59,0,0,0
-BRDA:59,0,1,1
-BRDA:97,0,0,1
-BRDA:97,0,1,0
+BRDA:50,0,0,0
+BRDA:50,0,1,1
+BRDA:54,0,0,1
+BRDA:54,0,1,1
+BRDA:54,0,2,1
+BRDA:54,0,3,1
+BRDA:60,0,0,0
+BRDA:60,0,1,1
 BRDA:98,0,0,1
 BRDA:98,0,1,0
-BRDA:115,0,0,0
-BRDA:115,0,1,1
-BRDA:123,0,0,1
-BRDA:123,0,1,1
-BRDA:123,0,2,1
-BRDA:123,0,3,0
+BRDA:99,0,0,1
+BRDA:99,0,1,0
+BRDA:116,0,0,0
+BRDA:116,0,1,1
+BRDA:124,0,0,1
+BRDA:124,0,1,1
+BRDA:124,0,2,1
+BRDA:124,0,3,0
 DA:22,1
 DA:23,1
 DA:24,1
@@ -50,17 +50,17 @@ DA:43,1
 DA:44,0
 DA:45,0
 DA:46,0
-DA:49,1
-DA:50,0
-DA:52,1
+DA:47,0
+DA:50,1
+DA:51,0
 DA:53,1
-DA:57,1
+DA:54,1
 DA:58,1
 DA:59,1
-DA:60,0
-DA:62,1
+DA:60,1
+DA:61,0
 DA:63,1
-DA:74,1
+DA:64,1
 DA:75,1
 DA:76,1
 DA:77,1
@@ -68,133 +68,132 @@ DA:78,1
 DA:79,1
 DA:80,1
 DA:81,1
-DA:93,1
+DA:82,1
 DA:94,1
 DA:95,1
 DA:96,1
 DA:97,1
 DA:98,1
-DA:100,1
+DA:99,1
 DA:101,1
 DA:102,1
 DA:103,1
 DA:104,1
 DA:105,1
 DA:106,1
-DA:107,0
+DA:107,1
 DA:108,0
 DA:109,0
 DA:110,0
 DA:111,0
-DA:115,1
-DA:116,0
+DA:112,0
+DA:116,1
 DA:117,0
 DA:118,0
-DA:122,1
+DA:119,0
 DA:123,1
 DA:124,1
 DA:125,1
 DA:126,1
 DA:127,1
-DA:130,1
-DA:135,0
+DA:128,1
+DA:131,1
+DA:136,0
+DA:137,0
 LH:49
-LF:63
+LF:65
 end_of_record
 SF:p4runtime/DataplaneService.kt
-FN:31,fourward/p4runtime/DataplaneService::<init> (Lfourward/p4runtime/PacketBroker;Lkotlin/jvm/functions/Function0;)V
+FN:36,fourward/p4runtime/DataplaneService::<init> (Lfourward/p4runtime/PacketBroker;Lkotlin/jvm/functions/Function0;)V
 FNDA:1,fourward/p4runtime/DataplaneService::<init> (Lfourward/p4runtime/PacketBroker;Lkotlin/jvm/functions/Function0;)V
-FN:31,fourward/p4runtime/DataplaneService::<init> (Lfourward/p4runtime/PacketBroker;Lkotlin/jvm/functions/Function0;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+FN:36,fourward/p4runtime/DataplaneService::<init> (Lfourward/p4runtime/PacketBroker;Lkotlin/jvm/functions/Function0;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 FNDA:0,fourward/p4runtime/DataplaneService::<init> (Lfourward/p4runtime/PacketBroker;Lkotlin/jvm/functions/Function0;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-FN:37,fourward/p4runtime/DataplaneService::injectPacket (Lfourward/dataplane/DataplaneProto$InjectPacketRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-FNDA:1,fourward/p4runtime/DataplaneService::injectPacket (Lfourward/dataplane/DataplaneProto$InjectPacketRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-FN:61,fourward/p4runtime/DataplaneService::injectPackets (Lkotlinx/coroutines/flow/Flow;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+FN:42,fourward/p4runtime/DataplaneService::injectPacket (Lfourward/dataplane/InjectPacketRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+FNDA:1,fourward/p4runtime/DataplaneService::injectPacket (Lfourward/dataplane/InjectPacketRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+FN:62,fourward/p4runtime/DataplaneService::injectPackets (Lkotlinx/coroutines/flow/Flow;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 FNDA:0,fourward/p4runtime/DataplaneService::injectPackets (Lkotlinx/coroutines/flow/Flow;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-FN:79,fourward/p4runtime/DataplaneService::subscribeResults (Lfourward/dataplane/DataplaneProto$SubscribeResultsRequest;)Lkotlinx/coroutines/flow/Flow;
-FNDA:1,fourward/p4runtime/DataplaneService::subscribeResults (Lfourward/dataplane/DataplaneProto$SubscribeResultsRequest;)Lkotlinx/coroutines/flow/Flow;
-FN:126,fourward/p4runtime/DataplaneService::registerPrePacketHook (Lkotlinx/coroutines/flow/Flow;)Lkotlinx/coroutines/flow/Flow;
+FN:80,fourward/p4runtime/DataplaneService::subscribeResults (Lfourward/dataplane/SubscribeResultsRequest;)Lkotlinx/coroutines/flow/Flow;
+FNDA:1,fourward/p4runtime/DataplaneService::subscribeResults (Lfourward/dataplane/SubscribeResultsRequest;)Lkotlinx/coroutines/flow/Flow;
+FN:125,fourward/p4runtime/DataplaneService::registerPrePacketHook (Lkotlinx/coroutines/flow/Flow;)Lkotlinx/coroutines/flow/Flow;
 FNDA:1,fourward/p4runtime/DataplaneService::registerPrePacketHook (Lkotlinx/coroutines/flow/Flow;)Lkotlinx/coroutines/flow/Flow;
-FN:154,fourward/p4runtime/DataplaneService::resolveIngressPort (Lfourward/dataplane/DataplaneProto$InjectPacketRequest;Lfourward/p4runtime/PortTranslator;)I
-FNDA:1,fourward/p4runtime/DataplaneService::resolveIngressPort (Lfourward/dataplane/DataplaneProto$InjectPacketRequest;Lfourward/p4runtime/PortTranslator;)I
-FN:33,fourward/p4runtime/DataplaneService$1::invoke ()Ljava/lang/Void;
+FN:153,fourward/p4runtime/DataplaneService::resolveIngressPort (Lfourward/dataplane/InjectPacketRequest;Lfourward/p4runtime/PortTranslator;)I
+FNDA:1,fourward/p4runtime/DataplaneService::resolveIngressPort (Lfourward/dataplane/InjectPacketRequest;Lfourward/p4runtime/PortTranslator;)I
+FN:38,fourward/p4runtime/DataplaneService$1::invoke ()Ljava/lang/Void;
 FNDA:0,fourward/p4runtime/DataplaneService$1::invoke ()Ljava/lang/Void;
-FN:63,fourward/p4runtime/DataplaneService$injectPackets$2::invoke (Lkotlin/jvm/functions/Function2;)V
+FN:64,fourward/p4runtime/DataplaneService$injectPackets$2::invoke (Lkotlin/jvm/functions/Function2;)V
 FNDA:0,fourward/p4runtime/DataplaneService$injectPackets$2::invoke (Lkotlin/jvm/functions/Function2;)V
-FN:65,fourward/p4runtime/DataplaneService$injectPackets$2$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
+FN:66,fourward/p4runtime/DataplaneService$injectPackets$2$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
 FNDA:0,fourward/p4runtime/DataplaneService$injectPackets$2$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
-FN:66,fourward/p4runtime/DataplaneService$injectPackets$2$1$1::emit (Lfourward/dataplane/DataplaneProto$InjectPacketRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-FNDA:0,fourward/p4runtime/DataplaneService$injectPackets$2$1$1::emit (Lfourward/dataplane/DataplaneProto$InjectPacketRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-FN:69,fourward/p4runtime/DataplaneService$injectPackets$2$1$1$1::run ()V
+FN:67,fourward/p4runtime/DataplaneService$injectPackets$2$1$1::emit (Lfourward/dataplane/InjectPacketRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+FNDA:0,fourward/p4runtime/DataplaneService$injectPackets$2$1$1::emit (Lfourward/dataplane/InjectPacketRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+FN:70,fourward/p4runtime/DataplaneService$injectPackets$2$1$1$1::run ()V
 FNDA:0,fourward/p4runtime/DataplaneService$injectPackets$2$1$1$1::run ()V
-FN:126,fourward/p4runtime/DataplaneService$registerPrePacketHook$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
+FN:125,fourward/p4runtime/DataplaneService$registerPrePacketHook$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
 FNDA:1,fourward/p4runtime/DataplaneService$registerPrePacketHook$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
-FN:138,fourward/p4runtime/DataplaneService$registerPrePacketHook$1$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
+FN:137,fourward/p4runtime/DataplaneService$registerPrePacketHook$1$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
 FNDA:1,fourward/p4runtime/DataplaneService$registerPrePacketHook$1$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
-FN:144,fourward/p4runtime/DataplaneService$registerPrePacketHook$1$2::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
+FN:143,fourward/p4runtime/DataplaneService$registerPrePacketHook$1$2::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
 FNDA:1,fourward/p4runtime/DataplaneService$registerPrePacketHook$1$2::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
-FN:144,fourward/p4runtime/DataplaneService$registerPrePacketHook$1$2$1::emit (Lfourward/dataplane/DataplaneProto$PrePacketHookResponse;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-FNDA:1,fourward/p4runtime/DataplaneService$registerPrePacketHook$1$2$1::emit (Lfourward/dataplane/DataplaneProto$PrePacketHookResponse;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-FN:147,fourward/p4runtime/DataplaneService$registerPrePacketHook$1$3::invoke ()V
+FN:143,fourward/p4runtime/DataplaneService$registerPrePacketHook$1$2$1::emit (Lfourward/dataplane/PrePacketHookResponse;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+FNDA:1,fourward/p4runtime/DataplaneService$registerPrePacketHook$1$2$1::emit (Lfourward/dataplane/PrePacketHookResponse;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+FN:146,fourward/p4runtime/DataplaneService$registerPrePacketHook$1$3::invoke ()V
 FNDA:1,fourward/p4runtime/DataplaneService$registerPrePacketHook$1$3::invoke ()V
-FN:79,fourward/p4runtime/DataplaneService$subscribeResults$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
+FN:80,fourward/p4runtime/DataplaneService$subscribeResults$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
 FNDA:1,fourward/p4runtime/DataplaneService$subscribeResults$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
-FN:121,fourward/p4runtime/DataplaneService$subscribeResults$1$1::invoke ()V
+FN:120,fourward/p4runtime/DataplaneService$subscribeResults$1$1::invoke ()V
 FNDA:1,fourward/p4runtime/DataplaneService$subscribeResults$1$1::invoke ()V
-FN:88,fourward/p4runtime/DataplaneService$subscribeResults$1$handle$1::invoke (Lfourward/p4runtime/PacketBroker$SubscriptionResult;)V
+FN:89,fourward/p4runtime/DataplaneService$subscribeResults$1$handle$1::invoke (Lfourward/p4runtime/PacketBroker$SubscriptionResult;)V
 FNDA:1,fourward/p4runtime/DataplaneService$subscribeResults$1$handle$1::invoke (Lfourward/p4runtime/PacketBroker$SubscriptionResult;)V
-FN:172,fourward/p4runtime/DataplaneServiceKt::enrichTrace (Lfourward/sim/SimulatorProto$TraceTree;Lfourward/p4runtime/TypeTranslator;)Lfourward/sim/SimulatorProto$TraceTree;
-FNDA:1,fourward/p4runtime/DataplaneServiceKt::enrichTrace (Lfourward/sim/SimulatorProto$TraceTree;Lfourward/p4runtime/TypeTranslator;)Lfourward/sim/SimulatorProto$TraceTree;
-FN:186,fourward/p4runtime/DataplaneServiceKt::toDualEncoded (Lfourward/sim/SimulatorProto$OutputPacket;Lfourward/p4runtime/PortTranslator;)Lfourward/dataplane/DataplaneProto$OutputPacket;
-FNDA:1,fourward/p4runtime/DataplaneServiceKt::toDualEncoded (Lfourward/sim/SimulatorProto$OutputPacket;Lfourward/p4runtime/PortTranslator;)Lfourward/dataplane/DataplaneProto$OutputPacket;
-BRDA:38,0,0,1
-BRDA:38,0,1,1
-BRDA:61,0,0,-
-BRDA:61,0,1,-
-BRDA:154,0,0,0
-BRDA:154,0,1,0
-BRDA:154,0,2,1
-BRDA:158,0,0,1
-BRDA:158,0,1,1
-BRDA:131,0,0,0
-BRDA:131,0,1,1
-BRDA:138,0,0,1
-BRDA:138,0,1,0
-BRDA:90,0,0,1
-BRDA:90,0,1,0
-BRDA:99,0,0,0
-BRDA:99,0,1,1
-BRDA:99,0,2,0
-BRDA:99,0,3,1
-BRDA:172,0,0,1
-BRDA:172,0,1,0
-BRDA:172,0,2,0
-BRDA:172,0,3,1
-BRDA:189,0,0,1
-BRDA:189,0,1,1
-BRDA:191,0,0,1
-BRDA:191,0,1,1
-DA:31,1
-DA:32,1
-DA:33,1
-DA:34,0
+FN:171,fourward/p4runtime/DataplaneServiceKt::enrichTrace (Lfourward/sim/TraceTree;Lfourward/p4runtime/TypeTranslator;)Lfourward/sim/TraceTree;
+FNDA:1,fourward/p4runtime/DataplaneServiceKt::enrichTrace (Lfourward/sim/TraceTree;Lfourward/p4runtime/TypeTranslator;)Lfourward/sim/TraceTree;
+FN:182,fourward/p4runtime/DataplaneServiceKt::toDualEncoded (Lfourward/sim/OutputPacket;Lfourward/p4runtime/PortTranslator;)Lfourward/dataplane/OutputPacket;
+FNDA:1,fourward/p4runtime/DataplaneServiceKt::toDualEncoded (Lfourward/sim/OutputPacket;Lfourward/p4runtime/PortTranslator;)Lfourward/dataplane/OutputPacket;
+BRDA:43,0,0,1
+BRDA:43,0,1,1
+BRDA:62,0,0,-
+BRDA:62,0,1,-
+BRDA:153,0,0,0
+BRDA:153,0,1,0
+BRDA:153,0,2,1
+BRDA:157,0,0,1
+BRDA:157,0,1,1
+BRDA:130,0,0,0
+BRDA:130,0,1,1
+BRDA:137,0,0,1
+BRDA:137,0,1,0
+BRDA:91,0,0,1
+BRDA:91,0,1,0
+BRDA:100,0,0,0
+BRDA:100,0,1,1
+BRDA:100,0,2,0
+BRDA:100,0,3,1
+BRDA:171,0,0,1
+BRDA:171,0,1,0
+BRDA:171,0,2,0
+BRDA:171,0,3,1
+BRDA:185,0,0,1
+BRDA:185,0,1,1
+BRDA:187,0,0,1
+BRDA:187,0,1,1
+DA:36,1
 DA:37,1
 DA:38,1
-DA:39,1
-DA:40,1
-DA:41,1
+DA:39,0
 DA:42,1
 DA:43,1
 DA:44,1
 DA:45,1
 DA:46,1
 DA:47,1
+DA:48,1
 DA:49,1
 DA:50,1
-DA:51,1
 DA:52,1
 DA:53,1
 DA:54,1
-DA:61,0
+DA:55,1
+DA:56,1
+DA:57,1
 DA:62,0
 DA:63,0
 DA:64,0
@@ -203,17 +202,17 @@ DA:66,0
 DA:67,0
 DA:68,0
 DA:69,0
-DA:71,0
+DA:70,0
 DA:72,0
 DA:73,0
 DA:74,0
 DA:75,0
-DA:79,1
+DA:76,0
 DA:80,1
 DA:81,1
 DA:82,1
 DA:83,1
-DA:86,1
+DA:84,1
 DA:87,1
 DA:88,1
 DA:89,1
@@ -224,66 +223,65 @@ DA:93,1
 DA:94,1
 DA:95,1
 DA:96,1
-DA:99,1
+DA:97,1
 DA:100,1
 DA:101,1
-DA:103,1
+DA:102,1
 DA:104,1
 DA:105,1
 DA:106,1
-DA:107,1
+DA:109,1
 DA:110,1
 DA:111,1
-DA:112,1
-DA:113,0
-DA:117,0
-DA:119,1
+DA:112,0
+DA:116,0
+DA:118,1
+DA:120,1
 DA:121,1
-DA:122,1
+DA:125,1
 DA:126,1
 DA:127,1
 DA:128,1
-DA:129,1
-DA:131,1
+DA:130,1
+DA:131,0
 DA:132,0
-DA:133,0
+DA:136,1
 DA:137,1
 DA:138,1
-DA:139,1
-DA:141,0
-DA:144,1
+DA:140,0
+DA:143,1
+DA:145,1
 DA:146,1
 DA:147,1
 DA:148,1
 DA:149,1
 DA:150,1
-DA:151,1
+DA:153,1
 DA:154,1
-DA:155,1
+DA:156,1
 DA:157,1
 DA:158,1
 DA:159,1
-DA:160,1
+DA:162,1
 DA:163,1
-DA:164,1
-DA:167,0
-DA:168,1
-DA:172,1
+DA:166,0
+DA:167,1
+DA:171,1
+DA:182,1
+DA:183,1
+DA:184,1
+DA:185,1
 DA:186,1
 DA:187,1
 DA:188,1
 DA:189,1
 DA:190,1
-DA:191,1
-DA:192,1
-DA:193,1
 DA:194,1
+DA:196,1
+DA:197,1
 DA:198,1
-DA:200,1
-DA:201,1
-DA:202,1
-LH:88
-LF:109
+LH:84
+LF:105
 end_of_record
 SF:p4runtime/EntityReader.kt
 FN:18,fourward/p4runtime/EntityReader::<init> (Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;I)V
@@ -1480,113 +1478,112 @@ LH:485
 LF:513
 end_of_record
 SF:p4runtime/PacketBroker.kt
-FN:30,fourward/p4runtime/PacketBroker::<init> (Lkotlin/jvm/functions/Function2;Lfourward/p4runtime/ReadWriteMutex;)V
+FN:31,fourward/p4runtime/PacketBroker::<init> (Lkotlin/jvm/functions/Function2;Lfourward/p4runtime/ReadWriteMutex;)V
 FNDA:1,fourward/p4runtime/PacketBroker::<init> (Lkotlin/jvm/functions/Function2;Lfourward/p4runtime/ReadWriteMutex;)V
-FN:50,fourward/p4runtime/PacketBroker::hasHook ()Z
+FN:51,fourward/p4runtime/PacketBroker::hasHook ()Z
 FNDA:0,fourward/p4runtime/PacketBroker::hasHook ()Z
-FN:55,fourward/p4runtime/PacketBroker::registerHook (Lfourward/p4runtime/PacketBroker$Hook;)Z
+FN:56,fourward/p4runtime/PacketBroker::registerHook (Lfourward/p4runtime/PacketBroker$Hook;)Z
 FNDA:1,fourward/p4runtime/PacketBroker::registerHook (Lfourward/p4runtime/PacketBroker$Hook;)Z
-FN:59,fourward/p4runtime/PacketBroker::deregisterHook ()V
+FN:60,fourward/p4runtime/PacketBroker::deregisterHook ()V
 FNDA:1,fourward/p4runtime/PacketBroker::deregisterHook ()V
-FN:66,fourward/p4runtime/PacketBroker::getReadAllEntities ()Lkotlin/jvm/functions/Function0;
+FN:67,fourward/p4runtime/PacketBroker::getReadAllEntities ()Lkotlin/jvm/functions/Function0;
 FNDA:1,fourward/p4runtime/PacketBroker::getReadAllEntities ()Lkotlin/jvm/functions/Function0;
-FN:66,fourward/p4runtime/PacketBroker::setReadAllEntities (Lkotlin/jvm/functions/Function0;)V
+FN:67,fourward/p4runtime/PacketBroker::setReadAllEntities (Lkotlin/jvm/functions/Function0;)V
 FNDA:1,fourward/p4runtime/PacketBroker::setReadAllEntities (Lkotlin/jvm/functions/Function0;)V
-FN:67,fourward/p4runtime/PacketBroker::getReadP4Info ()Lkotlin/jvm/functions/Function0;
+FN:68,fourward/p4runtime/PacketBroker::getReadP4Info ()Lkotlin/jvm/functions/Function0;
 FNDA:1,fourward/p4runtime/PacketBroker::getReadP4Info ()Lkotlin/jvm/functions/Function0;
-FN:67,fourward/p4runtime/PacketBroker::setReadP4Info (Lkotlin/jvm/functions/Function0;)V
+FN:68,fourward/p4runtime/PacketBroker::setReadP4Info (Lkotlin/jvm/functions/Function0;)V
 FNDA:1,fourward/p4runtime/PacketBroker::setReadP4Info (Lkotlin/jvm/functions/Function0;)V
-FN:68,fourward/p4runtime/PacketBroker::getApplyUpdates ()Lkotlin/jvm/functions/Function1;
+FN:69,fourward/p4runtime/PacketBroker::getApplyUpdates ()Lkotlin/jvm/functions/Function1;
 FNDA:1,fourward/p4runtime/PacketBroker::getApplyUpdates ()Lkotlin/jvm/functions/Function1;
-FN:68,fourward/p4runtime/PacketBroker::setApplyUpdates (Lkotlin/jvm/functions/Function1;)V
+FN:69,fourward/p4runtime/PacketBroker::setApplyUpdates (Lkotlin/jvm/functions/Function1;)V
 FNDA:1,fourward/p4runtime/PacketBroker::setApplyUpdates (Lkotlin/jvm/functions/Function1;)V
-FN:76,fourward/p4runtime/PacketBroker::fireHookIfRegistered ()V
+FN:77,fourward/p4runtime/PacketBroker::fireHookIfRegistered ()V
 FNDA:1,fourward/p4runtime/PacketBroker::fireHookIfRegistered ()V
-FN:116,fourward/p4runtime/PacketBroker::processPacket (I[B)Lfourward/simulator/ProcessPacketResult;
+FN:117,fourward/p4runtime/PacketBroker::processPacket (I[B)Lfourward/simulator/ProcessPacketResult;
 FNDA:1,fourward/p4runtime/PacketBroker::processPacket (I[B)Lfourward/simulator/ProcessPacketResult;
-FN:141,fourward/p4runtime/PacketBroker::withHookOnce (Lkotlin/jvm/functions/Function1;)Ljava/lang/Object;
+FN:142,fourward/p4runtime/PacketBroker::withHookOnce (Lkotlin/jvm/functions/Function1;)Ljava/lang/Object;
 FNDA:1,fourward/p4runtime/PacketBroker::withHookOnce (Lkotlin/jvm/functions/Function1;)Ljava/lang/Object;
-FN:160,fourward/p4runtime/PacketBroker::subscribe (Lkotlin/jvm/functions/Function1;)Lfourward/p4runtime/PacketBroker$SubscriptionHandle;
+FN:161,fourward/p4runtime/PacketBroker::subscribe (Lkotlin/jvm/functions/Function1;)Lfourward/p4runtime/PacketBroker$SubscriptionHandle;
 FNDA:1,fourward/p4runtime/PacketBroker::subscribe (Lkotlin/jvm/functions/Function1;)Lfourward/p4runtime/PacketBroker$SubscriptionHandle;
-FN:169,fourward/p4runtime/PacketBroker::dispatchToSubscribers (I[BLfourward/simulator/ProcessPacketResult;)V
+FN:170,fourward/p4runtime/PacketBroker::dispatchToSubscribers (I[BLfourward/simulator/ProcessPacketResult;)V
 FNDA:1,fourward/p4runtime/PacketBroker::dispatchToSubscribers (I[BLfourward/simulator/ProcessPacketResult;)V
-FN:184,fourward/p4runtime/PacketBroker::<clinit> ()V
+FN:185,fourward/p4runtime/PacketBroker::<clinit> ()V
 FNDA:1,fourward/p4runtime/PacketBroker::<clinit> ()V
-FN:184,fourward/p4runtime/PacketBroker$Companion::getLogger ()Ljava/util/logging/Logger;
+FN:185,fourward/p4runtime/PacketBroker$Companion::getLogger ()Ljava/util/logging/Logger;
 FNDA:0,fourward/p4runtime/PacketBroker$Companion::getLogger ()Ljava/util/logging/Logger;
-FN:43,fourward/p4runtime/PacketBroker$Hook::<init> (Lkotlinx/coroutines/channels/Channel;Lkotlinx/coroutines/channels/Channel;)V
+FN:44,fourward/p4runtime/PacketBroker$Hook::<init> (Lkotlinx/coroutines/channels/Channel;Lkotlinx/coroutines/channels/Channel;)V
 FNDA:1,fourward/p4runtime/PacketBroker$Hook::<init> (Lkotlinx/coroutines/channels/Channel;Lkotlinx/coroutines/channels/Channel;)V
-FN:44,fourward/p4runtime/PacketBroker$Hook::getInvocations ()Lkotlinx/coroutines/channels/Channel;
+FN:45,fourward/p4runtime/PacketBroker$Hook::getInvocations ()Lkotlinx/coroutines/channels/Channel;
 FNDA:1,fourward/p4runtime/PacketBroker$Hook::getInvocations ()Lkotlinx/coroutines/channels/Channel;
-FN:45,fourward/p4runtime/PacketBroker$Hook::getResponses ()Lkotlinx/coroutines/channels/Channel;
+FN:46,fourward/p4runtime/PacketBroker$Hook::getResponses ()Lkotlinx/coroutines/channels/Channel;
 FNDA:1,fourward/p4runtime/PacketBroker$Hook::getResponses ()Lkotlinx/coroutines/channels/Channel;
-FN:96,fourward/p4runtime/PacketBroker$SubscriptionResult::<init> (I[BLjava/util/List;Lfourward/sim/SimulatorProto$TraceTree;)V
-FNDA:1,fourward/p4runtime/PacketBroker$SubscriptionResult::<init> (I[BLjava/util/List;Lfourward/sim/SimulatorProto$TraceTree;)V
-FN:97,fourward/p4runtime/PacketBroker$SubscriptionResult::getIngressPort ()I
+FN:97,fourward/p4runtime/PacketBroker$SubscriptionResult::<init> (I[BLjava/util/List;Lfourward/sim/TraceTree;)V
+FNDA:1,fourward/p4runtime/PacketBroker$SubscriptionResult::<init> (I[BLjava/util/List;Lfourward/sim/TraceTree;)V
+FN:98,fourward/p4runtime/PacketBroker$SubscriptionResult::getIngressPort ()I
 FNDA:1,fourward/p4runtime/PacketBroker$SubscriptionResult::getIngressPort ()I
-FN:98,fourward/p4runtime/PacketBroker$SubscriptionResult::getPayload ()[B
+FN:99,fourward/p4runtime/PacketBroker$SubscriptionResult::getPayload ()[B
 FNDA:1,fourward/p4runtime/PacketBroker$SubscriptionResult::getPayload ()[B
-FN:99,fourward/p4runtime/PacketBroker$SubscriptionResult::getPossibleOutcomes ()Ljava/util/List;
+FN:100,fourward/p4runtime/PacketBroker$SubscriptionResult::getPossibleOutcomes ()Ljava/util/List;
 FNDA:1,fourward/p4runtime/PacketBroker$SubscriptionResult::getPossibleOutcomes ()Ljava/util/List;
-FN:100,fourward/p4runtime/PacketBroker$SubscriptionResult::getTrace ()Lfourward/sim/SimulatorProto$TraceTree;
-FNDA:1,fourward/p4runtime/PacketBroker$SubscriptionResult::getTrace ()Lfourward/sim/SimulatorProto$TraceTree;
-FN:68,fourward/p4runtime/PacketBroker$applyUpdates$1::invoke (Ljava/util/List;)V
+FN:101,fourward/p4runtime/PacketBroker$SubscriptionResult::getTrace ()Lfourward/sim/TraceTree;
+FNDA:1,fourward/p4runtime/PacketBroker$SubscriptionResult::getTrace ()Lfourward/sim/TraceTree;
+FN:69,fourward/p4runtime/PacketBroker$applyUpdates$1::invoke (Ljava/util/List;)V
 FNDA:0,fourward/p4runtime/PacketBroker$applyUpdates$1::invoke (Ljava/util/List;)V
-FN:77,fourward/p4runtime/PacketBroker$fireHookIfRegistered$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
+FN:78,fourward/p4runtime/PacketBroker$fireHookIfRegistered$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
 FNDA:1,fourward/p4runtime/PacketBroker$fireHookIfRegistered$1::invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
-FN:119,fourward/p4runtime/PacketBroker$processPacket$result$1::invoke ()Lfourward/simulator/ProcessPacketResult;
+FN:120,fourward/p4runtime/PacketBroker$processPacket$result$1::invoke ()Lfourward/simulator/ProcessPacketResult;
 FNDA:1,fourward/p4runtime/PacketBroker$processPacket$result$1::invoke ()Lfourward/simulator/ProcessPacketResult;
-FN:123,fourward/p4runtime/PacketBroker$processPacket$result$2::invoke ()Lfourward/simulator/ProcessPacketResult;
+FN:124,fourward/p4runtime/PacketBroker$processPacket$result$2::invoke ()Lfourward/simulator/ProcessPacketResult;
 FNDA:1,fourward/p4runtime/PacketBroker$processPacket$result$2::invoke ()Lfourward/simulator/ProcessPacketResult;
-FN:66,fourward/p4runtime/PacketBroker$readAllEntities$1::invoke ()Ljava/util/List;
+FN:67,fourward/p4runtime/PacketBroker$readAllEntities$1::invoke ()Ljava/util/List;
 FNDA:1,fourward/p4runtime/PacketBroker$readAllEntities$1::invoke ()Ljava/util/List;
-FN:67,fourward/p4runtime/PacketBroker$readP4Info$1::invoke ()Ljava/lang/Void;
+FN:68,fourward/p4runtime/PacketBroker$readP4Info$1::invoke ()Ljava/lang/Void;
 FNDA:1,fourward/p4runtime/PacketBroker$readP4Info$1::invoke ()Ljava/lang/Void;
-FN:161,fourward/p4runtime/PacketBroker$subscribe$1::unsubscribe ()V
+FN:162,fourward/p4runtime/PacketBroker$subscribe$1::unsubscribe ()V
 FNDA:1,fourward/p4runtime/PacketBroker$subscribe$1::unsubscribe ()V
-FN:147,fourward/p4runtime/PacketBroker$withHookOnce$1::invoke ()Ljava/lang/Object;
+FN:148,fourward/p4runtime/PacketBroker$withHookOnce$1::invoke ()Ljava/lang/Object;
 FNDA:1,fourward/p4runtime/PacketBroker$withHookOnce$1::invoke ()Ljava/lang/Object;
-FN:151,fourward/p4runtime/PacketBroker$withHookOnce$1$1::invoke (I[B)V
+FN:152,fourward/p4runtime/PacketBroker$withHookOnce$1$1::invoke (I[B)V
 FNDA:1,fourward/p4runtime/PacketBroker$withHookOnce$1$1::invoke (I[B)V
-FN:154,fourward/p4runtime/PacketBroker$withHookOnce$2::invoke (I[B)V
+FN:155,fourward/p4runtime/PacketBroker$withHookOnce$2::invoke (I[B)V
 FNDA:1,fourward/p4runtime/PacketBroker$withHookOnce$2::invoke (I[B)V
-FN:154,fourward/p4runtime/PacketBroker$withHookOnce$2$1::invoke ()V
+FN:155,fourward/p4runtime/PacketBroker$withHookOnce$2$1::invoke ()V
 FNDA:1,fourward/p4runtime/PacketBroker$withHookOnce$2$1::invoke ()V
-FN:142,fourward/p4runtime/PacketBroker$withHookOnce$processAndDispatch$1::invoke (I[B)V
+FN:143,fourward/p4runtime/PacketBroker$withHookOnce$processAndDispatch$1::invoke (I[B)V
 FNDA:1,fourward/p4runtime/PacketBroker$withHookOnce$processAndDispatch$1::invoke (I[B)V
-BRDA:50,0,0,-
-BRDA:50,0,1,-
-BRDA:76,0,0,0
-BRDA:76,0,1,1
-BRDA:117,0,0,1
-BRDA:117,0,1,1
-BRDA:145,0,0,1
-BRDA:145,0,1,1
-BRDA:169,0,0,1
-BRDA:169,0,1,1
-BRDA:171,0,0,1
-BRDA:171,0,1,1
-BRDA:81,0,0,1
-BRDA:81,0,1,1
-BRDA:85,0,0,1
-BRDA:85,0,1,1
-BRDA:85,0,2,1
-BRDA:85,0,3,1
-DA:30,1
+BRDA:51,0,0,-
+BRDA:51,0,1,-
+BRDA:77,0,0,0
+BRDA:77,0,1,1
+BRDA:118,0,0,1
+BRDA:118,0,1,1
+BRDA:146,0,0,1
+BRDA:146,0,1,1
+BRDA:170,0,0,1
+BRDA:170,0,1,1
+BRDA:172,0,0,1
+BRDA:172,0,1,1
+BRDA:82,0,0,1
+BRDA:82,0,1,1
+BRDA:86,0,0,1
+BRDA:86,0,1,1
+BRDA:86,0,2,1
+BRDA:86,0,3,1
 DA:31,1
 DA:32,1
-DA:43,1
+DA:33,1
 DA:44,1
 DA:45,1
-DA:48,1
-DA:50,0
-DA:55,1
-DA:59,1
+DA:46,1
+DA:49,1
+DA:51,0
+DA:56,1
 DA:60,1
-DA:66,1
+DA:61,1
 DA:67,1
 DA:68,1
-DA:76,1
+DA:69,1
 DA:77,1
 DA:78,1
 DA:79,1
@@ -1597,42 +1594,43 @@ DA:83,1
 DA:84,1
 DA:85,1
 DA:86,1
-DA:88,1
+DA:87,1
 DA:89,1
-DA:96,1
+DA:90,1
 DA:97,1
 DA:98,1
 DA:99,1
 DA:100,1
-DA:109,1
-DA:116,1
+DA:101,1
+DA:110,1
 DA:117,1
 DA:118,1
 DA:119,1
 DA:120,1
-DA:123,1
-DA:126,1
+DA:121,1
+DA:124,1
 DA:127,1
-DA:141,1
+DA:128,1
 DA:142,1
 DA:143,1
 DA:144,1
 DA:145,1
 DA:146,1
 DA:147,1
-DA:151,1
-DA:154,1
-DA:160,1
+DA:148,1
+DA:152,1
+DA:155,1
 DA:161,1
-DA:169,1
+DA:162,1
 DA:170,1
 DA:171,1
 DA:172,1
 DA:173,1
 DA:174,1
-DA:178,1
-DA:181,1
-DA:184,1
+DA:175,1
+DA:179,1
+DA:182,1
+DA:185,1
 LH:60
 LF:61
 end_of_record
@@ -2143,14 +2141,14 @@ LH:22
 LF:22
 end_of_record
 SF:p4runtime/TraceEnricher.kt
-FN:22,fourward/p4runtime/TraceEnricher::enrich (Lfourward/sim/SimulatorProto$TraceTree;Lfourward/p4runtime/TypeTranslator;)Lfourward/sim/SimulatorProto$TraceTree;
-FNDA:1,fourward/p4runtime/TraceEnricher::enrich (Lfourward/sim/SimulatorProto$TraceTree;Lfourward/p4runtime/TypeTranslator;)Lfourward/sim/SimulatorProto$TraceTree;
-FN:35,fourward/p4runtime/TraceEnricher::enrichTree (Lfourward/sim/SimulatorProto$TraceTree;Lfourward/p4runtime/PortTranslator;Lfourward/p4runtime/TypeTranslator;)Lfourward/sim/SimulatorProto$TraceTree;
-FNDA:1,fourward/p4runtime/TraceEnricher::enrichTree (Lfourward/sim/SimulatorProto$TraceTree;Lfourward/p4runtime/PortTranslator;Lfourward/p4runtime/TypeTranslator;)Lfourward/sim/SimulatorProto$TraceTree;
-FN:80,fourward/p4runtime/TraceEnricher::enrichEvent (Lfourward/sim/SimulatorProto$TraceEvent;Lfourward/p4runtime/PortTranslator;Lfourward/p4runtime/TypeTranslator;)Lfourward/sim/SimulatorProto$TraceEvent;
-FNDA:1,fourward/p4runtime/TraceEnricher::enrichEvent (Lfourward/sim/SimulatorProto$TraceEvent;Lfourward/p4runtime/PortTranslator;Lfourward/p4runtime/TypeTranslator;)Lfourward/sim/SimulatorProto$TraceEvent;
-FN:37,fourward/p4runtime/TraceEnricher::enrichTree$lazyBuilder (Lkotlin/jvm/internal/Ref$ObjectRef;Lfourward/sim/SimulatorProto$TraceTree;)Lfourward/sim/SimulatorProto$TraceTree$Builder;
-FNDA:1,fourward/p4runtime/TraceEnricher::enrichTree$lazyBuilder (Lkotlin/jvm/internal/Ref$ObjectRef;Lfourward/sim/SimulatorProto$TraceTree;)Lfourward/sim/SimulatorProto$TraceTree$Builder;
+FN:22,fourward/p4runtime/TraceEnricher::enrich (Lfourward/sim/TraceTree;Lfourward/p4runtime/TypeTranslator;)Lfourward/sim/TraceTree;
+FNDA:1,fourward/p4runtime/TraceEnricher::enrich (Lfourward/sim/TraceTree;Lfourward/p4runtime/TypeTranslator;)Lfourward/sim/TraceTree;
+FN:35,fourward/p4runtime/TraceEnricher::enrichTree (Lfourward/sim/TraceTree;Lfourward/p4runtime/PortTranslator;Lfourward/p4runtime/TypeTranslator;)Lfourward/sim/TraceTree;
+FNDA:1,fourward/p4runtime/TraceEnricher::enrichTree (Lfourward/sim/TraceTree;Lfourward/p4runtime/PortTranslator;Lfourward/p4runtime/TypeTranslator;)Lfourward/sim/TraceTree;
+FN:80,fourward/p4runtime/TraceEnricher::enrichEvent (Lfourward/sim/TraceEvent;Lfourward/p4runtime/PortTranslator;Lfourward/p4runtime/TypeTranslator;)Lfourward/sim/TraceEvent;
+FNDA:1,fourward/p4runtime/TraceEnricher::enrichEvent (Lfourward/sim/TraceEvent;Lfourward/p4runtime/PortTranslator;Lfourward/p4runtime/TypeTranslator;)Lfourward/sim/TraceEvent;
+FN:37,fourward/p4runtime/TraceEnricher::enrichTree$lazyBuilder (Lkotlin/jvm/internal/Ref$ObjectRef;Lfourward/sim/TraceTree;)Lfourward/sim/TraceTree$Builder;
+FNDA:1,fourward/p4runtime/TraceEnricher::enrichTree$lazyBuilder (Lkotlin/jvm/internal/Ref$ObjectRef;Lfourward/sim/TraceTree;)Lfourward/sim/TraceTree$Builder;
 BRDA:23,0,0,1
 BRDA:23,0,1,1
 BRDA:23,0,2,1
@@ -3297,10 +3295,10 @@ LH:222
 LF:224
 end_of_record
 SF:simulator/Architecture.kt
-FN:46,fourward/simulator/PipelineResult::<init> (Lfourward/sim/SimulatorProto$TraceTree;)V
-FNDA:1,fourward/simulator/PipelineResult::<init> (Lfourward/sim/SimulatorProto$TraceTree;)V
-FN:46,fourward/simulator/PipelineResult::getTrace ()Lfourward/sim/SimulatorProto$TraceTree;
-FNDA:1,fourward/simulator/PipelineResult::getTrace ()Lfourward/sim/SimulatorProto$TraceTree;
+FN:46,fourward/simulator/PipelineResult::<init> (Lfourward/sim/TraceTree;)V
+FNDA:1,fourward/simulator/PipelineResult::<init> (Lfourward/sim/TraceTree;)V
+FN:46,fourward/simulator/PipelineResult::getTrace ()Lfourward/sim/TraceTree;
+FNDA:1,fourward/simulator/PipelineResult::getTrace ()Lfourward/sim/TraceTree;
 FN:48,fourward/simulator/PipelineResult::getPossibleOutcomes ()Ljava/util/List;
 FNDA:1,fourward/simulator/PipelineResult::getPossibleOutcomes ()Ljava/util/List;
 FN:48,fourward/simulator/PipelineResult$possibleOutcomes$2::invoke ()Ljava/util/List;
@@ -3325,9 +3323,9 @@ FN:99,fourward/simulator/ArchitectureHelpersKt::runParserStage (Lfourward/simula
 FNDA:1,fourward/simulator/ArchitectureHelpersKt::runParserStage (Lfourward/simulator/Interpreter$Execution;Lfourward/simulator/PacketContext;Lfourward/simulator/Environment;Lfourward/ir/PipelineStage;Lkotlin/jvm/functions/Function1;)V
 FN:116,fourward/simulator/ArchitectureHelpersKt::runControlStage (Lfourward/simulator/Interpreter$Execution;Lfourward/simulator/PacketContext;Lfourward/simulator/Environment;Lfourward/ir/PipelineStage;)V
 FNDA:1,fourward/simulator/ArchitectureHelpersKt::runControlStage (Lfourward/simulator/Interpreter$Execution;Lfourward/simulator/PacketContext;Lfourward/simulator/Environment;Lfourward/ir/PipelineStage;)V
-FN:142,fourward/simulator/ArchitectureHelpersKt::handleActionSelectorFork (Lfourward/simulator/ActionSelectorFork;Ljava/util/Map;Lkotlin/jvm/functions/Function1;)Lfourward/sim/SimulatorProto$TraceTree;
-FNDA:1,fourward/simulator/ArchitectureHelpersKt::handleActionSelectorFork (Lfourward/simulator/ActionSelectorFork;Ljava/util/Map;Lkotlin/jvm/functions/Function1;)Lfourward/sim/SimulatorProto$TraceTree;
-FN:178,fourward/simulator/ArchitectureHelpersKt::handleCommonExternMethod (Lfourward/simulator/ExternCall$Method;Lfourward/simulator/ExternEvaluator;Lfourward/simulator/TableStore;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;)Lfourward/simulator/Value;
+FN:142,fourward/simulator/ArchitectureHelpersKt::handleActionSelectorFork (Lfourward/simulator/ActionSelectorFork;Ljava/util/Map;Lkotlin/jvm/functions/Function1;)Lfourward/sim/TraceTree;
+FNDA:1,fourward/simulator/ArchitectureHelpersKt::handleActionSelectorFork (Lfourward/simulator/ActionSelectorFork;Ljava/util/Map;Lkotlin/jvm/functions/Function1;)Lfourward/sim/TraceTree;
+FN:174,fourward/simulator/ArchitectureHelpersKt::handleCommonExternMethod (Lfourward/simulator/ExternCall$Method;Lfourward/simulator/ExternEvaluator;Lfourward/simulator/TableStore;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;)Lfourward/simulator/Value;
 FNDA:1,fourward/simulator/ArchitectureHelpersKt::handleCommonExternMethod (Lfourward/simulator/ExternCall$Method;Lfourward/simulator/ExternEvaluator;Lfourward/simulator/TableStore;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;)Lfourward/simulator/Value;
 FN:15,fourward/simulator/ArchitectureHelpersKt::<clinit> ()V
 FNDA:1,fourward/simulator/ArchitectureHelpersKt::<clinit> ()V
@@ -3375,44 +3373,44 @@ BRDA:148,0,0,1
 BRDA:148,0,1,0
 BRDA:149,0,0,0
 BRDA:149,0,1,1
-BRDA:178,0,0,0
-BRDA:178,0,1,1
-BRDA:178,0,2,1
-BRDA:178,0,3,1
-BRDA:178,0,4,1
-BRDA:178,0,5,1
-BRDA:178,0,6,0
-BRDA:178,0,7,1
-BRDA:178,0,8,1
-BRDA:178,0,9,0
-BRDA:178,0,10,1
-BRDA:178,0,11,1
-BRDA:178,0,12,1
-BRDA:178,0,13,1
+BRDA:174,0,0,0
+BRDA:174,0,1,1
+BRDA:174,0,2,1
+BRDA:174,0,3,1
+BRDA:174,0,4,1
+BRDA:174,0,5,1
+BRDA:174,0,6,0
+BRDA:174,0,7,1
+BRDA:174,0,8,1
+BRDA:174,0,9,0
+BRDA:174,0,10,1
+BRDA:174,0,11,1
+BRDA:174,0,12,1
+BRDA:174,0,13,1
+BRDA:177,0,0,1
+BRDA:177,0,1,1
+BRDA:179,0,0,1
+BRDA:179,0,1,1
 BRDA:181,0,0,1
-BRDA:181,0,1,1
+BRDA:181,0,1,0
 BRDA:183,0,0,1
-BRDA:183,0,1,1
+BRDA:183,0,1,0
+BRDA:183,0,2,1
+BRDA:183,0,3,0
+BRDA:183,0,4,1
+BRDA:183,0,5,0
+BRDA:183,0,6,1
+BRDA:183,0,7,0
+BRDA:184,0,0,1
+BRDA:184,0,1,0
+BRDA:184,0,2,1
+BRDA:184,0,3,0
+BRDA:184,0,4,1
+BRDA:184,0,5,0
+BRDA:184,0,6,1
+BRDA:184,0,7,0
 BRDA:185,0,0,1
 BRDA:185,0,1,0
-BRDA:187,0,0,1
-BRDA:187,0,1,0
-BRDA:187,0,2,1
-BRDA:187,0,3,0
-BRDA:187,0,4,1
-BRDA:187,0,5,0
-BRDA:187,0,6,1
-BRDA:187,0,7,0
-BRDA:188,0,0,1
-BRDA:188,0,1,0
-BRDA:188,0,2,1
-BRDA:188,0,3,0
-BRDA:188,0,4,1
-BRDA:188,0,5,0
-BRDA:188,0,6,1
-BRDA:188,0,7,0
-BRDA:189,0,0,1
-BRDA:189,0,1,0
 DA:12,1
 DA:15,1
 DA:22,1
@@ -3469,53 +3467,50 @@ DA:151,1
 DA:152,1
 DA:153,1
 DA:155,1
-DA:156,1
-DA:157,1
-DA:158,1
+DA:174,1
+DA:176,1
+DA:177,1
 DA:178,1
-DA:180,1
+DA:179,1
 DA:181,1
 DA:182,1
 DA:183,1
+DA:184,1
 DA:185,1
 DA:186,1
-DA:187,1
-DA:188,1
-DA:189,1
-DA:190,1
-DA:192,0
+DA:188,0
+DA:191,1
+DA:192,1
+DA:193,1
 DA:195,1
 DA:196,1
 DA:197,1
 DA:199,1
 DA:200,1
-DA:201,1
 DA:203,1
 DA:204,1
-DA:207,1
-DA:208,1
-DA:209,1
+DA:205,1
+DA:206,1
 DA:210,1
+DA:211,1
+DA:212,1
+DA:213,1
 DA:214,1
-DA:215,1
-DA:216,1
 DA:217,1
 DA:218,1
-DA:221,1
-DA:222,1
-DA:225,0
-DA:226,0
-DA:229,1
-DA:230,1
-DA:232,1
-DA:235,0
+DA:221,0
+DA:222,0
+DA:225,1
+DA:226,1
+DA:228,1
+DA:231,0
+DA:232,0
+DA:233,0
+DA:234,0
 DA:236,0
-DA:237,0
-DA:238,0
-DA:240,0
-DA:241,1
-LH:92
-LF:101
+DA:237,1
+LH:89
+LF:98
 end_of_record
 SF:simulator/BitVector.kt
 FN:14,fourward/simulator/BitVector::<init> (Ljava/math/BigInteger;I)V
@@ -3874,8 +3869,8 @@ FN:112,fourward/simulator/PacketContext::drainRemainingInput ()[B
 FNDA:1,fourward/simulator/PacketContext::drainRemainingInput ()[B
 FN:115,fourward/simulator/PacketContext::peekRemainingInput ()[B
 FNDA:1,fourward/simulator/PacketContext::peekRemainingInput ()[B
-FN:124,fourward/simulator/PacketContext::addTraceEvent (Lfourward/sim/SimulatorProto$TraceEvent;)V
-FNDA:1,fourward/simulator/PacketContext::addTraceEvent (Lfourward/sim/SimulatorProto$TraceEvent;)V
+FN:124,fourward/simulator/PacketContext::addTraceEvent (Lfourward/sim/TraceEvent;)V
+FNDA:1,fourward/simulator/PacketContext::addTraceEvent (Lfourward/sim/TraceEvent;)V
 FN:127,fourward/simulator/PacketContext::getEvents ()Ljava/util/List;
 FNDA:1,fourward/simulator/PacketContext::getEvents ()Ljava/util/List;
 FN:136,fourward/simulator/PacketTooShortException::<init> (Ljava/lang/String;)V
@@ -4197,10 +4192,10 @@ FN:102,fourward/simulator/Interpreter$Execution::getPacket ()Lfourward/simulator
 FNDA:1,fourward/simulator/Interpreter$Execution::getPacket ()Lfourward/simulator/PacketContext;
 FN:121,fourward/simulator/Interpreter$Execution::sourceContext ()Ljava/lang/String;
 FNDA:1,fourward/simulator/Interpreter$Execution::sourceContext ()Ljava/lang/String;
-FN:132,fourward/simulator/Interpreter$Execution::traceEventBuilder (Lfourward/ir/SourceInfo;)Lfourward/sim/SimulatorProto$TraceEvent$Builder;
-FNDA:1,fourward/simulator/Interpreter$Execution::traceEventBuilder (Lfourward/ir/SourceInfo;)Lfourward/sim/SimulatorProto$TraceEvent$Builder;
-FN:131,fourward/simulator/Interpreter$Execution::traceEventBuilder$default (Lfourward/simulator/Interpreter$Execution;Lfourward/ir/SourceInfo;ILjava/lang/Object;)Lfourward/sim/SimulatorProto$TraceEvent$Builder;
-FNDA:1,fourward/simulator/Interpreter$Execution::traceEventBuilder$default (Lfourward/simulator/Interpreter$Execution;Lfourward/ir/SourceInfo;ILjava/lang/Object;)Lfourward/sim/SimulatorProto$TraceEvent$Builder;
+FN:132,fourward/simulator/Interpreter$Execution::traceEventBuilder (Lfourward/ir/SourceInfo;)Lfourward/sim/TraceEvent$Builder;
+FNDA:1,fourward/simulator/Interpreter$Execution::traceEventBuilder (Lfourward/ir/SourceInfo;)Lfourward/sim/TraceEvent$Builder;
+FN:131,fourward/simulator/Interpreter$Execution::traceEventBuilder$default (Lfourward/simulator/Interpreter$Execution;Lfourward/ir/SourceInfo;ILjava/lang/Object;)Lfourward/sim/TraceEvent$Builder;
+FNDA:1,fourward/simulator/Interpreter$Execution::traceEventBuilder$default (Lfourward/simulator/Interpreter$Execution;Lfourward/ir/SourceInfo;ILjava/lang/Object;)Lfourward/sim/TraceEvent$Builder;
 FN:142,fourward/simulator/Interpreter$Execution::runParser (Ljava/lang/String;Lfourward/simulator/Environment;)V
 FNDA:1,fourward/simulator/Interpreter$Execution::runParser (Ljava/lang/String;Lfourward/simulator/Environment;)V
 FN:148,fourward/simulator/Interpreter$Execution::runParserState (Lfourward/ir/ParserDecl;Ljava/lang/String;Lfourward/simulator/Environment;)V
@@ -4311,10 +4306,10 @@ FN:961,fourward/simulator/Interpreter$Execution$createExternEvaluator$1::writeOu
 FNDA:1,fourward/simulator/Interpreter$Execution$createExternEvaluator$1::writeOutArg (ILfourward/simulator/Value;)V
 FN:963,fourward/simulator/Interpreter$Execution$createExternEvaluator$1::defaultValue (Lfourward/ir/Type;)Lfourward/simulator/Value;
 FNDA:1,fourward/simulator/Interpreter$Execution$createExternEvaluator$1::defaultValue (Lfourward/ir/Type;)Lfourward/simulator/Value;
-FN:965,fourward/simulator/Interpreter$Execution$createExternEvaluator$1::traceEventBuilder ()Lfourward/sim/SimulatorProto$TraceEvent$Builder;
-FNDA:1,fourward/simulator/Interpreter$Execution$createExternEvaluator$1::traceEventBuilder ()Lfourward/sim/SimulatorProto$TraceEvent$Builder;
-FN:968,fourward/simulator/Interpreter$Execution$createExternEvaluator$1::addTraceEvent (Lfourward/sim/SimulatorProto$TraceEvent;)V
-FNDA:1,fourward/simulator/Interpreter$Execution$createExternEvaluator$1::addTraceEvent (Lfourward/sim/SimulatorProto$TraceEvent;)V
+FN:965,fourward/simulator/Interpreter$Execution$createExternEvaluator$1::traceEventBuilder ()Lfourward/sim/TraceEvent$Builder;
+FNDA:1,fourward/simulator/Interpreter$Execution$createExternEvaluator$1::traceEventBuilder ()Lfourward/sim/TraceEvent$Builder;
+FN:968,fourward/simulator/Interpreter$Execution$createExternEvaluator$1::addTraceEvent (Lfourward/sim/TraceEvent;)V
+FNDA:1,fourward/simulator/Interpreter$Execution$createExternEvaluator$1::addTraceEvent (Lfourward/sim/TraceEvent;)V
 FN:971,fourward/simulator/Interpreter$Execution$createExternEvaluator$1::peekRemainingInput ()[B
 FNDA:1,fourward/simulator/Interpreter$Execution$createExternEvaluator$1::peekRemainingInput ()[B
 FN:973,fourward/simulator/Interpreter$Execution$createExternEvaluator$1::lastTableMiss ()Lfourward/simulator/TableMissContext;
@@ -5866,16 +5861,16 @@ FN:101,fourward/simulator/Link::getA ()Lfourward/simulator/Endpoint;
 FNDA:1,fourward/simulator/Link::getA ()Lfourward/simulator/Endpoint;
 FN:101,fourward/simulator/Link::getB ()Lfourward/simulator/Endpoint;
 FNDA:1,fourward/simulator/Link::getB ()Lfourward/simulator/Endpoint;
-FN:117,fourward/simulator/NetworkHop::<init> (Ljava/lang/String;ILcom/google/protobuf/ByteString;Lfourward/sim/SimulatorProto$TraceTree;Ljava/util/List;Ljava/util/List;)V
-FNDA:1,fourward/simulator/NetworkHop::<init> (Ljava/lang/String;ILcom/google/protobuf/ByteString;Lfourward/sim/SimulatorProto$TraceTree;Ljava/util/List;Ljava/util/List;)V
+FN:117,fourward/simulator/NetworkHop::<init> (Ljava/lang/String;ILcom/google/protobuf/ByteString;Lfourward/sim/TraceTree;Ljava/util/List;Ljava/util/List;)V
+FNDA:1,fourward/simulator/NetworkHop::<init> (Ljava/lang/String;ILcom/google/protobuf/ByteString;Lfourward/sim/TraceTree;Ljava/util/List;Ljava/util/List;)V
 FN:118,fourward/simulator/NetworkHop::getSwitchId ()Ljava/lang/String;
 FNDA:1,fourward/simulator/NetworkHop::getSwitchId ()Ljava/lang/String;
 FN:119,fourward/simulator/NetworkHop::getIngressPort ()I
 FNDA:1,fourward/simulator/NetworkHop::getIngressPort ()I
 FN:120,fourward/simulator/NetworkHop::getIngressPayload ()Lcom/google/protobuf/ByteString;
 FNDA:0,fourward/simulator/NetworkHop::getIngressPayload ()Lcom/google/protobuf/ByteString;
-FN:121,fourward/simulator/NetworkHop::getTrace ()Lfourward/sim/SimulatorProto$TraceTree;
-FNDA:0,fourward/simulator/NetworkHop::getTrace ()Lfourward/sim/SimulatorProto$TraceTree;
+FN:121,fourward/simulator/NetworkHop::getTrace ()Lfourward/sim/TraceTree;
+FNDA:0,fourward/simulator/NetworkHop::getTrace ()Lfourward/sim/TraceTree;
 FN:122,fourward/simulator/NetworkHop::getEdgeOutputs ()Ljava/util/List;
 FNDA:1,fourward/simulator/NetworkHop::getEdgeOutputs ()Ljava/util/List;
 FN:123,fourward/simulator/NetworkHop::getNextHops ()Ljava/util/List;
@@ -5975,10 +5970,10 @@ FN:31,fourward/simulator/PNAArchitecture::<init> ()V
 FNDA:1,fourward/simulator/PNAArchitecture::<init> ()V
 FN:72,fourward/simulator/PNAArchitecture::processPacket-SGjrQA4 (I[BLfourward/ir/BehavioralConfig;Lfourward/simulator/TableStore;)Lfourward/simulator/PipelineResult;
 FNDA:1,fourward/simulator/PNAArchitecture::processPacket-SGjrQA4 (I[BLfourward/ir/BehavioralConfig;Lfourward/simulator/TableStore;)Lfourward/simulator/PipelineResult;
-FN:120,fourward/simulator/PNAArchitecture::processPacketRecursive-C-DY9sE (Lfourward/simulator/PNAArchitecture$PipelineConfig;[BILjava/lang/String;IILjava/util/Map;)Lfourward/sim/SimulatorProto$TraceTree;
-FNDA:1,fourward/simulator/PNAArchitecture::processPacketRecursive-C-DY9sE (Lfourward/simulator/PNAArchitecture$PipelineConfig;[BILjava/lang/String;IILjava/util/Map;)Lfourward/sim/SimulatorProto$TraceTree;
-FN:111,fourward/simulator/PNAArchitecture::processPacketRecursive-C-DY9sE$default (Lfourward/simulator/PNAArchitecture;Lfourward/simulator/PNAArchitecture$PipelineConfig;[BILjava/lang/String;IILjava/util/Map;ILjava/lang/Object;)Lfourward/sim/SimulatorProto$TraceTree;
-FNDA:1,fourward/simulator/PNAArchitecture::processPacketRecursive-C-DY9sE$default (Lfourward/simulator/PNAArchitecture;Lfourward/simulator/PNAArchitecture$PipelineConfig;[BILjava/lang/String;IILjava/util/Map;ILjava/lang/Object;)Lfourward/sim/SimulatorProto$TraceTree;
+FN:120,fourward/simulator/PNAArchitecture::processPacketRecursive-C-DY9sE (Lfourward/simulator/PNAArchitecture$PipelineConfig;[BILjava/lang/String;IILjava/util/Map;)Lfourward/sim/TraceTree;
+FNDA:1,fourward/simulator/PNAArchitecture::processPacketRecursive-C-DY9sE (Lfourward/simulator/PNAArchitecture$PipelineConfig;[BILjava/lang/String;IILjava/util/Map;)Lfourward/sim/TraceTree;
+FN:111,fourward/simulator/PNAArchitecture::processPacketRecursive-C-DY9sE$default (Lfourward/simulator/PNAArchitecture;Lfourward/simulator/PNAArchitecture$PipelineConfig;[BILjava/lang/String;IILjava/util/Map;ILjava/lang/Object;)Lfourward/sim/TraceTree;
+FNDA:1,fourward/simulator/PNAArchitecture::processPacketRecursive-C-DY9sE$default (Lfourward/simulator/PNAArchitecture;Lfourward/simulator/PNAArchitecture$PipelineConfig;[BILjava/lang/String;IILjava/util/Map;ILjava/lang/Object;)Lfourward/sim/TraceTree;
 FN:240,fourward/simulator/PNAArchitecture::initMetadata-OsBMiQA (Ljava/util/Map;II)V
 FNDA:1,fourward/simulator/PNAArchitecture::initMetadata-OsBMiQA (Ljava/util/Map;II)V
 FN:290,fourward/simulator/PNAArchitecture::createPnaExternHandler (Lfourward/simulator/PNAArchitecture$PipelineConfig;Lfourward/simulator/PNAArchitecture$ForwardingState;Ljava/util/Map;)Lfourward/simulator/ExternHandler;
@@ -6045,8 +6040,8 @@ FN:291,fourward/simulator/PNAArchitecture$createPnaExternHandler$1::handle (Lfou
 FNDA:1,fourward/simulator/PNAArchitecture$createPnaExternHandler$1::handle (Lfourward/simulator/ExternCall;Lfourward/simulator/ExternEvaluator;)Lfourward/simulator/Value;
 FN:147,fourward/simulator/PNAArchitecture$processPacketRecursive$2::invoke (Lfourward/simulator/ParserErrorException;)V
 FNDA:1,fourward/simulator/PNAArchitecture$processPacketRecursive$2::invoke (Lfourward/simulator/ParserErrorException;)V
-FN:170,fourward/simulator/PNAArchitecture$processPacketRecursive$4::invoke (Ljava/util/Map;)Lfourward/sim/SimulatorProto$TraceTree;
-FNDA:0,fourward/simulator/PNAArchitecture$processPacketRecursive$4::invoke (Ljava/util/Map;)Lfourward/sim/SimulatorProto$TraceTree;
+FN:170,fourward/simulator/PNAArchitecture$processPacketRecursive$4::invoke (Ljava/util/Map;)Lfourward/sim/TraceTree;
+FNDA:0,fourward/simulator/PNAArchitecture$processPacketRecursive$4::invoke (Ljava/util/Map;)Lfourward/sim/TraceTree;
 BRDA:76,0,0,1
 BRDA:76,0,1,0
 BRDA:76,0,2,0
@@ -6379,26 +6374,26 @@ FN:35,fourward/simulator/PSAArchitecture::<init> ()V
 FNDA:1,fourward/simulator/PSAArchitecture::<init> ()V
 FN:63,fourward/simulator/PSAArchitecture::processPacket-SGjrQA4 (I[BLfourward/ir/BehavioralConfig;Lfourward/simulator/TableStore;)Lfourward/simulator/PipelineResult;
 FNDA:1,fourward/simulator/PSAArchitecture::processPacket-SGjrQA4 (I[BLfourward/ir/BehavioralConfig;Lfourward/simulator/TableStore;)Lfourward/simulator/PipelineResult;
-FN:103,fourward/simulator/PSAArchitecture::processPacketRecursive-9-Eitbk (Lfourward/simulator/PSAArchitecture$PipelineConfig;[BILjava/lang/String;ILjava/util/Map;)Lfourward/sim/SimulatorProto$TraceTree;
-FNDA:1,fourward/simulator/PSAArchitecture::processPacketRecursive-9-Eitbk (Lfourward/simulator/PSAArchitecture$PipelineConfig;[BILjava/lang/String;ILjava/util/Map;)Lfourward/sim/SimulatorProto$TraceTree;
-FN:95,fourward/simulator/PSAArchitecture::processPacketRecursive-9-Eitbk$default (Lfourward/simulator/PSAArchitecture;Lfourward/simulator/PSAArchitecture$PipelineConfig;[BILjava/lang/String;ILjava/util/Map;ILjava/lang/Object;)Lfourward/sim/SimulatorProto$TraceTree;
-FNDA:1,fourward/simulator/PSAArchitecture::processPacketRecursive-9-Eitbk$default (Lfourward/simulator/PSAArchitecture;Lfourward/simulator/PSAArchitecture$PipelineConfig;[BILjava/lang/String;ILjava/util/Map;ILjava/lang/Object;)Lfourward/sim/SimulatorProto$TraceTree;
-FN:172,fourward/simulator/PSAArchitecture::buildOriginalEgressPath (Lfourward/simulator/PSAArchitecture$PipelineConfig;Lfourward/simulator/PSAArchitecture$IngressResult;ILjava/util/Map;)Lfourward/sim/SimulatorProto$TraceTree;
-FNDA:1,fourward/simulator/PSAArchitecture::buildOriginalEgressPath (Lfourward/simulator/PSAArchitecture$PipelineConfig;Lfourward/simulator/PSAArchitecture$IngressResult;ILjava/util/Map;)Lfourward/sim/SimulatorProto$TraceTree;
-FN:166,fourward/simulator/PSAArchitecture::buildOriginalEgressPath$default (Lfourward/simulator/PSAArchitecture;Lfourward/simulator/PSAArchitecture$PipelineConfig;Lfourward/simulator/PSAArchitecture$IngressResult;ILjava/util/Map;ILjava/lang/Object;)Lfourward/sim/SimulatorProto$TraceTree;
-FNDA:0,fourward/simulator/PSAArchitecture::buildOriginalEgressPath$default (Lfourward/simulator/PSAArchitecture;Lfourward/simulator/PSAArchitecture$PipelineConfig;Lfourward/simulator/PSAArchitecture$IngressResult;ILjava/util/Map;ILjava/lang/Object;)Lfourward/sim/SimulatorProto$TraceTree;
+FN:103,fourward/simulator/PSAArchitecture::processPacketRecursive-9-Eitbk (Lfourward/simulator/PSAArchitecture$PipelineConfig;[BILjava/lang/String;ILjava/util/Map;)Lfourward/sim/TraceTree;
+FNDA:1,fourward/simulator/PSAArchitecture::processPacketRecursive-9-Eitbk (Lfourward/simulator/PSAArchitecture$PipelineConfig;[BILjava/lang/String;ILjava/util/Map;)Lfourward/sim/TraceTree;
+FN:95,fourward/simulator/PSAArchitecture::processPacketRecursive-9-Eitbk$default (Lfourward/simulator/PSAArchitecture;Lfourward/simulator/PSAArchitecture$PipelineConfig;[BILjava/lang/String;ILjava/util/Map;ILjava/lang/Object;)Lfourward/sim/TraceTree;
+FNDA:1,fourward/simulator/PSAArchitecture::processPacketRecursive-9-Eitbk$default (Lfourward/simulator/PSAArchitecture;Lfourward/simulator/PSAArchitecture$PipelineConfig;[BILjava/lang/String;ILjava/util/Map;ILjava/lang/Object;)Lfourward/sim/TraceTree;
+FN:172,fourward/simulator/PSAArchitecture::buildOriginalEgressPath (Lfourward/simulator/PSAArchitecture$PipelineConfig;Lfourward/simulator/PSAArchitecture$IngressResult;ILjava/util/Map;)Lfourward/sim/TraceTree;
+FNDA:1,fourward/simulator/PSAArchitecture::buildOriginalEgressPath (Lfourward/simulator/PSAArchitecture$PipelineConfig;Lfourward/simulator/PSAArchitecture$IngressResult;ILjava/util/Map;)Lfourward/sim/TraceTree;
+FN:166,fourward/simulator/PSAArchitecture::buildOriginalEgressPath$default (Lfourward/simulator/PSAArchitecture;Lfourward/simulator/PSAArchitecture$PipelineConfig;Lfourward/simulator/PSAArchitecture$IngressResult;ILjava/util/Map;ILjava/lang/Object;)Lfourward/sim/TraceTree;
+FNDA:0,fourward/simulator/PSAArchitecture::buildOriginalEgressPath$default (Lfourward/simulator/PSAArchitecture;Lfourward/simulator/PSAArchitecture$PipelineConfig;Lfourward/simulator/PSAArchitecture$IngressResult;ILjava/util/Map;ILjava/lang/Object;)Lfourward/sim/TraceTree;
 FN:214,fourward/simulator/PSAArchitecture::runIngressPipeline-k571xdo (Lfourward/simulator/PSAArchitecture$PipelineConfig;[BILjava/lang/String;Ljava/util/Map;)Lfourward/simulator/PSAArchitecture$IngressResult;
 FNDA:1,fourward/simulator/PSAArchitecture::runIngressPipeline-k571xdo (Lfourward/simulator/PSAArchitecture$PipelineConfig;[BILjava/lang/String;Ljava/util/Map;)Lfourward/simulator/PSAArchitecture$IngressResult;
 FN:207,fourward/simulator/PSAArchitecture::runIngressPipeline-k571xdo$default (Lfourward/simulator/PSAArchitecture;Lfourward/simulator/PSAArchitecture$PipelineConfig;[BILjava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Lfourward/simulator/PSAArchitecture$IngressResult;
 FNDA:0,fourward/simulator/PSAArchitecture::runIngressPipeline-k571xdo$default (Lfourward/simulator/PSAArchitecture;Lfourward/simulator/PSAArchitecture$PipelineConfig;[BILjava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Lfourward/simulator/PSAArchitecture$IngressResult;
-FN:280,fourward/simulator/PSAArchitecture::multicastEgressTree (Lfourward/simulator/PSAArchitecture$EgressState;Lfourward/simulator/PSAArchitecture$IngressResult;IILjava/util/Map;)Lfourward/sim/SimulatorProto$TraceTree;
-FNDA:1,fourward/simulator/PSAArchitecture::multicastEgressTree (Lfourward/simulator/PSAArchitecture$EgressState;Lfourward/simulator/PSAArchitecture$IngressResult;IILjava/util/Map;)Lfourward/sim/SimulatorProto$TraceTree;
-FN:273,fourward/simulator/PSAArchitecture::multicastEgressTree$default (Lfourward/simulator/PSAArchitecture;Lfourward/simulator/PSAArchitecture$EgressState;Lfourward/simulator/PSAArchitecture$IngressResult;IILjava/util/Map;ILjava/lang/Object;)Lfourward/sim/SimulatorProto$TraceTree;
-FNDA:0,fourward/simulator/PSAArchitecture::multicastEgressTree$default (Lfourward/simulator/PSAArchitecture;Lfourward/simulator/PSAArchitecture$EgressState;Lfourward/simulator/PSAArchitecture$IngressResult;IILjava/util/Map;ILjava/lang/Object;)Lfourward/sim/SimulatorProto$TraceTree;
-FN:338,fourward/simulator/PSAArchitecture::runEgressWithPostProcessing (Lfourward/simulator/PSAArchitecture$EgressState;[BIILjava/lang/String;ILjava/util/Map;)Lfourward/sim/SimulatorProto$TraceTree;
-FNDA:1,fourward/simulator/PSAArchitecture::runEgressWithPostProcessing (Lfourward/simulator/PSAArchitecture$EgressState;[BIILjava/lang/String;ILjava/util/Map;)Lfourward/sim/SimulatorProto$TraceTree;
-FN:329,fourward/simulator/PSAArchitecture::runEgressWithPostProcessing$default (Lfourward/simulator/PSAArchitecture;Lfourward/simulator/PSAArchitecture$EgressState;[BIILjava/lang/String;ILjava/util/Map;ILjava/lang/Object;)Lfourward/sim/SimulatorProto$TraceTree;
-FNDA:0,fourward/simulator/PSAArchitecture::runEgressWithPostProcessing$default (Lfourward/simulator/PSAArchitecture;Lfourward/simulator/PSAArchitecture$EgressState;[BIILjava/lang/String;ILjava/util/Map;ILjava/lang/Object;)Lfourward/sim/SimulatorProto$TraceTree;
+FN:280,fourward/simulator/PSAArchitecture::multicastEgressTree (Lfourward/simulator/PSAArchitecture$EgressState;Lfourward/simulator/PSAArchitecture$IngressResult;IILjava/util/Map;)Lfourward/sim/TraceTree;
+FNDA:1,fourward/simulator/PSAArchitecture::multicastEgressTree (Lfourward/simulator/PSAArchitecture$EgressState;Lfourward/simulator/PSAArchitecture$IngressResult;IILjava/util/Map;)Lfourward/sim/TraceTree;
+FN:273,fourward/simulator/PSAArchitecture::multicastEgressTree$default (Lfourward/simulator/PSAArchitecture;Lfourward/simulator/PSAArchitecture$EgressState;Lfourward/simulator/PSAArchitecture$IngressResult;IILjava/util/Map;ILjava/lang/Object;)Lfourward/sim/TraceTree;
+FNDA:0,fourward/simulator/PSAArchitecture::multicastEgressTree$default (Lfourward/simulator/PSAArchitecture;Lfourward/simulator/PSAArchitecture$EgressState;Lfourward/simulator/PSAArchitecture$IngressResult;IILjava/util/Map;ILjava/lang/Object;)Lfourward/sim/TraceTree;
+FN:338,fourward/simulator/PSAArchitecture::runEgressWithPostProcessing (Lfourward/simulator/PSAArchitecture$EgressState;[BIILjava/lang/String;ILjava/util/Map;)Lfourward/sim/TraceTree;
+FNDA:1,fourward/simulator/PSAArchitecture::runEgressWithPostProcessing (Lfourward/simulator/PSAArchitecture$EgressState;[BIILjava/lang/String;ILjava/util/Map;)Lfourward/sim/TraceTree;
+FN:329,fourward/simulator/PSAArchitecture::runEgressWithPostProcessing$default (Lfourward/simulator/PSAArchitecture;Lfourward/simulator/PSAArchitecture$EgressState;[BIILjava/lang/String;ILjava/util/Map;ILjava/lang/Object;)Lfourward/sim/TraceTree;
+FNDA:0,fourward/simulator/PSAArchitecture::runEgressWithPostProcessing$default (Lfourward/simulator/PSAArchitecture;Lfourward/simulator/PSAArchitecture$EgressState;[BIILjava/lang/String;ILjava/util/Map;ILjava/lang/Object;)Lfourward/sim/TraceTree;
 FN:410,fourward/simulator/PSAArchitecture::runEgressCore (Lfourward/simulator/PSAArchitecture$EgressState;[BIILjava/lang/String;Ljava/util/Map;)Lfourward/simulator/PSAArchitecture$EgressCoreResult;
 FNDA:1,fourward/simulator/PSAArchitecture::runEgressCore (Lfourward/simulator/PSAArchitecture$EgressState;[BIILjava/lang/String;Ljava/util/Map;)Lfourward/simulator/PSAArchitecture$EgressCoreResult;
 FN:402,fourward/simulator/PSAArchitecture::runEgressCore$default (Lfourward/simulator/PSAArchitecture;Lfourward/simulator/PSAArchitecture$EgressState;[BIILjava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Lfourward/simulator/PSAArchitecture$EgressCoreResult;
@@ -6415,8 +6410,8 @@ FN:516,fourward/simulator/PSAArchitecture::buildCloneBranches (Lfourward/simulat
 FNDA:1,fourward/simulator/PSAArchitecture::buildCloneBranches (Lfourward/simulator/PSAArchitecture$PipelineConfig;Lfourward/simulator/StructVal;[BLjava/lang/String;Ljava/util/Map;)Ljava/util/List;
 FN:509,fourward/simulator/PSAArchitecture::buildCloneBranches$default (Lfourward/simulator/PSAArchitecture;Lfourward/simulator/PSAArchitecture$PipelineConfig;Lfourward/simulator/StructVal;[BLjava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Ljava/util/List;
 FNDA:0,fourward/simulator/PSAArchitecture::buildCloneBranches$default (Lfourward/simulator/PSAArchitecture;Lfourward/simulator/PSAArchitecture$PipelineConfig;Lfourward/simulator/StructVal;[BLjava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Ljava/util/List;
-FN:556,fourward/simulator/PSAArchitecture::runCloneEgress (Lfourward/simulator/PSAArchitecture$EgressState;[BIILjava/lang/String;Ljava/util/Map;)Lfourward/sim/SimulatorProto$TraceTree;
-FNDA:1,fourward/simulator/PSAArchitecture::runCloneEgress (Lfourward/simulator/PSAArchitecture$EgressState;[BIILjava/lang/String;Ljava/util/Map;)Lfourward/sim/SimulatorProto$TraceTree;
+FN:556,fourward/simulator/PSAArchitecture::runCloneEgress (Lfourward/simulator/PSAArchitecture$EgressState;[BIILjava/lang/String;Ljava/util/Map;)Lfourward/sim/TraceTree;
+FNDA:1,fourward/simulator/PSAArchitecture::runCloneEgress (Lfourward/simulator/PSAArchitecture$EgressState;[BIILjava/lang/String;Ljava/util/Map;)Lfourward/sim/TraceTree;
 FN:576,fourward/simulator/PSAArchitecture::initIngressMetadata-OsBMiQA (Ljava/util/Map;ILjava/lang/String;)V
 FNDA:1,fourward/simulator/PSAArchitecture::initIngressMetadata-OsBMiQA (Ljava/util/Map;ILjava/lang/String;)V
 FN:598,fourward/simulator/PSAArchitecture::initEgressMetadata (Ljava/util/Map;IILjava/lang/String;Lfourward/simulator/StructVal;)V
@@ -6425,18 +6420,18 @@ FN:636,fourward/simulator/PSAArchitecture::createPsaExternHandler (Lfourward/sim
 FNDA:1,fourward/simulator/PSAArchitecture::createPsaExternHandler (Lfourward/simulator/PSAArchitecture$PipelineConfig;)Lfourward/simulator/ExternHandler;
 FN:65,fourward/simulator/PSAArchitecture::processPacket_SGjrQA4$stage (Ljava/util/List;Ljava/lang/String;)Lfourward/ir/PipelineStage;
 FNDA:1,fourward/simulator/PSAArchitecture::processPacket_SGjrQA4$stage (Ljava/util/List;Ljava/lang/String;)Lfourward/ir/PipelineStage;
-FN:554,fourward/simulator/PSAArchitecture::runCloneEgress$egressToTrace (ILfourward/simulator/PSAArchitecture$EgressCoreResult;)Lfourward/sim/SimulatorProto$TraceTree;
-FNDA:1,fourward/simulator/PSAArchitecture::runCloneEgress$egressToTrace (ILfourward/simulator/PSAArchitecture$EgressCoreResult;)Lfourward/sim/SimulatorProto$TraceTree;
+FN:554,fourward/simulator/PSAArchitecture::runCloneEgress$egressToTrace (ILfourward/simulator/PSAArchitecture$EgressCoreResult;)Lfourward/sim/TraceTree;
+FNDA:1,fourward/simulator/PSAArchitecture::runCloneEgress$egressToTrace (ILfourward/simulator/PSAArchitecture$EgressCoreResult;)Lfourward/sim/TraceTree;
 FN:700,fourward/simulator/PSAArchitecture::<clinit> ()V
 FNDA:1,fourward/simulator/PSAArchitecture::<clinit> ()V
 FN:699,fourward/simulator/PSAArchitecture$Companion::getPSA_HASH_ALGORITHMS ()Ljava/util/Map;
 FNDA:1,fourward/simulator/PSAArchitecture$Companion::getPSA_HASH_ALGORITHMS ()Ljava/util/Map;
 FN:709,fourward/simulator/PSAArchitecture$Companion::getPSA_PORT_RECIRCULATE_UINT-pVg5ArA ()I
 FNDA:0,fourward/simulator/PSAArchitecture$Companion::getPSA_PORT_RECIRCULATE_UINT-pVg5ArA ()I
-FN:317,fourward/simulator/PSAArchitecture$EgressCoreResult::<init> (Ljava/util/List;Z[BLfourward/simulator/StructVal;Lfourward/sim/SimulatorProto$DropReason;)V
-FNDA:1,fourward/simulator/PSAArchitecture$EgressCoreResult::<init> (Ljava/util/List;Z[BLfourward/simulator/StructVal;Lfourward/sim/SimulatorProto$DropReason;)V
-FN:317,fourward/simulator/PSAArchitecture$EgressCoreResult::<init> (Ljava/util/List;Z[BLfourward/simulator/StructVal;Lfourward/sim/SimulatorProto$DropReason;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-FNDA:1,fourward/simulator/PSAArchitecture$EgressCoreResult::<init> (Ljava/util/List;Z[BLfourward/simulator/StructVal;Lfourward/sim/SimulatorProto$DropReason;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+FN:317,fourward/simulator/PSAArchitecture$EgressCoreResult::<init> (Ljava/util/List;Z[BLfourward/simulator/StructVal;Lfourward/sim/DropReason;)V
+FNDA:1,fourward/simulator/PSAArchitecture$EgressCoreResult::<init> (Ljava/util/List;Z[BLfourward/simulator/StructVal;Lfourward/sim/DropReason;)V
+FN:317,fourward/simulator/PSAArchitecture$EgressCoreResult::<init> (Ljava/util/List;Z[BLfourward/simulator/StructVal;Lfourward/sim/DropReason;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+FNDA:1,fourward/simulator/PSAArchitecture$EgressCoreResult::<init> (Ljava/util/List;Z[BLfourward/simulator/StructVal;Lfourward/sim/DropReason;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 FN:318,fourward/simulator/PSAArchitecture$EgressCoreResult::getEvents ()Ljava/util/List;
 FNDA:1,fourward/simulator/PSAArchitecture$EgressCoreResult::getEvents ()Ljava/util/List;
 FN:319,fourward/simulator/PSAArchitecture$EgressCoreResult::getDropped ()Z
@@ -6445,18 +6440,18 @@ FN:320,fourward/simulator/PSAArchitecture$EgressCoreResult::getDeparsedBytes ()[
 FNDA:1,fourward/simulator/PSAArchitecture$EgressCoreResult::getDeparsedBytes ()[B
 FN:321,fourward/simulator/PSAArchitecture$EgressCoreResult::getOutput ()Lfourward/simulator/StructVal;
 FNDA:1,fourward/simulator/PSAArchitecture$EgressCoreResult::getOutput ()Lfourward/simulator/StructVal;
-FN:322,fourward/simulator/PSAArchitecture$EgressCoreResult::getDropReason ()Lfourward/sim/SimulatorProto$DropReason;
-FNDA:1,fourward/simulator/PSAArchitecture$EgressCoreResult::getDropReason ()Lfourward/sim/SimulatorProto$DropReason;
+FN:322,fourward/simulator/PSAArchitecture$EgressCoreResult::getDropReason ()Lfourward/sim/DropReason;
+FNDA:1,fourward/simulator/PSAArchitecture$EgressCoreResult::getDropReason ()Lfourward/sim/DropReason;
 FN:312,fourward/simulator/PSAArchitecture$EgressState::<init> (Lfourward/simulator/PSAArchitecture$PipelineConfig;Lfourward/simulator/StructVal;)V
 FNDA:1,fourward/simulator/PSAArchitecture$EgressState::<init> (Lfourward/simulator/PSAArchitecture$PipelineConfig;Lfourward/simulator/StructVal;)V
 FN:312,fourward/simulator/PSAArchitecture$EgressState::getPipeline ()Lfourward/simulator/PSAArchitecture$PipelineConfig;
 FNDA:1,fourward/simulator/PSAArchitecture$EgressState::getPipeline ()Lfourward/simulator/PSAArchitecture$PipelineConfig;
 FN:312,fourward/simulator/PSAArchitecture$EgressState::getIngressOutput ()Lfourward/simulator/StructVal;
 FNDA:1,fourward/simulator/PSAArchitecture$EgressState::getIngressOutput ()Lfourward/simulator/StructVal;
-FN:199,fourward/simulator/PSAArchitecture$IngressResult::<init> (Ljava/util/List;Lfourward/simulator/StructVal;[BZLfourward/sim/SimulatorProto$DropReason;)V
-FNDA:1,fourward/simulator/PSAArchitecture$IngressResult::<init> (Ljava/util/List;Lfourward/simulator/StructVal;[BZLfourward/sim/SimulatorProto$DropReason;)V
-FN:199,fourward/simulator/PSAArchitecture$IngressResult::<init> (Ljava/util/List;Lfourward/simulator/StructVal;[BZLfourward/sim/SimulatorProto$DropReason;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-FNDA:1,fourward/simulator/PSAArchitecture$IngressResult::<init> (Ljava/util/List;Lfourward/simulator/StructVal;[BZLfourward/sim/SimulatorProto$DropReason;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+FN:199,fourward/simulator/PSAArchitecture$IngressResult::<init> (Ljava/util/List;Lfourward/simulator/StructVal;[BZLfourward/sim/DropReason;)V
+FNDA:1,fourward/simulator/PSAArchitecture$IngressResult::<init> (Ljava/util/List;Lfourward/simulator/StructVal;[BZLfourward/sim/DropReason;)V
+FN:199,fourward/simulator/PSAArchitecture$IngressResult::<init> (Ljava/util/List;Lfourward/simulator/StructVal;[BZLfourward/sim/DropReason;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+FNDA:1,fourward/simulator/PSAArchitecture$IngressResult::<init> (Ljava/util/List;Lfourward/simulator/StructVal;[BZLfourward/sim/DropReason;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 FN:200,fourward/simulator/PSAArchitecture$IngressResult::getEvents ()Ljava/util/List;
 FNDA:1,fourward/simulator/PSAArchitecture$IngressResult::getEvents ()Ljava/util/List;
 FN:201,fourward/simulator/PSAArchitecture$IngressResult::getOutput ()Lfourward/simulator/StructVal;
@@ -6465,8 +6460,8 @@ FN:202,fourward/simulator/PSAArchitecture$IngressResult::getDeparsedBytes ()[B
 FNDA:1,fourward/simulator/PSAArchitecture$IngressResult::getDeparsedBytes ()[B
 FN:203,fourward/simulator/PSAArchitecture$IngressResult::getDropped ()Z
 FNDA:1,fourward/simulator/PSAArchitecture$IngressResult::getDropped ()Z
-FN:204,fourward/simulator/PSAArchitecture$IngressResult::getDropReason ()Lfourward/sim/SimulatorProto$DropReason;
-FNDA:1,fourward/simulator/PSAArchitecture$IngressResult::getDropReason ()Lfourward/sim/SimulatorProto$DropReason;
+FN:204,fourward/simulator/PSAArchitecture$IngressResult::getDropReason ()Lfourward/sim/DropReason;
+FNDA:1,fourward/simulator/PSAArchitecture$IngressResult::getDropReason ()Lfourward/sim/DropReason;
 FN:40,fourward/simulator/PSAArchitecture$PipelineConfig::<init> (Lfourward/ir/BehavioralConfig;Lfourward/simulator/TableStore;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Lfourward/simulator/Interpreter;Lfourward/ir/PipelineStage;Lfourward/ir/PipelineStage;Lfourward/ir/PipelineStage;Lfourward/ir/PipelineStage;Lfourward/ir/PipelineStage;Lfourward/ir/PipelineStage;)V
 FNDA:1,fourward/simulator/PSAArchitecture$PipelineConfig::<init> (Lfourward/ir/BehavioralConfig;Lfourward/simulator/TableStore;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;Lfourward/simulator/Interpreter;Lfourward/ir/PipelineStage;Lfourward/ir/PipelineStage;Lfourward/ir/PipelineStage;Lfourward/ir/PipelineStage;Lfourward/ir/PipelineStage;Lfourward/ir/PipelineStage;)V
 FN:42,fourward/simulator/PSAArchitecture$PipelineConfig::getConfig ()Lfourward/ir/BehavioralConfig;
@@ -6495,14 +6490,14 @@ FN:54,fourward/simulator/PSAArchitecture$PipelineConfig::getEgressDeparser ()Lfo
 FNDA:1,fourward/simulator/PSAArchitecture$PipelineConfig::getEgressDeparser ()Lfourward/ir/PipelineStage;
 FN:638,fourward/simulator/PSAArchitecture$createPsaExternHandler$1::handle (Lfourward/simulator/ExternCall;Lfourward/simulator/ExternEvaluator;)Lfourward/simulator/Value;
 FNDA:1,fourward/simulator/PSAArchitecture$createPsaExternHandler$1::handle (Lfourward/simulator/ExternCall;Lfourward/simulator/ExternEvaluator;)Lfourward/simulator/Value;
-FN:113,fourward/simulator/PSAArchitecture$processPacketRecursive$2::invoke (Ljava/util/Map;)Lfourward/sim/SimulatorProto$TraceTree;
-FNDA:1,fourward/simulator/PSAArchitecture$processPacketRecursive$2::invoke (Ljava/util/Map;)Lfourward/sim/SimulatorProto$TraceTree;
-FN:562,fourward/simulator/PSAArchitecture$runCloneEgress$1::invoke (Ljava/util/Map;)Lfourward/sim/SimulatorProto$TraceTree;
-FNDA:1,fourward/simulator/PSAArchitecture$runCloneEgress$1::invoke (Ljava/util/Map;)Lfourward/sim/SimulatorProto$TraceTree;
+FN:113,fourward/simulator/PSAArchitecture$processPacketRecursive$2::invoke (Ljava/util/Map;)Lfourward/sim/TraceTree;
+FNDA:1,fourward/simulator/PSAArchitecture$processPacketRecursive$2::invoke (Ljava/util/Map;)Lfourward/sim/TraceTree;
+FN:562,fourward/simulator/PSAArchitecture$runCloneEgress$1::invoke (Ljava/util/Map;)Lfourward/sim/TraceTree;
+FNDA:1,fourward/simulator/PSAArchitecture$runCloneEgress$1::invoke (Ljava/util/Map;)Lfourward/sim/TraceTree;
 FN:424,fourward/simulator/PSAArchitecture$runEgressCore$1::invoke (Lfourward/simulator/ParserErrorException;)V
 FNDA:1,fourward/simulator/PSAArchitecture$runEgressCore$1::invoke (Lfourward/simulator/ParserErrorException;)V
-FN:343,fourward/simulator/PSAArchitecture$runEgressWithPostProcessing$1::invoke (Ljava/util/Map;)Lfourward/sim/SimulatorProto$TraceTree;
-FNDA:1,fourward/simulator/PSAArchitecture$runEgressWithPostProcessing$1::invoke (Ljava/util/Map;)Lfourward/sim/SimulatorProto$TraceTree;
+FN:343,fourward/simulator/PSAArchitecture$runEgressWithPostProcessing$1::invoke (Ljava/util/Map;)Lfourward/sim/TraceTree;
+FNDA:1,fourward/simulator/PSAArchitecture$runEgressWithPostProcessing$1::invoke (Ljava/util/Map;)Lfourward/sim/TraceTree;
 FN:234,fourward/simulator/PSAArchitecture$runIngressPipeline$1::invoke (Lfourward/simulator/ParserErrorException;)V
 FNDA:1,fourward/simulator/PSAArchitecture$runIngressPipeline$1::invoke (Lfourward/simulator/ParserErrorException;)V
 BRDA:67,0,0,1
@@ -7054,10 +7049,10 @@ LH:327
 LF:359
 end_of_record
 SF:simulator/Simulator.kt
-FN:23,fourward/simulator/ProcessPacketResult::<init> (Lfourward/sim/SimulatorProto$TraceTree;Ljava/util/List;)V
-FNDA:1,fourward/simulator/ProcessPacketResult::<init> (Lfourward/sim/SimulatorProto$TraceTree;Ljava/util/List;)V
-FN:23,fourward/simulator/ProcessPacketResult::getTrace ()Lfourward/sim/SimulatorProto$TraceTree;
-FNDA:1,fourward/simulator/ProcessPacketResult::getTrace ()Lfourward/sim/SimulatorProto$TraceTree;
+FN:23,fourward/simulator/ProcessPacketResult::<init> (Lfourward/sim/TraceTree;Ljava/util/List;)V
+FNDA:1,fourward/simulator/ProcessPacketResult::<init> (Lfourward/sim/TraceTree;Ljava/util/List;)V
+FN:23,fourward/simulator/ProcessPacketResult::getTrace ()Lfourward/sim/TraceTree;
+FNDA:1,fourward/simulator/ProcessPacketResult::getTrace ()Lfourward/sim/TraceTree;
 FN:23,fourward/simulator/ProcessPacketResult::getPossibleOutcomes ()Ljava/util/List;
 FNDA:1,fourward/simulator/ProcessPacketResult::getPossibleOutcomes ()Ljava/util/List;
 FN:37,fourward/simulator/Simulator::<init> (Ljava/lang/Integer;)V
@@ -7104,8 +7099,8 @@ FN:179,fourward/simulator/Simulator::readEntries (Ljava/util/List;)Ljava/util/Li
 FNDA:1,fourward/simulator/Simulator::readEntries (Ljava/util/List;)Ljava/util/List;
 FN:198,fourward/simulator/Simulator::displayName (Ljava/lang/String;)Ljava/lang/String;
 FNDA:0,fourward/simulator/Simulator::displayName (Ljava/lang/String;)Ljava/lang/String;
-FN:214,fourward/simulator/SimulatorKt::collectPossibleOutcomes (Lfourward/sim/SimulatorProto$TraceTree;)Ljava/util/List;
-FNDA:1,fourward/simulator/SimulatorKt::collectPossibleOutcomes (Lfourward/sim/SimulatorProto$TraceTree;)Ljava/util/List;
+FN:214,fourward/simulator/SimulatorKt::collectPossibleOutcomes (Lfourward/sim/TraceTree;)Ljava/util/List;
+FNDA:1,fourward/simulator/SimulatorKt::collectPossibleOutcomes (Lfourward/sim/TraceTree;)Ljava/util/List;
 BRDA:62,0,0,1
 BRDA:62,0,1,0
 BRDA:62,0,2,1
@@ -8910,20 +8905,20 @@ end_of_record
 SF:simulator/TraceHelpers.kt
 FN:23,fourward/simulator/ForkMode::<clinit> ()V
 FNDA:1,fourward/simulator/ForkMode::<clinit> ()V
-FN:33,fourward/simulator/TraceHelpersKt::forkModeOf (Lfourward/sim/SimulatorProto$ForkReason;)Lfourward/simulator/ForkMode;
-FNDA:1,fourward/simulator/TraceHelpersKt::forkModeOf (Lfourward/sim/SimulatorProto$ForkReason;)Lfourward/simulator/ForkMode;
-FN:48,fourward/simulator/TraceHelpersKt::buildDropTrace (Ljava/util/List;Lfourward/sim/SimulatorProto$DropReason;)Lfourward/sim/SimulatorProto$TraceTree;
-FNDA:1,fourward/simulator/TraceHelpersKt::buildDropTrace (Ljava/util/List;Lfourward/sim/SimulatorProto$DropReason;)Lfourward/sim/SimulatorProto$TraceTree;
-FN:44,fourward/simulator/TraceHelpersKt::buildDropTrace$default (Ljava/util/List;Lfourward/sim/SimulatorProto$DropReason;ILjava/lang/Object;)Lfourward/sim/SimulatorProto$TraceTree;
-FNDA:1,fourward/simulator/TraceHelpersKt::buildDropTrace$default (Ljava/util/List;Lfourward/sim/SimulatorProto$DropReason;ILjava/lang/Object;)Lfourward/sim/SimulatorProto$TraceTree;
-FN:54,fourward/simulator/TraceHelpersKt::buildOutputTrace (Ljava/util/List;I[B)Lfourward/sim/SimulatorProto$TraceTree;
-FNDA:1,fourward/simulator/TraceHelpersKt::buildOutputTrace (Ljava/util/List;I[B)Lfourward/sim/SimulatorProto$TraceTree;
-FN:65,fourward/simulator/TraceHelpersKt::packetIngressEvent-WZ4Q5Ns (I)Lfourward/sim/SimulatorProto$TraceEvent;
-FNDA:1,fourward/simulator/TraceHelpersKt::packetIngressEvent-WZ4Q5Ns (I)Lfourward/sim/SimulatorProto$TraceEvent;
-FN:71,fourward/simulator/TraceHelpersKt::stageEvent (Lfourward/ir/PipelineStage;Lfourward/sim/SimulatorProto$PipelineStageEvent$Direction;)Lfourward/sim/SimulatorProto$TraceEvent;
-FNDA:1,fourward/simulator/TraceHelpersKt::stageEvent (Lfourward/ir/PipelineStage;Lfourward/sim/SimulatorProto$PipelineStageEvent$Direction;)Lfourward/sim/SimulatorProto$TraceEvent;
-FN:86,fourward/simulator/TraceHelpersKt::buildForkTree (Ljava/util/List;Lfourward/sim/SimulatorProto$ForkReason;Ljava/util/List;)Lfourward/sim/SimulatorProto$TraceTree;
-FNDA:1,fourward/simulator/TraceHelpersKt::buildForkTree (Ljava/util/List;Lfourward/sim/SimulatorProto$ForkReason;Ljava/util/List;)Lfourward/sim/SimulatorProto$TraceTree;
+FN:33,fourward/simulator/TraceHelpersKt::forkModeOf (Lfourward/sim/ForkReason;)Lfourward/simulator/ForkMode;
+FNDA:1,fourward/simulator/TraceHelpersKt::forkModeOf (Lfourward/sim/ForkReason;)Lfourward/simulator/ForkMode;
+FN:48,fourward/simulator/TraceHelpersKt::buildDropTrace (Ljava/util/List;Lfourward/sim/DropReason;)Lfourward/sim/TraceTree;
+FNDA:1,fourward/simulator/TraceHelpersKt::buildDropTrace (Ljava/util/List;Lfourward/sim/DropReason;)Lfourward/sim/TraceTree;
+FN:44,fourward/simulator/TraceHelpersKt::buildDropTrace$default (Ljava/util/List;Lfourward/sim/DropReason;ILjava/lang/Object;)Lfourward/sim/TraceTree;
+FNDA:1,fourward/simulator/TraceHelpersKt::buildDropTrace$default (Ljava/util/List;Lfourward/sim/DropReason;ILjava/lang/Object;)Lfourward/sim/TraceTree;
+FN:54,fourward/simulator/TraceHelpersKt::buildOutputTrace (Ljava/util/List;I[B)Lfourward/sim/TraceTree;
+FNDA:1,fourward/simulator/TraceHelpersKt::buildOutputTrace (Ljava/util/List;I[B)Lfourward/sim/TraceTree;
+FN:65,fourward/simulator/TraceHelpersKt::packetIngressEvent-WZ4Q5Ns (I)Lfourward/sim/TraceEvent;
+FNDA:1,fourward/simulator/TraceHelpersKt::packetIngressEvent-WZ4Q5Ns (I)Lfourward/sim/TraceEvent;
+FN:71,fourward/simulator/TraceHelpersKt::stageEvent (Lfourward/ir/PipelineStage;Lfourward/sim/PipelineStageEvent$Direction;)Lfourward/sim/TraceEvent;
+FNDA:1,fourward/simulator/TraceHelpersKt::stageEvent (Lfourward/ir/PipelineStage;Lfourward/sim/PipelineStageEvent$Direction;)Lfourward/sim/TraceEvent;
+FN:86,fourward/simulator/TraceHelpersKt::buildForkTree (Ljava/util/List;Lfourward/sim/ForkReason;Ljava/util/List;)Lfourward/sim/TraceTree;
+FNDA:1,fourward/simulator/TraceHelpersKt::buildForkTree (Ljava/util/List;Lfourward/sim/ForkReason;Ljava/util/List;)Lfourward/sim/TraceTree;
 BRDA:33,0,0,1
 BRDA:33,0,1,1
 BRDA:33,0,2,0
@@ -9055,8 +9050,8 @@ FN:282,fourward/simulator/V1ModelArchitecture::initPipelineState (Lfourward/simu
 FNDA:1,fourward/simulator/V1ModelArchitecture::initPipelineState (Lfourward/simulator/V1ModelArchitecture$PipelineContext;Lfourward/simulator/V1ModelDecisions;)Lfourward/simulator/V1ModelArchitecture$PipelineState;
 FN:355,fourward/simulator/V1ModelArchitecture::finishPipelineState (Lfourward/simulator/V1ModelArchitecture$PipelineContext;Lfourward/simulator/V1ModelDecisions;Lfourward/simulator/PacketContext;Lfourward/simulator/Environment;Lfourward/simulator/StructVal;)Lfourward/simulator/V1ModelArchitecture$PipelineState;
 FNDA:1,fourward/simulator/V1ModelArchitecture::finishPipelineState (Lfourward/simulator/V1ModelArchitecture$PipelineContext;Lfourward/simulator/V1ModelDecisions;Lfourward/simulator/PacketContext;Lfourward/simulator/Environment;Lfourward/simulator/StructVal;)Lfourward/simulator/V1ModelArchitecture$PipelineState;
-FN:392,fourward/simulator/V1ModelArchitecture::runPipeline (Lfourward/simulator/V1ModelArchitecture$PipelineContext;Lfourward/simulator/V1ModelDecisions;)Lfourward/sim/SimulatorProto$TraceTree;
-FNDA:1,fourward/simulator/V1ModelArchitecture::runPipeline (Lfourward/simulator/V1ModelArchitecture$PipelineContext;Lfourward/simulator/V1ModelDecisions;)Lfourward/sim/SimulatorProto$TraceTree;
+FN:392,fourward/simulator/V1ModelArchitecture::runPipeline (Lfourward/simulator/V1ModelArchitecture$PipelineContext;Lfourward/simulator/V1ModelDecisions;)Lfourward/sim/TraceTree;
+FNDA:1,fourward/simulator/V1ModelArchitecture::runPipeline (Lfourward/simulator/V1ModelArchitecture$PipelineContext;Lfourward/simulator/V1ModelDecisions;)Lfourward/sim/TraceTree;
 FN:503,fourward/simulator/V1ModelArchitecture::runParser (Lfourward/simulator/V1ModelArchitecture$PipelineState;)Z
 FNDA:1,fourward/simulator/V1ModelArchitecture::runParser (Lfourward/simulator/V1ModelArchitecture$PipelineState;)Z
 FN:520,fourward/simulator/V1ModelArchitecture::runControlStages (Lfourward/simulator/V1ModelArchitecture$PipelineState;Ljava/util/List;)V
@@ -9075,10 +9070,10 @@ FN:668,fourward/simulator/V1ModelArchitecture::egressSpecIsDropPort (Lfourward/s
 FNDA:1,fourward/simulator/V1ModelArchitecture::egressSpecIsDropPort (Lfourward/simulator/V1ModelArchitecture$PipelineState;)Z
 FN:675,fourward/simulator/V1ModelArchitecture::resolveCloneSession (Lfourward/simulator/V1ModelArchitecture$PipelineContext;Lfourward/simulator/V1ModelArchitecture$PipelineState;I)Ljava/lang/Long;
 FNDA:1,fourward/simulator/V1ModelArchitecture::resolveCloneSession (Lfourward/simulator/V1ModelArchitecture$PipelineContext;Lfourward/simulator/V1ModelArchitecture$PipelineState;I)Ljava/lang/Long;
-FN:686,fourward/simulator/V1ModelArchitecture::cloneSessionLookupEvent (II)Lfourward/sim/SimulatorProto$TraceEvent;
-FNDA:1,fourward/simulator/V1ModelArchitecture::cloneSessionLookupEvent (II)Lfourward/sim/SimulatorProto$TraceEvent;
-FN:696,fourward/simulator/V1ModelArchitecture::cloneSessionMissEvent (I)Lfourward/sim/SimulatorProto$TraceEvent;
-FNDA:1,fourward/simulator/V1ModelArchitecture::cloneSessionMissEvent (I)Lfourward/sim/SimulatorProto$TraceEvent;
+FN:686,fourward/simulator/V1ModelArchitecture::cloneSessionLookupEvent (II)Lfourward/sim/TraceEvent;
+FNDA:1,fourward/simulator/V1ModelArchitecture::cloneSessionLookupEvent (II)Lfourward/sim/TraceEvent;
+FN:696,fourward/simulator/V1ModelArchitecture::cloneSessionMissEvent (I)Lfourward/sim/TraceEvent;
+FNDA:1,fourward/simulator/V1ModelArchitecture::cloneSessionMissEvent (I)Lfourward/sim/TraceEvent;
 FN:723,fourward/simulator/V1ModelArchitecture::createExternHandler (Lfourward/simulator/StructVal;Lfourward/simulator/V1ModelPendingOps;Lfourward/simulator/TableStore;J)Lfourward/simulator/ExternHandler;
 FNDA:1,fourward/simulator/V1ModelArchitecture::createExternHandler (Lfourward/simulator/StructVal;Lfourward/simulator/V1ModelPendingOps;Lfourward/simulator/TableStore;J)Lfourward/simulator/ExternHandler;
 FN:747,fourward/simulator/V1ModelArchitecture::v1modelExternCall (Ljava/lang/String;Lfourward/simulator/ExternEvaluator;Lfourward/simulator/StructVal;Lfourward/simulator/V1ModelPendingOps;J)Lfourward/simulator/Value;

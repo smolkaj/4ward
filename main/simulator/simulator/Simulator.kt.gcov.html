@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-04-09 06:18:28</td>
+            <td class="headerValue">2026-04-09 06:55:36</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">96.2&nbsp;%</td>
@@ -63,8 +63,8 @@
 <span id="L1"><span class="lineNum">       1</span>              : package fourward.simulator</span>
 <span id="L2"><span class="lineNum">       2</span>              : </span>
 <span id="L3"><span class="lineNum">       3</span>              : import fourward.ir.PipelineConfig</span>
-<span id="L4"><span class="lineNum">       4</span>              : import fourward.sim.SimulatorProto.OutputPacket</span>
-<span id="L5"><span class="lineNum">       5</span>              : import fourward.sim.SimulatorProto.TraceTree</span>
+<span id="L4"><span class="lineNum">       4</span>              : import fourward.sim.OutputPacket</span>
+<span id="L5"><span class="lineNum">       5</span>              : import fourward.sim.TraceTree</span>
 <span id="L6"><span class="lineNum">       6</span>              : </span>
 <span id="L7"><span class="lineNum">       7</span>              : /**</span>
 <span id="L8"><span class="lineNum">       8</span>              :  * Result of processing a single packet through the pipeline.</span>
@@ -79,8 +79,8 @@
 <span id="L17"><span class="lineNum">      17</span>              :  * selectors have one possible outcome per alternative (Cartesian product when nested inside</span>
 <span id="L18"><span class="lineNum">      18</span>              :  * parallel forks).</span>
 <span id="L19"><span class="lineNum">      19</span>              :  *</span>
-<span id="L20"><span class="lineNum">      20</span>              :  * Decouples the simulator from the gRPC wire format ([fourward.sim.SimulatorProto</span>
-<span id="L21"><span class="lineNum">      21</span>              :  * .InjectPacketResponse]). Each RPC method builds its own wire proto from this data class.</span>
+<span id="L20"><span class="lineNum">      20</span>              :  * Decouples the simulator from the gRPC wire format ([fourward.dataplane.InjectPacketResponse]).</span>
+<span id="L21"><span class="lineNum">      21</span>              :  * Each RPC method builds its own wire proto from this data class.</span>
 <span id="L22"><span class="lineNum">      22</span>              :  */</span>
 <span id="L23"><span class="lineNum">      23</span> <span class="tlaGNC tlaBgGNC">           1 : data class ProcessPacketResult(val trace: TraceTree, val possibleOutcomes: List&lt;List&lt;OutputPacket&gt;&gt;)</span></span>
 <span id="L24"><span class="lineNum">      24</span>              : </span>

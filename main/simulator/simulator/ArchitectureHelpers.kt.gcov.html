@@ -31,13 +31,13 @@
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">91.1&nbsp;%</td>
-            <td class="headerCovTableEntry">101</td>
-            <td class="headerCovTableEntry">92</td>
+            <td class="headerCovTableEntryHi">90.8&nbsp;%</td>
+            <td class="headerCovTableEntry">98</td>
+            <td class="headerCovTableEntry">89</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-04-09 06:18:28</td>
+            <td class="headerValue">2026-04-09 06:55:36</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -66,8 +66,8 @@
 <span id="L4"><span class="lineNum">       4</span>              : import fourward.ir.ExternInstanceDecl</span>
 <span id="L5"><span class="lineNum">       5</span>              : import fourward.ir.PipelineStage</span>
 <span id="L6"><span class="lineNum">       6</span>              : import fourward.ir.TypeDecl</span>
-<span id="L7"><span class="lineNum">       7</span>              : import fourward.sim.SimulatorProto.PipelineStageEvent</span>
-<span id="L8"><span class="lineNum">       8</span>              : import fourward.sim.SimulatorProto.TraceTree</span>
+<span id="L7"><span class="lineNum">       7</span>              : import fourward.sim.PipelineStageEvent</span>
+<span id="L8"><span class="lineNum">       8</span>              : import fourward.sim.TraceTree</span>
 <span id="L9"><span class="lineNum">       9</span>              : import java.math.BigInteger</span>
 <span id="L10"><span class="lineNum">      10</span>              : </span>
 <span id="L11"><span class="lineNum">      11</span>              : /** Simplified parameter descriptor: just name and type. */</span>
@@ -209,98 +209,94 @@
 <span id="L147"><span class="lineNum">     147</span> <span class="tlaGNC">           1 :       val stripped = TraceTree.newBuilder().addAllEvents(subtree.eventsList.drop(prefixLength))</span></span>
 <span id="L148"><span class="lineNum">     148</span> <span class="tlaGNC">           1 :       if (subtree.hasPacketOutcome()) stripped.setPacketOutcome(subtree.packetOutcome)</span></span>
 <span id="L149"><span class="lineNum">     149</span> <span class="tlaGNC">           1 :       if (subtree.hasForkOutcome()) stripped.setForkOutcome(subtree.forkOutcome)</span></span>
-<span id="L150"><span class="lineNum">     150</span> <span class="tlaGNC">           1 :       fourward.sim.SimulatorProto.ForkBranch.newBuilder()</span></span>
+<span id="L150"><span class="lineNum">     150</span> <span class="tlaGNC">           1 :       fourward.sim.ForkBranch.newBuilder()</span></span>
 <span id="L151"><span class="lineNum">     151</span> <span class="tlaGNC">           1 :         .setLabel(&quot;member_${member.memberId}&quot;)</span></span>
 <span id="L152"><span class="lineNum">     152</span> <span class="tlaGNC">           1 :         .setSubtree(stripped.build())</span></span>
 <span id="L153"><span class="lineNum">     153</span> <span class="tlaGNC">           1 :         .build()</span></span>
 <span id="L154"><span class="lineNum">     154</span>              :     }</span>
-<span id="L155"><span class="lineNum">     155</span> <span class="tlaGNC">           1 :   return buildForkTree(</span></span>
-<span id="L156"><span class="lineNum">     156</span> <span class="tlaGNC">           1 :     fork.eventsBeforeFork,</span></span>
-<span id="L157"><span class="lineNum">     157</span> <span class="tlaGNC">           1 :     fourward.sim.SimulatorProto.ForkReason.ACTION_SELECTOR,</span></span>
-<span id="L158"><span class="lineNum">     158</span> <span class="tlaGNC">           1 :     branches,</span></span>
-<span id="L159"><span class="lineNum">     159</span>              :   )</span>
-<span id="L160"><span class="lineNum">     160</span>              : }</span>
-<span id="L161"><span class="lineNum">     161</span>              : </span>
-<span id="L162"><span class="lineNum">     162</span>              : /**</span>
-<span id="L163"><span class="lineNum">     163</span>              :  * Handles extern methods shared across PSA and PNA: Register, Random, Counter, Hash, Meter,</span>
-<span id="L164"><span class="lineNum">     164</span>              :  * InternetChecksum, Digest, and Checksum.</span>
-<span id="L165"><span class="lineNum">     165</span>              :  *</span>
-<span id="L166"><span class="lineNum">     166</span>              :  * Returns the result [Value], or `null` if [call] is not a common extern method (the caller should</span>
-<span id="L167"><span class="lineNum">     167</span>              :  * handle it as architecture-specific).</span>
-<span id="L168"><span class="lineNum">     168</span>              :  */</span>
-<span id="L169"><span class="lineNum">     169</span>              : @Suppress(&quot;LongParameterList&quot;)</span>
-<span id="L170"><span class="lineNum">     170</span>              : internal fun handleCommonExternMethod(</span>
-<span id="L171"><span class="lineNum">     171</span>              :   call: ExternCall.Method,</span>
-<span id="L172"><span class="lineNum">     172</span>              :   eval: ExternEvaluator,</span>
-<span id="L173"><span class="lineNum">     173</span>              :   tableStore: TableStore,</span>
-<span id="L174"><span class="lineNum">     174</span>              :   externInstances: Map&lt;String, ExternInstanceDecl&gt;,</span>
-<span id="L175"><span class="lineNum">     175</span>              :   checksumState: MutableMap&lt;String, BigInteger&gt;,</span>
-<span id="L176"><span class="lineNum">     176</span>              :   hashAlgorithms: Map&lt;String, String&gt;,</span>
-<span id="L177"><span class="lineNum">     177</span>              : ): Value? =</span>
-<span id="L178"><span class="lineNum">     178</span> <span class="tlaGNC">           1 :   when (call.method) {</span></span>
-<span id="L179"><span class="lineNum">     179</span>              :     &quot;read&quot; -&gt;</span>
-<span id="L180"><span class="lineNum">     180</span> <span class="tlaGNC">           1 :       when (call.externType) {</span></span>
-<span id="L181"><span class="lineNum">     181</span> <span class="tlaGNC">           1 :         &quot;Register&quot; -&gt; {</span></span>
-<span id="L182"><span class="lineNum">     182</span> <span class="tlaGNC">           1 :           val index = (eval.evalArg(0) as BitVal).bits.value.toInt()</span></span>
-<span id="L183"><span class="lineNum">     183</span> <span class="tlaGNC">           1 :           tableStore.registerRead(call.instanceName, index) ?: eval.defaultValue(eval.returnType())</span></span>
-<span id="L184"><span class="lineNum">     184</span>              :         }</span>
-<span id="L185"><span class="lineNum">     185</span> <span class="tlaGNC">           1 :         &quot;Random&quot; -&gt; {</span></span>
-<span id="L186"><span class="lineNum">     186</span> <span class="tlaGNC">           1 :           val instance = externInstances[call.instanceName]</span></span>
-<span id="L187"><span class="lineNum">     187</span> <span class="tlaGNC">           1 :           val lo = instance?.constructorArgsList?.getOrNull(0)?.literal?.integer ?: 0L</span></span>
-<span id="L188"><span class="lineNum">     188</span> <span class="tlaGNC">           1 :           val hi = instance?.constructorArgsList?.getOrNull(1)?.literal?.integer ?: 0L</span></span>
-<span id="L189"><span class="lineNum">     189</span> <span class="tlaGNC">           1 :           val value = if (hi &gt; lo) kotlin.random.Random.nextLong(lo, hi + 1) else lo</span></span>
-<span id="L190"><span class="lineNum">     190</span> <span class="tlaGNC">           1 :           BitVal(BitVector(BigInteger.valueOf(value), eval.returnType().bit.width))</span></span>
-<span id="L191"><span class="lineNum">     191</span>              :         }</span>
-<span id="L192"><span class="lineNum">     192</span> <span class="tlaUNC tlaBgUNC">           0 :         else -&gt; null</span></span>
-<span id="L193"><span class="lineNum">     193</span>              :       }</span>
-<span id="L194"><span class="lineNum">     194</span>              :     &quot;write&quot; -&gt; {</span>
-<span id="L195"><span class="lineNum">     195</span> <span class="tlaGNC tlaBgGNC">           1 :       val index = (eval.evalArg(0) as BitVal).bits.value.toInt()</span></span>
-<span id="L196"><span class="lineNum">     196</span> <span class="tlaGNC">           1 :       tableStore.registerWrite(call.instanceName, index, eval.evalArg(1))</span></span>
-<span id="L197"><span class="lineNum">     197</span> <span class="tlaGNC">           1 :       UnitVal</span></span>
-<span id="L198"><span class="lineNum">     198</span>              :     }</span>
-<span id="L199"><span class="lineNum">     199</span> <span class="tlaGNC">           1 :     &quot;count&quot; -&gt; UnitVal</span></span>
-<span id="L200"><span class="lineNum">     200</span> <span class="tlaGNC">           1 :     &quot;get_hash&quot; -&gt; evalGetHash(call, eval, externInstances, hashAlgorithms)</span></span>
-<span id="L201"><span class="lineNum">     201</span> <span class="tlaGNC">           1 :     &quot;execute&quot; -&gt; EnumVal(&quot;GREEN&quot;)</span></span>
-<span id="L202"><span class="lineNum">     202</span>              :     &quot;clear&quot; -&gt; {</span>
-<span id="L203"><span class="lineNum">     203</span> <span class="tlaGNC">           1 :       checksumState[call.instanceName] = BigInteger.ZERO</span></span>
-<span id="L204"><span class="lineNum">     204</span> <span class="tlaGNC">           1 :       UnitVal</span></span>
-<span id="L205"><span class="lineNum">     205</span>              :     }</span>
-<span id="L206"><span class="lineNum">     206</span>              :     &quot;add&quot; -&gt; {</span>
-<span id="L207"><span class="lineNum">     207</span> <span class="tlaGNC">           1 :       val data = eval.evalArg(0).asStructVal()</span></span>
-<span id="L208"><span class="lineNum">     208</span> <span class="tlaGNC">           1 :       val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)</span></span>
-<span id="L209"><span class="lineNum">     209</span> <span class="tlaGNC">           1 :       checksumState[call.instanceName] = onesComplementAdd(sum, sumWords(data))</span></span>
-<span id="L210"><span class="lineNum">     210</span> <span class="tlaGNC">           1 :       UnitVal</span></span>
-<span id="L211"><span class="lineNum">     211</span>              :     }</span>
-<span id="L212"><span class="lineNum">     212</span>              :     &quot;subtract&quot; -&gt; {</span>
-<span id="L213"><span class="lineNum">     213</span>              :       // RFC 1624: subtract by adding the ones' complement of the data's word sum.</span>
-<span id="L214"><span class="lineNum">     214</span> <span class="tlaGNC">           1 :       val data = eval.evalArg(0).asStructVal()</span></span>
-<span id="L215"><span class="lineNum">     215</span> <span class="tlaGNC">           1 :       val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)</span></span>
-<span id="L216"><span class="lineNum">     216</span> <span class="tlaGNC">           1 :       val dataSumComplement = CSUM_MASK.subtract(sumWords(data))</span></span>
-<span id="L217"><span class="lineNum">     217</span> <span class="tlaGNC">           1 :       checksumState[call.instanceName] = onesComplementAdd(sum, dataSumComplement)</span></span>
-<span id="L218"><span class="lineNum">     218</span> <span class="tlaGNC">           1 :       UnitVal</span></span>
+<span id="L155"><span class="lineNum">     155</span> <span class="tlaGNC">           1 :   return buildForkTree(fork.eventsBeforeFork, fourward.sim.ForkReason.ACTION_SELECTOR, branches)</span></span>
+<span id="L156"><span class="lineNum">     156</span>              : }</span>
+<span id="L157"><span class="lineNum">     157</span>              : </span>
+<span id="L158"><span class="lineNum">     158</span>              : /**</span>
+<span id="L159"><span class="lineNum">     159</span>              :  * Handles extern methods shared across PSA and PNA: Register, Random, Counter, Hash, Meter,</span>
+<span id="L160"><span class="lineNum">     160</span>              :  * InternetChecksum, Digest, and Checksum.</span>
+<span id="L161"><span class="lineNum">     161</span>              :  *</span>
+<span id="L162"><span class="lineNum">     162</span>              :  * Returns the result [Value], or `null` if [call] is not a common extern method (the caller should</span>
+<span id="L163"><span class="lineNum">     163</span>              :  * handle it as architecture-specific).</span>
+<span id="L164"><span class="lineNum">     164</span>              :  */</span>
+<span id="L165"><span class="lineNum">     165</span>              : @Suppress(&quot;LongParameterList&quot;)</span>
+<span id="L166"><span class="lineNum">     166</span>              : internal fun handleCommonExternMethod(</span>
+<span id="L167"><span class="lineNum">     167</span>              :   call: ExternCall.Method,</span>
+<span id="L168"><span class="lineNum">     168</span>              :   eval: ExternEvaluator,</span>
+<span id="L169"><span class="lineNum">     169</span>              :   tableStore: TableStore,</span>
+<span id="L170"><span class="lineNum">     170</span>              :   externInstances: Map&lt;String, ExternInstanceDecl&gt;,</span>
+<span id="L171"><span class="lineNum">     171</span>              :   checksumState: MutableMap&lt;String, BigInteger&gt;,</span>
+<span id="L172"><span class="lineNum">     172</span>              :   hashAlgorithms: Map&lt;String, String&gt;,</span>
+<span id="L173"><span class="lineNum">     173</span>              : ): Value? =</span>
+<span id="L174"><span class="lineNum">     174</span> <span class="tlaGNC">           1 :   when (call.method) {</span></span>
+<span id="L175"><span class="lineNum">     175</span>              :     &quot;read&quot; -&gt;</span>
+<span id="L176"><span class="lineNum">     176</span> <span class="tlaGNC">           1 :       when (call.externType) {</span></span>
+<span id="L177"><span class="lineNum">     177</span> <span class="tlaGNC">           1 :         &quot;Register&quot; -&gt; {</span></span>
+<span id="L178"><span class="lineNum">     178</span> <span class="tlaGNC">           1 :           val index = (eval.evalArg(0) as BitVal).bits.value.toInt()</span></span>
+<span id="L179"><span class="lineNum">     179</span> <span class="tlaGNC">           1 :           tableStore.registerRead(call.instanceName, index) ?: eval.defaultValue(eval.returnType())</span></span>
+<span id="L180"><span class="lineNum">     180</span>              :         }</span>
+<span id="L181"><span class="lineNum">     181</span> <span class="tlaGNC">           1 :         &quot;Random&quot; -&gt; {</span></span>
+<span id="L182"><span class="lineNum">     182</span> <span class="tlaGNC">           1 :           val instance = externInstances[call.instanceName]</span></span>
+<span id="L183"><span class="lineNum">     183</span> <span class="tlaGNC">           1 :           val lo = instance?.constructorArgsList?.getOrNull(0)?.literal?.integer ?: 0L</span></span>
+<span id="L184"><span class="lineNum">     184</span> <span class="tlaGNC">           1 :           val hi = instance?.constructorArgsList?.getOrNull(1)?.literal?.integer ?: 0L</span></span>
+<span id="L185"><span class="lineNum">     185</span> <span class="tlaGNC">           1 :           val value = if (hi &gt; lo) kotlin.random.Random.nextLong(lo, hi + 1) else lo</span></span>
+<span id="L186"><span class="lineNum">     186</span> <span class="tlaGNC">           1 :           BitVal(BitVector(BigInteger.valueOf(value), eval.returnType().bit.width))</span></span>
+<span id="L187"><span class="lineNum">     187</span>              :         }</span>
+<span id="L188"><span class="lineNum">     188</span> <span class="tlaUNC tlaBgUNC">           0 :         else -&gt; null</span></span>
+<span id="L189"><span class="lineNum">     189</span>              :       }</span>
+<span id="L190"><span class="lineNum">     190</span>              :     &quot;write&quot; -&gt; {</span>
+<span id="L191"><span class="lineNum">     191</span> <span class="tlaGNC tlaBgGNC">           1 :       val index = (eval.evalArg(0) as BitVal).bits.value.toInt()</span></span>
+<span id="L192"><span class="lineNum">     192</span> <span class="tlaGNC">           1 :       tableStore.registerWrite(call.instanceName, index, eval.evalArg(1))</span></span>
+<span id="L193"><span class="lineNum">     193</span> <span class="tlaGNC">           1 :       UnitVal</span></span>
+<span id="L194"><span class="lineNum">     194</span>              :     }</span>
+<span id="L195"><span class="lineNum">     195</span> <span class="tlaGNC">           1 :     &quot;count&quot; -&gt; UnitVal</span></span>
+<span id="L196"><span class="lineNum">     196</span> <span class="tlaGNC">           1 :     &quot;get_hash&quot; -&gt; evalGetHash(call, eval, externInstances, hashAlgorithms)</span></span>
+<span id="L197"><span class="lineNum">     197</span> <span class="tlaGNC">           1 :     &quot;execute&quot; -&gt; EnumVal(&quot;GREEN&quot;)</span></span>
+<span id="L198"><span class="lineNum">     198</span>              :     &quot;clear&quot; -&gt; {</span>
+<span id="L199"><span class="lineNum">     199</span> <span class="tlaGNC">           1 :       checksumState[call.instanceName] = BigInteger.ZERO</span></span>
+<span id="L200"><span class="lineNum">     200</span> <span class="tlaGNC">           1 :       UnitVal</span></span>
+<span id="L201"><span class="lineNum">     201</span>              :     }</span>
+<span id="L202"><span class="lineNum">     202</span>              :     &quot;add&quot; -&gt; {</span>
+<span id="L203"><span class="lineNum">     203</span> <span class="tlaGNC">           1 :       val data = eval.evalArg(0).asStructVal()</span></span>
+<span id="L204"><span class="lineNum">     204</span> <span class="tlaGNC">           1 :       val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)</span></span>
+<span id="L205"><span class="lineNum">     205</span> <span class="tlaGNC">           1 :       checksumState[call.instanceName] = onesComplementAdd(sum, sumWords(data))</span></span>
+<span id="L206"><span class="lineNum">     206</span> <span class="tlaGNC">           1 :       UnitVal</span></span>
+<span id="L207"><span class="lineNum">     207</span>              :     }</span>
+<span id="L208"><span class="lineNum">     208</span>              :     &quot;subtract&quot; -&gt; {</span>
+<span id="L209"><span class="lineNum">     209</span>              :       // RFC 1624: subtract by adding the ones' complement of the data's word sum.</span>
+<span id="L210"><span class="lineNum">     210</span> <span class="tlaGNC">           1 :       val data = eval.evalArg(0).asStructVal()</span></span>
+<span id="L211"><span class="lineNum">     211</span> <span class="tlaGNC">           1 :       val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)</span></span>
+<span id="L212"><span class="lineNum">     212</span> <span class="tlaGNC">           1 :       val dataSumComplement = CSUM_MASK.subtract(sumWords(data))</span></span>
+<span id="L213"><span class="lineNum">     213</span> <span class="tlaGNC">           1 :       checksumState[call.instanceName] = onesComplementAdd(sum, dataSumComplement)</span></span>
+<span id="L214"><span class="lineNum">     214</span> <span class="tlaGNC">           1 :       UnitVal</span></span>
+<span id="L215"><span class="lineNum">     215</span>              :     }</span>
+<span id="L216"><span class="lineNum">     216</span>              :     &quot;get&quot; -&gt; {</span>
+<span id="L217"><span class="lineNum">     217</span> <span class="tlaGNC">           1 :       val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)</span></span>
+<span id="L218"><span class="lineNum">     218</span> <span class="tlaGNC">           1 :       BitVal(BitVector(CSUM_MASK.subtract(sum), CSUM_WORD_BITS))</span></span>
 <span id="L219"><span class="lineNum">     219</span>              :     }</span>
-<span id="L220"><span class="lineNum">     220</span>              :     &quot;get&quot; -&gt; {</span>
-<span id="L221"><span class="lineNum">     221</span> <span class="tlaGNC">           1 :       val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)</span></span>
-<span id="L222"><span class="lineNum">     222</span> <span class="tlaGNC">           1 :       BitVal(BitVector(CSUM_MASK.subtract(sum), CSUM_WORD_BITS))</span></span>
+<span id="L220"><span class="lineNum">     220</span>              :     &quot;get_state&quot; -&gt; {</span>
+<span id="L221"><span class="lineNum">     221</span> <span class="tlaUNC tlaBgUNC">           0 :       val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)</span></span>
+<span id="L222"><span class="lineNum">     222</span> <span class="tlaUNC">           0 :       BitVal(BitVector(sum, CSUM_WORD_BITS))</span></span>
 <span id="L223"><span class="lineNum">     223</span>              :     }</span>
-<span id="L224"><span class="lineNum">     224</span>              :     &quot;get_state&quot; -&gt; {</span>
-<span id="L225"><span class="lineNum">     225</span> <span class="tlaUNC tlaBgUNC">           0 :       val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)</span></span>
-<span id="L226"><span class="lineNum">     226</span> <span class="tlaUNC">           0 :       BitVal(BitVector(sum, CSUM_WORD_BITS))</span></span>
+<span id="L224"><span class="lineNum">     224</span>              :     &quot;set_state&quot; -&gt; {</span>
+<span id="L225"><span class="lineNum">     225</span> <span class="tlaGNC tlaBgGNC">           1 :       checksumState[call.instanceName] = (eval.evalArg(0) as BitVal).bits.value</span></span>
+<span id="L226"><span class="lineNum">     226</span> <span class="tlaGNC">           1 :       UnitVal</span></span>
 <span id="L227"><span class="lineNum">     227</span>              :     }</span>
-<span id="L228"><span class="lineNum">     228</span>              :     &quot;set_state&quot; -&gt; {</span>
-<span id="L229"><span class="lineNum">     229</span> <span class="tlaGNC tlaBgGNC">           1 :       checksumState[call.instanceName] = (eval.evalArg(0) as BitVal).bits.value</span></span>
-<span id="L230"><span class="lineNum">     230</span> <span class="tlaGNC">           1 :       UnitVal</span></span>
-<span id="L231"><span class="lineNum">     231</span>              :     }</span>
-<span id="L232"><span class="lineNum">     232</span> <span class="tlaGNC">           1 :     &quot;pack&quot; -&gt; UnitVal</span></span>
-<span id="L233"><span class="lineNum">     233</span>              :     // PNA's Checksum&lt;W&gt; extern uses `update` (same semantics as InternetChecksum `add`).</span>
-<span id="L234"><span class="lineNum">     234</span>              :     &quot;update&quot; -&gt; {</span>
-<span id="L235"><span class="lineNum">     235</span> <span class="tlaUNC tlaBgUNC">           0 :       val data = eval.evalArg(0).asStructVal()</span></span>
-<span id="L236"><span class="lineNum">     236</span> <span class="tlaUNC">           0 :       val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)</span></span>
-<span id="L237"><span class="lineNum">     237</span> <span class="tlaUNC">           0 :       checksumState[call.instanceName] = onesComplementAdd(sum, sumWords(data))</span></span>
-<span id="L238"><span class="lineNum">     238</span> <span class="tlaUNC">           0 :       UnitVal</span></span>
-<span id="L239"><span class="lineNum">     239</span>              :     }</span>
-<span id="L240"><span class="lineNum">     240</span> <span class="tlaUNC">           0 :     else -&gt; null</span></span>
-<span id="L241"><span class="lineNum">     241</span> <span class="tlaGNC tlaBgGNC">           1 :   }</span></span>
+<span id="L228"><span class="lineNum">     228</span> <span class="tlaGNC">           1 :     &quot;pack&quot; -&gt; UnitVal</span></span>
+<span id="L229"><span class="lineNum">     229</span>              :     // PNA's Checksum&lt;W&gt; extern uses `update` (same semantics as InternetChecksum `add`).</span>
+<span id="L230"><span class="lineNum">     230</span>              :     &quot;update&quot; -&gt; {</span>
+<span id="L231"><span class="lineNum">     231</span> <span class="tlaUNC tlaBgUNC">           0 :       val data = eval.evalArg(0).asStructVal()</span></span>
+<span id="L232"><span class="lineNum">     232</span> <span class="tlaUNC">           0 :       val sum = checksumState.getOrDefault(call.instanceName, BigInteger.ZERO)</span></span>
+<span id="L233"><span class="lineNum">     233</span> <span class="tlaUNC">           0 :       checksumState[call.instanceName] = onesComplementAdd(sum, sumWords(data))</span></span>
+<span id="L234"><span class="lineNum">     234</span> <span class="tlaUNC">           0 :       UnitVal</span></span>
+<span id="L235"><span class="lineNum">     235</span>              :     }</span>
+<span id="L236"><span class="lineNum">     236</span> <span class="tlaUNC">           0 :     else -&gt; null</span></span>
+<span id="L237"><span class="lineNum">     237</span> <span class="tlaGNC tlaBgGNC">           1 :   }</span></span>
         </pre>
               </td>
             </tr>
