@@ -13,7 +13,11 @@ class P4RuntimeServer(
   cpuPortConfig: CpuPortConfig = CpuPortConfig.Auto,
 ) {
 
-  private val simulator = Simulator(dropPortOverride)
+  /**
+   * The underlying simulator. Exposed for pre-configuration (loading pipelines, installing entries)
+   * before the server starts accepting RPCs.
+   */
+  val simulator = Simulator(dropPortOverride)
   private val lock = ReadWriteMutex()
   private val broker = PacketBroker(simulator::processPacket, lock)
   private val service =
