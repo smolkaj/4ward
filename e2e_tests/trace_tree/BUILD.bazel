@@ -49,7 +49,13 @@ _MANUAL = []
 [p4c_compile(
     name,
     "%s.p4" % name,
-) for name in _P4_PROGRAMS if name not in ("clone_with_egress", "action_selector_3")]
+) for name in _P4_PROGRAMS if name not in ("clone_with_egress", "action_selector_3", "multicast")]
+
+p4c_compile(
+    name = "multicast",
+    src_p4 = "multicast.p4",
+    visibility = ["//e2e_tests/network:__pkg__"],
+)
 
 # Compiled separately so p4runtime conformance tests can use them as data deps.
 p4c_compile(

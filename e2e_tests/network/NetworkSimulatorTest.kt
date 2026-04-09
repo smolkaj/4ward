@@ -6,6 +6,7 @@ import fourward.e2e.decodeHex
 import fourward.e2e.installStfEntries
 import fourward.e2e.loadPipelineConfig
 import fourward.e2e.runfilePath
+import fourward.ir.PipelineConfig
 import fourward.simulator.Endpoint
 import fourward.simulator.Link
 import fourward.simulator.NetworkSimulator
@@ -29,13 +30,23 @@ import org.junit.Test
  */
 class NetworkSimulatorTest {
 
-  private val config by lazy { loadPipelineConfig(runfilePath(CONFIG_PKG, "basic_table.txtpb")) }
+  private val basicTableConfig by lazy {
+    loadPipelineConfig(runfilePath(CONFIG_PKG, "basic_table.txtpb"))
+  }
+  private val multicastConfig by lazy {
+    loadPipelineConfig(runfilePath(MULTICAST_PKG, "multicast.txtpb"))
+  }
 
-  private fun loadSwitch(network: NetworkSimulator, id: String, stfFile: String) {
+  private fun loadSwitch(
+    network: NetworkSimulator,
+    id: String,
+    stfFile: String,
+    cfg: PipelineConfig = basicTableConfig,
+  ) {
     val sim = network.addSwitch(id)
-    sim.loadPipeline(config)
+    sim.loadPipeline(cfg)
     val stf = StfFile.parse(runfilePath(TEST_PKG, stfFile))
-    installStfEntries(sim, stf, config.p4Info)
+    installStfEntries(sim, stf, cfg.p4Info)
   }
 
   @Test
@@ -165,8 +176,43 @@ class NetworkSimulatorTest {
     assertThrows(IllegalArgumentException::class.java) { NetworkSimulator(topology) }
   }
 
+  @Test
+  fun `multicast fans out across switches`() {
+    // s1 multicasts to ports 1, 2, 3.
+    // Port 1 → s2 (link), port 2 → s3 (link), port 3 → edge.
+    val topology =
+      NetworkTopology(
+        links =
+          listOf(
+            Link(Endpoint("s1", 1), Endpoint("s2", 1)),
+            Link(Endpoint("s1", 2), Endpoint("s3", 1)),
+          )
+      )
+    val network = NetworkSimulator(topology)
+    loadSwitch(network, "s1", "multicast.stf", multicastConfig)
+    loadSwitch(network, "s2", "s2.stf")
+    loadSwitch(network, "s3", "s2.stf")
+
+    val payload = PAYLOAD.decodeHex()
+    val root = network.processPacket("s1", 0, payload)
+
+    assertEquals(1, root.edgeOutputs.size)
+    assertEquals(3, root.edgeOutputs[0].egressPort)
+    assertEquals(2, root.nextHops.size)
+
+    val switchIds = root.nextHops.map { it.switchId }.toSet()
+    assertEquals(setOf("s2", "s3"), switchIds)
+    for (hop in root.nextHops) {
+      assertEquals(1, hop.ingressPort)
+      assertEquals(1, hop.edgeOutputs.size)
+      assertEquals(2, hop.edgeOutputs[0].egressPort)
+      assertTrue(hop.nextHops.isEmpty())
+    }
+  }
+
   companion object {
     private const val CONFIG_PKG = "e2e_tests/basic_table"
+    private const val MULTICAST_PKG = "e2e_tests/trace_tree"
     private const val TEST_PKG = "e2e_tests/network"
     private const val PAYLOAD = "FFFFFFFFFFFF 000000000001 0800 DEADBEEF"
   }
