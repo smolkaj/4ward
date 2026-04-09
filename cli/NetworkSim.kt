@@ -68,8 +68,15 @@ fun networkSim(nstfPath: Path, format: OutputFormat): Int {
       }
     try {
       sim.loadPipeline(config)
-      val stf = StfFile.parse(sw.stfPath)
-      installStfEntries(sim, stf, config.p4Info)
+      if (sw.stfPath != null) {
+        val stf = StfFile.parse(sw.stfPath)
+        installStfEntries(sim, stf, config.p4Info)
+      }
+      val inlineLines = nstf.inlineEntries[sw.id]
+      if (inlineLines != null) {
+        val stf = StfFile.parse(inlineLines)
+        installStfEntries(sim, stf, config.p4Info)
+      }
     } catch (e: Exception) {
       System.err.println("error: switch '${sw.id}': ${e.message}")
       return ExitCode.INTERNAL_ERROR

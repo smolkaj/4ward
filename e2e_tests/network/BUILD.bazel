@@ -6,6 +6,9 @@ exports_files(
         "s2.stf",
         "two_switch.nstf",
         "two_switch_fail.nstf",
+        "two_switch_inline.nstf",
+        "mixed_entries.nstf",
+        "inline_multicast.nstf",
     ],
     visibility = ["//cli:__pkg__"],
 )

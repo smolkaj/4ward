@@ -10,24 +10,28 @@ import java.nio.file.Path
  *
  * Format:
  * ```
- * switch <id> <pipeline.txtpb> <entries.stf>
+ * switch <id> <pipeline.txtpb> [entries.stf]
  * link <switch:port> <switch:port>
+ * <switchId>: <stf directive>
  * packet <switch:port> <hex bytes>
  * expect <switch:port> <hex bytes>
  * ```
  *
- * Pipeline and STF paths are resolved relative to the `.nstf` file's directory.
+ * The STF file in `switch` declarations is optional. Per-switch table entries can be provided
+ * inline using `<switchId>: <stf directive>` syntax (e.g., `s1: add port_table ...`). Both external
+ * STF files and inline entries can be used together — inline entries are applied after external
+ * ones.
  *
- * TODO: support inline per-switch table entries (`s1: add ...`) so that simple network tests can be
- *   a single self-contained file instead of referencing external `.stf` files.
+ * Pipeline and STF paths are resolved relative to the `.nstf` file's directory.
  */
 data class NetworkStf(
   val switches: List<SwitchDecl>,
   val links: List<Link>,
+  val inlineEntries: Map<String, List<String>>,
   val packets: List<NetworkPacket>,
   val expects: List<NetworkExpect>,
 ) {
-  data class SwitchDecl(val id: String, val pipelinePath: Path, val stfPath: Path)
+  data class SwitchDecl(val id: String, val pipelinePath: Path, val stfPath: Path?)
 
   data class NetworkPacket(val endpoint: Endpoint, val payload: ByteArray)
 
@@ -42,6 +46,7 @@ data class NetworkStf(
 
       val switches = mutableListOf<SwitchDecl>()
       val links = mutableListOf<Link>()
+      val inlineEntries = mutableMapOf<String, MutableList<String>>()
       val packets = mutableListOf<NetworkPacket>()
       val expects = mutableListOf<NetworkExpect>()
 
@@ -51,16 +56,17 @@ data class NetworkStf(
         if (line.isEmpty() || line.startsWith("#")) continue
 
         val tokens = line.split(WHITESPACE)
-        when (tokens[0]) {
-          "switch" -> {
-            require(tokens.size == 4) { "line $lineNum: switch needs <id> <pipeline> <stf>" }
-            switches.add(SwitchDecl(tokens[1], dir.resolve(tokens[2]), dir.resolve(tokens[3])))
+        when {
+          tokens[0] == "switch" -> {
+            require(tokens.size in 3..4) { "line $lineNum: switch needs <id> <pipeline> [stf]" }
+            val stfPath = if (tokens.size == 4) dir.resolve(tokens[3]) else null
+            switches.add(SwitchDecl(tokens[1], dir.resolve(tokens[2]), stfPath))
           }
-          "link" -> {
+          tokens[0] == "link" -> {
             require(tokens.size == 3) { "line $lineNum: link needs <switch:port> <switch:port>" }
             links.add(Link(parseEndpoint(tokens[1], lineNum), parseEndpoint(tokens[2], lineNum)))
           }
-          "packet" -> {
+          tokens[0] == "packet" -> {
             require(tokens.size >= 3) { "line $lineNum: packet needs <switch:port> <hex>" }
             packets.add(
               NetworkPacket(
@@ -69,7 +75,7 @@ data class NetworkStf(
               )
             )
           }
-          "expect" -> {
+          tokens[0] == "expect" -> {
             require(tokens.size >= 3) { "line $lineNum: expect needs <switch:port> <hex>" }
             expects.add(
               NetworkExpect(
@@ -77,6 +83,15 @@ data class NetworkStf(
                 tokens.drop(2).joinToString("").decodeHex(),
               )
             )
+          }
+          // Inline STF directive: "<switchId>: <stf line>"
+          tokens[0].endsWith(":") -> {
+            val switchId = tokens[0].removeSuffix(":")
+            val stfLine = line.substringAfter(":").trim()
+            require(stfLine.isNotEmpty()) {
+              "line $lineNum: empty inline directive for switch '$switchId'"
+            }
+            inlineEntries.getOrPut(switchId) { mutableListOf() }.add(stfLine)
           }
           else -> error("line $lineNum: unknown directive '${tokens[0]}'")
         }
@@ -104,8 +119,13 @@ data class NetworkStf(
           "expect references undeclared switch '${exp.endpoint.switchId}'"
         }
       }
+      for (switchId in inlineEntries.keys) {
+        require(switchId in declaredIds) {
+          "inline entries reference undeclared switch '$switchId'"
+        }
+      }
 
-      return NetworkStf(switches, links, packets, expects)
+      return NetworkStf(switches, links, inlineEntries, packets, expects)
     }
 
     private fun parseEndpoint(token: String, lineNum: Int): Endpoint {
