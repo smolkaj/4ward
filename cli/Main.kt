@@ -1,5 +1,6 @@
 package fourward.cli
 
+import fourward.p4runtime.P4RuntimeServer
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.system.exitProcess
@@ -22,6 +23,7 @@ Commands:
   sim      pipeline.txtpb test.stf       Run an STF test against a compiled pipeline.
   run      program.p4 test.stf           Compile and simulate in one step.
   network  test.nstf                     Run a multi-switch network simulation.
+  network serve test.nstf                Start P4Runtime servers for each switch.
 
 Options:
   --format=human|textproto|json   Trace output format (default: human).
@@ -47,15 +49,18 @@ Options:
   -I <dir>             Add include directory for P4 headers."""
 
 private const val NETWORK_USAGE =
-  """Usage: 4ward network [--format=human|textproto|json] <test.nstf>
+  """Usage: 4ward network <subcommand> [options]
 
-Runs a multi-switch network simulation from a .nstf file.
+Subcommands:
+  4ward network [--format=...] <test.nstf>         Run a multi-switch simulation.
+  4ward network serve [--port=N] <config.nstf>     Start P4Runtime servers for each switch.
 
-The .nstf file declares switches (with pipeline configs and STF entries),
-links between switch ports, input packets, and expected outputs.
+Options (simulation):
+  --format=human|textproto|json   Trace output format (default: human).
 
-Options:
-  --format=human|textproto|json   Trace output format (default: human)."""
+Options (serve):
+  --port=N                        Base port for P4Runtime servers (default: 9559).
+                                  Switch i listens on port N+i."""
 
 private const val RUN_USAGE =
   """Usage: 4ward run [--format=human|textproto|json] [--drop-port=N] <program.p4> <test.stf>
@@ -120,6 +125,8 @@ private fun handleNetwork(args: List<String>): Int {
     return ExitCode.SUCCESS
   }
 
+  if (args.isNotEmpty() && args[0] == "serve") return handleNetworkServe(args.drop(1))
+
   var format = OutputFormat.HUMAN
   val positional = mutableListOf<String>()
 
@@ -136,6 +143,29 @@ private fun handleNetwork(args: List<String>): Int {
   }
 
   return networkSim(resolveUserPath(positional[0]), format)
+}
+
+private fun handleNetworkServe(args: List<String>): Int {
+  var basePort = P4RuntimeServer.DEFAULT_PORT
+  val positional = mutableListOf<String>()
+
+  for (arg in args) {
+    when {
+      arg.startsWith("--port=") -> basePort = parseIntFlag(arg, "--port")
+      arg == "--help" || arg == "-h" -> {
+        println(NETWORK_USAGE)
+        return ExitCode.SUCCESS
+      }
+      arg.startsWith("-") && arg != "-" -> throw UsageError("unknown option '$arg'")
+      else -> positional += arg
+    }
+  }
+
+  if (positional.size != 1) {
+    throw UsageError("'network serve' requires exactly 1 argument: <config.nstf>\n$NETWORK_USAGE")
+  }
+
+  return networkServe(resolveUserPath(positional[0]), basePort)
 }
 
 private fun handleCompile(args: List<String>): Int {
