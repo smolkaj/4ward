@@ -19,7 +19,13 @@ import java.nio.file.Path
  * input packets, and expected outputs. Builds a [NetworkSimulator], processes packets, prints trace
  * trees, and verifies expectations.
  */
-fun networkSim(nstfPath: Path, format: OutputFormat): Int {
+fun networkSim(nstfPath: Path, @Suppress("UNUSED_PARAMETER") format: OutputFormat): Int {
+  // TODO: support textproto/json output for NetworkHop once the network trace proto is defined.
+  if (format != OutputFormat.HUMAN) {
+    System.err.println(
+      "warning: --format=${format.name.lowercase()} is not yet supported for network simulation; using human format"
+    )
+  }
   val nstf =
     try {
       NetworkStf.parse(nstfPath)
@@ -82,7 +88,6 @@ fun networkSim(nstfPath: Path, format: OutputFormat): Int {
         return ExitCode.INTERNAL_ERROR
       }
 
-    // TODO: support textproto/json output for NetworkHop once the proto is defined.
     println("packet injected: ${packet.endpoint}, ${packet.payload.size} bytes")
     printNetworkHop(root, indent = "  ")
 

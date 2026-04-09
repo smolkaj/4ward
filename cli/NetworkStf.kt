@@ -16,6 +16,9 @@ import java.nio.file.Path
  * ```
  *
  * Pipeline and STF paths are resolved relative to the `.nstf` file's directory.
+ *
+ * TODO: support inline per-switch table entries (`s1: add ...`) so that simple network tests can be
+ *   a single self-contained file instead of referencing external `.stf` files.
  */
 data class NetworkStf(
   val switches: List<SwitchDecl>,
