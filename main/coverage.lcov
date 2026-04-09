@@ -5840,6 +5840,133 @@ DA:172,1
 LH:85
 LF:85
 end_of_record
+SF:simulator/NetworkSimulator.kt
+FN:107,fourward/simulator/EdgeOutput::<init> (Ljava/lang/String;ILcom/google/protobuf/ByteString;)V
+FNDA:1,fourward/simulator/EdgeOutput::<init> (Ljava/lang/String;ILcom/google/protobuf/ByteString;)V
+FN:107,fourward/simulator/EdgeOutput::getSwitchId ()Ljava/lang/String;
+FNDA:1,fourward/simulator/EdgeOutput::getSwitchId ()Ljava/lang/String;
+FN:107,fourward/simulator/EdgeOutput::getEgressPort ()I
+FNDA:1,fourward/simulator/EdgeOutput::getEgressPort ()I
+FN:107,fourward/simulator/EdgeOutput::getPayload ()Lcom/google/protobuf/ByteString;
+FNDA:1,fourward/simulator/EdgeOutput::getPayload ()Lcom/google/protobuf/ByteString;
+FN:96,fourward/simulator/Endpoint::<init> (Ljava/lang/String;I)V
+FNDA:1,fourward/simulator/Endpoint::<init> (Ljava/lang/String;I)V
+FN:96,fourward/simulator/Endpoint::getSwitchId ()Ljava/lang/String;
+FNDA:1,fourward/simulator/Endpoint::getSwitchId ()Ljava/lang/String;
+FN:96,fourward/simulator/Endpoint::getPort ()I
+FNDA:1,fourward/simulator/Endpoint::getPort ()I
+FN:97,fourward/simulator/Endpoint::toString ()Ljava/lang/String;
+FNDA:1,fourward/simulator/Endpoint::toString ()Ljava/lang/String;
+FN:101,fourward/simulator/Link::<init> (Lfourward/simulator/Endpoint;Lfourward/simulator/Endpoint;)V
+FNDA:1,fourward/simulator/Link::<init> (Lfourward/simulator/Endpoint;Lfourward/simulator/Endpoint;)V
+FN:101,fourward/simulator/Link::getA ()Lfourward/simulator/Endpoint;
+FNDA:1,fourward/simulator/Link::getA ()Lfourward/simulator/Endpoint;
+FN:101,fourward/simulator/Link::getB ()Lfourward/simulator/Endpoint;
+FNDA:1,fourward/simulator/Link::getB ()Lfourward/simulator/Endpoint;
+FN:117,fourward/simulator/NetworkHop::<init> (Ljava/lang/String;ILcom/google/protobuf/ByteString;Lfourward/sim/SimulatorProto$TraceTree;Ljava/util/List;Ljava/util/List;)V
+FNDA:1,fourward/simulator/NetworkHop::<init> (Ljava/lang/String;ILcom/google/protobuf/ByteString;Lfourward/sim/SimulatorProto$TraceTree;Ljava/util/List;Ljava/util/List;)V
+FN:118,fourward/simulator/NetworkHop::getSwitchId ()Ljava/lang/String;
+FNDA:1,fourward/simulator/NetworkHop::getSwitchId ()Ljava/lang/String;
+FN:119,fourward/simulator/NetworkHop::getIngressPort ()I
+FNDA:1,fourward/simulator/NetworkHop::getIngressPort ()I
+FN:120,fourward/simulator/NetworkHop::getIngressPayload ()Lcom/google/protobuf/ByteString;
+FNDA:0,fourward/simulator/NetworkHop::getIngressPayload ()Lcom/google/protobuf/ByteString;
+FN:121,fourward/simulator/NetworkHop::getTrace ()Lfourward/sim/SimulatorProto$TraceTree;
+FNDA:0,fourward/simulator/NetworkHop::getTrace ()Lfourward/sim/SimulatorProto$TraceTree;
+FN:122,fourward/simulator/NetworkHop::getEdgeOutputs ()Ljava/util/List;
+FNDA:1,fourward/simulator/NetworkHop::getEdgeOutputs ()Ljava/util/List;
+FN:123,fourward/simulator/NetworkHop::getNextHops ()Ljava/util/List;
+FNDA:1,fourward/simulator/NetworkHop::getNextHops ()Ljava/util/List;
+FN:17,fourward/simulator/NetworkSimulator::<init> (Lfourward/simulator/NetworkTopology;)V
+FNDA:1,fourward/simulator/NetworkSimulator::<init> (Lfourward/simulator/NetworkTopology;)V
+FN:36,fourward/simulator/NetworkSimulator::addSwitch (Ljava/lang/String;)Lfourward/simulator/Simulator;
+FNDA:1,fourward/simulator/NetworkSimulator::addSwitch (Ljava/lang/String;)Lfourward/simulator/Simulator;
+FN:45,fourward/simulator/NetworkSimulator::processPacket (Ljava/lang/String;I[B)Lfourward/simulator/NetworkHop;
+FNDA:1,fourward/simulator/NetworkSimulator::processPacket (Ljava/lang/String;I[B)Lfourward/simulator/NetworkHop;
+FN:54,fourward/simulator/NetworkSimulator::processHop (Ljava/lang/String;ILcom/google/protobuf/ByteString;I)Lfourward/simulator/NetworkHop;
+FNDA:1,fourward/simulator/NetworkSimulator::processHop (Ljava/lang/String;ILcom/google/protobuf/ByteString;I)Lfourward/simulator/NetworkHop;
+FN:104,fourward/simulator/NetworkTopology::<init> (Ljava/util/List;)V
+FNDA:1,fourward/simulator/NetworkTopology::<init> (Ljava/util/List;)V
+FN:104,fourward/simulator/NetworkTopology::getLinks ()Ljava/util/List;
+FNDA:1,fourward/simulator/NetworkTopology::getLinks ()Ljava/util/List;
+BRDA:23,0,0,1
+BRDA:23,0,1,1
+BRDA:24,0,0,1
+BRDA:24,0,1,1
+BRDA:24,0,2,1
+BRDA:24,0,3,1
+BRDA:25,0,0,1
+BRDA:25,0,1,0
+BRDA:25,0,2,0
+BRDA:25,0,3,1
+BRDA:36,0,0,1
+BRDA:36,0,1,0
+BRDA:36,0,2,0
+BRDA:36,0,3,1
+BRDA:54,0,0,1
+BRDA:54,0,1,1
+BRDA:54,0,2,1
+BRDA:54,0,3,1
+BRDA:58,0,0,0
+BRDA:58,0,1,1
+BRDA:63,0,0,1
+BRDA:63,0,1,0
+BRDA:63,0,2,0
+BRDA:63,0,3,1
+BRDA:66,0,0,0
+BRDA:66,0,1,1
+BRDA:71,0,0,1
+BRDA:71,0,1,1
+BRDA:73,0,0,1
+BRDA:73,0,1,1
+DA:17,1
+DA:19,1
+DA:22,1
+DA:23,1
+DA:24,1
+DA:25,1
+DA:26,1
+DA:27,1
+DA:29,1
+DA:36,1
+DA:37,1
+DA:45,1
+DA:54,1
+DA:55,1
+DA:58,1
+DA:59,1
+DA:63,1
+DA:64,0
+DA:66,1
+DA:68,1
+DA:69,1
+DA:71,1
+DA:72,1
+DA:73,1
+DA:74,1
+DA:76,1
+DA:80,1
+DA:81,1
+DA:82,1
+DA:83,1
+DA:84,1
+DA:85,1
+DA:86,1
+DA:96,1
+DA:97,1
+DA:101,1
+DA:104,1
+DA:107,1
+DA:117,1
+DA:118,1
+DA:119,1
+DA:120,1
+DA:121,1
+DA:122,1
+DA:123,1
+LH:44
+LF:45
+end_of_record
 SF:simulator/PNAArchitecture.kt
 FN:31,fourward/simulator/PNAArchitecture::<init> ()V
 FNDA:1,fourward/simulator/PNAArchitecture::<init> ()V
