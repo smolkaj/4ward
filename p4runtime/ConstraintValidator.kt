@@ -43,7 +43,7 @@ private constructor(
         call(input, output, request)
       } catch (e: java.io.IOException) {
         throw ConstraintValidatorException(
-          "constraint validator subprocess communication failed: ${e.message}"
+          "constraint validator subprocess communication failed: ${e.message}", e
         )
       }
     if (response.hasError()) {
@@ -107,7 +107,8 @@ private constructor(
         } catch (e: java.io.IOException) {
           process.destroyForcibly().waitFor()
           throw ConstraintValidatorException(
-            "constraint validator subprocess failed during P4Info load: ${e.message}"
+            "constraint validator subprocess failed during P4Info load: ${e.message}",
+            e
           )
         }
 
@@ -131,4 +132,4 @@ private constructor(
   }
 }
 
-class ConstraintValidatorException(message: String) : RuntimeException(message)
+class ConstraintValidatorException(message: String, cause: Throwable? = null) : RuntimeException(message, cause)
