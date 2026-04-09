@@ -31,17 +31,17 @@
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryMed">79.0&nbsp;%</td>
-            <td class="headerCovTableEntry">62</td>
+            <td class="headerCovTableEntryMed">77.8&nbsp;%</td>
+            <td class="headerCovTableEntry">63</td>
             <td class="headerCovTableEntry">49</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-04-09 05:57:24</td>
+            <td class="headerValue">2026-04-09 06:18:28</td>
             <td></td>
             <td class="headerItem">Functions:</td>
-            <td class="headerCovTableEntryMed">83.3&nbsp;%</td>
-            <td class="headerCovTableEntry">6</td>
+            <td class="headerCovTableEntryLo">71.4&nbsp;%</td>
+            <td class="headerCovTableEntry">7</td>
             <td class="headerCovTableEntry">5</td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
@@ -105,7 +105,7 @@
 <span id="L43"><span class="lineNum">      43</span> <span class="tlaGNC">           1 :         call(input, output, request)</span></span>
 <span id="L44"><span class="lineNum">      44</span> <span class="tlaUNC tlaBgUNC">           0 :       } catch (e: java.io.IOException) {</span></span>
 <span id="L45"><span class="lineNum">      45</span> <span class="tlaUNC">           0 :         throw ConstraintValidatorException(</span></span>
-<span id="L46"><span class="lineNum">      46</span> <span class="tlaUNC">           0 :           &quot;constraint validator subprocess communication failed: ${e.message}&quot;</span></span>
+<span id="L46"><span class="lineNum">      46</span> <span class="tlaUNC">           0 :           &quot;constraint validator subprocess communication failed: ${e.message}&quot;, e</span></span>
 <span id="L47"><span class="lineNum">      47</span>              :         )</span>
 <span id="L48"><span class="lineNum">      48</span>              :       }</span>
 <span id="L49"><span class="lineNum">      49</span> <span class="tlaGNC tlaBgGNC">           1 :     if (response.hasError()) {</span></span>
@@ -169,31 +169,32 @@
 <span id="L107"><span class="lineNum">     107</span> <span class="tlaUNC tlaBgUNC">           0 :         } catch (e: java.io.IOException) {</span></span>
 <span id="L108"><span class="lineNum">     108</span> <span class="tlaUNC">           0 :           process.destroyForcibly().waitFor()</span></span>
 <span id="L109"><span class="lineNum">     109</span> <span class="tlaUNC">           0 :           throw ConstraintValidatorException(</span></span>
-<span id="L110"><span class="lineNum">     110</span> <span class="tlaUNC">           0 :             &quot;constraint validator subprocess failed during P4Info load: ${e.message}&quot;</span></span>
-<span id="L111"><span class="lineNum">     111</span>              :           )</span>
-<span id="L112"><span class="lineNum">     112</span>              :         }</span>
-<span id="L113"><span class="lineNum">     113</span>              : </span>
-<span id="L114"><span class="lineNum">     114</span> <span class="tlaGNC tlaBgGNC">           1 :       if (response.hasError()) {</span></span>
-<span id="L115"><span class="lineNum">     115</span> <span class="tlaUNC tlaBgUNC">           0 :         process.destroyForcibly().waitFor()</span></span>
-<span id="L116"><span class="lineNum">     116</span> <span class="tlaUNC">           0 :         throw ConstraintValidatorException(</span></span>
-<span id="L117"><span class="lineNum">     117</span> <span class="tlaUNC">           0 :           &quot;Failed to load P4Info into constraint validator: ${response.error.message}&quot;</span></span>
-<span id="L118"><span class="lineNum">     118</span>              :         )</span>
-<span id="L119"><span class="lineNum">     119</span>              :       }</span>
-<span id="L120"><span class="lineNum">     120</span>              : </span>
-<span id="L121"><span class="lineNum">     121</span> <span class="tlaGNC tlaBgGNC">           1 :       val loadResponse = response.loadP4Info</span></span>
-<span id="L122"><span class="lineNum">     122</span> <span class="tlaGNC">           1 :       if (loadResponse.constrainedTables == 0 &amp;&amp; loadResponse.constrainedActions == 0) {</span></span>
-<span id="L123"><span class="lineNum">     123</span> <span class="tlaGNC">           1 :         output.close()</span></span>
-<span id="L124"><span class="lineNum">     124</span> <span class="tlaGNC">           1 :         process.destroy()</span></span>
-<span id="L125"><span class="lineNum">     125</span> <span class="tlaGNC">           1 :         process.waitFor(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS)</span></span>
-<span id="L126"><span class="lineNum">     126</span> <span class="tlaGNC">           1 :         return null</span></span>
-<span id="L127"><span class="lineNum">     127</span>              :       }</span>
-<span id="L128"><span class="lineNum">     128</span>              : </span>
-<span id="L129"><span class="lineNum">     129</span> <span class="tlaGNC">           1 :       return ConstraintValidator(process, input, output)</span></span>
-<span id="L130"><span class="lineNum">     130</span>              :     }</span>
-<span id="L131"><span class="lineNum">     131</span>              :   }</span>
-<span id="L132"><span class="lineNum">     132</span>              : }</span>
-<span id="L133"><span class="lineNum">     133</span>              : </span>
-<span id="L134"><span class="lineNum">     134</span> <span class="tlaUNC tlaBgUNC">           0 : class ConstraintValidatorException(message: String) : RuntimeException(message)</span></span>
+<span id="L110"><span class="lineNum">     110</span> <span class="tlaUNC">           0 :             &quot;constraint validator subprocess failed during P4Info load: ${e.message}&quot;,</span></span>
+<span id="L111"><span class="lineNum">     111</span> <span class="tlaUNC">           0 :             e</span></span>
+<span id="L112"><span class="lineNum">     112</span>              :           )</span>
+<span id="L113"><span class="lineNum">     113</span>              :         }</span>
+<span id="L114"><span class="lineNum">     114</span>              : </span>
+<span id="L115"><span class="lineNum">     115</span> <span class="tlaGNC tlaBgGNC">           1 :       if (response.hasError()) {</span></span>
+<span id="L116"><span class="lineNum">     116</span> <span class="tlaUNC tlaBgUNC">           0 :         process.destroyForcibly().waitFor()</span></span>
+<span id="L117"><span class="lineNum">     117</span> <span class="tlaUNC">           0 :         throw ConstraintValidatorException(</span></span>
+<span id="L118"><span class="lineNum">     118</span> <span class="tlaUNC">           0 :           &quot;Failed to load P4Info into constraint validator: ${response.error.message}&quot;</span></span>
+<span id="L119"><span class="lineNum">     119</span>              :         )</span>
+<span id="L120"><span class="lineNum">     120</span>              :       }</span>
+<span id="L121"><span class="lineNum">     121</span>              : </span>
+<span id="L122"><span class="lineNum">     122</span> <span class="tlaGNC tlaBgGNC">           1 :       val loadResponse = response.loadP4Info</span></span>
+<span id="L123"><span class="lineNum">     123</span> <span class="tlaGNC">           1 :       if (loadResponse.constrainedTables == 0 &amp;&amp; loadResponse.constrainedActions == 0) {</span></span>
+<span id="L124"><span class="lineNum">     124</span> <span class="tlaGNC">           1 :         output.close()</span></span>
+<span id="L125"><span class="lineNum">     125</span> <span class="tlaGNC">           1 :         process.destroy()</span></span>
+<span id="L126"><span class="lineNum">     126</span> <span class="tlaGNC">           1 :         process.waitFor(SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS)</span></span>
+<span id="L127"><span class="lineNum">     127</span> <span class="tlaGNC">           1 :         return null</span></span>
+<span id="L128"><span class="lineNum">     128</span>              :       }</span>
+<span id="L129"><span class="lineNum">     129</span>              : </span>
+<span id="L130"><span class="lineNum">     130</span> <span class="tlaGNC">           1 :       return ConstraintValidator(process, input, output)</span></span>
+<span id="L131"><span class="lineNum">     131</span>              :     }</span>
+<span id="L132"><span class="lineNum">     132</span>              :   }</span>
+<span id="L133"><span class="lineNum">     133</span>              : }</span>
+<span id="L134"><span class="lineNum">     134</span>              : </span>
+<span id="L135"><span class="lineNum">     135</span> <span class="tlaUNC tlaBgUNC">           0 : class ConstraintValidatorException(message: String, cause: Throwable? = null) : RuntimeException(message, cause)</span></span>
         </pre>
               </td>
             </tr>
