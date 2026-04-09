@@ -32,6 +32,8 @@ def corpus_test_suite(name, tests, tags = [], includes = [], stf_overrides = {})
                   overriding the upstream @p4c STF. Use when the upstream STF
                   expectation is wrong (e.g. missing un-parsed payload).
     """
+    if not tests:
+        return
     data = []
 
     for test in tests:

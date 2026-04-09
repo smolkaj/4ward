@@ -167,6 +167,8 @@ def p4_testgen_suite(name, tests, includes = {}, max_tests = {}, tags = [], targ
         max_tests: dict mapping program names to max-test limits.
         tags:      Bazel tags forwarded to the kt_jvm_test.
     """
+    if not tests:
+        return
     data = []
 
     for test in tests:
