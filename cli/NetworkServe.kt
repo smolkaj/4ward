@@ -4,19 +4,22 @@ import fourward.e2e.StfFile
 import fourward.e2e.installStfEntries
 import fourward.e2e.loadPipelineConfig
 import fourward.p4runtime.P4RuntimeServer
+import fourward.p4runtime.PacketBroker
+import fourward.simulator.Endpoint
+import fourward.simulator.Link
+import fourward.simulator.NetworkSimulator
 import java.io.FileNotFoundException
 import java.nio.file.NoSuchFileException
 import java.nio.file.Path
+import java.util.logging.Logger
 
 /**
  * `4ward network serve test.nstf` — start P4Runtime servers for a multi-switch network.
  *
  * Parses a `.nstf` file, starts one P4Runtime gRPC server per switch (pre-loaded with pipeline
- * configs and table entries from the .nstf), prints a port map, and blocks until shutdown.
- * Controllers connect to individual switches via standard P4Runtime RPCs.
- *
- * Each switch operates independently — cross-switch packet forwarding is not wired through
- * P4Runtime in this version. Use `4ward network <test.nstf>` for cross-switch simulation.
+ * configs and table entries from the .nstf), wires cross-switch packet forwarding, prints a port
+ * map, and blocks until shutdown. Controllers connect to individual switches via standard P4Runtime
+ * RPCs. Packets injected on one switch automatically traverse linked ports to other switches.
  */
 fun networkServe(nstfPath: Path, basePort: Int): Int {
   val nstf =
@@ -57,9 +60,9 @@ fun networkServe(nstfPath: Path, basePort: Int): Int {
 /** Starts one P4Runtime server per switch, pre-loaded with pipelines and entries. */
 fun startNetworkServers(nstf: NetworkStf, basePort: Int): List<P4RuntimeServer> {
   val servers = mutableListOf<P4RuntimeServer>()
+  val switchIds = mutableListOf<String>()
 
   for ((idx, sw) in nstf.switches.withIndex()) {
-    // Port 0 = ephemeral (each server gets its own OS-assigned port).
     val port = if (basePort == 0) 0 else basePort + idx
     val server = P4RuntimeServer(port = port, deviceId = idx.toLong() + 1)
 
@@ -90,9 +93,76 @@ fun startNetworkServers(nstf: NetworkStf, basePort: Int): List<P4RuntimeServer> 
       )
     }
     servers.add(server)
+    switchIds.add(sw.id)
   }
+
+  wireNetworkForwarding(nstf.links, switchIds, servers)
 
   return servers
 }
+
+/**
+ * Registers forwarding subscribers on each switch's [PacketBroker] so that packets egressing on
+ * linked ports are automatically injected into the connected switch.
+ *
+ * Uses the broker's existing subscriber model — no changes to [PacketBroker] or [P4RuntimeServer]
+ * internals.
+ */
+private fun wireNetworkForwarding(
+  links: List<Link>,
+  switchIds: List<String>,
+  servers: List<P4RuntimeServer>,
+) {
+  if (links.isEmpty()) return
+
+  val brokerBySwitch = switchIds.zip(servers).associate { (id, server) -> id to server.broker }
+
+  val linkMap =
+    buildMap<Endpoint, Endpoint> {
+      for (link in links) {
+        put(link.a, link.b)
+        put(link.b, link.a)
+      }
+    }
+
+  // Track recursion depth per thread to detect routing loops. The forwarding subscriber calls
+  // dstBroker.processPacket(), which dispatches to subscribers (including this one) on the same
+  // thread — so a thread-local counter is the right mechanism.
+  val hopCount = ThreadLocal.withInitial { 0 }
+
+  for ((switchId, broker) in brokerBySwitch) {
+    broker.subscribe { result ->
+      val hops = hopCount.get()
+      if (hops >= NetworkSimulator.MAX_HOP_COUNT) {
+        logger.warning(
+          "cross-switch forwarding: hop limit (${NetworkSimulator.MAX_HOP_COUNT}) exceeded — routing loop?"
+        )
+        return@subscribe
+      }
+      hopCount.set(hops + 1)
+      try {
+        for (outputs in result.possibleOutcomes) {
+          for (output in outputs) {
+            val dst = linkMap[Endpoint(switchId, output.dataplaneEgressPort)]
+            if (dst != null) {
+              val dstBroker = brokerBySwitch[dst.switchId] ?: continue
+              try {
+                dstBroker.processPacket(dst.port, output.payload.toByteArray())
+              } catch (e: Exception) {
+                logger.warning(
+                  "cross-switch forwarding $switchId:${output.dataplaneEgressPort} → $dst failed: ${e.message}"
+                )
+              }
+            }
+          }
+        }
+      } finally {
+        hopCount.set(hops)
+      }
+    }
+  }
+}
+
+private val logger = Logger.getLogger("fourward.cli.NetworkServe")
 
 class NetworkServeException(message: String, val exitCode: Int) : RuntimeException(message)

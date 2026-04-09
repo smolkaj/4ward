@@ -19,7 +19,9 @@ class P4RuntimeServer(
    */
   val simulator = Simulator(dropPortOverride)
   private val lock = ReadWriteMutex()
-  private val broker = PacketBroker(simulator::processPacket, lock)
+
+  /** The packet broker. Exposed for registering cross-switch forwarding subscribers. */
+  val broker = PacketBroker(simulator::processPacket, lock)
   private val service =
     P4RuntimeService(
       simulator,
