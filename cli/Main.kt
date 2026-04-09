@@ -21,6 +21,7 @@ Commands:
   compile  program.p4 -o output.txtpb   Compile a P4 program to a pipeline config.
   sim      pipeline.txtpb test.stf       Run an STF test against a compiled pipeline.
   run      program.p4 test.stf           Compile and simulate in one step.
+  network  test.nstf                     Run a multi-switch network simulation.
 
 Options:
   --format=human|textproto|json   Trace output format (default: human).
@@ -45,6 +46,17 @@ Options:
   -o <path>            Output file (default: <program>.txtpb).
   -I <dir>             Add include directory for P4 headers."""
 
+private const val NETWORK_USAGE =
+  """Usage: 4ward network [--format=human|textproto|json] <test.nstf>
+
+Runs a multi-switch network simulation from a .nstf file.
+
+The .nstf file declares switches (with pipeline configs and STF entries),
+links between switch ports, input packets, and expected outputs.
+
+Options:
+  --format=human|textproto|json   Trace output format (default: human)."""
+
 private const val RUN_USAGE =
   """Usage: 4ward run [--format=human|textproto|json] [--drop-port=N] <program.p4> <test.stf>
 
@@ -66,6 +78,7 @@ fun main(args: Array<String>) {
         "sim" -> handleSim(args.drop(1))
         "compile" -> handleCompile(args.drop(1))
         "run" -> handleRun(args.drop(1))
+        "network" -> handleNetwork(args.drop(1))
         else -> throw UsageError("unknown command '$command'\n$USAGE")
       }
     } catch (e: UsageError) {
@@ -99,6 +112,30 @@ private fun handleSim(args: List<String>): Int {
   }
 
   return simulate(resolveUserPath(positional[0]), stfPath(positional[1]), format, dropPort)
+}
+
+private fun handleNetwork(args: List<String>): Int {
+  if (args.any { it == "--help" || it == "-h" }) {
+    println(NETWORK_USAGE)
+    return ExitCode.SUCCESS
+  }
+
+  var format = OutputFormat.HUMAN
+  val positional = mutableListOf<String>()
+
+  for (arg in args) {
+    when {
+      arg.startsWith("--format=") -> format = parseFormat(arg)
+      arg.startsWith("-") && arg != "-" -> throw UsageError("unknown option '$arg'")
+      else -> positional += arg
+    }
+  }
+
+  if (positional.size != 1) {
+    throw UsageError("'network' requires exactly 1 argument: <test.nstf>\n$NETWORK_USAGE")
+  }
+
+  return networkSim(resolveUserPath(positional[0]), format)
 }
 
 private fun handleCompile(args: List<String>): Int {

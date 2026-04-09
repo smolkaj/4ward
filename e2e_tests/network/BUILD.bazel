@@ -1,5 +1,15 @@
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
 
+exports_files(
+    [
+        "s1.stf",
+        "s2.stf",
+        "two_switch.nstf",
+        "two_switch_fail.nstf",
+    ],
+    visibility = ["//cli:__pkg__"],
+)
+
 kt_jvm_test(
     name = "NetworkSimulatorTest",
     srcs = ["NetworkSimulatorTest.kt"],
