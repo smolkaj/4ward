@@ -145,11 +145,12 @@ def p4_testgen_test(name, src_p4 = None, includes = [], max_tests = 0, seed = 0,
 
     kt_jvm_test(
         name = name + "_test",
+        srcs = ["P4TestgenSuiteTest.kt"],
         test_class = "fourward.e2e.p4testgen.P4TestgenSuiteTest",
         tags = tags + ["heavy"],
         data = data,
         deps = [
-            "//e2e_tests/p4testgen:p4testgen_test_class",
+            "//e2e_tests/stf:stf_runner",
             "@fourward_maven//:junit_junit",
         ],
     )
@@ -179,12 +180,13 @@ def p4_testgen_suite(name, tests, includes = {}, max_tests = {}, tags = [], targ
 
     kt_jvm_test(
         name = name,
+        srcs = ["P4TestgenSuiteTest.kt"],
         test_class = "fourward.e2e.p4testgen.P4TestgenSuiteTest",
         size = "large",  # 155 tests with Z3 constraint solving; needs 900s
         tags = tags + ["heavy"],
         data = data,
         deps = [
-            "//e2e_tests/p4testgen:p4testgen_test_class",
+            "//e2e_tests/stf:stf_runner",
             "@fourward_maven//:junit_junit",
         ],
     )
