@@ -179,6 +179,7 @@ fun installStfEntries(sim: Simulator, stf: StfFile, p4Info: P4InfoOuterClass.P4I
   for (directive in stf.tableEntries) {
     write(resolveStfTableEntry(directive, p4Info), "table")
   }
+  sim.publishSnapshot()
 }
 
 /** Parses a text-format [PipelineConfig] proto from a file. */

@@ -10,6 +10,8 @@ import java.util.logging.Level
 import java.util.logging.Logger
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import p4.v1.P4RuntimeOuterClass
 
 /**
@@ -17,8 +19,8 @@ import p4.v1.P4RuntimeOuterClass
  *
  * All callers — [DataplaneService.injectPacket], [P4RuntimeService] PacketOut — go through
  * [processPacket]. The broker:
- * 1. Fires the pre-packet hook if one is registered (acquiring the write lock).
- * 2. Calls the simulator.
+ * 1. Fires the pre-packet hook if one is registered (acquiring the write mutex).
+ * 2. Calls the simulator (lock-free — reads the published forwarding snapshot).
  * 3. Delivers the result to all subscribers.
  *
  * The hook ensures auxiliary entries (PRE clone sessions, etc.) are installed before every packet,
@@ -26,11 +28,12 @@ import p4.v1.P4RuntimeOuterClass
  *
  * @param simulatorFn processes a single packet (wraps
  *   [fourward.simulator.Simulator.processPacket]).
- * @param lock shared read-write lock (also used by [P4RuntimeService] for Write/Read).
+ * @param writeMutex shared mutex with [P4RuntimeService] for serializing control-plane writes. Only
+ *   acquired when a pre-packet hook is registered (to apply hook updates atomically).
  */
 class PacketBroker(
   private val simulatorFn: (ingressPort: Int, payload: ByteArray) -> ProcessPacketResult,
-  private val lock: ReadWriteMutex,
+  private val writeMutex: Mutex,
 ) {
 
   // ---------------------------------------------------------------------------
@@ -67,9 +70,9 @@ class PacketBroker(
   var applyUpdates: (List<P4RuntimeOuterClass.Update>) -> Unit = {}
 
   /**
-   * Fires the pre-packet hook if one is registered. Must be called while holding the write lock.
-   * Uses [runBlocking] to stay on the lock-holding thread
-   * ([java.util.concurrent.locks.ReentrantReadWriteLock] thread affinity).
+   * Fires the pre-packet hook if one is registered. Must be called while holding the [writeMutex].
+   * The hook may apply P4Runtime updates (via [applyUpdates]) which mutate forwarding state and
+   * publish a new snapshot — all under the mutex.
    */
   private fun fireHookIfRegistered() {
     val h = hook.get() ?: return
@@ -109,48 +112,37 @@ class PacketBroker(
 
   /**
    * Processes a packet: fires the hook (if registered), runs the simulator, and dispatches results
-   * to subscribers. Acquires the write lock if a hook is registered, the read lock otherwise.
+   * to subscribers. Lock-free on the hot path — the simulator reads from the published forwarding
+   * snapshot. Only acquires the [writeMutex] when a hook is registered (to fire the hook and apply
+   * its updates atomically).
    */
-  fun processPacket(ingressPort: Int, payload: ByteArray): ProcessPacketResult {
-    val result =
-      if (hook.get() != null) {
-        lock.withWriteLockBlocking {
-          fireHookIfRegistered()
-          simulatorFn(ingressPort, payload)
-        }
-      } else {
-        lock.withReadLockBlocking { simulatorFn(ingressPort, payload) }
-      }
+  /**
+   * If a hook is registered, acquires the [writeMutex] and fires it. The hook may apply P4Runtime
+   * updates that publish a new forwarding snapshot. No-op if no hook is registered.
+   */
+  private fun fireHookUnderMutex() {
+    if (hook.get() != null) {
+      runBlocking { writeMutex.withLock { fireHookIfRegistered() } }
+    }
+  }
 
+  fun processPacket(ingressPort: Int, payload: ByteArray): ProcessPacketResult {
+    fireHookUnderMutex()
+    val result = simulatorFn(ingressPort, payload)
     dispatchToSubscribers(ingressPort, payload, result)
     return result
   }
 
   /**
-   * Fires the hook once (if registered), then runs [block] with a processor that handles locking.
-   *
-   * If a hook is registered: acquires the write lock, fires the hook, then calls [block] with a
-   * processor that runs under the already-held write lock (no per-packet locking).
-   *
-   * If no hook: calls [block] with a processor that acquires a read lock per packet.
+   * Fires the hook once (if registered), then runs [block] with a lock-free packet processor.
    *
    * Used by [DataplaneService.injectPackets] to stream packets without buffering the entire batch.
    */
   fun <T> withHookOnce(block: (processor: (Int, ByteArray) -> Unit) -> T): T {
-    val processAndDispatch = { port: Int, payload: ByteArray ->
+    fireHookUnderMutex()
+    return block { port, payload ->
       val result = simulatorFn(port, payload)
       dispatchToSubscribers(port, payload, result)
-    }
-    return if (hook.get() != null) {
-      lock.withWriteLockBlocking {
-        fireHookIfRegistered()
-        // Note: subscriber dispatch runs under the write lock here (unlike processPacket where
-        // it runs after the lock is released). This is intentional — the write lock is held for
-        // the entire streaming batch anyway.
-        block { port, payload -> processAndDispatch(port, payload) }
-      }
-    } else {
-      block { port, payload -> lock.withReadLockBlocking { processAndDispatch(port, payload) } }
     }
   }
 

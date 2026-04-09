@@ -169,4 +169,5 @@ fun writeCloneSession(store: TableStore, sessionId: Int, replicas: List<Pair<Int
       )
       .build()
   )
+  store.publishSnapshot()
 }

@@ -258,6 +258,7 @@ class V1ModelArchitectureTest {
         )
         .build()
     )
+    store.publishSnapshot()
   }
 
   private fun writeMulticastGroup(
@@ -286,6 +287,7 @@ class V1ModelArchitectureTest {
         )
         .build()
     )
+    store.publishSnapshot()
   }
 
   // ---------------------------------------------------------------------------

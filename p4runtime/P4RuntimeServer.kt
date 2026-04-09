@@ -4,6 +4,7 @@ import fourward.simulator.Simulator
 import io.grpc.Server
 import io.grpc.netty.NettyServerBuilder
 import java.util.concurrent.Executors
+import kotlinx.coroutines.sync.Mutex
 
 /** Wraps a P4Runtime + Dataplane gRPC server backed by a 4ward [Simulator]. */
 class P4RuntimeServer(
@@ -18,13 +19,13 @@ class P4RuntimeServer(
    * before the server starts accepting RPCs.
    */
   val simulator = Simulator(dropPortOverride)
-  private val lock = ReadWriteMutex()
-  private val broker = PacketBroker(simulator::processPacket, lock)
+  private val writeMutex = Mutex()
+  private val broker = PacketBroker(simulator::processPacket, writeMutex)
   private val service =
     P4RuntimeService(
       simulator,
       broker,
-      lock = lock,
+      writeMutex = writeMutex,
       deviceId = deviceId,
       cpuPortConfig = cpuPortConfig,
     )

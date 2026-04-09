@@ -323,6 +323,7 @@ class PSAArchitectureTest {
         )
         .build()
     )
+    store.publishSnapshot()
   }
 
   /** PSA register.read method call expression: reg.read(index). */
@@ -885,6 +886,7 @@ class PSAArchitectureTest {
         )
         .build()
     )
+    store.publishSnapshot()
   }
 
   @Test
@@ -1375,6 +1377,7 @@ class PSAArchitectureTest {
         )
         .build()
     )
+    store.publishSnapshot()
   }
 
   private fun writeActionProfileGroup(store: TableStore, groupId: Int, memberIds: List<Int>) {
@@ -1399,6 +1402,7 @@ class PSAArchitectureTest {
         )
         .build()
     )
+    store.publishSnapshot()
   }
 
   private fun writeGroupTableEntry(store: TableStore, keyValue: Byte, groupId: Int) {
@@ -1425,6 +1429,7 @@ class PSAArchitectureTest {
         )
         .build()
     )
+    store.publishSnapshot()
   }
 
   @Test

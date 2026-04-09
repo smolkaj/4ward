@@ -217,6 +217,7 @@ class InterpreterParserTest {
   fun `value_set with exact member that matches transitions`() {
     val store = TableStore()
     store.populateValueSet("pvs", listOf(exactMember(byteArrayOf(0x42))))
+    store.publishSnapshot()
 
     val env = Environment()
     env.define("x", BitVal(0x42, 8))
@@ -240,6 +241,7 @@ class InterpreterParserTest {
   fun `value_set with exact member that does not match falls through`() {
     val store = TableStore()
     store.populateValueSet("pvs", listOf(exactMember(byteArrayOf(0x99.toByte()))))
+    store.publishSnapshot()
 
     val env = Environment()
     env.define("x", BitVal(0x42, 8))
@@ -263,6 +265,7 @@ class InterpreterParserTest {
       "pvs",
       listOf(ternaryMember(byteArrayOf(0xA0.toByte()), byteArrayOf(0xF0.toByte()))),
     )
+    store.publishSnapshot()
 
     val env = Environment()
     env.define("x", BitVal(0xAB, 8))
@@ -290,6 +293,7 @@ class InterpreterParserTest {
       "pvs",
       listOf(exactMember(byteArrayOf(0x10)), exactMember(byteArrayOf(0x20))),
     )
+    store.publishSnapshot()
 
     val env = Environment()
     env.define("x", BitVal(0x20, 8))

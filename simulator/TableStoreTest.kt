@@ -4,6 +4,7 @@ import com.google.protobuf.ByteString
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -21,6 +22,20 @@ import p4.v1.P4RuntimeOuterClass.Update
  * Unit tests for [TableStore] covering exact, LPM, and ternary match kinds along with basic
  * write/delete and default-action semantics.
  */
+/** Writes and immediately publishes the snapshot so reads see the change. */
+private fun TableStore.writeAndPublish(update: Update): WriteResult =
+  write(update).also { publishSnapshot() }
+
+/** Sets default action and immediately publishes the snapshot. */
+private fun TableStore.setDefaultActionAndPublish(
+  tableName: String,
+  actionName: String,
+  params: List<P4RuntimeOuterClass.Action.Param> = emptyList(),
+) {
+  setDefaultAction(tableName, actionName, params)
+  publishSnapshot()
+}
+
 class TableStoreTest {
 
   private lateinit var store: TableStore
@@ -154,7 +169,7 @@ class TableStoreTest {
       .build()
 
   private fun write(entry: TableEntry) {
-    store.write(
+    store.writeAndPublish(
       Update.newBuilder()
         .setType(Update.Type.INSERT)
         .setEntity(Entity.newBuilder().setTableEntry(entry))
@@ -168,7 +183,7 @@ class TableStoreTest {
 
   @Test
   fun `miss on empty table returns default action`() {
-    store.setDefaultAction(TABLE_NAME, "drop")
+    store.setDefaultActionAndPublish(TABLE_NAME, "drop")
     val result = store.lookup(TABLE_NAME, listOf("1" to BitVal(1, 8)))
     assertFalse(result.hit)
     assertNull(result.entry)
@@ -371,7 +386,7 @@ class TableStoreTest {
 
     assertTrue(store.lookup(TABLE_NAME, listOf("1" to BitVal(10, 8))).hit)
 
-    store.write(
+    store.writeAndPublish(
       Update.newBuilder()
         .setType(Update.Type.DELETE)
         .setEntity(Entity.newBuilder().setTableEntry(entry))
@@ -385,7 +400,7 @@ class TableStoreTest {
   fun `modify overwrites an existing entry`() {
     write(exactEntry(fieldId = 1, value = byteArrayOf(0x05), actionId = 10))
 
-    store.write(
+    store.writeAndPublish(
       Update.newBuilder()
         .setType(Update.Type.MODIFY)
         .setEntity(
@@ -406,7 +421,7 @@ class TableStoreTest {
     val entry = exactEntry(fieldId = 1, value = byteArrayOf(0x0A), actionId = 42)
     write(entry)
     val result =
-      store.write(
+      store.writeAndPublish(
         Update.newBuilder()
           .setType(Update.Type.INSERT)
           .setEntity(Entity.newBuilder().setTableEntry(entry))
@@ -420,7 +435,7 @@ class TableStoreTest {
   fun `modify non-existent entry returns NotFound`() {
     val entry = exactEntry(fieldId = 1, value = byteArrayOf(0x0A), actionId = 42)
     val result =
-      store.write(
+      store.writeAndPublish(
         Update.newBuilder()
           .setType(Update.Type.MODIFY)
           .setEntity(Entity.newBuilder().setTableEntry(entry))
@@ -434,7 +449,7 @@ class TableStoreTest {
   fun `delete non-existent entry returns NotFound`() {
     val entry = exactEntry(fieldId = 1, value = byteArrayOf(0x0A), actionId = 42)
     val result =
-      store.write(
+      store.writeAndPublish(
         Update.newBuilder()
           .setType(Update.Type.DELETE)
           .setEntity(Entity.newBuilder().setTableEntry(entry))
@@ -447,7 +462,7 @@ class TableStoreTest {
   fun `write with unknown table ID returns NotFound`() {
     val entry = TableEntry.newBuilder().setTableId(99999).build()
     val result =
-      store.write(
+      store.writeAndPublish(
         Update.newBuilder()
           .setType(Update.Type.INSERT)
           .setEntity(Entity.newBuilder().setTableEntry(entry))
@@ -467,11 +482,11 @@ class TableStoreTest {
     for (i in 0 until TABLE_SIZE_LIMIT) {
       assertEquals(
         WriteResult.Success,
-        store.write(insertUpdate(exactEntry(1, byteArrayOf(i.toByte()), 10))),
+        store.writeAndPublish(insertUpdate(exactEntry(1, byteArrayOf(i.toByte()), 10))),
       )
     }
     // One more INSERT should fail.
-    val result = store.write(insertUpdate(exactEntry(1, byteArrayOf(0xFF.toByte()), 10)))
+    val result = store.writeAndPublish(insertUpdate(exactEntry(1, byteArrayOf(0xFF.toByte()), 10)))
     assertTrue("expected ResourceExhausted", result is WriteResult.ResourceExhausted)
   }
 
@@ -479,11 +494,11 @@ class TableStoreTest {
   fun `modify in full table succeeds`() {
     val store = storeWithTableSize(TABLE_SIZE_LIMIT)
     for (i in 0 until TABLE_SIZE_LIMIT) {
-      store.write(insertUpdate(exactEntry(1, byteArrayOf(i.toByte()), 10)))
+      store.writeAndPublish(insertUpdate(exactEntry(1, byteArrayOf(i.toByte()), 10)))
     }
     // MODIFY doesn't consume capacity — it replaces an existing entry.
     val result =
-      store.write(
+      store.writeAndPublish(
         Update.newBuilder()
           .setType(Update.Type.MODIFY)
           .setEntity(Entity.newBuilder().setTableEntry(exactEntry(1, byteArrayOf(0x00), 99)))
@@ -497,17 +512,17 @@ class TableStoreTest {
     val store = storeWithTableSize(TABLE_SIZE_LIMIT)
     val entry = exactEntry(1, byteArrayOf(0x01), 10)
     for (i in 0 until TABLE_SIZE_LIMIT) {
-      store.write(insertUpdate(exactEntry(1, byteArrayOf(i.toByte()), 10)))
+      store.writeAndPublish(insertUpdate(exactEntry(1, byteArrayOf(i.toByte()), 10)))
     }
     // Delete frees a slot.
-    store.write(
+    store.writeAndPublish(
       Update.newBuilder()
         .setType(Update.Type.DELETE)
         .setEntity(Entity.newBuilder().setTableEntry(entry))
         .build()
     )
     // Now INSERT should succeed.
-    val result = store.write(insertUpdate(exactEntry(1, byteArrayOf(0xAA.toByte()), 10)))
+    val result = store.writeAndPublish(insertUpdate(exactEntry(1, byteArrayOf(0xAA.toByte()), 10)))
     assertEquals(WriteResult.Success, result)
   }
 
@@ -530,11 +545,11 @@ class TableStoreTest {
 
   @Test
   fun `MODIFY default entry updates the default action`() {
-    store.setDefaultAction(TABLE_NAME, "drop")
+    store.setDefaultActionAndPublish(TABLE_NAME, "drop")
     assertEquals("drop", store.lookup(TABLE_NAME, emptyList()).actionName)
 
     val result =
-      store.write(
+      store.writeAndPublish(
         Update.newBuilder()
           .setType(Update.Type.MODIFY)
           .setEntity(
@@ -563,7 +578,7 @@ class TableStoreTest {
         .setValue(com.google.protobuf.ByteString.copyFrom(byteArrayOf(0x09)))
         .build()
     val result =
-      store.write(
+      store.writeAndPublish(
         Update.newBuilder()
           .setType(Update.Type.MODIFY)
           .setEntity(
@@ -595,10 +610,10 @@ class TableStoreTest {
 
   @Test
   fun `isDefaultModified returns true after MODIFY default entry`() {
-    store.setDefaultAction(TABLE_NAME, "drop")
+    store.setDefaultActionAndPublish(TABLE_NAME, "drop")
     assertFalse("pipeline-loaded default is not 'modified'", store.isDefaultModified(TABLE_NAME))
 
-    store.write(
+    store.writeAndPublish(
       Update.newBuilder()
         .setType(Update.Type.MODIFY)
         .setEntity(
@@ -645,7 +660,7 @@ class TableStoreTest {
     paramValue: Byte,
     type: Update.Type = Update.Type.INSERT,
   ): WriteResult =
-    store.write(
+    store.writeAndPublish(
       Update.newBuilder()
         .setType(type)
         .setEntity(
@@ -674,7 +689,7 @@ class TableStoreTest {
     memberIds: List<Int>,
     type: Update.Type = Update.Type.INSERT,
   ): WriteResult =
-    store.write(
+    store.writeAndPublish(
       Update.newBuilder()
         .setType(type)
         .setEntity(
@@ -697,7 +712,7 @@ class TableStoreTest {
     )
 
   private fun writeGroupEntry(store: TableStore, fieldValue: Byte, groupId: Int) {
-    store.write(
+    store.writeAndPublish(
       Update.newBuilder()
         .setType(Update.Type.INSERT)
         .setEntity(
@@ -721,7 +736,7 @@ class TableStoreTest {
   }
 
   private fun writeMemberEntry(store: TableStore, fieldValue: Byte, memberId: Int) {
-    store.write(
+    store.writeAndPublish(
       Update.newBuilder()
         .setType(Update.Type.INSERT)
         .setEntity(
@@ -777,7 +792,7 @@ class TableStoreTest {
   @Test
   fun `group entry miss returns default action without members`() {
     val s = storeWithProfile()
-    s.setDefaultAction(PROFILE_TABLE_NAME, "drop")
+    s.setDefaultActionAndPublish(PROFILE_TABLE_NAME, "drop")
 
     val result = s.lookup(PROFILE_TABLE_NAME, listOf("1" to BitVal(0xFF, 8)))
     assertFalse(result.hit)
@@ -807,7 +822,7 @@ class TableStoreTest {
     fieldValue: Byte,
     actions: List<Pair<Int, Byte>>,
   ) {
-    store.write(
+    store.writeAndPublish(
       Update.newBuilder()
         .setType(Update.Type.INSERT)
         .setEntity(
@@ -901,7 +916,7 @@ class TableStoreTest {
     egressPort: Int,
     type: Update.Type = Update.Type.INSERT,
   ): WriteResult =
-    target.write(
+    target.writeAndPublish(
       Update.newBuilder()
         .setType(type)
         .setEntity(
@@ -924,7 +939,7 @@ class TableStoreTest {
     replicas: List<Pair<Int, Int>>,
     type: Update.Type = Update.Type.INSERT,
   ): WriteResult =
-    target.write(
+    target.writeAndPublish(
       Update.newBuilder()
         .setType(type)
         .setEntity(
@@ -1123,7 +1138,7 @@ class TableStoreTest {
 
   @Test
   fun `loadMappings clears default actions`() {
-    store.setDefaultAction(TABLE_NAME, "customAction")
+    store.setDefaultActionAndPublish(TABLE_NAME, "customAction")
     assertEquals("customAction", store.lookup(TABLE_NAME, emptyList()).actionName)
 
     // Reload without any default action configured — should revert to NoAction.
@@ -1447,7 +1462,7 @@ class TableStoreTest {
     val s = storeWithProfile()
     writeMember(s, memberId = 1, actionId = 10, paramValue = 1)
     // Members from a different profile (id=999) should not be returned.
-    s.write(
+    s.writeAndPublish(
       Update.newBuilder()
         .setType(Update.Type.INSERT)
         .setEntity(
@@ -1587,7 +1602,10 @@ class TableStoreTest {
   @Test
   fun `modify register entry persists value`() {
     val s = storeWithRegister()
-    assertEquals(WriteResult.Success, s.write(registerUpdate(Update.Type.MODIFY, value = 42)))
+    assertEquals(
+      WriteResult.Success,
+      s.writeAndPublish(registerUpdate(Update.Type.MODIFY, value = 42)),
+    )
     val readBack = s.registerRead(REGISTER_NAME, 0)
     assertNotNull(readBack)
     assertEquals(BitVal(42, REGISTER_BITWIDTH), readBack)
@@ -1596,28 +1614,29 @@ class TableStoreTest {
   @Test
   fun `modify register entry at out-of-bounds index returns error`() {
     val s = storeWithRegister()
-    val result = s.write(registerUpdate(Update.Type.MODIFY, index = REGISTER_SIZE.toLong()))
+    val result =
+      s.writeAndPublish(registerUpdate(Update.Type.MODIFY, index = REGISTER_SIZE.toLong()))
     assertTrue("expected InvalidArgument", result is WriteResult.InvalidArgument)
   }
 
   @Test
   fun `insert register entry returns InvalidArgument`() {
     val s = storeWithRegister()
-    val result = s.write(registerUpdate(Update.Type.INSERT))
+    val result = s.writeAndPublish(registerUpdate(Update.Type.INSERT))
     assertTrue("expected InvalidArgument", result is WriteResult.InvalidArgument)
   }
 
   @Test
   fun `delete register entry returns InvalidArgument`() {
     val s = storeWithRegister()
-    val result = s.write(registerUpdate(Update.Type.DELETE))
+    val result = s.writeAndPublish(registerUpdate(Update.Type.DELETE))
     assertTrue("expected InvalidArgument", result is WriteResult.InvalidArgument)
   }
 
   @Test
   fun `modify register with unknown ID returns NotFound`() {
     val s = storeWithRegister()
-    val result = s.write(registerUpdate(Update.Type.MODIFY, registerId = 999))
+    val result = s.writeAndPublish(registerUpdate(Update.Type.MODIFY, registerId = 999))
     assertTrue("expected NotFound", result is WriteResult.NotFound)
   }
 
@@ -1628,7 +1647,7 @@ class TableStoreTest {
   @Test
   fun `readRegisterEntries single index returns written value`() {
     val s = storeWithRegister()
-    s.write(registerUpdate(Update.Type.MODIFY, index = 1, value = 0xABCD))
+    s.writeAndPublish(registerUpdate(Update.Type.MODIFY, index = 1, value = 0xABCD))
     val filter =
       P4RuntimeOuterClass.RegisterEntry.newBuilder()
         .setRegisterId(REGISTER_ID)
@@ -1648,7 +1667,7 @@ class TableStoreTest {
   @Test
   fun `readRegisterEntries all indices returns full array with defaults`() {
     val s = storeWithRegister()
-    s.write(registerUpdate(Update.Type.MODIFY, index = 2, value = 99))
+    s.writeAndPublish(registerUpdate(Update.Type.MODIFY, index = 2, value = 99))
     val filter = P4RuntimeOuterClass.RegisterEntry.newBuilder().setRegisterId(REGISTER_ID).build()
     val results = s.readRegisterEntries(filter)
     assertEquals(REGISTER_SIZE, results.size)
@@ -1676,7 +1695,9 @@ class TableStoreTest {
             )
         )
     )
-    s.write(registerUpdate(Update.Type.MODIFY, registerId = REGISTER_ID, index = 0, value = 1))
+    s.writeAndPublish(
+      registerUpdate(Update.Type.MODIFY, registerId = REGISTER_ID, index = 0, value = 1)
+    )
     val filter = P4RuntimeOuterClass.RegisterEntry.getDefaultInstance()
     val results = s.readRegisterEntries(filter)
     // 2 entries from first register + 1 from second = 3
@@ -1698,8 +1719,8 @@ class TableStoreTest {
   fun `getTableEntries returns inserted entries`() {
     val entry1 = exactEntry(fieldId = 1, value = byteArrayOf(100), actionId = 10)
     val entry2 = exactEntry(fieldId = 1, value = byteArrayOf(200.toByte()), actionId = 20)
-    store.write(insertUpdate(entry1))
-    store.write(insertUpdate(entry2))
+    store.writeAndPublish(insertUpdate(entry1))
+    store.writeAndPublish(insertUpdate(entry2))
 
     val entries = store.getTableEntries(TABLE_NAME)
     assertEquals(2, entries.size)
@@ -1710,7 +1731,7 @@ class TableStoreTest {
   @Test
   fun `getTableEntries returns empty for unknown table`() {
     val entry = exactEntry(fieldId = 1, value = byteArrayOf(100), actionId = 10)
-    store.write(insertUpdate(entry))
+    store.writeAndPublish(insertUpdate(entry))
     assertTrue(store.getTableEntries("nonexistent").isEmpty())
   }
 
@@ -1732,8 +1753,8 @@ class TableStoreTest {
         priority = 20,
         actionId = 20,
       )
-    store.write(insertUpdate(entry1))
-    store.write(insertUpdate(entry2))
+    store.writeAndPublish(insertUpdate(entry1))
+    store.writeAndPublish(insertUpdate(entry2))
 
     val entries = store.getTableEntries(TABLE_NAME)
     assertEquals(2, entries.size)
@@ -1761,8 +1782,8 @@ class TableStoreTest {
         )
         .setAction(TableAction.newBuilder().setAction(Action.newBuilder().setActionId(10)))
         .build()
-    store.write(insertUpdate(entry1))
-    store.write(insertUpdate(entry2))
+    store.writeAndPublish(insertUpdate(entry1))
+    store.writeAndPublish(insertUpdate(entry2))
 
     assertEquals(1, store.getTableEntries(TABLE_NAME).size)
     assertEquals(1, store.getTableEntries("otherTable").size)
@@ -1821,7 +1842,7 @@ class TableStoreTest {
     val s = storeWithCounter()
     assertEquals(
       WriteResult.Success,
-      s.write(counterUpdate(Update.Type.MODIFY, byteCount = 100, packetCount = 5)),
+      s.writeAndPublish(counterUpdate(Update.Type.MODIFY, byteCount = 100, packetCount = 5)),
     )
     val results =
       s.readCounterEntries(
@@ -1838,29 +1859,29 @@ class TableStoreTest {
   @Test
   fun `modify counter at out-of-bounds index returns error`() {
     val s = storeWithCounter()
-    val result = s.write(counterUpdate(Update.Type.MODIFY, index = COUNTER_SIZE.toLong()))
+    val result = s.writeAndPublish(counterUpdate(Update.Type.MODIFY, index = COUNTER_SIZE.toLong()))
     assertTrue("expected InvalidArgument", result is WriteResult.InvalidArgument)
   }
 
   @Test
   fun `insert counter entry returns InvalidArgument`() {
     val s = storeWithCounter()
-    val result = s.write(counterUpdate(Update.Type.INSERT))
+    val result = s.writeAndPublish(counterUpdate(Update.Type.INSERT))
     assertTrue("expected InvalidArgument", result is WriteResult.InvalidArgument)
   }
 
   @Test
   fun `delete counter entry returns InvalidArgument`() {
     val s = storeWithCounter()
-    val result = s.write(counterUpdate(Update.Type.DELETE))
+    val result = s.writeAndPublish(counterUpdate(Update.Type.DELETE))
     assertTrue("expected InvalidArgument", result is WriteResult.InvalidArgument)
   }
 
   @Test
   fun `modify counter overwrites previous value`() {
     val s = storeWithCounter()
-    s.write(counterUpdate(Update.Type.MODIFY, byteCount = 10, packetCount = 1))
-    s.write(counterUpdate(Update.Type.MODIFY, byteCount = 20, packetCount = 2))
+    s.writeAndPublish(counterUpdate(Update.Type.MODIFY, byteCount = 10, packetCount = 1))
+    s.writeAndPublish(counterUpdate(Update.Type.MODIFY, byteCount = 20, packetCount = 2))
     val filter =
       P4RuntimeOuterClass.CounterEntry.newBuilder()
         .setCounterId(COUNTER_ID)
@@ -1874,7 +1895,7 @@ class TableStoreTest {
   @Test
   fun `modify counter with unknown ID returns NotFound`() {
     val s = storeWithCounter()
-    val result = s.write(counterUpdate(Update.Type.MODIFY, counterId = 999))
+    val result = s.writeAndPublish(counterUpdate(Update.Type.MODIFY, counterId = 999))
     assertTrue("expected NotFound", result is WriteResult.NotFound)
   }
 
@@ -1885,7 +1906,7 @@ class TableStoreTest {
   @Test
   fun `readCounterEntries single index returns written value`() {
     val s = storeWithCounter()
-    s.write(counterUpdate(Update.Type.MODIFY, index = 1, byteCount = 42, packetCount = 3))
+    s.writeAndPublish(counterUpdate(Update.Type.MODIFY, index = 1, byteCount = 42, packetCount = 3))
     val filter =
       P4RuntimeOuterClass.CounterEntry.newBuilder()
         .setCounterId(COUNTER_ID)
@@ -1900,7 +1921,7 @@ class TableStoreTest {
   @Test
   fun `readCounterEntries all indices returns full array with defaults`() {
     val s = storeWithCounter()
-    s.write(counterUpdate(Update.Type.MODIFY, index = 2, byteCount = 99))
+    s.writeAndPublish(counterUpdate(Update.Type.MODIFY, index = 2, byteCount = 99))
     val filter = P4RuntimeOuterClass.CounterEntry.newBuilder().setCounterId(COUNTER_ID).build()
     val results = s.readCounterEntries(filter)
     assertEquals(COUNTER_SIZE, results.size)
@@ -1986,7 +2007,9 @@ class TableStoreTest {
     val s = storeWithMeter()
     assertEquals(
       WriteResult.Success,
-      s.write(meterUpdate(Update.Type.MODIFY, cir = 1000, cburst = 100, pir = 2000, pburst = 200)),
+      s.writeAndPublish(
+        meterUpdate(Update.Type.MODIFY, cir = 1000, cburst = 100, pir = 2000, pburst = 200)
+      ),
     )
     val results =
       s.readMeterEntries(
@@ -2006,29 +2029,29 @@ class TableStoreTest {
   @Test
   fun `modify meter at out-of-bounds index returns error`() {
     val s = storeWithMeter()
-    val result = s.write(meterUpdate(Update.Type.MODIFY, index = METER_SIZE.toLong()))
+    val result = s.writeAndPublish(meterUpdate(Update.Type.MODIFY, index = METER_SIZE.toLong()))
     assertTrue("expected InvalidArgument", result is WriteResult.InvalidArgument)
   }
 
   @Test
   fun `insert meter entry returns InvalidArgument`() {
     val s = storeWithMeter()
-    val result = s.write(meterUpdate(Update.Type.INSERT))
+    val result = s.writeAndPublish(meterUpdate(Update.Type.INSERT))
     assertTrue("expected InvalidArgument", result is WriteResult.InvalidArgument)
   }
 
   @Test
   fun `delete meter entry returns InvalidArgument`() {
     val s = storeWithMeter()
-    val result = s.write(meterUpdate(Update.Type.DELETE))
+    val result = s.writeAndPublish(meterUpdate(Update.Type.DELETE))
     assertTrue("expected InvalidArgument", result is WriteResult.InvalidArgument)
   }
 
   @Test
   fun `modify meter overwrites previous config`() {
     val s = storeWithMeter()
-    s.write(meterUpdate(Update.Type.MODIFY, cir = 100))
-    s.write(meterUpdate(Update.Type.MODIFY, cir = 200))
+    s.writeAndPublish(meterUpdate(Update.Type.MODIFY, cir = 100))
+    s.writeAndPublish(meterUpdate(Update.Type.MODIFY, cir = 200))
     val filter =
       P4RuntimeOuterClass.MeterEntry.newBuilder()
         .setMeterId(METER_ID)
@@ -2041,7 +2064,7 @@ class TableStoreTest {
   @Test
   fun `modify meter with unknown ID returns NotFound`() {
     val s = storeWithMeter()
-    val result = s.write(meterUpdate(Update.Type.MODIFY, meterId = 999))
+    val result = s.writeAndPublish(meterUpdate(Update.Type.MODIFY, meterId = 999))
     assertTrue("expected NotFound", result is WriteResult.NotFound)
   }
 
@@ -2052,7 +2075,7 @@ class TableStoreTest {
   @Test
   fun `readMeterEntries single index returns written config`() {
     val s = storeWithMeter()
-    s.write(meterUpdate(Update.Type.MODIFY, index = 1, cir = 500, pir = 1000))
+    s.writeAndPublish(meterUpdate(Update.Type.MODIFY, index = 1, cir = 500, pir = 1000))
     val filter =
       P4RuntimeOuterClass.MeterEntry.newBuilder()
         .setMeterId(METER_ID)
@@ -2067,7 +2090,7 @@ class TableStoreTest {
   @Test
   fun `readMeterEntries all indices returns full array`() {
     val s = storeWithMeter()
-    s.write(meterUpdate(Update.Type.MODIFY, index = 2, cir = 42))
+    s.writeAndPublish(meterUpdate(Update.Type.MODIFY, index = 2, cir = 42))
     val filter = P4RuntimeOuterClass.MeterEntry.newBuilder().setMeterId(METER_ID).build()
     val results = s.readMeterEntries(filter)
     assertEquals(METER_SIZE, results.size)
@@ -2135,7 +2158,7 @@ class TableStoreTest {
   fun `directCounterIncrement accumulates packet and byte counts`() {
     val s = storeWithDirectCounter()
     val entry = exactEntry(fieldId = 1, value = byteArrayOf(10), actionId = 10)
-    s.write(insertUpdate(entry))
+    s.writeAndPublish(insertUpdate(entry))
 
     s.directCounterIncrement(TABLE_NAME, entry, 100)
     s.directCounterIncrement(TABLE_NAME, entry, 200)
@@ -2154,7 +2177,7 @@ class TableStoreTest {
   fun `directCounterIncrement is no-op for table without direct counter`() {
     // Default store has no direct counter configured.
     val entry = exactEntry(fieldId = 1, value = byteArrayOf(10), actionId = 10)
-    store.write(insertUpdate(entry))
+    store.writeAndPublish(insertUpdate(entry))
     store.directCounterIncrement(TABLE_NAME, entry, 100)
     // Should not crash; reading returns empty since no direct counter is configured.
     val results = store.readDirectCounterEntries()
@@ -2165,7 +2188,7 @@ class TableStoreTest {
   fun `readDirectCounterEntries returns zero for unincremented entries`() {
     val s = storeWithDirectCounter()
     val entry = exactEntry(fieldId = 1, value = byteArrayOf(10), actionId = 10)
-    s.write(insertUpdate(entry))
+    s.writeAndPublish(insertUpdate(entry))
 
     val results =
       s.readDirectCounterEntries(
@@ -2183,8 +2206,8 @@ class TableStoreTest {
     val s = storeWithDirectCounter()
     val entry1 = exactEntry(fieldId = 1, value = byteArrayOf(10), actionId = 10)
     val entry2 = exactEntry(fieldId = 1, value = byteArrayOf(20), actionId = 20)
-    s.write(insertUpdate(entry1))
-    s.write(insertUpdate(entry2))
+    s.writeAndPublish(insertUpdate(entry1))
+    s.writeAndPublish(insertUpdate(entry2))
     s.directCounterIncrement(TABLE_NAME, entry1, 50)
 
     val results = s.readDirectCounterEntries()
@@ -2195,7 +2218,7 @@ class TableStoreTest {
   fun `writeDirectCounterEntry MODIFY updates counter data`() {
     val s = storeWithDirectCounter()
     val entry = exactEntry(fieldId = 1, value = byteArrayOf(10), actionId = 10)
-    s.write(insertUpdate(entry))
+    s.writeAndPublish(insertUpdate(entry))
 
     val directCounterEntry =
       P4RuntimeOuterClass.DirectCounterEntry.newBuilder()
@@ -2203,7 +2226,7 @@ class TableStoreTest {
         .setData(P4RuntimeOuterClass.CounterData.newBuilder().setPacketCount(42).setByteCount(1000))
         .build()
     val result =
-      s.write(
+      s.writeAndPublish(
         Update.newBuilder()
           .setType(Update.Type.MODIFY)
           .setEntity(Entity.newBuilder().setDirectCounterEntry(directCounterEntry))
@@ -2223,7 +2246,7 @@ class TableStoreTest {
   fun `writeDirectCounterEntry INSERT returns InvalidArgument`() {
     val s = storeWithDirectCounter()
     val entry = exactEntry(fieldId = 1, value = byteArrayOf(10), actionId = 10)
-    s.write(insertUpdate(entry))
+    s.writeAndPublish(insertUpdate(entry))
 
     val directCounterEntry =
       P4RuntimeOuterClass.DirectCounterEntry.newBuilder()
@@ -2231,7 +2254,7 @@ class TableStoreTest {
         .setData(P4RuntimeOuterClass.CounterData.newBuilder().setPacketCount(1))
         .build()
     val result =
-      s.write(
+      s.writeAndPublish(
         Update.newBuilder()
           .setType(Update.Type.INSERT)
           .setEntity(Entity.newBuilder().setDirectCounterEntry(directCounterEntry))
@@ -2252,7 +2275,7 @@ class TableStoreTest {
         .setData(P4RuntimeOuterClass.CounterData.newBuilder().setPacketCount(1))
         .build()
     val result =
-      s.write(
+      s.writeAndPublish(
         Update.newBuilder()
           .setType(Update.Type.MODIFY)
           .setEntity(Entity.newBuilder().setDirectCounterEntry(directCounterEntry))
@@ -2265,11 +2288,11 @@ class TableStoreTest {
   fun `deleting table entry clears direct counter data`() {
     val s = storeWithDirectCounter()
     val entry = exactEntry(fieldId = 1, value = byteArrayOf(10), actionId = 10)
-    s.write(insertUpdate(entry))
+    s.writeAndPublish(insertUpdate(entry))
     s.directCounterIncrement(TABLE_NAME, entry, 100)
 
     // Delete the table entry.
-    s.write(
+    s.writeAndPublish(
       Update.newBuilder()
         .setType(Update.Type.DELETE)
         .setEntity(Entity.newBuilder().setTableEntry(entry))
@@ -2277,7 +2300,7 @@ class TableStoreTest {
     )
 
     // Re-insert and verify counter is reset to zero.
-    s.write(insertUpdate(entry))
+    s.writeAndPublish(insertUpdate(entry))
     val results =
       s.readDirectCounterEntries(
         P4RuntimeOuterClass.DirectCounterEntry.newBuilder().setTableEntry(entry).build()
@@ -2313,7 +2336,7 @@ class TableStoreTest {
   fun `writeDirectMeterEntry MODIFY persists config`() {
     val s = storeWithDirectMeter()
     val entry = exactEntry(fieldId = 1, value = byteArrayOf(10), actionId = 10)
-    s.write(insertUpdate(entry))
+    s.writeAndPublish(insertUpdate(entry))
 
     val directMeterEntry =
       P4RuntimeOuterClass.DirectMeterEntry.newBuilder()
@@ -2327,7 +2350,7 @@ class TableStoreTest {
         )
         .build()
     val result =
-      s.write(
+      s.writeAndPublish(
         Update.newBuilder()
           .setType(Update.Type.MODIFY)
           .setEntity(Entity.newBuilder().setDirectMeterEntry(directMeterEntry))
@@ -2349,7 +2372,7 @@ class TableStoreTest {
   fun `writeDirectMeterEntry INSERT returns InvalidArgument`() {
     val s = storeWithDirectMeter()
     val entry = exactEntry(fieldId = 1, value = byteArrayOf(10), actionId = 10)
-    s.write(insertUpdate(entry))
+    s.writeAndPublish(insertUpdate(entry))
 
     val directMeterEntry =
       P4RuntimeOuterClass.DirectMeterEntry.newBuilder()
@@ -2357,7 +2380,7 @@ class TableStoreTest {
         .setConfig(P4RuntimeOuterClass.MeterConfig.newBuilder().setCir(100))
         .build()
     val result =
-      s.write(
+      s.writeAndPublish(
         Update.newBuilder()
           .setType(Update.Type.INSERT)
           .setEntity(Entity.newBuilder().setDirectMeterEntry(directMeterEntry))
@@ -2377,7 +2400,7 @@ class TableStoreTest {
         .setConfig(P4RuntimeOuterClass.MeterConfig.newBuilder().setCir(100))
         .build()
     val result =
-      s.write(
+      s.writeAndPublish(
         Update.newBuilder()
           .setType(Update.Type.MODIFY)
           .setEntity(Entity.newBuilder().setDirectMeterEntry(directMeterEntry))
@@ -2390,7 +2413,7 @@ class TableStoreTest {
   fun `readDirectMeterEntries returns no config for unconfigured entries`() {
     val s = storeWithDirectMeter()
     val entry = exactEntry(fieldId = 1, value = byteArrayOf(10), actionId = 10)
-    s.write(insertUpdate(entry))
+    s.writeAndPublish(insertUpdate(entry))
 
     val results =
       s.readDirectMeterEntries(
@@ -2409,7 +2432,7 @@ class TableStoreTest {
   fun `deleting table entry clears direct meter data`() {
     val s = storeWithDirectMeter()
     val entry = exactEntry(fieldId = 1, value = byteArrayOf(10), actionId = 10)
-    s.write(insertUpdate(entry))
+    s.writeAndPublish(insertUpdate(entry))
 
     // Configure the direct meter.
     val directMeterEntry =
@@ -2417,7 +2440,7 @@ class TableStoreTest {
         .setTableEntry(entry)
         .setConfig(P4RuntimeOuterClass.MeterConfig.newBuilder().setCir(100))
         .build()
-    s.write(
+    s.writeAndPublish(
       Update.newBuilder()
         .setType(Update.Type.MODIFY)
         .setEntity(Entity.newBuilder().setDirectMeterEntry(directMeterEntry))
@@ -2425,13 +2448,13 @@ class TableStoreTest {
     )
 
     // Delete and re-insert the table entry.
-    s.write(
+    s.writeAndPublish(
       Update.newBuilder()
         .setType(Update.Type.DELETE)
         .setEntity(Entity.newBuilder().setTableEntry(entry))
         .build()
     )
-    s.write(insertUpdate(entry))
+    s.writeAndPublish(insertUpdate(entry))
 
     // Direct meter config should be cleared.
     val results =
@@ -2496,9 +2519,9 @@ class TableStoreTest {
 
     // tables + directCounterData + directMeterData
     val entry = exactEntry(fieldId = 1, value = byteArrayOf(0x0A), actionId = 10)
-    s.write(insertUpdate(entry))
+    s.writeAndPublish(insertUpdate(entry))
     s.directCounterIncrement(TABLE_NAME, entry, 100)
-    s.write(
+    s.writeAndPublish(
       Update.newBuilder()
         .setType(Update.Type.MODIFY)
         .setEntity(
@@ -2513,8 +2536,8 @@ class TableStoreTest {
     )
 
     // defaultActions + modifiedDefaults
-    s.setDefaultAction(TABLE_NAME, "drop")
-    s.write(
+    s.setDefaultActionAndPublish(TABLE_NAME, "drop")
+    s.writeAndPublish(
       Update.newBuilder()
         .setType(Update.Type.MODIFY)
         .setEntity(
@@ -2543,10 +2566,12 @@ class TableStoreTest {
     s.registerWrite(REGISTER_NAME, 0, BitVal(42, REGISTER_BITWIDTH))
 
     // counters
-    s.write(counterUpdate(Update.Type.MODIFY, index = 0, byteCount = 500, packetCount = 5))
+    s.writeAndPublish(
+      counterUpdate(Update.Type.MODIFY, index = 0, byteCount = 500, packetCount = 5)
+    )
 
     // meters
-    s.write(meterUpdate(Update.Type.MODIFY, index = 0, cir = 1000, pir = 2000))
+    s.writeAndPublish(meterUpdate(Update.Type.MODIFY, index = 0, cir = 1000, pir = 2000))
 
     // cloneSessions
     writeCloneSession(s, sessionId = 1, egressPort = 5)
@@ -2560,7 +2585,7 @@ class TableStoreTest {
     // --- Mutate every field ---
 
     // tables: add another entry
-    s.write(
+    s.writeAndPublish(
       Update.newBuilder()
         .setType(Update.Type.INSERT)
         .setEntity(
@@ -2574,7 +2599,7 @@ class TableStoreTest {
     s.directCounterIncrement(TABLE_NAME, entry, 999)
 
     // defaultActions: change it
-    s.setDefaultAction(TABLE_NAME, "forward")
+    s.setDefaultActionAndPublish(TABLE_NAME, "forward")
 
     // profileMembers: add another
     writeMember(s, memberId = 2, actionId = 20, paramValue = 2)
@@ -2586,10 +2611,12 @@ class TableStoreTest {
     s.registerWrite(REGISTER_NAME, 0, BitVal(999, REGISTER_BITWIDTH))
 
     // counters: overwrite
-    s.write(counterUpdate(Update.Type.MODIFY, index = 0, byteCount = 9999, packetCount = 99))
+    s.writeAndPublish(
+      counterUpdate(Update.Type.MODIFY, index = 0, byteCount = 9999, packetCount = 99)
+    )
 
     // meters: overwrite
-    s.write(meterUpdate(Update.Type.MODIFY, index = 0, cir = 9999, pir = 9999))
+    s.writeAndPublish(meterUpdate(Update.Type.MODIFY, index = 0, cir = 9999, pir = 9999))
 
     // cloneSessions: add another
     writeCloneSession(s, sessionId = 2, egressPort = 9)
@@ -2599,6 +2626,7 @@ class TableStoreTest {
 
     // --- Restore ---
     s.restore(snapshot)
+    s.publishSnapshot()
 
     // --- Verify every field is back to its pre-mutation state ---
 
@@ -2661,7 +2689,7 @@ class TableStoreTest {
     val snapshot = store.snapshot()
 
     // Delete the entry from the live store; after restore it should reappear.
-    store.write(
+    store.writeAndPublish(
       Update.newBuilder()
         .setType(Update.Type.DELETE)
         .setEntity(Entity.newBuilder().setTableEntry(entry))
@@ -2673,11 +2701,15 @@ class TableStoreTest {
     val snapshot2 = store.snapshot()
 
     store.restore(snapshot)
+    store.publishSnapshot()
+
     assertEquals(1, store.getTableEntries(TABLE_NAME).size)
 
     // Restore to the empty state (snapshot2) to verify the first restore
     // did not leak mutable structures.
     store.restore(snapshot2)
+    store.publishSnapshot()
+
     assertTrue(store.getTableEntries(TABLE_NAME).isEmpty())
   }
 
@@ -2747,7 +2779,7 @@ class TableStoreTest {
   fun `value_set MODIFY succeeds`() {
     val s = storeWithValueSet()
     val member = exactVsMember(byteArrayOf(0x42))
-    assertEquals(WriteResult.Success, s.write(valueSetUpdate(members = listOf(member))))
+    assertEquals(WriteResult.Success, s.writeAndPublish(valueSetUpdate(members = listOf(member))))
     assertEquals(listOf(member), s.getValueSetMembers(VALUE_SET_NAME))
   }
 
@@ -2756,16 +2788,16 @@ class TableStoreTest {
     val s = storeWithValueSet()
     val m1 = exactVsMember(byteArrayOf(0x01))
     val m2 = exactVsMember(byteArrayOf(0x02))
-    s.write(valueSetUpdate(members = listOf(m1)))
-    s.write(valueSetUpdate(members = listOf(m2)))
+    s.writeAndPublish(valueSetUpdate(members = listOf(m1)))
+    s.writeAndPublish(valueSetUpdate(members = listOf(m2)))
     assertEquals(listOf(m2), s.getValueSetMembers(VALUE_SET_NAME))
   }
 
   @Test
   fun `value_set MODIFY with empty members clears the set`() {
     val s = storeWithValueSet()
-    s.write(valueSetUpdate(members = listOf(exactVsMember(byteArrayOf(0x01)))))
-    s.write(valueSetUpdate(members = emptyList()))
+    s.writeAndPublish(valueSetUpdate(members = listOf(exactVsMember(byteArrayOf(0x01)))))
+    s.writeAndPublish(valueSetUpdate(members = emptyList()))
     assertEquals(
       emptyList<P4RuntimeOuterClass.ValueSetMember>(),
       s.getValueSetMembers(VALUE_SET_NAME),
@@ -2775,32 +2807,38 @@ class TableStoreTest {
   @Test
   fun `value_set INSERT is rejected`() {
     val s = storeWithValueSet()
-    assertTrue(s.write(valueSetUpdate(type = Update.Type.INSERT)) is WriteResult.InvalidArgument)
+    assertTrue(
+      s.writeAndPublish(valueSetUpdate(type = Update.Type.INSERT)) is WriteResult.InvalidArgument
+    )
   }
 
   @Test
   fun `value_set DELETE is rejected`() {
     val s = storeWithValueSet()
-    assertTrue(s.write(valueSetUpdate(type = Update.Type.DELETE)) is WriteResult.InvalidArgument)
+    assertTrue(
+      s.writeAndPublish(valueSetUpdate(type = Update.Type.DELETE)) is WriteResult.InvalidArgument
+    )
   }
 
   @Test
   fun `value_set unknown ID returns NotFound`() {
     val s = storeWithValueSet()
-    assertTrue(s.write(valueSetUpdate(valueSetId = 999)) is WriteResult.NotFound)
+    assertTrue(s.writeAndPublish(valueSetUpdate(valueSetId = 999)) is WriteResult.NotFound)
   }
 
   @Test
   fun `value_set exceeding size limit returns ResourceExhausted`() {
     val s = storeWithValueSet(valueSetSize = 2)
     val members = (1..3).map { exactVsMember(byteArrayOf(it.toByte())) }
-    assertTrue(s.write(valueSetUpdate(members = members)) is WriteResult.ResourceExhausted)
+    assertTrue(
+      s.writeAndPublish(valueSetUpdate(members = members)) is WriteResult.ResourceExhausted
+    )
   }
 
   @Test
   fun `value_set wildcard read returns all value sets`() {
     val s = storeWithValueSet()
-    s.write(valueSetUpdate(members = listOf(exactVsMember(byteArrayOf(0x01)))))
+    s.writeAndPublish(valueSetUpdate(members = listOf(exactVsMember(byteArrayOf(0x01)))))
     val results = s.readValueSetEntries()
     assertEquals(1, results.size)
     assertEquals(VALUE_SET_ID, results[0].valueSetEntry.valueSetId)
@@ -2810,7 +2848,7 @@ class TableStoreTest {
   @Test
   fun `value_set read by ID returns matching entry`() {
     val s = storeWithValueSet()
-    s.write(valueSetUpdate(members = listOf(exactVsMember(byteArrayOf(0x01)))))
+    s.writeAndPublish(valueSetUpdate(members = listOf(exactVsMember(byteArrayOf(0x01)))))
     val filter = P4RuntimeOuterClass.ValueSetEntry.newBuilder().setValueSetId(VALUE_SET_ID).build()
     val results = s.readValueSetEntries(filter)
     assertEquals(1, results.size)
@@ -2822,6 +2860,84 @@ class TableStoreTest {
     val s = storeWithValueSet()
     val filter = P4RuntimeOuterClass.ValueSetEntry.newBuilder().setValueSetId(999).build()
     assertEquals(0, s.readValueSetEntries(filter).size)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Snapshot isolation and concurrency
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `publishSnapshot creates a new snapshot that does not share mutable state with the old one`() {
+    store.writeAndPublish(
+      insertUpdate(exactEntry(fieldId = 1, value = byteArrayOf(10), actionId = 10))
+    )
+    val snapshotBeforeWrite = store.snapshot
+
+    store.writeAndPublish(
+      insertUpdate(exactEntry(fieldId = 1, value = byteArrayOf(20), actionId = 20))
+    )
+
+    assertNotSame("publish must create a new snapshot object", snapshotBeforeWrite, store.snapshot)
+    assertEquals(2, store.getTableEntries(TABLE_NAME).size)
+    assertTrue(store.lookup(TABLE_NAME, listOf("1" to BitVal(20, 8))).hit)
+  }
+
+  @Test
+  fun `concurrent directCounterIncrement is thread-safe`() {
+    val s = storeWithDirectCounter()
+    val entry = exactEntry(fieldId = 1, value = byteArrayOf(10), actionId = 10)
+    s.writeAndPublish(insertUpdate(entry))
+
+    val threads = 8
+    val incrementsPerThread = 1000
+    val latch = java.util.concurrent.CountDownLatch(1)
+    val workers =
+      (1..threads).map {
+        Thread {
+          latch.await()
+          repeat(incrementsPerThread) { s.directCounterIncrement(TABLE_NAME, entry, 1) }
+        }
+      }
+    workers.forEach { it.start() }
+    latch.countDown()
+    workers.forEach { it.join() }
+
+    val data = s.getDirectCounterData(entry)!!
+    assertEquals((threads * incrementsPerThread).toLong(), data.packetCount)
+    assertEquals((threads * incrementsPerThread).toLong(), data.byteCount)
+  }
+
+  @Test
+  fun `concurrent registerWrite is thread-safe`() {
+    val s = TableStore()
+    s.loadMappings(
+      p4info =
+        buildP4Info(
+          registers =
+            listOf(buildRegisterProto(REGISTER_ID, REGISTER_NAME, REGISTER_BITWIDTH, 1000))
+        )
+    )
+
+    val threads = 8
+    val writesPerThread = 100
+    val latch = java.util.concurrent.CountDownLatch(1)
+    val workers =
+      (0 until threads).map { threadId ->
+        Thread {
+          latch.await()
+          repeat(writesPerThread) { i ->
+            val index = threadId * writesPerThread + i
+            s.registerWrite(REGISTER_NAME, index, BitVal(index, REGISTER_BITWIDTH))
+          }
+        }
+      }
+    workers.forEach { it.start() }
+    latch.countDown()
+    workers.forEach { it.join() }
+
+    for (i in 0 until threads * writesPerThread) {
+      assertEquals(BitVal(i, REGISTER_BITWIDTH), s.registerRead(REGISTER_NAME, i))
+    }
   }
 
   // ---------------------------------------------------------------------------

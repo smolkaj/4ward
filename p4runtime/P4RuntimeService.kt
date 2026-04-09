@@ -63,7 +63,12 @@ class P4RuntimeService(
   private val simulator: Simulator,
   private val broker: PacketBroker,
   private val constraintValidatorBinary: Path? = null,
-  private val lock: ReadWriteMutex = ReadWriteMutex(),
+  /**
+   * Serializes control-plane writes (Write RPC, SetForwardingPipelineConfig, hook updates).
+   * Data-plane reads are lock-free — they read from the published [TableStore.snapshot]. Shared
+   * with [PacketBroker] so that pre-packet hook updates are atomic with other writes.
+   */
+  private val writeMutex: Mutex = Mutex(),
   private val deviceId: Long = DEFAULT_DEVICE_ID,
   private val cpuPortConfig: CpuPortConfig = CpuPortConfig.Auto,
 ) : P4RuntimeGrpcKt.P4RuntimeCoroutineImplBase(), Closeable {
@@ -87,7 +92,7 @@ class P4RuntimeService(
   val typeTranslator: TypeTranslator?
     get() = pipeline?.typeTranslator
 
-  // Only accessed under lock; @Volatile not needed.
+  // Only accessed under writeMutex; @Volatile not needed.
   private var savedPipeline: PipelineState? = null
 
   // ---------------------------------------------------------------------------
@@ -125,7 +130,7 @@ class P4RuntimeService(
   override suspend fun setForwardingPipelineConfig(
     request: SetForwardingPipelineConfigRequest
   ): SetForwardingPipelineConfigResponse =
-    lock.withWriteLock {
+    writeMutex.withLock {
       requireDeviceId(request.deviceId)
       requirePrimaryOrNoArbitration(request.electionId, request.role)
       when (request.action) {
@@ -323,12 +328,13 @@ class P4RuntimeService(
   // ---------------------------------------------------------------------------
 
   /**
-   * Applies P4Runtime updates from the pre-packet hook. Called by [DataplaneService] while holding
-   * the write lock. Uses the default role (full access) since these are server-internal updates.
+   * Applies P4Runtime updates from the pre-packet hook. Called by [PacketBroker] while holding the
+   * [writeMutex]. Uses the default role (full access) since these are server-internal updates.
    */
   fun applyHookUpdates(updates: List<Update>) {
     val state = requirePipeline()
     writeAtomic(updates, state, roleName = "")
+    simulator.publishSnapshot()
   }
 
   /** Returns the P4Info from the loaded pipeline, or null if no pipeline is loaded. */
@@ -359,7 +365,7 @@ class P4RuntimeService(
   }
 
   override suspend fun write(request: WriteRequest): WriteResponse =
-    lock.withWriteLock {
+    writeMutex.withLock {
       requireDeviceId(request.deviceId)
       val state = requirePipeline()
       val roleName = request.role // empty = default role
@@ -375,7 +381,7 @@ class P4RuntimeService(
             .asException()
         // P4Runtime spec §12.2: ROLLBACK_ON_ERROR and DATAPLANE_ATOMIC both guarantee
         // all-or-none semantics. DATAPLANE_ATOMIC additionally requires data-plane atomicity,
-        // which we get for free because the write lock serializes all operations.
+        // which we get for free because publishSnapshot() is an atomic pointer swap.
         WriteRequest.Atomicity.ROLLBACK_ON_ERROR,
         WriteRequest.Atomicity.DATAPLANE_ATOMIC -> writeAtomic(request.updatesList, state, roleName)
       }
@@ -416,6 +422,8 @@ class P4RuntimeService(
         )
       }
     }
+    // Publish even on partial failure — successful updates must be visible to subsequent reads.
+    simulator.publishSnapshot()
     if (hasError) {
       throw buildBatchError(errors)
     }
@@ -432,15 +440,17 @@ class P4RuntimeService(
     state: PipelineState,
     roleName: String,
   ): WriteResponse {
-    val snapshot = simulator.snapshotWriteState()
+    val checkpoint = simulator.snapshot()
     try {
       for (rawUpdate in updates) {
         processUpdate(rawUpdate, state, roleName)
       }
     } catch (e: StatusException) {
-      simulator.restoreWriteState(snapshot)
+      simulator.restore(checkpoint)
+      simulator.publishSnapshot()
       throw e
     }
+    simulator.publishSnapshot()
     return WriteResponse.getDefaultInstance()
   }
 
@@ -554,51 +564,44 @@ class P4RuntimeService(
   // ---------------------------------------------------------------------------
 
   override fun read(request: ReadRequest): Flow<ReadResponse> = flow {
-    // Acquire the lock for the entire read (pipeline check + read + translation)
-    // so the pipeline can't be swapped mid-read.
-    val response =
-      lock.withReadLock {
-        requireDeviceId(request.deviceId)
-        val state = requirePipeline()
-        val roleName = request.role // empty = default role
-        // Table entries are assembled by EntityReader (P4Runtime presentation layer);
-        // all other entity types are read directly from the simulator.
-        val entities =
-          request.entitiesList.flatMap { entity ->
-            rejectUnsupportedEntity(entity)
-            // For specific (non-wildcard) entities, check access upfront so the controller
-            // gets a clear PERMISSION_DENIED. For wildcards, results are filtered post-read.
-            requireEntityAccess(entity, state.roleMap, roleName)
-            try {
-              if (entity.hasTableEntry()) {
-                state.entityReader.readTableEntities(entity.tableEntry, simulator)
-              } else {
-                simulator.readEntries(listOf(entity))
-              }
-            } catch (e: IllegalStateException) {
-              throw Status.INTERNAL.withDescription("read failed: ${e.message}")
-                .withCause(e)
-                .asException()
-            }
-          }
-        // Filter results by role for named-role controllers. This handles wildcard reads
-        // (where the request entity doesn't carry a specific ID) by returning only entities
-        // the controller's role can access.
-        val filtered =
-          if (roleName.isNotEmpty()) filterByRole(entities, state.roleMap, roleName) else entities
-        if (filtered.isNotEmpty()) {
-          val translator = state.typeTranslator?.takeIf { it.hasTranslations }
-          if (translator != null) {
-            filtered.map { translator.translateForRead(it) }
+    // Reads are lock-free — they read from the published snapshot. A concurrent write may
+    // publish a new snapshot between entity reads, so two entities in the same Read RPC could
+    // see different forwarding states. The P4Runtime spec does not require cross-entity read
+    // atomicity, so this is acceptable.
+    requireDeviceId(request.deviceId)
+    val state = requirePipeline()
+    val roleName = request.role // empty = default role
+    // Table entries are assembled by EntityReader (P4Runtime presentation layer);
+    // all other entity types are read directly from the simulator.
+    val entities =
+      request.entitiesList.flatMap { entity ->
+        rejectUnsupportedEntity(entity)
+        // For specific (non-wildcard) entities, check access upfront so the controller
+        // gets a clear PERMISSION_DENIED. For wildcards, results are filtered post-read.
+        requireEntityAccess(entity, state.roleMap, roleName)
+        try {
+          if (entity.hasTableEntry()) {
+            state.entityReader.readTableEntities(entity.tableEntry, simulator)
           } else {
-            filtered
+            simulator.readEntries(listOf(entity))
           }
-        } else {
-          null
+        } catch (e: IllegalStateException) {
+          throw Status.INTERNAL.withDescription("read failed: ${e.message}")
+            .withCause(e)
+            .asException()
         }
       }
-    if (response != null) {
-      emit(ReadResponse.newBuilder().addAllEntities(response).build())
+    // Filter results by role for named-role controllers. This handles wildcard reads
+    // (where the request entity doesn't carry a specific ID) by returning only entities
+    // the controller's role can access.
+    val filtered =
+      if (roleName.isNotEmpty()) filterByRole(entities, state.roleMap, roleName) else entities
+    if (filtered.isNotEmpty()) {
+      val translated =
+        state.typeTranslator
+          ?.takeIf { it.hasTranslations }
+          ?.let { t -> filtered.map { t.translateForRead(it) } } ?: filtered
+      emit(ReadResponse.newBuilder().addAllEntities(translated).build())
     }
   }
 

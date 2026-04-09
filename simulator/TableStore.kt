@@ -3,7 +3,8 @@ package fourward.simulator
 import com.google.protobuf.ByteString
 import fourward.ir.DeviceConfig
 import java.math.BigInteger
-import java.util.IdentityHashMap
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLongArray
 import p4.config.v1.P4InfoOuterClass
 import p4.v1.P4RuntimeOuterClass
 import p4.v1.P4RuntimeOuterClass.TableEntry
@@ -127,23 +128,27 @@ class TableStore : TableDataReader {
   private data class IndexedExternInfo(val size: Int)
 
   // -------------------------------------------------------------------------
-  // Write-state
+  // Forwarding snapshot (immutable view published to the data plane)
   // -------------------------------------------------------------------------
 
   /**
-   * All mutable write-state (table entries, counters, meters, etc.) lives here.
+   * Immutable forwarding state published to data-plane threads via a volatile pointer swap.
    *
-   * Bundled into a single class so that [deepCopy] (used for ROLLBACK_ON_ERROR and
-   * DATAPLANE_ATOMIC) is defined right next to the fields it operates on. When adding a new field,
-   * update [deepCopy] — it's right here so you can't miss it.
+   * Control-plane writes mutate [writeState] (a private mutable copy), then publish by calling
+   * [publishSnapshot]. Packet-processing threads read [snapshot] without any lock — the snapshot is
+   * immutable by construction.
+   *
+   * Bundled into a single class so that [deepCopy] (used for ROLLBACK_ON_ERROR, DATAPLANE_ATOMIC,
+   * and snapshot publishing) is defined right next to the fields it operates on. When adding a new
+   * field, update [deepCopy] — it's right here so you can't miss it.
    *
    * Entries themselves are immutable protobuf messages; only the container structures (maps, lists)
    * need copying.
    */
-  class WriteState internal constructor() {
+  class ForwardingSnapshot internal constructor() {
     internal val tables: MutableMap<String, MutableList<TableEntry>> = mutableMapOf()
-    internal val directCounterData = IdentityHashMap<TableEntry, P4RuntimeOuterClass.CounterData>()
-    internal val directMeterData = IdentityHashMap<TableEntry, P4RuntimeOuterClass.MeterConfig>()
+    internal val directMeterData: MutableMap<TableEntry, P4RuntimeOuterClass.MeterConfig> =
+      mutableMapOf()
     internal val defaultActions: MutableMap<String, DefaultAction> = mutableMapOf()
     /** Tables whose default action has been explicitly modified via P4Runtime Write. */
     internal val modifiedDefaults: MutableSet<String> = mutableSetOf()
@@ -153,7 +158,6 @@ class TableStore : TableDataReader {
     internal val profileGroups:
       MutableMap<Int, MutableMap<Int, P4RuntimeOuterClass.ActionProfileGroup>> =
       mutableMapOf()
-    internal val registers: MutableMap<String, MutableMap<Int, Value>> = mutableMapOf()
     internal val counters: MutableMap<Int, MutableMap<Int, P4RuntimeOuterClass.CounterData>> =
       mutableMapOf()
     internal val meters: MutableMap<Int, MutableMap<Int, P4RuntimeOuterClass.MeterConfig>> =
@@ -165,21 +169,15 @@ class TableStore : TableDataReader {
     internal val valueSets: MutableMap<String, MutableList<P4RuntimeOuterClass.ValueSetMember>> =
       mutableMapOf()
 
-    /** Creates a deep copy for snapshot/restore (P4Runtime spec §12.2). */
-    fun deepCopy(): WriteState =
-      WriteState().also { copy ->
+    /** Creates a structural copy. Protobuf entries are shared; only containers are copied. */
+    fun deepCopy(): ForwardingSnapshot =
+      ForwardingSnapshot().also { copy ->
         tables.forEach { (k, v) -> copy.tables[k] = v.toMutableList() }
-        // directCounterData/directMeterData use IdentityHashMap — their keys must be the
-        // exact same TableEntry references that live in the tables lists. toMutableList()
-        // above copies list structure without cloning elements, so the identity relationship
-        // is preserved. Do NOT deep-copy the TableEntry objects themselves.
-        copy.directCounterData.putAll(directCounterData)
         copy.directMeterData.putAll(directMeterData)
         copy.defaultActions.putAll(defaultActions)
         copy.modifiedDefaults.addAll(modifiedDefaults)
         profileMembers.forEach { (k, v) -> copy.profileMembers[k] = v.toMutableMap() }
         profileGroups.forEach { (k, v) -> copy.profileGroups[k] = v.toMutableMap() }
-        registers.forEach { (k, v) -> copy.registers[k] = v.toMutableMap() }
         counters.forEach { (k, v) -> copy.counters[k] = v.toMutableMap() }
         meters.forEach { (k, v) -> copy.meters[k] = v.toMutableMap() }
         copy.cloneSessions.putAll(cloneSessions)
@@ -188,104 +186,154 @@ class TableStore : TableDataReader {
       }
   }
 
-  private var writeState = WriteState()
+  // -------------------------------------------------------------------------
+  // Write-state and snapshot
+  // -------------------------------------------------------------------------
+
+  /**
+   * Mutable state owned by the control plane. Only accessed under the control-plane mutex (in
+   * [P4RuntimeService]). Never read by data-plane threads.
+   */
+  private var writeState = ForwardingSnapshot()
+
+  /**
+   * Published immutable snapshot read by data-plane threads. Updated by [publishSnapshot] after
+   * every control-plane mutation. Data-plane threads read this without any lock — one volatile
+   * pointer load, no CAS, no contention.
+   */
+  @Volatile
+  var snapshot: ForwardingSnapshot = writeState.deepCopy()
+    private set
+
+  /**
+   * Direct counter data: `[packetCount, byteCount]` per table entry. Lives outside the snapshot
+   * because it is mutated lock-free during packet processing via [directCounterIncrement]. Uses
+   * value-based keying (`ConcurrentHashMap` uses `equals`/`hashCode`), unlike the previous
+   * `IdentityHashMap` — this is safe because `TableEntry` is a protobuf message with value-based
+   * equality, and eliminates the fragile identity-keying invariant that `deepCopy` had to preserve.
+   *
+   * TODO: protobuf `equals`/`hashCode` walks all fields — expensive on every table hit. Consider a
+   *   cheaper key (e.g., integer index assigned at insert time) if profiling shows this matters.
+   */
+  private val directCounterData = ConcurrentHashMap<TableEntry, AtomicLongArray>()
+
+  /**
+   * Register state: mutated lock-free during packet processing. Lives outside the snapshot for the
+   * same reason as direct counters. Concurrent packets writing the same register index is a data
+   * race at the P4 level (the program is wrong); we intentionally don't provide atomicity for
+   * read-modify-write sequences split across two extern calls, matching hardware semantics.
+   */
+  private val registers = ConcurrentHashMap<String, ConcurrentHashMap<Int, Value>>()
+
+  /**
+   * Publishes the current [writeState] as a new immutable [snapshot] for data-plane threads.
+   *
+   * Callers are responsible for calling this after mutations. This is intentionally not automatic —
+   * it makes publish points explicit and allows batch callers to publish once instead of
+   * per-update.
+   */
+  @Synchronized
+  fun publishSnapshot() {
+    snapshot = writeState.deepCopy()
+  }
 
   /**
    * Returns the p4info alias names of tables that have at least one installed entry. This includes
    * const entries installed from `device.staticEntries` at load time, since those also need
    * schema-compatible tables in the new pipeline to survive RECONCILE_AND_COMMIT.
+   *
+   * Reads from [writeState] (not [snapshot]) because it is called during pipeline reload under the
+   * control-plane write mutex. Must only be called from the control-plane write path.
    */
   fun populatedTableAliases(): Set<String> =
-    tables.entries
+    writeState.tables.entries
       .filter { (_, entries) -> entries.isNotEmpty() }
       .mapNotNull { (behavioralName, _) -> tableAliasByName[behavioralName] }
       .toSet()
 
-  /** Snapshots the current write-state for later restoration (used by RECONCILE_AND_COMMIT). */
-  fun snapshotWriteState(): WriteState = writeState.deepCopy()
-
   /**
-   * Restores table entries from a previous [WriteState] snapshot, matching tables by p4info alias.
+   * Restores table entries from a previous [ForwardingSnapshot], matching tables by p4info alias.
    *
    * Only entries for tables whose alias appears in both the old and new pipeline are restored. The
    * caller is responsible for verifying schema compatibility before calling this.
    */
-  fun restoreTableEntries(snapshot: WriteState, oldAliasByName: Map<String, String>) {
+  @Synchronized
+  fun restoreTableEntries(oldSnapshot: ForwardingSnapshot, oldAliasByName: Map<String, String>) {
     // Reverse of tableAliasByName: p4info alias → new behavioral name.
     val newNameByAlias = tableAliasByName.entries.associate { (name, alias) -> alias to name }
 
-    for ((oldName, entries) in snapshot.tables) {
+    for ((oldName, entries) in oldSnapshot.tables) {
       if (entries.isEmpty()) continue
       val alias = oldAliasByName[oldName] ?: continue
       val newName = newNameByAlias[alias] ?: continue
-      tables[newName] = entries.toMutableList()
+      writeState.tables[newName] = entries.toMutableList()
       for (entry in entries) {
-        snapshot.directCounterData[entry]?.let { directCounterData[entry] = it }
-        snapshot.directMeterData[entry]?.let { directMeterData[entry] = it }
+        oldSnapshot.directMeterData[entry]?.let { writeState.directMeterData[entry] = it }
+        // Direct counters (AtomicLongArray in directCounterData) are not restored — they
+        // reset to zero on pipeline reload, matching BMv2 behavior. Counters are best-effort.
       }
     }
 
-    for (oldName in snapshot.modifiedDefaults) {
+    for (oldName in oldSnapshot.modifiedDefaults) {
       val alias = oldAliasByName[oldName] ?: continue
       val newName = newNameByAlias[alias] ?: continue
-      snapshot.defaultActions[oldName]?.let {
-        defaultActions[newName] = it
-        modifiedDefaults.add(newName)
+      oldSnapshot.defaultActions[oldName]?.let {
+        writeState.defaultActions[newName] = it
+        writeState.modifiedDefaults.add(newName)
       }
     }
 
     // Restore PRE entries (multicast groups, clone sessions) — these are table-independent.
-    cloneSessions.putAll(snapshot.cloneSessions)
-    multicastGroups.putAll(snapshot.multicastGroups)
+    writeState.cloneSessions.putAll(oldSnapshot.cloneSessions)
+    writeState.multicastGroups.putAll(oldSnapshot.multicastGroups)
 
     // Restore action profile members and groups.
-    for ((profileId, members) in snapshot.profileMembers) {
-      profileMembers.getOrPut(profileId) { mutableMapOf() }.putAll(members)
+    for ((profileId, members) in oldSnapshot.profileMembers) {
+      writeState.profileMembers.getOrPut(profileId) { mutableMapOf() }.putAll(members)
     }
-    for ((profileId, groups) in snapshot.profileGroups) {
-      profileGroups.getOrPut(profileId) { mutableMapOf() }.putAll(groups)
+    for ((profileId, groups) in oldSnapshot.profileGroups) {
+      writeState.profileGroups.getOrPut(profileId) { mutableMapOf() }.putAll(groups)
     }
   }
 
-  // Delegating properties — all code transparently accesses writeState fields.
-  private val tables
-    get() = writeState.tables
+  // -------------------------------------------------------------------------
+  // Read-path delegating properties (read from the published snapshot)
+  // -------------------------------------------------------------------------
 
-  private val directCounterData
-    get() = writeState.directCounterData
+  // READ-PATH ONLY. These delegate to the published snapshot and must NOT be used by write-path
+  // methods — those must reference writeState.* explicitly, otherwise they'd read stale data.
+  private val tables
+    get() = snapshot.tables
 
   private val directMeterData
-    get() = writeState.directMeterData
+    get() = snapshot.directMeterData
 
   private val defaultActions
-    get() = writeState.defaultActions
+    get() = snapshot.defaultActions
 
   private val modifiedDefaults
-    get() = writeState.modifiedDefaults
+    get() = snapshot.modifiedDefaults
 
   private val profileMembers
-    get() = writeState.profileMembers
+    get() = snapshot.profileMembers
 
   private val profileGroups
-    get() = writeState.profileGroups
-
-  private val registers
-    get() = writeState.registers
+    get() = snapshot.profileGroups
 
   private val counters
-    get() = writeState.counters
+    get() = snapshot.counters
 
   private val meters
-    get() = writeState.meters
+    get() = snapshot.meters
 
   private val cloneSessions
-    get() = writeState.cloneSessions
+    get() = snapshot.cloneSessions
 
   private val multicastGroups
-    get() = writeState.multicastGroups
+    get() = snapshot.multicastGroups
 
   private val valueSets
-    get() = writeState.valueSets
+    get() = snapshot.valueSets
 
   // Pipeline config (populated by loadMappings, not part of write-state).
   private var tableSizeLimit: Map<String, Int> = emptyMap()
@@ -445,7 +493,9 @@ class TableStore : TableDataReader {
       p4info.directCountersList.mapNotNull { tableNameById[it.directTableId] }.toSet()
     this.directMeterTables =
       p4info.directMetersList.mapNotNull { tableNameById[it.directTableId] }.toSet()
-    writeState = WriteState()
+    writeState = ForwardingSnapshot()
+    directCounterData.clear()
+    registers.clear()
     forcedHits.clear()
     tableActionProfile.clear()
 
@@ -512,6 +562,8 @@ class TableStore : TableDataReader {
     for (update in device.staticEntries.updatesList) {
       write(update)
     }
+
+    publishSnapshot()
   }
 
   fun setDefaultAction(
@@ -519,7 +571,7 @@ class TableStore : TableDataReader {
     actionName: String,
     params: List<p4.v1.P4RuntimeOuterClass.Action.Param> = emptyList(),
   ) {
-    defaultActions[tableName] = DefaultAction(actionName, params)
+    writeState.defaultActions[tableName] = DefaultAction(actionName, params)
   }
 
   // -------------------------------------------------------------------------
@@ -531,6 +583,9 @@ class TableStore : TableDataReader {
    *
    * Unlike [write] (which uses p4info IDs), this method works with behavioral names and runtime
    * [Value]s -- the natural representation available inside the simulator during packet processing.
+   *
+   * Synchronized on the [TableStore] instance to serialize with control-plane writes (which use the
+   * same monitor via `@Synchronized` on [write], [publishSnapshot], etc.).
    *
    * @param tableName the behavioral name of the table to insert into.
    * @param keyValues the match key values (field ID string to [Value]), from the table miss.
@@ -592,17 +647,23 @@ class TableStore : TableDataReader {
     entryBuilder.setAction(P4RuntimeOuterClass.TableAction.newBuilder().setAction(actionBuilder))
 
     val entry = entryBuilder.build()
-    val entries = tables.getOrPut(tableName) { mutableListOf() }
 
-    // If an entry with the same key already exists, the add_entry is a no-op (returns true
-    // per PNA spec -- the existing entry is retained).
-    if (entries.any { it.sameKey(entry) }) return true
+    // synchronized(this) serializes with control-plane writes (which also synchronize on
+    // this TableStore instance via the @Synchronized write/publishSnapshot methods).
+    return synchronized(this) {
+      val entries = writeState.tables.getOrPut(tableName) { mutableListOf() }
 
-    val limit = tableSizeLimit[tableName]
-    if (limit != null && entries.size >= limit) return false
+      // If an entry with the same key already exists, the add_entry is a no-op (returns true
+      // per PNA spec -- the existing entry is retained).
+      if (entries.any { it.sameKey(entry) }) return@synchronized true
 
-    entries.add(entry)
-    return true
+      val limit = tableSizeLimit[tableName]
+      if (limit != null && entries.size >= limit) return@synchronized false
+
+      entries.add(entry)
+      publishSnapshot()
+      true
+    }
   }
 
   /** Encodes a runtime [Value] as a P4Runtime [ByteString] for a match field of [bitwidth] bits. */
@@ -635,8 +696,13 @@ class TableStore : TableDataReader {
 
   override fun isDefaultModified(tableName: String): Boolean = tableName in modifiedDefaults
 
-  override fun getDirectCounterData(entry: TableEntry): P4RuntimeOuterClass.CounterData? =
-    directCounterData[entry]
+  override fun getDirectCounterData(entry: TableEntry): P4RuntimeOuterClass.CounterData? {
+    val counters = directCounterData[entry] ?: return null
+    return P4RuntimeOuterClass.CounterData.newBuilder()
+      .setPacketCount(counters.get(0))
+      .setByteCount(counters.get(1))
+      .build()
+  }
 
   override fun getDirectMeterData(entry: TableEntry): P4RuntimeOuterClass.MeterConfig? =
     directMeterData[entry]
@@ -652,7 +718,7 @@ class TableStore : TableDataReader {
   fun registerRead(name: String, index: Int): Value? = registers[name]?.get(index)
 
   fun registerWrite(name: String, index: Int, value: Value) {
-    registers.getOrPut(name) { mutableMapOf() }[index] = value
+    registers.getOrPut(name) { ConcurrentHashMap() }[index] = value
   }
 
   // P4Runtime spec: RegisterEntry MODIFY only (statically allocated arrays).
@@ -761,7 +827,7 @@ class TableStore : TableDataReader {
       entry.counterId,
       entry.index,
       counterInfoById,
-      counters,
+      writeState.counters,
       entry.data,
     )
 
@@ -806,7 +872,7 @@ class TableStore : TableDataReader {
       entry.meterId,
       entry.index,
       meterInfoById,
-      meters,
+      writeState.meters,
       entry.config,
     )
 
@@ -840,19 +906,14 @@ class TableStore : TableDataReader {
   /**
    * Increments the direct counter for [entry] in [tableName] (called on every table hit).
    *
-   * [entry] must be the same object reference returned by [lookup] (i.e. the object stored in
-   * [tables]), since [directCounterData] uses identity-based keying.
+   * Lock-free: each counter is an [AtomicLongArray] with `[packetCount, byteCount]`. Multiple
+   * packet threads can increment concurrently without synchronization.
    */
-  @Synchronized
   fun directCounterIncrement(tableName: String, entry: TableEntry, packetLengthBytes: Int) {
     if (tableName !in directCounterTables) return
-    val existing = directCounterData[entry] ?: P4RuntimeOuterClass.CounterData.getDefaultInstance()
-    directCounterData[entry] =
-      existing
-        .toBuilder()
-        .setPacketCount(existing.packetCount + 1)
-        .setByteCount(existing.byteCount + packetLengthBytes)
-        .build()
+    val counters = directCounterData.getOrPut(entry) { AtomicLongArray(2) }
+    counters.addAndGet(0, 1)
+    counters.addAndGet(1, packetLengthBytes.toLong())
   }
 
   /**
@@ -878,7 +939,8 @@ class TableStore : TableDataReader {
     if (tableName !in knownTables)
       return WriteResult.InvalidArgument("table '$tableName' has no $entityName")
     val entries =
-      tables[tableName] ?: return WriteResult.NotFound("no entries in table '$tableName'")
+      writeState.tables[tableName]
+        ?: return WriteResult.NotFound("no entries in table '$tableName'")
     val stored =
       entries.find { it.sameKey(tableEntry) }
         ?: return WriteResult.NotFound("no matching entry in table '$tableName'")
@@ -891,7 +953,9 @@ class TableStore : TableDataReader {
     entry: P4RuntimeOuterClass.DirectCounterEntry,
   ): WriteResult =
     writeDirectExtern(type, "direct counter", entry.tableEntry, directCounterTables) {
-      directCounterData[it] = entry.data
+      val arr = directCounterData.getOrPut(it) { AtomicLongArray(2) }
+      arr.set(0, entry.data.packetCount)
+      arr.set(1, entry.data.byteCount)
     }
 
   fun readDirectCounterEntries(
@@ -903,7 +967,8 @@ class TableStore : TableDataReader {
     val matchFilter = if (tableEntry.matchCount > 0) tableEntry else null
     return tableNames.flatMap { tableName ->
       filteredEntries(tableName, matchFilter).map { entry ->
-        val data = directCounterData[entry] ?: P4RuntimeOuterClass.CounterData.getDefaultInstance()
+        val data =
+          getDirectCounterData(entry) ?: P4RuntimeOuterClass.CounterData.getDefaultInstance()
         P4RuntimeOuterClass.Entity.newBuilder()
           .setDirectCounterEntry(
             P4RuntimeOuterClass.DirectCounterEntry.newBuilder().setTableEntry(entry).setData(data)
@@ -922,7 +987,7 @@ class TableStore : TableDataReader {
     entry: P4RuntimeOuterClass.DirectMeterEntry,
   ): WriteResult =
     writeDirectExtern(type, "direct meter", entry.tableEntry, directMeterTables) {
-      directMeterData[it] = entry.config
+      writeState.directMeterData[it] = entry.config
     }
 
   fun readDirectMeterEntries(
@@ -951,7 +1016,7 @@ class TableStore : TableDataReader {
 
   /** Directly sets value_set members by name, bypassing P4Runtime write path. For testing. */
   internal fun populateValueSet(name: String, members: List<P4RuntimeOuterClass.ValueSetMember>) {
-    valueSets[name] = members.toMutableList()
+    writeState.valueSets[name] = members.toMutableList()
   }
 
   private fun writeValueSetEntry(
@@ -973,7 +1038,7 @@ class TableStore : TableDataReader {
       return WriteResult.ResourceExhausted(
         "value_set '$name' has max size $maxSize, got ${entry.membersCount} members"
       )
-    valueSets[name] = entry.membersList.toMutableList()
+    writeState.valueSets[name] = entry.membersList.toMutableList()
     return WriteResult.Success
   }
 
@@ -1002,6 +1067,7 @@ class TableStore : TableDataReader {
   // Write
   // -------------------------------------------------------------------------
 
+  @Synchronized
   fun write(update: Update): WriteResult {
     val entity = update.entity
     return when {
@@ -1038,12 +1104,13 @@ class TableStore : TableDataReader {
     // The WriteValidator already rejects INSERT/DELETE for defaults.
     if (entry.isDefaultAction) {
       val actionName = resolveActionName(entry.action.action.actionId)
-      defaultActions[tableName] = DefaultAction(actionName, entry.action.action.paramsList)
-      modifiedDefaults.add(tableName)
+      writeState.defaultActions[tableName] =
+        DefaultAction(actionName, entry.action.action.paramsList)
+      writeState.modifiedDefaults.add(tableName)
       return WriteResult.Success
     }
 
-    val entries = tables.getOrPut(tableName) { mutableListOf() }
+    val entries = writeState.tables.getOrPut(tableName) { mutableListOf() }
     val existingIndex = entries.indexOfFirst { it.sameKey(entry) }
 
     // P4Runtime spec §9.1: INSERT requires the entry not to exist, MODIFY and DELETE
@@ -1074,7 +1141,7 @@ class TableStore : TableDataReader {
           val old = entries[existingIndex]
           entries[existingIndex] = entry
           directCounterData.remove(old)?.let { directCounterData[entry] = it }
-          directMeterData.remove(old)?.let { directMeterData[entry] = it }
+          writeState.directMeterData.remove(old)?.let { writeState.directMeterData[entry] = it }
           WriteResult.Success
         }
       }
@@ -1084,7 +1151,7 @@ class TableStore : TableDataReader {
         } else {
           val removed = entries.removeAt(existingIndex)
           directCounterData.remove(removed)
-          directMeterData.remove(removed)
+          writeState.directMeterData.remove(removed)
           WriteResult.Success
         }
       }
@@ -1132,7 +1199,7 @@ class TableStore : TableDataReader {
     }
     return writeProfileEntity(
       type,
-      profileMembers.getOrPut(member.actionProfileId) { mutableMapOf() },
+      writeState.profileMembers.getOrPut(member.actionProfileId) { mutableMapOf() },
       member.memberId,
       member,
       "member ${member.memberId} in action profile ${member.actionProfileId}",
@@ -1160,7 +1227,7 @@ class TableStore : TableDataReader {
     }
     return writeProfileEntity(
       type,
-      profileGroups.getOrPut(group.actionProfileId) { mutableMapOf() },
+      writeState.profileGroups.getOrPut(group.actionProfileId) { mutableMapOf() },
       group.groupId,
       group,
       "group ${group.groupId} in action profile ${group.actionProfileId}",
@@ -1170,8 +1237,8 @@ class TableStore : TableDataReader {
   /** Checks total member+group count against the p4info action_profile.size limit. */
   private fun checkProfileSizeLimit(profileId: Int): WriteResult? {
     val limit = profileSizeLimit[profileId] ?: return null
-    val memberCount = profileMembers[profileId]?.size ?: 0
-    val groupCount = profileGroups[profileId]?.size ?: 0
+    val memberCount = writeState.profileMembers[profileId]?.size ?: 0
+    val groupCount = writeState.profileGroups[profileId]?.size ?: 0
     val current = memberCount + groupCount
     if (current >= limit) {
       return WriteResult.ResourceExhausted(
@@ -1190,7 +1257,7 @@ class TableStore : TableDataReader {
         val entry = pre.cloneSessionEntry
         writeProfileEntity(
           type,
-          cloneSessions,
+          writeState.cloneSessions,
           entry.sessionId,
           entry,
           "clone session ${entry.sessionId}",
@@ -1200,7 +1267,7 @@ class TableStore : TableDataReader {
         val entry = pre.multicastGroupEntry
         writeProfileEntity(
           type,
-          multicastGroups,
+          writeState.multicastGroups,
           entry.multicastGroupId,
           entry,
           "multicast group ${entry.multicastGroupId}",
@@ -1262,12 +1329,52 @@ class TableStore : TableDataReader {
   // Snapshot / Restore (for ROLLBACK_ON_ERROR / DATAPLANE_ATOMIC)
   // -------------------------------------------------------------------------
 
-  /** Captures a deep copy of all mutable write-state for later [restore]. */
-  fun snapshot(): WriteState = writeState.deepCopy()
+  /**
+   * Captures a deep copy of all mutable state for later [restore]. Used by ROLLBACK_ON_ERROR and
+   * DATAPLANE_ATOMIC to provide all-or-none write semantics.
+   */
+  @Synchronized
+  fun snapshot(): RollbackCheckpoint =
+    RollbackCheckpoint(writeState.deepCopy(), snapshotCounters(), snapshotRegisters())
 
-  /** Restores write-state to a previously captured snapshot, consuming it. */
-  fun restore(snapshot: WriteState) {
-    writeState = snapshot
+  /** Restores all mutable state to a previously captured [RollbackCheckpoint]. */
+  @Synchronized
+  fun restore(checkpoint: RollbackCheckpoint) {
+    writeState = checkpoint.forwarding
+    restoreCounters(checkpoint.counters)
+    restoreRegisters(checkpoint.registers)
+  }
+
+  /**
+   * Checkpoint of all mutable state for rollback. Bundles the forwarding snapshot (tables, PRE,
+   * profiles, etc.) with stateful externs (direct counters, registers) that live outside the
+   * forwarding snapshot because they are mutated lock-free during packet processing.
+   */
+  class RollbackCheckpoint
+  internal constructor(
+    internal val forwarding: ForwardingSnapshot,
+    internal val counters: Map<TableEntry, LongArray>,
+    internal val registers: Map<String, Map<Int, Value>>,
+  )
+
+  private fun snapshotCounters(): Map<TableEntry, LongArray> =
+    directCounterData.entries.associate { (k, v) -> k to longArrayOf(v.get(0), v.get(1)) }
+
+  private fun restoreCounters(saved: Map<TableEntry, LongArray>) {
+    directCounterData.clear()
+    for ((entry, arr) in saved) {
+      directCounterData[entry] = AtomicLongArray(arr)
+    }
+  }
+
+  private fun snapshotRegisters(): Map<String, Map<Int, Value>> =
+    registers.entries.associate { (k, v) -> k to HashMap(v) }
+
+  private fun restoreRegisters(saved: Map<String, Map<Int, Value>>) {
+    registers.clear()
+    for ((name, values) in saved) {
+      registers[name] = ConcurrentHashMap(values)
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -1334,11 +1441,13 @@ class TableStore : TableDataReader {
    * Returns true if the table with p4info [tableId] has an entry with match field [fieldId] equal
    * to [value].
    *
-   * Used by `@refers_to` referential integrity validation. Checks exact and optional match fields.
+   * Used by `@refers_to` referential integrity validation during [P4RuntimeService] writes. Reads
+   * from [writeState] (not [snapshot]) because it validates against uncommitted state within a
+   * write batch. Must only be called under the control-plane write mutex.
    */
   fun hasEntryWithFieldValue(tableId: Int, fieldId: Int, value: ByteString): Boolean {
     val tableName = tableNameById[tableId] ?: return false
-    return tables[tableName]?.any { entry ->
+    return writeState.tables[tableName]?.any { entry ->
       entry.matchList.any { fm ->
         fm.fieldId == fieldId &&
           when {
