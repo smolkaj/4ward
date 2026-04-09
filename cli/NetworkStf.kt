@@ -2,6 +2,7 @@ package fourward.cli
 
 import fourward.e2e.decodeHex
 import fourward.simulator.Endpoint
+import fourward.simulator.Link
 import java.nio.file.Path
 
 /**
@@ -22,50 +23,45 @@ import java.nio.file.Path
  */
 data class NetworkStf(
   val switches: List<SwitchDecl>,
-  val links: List<LinkDecl>,
+  val links: List<Link>,
   val packets: List<NetworkPacket>,
   val expects: List<NetworkExpect>,
 ) {
   data class SwitchDecl(val id: String, val pipelinePath: Path, val stfPath: Path)
-
-  data class LinkDecl(val a: Endpoint, val b: Endpoint)
 
   data class NetworkPacket(val endpoint: Endpoint, val payload: ByteArray)
 
   data class NetworkExpect(val endpoint: Endpoint, val payload: ByteArray)
 
   companion object {
+    private val WHITESPACE = "\\s+".toRegex()
+
     fun parse(path: Path): NetworkStf {
       val dir = path.parent ?: Path.of(".")
-      val lines =
-        path
-          .toFile()
-          .readLines()
-          .map { it.trim() }
-          .filter { it.isNotEmpty() && !it.startsWith("#") }
+      val rawLines = path.toFile().readLines()
 
       val switches = mutableListOf<SwitchDecl>()
-      val links = mutableListOf<LinkDecl>()
+      val links = mutableListOf<Link>()
       val packets = mutableListOf<NetworkPacket>()
       val expects = mutableListOf<NetworkExpect>()
 
-      for ((lineNum, line) in lines.withIndex()) {
-        val tokens = line.split("\\s+".toRegex())
+      for ((idx, rawLine) in rawLines.withIndex()) {
+        val lineNum = idx + 1
+        val line = rawLine.trim()
+        if (line.isEmpty() || line.startsWith("#")) continue
+
+        val tokens = line.split(WHITESPACE)
         when (tokens[0]) {
           "switch" -> {
-            require(tokens.size == 4) { "line ${lineNum + 1}: switch needs <id> <pipeline> <stf>" }
+            require(tokens.size == 4) { "line $lineNum: switch needs <id> <pipeline> <stf>" }
             switches.add(SwitchDecl(tokens[1], dir.resolve(tokens[2]), dir.resolve(tokens[3])))
           }
           "link" -> {
-            require(tokens.size == 3) {
-              "line ${lineNum + 1}: link needs <switch:port> <switch:port>"
-            }
-            links.add(
-              LinkDecl(parseEndpoint(tokens[1], lineNum), parseEndpoint(tokens[2], lineNum))
-            )
+            require(tokens.size == 3) { "line $lineNum: link needs <switch:port> <switch:port>" }
+            links.add(Link(parseEndpoint(tokens[1], lineNum), parseEndpoint(tokens[2], lineNum)))
           }
           "packet" -> {
-            require(tokens.size >= 3) { "line ${lineNum + 1}: packet needs <switch:port> <hex>" }
+            require(tokens.size >= 3) { "line $lineNum: packet needs <switch:port> <hex>" }
             packets.add(
               NetworkPacket(
                 parseEndpoint(tokens[1], lineNum),
@@ -74,7 +70,7 @@ data class NetworkStf(
             )
           }
           "expect" -> {
-            require(tokens.size >= 3) { "line ${lineNum + 1}: expect needs <switch:port> <hex>" }
+            require(tokens.size >= 3) { "line $lineNum: expect needs <switch:port> <hex>" }
             expects.add(
               NetworkExpect(
                 parseEndpoint(tokens[1], lineNum),
@@ -82,7 +78,7 @@ data class NetworkStf(
               )
             )
           }
-          else -> error("line ${lineNum + 1}: unknown directive '${tokens[0]}'")
+          else -> error("line $lineNum: unknown directive '${tokens[0]}'")
         }
       }
 
@@ -92,9 +88,9 @@ data class NetworkStf(
 
     private fun parseEndpoint(token: String, lineNum: Int): Endpoint {
       val parts = token.split(":")
-      require(parts.size == 2) { "line ${lineNum + 1}: expected <switch:port>, got '$token'" }
+      require(parts.size == 2) { "line $lineNum: expected <switch:port>, got '$token'" }
       val port = parts[1].toIntOrNull()
-      require(port != null) { "line ${lineNum + 1}: invalid port number '${parts[1]}'" }
+      require(port != null) { "line $lineNum: invalid port number '${parts[1]}'" }
       return Endpoint(parts[0], port)
     }
   }

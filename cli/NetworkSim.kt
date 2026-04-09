@@ -4,7 +4,6 @@ import fourward.e2e.StfFile
 import fourward.e2e.installStfEntries
 import fourward.e2e.loadPipelineConfig
 import fourward.simulator.EdgeOutput
-import fourward.simulator.Link
 import fourward.simulator.NetworkHop
 import fourward.simulator.NetworkSimulator
 import fourward.simulator.NetworkTopology
@@ -19,7 +18,7 @@ import java.nio.file.Path
  * input packets, and expected outputs. Builds a [NetworkSimulator], processes packets, prints trace
  * trees, and verifies expectations.
  */
-fun networkSim(nstfPath: Path, @Suppress("UNUSED_PARAMETER") format: OutputFormat): Int {
+fun networkSim(nstfPath: Path, format: OutputFormat): Int {
   // TODO: support textproto/json output for NetworkHop once the network trace proto is defined.
   if (format != OutputFormat.HUMAN) {
     System.err.println(
@@ -43,7 +42,7 @@ fun networkSim(nstfPath: Path, @Suppress("UNUSED_PARAMETER") format: OutputForma
       return ExitCode.USAGE_ERROR
     }
 
-  val topology = NetworkTopology(nstf.links.map { Link(it.a, it.b) })
+  val topology = NetworkTopology(nstf.links)
   val network =
     try {
       NetworkSimulator(topology)
