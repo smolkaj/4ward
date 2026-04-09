@@ -115,14 +115,20 @@ class Simulator(
     return tableStore.write(update)
   }
 
-  /** Captures a snapshot of all mutable state for rollback. */
-  fun snapshot(): TableStore.Snapshot = tableStore.snapshot()
+  /** Captures a checkpoint of all mutable state for rollback. */
+  fun snapshot(): TableStore.RollbackCheckpoint = tableStore.snapshot()
 
-  /** Restores all mutable state to a previously captured snapshot. */
-  fun restore(snapshot: TableStore.Snapshot) = tableStore.restore(snapshot)
+  /** Restores all mutable state to a previously captured checkpoint. */
+  fun restore(checkpoint: TableStore.RollbackCheckpoint) = tableStore.restore(checkpoint)
 
   /** Publishes the current write-state as a new immutable snapshot for data-plane threads. */
   fun publishSnapshot() = tableStore.publishSnapshot()
+
+  /** Suppresses snapshot publishing until [endBatch]. See [TableStore.beginBatch]. */
+  fun beginBatch() = tableStore.beginBatch()
+
+  /** Ends a batch and publishes the snapshot. See [TableStore.endBatch]. */
+  fun endBatch() = tableStore.endBatch()
 
   /**
    * Returns true if the table with p4info [tableId] has an entry with match field [fieldId] equal

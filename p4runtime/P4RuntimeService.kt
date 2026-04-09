@@ -333,8 +333,12 @@ class P4RuntimeService(
    */
   fun applyHookUpdates(updates: List<Update>) {
     val state = requirePipeline()
-    writeAtomic(updates, state, roleName = "")
-    simulator.publishSnapshot()
+    simulator.beginBatch()
+    try {
+      writeAtomic(updates, state, roleName = "")
+    } finally {
+      simulator.endBatch()
+    }
   }
 
   /** Returns the P4Info from the loaded pipeline, or null if no pipeline is loaded. */
@@ -370,7 +374,9 @@ class P4RuntimeService(
       val state = requirePipeline()
       val roleName = request.role // empty = default role
       requirePrimaryOrNoArbitration(request.electionId, roleName)
-      val response =
+      // Batch all updates — publish the snapshot once at the end, not per-update.
+      simulator.beginBatch()
+      try {
         when (request.atomicity) {
           WriteRequest.Atomicity.CONTINUE_ON_ERROR ->
             writeContinueOnError(request.updatesList, state, roleName)
@@ -387,8 +393,9 @@ class P4RuntimeService(
           WriteRequest.Atomicity.DATAPLANE_ATOMIC ->
             writeAtomic(request.updatesList, state, roleName)
         }
-      simulator.publishSnapshot()
-      response
+      } finally {
+        simulator.endBatch()
+      }
     }
 
   /**

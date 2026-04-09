@@ -76,7 +76,7 @@ complexity:
   # Google style sets no hard limit.
   TooManyFunctions:
     thresholdInFiles: 65
-    thresholdInClasses: 70
+    thresholdInClasses: 75
     thresholdInInterfaces: 30
     thresholdInObjects: 30
     thresholdInEnums: 11

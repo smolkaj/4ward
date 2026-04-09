@@ -222,9 +222,34 @@ class TableStore : TableDataReader {
    */
   private val registers = ConcurrentHashMap<String, ConcurrentHashMap<Int, Value>>()
 
-  /** Publishes the current [writeState] as a new immutable [snapshot] for data-plane threads. */
+  /**
+   * Publishes the current [writeState] as a new immutable [snapshot] for data-plane threads.
+   *
+   * Batch callers (e.g. [P4RuntimeService]) can suppress per-update publishing by incrementing
+   * [batchDepth] via [beginBatch]/[endBatch], and publish once when the batch completes. Standalone
+   * callers (e.g. tests calling [write] directly) get auto-publishing on every successful mutation.
+   */
   fun publishSnapshot() {
-    snapshot = writeState.deepCopy()
+    if (batchDepth == 0) snapshot = writeState.deepCopy()
+  }
+
+  private var batchDepth = 0
+
+  /**
+   * Suppresses [publishSnapshot] calls until [endBatch]. Batches can nest (e.g. [loadMappings]
+   * calling [write] which calls [publishSnapshot]). The snapshot is published once when the
+   * outermost batch ends.
+   */
+  fun beginBatch() {
+    batchDepth++
+  }
+
+  /**
+   * Ends a batch started by [beginBatch]. When the outermost batch ends, publishes the snapshot.
+   */
+  fun endBatch() {
+    check(batchDepth > 0) { "endBatch without matching beginBatch" }
+    if (--batchDepth == 0) snapshot = writeState.deepCopy()
   }
 
   /**
@@ -489,6 +514,7 @@ class TableStore : TableDataReader {
     registers.clear()
     forcedHits.clear()
     tableActionProfile.clear()
+    beginBatch()
 
     // Cache proto repeated-field accessor (each call creates a defensive copy).
     val p4infoTables = p4info.tablesList
@@ -554,7 +580,7 @@ class TableStore : TableDataReader {
       write(update)
     }
 
-    publishSnapshot()
+    endBatch()
   }
 
   fun setDefaultAction(
@@ -576,12 +602,17 @@ class TableStore : TableDataReader {
    * Unlike [write] (which uses p4info IDs), this method works with behavioral names and runtime
    * [Value]s -- the natural representation available inside the simulator during packet processing.
    *
+   * Synchronized: this is a data-plane write (called during packet processing) that mutates
+   * [writeState]. Without synchronization it would race with concurrent control-plane writes. PNA
+   * `add_entry` is a rare slow-path operation, so the synchronization cost is acceptable.
+   *
    * @param tableName the behavioral name of the table to insert into.
    * @param keyValues the match key values (field ID string to [Value]), from the table miss.
    * @param actionName the behavioral name of the action to install.
    * @param actionParams action parameter values, in declaration order.
    * @return true if the entry was inserted, false if the table is full or the entry already exists.
    */
+  @Synchronized
   fun addEntry(
     tableName: String,
     keyValues: List<Pair<String, Value>>,
@@ -646,6 +677,7 @@ class TableStore : TableDataReader {
     if (limit != null && entries.size >= limit) return false
 
     entries.add(entry)
+    publishSnapshot()
     return true
   }
 
@@ -1317,22 +1349,26 @@ class TableStore : TableDataReader {
   // -------------------------------------------------------------------------
 
   /**
-   * Captures a deep copy of all mutable state (write-state, counters, registers) for later
-   * [restore]. Used by ROLLBACK_ON_ERROR and DATAPLANE_ATOMIC.
+   * Captures a deep copy of all mutable state for later [restore]. Used by ROLLBACK_ON_ERROR and
+   * DATAPLANE_ATOMIC to provide all-or-none write semantics.
    */
-  fun snapshot(): Snapshot =
-    Snapshot(writeState.deepCopy(), snapshotCounters(), snapshotRegisters())
+  fun snapshot(): RollbackCheckpoint =
+    RollbackCheckpoint(writeState.deepCopy(), snapshotCounters(), snapshotRegisters())
 
-  /** Restores all mutable state to a previously captured [Snapshot]. */
-  fun restore(saved: Snapshot) {
-    writeState = saved.forwarding
-    restoreCounters(saved.counters)
-    restoreRegisters(saved.registers)
+  /** Restores all mutable state to a previously captured [RollbackCheckpoint]. */
+  fun restore(checkpoint: RollbackCheckpoint) {
+    writeState = checkpoint.forwarding
+    restoreCounters(checkpoint.counters)
+    restoreRegisters(checkpoint.registers)
     publishSnapshot()
   }
 
-  /** Complete snapshot of all mutable state (forwarding + stateful externs). */
-  class Snapshot
+  /**
+   * Checkpoint of all mutable state for rollback. Bundles the forwarding snapshot (tables, PRE,
+   * profiles, etc.) with stateful externs (direct counters, registers) that live outside the
+   * forwarding snapshot because they are mutated lock-free during packet processing.
+   */
+  class RollbackCheckpoint
   internal constructor(
     internal val forwarding: ForwardingSnapshot,
     internal val counters: Map<TableEntry, LongArray>,
