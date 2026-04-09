@@ -83,6 +83,28 @@ data class NetworkStf(
       }
 
       require(switches.isNotEmpty()) { "no switches declared" }
+
+      // Validate that all referenced switches are declared.
+      val declaredIds = switches.map { it.id }.toSet()
+      for (link in links) {
+        require(link.a.switchId in declaredIds) {
+          "link references undeclared switch '${link.a.switchId}'"
+        }
+        require(link.b.switchId in declaredIds) {
+          "link references undeclared switch '${link.b.switchId}'"
+        }
+      }
+      for (pkt in packets) {
+        require(pkt.endpoint.switchId in declaredIds) {
+          "packet references undeclared switch '${pkt.endpoint.switchId}'"
+        }
+      }
+      for (exp in expects) {
+        require(exp.endpoint.switchId in declaredIds) {
+          "expect references undeclared switch '${exp.endpoint.switchId}'"
+        }
+      }
+
       return NetworkStf(switches, links, packets, expects)
     }
 

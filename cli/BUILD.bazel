@@ -45,6 +45,17 @@ kt_jvm_test(
 )
 
 kt_jvm_test(
+    name = "NetworkStfTest",
+    srcs = ["NetworkStfTest.kt"],
+    test_class = "fourward.cli.NetworkStfTest",
+    deps = [
+        ":cli_lib",
+        "//simulator:simulator_lib",
+        "@fourward_maven//:junit_junit",
+    ],
+)
+
+kt_jvm_test(
     name = "NetworkSimCliTest",
     srcs = ["NetworkSimCliTest.kt"],
     data = [
