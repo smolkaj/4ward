@@ -116,10 +116,18 @@ class PacketBroker(
    * snapshot. Only acquires the [writeMutex] when a hook is registered (to fire the hook and apply
    * its updates atomically).
    */
-  fun processPacket(ingressPort: Int, payload: ByteArray): ProcessPacketResult {
+  /**
+   * If a hook is registered, acquires the [writeMutex] and fires it. The hook may apply P4Runtime
+   * updates that publish a new forwarding snapshot. No-op if no hook is registered.
+   */
+  private fun fireHookUnderMutex() {
     if (hook.get() != null) {
       runBlocking { writeMutex.withLock { fireHookIfRegistered() } }
     }
+  }
+
+  fun processPacket(ingressPort: Int, payload: ByteArray): ProcessPacketResult {
+    fireHookUnderMutex()
     val result = simulatorFn(ingressPort, payload)
     dispatchToSubscribers(ingressPort, payload, result)
     return result
@@ -128,17 +136,10 @@ class PacketBroker(
   /**
    * Fires the hook once (if registered), then runs [block] with a lock-free packet processor.
    *
-   * If a hook is registered: acquires [writeMutex], fires the hook (which publishes a new
-   * snapshot), releases the mutex, then calls [block] with a lock-free processor.
-   *
-   * If no hook: calls [block] directly with a lock-free processor.
-   *
    * Used by [DataplaneService.injectPackets] to stream packets without buffering the entire batch.
    */
   fun <T> withHookOnce(block: (processor: (Int, ByteArray) -> Unit) -> T): T {
-    if (hook.get() != null) {
-      runBlocking { writeMutex.withLock { fireHookIfRegistered() } }
-    }
+    fireHookUnderMutex()
     return block { port, payload ->
       val result = simulatorFn(port, payload)
       dispatchToSubscribers(port, payload, result)

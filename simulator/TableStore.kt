@@ -211,6 +211,9 @@ class TableStore : TableDataReader {
    * value-based keying (`ConcurrentHashMap` uses `equals`/`hashCode`), unlike the previous
    * `IdentityHashMap` — this is safe because `TableEntry` is a protobuf message with value-based
    * equality, and eliminates the fragile identity-keying invariant that `deepCopy` had to preserve.
+   *
+   * TODO: protobuf `equals`/`hashCode` walks all fields — expensive on every table hit. Consider a
+   *   cheaper key (e.g., integer index assigned at insert time) if profiling shows this matters.
    */
   private val directCounterData = ConcurrentHashMap<TableEntry, AtomicLongArray>()
 
@@ -229,6 +232,7 @@ class TableStore : TableDataReader {
    * it makes publish points explicit and allows batch callers to publish once instead of
    * per-update.
    */
+  @Synchronized
   fun publishSnapshot() {
     snapshot = writeState.deepCopy()
   }
@@ -237,6 +241,9 @@ class TableStore : TableDataReader {
    * Returns the p4info alias names of tables that have at least one installed entry. This includes
    * const entries installed from `device.staticEntries` at load time, since those also need
    * schema-compatible tables in the new pipeline to survive RECONCILE_AND_COMMIT.
+   *
+   * Reads from [writeState] (not [snapshot]) because it is called during pipeline reload under the
+   * control-plane write mutex. Must only be called from the control-plane write path.
    */
   fun populatedTableAliases(): Set<String> =
     writeState.tables.entries
@@ -244,15 +251,13 @@ class TableStore : TableDataReader {
       .mapNotNull { (behavioralName, _) -> tableAliasByName[behavioralName] }
       .toSet()
 
-  /** Snapshots the current write-state for later restoration (used by RECONCILE_AND_COMMIT). */
-  fun snapshotWriteState(): ForwardingSnapshot = writeState.deepCopy()
-
   /**
    * Restores table entries from a previous [ForwardingSnapshot], matching tables by p4info alias.
    *
    * Only entries for tables whose alias appears in both the old and new pipeline are restored. The
    * caller is responsible for verifying schema compatibility before calling this.
    */
+  @Synchronized
   fun restoreTableEntries(oldSnapshot: ForwardingSnapshot, oldAliasByName: Map<String, String>) {
     // Reverse of tableAliasByName: p4info alias → new behavioral name.
     val newNameByAlias = tableAliasByName.entries.associate { (name, alias) -> alias to name }
@@ -264,8 +269,8 @@ class TableStore : TableDataReader {
       writeState.tables[newName] = entries.toMutableList()
       for (entry in entries) {
         oldSnapshot.directMeterData[entry]?.let { writeState.directMeterData[entry] = it }
-        // Direct counter data lives outside the snapshot — restore from the old snapshot's
-        // counter map (which was captured separately by the caller if needed).
+        // Direct counters (AtomicLongArray in directCounterData) are not restored — they
+        // reset to zero on pipeline reload, matching BMv2 behavior. Counters are best-effort.
       }
     }
 
@@ -295,8 +300,8 @@ class TableStore : TableDataReader {
   // Read-path delegating properties (read from the published snapshot)
   // -------------------------------------------------------------------------
 
-  // Data-plane reads go through the published snapshot. These properties are used by lookup(),
-  // getCloneSession(), getMulticastGroup(), getValueSetMembers(), and all TableDataReader methods.
+  // READ-PATH ONLY. These delegate to the published snapshot and must NOT be used by write-path
+  // methods — those must reference writeState.* explicitly, otherwise they'd read stale data.
   private val tables
     get() = snapshot.tables
 
@@ -579,9 +584,8 @@ class TableStore : TableDataReader {
    * Unlike [write] (which uses p4info IDs), this method works with behavioral names and runtime
    * [Value]s -- the natural representation available inside the simulator during packet processing.
    *
-   * Synchronized: this is a data-plane write (called during packet processing) that mutates
-   * [writeState]. Without synchronization it would race with concurrent control-plane writes. PNA
-   * `add_entry` is a rare slow-path operation, so the synchronization cost is acceptable.
+   * Synchronized on the [TableStore] instance to serialize with control-plane writes (which use the
+   * same monitor via `@Synchronized` on [write], [publishSnapshot], etc.).
    *
    * @param tableName the behavioral name of the table to insert into.
    * @param keyValues the match key values (field ID string to [Value]), from the table miss.
@@ -589,7 +593,6 @@ class TableStore : TableDataReader {
    * @param actionParams action parameter values, in declaration order.
    * @return true if the entry was inserted, false if the table is full or the entry already exists.
    */
-  @Synchronized
   fun addEntry(
     tableName: String,
     keyValues: List<Pair<String, Value>>,
@@ -644,20 +647,23 @@ class TableStore : TableDataReader {
     entryBuilder.setAction(P4RuntimeOuterClass.TableAction.newBuilder().setAction(actionBuilder))
 
     val entry = entryBuilder.build()
-    val entries = writeState.tables.getOrPut(tableName) { mutableListOf() }
 
-    // If an entry with the same key already exists, the add_entry is a no-op (returns true
-    // per PNA spec -- the existing entry is retained).
-    if (entries.any { it.sameKey(entry) }) return true
+    // synchronized(this) serializes with control-plane writes (which also synchronize on
+    // this TableStore instance via the @Synchronized write/publishSnapshot methods).
+    return synchronized(this) {
+      val entries = writeState.tables.getOrPut(tableName) { mutableListOf() }
 
-    val limit = tableSizeLimit[tableName]
-    if (limit != null && entries.size >= limit) return false
+      // If an entry with the same key already exists, the add_entry is a no-op (returns true
+      // per PNA spec -- the existing entry is retained).
+      if (entries.any { it.sameKey(entry) }) return@synchronized true
 
-    entries.add(entry)
-    // Unlike control-plane writes (where the caller publishes), addEntry self-publishes
-    // because it runs during packet processing and the new entry must be immediately visible.
-    publishSnapshot()
-    return true
+      val limit = tableSizeLimit[tableName]
+      if (limit != null && entries.size >= limit) return@synchronized false
+
+      entries.add(entry)
+      publishSnapshot()
+      true
+    }
   }
 
   /** Encodes a runtime [Value] as a P4Runtime [ByteString] for a match field of [bitwidth] bits. */
@@ -1061,6 +1067,7 @@ class TableStore : TableDataReader {
   // Write
   // -------------------------------------------------------------------------
 
+  @Synchronized
   fun write(update: Update): WriteResult {
     val entity = update.entity
     return when {
@@ -1326,10 +1333,12 @@ class TableStore : TableDataReader {
    * Captures a deep copy of all mutable state for later [restore]. Used by ROLLBACK_ON_ERROR and
    * DATAPLANE_ATOMIC to provide all-or-none write semantics.
    */
+  @Synchronized
   fun snapshot(): RollbackCheckpoint =
     RollbackCheckpoint(writeState.deepCopy(), snapshotCounters(), snapshotRegisters())
 
   /** Restores all mutable state to a previously captured [RollbackCheckpoint]. */
+  @Synchronized
   fun restore(checkpoint: RollbackCheckpoint) {
     writeState = checkpoint.forwarding
     restoreCounters(checkpoint.counters)
@@ -1432,7 +1441,9 @@ class TableStore : TableDataReader {
    * Returns true if the table with p4info [tableId] has an entry with match field [fieldId] equal
    * to [value].
    *
-   * Used by `@refers_to` referential integrity validation. Checks exact and optional match fields.
+   * Used by `@refers_to` referential integrity validation during [P4RuntimeService] writes. Reads
+   * from [writeState] (not [snapshot]) because it validates against uncommitted state within a
+   * write batch. Must only be called under the control-plane write mutex.
    */
   fun hasEntryWithFieldValue(tableId: Int, fieldId: Int, value: ByteString): Boolean {
     val tableName = tableNameById[tableId] ?: return false

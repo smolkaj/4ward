@@ -565,49 +565,43 @@ class P4RuntimeService(
 
   override fun read(request: ReadRequest): Flow<ReadResponse> = flow {
     // Reads are lock-free — they read from the published snapshot. A concurrent write may
-    // publish a new snapshot mid-read; the read sees a consistent state at each entity access.
-    val response = run {
-      requireDeviceId(request.deviceId)
-      val state = requirePipeline()
-      val roleName = request.role // empty = default role
-      // Table entries are assembled by EntityReader (P4Runtime presentation layer);
-      // all other entity types are read directly from the simulator.
-      val entities =
-        request.entitiesList.flatMap { entity ->
-          rejectUnsupportedEntity(entity)
-          // For specific (non-wildcard) entities, check access upfront so the controller
-          // gets a clear PERMISSION_DENIED. For wildcards, results are filtered post-read.
-          requireEntityAccess(entity, state.roleMap, roleName)
-          try {
-            if (entity.hasTableEntry()) {
-              state.entityReader.readTableEntities(entity.tableEntry, simulator)
-            } else {
-              simulator.readEntries(listOf(entity))
-            }
-          } catch (e: IllegalStateException) {
-            throw Status.INTERNAL.withDescription("read failed: ${e.message}")
-              .withCause(e)
-              .asException()
+    // publish a new snapshot between entity reads, so two entities in the same Read RPC could
+    // see different forwarding states. The P4Runtime spec does not require cross-entity read
+    // atomicity, so this is acceptable.
+    requireDeviceId(request.deviceId)
+    val state = requirePipeline()
+    val roleName = request.role // empty = default role
+    // Table entries are assembled by EntityReader (P4Runtime presentation layer);
+    // all other entity types are read directly from the simulator.
+    val entities =
+      request.entitiesList.flatMap { entity ->
+        rejectUnsupportedEntity(entity)
+        // For specific (non-wildcard) entities, check access upfront so the controller
+        // gets a clear PERMISSION_DENIED. For wildcards, results are filtered post-read.
+        requireEntityAccess(entity, state.roleMap, roleName)
+        try {
+          if (entity.hasTableEntry()) {
+            state.entityReader.readTableEntities(entity.tableEntry, simulator)
+          } else {
+            simulator.readEntries(listOf(entity))
           }
+        } catch (e: IllegalStateException) {
+          throw Status.INTERNAL.withDescription("read failed: ${e.message}")
+            .withCause(e)
+            .asException()
         }
-      // Filter results by role for named-role controllers. This handles wildcard reads
-      // (where the request entity doesn't carry a specific ID) by returning only entities
-      // the controller's role can access.
-      val filtered =
-        if (roleName.isNotEmpty()) filterByRole(entities, state.roleMap, roleName) else entities
-      if (filtered.isNotEmpty()) {
-        val translator = state.typeTranslator?.takeIf { it.hasTranslations }
-        if (translator != null) {
-          filtered.map { translator.translateForRead(it) }
-        } else {
-          filtered
-        }
-      } else {
-        null
       }
-    }
-    if (response != null) {
-      emit(ReadResponse.newBuilder().addAllEntities(response).build())
+    // Filter results by role for named-role controllers. This handles wildcard reads
+    // (where the request entity doesn't carry a specific ID) by returning only entities
+    // the controller's role can access.
+    val filtered =
+      if (roleName.isNotEmpty()) filterByRole(entities, state.roleMap, roleName) else entities
+    if (filtered.isNotEmpty()) {
+      val translated =
+        state.typeTranslator
+          ?.takeIf { it.hasTranslations }
+          ?.let { t -> filtered.map { t.translateForRead(it) } } ?: filtered
+      emit(ReadResponse.newBuilder().addAllEntities(translated).build())
     }
   }
 

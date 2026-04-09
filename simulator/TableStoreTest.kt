@@ -4,6 +4,7 @@ import com.google.protobuf.ByteString
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -2859,6 +2860,84 @@ class TableStoreTest {
     val s = storeWithValueSet()
     val filter = P4RuntimeOuterClass.ValueSetEntry.newBuilder().setValueSetId(999).build()
     assertEquals(0, s.readValueSetEntries(filter).size)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Snapshot isolation and concurrency
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `publishSnapshot creates a new snapshot that does not share mutable state with the old one`() {
+    store.writeAndPublish(
+      insertUpdate(exactEntry(fieldId = 1, value = byteArrayOf(10), actionId = 10))
+    )
+    val snapshotBeforeWrite = store.snapshot
+
+    store.writeAndPublish(
+      insertUpdate(exactEntry(fieldId = 1, value = byteArrayOf(20), actionId = 20))
+    )
+
+    assertNotSame("publish must create a new snapshot object", snapshotBeforeWrite, store.snapshot)
+    assertEquals(2, store.getTableEntries(TABLE_NAME).size)
+    assertTrue(store.lookup(TABLE_NAME, listOf("1" to BitVal(20, 8))).hit)
+  }
+
+  @Test
+  fun `concurrent directCounterIncrement is thread-safe`() {
+    val s = storeWithDirectCounter()
+    val entry = exactEntry(fieldId = 1, value = byteArrayOf(10), actionId = 10)
+    s.writeAndPublish(insertUpdate(entry))
+
+    val threads = 8
+    val incrementsPerThread = 1000
+    val latch = java.util.concurrent.CountDownLatch(1)
+    val workers =
+      (1..threads).map {
+        Thread {
+          latch.await()
+          repeat(incrementsPerThread) { s.directCounterIncrement(TABLE_NAME, entry, 1) }
+        }
+      }
+    workers.forEach { it.start() }
+    latch.countDown()
+    workers.forEach { it.join() }
+
+    val data = s.getDirectCounterData(entry)!!
+    assertEquals((threads * incrementsPerThread).toLong(), data.packetCount)
+    assertEquals((threads * incrementsPerThread).toLong(), data.byteCount)
+  }
+
+  @Test
+  fun `concurrent registerWrite is thread-safe`() {
+    val s = TableStore()
+    s.loadMappings(
+      p4info =
+        buildP4Info(
+          registers =
+            listOf(buildRegisterProto(REGISTER_ID, REGISTER_NAME, REGISTER_BITWIDTH, 1000))
+        )
+    )
+
+    val threads = 8
+    val writesPerThread = 100
+    val latch = java.util.concurrent.CountDownLatch(1)
+    val workers =
+      (0 until threads).map { threadId ->
+        Thread {
+          latch.await()
+          repeat(writesPerThread) { i ->
+            val index = threadId * writesPerThread + i
+            s.registerWrite(REGISTER_NAME, index, BitVal(index, REGISTER_BITWIDTH))
+          }
+        }
+      }
+    workers.forEach { it.start() }
+    latch.countDown()
+    workers.forEach { it.join() }
+
+    for (i in 0 until threads * writesPerThread) {
+      assertEquals(BitVal(i, REGISTER_BITWIDTH), s.registerRead(REGISTER_NAME, i))
+    }
   }
 
   // ---------------------------------------------------------------------------
