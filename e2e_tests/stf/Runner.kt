@@ -247,14 +247,11 @@ data class StfFile(
      * - `mc_node_associate <group_id> <node_handle>` — associate node with group
      * - `# comment`
      */
+    fun parse(path: Path): StfFile = parse(path.toFile().readLines())
+
     @Suppress("CyclomaticComplexMethod")
-    fun parse(path: Path): StfFile {
-      val lines =
-        path
-          .toFile()
-          .readLines()
-          .map { it.trim() }
-          .filter { it.isNotEmpty() && !it.startsWith("#") }
+    fun parse(lines: List<String>): StfFile {
+      val directives = lines.map { it.trim() }.filter { it.isNotEmpty() && !it.startsWith("#") }
 
       val tableEntries = mutableListOf<StfTableDirective>()
       val memberDirectives = mutableListOf<StfMemberDirective>()
@@ -267,7 +264,7 @@ data class StfFile(
       val packets = mutableListOf<StfPacket>()
       val expects = mutableListOf<StfExpectedOutput>()
 
-      for (line in lines) {
+      for (line in directives) {
         val tokens = tokenizeQuoteAware(line)
         when (tokens[0].lowercase()) {
           "packet" -> {

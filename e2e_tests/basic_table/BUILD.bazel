@@ -5,6 +5,7 @@ p4c_compile(
     name = "basic_table",
     src_p4 = "basic_table.p4",
     visibility = [
+        "//cli:__pkg__",
         "//e2e_tests/network:__pkg__",
         "//p4runtime:__pkg__",
     ],
