@@ -63,6 +63,14 @@ private fun evalIntArg(eval: ExternEvaluator, index: Int): Int =
     else -> error("expected integer argument at index $index, got: $arg")
   }
 
+/**
+ * Benchmark-only knob for measuring the scaling impact of intra-packet parallelism. Not a public
+ * API — no user documentation, no CLI flag. Normal users should leave this at the default (`true`).
+ * See `designs/parallel_packet_scaling.md`.
+ */
+private val INTRA_PACKET_PARALLELISM_ENABLED =
+  System.getProperty("fourward.simulator.intraPacketParallelism", "true").toBoolean()
+
 class V1ModelArchitecture(
   /**
    * Override for the drop port. When null (default), derived from `standard_metadata` port width:
@@ -145,13 +153,19 @@ class V1ModelArchitecture(
       val levelEvents = fork.eventsBeforeFork.drop(prefixLength)
       val (reason, specs) = forkSpecs(ctx, decisions, fork)
 
-      // Run fork branches in parallel. Each branch recursively builds its own subtree,
-      // handling nested forks (clone after selector, etc.) independently.
+      // Intra-packet parallelism: runs fork branches on ForkJoinPool. Helpful for
+      // single-packet latency (CLI, STF, playground), neutral for throughput under
+      // inter-packet parallelism. See designs/parallel_packet_scaling.md for the
+      // measured trade-off.
       val subtrees =
-        specs
-          .parallelStream()
-          .map { spec -> buildTraceTree(spec.ctx, spec.decisions, spec.prefixLength) }
-          .toList()
+        if (INTRA_PACKET_PARALLELISM_ENABLED) {
+          specs
+            .parallelStream()
+            .map { spec -> buildTraceTree(spec.ctx, spec.decisions, spec.prefixLength) }
+            .toList()
+        } else {
+          specs.map { spec -> buildTraceTree(spec.ctx, spec.decisions, spec.prefixLength) }
+        }
 
       val branches =
         specs.zip(subtrees).map { (spec, result) ->
