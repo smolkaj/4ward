@@ -34,8 +34,107 @@ import p4.v1.P4RuntimeOuterClass.Update
 @Suppress("FunctionNaming", "MagicNumber")
 class DataplaneBenchmark {
 
+  /**
+   * Single-workload, single-mode profile test for measuring parallel scaling.
+   *
+   * The main [`dataplane benchmark`] sweeps many scale points, which is good for a comprehensive
+   * snapshot but hard to profile — each workload only runs for ~1s, below the JFR/async-profiler
+   * sampling settle time. This test runs one (workload, mode) combination for many thousands of
+   * packets, long enough for steady-state profiling.
+   *
+   * Usage:
+   * ```
+   * bazel build //p4runtime:DataplaneBenchmark -c opt
+   * ./bazel-bin/p4runtime/DataplaneBenchmark \
+   *     --jvm_flag=-DprofileWorkload=wcmp128 \
+   *     --jvm_flag=-DprofileMode=parallel \
+   *     --jvm_flag=-Dfourward.simulator.intraPacketParallelism=false \
+   *     --jvm_flag=-XX:StartFlightRecording=filename=/tmp/profile.jfr,settings=profile
+   * ```
+   *
+   * Parameters (JVM system properties):
+   * - `profileMode`: `sequential` (one packet at a time via InjectPacket) or `parallel` (many
+   *   packets via InjectPackets). If unset, the test is skipped.
+   * - `profileWorkload`: `direct` (L3 forwarding, no forks), `wcmp16mirr` (16-way WCMP + mirror
+   *   clone), or `wcmp128` (128-way WCMP, DVaaS-realistic). Default: `wcmp128`.
+   *
+   * For clean scaling measurements, set `-Dfourward.simulator.intraPacketParallelism=false` on both
+   * sides — see `designs/parallel_packet_scaling.md`.
+   */
+  @Test
+  fun `profile focused`() {
+    val mode = System.getProperty("profileMode") ?: return // skip unless explicitly invoked
+    val workload = System.getProperty("profileWorkload") ?: "wcmp128"
+    println("=== Profile: workload=$workload mode=$mode ===")
+
+    // JIT warmup on a throwaway pipeline.
+    val warmupHarness = createHarness()
+    installEntries(warmupHarness, routeCount = 100, nexthopCount = 100)
+    val warmupPacket = buildIpv4Packet(dstIp = ipForRoute(0))
+    repeat(JIT_WARMUP_PACKETS) {
+      warmupHarness.injectPacket(ingressPort = 0, payload = warmupPacket)
+    }
+    warmupHarness.close()
+
+    val sp =
+      when (workload) {
+        "direct" -> ScalePoint("direct", routes = 10_000, nexthops = 100, aclEntries = ACL_ENTRIES)
+        "wcmp16mirr" ->
+          ScalePoint(
+            "wcmp×16+mirr",
+            routes = 10_000,
+            nexthops = 100,
+            wcmpMembers = 16,
+            mirror = true,
+            aclEntries = ACL_ENTRIES,
+          )
+        "wcmp128" ->
+          ScalePoint(
+            "wcmp×128",
+            routes = 10_000,
+            nexthops = 100,
+            wcmpMembers = 128,
+            aclEntries = ACL_ENTRIES,
+          )
+        else -> error("unknown profileWorkload: $workload (expected direct, wcmp16mirr, wcmp128)")
+      }
+
+    val harness = createHarness()
+    installEntries(harness, sp.routes, 100, sp.wcmpMembers, sp.mirror, sp.aclEntries)
+    val warmupPkt = buildIpv4Packet(dstIp = ipForRoute(0))
+    repeat(SCALE_WARMUP_PACKETS) { harness.injectPacket(ingressPort = 0, payload = warmupPkt) }
+
+    // Packet count scales inversely with per-packet cost so each run takes ~10-200s.
+    val totalPackets =
+      when (workload) {
+        "direct" -> 500_000
+        "wcmp16mirr" -> 50_000
+        "wcmp128" -> 10_000
+        else -> 50_000
+      }
+    val packets =
+      (0 until totalPackets).map { i -> 0 to buildIpv4Packet(dstIp = ipForRoute(i % sp.routes)) }
+
+    val startNs = System.nanoTime()
+    when (mode) {
+      "sequential" ->
+        for ((port, payload) in packets) {
+          harness.injectPacket(ingressPort = port, payload = payload)
+        }
+      "parallel" ->
+        // Chunk to avoid any per-stream limits in InjectPackets at very large batches.
+        for (batch in packets.chunked(10_000)) harness.injectPackets(batch)
+      else -> error("unknown profileMode: $mode (expected sequential or parallel)")
+    }
+    val elapsedMs = (System.nanoTime() - startNs) / NS_PER_MS
+    val pps = totalPackets / elapsedMs * 1000
+    println("$workload $mode: $totalPackets packets in %.0f ms = %.0f pps".format(elapsedMs, pps))
+    harness.close()
+  }
+
   @Test
   fun `dataplane benchmark`() {
+    if (System.getProperty("profileMode") != null) return // skip when running the focused test
     // --- JIT warmup on a throwaway pipeline ---
     val warmupHarness = createHarness()
     installEntries(warmupHarness, routeCount = 100, nexthopCount = 100)
