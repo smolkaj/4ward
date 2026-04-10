@@ -4,12 +4,13 @@
 
 ## North star
 
-**Packet processing should scale linearly with physical cores.** For N
-cores, the parallel `InjectPackets` RPC should deliver N× the throughput
-of a single-threaded run. Each packet is independent of every other
-packet (modulo a few shared stateful externs, which have their own
-lock-free data structures) — the algorithm is embarrassingly parallel.
-Anything well below linear is wasted hardware.
+**Inter-packet parallelism should scale linearly with physical cores.**
+For N cores, the parallel `InjectPackets` RPC should deliver N× the
+throughput of a single-threaded run. Each packet is independent of every
+other packet (modulo a few shared stateful externs, which have their own
+lock-free data structures) — the algorithm is truly embarrassingly
+parallel at the packet level. Anything well below linear is wasted
+hardware.
 
 This is the benchmark we want to hit:
 
@@ -22,40 +23,49 @@ CPU-bound JVM workload with heavy allocation, 85-90% on 16 cores is
 ambitious but reachable; 50% is common without work. Anything more than
 ~10% off demands an explanation.
 
-### Two axes of parallelism
+### Why inter-packet parallelism specifically
 
-The simulator has **two independent axes of parallelism**, and the
-distinction matters throughout this document:
+The simulator actually has two independent parallelism mechanisms:
 
-- **Intra-packet parallelism**: within a single packet's processing,
-  trace-tree fork branches (clone, multicast, action selector) run on
-  separate threads. Implemented in `V1ModelArchitecture.buildTraceTree`
-  via `parallelStream()`.
 - **Inter-packet parallelism**: multiple packets process on separate
-  threads simultaneously. Implemented by the `InjectPackets` streaming
-  RPC, which submits each packet to `ForkJoinPool.commonPool()`.
+  threads simultaneously. Each packet is an independent task with no
+  shared state — genuinely embarrassingly parallel. Implemented by
+  `InjectPackets` dispatching each packet to `ForkJoinPool.commonPool()`.
+- **Intra-packet parallelism**: within a single packet, trace-tree fork
+  branches (clone, multicast, action selector) run on separate threads.
+  Branches start from a shared packet state that must be deep-copied
+  per branch — parallelism, but not embarrassingly so. Implemented in
+  `V1ModelArchitecture.buildTraceTree` via `parallelStream()`.
 
-Both sit on top of the same shared `ForkJoinPool.commonPool()`. They
-compose: a single packet with 32 fork branches can fan out to 32 threads
-intra-packet, and 100 packets in flight can each do the same
-inter-packet. In practice (as the measurements below show), intra-packet
-parallelism is helpful for single-packet latency but doesn't meaningfully
-improve throughput when inter-packet parallelism is already saturating
-the machine.
+**The north star is about inter-packet parallelism only**, because:
+
+1. It's the only genuinely embarrassingly parallel axis (no shared
+   starting state between tasks).
+2. It's the axis that matters for throughput-oriented workloads
+   (DVaaS, replay testing, fuzz testing) — users who need to process
+   many packets.
+3. It composes cleanly with single-threaded reasoning: "one thread does
+   one packet, N threads do N packets."
+
+Intra-packet parallelism is an orthogonal optimization for a different
+use case (single-packet latency — CLI, STF tests, playground) and is
+out of scope for this document. Measurements below confirm that intra-
+and inter-packet parallelism don't meaningfully compose — inter-packet
+alone saturates the machine, so intra-packet on top adds nothing.
 
 ### Baseline methodology
 
 "Single-thread" means exactly one core doing all the work for one packet
-at a time — no inter-packet parallelism (sequential `InjectPacket` calls)
-and no intra-packet parallelism (fork branches processed sequentially on
-the same thread). Disabling intra-packet parallelism requires temporarily
-removing the `parallelStream()` call in
-`V1ModelArchitecture.buildTraceTree`. Without that, even a single-packet
-run fans out across cores — not what we want for the "1 core" baseline.
+at a time. Both parallelism axes are disabled:
 
-The right comparison for "N× on N cores" is **one thread doing all the
-work** (both inter- and intra-packet parallelism disabled) vs **the
-machine doing packet processing with both axes enabled**.
+- **Inter-packet**: sequential `InjectPacket` calls (one packet at a time).
+- **Intra-packet**: `parallelStream()` in `buildTraceTree` disabled via
+  the `fourward.simulator.intraPacketParallelism=false` system property.
+
+"Parallel" means many packets in flight via `InjectPackets`, with
+intra-packet parallelism **also disabled** — apples-to-apples with the
+single-thread baseline. The comparison measures pure inter-packet
+speedup with no confounding from intra-packet behavior.
 
 ## Current state
 
@@ -85,33 +95,24 @@ CPU under parallel load than under single-thread.
 > needing all the cores). wcmp has high CPU utilization but low
 > efficiency (uses all the cores but each packet costs more).
 
-### The four-cell breakdown (wcmp128, for intuition)
+### Aside: intra-packet parallelism is orthogonal
 
-The two axes of parallelism compose, so there are four combinations.
-Here they are on the wcmp×128 workload:
+Confirming the claim above, wcmp×128 throughput with intra-packet
+parallelism toggled on and off:
 
-| Inter-packet | Intra-packet | Throughput | Speedup vs true ST | CPU util |
-|---|---|---|---|---|
-| OFF (1 packet at a time) | OFF | 203 pps | 1.00× (baseline) | 3.4% |
-| OFF (1 packet at a time) | ON | 633 pps | 3.12× | — |
-| ON (many packets in flight) | OFF | 1,521 pps | **7.49×** | 83% |
-| ON (many packets in flight) | ON | 1,506 pps | 7.42× | 88% |
+| Mode | Intra-packet | Throughput | CPU util |
+|---|---|---|---|
+| Single-thread | OFF | 203 pps | 3.4% |
+| Single-thread | ON | 633 pps | — |
+| Parallel (inter-packet) | OFF | 1,521 pps | 83% |
+| Parallel (inter-packet) | ON | 1,506 pps | 88% |
 
-Observations:
-
-1. **Intra-packet parallelism doesn't help when inter-packet is already
-   active** (1,506 vs 1,521 — noise). With many packets in flight, the
-   `ForkJoinPool` workers are already busy processing different packets;
-   spreading one packet's forks across workers steals from the workers
-   processing other packets. Net effect: zero throughput change, ~5%
-   more CPU used for nothing (88% vs 83% utilization at the same pps).
-2. **Intra-packet parallelism helps single-packet latency 3×** (633 vs
-   203). When only one packet is in flight, the machine is idle
-   otherwise, and fanning out the forks across cores is pure gain.
-   Worth keeping for CLI, STF, and playground use cases.
-3. **The true single-thread baseline is both axes OFF** (203 pps).
-   That's what divides into the parallel throughput to compute the
-   "speedup on N cores" number.
+Under parallel load, intra-packet is a wash on throughput (1,506 vs
+1,521 — noise) but burns ~5% more CPU. Under single-packet load, it's
+a 3× latency win (633 vs 203). Keep it enabled by default — CLI, STF,
+and playground users benefit, parallel users don't pay. The scaling
+measurements below use intra-packet **off** on both sides to keep the
+comparison clean.
 
 ## Why embarrassingly parallel isn't linear in practice
 
@@ -233,14 +234,7 @@ in aggregate they dominate the scaling overhead.
 This is the bottleneck. It's specifically a **fork-induced
 allocation-pressure** problem, not a general scaling problem.
 
-## The discipline
-
-**Measure first, optimize second.** This is Track 10 Phase 1's mantra and
-it applied to the lock-free dataplane too (where we discovered the lock
-wasn't the bottleneck after all). The same principle applies here: any
-optimization without a profiler-backed hypothesis is a guess.
-
-### Phase 2: Optimize
+## Phase 2: optimize (proposed)
 
 **Discipline.** Performance work is bounded by simplicity. The project
 rules are explicit: "correctness over performance" and "readability over
@@ -248,9 +242,11 @@ performance." An optimization that makes the code harder to read or
 reason about is not worth it, even if the benchmark improves. Each step
 must clear that bar before it lands.
 
-**Approach.** One optimization at a time. Measure → fix the smallest
-thing → re-measure → decide what's next. Don't pre-commit to a multi-step
-plan beyond the next step.
+**Approach.** Measure first, optimize second — same mantra that governed
+the lock-free dataplane work (where we discovered the lock wasn't the
+bottleneck after all). One optimization at a time. Measure → fix the
+smallest thing → re-measure → decide what's next. Don't pre-commit to a
+multi-step plan beyond the next step.
 
 **Scope.** Phase 1 showed the scaling gap is **specific to fork-heavy
 workloads**. Direct L3 is already at 95% efficiency with no meaningful
@@ -306,13 +302,12 @@ DVaaS workload that's blocked by the current throughput.
   regression in single-packet latency. Keep it for CLI/STF/playground
   users.
 
-### Phase 3: Validate
-
-For every optimization, run the benchmark and verify:
+**Validation.** For every optimization, run the benchmark and verify:
 
 1. **True single-thread throughput doesn't regress** — measured with
-   intra-packet parallelism disabled.
-2. **Parallel scaling efficiency improves** — the ratio of
+   intra-packet parallelism disabled (set
+   `-Dfourward.simulator.intraPacketParallelism=false`).
+2. **Parallel scaling efficiency improves** — the ratio
    `parallel_pps / (single_thread_pps × 16)` moves toward 1.0.
 3. **No correctness regressions** — all tests still pass.
 
