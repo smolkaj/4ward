@@ -1,9 +1,9 @@
 package fourward.network
 
 import fourward.p4runtime.P4RuntimeServer
-import fourward.simulator.Endpoint
 import fourward.simulator.NetworkSimulator
 import fourward.simulator.NetworkTopology
+import fourward.simulator.routePacketOutputs
 import java.util.logging.Logger
 
 /**
@@ -13,13 +13,19 @@ import java.util.logging.Logger
  * automatically injected into the connected switch. Uses the existing subscriber API on
  * [P4RuntimeServer] — no changes to internals.
  *
- * A per-thread hop counter (same limit as [NetworkSimulator.MAX_HOP_COUNT]) prevents routing loops
- * from hanging. The forwarding is recursive via subscriber dispatch — each forwarded packet
- * triggers the connected switch's subscriber on the same thread, so a `ThreadLocal` counter is the
- * right mechanism.
+ * Shares the per-hop routing primitive ([routePacketOutputs]) with [NetworkSimulator], so both
+ * implementations agree on what "linked output" means and how action-selector programs are
+ * rejected. The overall traversal structure is different: [NetworkSimulator] pulls recursively to
+ * build a trace tree, while this function chains subscribers reactively.
  *
- * Programs with action selectors (multiple possible worlds per switch) are not supported and will
- * cause the subscriber to fail loudly. See `docs/LIMITATIONS.md`, "Network simulation".
+ * ## Hop limit
+ *
+ * A `ThreadLocal` counter (limit: [NetworkSimulator.MAX_HOP_COUNT]) prevents routing loops from
+ * hanging. **This relies on [fourward.p4runtime.PacketBroker.subscribe]'s synchronous dispatch**:
+ * the forwarding subscriber calls `dstServer.processPacket`, which dispatches to subscribers
+ * (including this one) on the same thread before returning. If broker dispatch ever becomes async
+ * (thread pool, coroutine queue), this counter silently stops working and loops will hang. See
+ * `docs/LIMITATIONS.md`.
  */
 fun wireForwarding(topology: NetworkTopology, serversBySwitch: Map<String, P4RuntimeServer>) {
   if (topology.links.isEmpty()) return
@@ -29,11 +35,6 @@ fun wireForwarding(topology: NetworkTopology, serversBySwitch: Map<String, P4Run
 
   for ((switchId, server) in serversBySwitch) {
     server.onPacketProcessed { result ->
-      check(result.possibleOutcomes.size <= 1) {
-        "switch '$switchId': multiple possible outcomes (action selectors) not yet supported"
-      }
-      val outputs = result.possibleOutcomes.firstOrNull() ?: return@onPacketProcessed
-
       val hops = hopCount.get()
       if (hops >= NetworkSimulator.MAX_HOP_COUNT) {
         logger.warning(
@@ -43,17 +44,22 @@ fun wireForwarding(topology: NetworkTopology, serversBySwitch: Map<String, P4Run
       }
       hopCount.set(hops + 1)
       try {
-        for (output in outputs) {
-          val dst = linkMap[Endpoint(switchId, output.dataplaneEgressPort)] ?: continue
-          val dstServer = serversBySwitch[dst.switchId] ?: continue
-          try {
-            dstServer.processPacket(dst.port, output.payload.toByteArray())
-          } catch (e: Exception) {
-            logger.warning(
-              "cross-switch forwarding $switchId:${output.dataplaneEgressPort} → $dst failed: ${e.message}"
-            )
-          }
-        }
+        routePacketOutputs(
+          switchId = switchId,
+          possibleOutcomes = result.possibleOutcomes,
+          linkMap = linkMap,
+          onForward = { dst, payload ->
+            val dstServer = serversBySwitch[dst.switchId] ?: return@routePacketOutputs
+            try {
+              dstServer.processPacket(dst.port, payload.toByteArray())
+            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+              logger.warning("cross-switch forwarding $switchId → $dst failed: ${e.message}")
+            }
+          },
+          onEdge = { _, _ ->
+            // Edge outputs are delivered to local subscribers by the broker itself.
+          },
+        )
       } finally {
         hopCount.set(hops)
       }

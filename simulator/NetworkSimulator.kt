@@ -1,6 +1,7 @@
 package fourward.simulator
 
 import com.google.protobuf.ByteString
+import fourward.sim.OutputPacket
 import fourward.sim.TraceTree
 
 /**
@@ -49,24 +50,15 @@ class NetworkSimulator(topology: NetworkTopology) {
     val sim = checkNotNull(simulators[switchId]) { "unknown switch: '$switchId'" }
     val result = sim.processPacket(ingressPort, payload.toByteArray())
 
-    // TODO: handle alternative forks (action selectors) across switches.
-    // See docs/LIMITATIONS.md, "Network simulation".
-    check(result.possibleOutcomes.size <= 1) {
-      "switch '$switchId': multiple possible outcomes (action selectors) not yet supported"
-    }
-    val outputs = result.possibleOutcomes.firstOrNull() ?: emptyList()
-
     val edgeOutputs = mutableListOf<EdgeOutput>()
     val nextHops = mutableListOf<NetworkHop>()
-
-    for (output in outputs) {
-      val dst = linkMap[Endpoint(switchId, output.dataplaneEgressPort)]
-      if (dst != null) {
-        nextHops.add(processHop(dst.switchId, dst.port, output.payload, hopCount + 1))
-      } else {
-        edgeOutputs.add(EdgeOutput(switchId, output.dataplaneEgressPort, output.payload))
-      }
-    }
+    routePacketOutputs(
+      switchId = switchId,
+      possibleOutcomes = result.possibleOutcomes,
+      linkMap = linkMap,
+      onForward = { dst, pl -> nextHops.add(processHop(dst.switchId, dst.port, pl, hopCount + 1)) },
+      onEdge = { port, pl -> edgeOutputs.add(EdgeOutput(switchId, port, pl)) },
+    )
 
     return NetworkHop(
       switchId = switchId,
@@ -80,6 +72,40 @@ class NetworkSimulator(topology: NetworkTopology) {
 
   companion object {
     const val MAX_HOP_COUNT = 64
+  }
+}
+
+/**
+ * Routes the outputs of a single switch's packet processing to either a linked switch or an edge
+ * sink. This is the shared "one-step forwarding" primitive used by [NetworkSimulator] (which walks
+ * the topology recursively to build a trace tree) and by the P4Runtime forwarding subscribers
+ * (which chain broker calls reactively). Having both use this helper ensures they agree on what
+ * "output egressing on a linked port" means and how action-selector programs are rejected.
+ *
+ * Takes [possibleOutcomes] directly instead of a wrapper type so it works with both
+ * [ProcessPacketResult] and the P4Runtime subscriber's result type.
+ *
+ * Fails loudly if there is more than one possible world — action selectors across switches are not
+ * supported (see `docs/LIMITATIONS.md`).
+ */
+inline fun routePacketOutputs(
+  switchId: String,
+  possibleOutcomes: List<List<OutputPacket>>,
+  linkMap: Map<Endpoint, Endpoint>,
+  onForward: (dst: Endpoint, payload: ByteString) -> Unit,
+  onEdge: (egressPort: Int, payload: ByteString) -> Unit,
+) {
+  check(possibleOutcomes.size <= 1) {
+    "switch '$switchId': multiple possible outcomes (action selectors) not yet supported"
+  }
+  val outputs = possibleOutcomes.firstOrNull() ?: return
+  for (output in outputs) {
+    val dst = linkMap[Endpoint(switchId, output.dataplaneEgressPort)]
+    if (dst != null) {
+      onForward(dst, output.payload)
+    } else {
+      onEdge(output.dataplaneEgressPort, output.payload)
+    }
   }
 }
 

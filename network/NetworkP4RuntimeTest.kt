@@ -34,11 +34,13 @@ class NetworkP4RuntimeTest {
     val servers = startNetworkServers(topology = EMPTY_TOPOLOGY, switches = twoSwitches())
     try {
       // s1 forwards etherType 0x0800 to port 1, s2 to port 2.
-      val s1Outputs = servers["s1"]!!.processPacket(0, PAYLOAD.decodeHex()).possibleOutcomes.single()
+      val s1Outputs =
+        servers["s1"]!!.processPacket(0, PAYLOAD.decodeHex()).possibleOutcomes.single()
       assertEquals(1, s1Outputs.size)
       assertEquals(1, s1Outputs[0].dataplaneEgressPort)
 
-      val s2Outputs = servers["s2"]!!.processPacket(1, PAYLOAD.decodeHex()).possibleOutcomes.single()
+      val s2Outputs =
+        servers["s2"]!!.processPacket(1, PAYLOAD.decodeHex()).possibleOutcomes.single()
       assertEquals(1, s2Outputs.size)
       assertEquals(2, s2Outputs[0].dataplaneEgressPort)
     } finally {
@@ -91,8 +93,7 @@ class NetworkP4RuntimeTest {
     val servers =
       startNetworkServers(
         topology = topology,
-        switches =
-          listOf(switchSpec("s1", "forward(1)"), switchSpec("s2", "forward(1)")),
+        switches = listOf(switchSpec("s1", "forward(1)"), switchSpec("s2", "forward(1)")),
       )
     try {
       // Should return without hanging — hop limit bails the recursion.
@@ -113,11 +114,7 @@ class NetworkP4RuntimeTest {
       id = id,
       pipelineConfig = config,
       installEntries = { server ->
-        installStfEntries(
-          server::writeEntry,
-          StfFile.parse(listOf(stfContent)),
-          config.p4Info,
-        )
+        installStfEntries(server::writeEntry, StfFile.parse(listOf(stfContent)), config.p4Info)
       },
     )
   }
