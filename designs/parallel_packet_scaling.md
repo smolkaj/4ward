@@ -332,14 +332,11 @@ DVaaS workload that's blocked by the current throughput.
 
 ## Open questions
 
-- **Why is parallel direct at 66% CPU utilization, not 100%?** The JVM
+- **Why is parallel direct at 65% CPU utilization, not 100%?** The JVM
   has idle capacity that isn't being used — meaning the bottleneck isn't
   compute, it's dispatch (gRPC, coroutines, or `ForkJoinPool` task
   submission serial fraction). Not worth chasing — direct is already at
-  95% efficiency despite leaving cores idle.
-- **Is `InjectPackets` (streaming RPC) the right benchmark?** Real DVaaS
-  workloads may use many short-lived streams, not one long stream of
-  10k packets. Scaling characteristics could differ.
-- **How much does copy-on-write help in practice?** The 17.9% HashMap
+  94% efficiency despite leaving cores idle.
+- **How much does copy-on-write help in practice?** The ~9% HashMap
   overhead is the ceiling; actual gain depends on how much of that is
   allocation volume vs allocator contention. Measurement will tell.
