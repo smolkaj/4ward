@@ -29,19 +29,40 @@ different cores. **Concurrent** = multiple tasks making progress over
 overlapping time, possibly interleaved on one core. Linear scaling is a
 **parallelism** concept. The benchmark runs packets on distinct worker
 threads via `ForkJoinPool`, scheduled onto distinct physical cores — that
-is parallelism, not concurrency. The code uses "parallel" in its naming
-(`measureParallel`, `parallelPoints`).
+is parallelism, not concurrency.
+
+The simulator has **two independent axes of parallelism**, and the
+distinction matters throughout this document:
+
+- **Intra-packet parallelism**: within a single packet's processing,
+  trace-tree fork branches (clone, multicast, action selector) run on
+  separate threads. Implemented in `V1ModelArchitecture.buildTraceTree`
+  via `parallelStream()`.
+- **Inter-packet parallelism**: multiple packets process on separate
+  threads simultaneously. Implemented by the `InjectPackets` streaming
+  RPC, which submits each packet to `ForkJoinPool.commonPool()`.
+
+Both sit on top of the same shared `ForkJoinPool.commonPool()`. They
+compose: a single packet with 32 fork branches can fan out to 32 threads
+intra-packet, and 100 packets in flight can each do the same
+inter-packet. In practice (as the measurements below show), intra-packet
+parallelism is helpful for single-packet latency but doesn't meaningfully
+improve throughput when inter-packet parallelism is already saturating
+the machine.
 
 ### Baseline methodology
 
 "Single-thread" means exactly one core doing all the work for one packet
-at a time. This requires temporarily disabling the within-packet
-`parallelStream()` in `V1ModelArchitecture.buildTraceTree` — without
-that change, single-threaded `InjectPacket` runs actually spread each
-packet's fork branches across `ForkJoinPool`, using ~5 cores per packet
-rather than 1. The right comparison for "N× on N cores" is **one thread
-doing all the work for one packet** vs **N threads each doing their own
-packets**.
+at a time — no inter-packet parallelism (sequential `InjectPacket` calls)
+and no intra-packet parallelism (fork branches processed sequentially on
+the same thread). Disabling intra-packet parallelism requires temporarily
+removing the `parallelStream()` call in
+`V1ModelArchitecture.buildTraceTree`. Without that, even a single-packet
+run fans out across cores — not what we want for the "1 core" baseline.
+
+The right comparison for "N× on N cores" is **one thread doing all the
+work** (both inter- and intra-packet parallelism disabled) vs **the
+machine doing packet processing with both axes enabled**.
 
 ## Current state
 
@@ -73,28 +94,31 @@ CPU under parallel load than under single-thread.
 
 ### The four-cell breakdown (wcmp128, for intuition)
 
-The within-packet `parallelStream()` complicates the story. Here are all
-four combinations, to disentangle:
+The two axes of parallelism compose, so there are four combinations.
+Here they are on the wcmp×128 workload:
 
-| Mode | parallelStream | Throughput | Speedup vs true ST | CPU util |
+| Inter-packet | Intra-packet | Throughput | Speedup vs true ST | CPU util |
 |---|---|---|---|---|
-| Sequential (1 packet at a time) | OFF | 203 pps | 1.00× | 3.4% |
-| Sequential (1 packet at a time) | ON | 633 pps | 3.12× | — |
-| Parallel (many packets on many cores) | OFF | 1,521 pps | **7.49×** | 83% |
-| Parallel (many packets on many cores) | ON | 1,506 pps | 7.42× | 88% |
+| OFF (1 packet at a time) | OFF | 203 pps | 1.00× (baseline) | 3.4% |
+| OFF (1 packet at a time) | ON | 633 pps | 3.12× | — |
+| ON (many packets in flight) | OFF | 1,521 pps | **7.49×** | 83% |
+| ON (many packets in flight) | ON | 1,506 pps | 7.42× | 88% |
 
 Observations:
 
-1. **`parallelStream` ON vs OFF in the parallel row is a wash on
-   throughput** (1,506 vs 1,521 — noise). Within-packet parallelism
-   neither helps nor hurts multi-packet throughput. It costs ~5% more
-   CPU for nothing (88% vs 83% utilization at the same throughput), but
-   the difference is small.
-2. **`parallelStream` ON helps single-packet latency 3×** (633 vs 203).
-   Worth keeping for CLI, STF, and playground use cases where there's
-   only one packet at a time.
-3. **The true single-thread baseline is parallelStream OFF** (203 pps).
-   That's what divides into parallel throughput to give the speedup.
+1. **Intra-packet parallelism doesn't help when inter-packet is already
+   active** (1,506 vs 1,521 — noise). With many packets in flight, the
+   `ForkJoinPool` workers are already busy processing different packets;
+   spreading one packet's forks across workers steals from the workers
+   processing other packets. Net effect: zero throughput change, ~5%
+   more CPU used for nothing (88% vs 83% utilization at the same pps).
+2. **Intra-packet parallelism helps single-packet latency 3×** (633 vs
+   203). When only one packet is in flight, the machine is idle
+   otherwise, and fanning out the forks across cores is pure gain.
+   Worth keeping for CLI, STF, and playground use cases.
+3. **The true single-thread baseline is both axes OFF** (203 pps).
+   That's what divides into the parallel throughput to compute the
+   "speedup on N cores" number.
 
 ## Why embarrassingly parallel isn't linear in practice
 
@@ -154,8 +178,9 @@ resource pressure, not restructuring the algorithm. Specifically:
 ## Phase 1 profile findings
 
 Two JFR profile pairs: direct single-thread vs direct parallel, and
-wcmp×128 single-thread vs wcmp×128 parallel. Both sides have
-`parallelStream()` disabled to get a clean apples-to-apples comparison.
+wcmp×128 single-thread vs wcmp×128 parallel. Both sides have intra-packet
+parallelism disabled to get a clean apples-to-apples comparison (with it
+on, sequential mode uses ~5 cores per packet, which confuses the diff).
 The diffs tell completely different stories.
 
 ### Direct L3 — scales cleanly
@@ -179,7 +204,7 @@ The workload has a 128-way action selector fork, producing 128 branches
 per packet. Each branch must deep-copy the packet state (headers +
 structs) so branches don't interfere with each other.
 
-**Parallel scaling overhead (clean diff, both sides parallelStream OFF):**
+**Parallel scaling overhead (clean diff, both sides intra-packet parallelism OFF):**
 
 | Delta | Frame | Source |
 |---|---|---|
@@ -283,21 +308,17 @@ DVaaS workload that's blocked by the current throughput.
   scaling reasons.** Lookup cost is real but does not affect scaling —
   direct L3 proves it scales cleanly. Lookup optimization is a separate
   absolute-throughput concern, not part of the scaling north star.
-- **Disabling within-packet `parallelStream()`.** Throughput-neutral in
-  parallel mode (1,506 vs 1,521 pps — noise) but 3× regression in
-  single-packet latency. Keep it for CLI/STF/playground users.
-
-**Also off the table:** optimizing lookup (`toUnsignedLong`, hash index,
-LPM trie) for scaling reasons. Lookup cost is real but does not affect
-scaling — direct L3 proves it scales cleanly. Lookup optimization is a
-separate absolute-throughput concern, not part of this north star.
+- **Disabling intra-packet parallelism.** Throughput-neutral in the
+  parallel (inter-packet) mode (1,506 vs 1,521 pps — noise) but 3×
+  regression in single-packet latency. Keep it for CLI/STF/playground
+  users.
 
 ### Phase 3: Validate
 
 For every optimization, run the benchmark and verify:
 
 1. **True single-thread throughput doesn't regress** — measured with
-   within-packet `parallelStream()` disabled.
+   intra-packet parallelism disabled.
 2. **Parallel scaling efficiency improves** — the ratio of
    `parallel_pps / (single_thread_pps × 16)` moves toward 1.0.
 3. **No correctness regressions** — all tests still pass.
