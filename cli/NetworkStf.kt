@@ -3,6 +3,7 @@ package fourward.cli
 import fourward.e2e.decodeHex
 import fourward.simulator.Endpoint
 import fourward.simulator.Link
+import fourward.simulator.NetworkTopology
 import java.nio.file.Path
 
 /**
@@ -32,6 +33,9 @@ data class NetworkStf(
   val expects: List<NetworkExpect>,
 ) {
   data class SwitchDecl(val id: String, val pipelinePath: Path, val stfPath: Path?)
+
+  /** Builds a [NetworkTopology] from the declared links. */
+  fun toTopology(): NetworkTopology = NetworkTopology(links)
 
   data class NetworkPacket(val endpoint: Endpoint, val payload: ByteArray)
 

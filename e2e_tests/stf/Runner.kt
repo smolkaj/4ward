@@ -146,9 +146,21 @@ fun matchOutputAgainstExpects(
  * Installs all STF-declared entries (PRE, action profile members/groups, table entries) into the
  * simulator. Throws [IllegalStateException] on write failure.
  */
-fun installStfEntries(sim: Simulator, stf: StfFile, p4Info: P4InfoOuterClass.P4Info) {
+fun installStfEntries(sim: Simulator, stf: StfFile, p4Info: P4InfoOuterClass.P4Info) =
+  installStfEntries(sim::writeEntry, stf, p4Info)
+
+/**
+ * Installs all STF-declared entries via a `writeEntry` lambda. Use this overload when the caller
+ * doesn't want to expose a raw [Simulator] (e.g., to install entries into a wrapped
+ * [fourward.p4runtime.P4RuntimeServer]).
+ */
+fun installStfEntries(
+  writeEntry: (P4RuntimeOuterClass.Update) -> WriteResult,
+  stf: StfFile,
+  p4Info: P4InfoOuterClass.P4Info,
+) {
   fun write(update: P4RuntimeOuterClass.Update, label: String) {
-    val result = sim.writeEntry(update)
+    val result = writeEntry(update)
     if (result !is WriteResult.Success) {
       error("WriteEntry ($label) failed: ${result.message}")
     }

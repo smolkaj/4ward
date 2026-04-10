@@ -58,23 +58,6 @@ kt_jvm_test(
 )
 
 kt_jvm_test(
-    name = "NetworkServeTest",
-    srcs = ["NetworkServeTest.kt"],
-    data = [
-        "//e2e_tests/basic_table:basic_table_pb",
-        "//e2e_tests/network:loop_inline.nstf",
-        "//e2e_tests/network:two_switch_inline.nstf",
-    ],
-    test_class = "fourward.cli.NetworkServeTest",
-    deps = [
-        ":cli_lib",
-        "//e2e_tests:golden_file",
-        "//e2e_tests/stf:stf_runner",
-        "@fourward_maven//:junit_junit",
-    ],
-)
-
-kt_jvm_test(
     name = "NetworkSimCliTest",
     srcs = ["NetworkSimCliTest.kt"],
     data = [

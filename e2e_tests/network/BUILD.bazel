@@ -9,7 +9,6 @@ exports_files(
         "two_switch_inline.nstf",
         "mixed_entries.nstf",
         "inline_multicast.nstf",
-        "loop_inline.nstf",
     ],
     visibility = ["//cli:__pkg__"],
 )

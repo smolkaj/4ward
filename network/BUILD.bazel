@@ -1,4 +1,4 @@
-load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_library")
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_library", "kt_jvm_test")
 
 # Multi-switch network glue that sits above simulator/ and p4runtime/.
 # Home for code that integrates network-level simulation with concrete
@@ -12,6 +12,25 @@ kt_jvm_library(
     visibility = ["//visibility:public"],
     deps = [
         "//p4runtime:p4runtime_lib",
+        "//simulator:ir_java_proto",
         "//simulator:simulator_lib",
+    ],
+)
+
+kt_jvm_test(
+    name = "NetworkP4RuntimeTest",
+    srcs = ["NetworkP4RuntimeTest.kt"],
+    data = [
+        "//e2e_tests/basic_table:basic_table_pb",
+    ],
+    test_class = "fourward.network.NetworkP4RuntimeTest",
+    deps = [
+        ":network_lib",
+        "//e2e_tests:golden_file",
+        "//e2e_tests/stf:stf_runner",
+        "//p4runtime:p4runtime_lib",
+        "//simulator:ir_java_proto",
+        "//simulator:simulator_lib",
+        "@fourward_maven//:junit_junit",
     ],
 )

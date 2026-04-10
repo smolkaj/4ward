@@ -1,9 +1,13 @@
 package fourward.p4runtime
 
+import fourward.ir.PipelineConfig
+import fourward.simulator.ProcessPacketResult
 import fourward.simulator.Simulator
+import fourward.simulator.WriteResult
 import io.grpc.Server
 import io.grpc.netty.NettyServerBuilder
 import java.util.concurrent.Executors
+import p4.v1.P4RuntimeOuterClass
 
 /** Wraps a P4Runtime + Dataplane gRPC server backed by a 4ward [Simulator]. */
 class P4RuntimeServer(
@@ -13,15 +17,9 @@ class P4RuntimeServer(
   cpuPortConfig: CpuPortConfig = CpuPortConfig.Auto,
 ) {
 
-  /**
-   * The underlying simulator. Exposed for pre-configuration (loading pipelines, installing entries)
-   * before the server starts accepting RPCs.
-   */
-  val simulator = Simulator(dropPortOverride)
+  private val simulator = Simulator(dropPortOverride)
   private val lock = ReadWriteMutex()
-
-  /** The packet broker. Exposed for registering cross-switch forwarding subscribers. */
-  val broker = PacketBroker(simulator::processPacket, lock)
+  private val broker = PacketBroker(simulator::processPacket, lock)
   private val service =
     P4RuntimeService(
       simulator,
@@ -69,6 +67,30 @@ class P4RuntimeServer(
   }
 
   fun port(): Int = server.port
+
+  // --- Pre-configuration API (call before [start]) -------------------------------------------
+
+  /** Loads a compiled pipeline into the underlying simulator. */
+  fun loadPipeline(config: PipelineConfig) = simulator.loadPipeline(config)
+
+  /** Writes a table/PRE/action-profile entry via the underlying simulator. */
+  fun writeEntry(update: P4RuntimeOuterClass.Update): WriteResult = simulator.writeEntry(update)
+
+  // --- Packet I/O (usable after [start]) -----------------------------------------------------
+
+  /**
+   * Registers a subscriber that receives results for every processed packet (via DataplaneService,
+   * PacketOut, or any other source). Returns a handle for unsubscribing.
+   */
+  fun onPacketProcessed(callback: (PacketBroker.SubscriptionResult) -> Unit) =
+    broker.subscribe(callback)
+
+  /**
+   * Processes a packet through this switch's broker. Equivalent to injecting a packet via gRPC.
+   * Fires all subscribers, including cross-switch forwarding.
+   */
+  fun processPacket(ingressPort: Int, payload: ByteArray): ProcessPacketResult =
+    broker.processPacket(ingressPort, payload)
 
   companion object {
     const val DEFAULT_PORT = 9559
