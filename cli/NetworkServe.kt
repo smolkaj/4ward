@@ -4,10 +4,9 @@ import fourward.e2e.StfFile
 import fourward.e2e.installStfEntries
 import fourward.e2e.loadPipelineConfig
 import fourward.p4runtime.P4RuntimeServer
-import fourward.p4runtime.PacketBroker
 import fourward.simulator.Endpoint
-import fourward.simulator.Link
 import fourward.simulator.NetworkSimulator
+import fourward.simulator.NetworkTopology
 import java.io.FileNotFoundException
 import java.nio.file.NoSuchFileException
 import java.nio.file.Path
@@ -96,7 +95,7 @@ fun startNetworkServers(nstf: NetworkStf, basePort: Int): List<P4RuntimeServer> 
     switchIds.add(sw.id)
   }
 
-  wireNetworkForwarding(nstf.links, switchIds, servers)
+  wireNetworkForwarding(NetworkTopology(nstf.links), switchIds, servers)
 
   return servers
 }
@@ -109,21 +108,14 @@ fun startNetworkServers(nstf: NetworkStf, basePort: Int): List<P4RuntimeServer> 
  * internals.
  */
 private fun wireNetworkForwarding(
-  links: List<Link>,
+  topology: NetworkTopology,
   switchIds: List<String>,
   servers: List<P4RuntimeServer>,
 ) {
-  if (links.isEmpty()) return
+  if (topology.links.isEmpty()) return
 
   val brokerBySwitch = switchIds.zip(servers).associate { (id, server) -> id to server.broker }
-
-  val linkMap =
-    buildMap<Endpoint, Endpoint> {
-      for (link in links) {
-        put(link.a, link.b)
-        put(link.b, link.a)
-      }
-    }
+  val linkMap = topology.toLinkMap()
 
   // Track recursion depth per thread to detect routing loops. The forwarding subscriber calls
   // dstBroker.processPacket(), which dispatches to subscribers (including this one) on the same
@@ -132,6 +124,13 @@ private fun wireNetworkForwarding(
 
   for ((switchId, broker) in brokerBySwitch) {
     broker.subscribe { result ->
+      // TODO: handle alternative forks (action selectors) across switches.
+      // See docs/LIMITATIONS.md, "Network simulation".
+      check(result.possibleOutcomes.size <= 1) {
+        "switch '$switchId': multiple possible outcomes (action selectors) not yet supported"
+      }
+      val outputs = result.possibleOutcomes.firstOrNull() ?: return@subscribe
+
       val hops = hopCount.get()
       if (hops >= NetworkSimulator.MAX_HOP_COUNT) {
         logger.warning(
@@ -141,19 +140,15 @@ private fun wireNetworkForwarding(
       }
       hopCount.set(hops + 1)
       try {
-        for (outputs in result.possibleOutcomes) {
-          for (output in outputs) {
-            val dst = linkMap[Endpoint(switchId, output.dataplaneEgressPort)]
-            if (dst != null) {
-              val dstBroker = brokerBySwitch[dst.switchId] ?: continue
-              try {
-                dstBroker.processPacket(dst.port, output.payload.toByteArray())
-              } catch (e: Exception) {
-                logger.warning(
-                  "cross-switch forwarding $switchId:${output.dataplaneEgressPort} → $dst failed: ${e.message}"
-                )
-              }
-            }
+        for (output in outputs) {
+          val dst = linkMap[Endpoint(switchId, output.dataplaneEgressPort)] ?: continue
+          val dstBroker = brokerBySwitch[dst.switchId] ?: continue
+          try {
+            dstBroker.processPacket(dst.port, output.payload.toByteArray())
+          } catch (e: Exception) {
+            logger.warning(
+              "cross-switch forwarding $switchId:${output.dataplaneEgressPort} → $dst failed: ${e.message}"
+            )
           }
         }
       } finally {

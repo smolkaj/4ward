@@ -17,16 +17,7 @@ import fourward.sim.TraceTree
 class NetworkSimulator(topology: NetworkTopology) {
 
   private val simulators = mutableMapOf<String, Simulator>()
-
-  /** Bidirectional link lookup: endpoint → endpoint. */
-  private val linkMap: Map<Endpoint, Endpoint> = buildMap {
-    for (link in topology.links) {
-      require(link.a !in this) { "port ${link.a} is connected to multiple links" }
-      require(link.b !in this) { "port ${link.b} is connected to multiple links" }
-      put(link.a, link.b)
-      put(link.b, link.a)
-    }
-  }
+  private val linkMap: Map<Endpoint, Endpoint> = topology.toLinkMap()
 
   /**
    * Adds a switch to the network and returns its [Simulator] for configuration (loading pipelines,
@@ -101,7 +92,20 @@ data class Endpoint(val switchId: String, val port: Int) {
 data class Link(val a: Endpoint, val b: Endpoint)
 
 /** A set of switches connected by point-to-point links. */
-data class NetworkTopology(val links: List<Link>)
+data class NetworkTopology(val links: List<Link>) {
+  /**
+   * Builds a bidirectional endpoint → endpoint map from the links. Validates that no port is
+   * connected to multiple links.
+   */
+  fun toLinkMap(): Map<Endpoint, Endpoint> = buildMap {
+    for (link in links) {
+      require(link.a !in this) { "port ${link.a} is connected to multiple links" }
+      require(link.b !in this) { "port ${link.b} is connected to multiple links" }
+      put(link.a, link.b)
+      put(link.b, link.a)
+    }
+  }
+}
 
 /** A packet that exited the network on an edge port (a port not connected to any link). */
 data class EdgeOutput(val switchId: String, val egressPort: Int, val payload: ByteString)
