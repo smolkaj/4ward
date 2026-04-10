@@ -39,18 +39,29 @@ in flight). Single-thread is measured with the within-packet
 `parallelStream()` in `V1ModelArchitecture.buildTraceTree` temporarily
 disabled, so exactly one core does all the work.
 
-| Workload | Single-thread | Concurrent | Physical cores used (con) | Speedup | **Efficiency vs 16 cores** |
+| Workload | Single-thread | Concurrent | Speedup | **Efficiency vs 16 cores** | CPU utilization (concurrent) |
 |---|---|---|---|---|---|
-| direct | 2,512 pps | 38,147 pps | 10.6 | **15.19×** | **95%** |
-| wcmp×16+mirr | 678 pps | 5,534 pps | 15.0 | **8.16×** | **51%** |
+| direct | 2,512 pps | 38,147 pps | **15.19×** | **95%** | 66% — idle headroom |
+| wcmp×16+mirr | 678 pps | 5,534 pps | **8.16×** | **51%** | 94% — saturated |
 
-**Direct L3 is essentially at linear scaling.** 15.19× on 16 cores = 95%
-efficiency. The machine isn't even saturated (10.6/16 cores used). No
-meaningful work to do here.
+**Direct L3 is essentially at linear scaling.** 15.19× on 16 physical
+cores = 95% efficiency. The machine isn't even CPU-saturated (JVM
+averaged 66% of total machine CPU), so the remaining 5% gap is not a
+compute bottleneck — it's dispatch overhead (gRPC, coroutines, or
+`ForkJoinPool` task submission serial fraction). Not worth chasing.
 
-**Fork-heavy workloads (wcmp×16+mirr) are at ~51% efficiency.** That's
-the real scaling gap. Concurrent mode saturates the machine (15/16 cores)
-but each packet costs ~2× more CPU in concurrent than in single-thread.
+**Fork-heavy workloads (wcmp×16+mirr) are at 51% efficiency.** That's
+the real scaling gap. Concurrent mode *does* saturate the machine (94%
+CPU utilization) — but each packet costs ~1.9× more CPU under concurrent
+load than under single-thread. More threads, more CPU consumed, less
+throughput per core. Classic contention signature.
+
+> **Note on CPU utilization vs efficiency:** these are different metrics.
+> CPU utilization = how much of the machine is being used. Efficiency =
+> speedup / theoretical max. Direct has low CPU utilization but high
+> efficiency (it completes the work fast with fewer cores than the
+> machine has). wcmp has high CPU utilization but low efficiency (it
+> uses all the cores but doesn't get proportional throughput).
 
 ## Why the gap? (Phase 1 profile findings)
 
@@ -223,11 +234,11 @@ linear on 16 physical cores. (Direct L3 is already at 95%.)
 
 ## Open questions
 
-- **Why does concurrent direct use only 10.6 physical cores (not 16)?**
-  Direct completes 50k packets in 1.3s; the machine isn't even saturated.
-  Likely the gRPC server's request dispatch or the `ForkJoinPool` task
-  submission path is the serial bottleneck. Not worth chasing — direct
-  is already at 95% efficiency on the cores it does use.
+- **Why is concurrent direct at 66% CPU utilization, not 100%?** The JVM
+  has idle capacity that isn't being used — meaning the bottleneck isn't
+  compute, it's dispatch (gRPC, coroutines, or `ForkJoinPool` task
+  submission serial fraction). Not worth chasing — direct is already at
+  95% efficiency despite leaving cores idle.
 - **Is `InjectPackets` (streaming RPC) the right benchmark?** Real DVaaS
   workloads may use many short-lived streams, not one long stream of
   10k packets. Scaling characteristics could differ.
