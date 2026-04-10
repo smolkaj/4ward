@@ -116,8 +116,8 @@ class DataplaneBenchmark {
     println(SEPARATOR)
     println()
 
-    // --- Concurrent benchmark: InjectPackets (all packets at once) ---
-    val concurrentPoints =
+    // --- Parallel benchmark: InjectPackets distributes across cores via ForkJoinPool ---
+    val parallelPoints =
       listOf(
         ScalePoint("direct", routes = 10_000, nexthops = 100, aclEntries = ACL_ENTRIES),
         ScalePoint(
@@ -137,22 +137,22 @@ class DataplaneBenchmark {
         ),
       )
 
-    println("Concurrent (InjectPackets, $BENCHMARK_PACKETS packets at once):")
-    println(CONCURRENT_HEADER)
-    println(CONCURRENT_SEPARATOR)
+    println("Parallel (InjectPackets, $BENCHMARK_PACKETS packets across cores):")
+    println(PARALLEL_HEADER)
+    println(PARALLEL_SEPARATOR)
 
-    for (sp in concurrentPoints) {
-      val result = measureConcurrent(sp)
+    for (sp in parallelPoints) {
+      val result = measureParallel(sp)
       println(
         "| %-12s | %6d | %10.0f | %10.1f |".format(sp.label, sp.routes, result.first, result.second)
       )
       jsonResults.add(
-        """{"mode":"concurrent","config":"${sp.label}","routes":${sp.routes},""" +
+        """{"mode":"parallel","config":"${sp.label}","routes":${sp.routes},""" +
           """"packets_per_sec":%.0f,"elapsed_ms":%.1f}""".format(result.first, result.second)
       )
     }
 
-    println(CONCURRENT_SEPARATOR)
+    println(PARALLEL_SEPARATOR)
     println()
 
     // Write JSON for machine consumption.
@@ -189,7 +189,7 @@ class DataplaneBenchmark {
   )
 
   /** Measures total throughput by sending all packets at once via InjectPackets. */
-  private fun measureConcurrent(sp: ScalePoint): Pair<Double, Double> =
+  private fun measureParallel(sp: ScalePoint): Pair<Double, Double> =
     createHarness().use { harness ->
       val actualNexthops = minOf(sp.nexthops, maxOf(sp.routes, 1))
       installEntries(harness, sp.routes, actualNexthops, sp.wcmpMembers, sp.mirror, sp.aclEntries)
@@ -744,8 +744,8 @@ class DataplaneBenchmark {
       "| Config       | Routes | Entries |  p50 ms  |  p99 ms  | mean ms  | packets/s  |"
     private const val SEPARATOR =
       "|--------------|--------|---------|----------|----------|----------|------------|"
-    private const val CONCURRENT_HEADER = "| Config       | Routes | packets/s  | elapsed ms |"
-    private const val CONCURRENT_SEPARATOR = "|--------------|--------|------------|------------|"
+    private const val PARALLEL_HEADER = "| Config       | Routes | packets/s  | elapsed ms |"
+    private const val PARALLEL_SEPARATOR = "|--------------|--------|------------|------------|"
 
     /** Maps route index i to a /32 destination: 10.{b1}.{b2}.{b3}. */
     private fun ipForRoute(i: Int): ByteArray =
