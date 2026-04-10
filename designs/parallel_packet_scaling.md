@@ -253,9 +253,9 @@ smallest thing → re-measure → decide what's next. Don't pre-commit to a
 multi-step plan beyond the next step.
 
 **Scope.** Phase 1 showed the scaling gap is **specific to fork-heavy
-workloads**. Direct L3 is already at 95% efficiency with no meaningful
+workloads**. Direct L3 is already at 94% efficiency with no meaningful
 work left to do. So "optimize" here means "close the wcmp×128 gap" —
-bring 47% efficiency closer to linear.
+bring 45% efficiency closer to linear.
 
 The gap comes from per-fork allocation pressure. At realistic fork
 counts (128+) the two biggest buckets are roughly equal:
@@ -316,7 +316,7 @@ DVaaS workload that's blocked by the current throughput.
 3. **No correctness regressions** — all tests still pass.
 
 **Done when:** wcmp×128 parallel efficiency reaches ≥80% of linear on
-16 physical cores. (Direct L3 is already at 95%.)
+16 physical cores. (Direct L3 is already at 94%.)
 
 ## Non-goals
 
