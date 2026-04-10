@@ -145,36 +145,58 @@ exact-match tables.
 
 ### Phase 2: Optimize
 
-Targets ordered by expected impact, based on Phase 1 profile:
+**Discipline.** Performance work is bounded by simplicity. The project
+rules are explicit: "correctness over performance" and "readability over
+performance." An optimization that makes the code harder to read or
+reason about is not worth it, even if the benchmark improves. Each step
+must clear that bar before it lands.
 
-1. **Pre-compute Long values for match field bytes at insert time.**
-   Instead of converting `ByteString → Long` on every match, store the
-   converted Long alongside each entry. Eliminates the 68% hot spot.
-   Easy: single field on the per-table entry storage. Caveat: only works
-   for fields ≤ 63 bits; wider fields fall back to `BigInteger`.
+**Approach.** One optimization at a time. Measure → fix the smallest
+thing → re-measure → decide what's next. Don't pre-commit to a multi-step
+plan beyond the next step. The Phase 1 result already invalidated most of
+my pre-profile guesses (GC, BigInteger, allocation), so committing to a
+sequence of fixes ahead of measurement would be the same mistake again.
 
-2. **Hash index for exact-match tables.** O(1) lookup instead of O(n)
-   linear scan. Even with optimization #1, the linear scan over 10k
-   entries is wasteful for exact-match. Already on the roadmap.
+**Next step: cache `Long` values for match field bytes at insert time.**
 
-3. **LPM trie for LPM-only tables.** O(W) lookup where W is the bit
-   width, instead of O(n). For SAI P4 routing tables, W=32 (IPv4) or
-   W=128 (IPv6); n is in the thousands, so the trie wins.
+The 68% hot spot is `toUnsignedLong(ByteString)`, called per-FieldMatch
+on every entry of every linear-scan lookup. The fix: compute the Long
+once when the entry is inserted, cache it, read it on lookup. Fields > 63
+bits still go through the `BigInteger` path.
 
-4. **Iterator allocation reduction.** Replace `for (x in list)` with
-   index-based loops in the hot path (`scoreEntry`, `lookup`,
-   `matchesFieldMatch`). Eliminates the 56% iterator allocation churn.
-   Per-packet GC pressure isn't the bottleneck *yet*, but it would be
-   after the lookup optimizations land.
+Implementation: wrap each stored entry in a small internal class
+(`StoredEntry(entry, longCache)`) inside `TableStore`. The protobuf
+`TableEntry` is immutable, so the cache can't go stale. The wrapper is
+private to `TableStore` — no public API change.
 
-5. **`Long` fast path for narrow bit fields.** Use `Long` instead of
-   `BigInteger` for `bit<N>` ≤ 63. Already partially done in
-   `matchesFieldMatch`; extend to `BitVector` arithmetic.
+Complexity cost: one new internal class, one extra layer of indirection
+when accessing entries inside `TableStore`. Bounded and contained.
 
-Items 1 and 2 should be done first. Item 3 is bigger but could be
-deferred until 1+2 ship and we re-measure. Items 4 and 5 are
-allocation-side optimizations that pay off once compute is no longer
-the bottleneck.
+Expected impact: eliminates the 68% hot spot. The remaining lookup cost
+is the linear scan + comparison itself, which should be much cheaper.
+
+**After that:** re-run the benchmark, look at the new profile, decide
+what (if anything) needs to change next. Possible follow-ups, in
+descending order of complexity acceptability:
+
+- *More caching / micro-optimizations within the existing data structure
+  layout.* Cheap if the profile points there.
+- *Hash index for exact-match tables.* Adds a parallel index that must
+  be kept in sync with the entry list. Real complexity cost. Worth doing
+  only if the linear scan is still the bottleneck *and* we have a
+  workload that's dominated by exact-match (SAI middleblock isn't —
+  it's LPM-heavy).
+- *LPM trie.* Substantial new data structure. Same bar: only if measured
+  necessary.
+
+These are *possible* directions, not commitments. Each requires its own
+profile-backed justification before landing.
+
+**Explicitly off the table:** replacing `for (x in list)` with
+index-based loops to reduce iterator allocation. Kotlin idiom is the
+for-loop; index loops are a readability regression. The 56% iterator
+allocation churn does not currently cause GC pauses (<0.5% of wall time),
+so there is no measured problem to solve.
 
 ### Phase 3: Validate
 
