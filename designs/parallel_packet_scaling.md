@@ -22,14 +22,7 @@ CPU-bound JVM workload with heavy allocation, 85-90% on 16 cores is
 ambitious but reachable; 50% is common without work. Anything more than
 ~10% off demands an explanation.
 
-### Terminology
-
-**Parallel** = multiple tasks executing literally at the same instant on
-different cores. **Concurrent** = multiple tasks making progress over
-overlapping time, possibly interleaved on one core. Linear scaling is a
-**parallelism** concept. The benchmark runs packets on distinct worker
-threads via `ForkJoinPool`, scheduled onto distinct physical cores — that
-is parallelism, not concurrency.
+### Two axes of parallelism
 
 The simulator has **two independent axes of parallelism**, and the
 distinction matters throughout this document:
