@@ -135,10 +135,10 @@ and there are several that matter:
 
 2. **L3 cache pressure.** Each physical core has private L1/L2; all
    cores share L3. Single-threaded, one packet's working set fits in
-   L1/L2. At 15 parallel threads, the combined ephemeral working set
-   (HashMaps, BigIntegers, builders per thread) spills into L3, evicting
-   each other. What was an L2 hit becomes an L3 hit (3× slower), or
-   worse, a DRAM access (10× slower).
+   L1/L2. With many threads running in parallel, their combined
+   ephemeral working sets (HashMaps, BigIntegers, builders per thread)
+   spill into L3, evicting each other. What was an L2 hit becomes an
+   L3 hit (3× slower), or worse, a DRAM access (10× slower).
 
 3. **Memory bandwidth.** DRAM has finite bandwidth. Fresh allocations
    touch new cache lines; at gigabytes per second of allocation across
@@ -218,7 +218,9 @@ at ~9% combined. Total allocation-related scaling overhead: **~23-25%**.
 
 ### The mechanism, concretely
 
-When 15 threads each process a fork-heavy packet, they all call
+When many `ForkJoinPool` workers each process a fork-heavy packet at
+once (roughly 25-30 hw threads busy on this machine, judging by the
+81% CPU utilization in the wcmp×128 parallel run), they all call
 `HeaderVal.deepCopy()` and `StructVal.deepCopy()`, which do
 `fields.mapValuesTo(mutableMapOf()) { ... }`. That allocates:
 
@@ -226,7 +228,7 @@ When 15 threads each process a fork-heavy packet, they all call
 2. New nodes for each key-value pair inserted
 3. A resize when the map exceeds load factor
 
-With 15 threads × 128 branches per packet × multiple HeaderVals/StructVals
+With many threads × 128 branches per packet × multiple HeaderVals/StructVals
 per branch, the allocator is hit millions of times per second across all
 threads. TLAB refills become frequent; HashMap resize compounds the
 issue; `BigInteger.<init>` allocates fresh arrays for bit field
