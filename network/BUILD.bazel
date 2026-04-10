@@ -1,0 +1,17 @@
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_library")
+
+# Multi-switch network glue that sits above simulator/ and p4runtime/.
+# Home for code that integrates network-level simulation with concrete
+# runtimes (e.g., wiring P4Runtime servers together for cross-switch forwarding).
+kt_jvm_library(
+    name = "network_lib",
+    srcs = glob(
+        ["*.kt"],
+        exclude = ["*Test.kt"],
+    ),
+    visibility = ["//visibility:public"],
+    deps = [
+        "//p4runtime:p4runtime_lib",
+        "//simulator:simulator_lib",
+    ],
+)
