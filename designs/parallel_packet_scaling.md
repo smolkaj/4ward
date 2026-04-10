@@ -70,24 +70,26 @@ speedup with no confounding from intra-packet behavior.
 ## Current state
 
 Verified measurements on a 16 physical core / 32 SMT thread AMD Ryzen 9
-7950X3D, SAI P4 middleblock, 10k routes.
+7950X3D, SAI P4 middleblock, 10k routes. Both sides have intra-packet
+parallelism disabled (`-Dfourward.simulator.intraPacketParallelism=false`).
+Measured via the `profile focused` test in `DataplaneBenchmark`.
 
 | Workload | Single-thread | Parallel | Speedup | **Efficiency vs 16 cores** | CPU utilization (parallel) |
 |---|---|---|---|---|---|
-| direct | 2,512 pps | 38,147 pps | **15.19×** | **95%** | 66% — idle headroom |
-| wcmp×16+mirr | 678 pps | 5,534 pps | **8.16×** | **51%** | 94% — saturated |
-| wcmp×128 | 203 pps | 1,521 pps | **7.49×** | **47%** | 83% — saturated |
+| direct | 2,568 pps | 38,449 pps | **14.97×** | **94%** | 65% — idle headroom |
+| wcmp×16+mirr | 664 pps | 5,624 pps | **8.47×** | **53%** | 91% — saturated |
+| wcmp×128 | 207 pps | 1,501 pps | **7.25×** | **45%** | 81% — saturated |
 
-**Direct L3 is essentially at linear scaling.** 15.19× on 16 physical
-cores = 95% efficiency. The machine isn't even CPU-saturated (JVM
-averaged 66% of total machine CPU), so the remaining 5% gap is dispatch
+**Direct L3 is essentially at linear scaling.** 14.97× on 16 physical
+cores = 94% efficiency. The machine isn't even CPU-saturated (JVM
+averaged 65% of total machine CPU), so the remaining 6% gap is dispatch
 overhead (gRPC, coroutines, `ForkJoinPool` task submission serial
 fraction), not compute. Not worth chasing.
 
-**Fork-heavy workloads are at ~50% efficiency** and **efficiency degrades
-slightly with higher fork counts** (51% at 32 branches per packet, 47% at
-128). These workloads saturate the machine but each packet costs ~2× more
-CPU under parallel load than under single-thread.
+**Fork-heavy workloads are at ~45-53% efficiency** and **efficiency
+degrades with higher fork counts** (53% at 32 branches per packet, 45%
+at 128). These workloads saturate the machine but each packet costs ~2×
+more CPU under parallel load than under single-thread.
 
 > **CPU utilization ≠ efficiency.** CPU utilization = how much of the
 > machine is being used. Efficiency = speedup / theoretical max. Direct
@@ -102,16 +104,16 @@ parallelism toggled on and off:
 
 | Mode | Intra-packet | Throughput | CPU util |
 |---|---|---|---|
-| Single-thread | OFF | 203 pps | 3.4% |
+| Single-thread | OFF | 207 pps | 3.4% |
 | Single-thread | ON | 633 pps | — |
-| Parallel (inter-packet) | OFF | 1,521 pps | 83% |
+| Parallel (inter-packet) | OFF | 1,501 pps | 81% |
 | Parallel (inter-packet) | ON | 1,506 pps | 88% |
 
 Under parallel load, intra-packet is a wash on throughput (1,506 vs
-1,521 — noise) but burns ~5% more CPU. Under single-packet load, it's
-a 3× latency win (633 vs 203). Keep it enabled by default — CLI, STF,
+1,501 — noise) but burns ~7% more CPU. Under single-packet load, it's
+a 3× latency win (633 vs 207). Keep it enabled by default — CLI, STF,
 and playground users benefit, parallel users don't pay. The scaling
-measurements below use intra-packet **off** on both sides to keep the
+measurements above use intra-packet **off** on both sides to keep the
 comparison clean.
 
 ## Why embarrassingly parallel isn't linear in practice
@@ -202,17 +204,17 @@ structs) so branches don't interfere with each other.
 
 | Delta | Frame | Source |
 |---|---|---|
-| **+7.3%** | `BigInteger.<init>` | Per-fork arithmetic intermediates |
-| **+7.0%** | `HashMap.putVal` | Per-fork header/struct deep copy |
-| **+2.4%** | `TraceEvent$Builder.buildPartial` | Per-fork trace event allocation |
-| **+2.4%** | `BitVector.<init>` | Related to `BigInteger` allocation |
-| **+2.3%** | `HashMap.put` | Per-fork header/struct deep copy |
-| +0.9% | `HashMap.resize` | HashMap growth during deep copy |
+| **+7.7%** | `BigInteger.<init>(int[], int)` | Per-fork arithmetic intermediates |
+| **+7.4%** | `HashMap.putVal` | Per-fork header/struct deep copy |
+| **+2.9%** | `TraceEvent$Builder.buildPartial` | Per-fork trace event allocation |
+| **+2.1%** | `BitVector.<init>(BigInteger, int)` | Related to `BigInteger` allocation |
+| **+1.4%** | `HashMap.put` | Per-fork header/struct deep copy |
+| +0.9% | `BitVector.concat` | Bit field operations |
+| +0.7% | `BigInteger.<init>(int[])` | More BigInteger allocation |
 
-HashMap put operations combined (`put` + `putVal` + `resize`) account
-for **+10.2%** — the single largest overhead bucket. BigInteger
-allocation is a close second at ~8% combined. Total allocation-related
-scaling overhead: **~25-26%**.
+**BigInteger allocation is the single largest overhead bucket at ~9%
+combined.** HashMap put operations (`put` + `putVal`) are a close second
+at ~9% combined. Total allocation-related scaling overhead: **~23-25%**.
 
 ### The mechanism, concretely
 
@@ -256,8 +258,8 @@ bring 47% efficiency closer to linear.
 The gap comes from per-fork allocation pressure. At realistic fork
 counts (128+) the two biggest buckets are roughly equal:
 
-- **~10% HashMap operations** from per-fork header/struct deep copies
-- **~8% BigInteger allocation** from per-fork bit field arithmetic
+- **~9% BigInteger allocation** from per-fork bit field arithmetic
+- **~9% HashMap operations** from per-fork header/struct deep copies
 - **~5% TraceEvent builders + BitVector init** — harder to avoid
 
 Candidate optimizations, in order of complexity:
@@ -265,22 +267,22 @@ Candidate optimizations, in order of complexity:
 1. **HashMap preallocation in deepCopy.** Eliminates resize churn.
    Two-line change. Expected impact: ~2% (measured — real but small).
 
-2. **Copy-on-write for HeaderVal/StructVal.** Share the underlying map
+2. **`Long` fast path for narrow bit fields.** Use `Long` instead of
+   `BigInteger` for `bit<N>` ≤ 63. Partially exists in
+   `matchesFieldMatch`; extend to `BitVector` arithmetic. Expected
+   impact: most of the ~9% BigInteger bucket.
+
+3. **Copy-on-write for HeaderVal/StructVal.** Share the underlying map
    between fork branches; copy only on write. Most branches touch a
    small subset of fields, so most of the deep-copy work is wasted.
    Structural change — mutation model goes from in-place to persistent.
-   Expected impact: most of the ~10% HashMap bucket.
-
-3. **`Long` fast path for narrow bit fields.** Use `Long` instead of
-   `BigInteger` for `bit<N>` ≤ 63. Partially exists in
-   `matchesFieldMatch`; extend to `BitVector` arithmetic. Expected
-   impact: most of the ~8% BigInteger bucket.
+   Expected impact: most of the ~9% HashMap bucket.
 
 **The honest realization:** fixing any one of these only closes a
 fraction of the gap. Getting to truly linear scaling would require
 fixing *all* of them — a broader refactor than any single PR. A single
-win of 10% (HashMap) or 8% (BigInteger) takes efficiency from 47% to
-maybe 55% — meaningful but still well below linear.
+win of ~9% takes efficiency from 45% to maybe 55% — meaningful but
+still well below linear.
 
 **Before committing to anything:** the simplicity budget matters. The
 lock-free dataplane PR was a clear simplification AND had measurable
@@ -298,7 +300,7 @@ DVaaS workload that's blocked by the current throughput.
   direct L3 proves it scales cleanly. Lookup optimization is a separate
   absolute-throughput concern, not part of the scaling north star.
 - **Disabling intra-packet parallelism.** Throughput-neutral in the
-  parallel (inter-packet) mode (1,506 vs 1,521 pps — noise) but 3×
+  parallel (inter-packet) mode (1,506 vs 1,501 pps — noise) but 3×
   regression in single-packet latency. Keep it for CLI/STF/playground
   users.
 
