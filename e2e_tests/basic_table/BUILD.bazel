@@ -1,6 +1,8 @@
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
 load("//e2e_tests:p4c.bzl", "p4c_compile")
 
+package(default_testonly = True)
+
 p4c_compile(
     name = "basic_table",
     src_p4 = "basic_table.p4",
@@ -20,7 +22,7 @@ kt_jvm_test(
     ],
     test_class = "fourward.e2e.basictable.BasicTableTest",
     deps = [
-        "//e2e_tests/stf:stf_runner",
+        "//stf",
         "@fourward_maven//:com_google_protobuf_protobuf_java",
         "@fourward_maven//:junit_junit",
     ],

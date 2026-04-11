@@ -1,6 +1,8 @@
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
 load("//e2e_tests:p4c.bzl", "p4c_compile")
 
+package(default_testonly = True)
+
 # P4/STF files used by bmv2_diff tests (cross-package reference).
 exports_files([
     "action_selector_3.p4",
@@ -75,7 +77,7 @@ p4c_compile(
 
 _TEST_DEPS = [
     "//e2e_tests:golden_file",
-    "//e2e_tests/stf:stf_runner",
+    "//stf",
     "//simulator:ir_java_proto",
     "//simulator:p4runtime_java_proto",
     "//simulator:simulator_java_proto",

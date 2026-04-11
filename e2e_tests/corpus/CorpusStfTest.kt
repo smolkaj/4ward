@@ -14,8 +14,8 @@
 
 package fourward.e2e.corpus
 
-import fourward.e2e.TestResult
-import fourward.e2e.runStfTest
+import fourward.stf.TestResult
+import fourward.stf.runStfTest
 import java.nio.file.Files
 import java.nio.file.Paths
 import org.junit.Assert.fail

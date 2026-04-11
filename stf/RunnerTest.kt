@@ -1,4 +1,4 @@
-package fourward.e2e
+package fourward.stf
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

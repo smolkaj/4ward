@@ -293,16 +293,17 @@ requirements.
 │   └── simulator.proto     Simulator service protocol (in-process + gRPC)
 ├── p4c_backend/            p4c backend plugin (C++, emits the proto IR)
 ├── p4runtime/              P4Runtime gRPC server (Kotlin)
+├── stf/                    STF parser + runner (drives the simulator from .stf files)
 ├── web/                    Interactive web playground
 ├── examples/               Ready-to-run P4 programs and STF tests
 ├── e2e_tests/
-│   ├── stf/                STF runner (drives the simulator directly)
 │   ├── corpus/             p4c STF corpus (bulk regression)
 │   ├── trace_tree/         Golden trace-tree tests
 │   ├── p4testgen/          p4testgen integration (auto-generated paths)
 │   ├── bmv2_diff/          BMv2 differential testing
 │   ├── sai_p4/             SAI P4 test fixtures
 │   └── <feature>/          Hand-written feature tests (passthrough, lpm, …)
+├── designs/                Design documents
 ├── userdocs/               User-facing documentation (MkDocs → smolkaj.github.io/4ward/)
 ├── docs/                   Developer documentation (architecture, roadmap, testing)
 └── tools/                  Developer scripts (format, lint, coverage, …)

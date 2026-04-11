@@ -1,12 +1,14 @@
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_library")
 load("//e2e_tests:p4testgen.bzl", "p4_testgen_suite", "p4_testgen_test")
 
+package(default_testonly = True)
+
 kt_jvm_library(
     name = "p4testgen_test_class",
     srcs = ["P4TestgenSuiteTest.kt"],
     visibility = ["//e2e_tests:__subpackages__"],
     deps = [
-        "//e2e_tests/stf:stf_runner",
+        "//stf",
         "@fourward_maven//:junit_junit",
     ],
 )

@@ -2,13 +2,13 @@ package fourward.cli
 
 import com.google.protobuf.TextFormat
 import com.google.protobuf.util.JsonFormat
-import fourward.e2e.ReceivedPacket
-import fourward.e2e.StfFile
-import fourward.e2e.appendBestOutcome
-import fourward.e2e.installStfEntries
-import fourward.e2e.loadPipelineConfig
-import fourward.e2e.matchOutputAgainstExpects
 import fourward.simulator.Simulator
+import fourward.stf.ReceivedPacket
+import fourward.stf.StfFile
+import fourward.stf.appendBestOutcome
+import fourward.stf.installStfEntries
+import fourward.stf.loadPipelineConfig
+import fourward.stf.matchOutputAgainstExpects
 import java.io.FileNotFoundException
 import java.nio.file.NoSuchFileException
 import java.nio.file.Path

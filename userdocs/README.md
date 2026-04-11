@@ -1,4 +1,4 @@
-# userdocs
+# User Documentation
 
 User-facing documentation for 4ward, built with
 [MkDocs Material](https://squidfunk.github.io/mkdocs-material/).

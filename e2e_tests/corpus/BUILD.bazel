@@ -1,6 +1,8 @@
 load("//e2e_tests:compile_test.bzl", "compile_test_suite")
 load("//e2e_tests:corpus.bzl", "corpus_test_suite")
 
+package(default_testonly = True)
+
 # p4c corpus STF tests run in CI. All entries must pass.
 #
 # To add a new test:

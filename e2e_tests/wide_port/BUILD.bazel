@@ -1,6 +1,8 @@
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
 load("//e2e_tests:p4c.bzl", "p4c_compile")
 
+package(default_testonly = True)
+
 # Derive a v1model.p4 with 16-bit port fields from the upstream file.
 # This guarantees our test always tracks upstream with exactly one change.
 genrule(
@@ -26,7 +28,7 @@ kt_jvm_test(
     ],
     test_class = "fourward.e2e.wideport.WidePortTest",
     deps = [
-        "//e2e_tests/stf:stf_runner",
+        "//stf",
         "@fourward_maven//:com_google_protobuf_protobuf_java",
         "@fourward_maven//:junit_junit",
     ],

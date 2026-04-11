@@ -2,6 +2,8 @@ load("@rules_cc//cc:defs.bzl", "cc_binary")
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
 load("//e2e_tests:bmv2_diff.bzl", "bmv2_diff_test_suite")
 
+package(default_testonly = True)
+
 cc_binary(
     name = "bmv2_driver",
     srcs = ["bmv2_driver.cpp"],

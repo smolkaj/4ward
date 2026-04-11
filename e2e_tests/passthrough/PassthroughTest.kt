@@ -1,7 +1,7 @@
 package fourward.e2e.passthrough
 
-import fourward.e2e.TestResult
-import fourward.e2e.runStfTest
+import fourward.stf.TestResult
+import fourward.stf.runStfTest
 import org.junit.Assert.fail
 import org.junit.Test
 

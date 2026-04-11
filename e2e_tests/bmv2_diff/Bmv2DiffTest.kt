@@ -1,10 +1,10 @@
 package fourward.e2e.bmv2
 
-import fourward.e2e.StfFile
-import fourward.e2e.hex
-import fourward.e2e.installStfEntries
-import fourward.e2e.loadPipelineConfig
 import fourward.simulator.Simulator
+import fourward.stf.StfFile
+import fourward.stf.hex
+import fourward.stf.installStfEntries
+import fourward.stf.loadPipelineConfig
 import java.io.File
 import java.nio.file.Paths
 import org.junit.Assert

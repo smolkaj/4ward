@@ -1,4 +1,4 @@
-package fourward.e2e
+package fourward.stf
 
 import com.google.protobuf.ByteString
 import com.google.protobuf.TextFormat
