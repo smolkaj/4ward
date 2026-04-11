@@ -1,4 +1,4 @@
-# Web
+# Web Playground
 
 The 4ward web playground: write P4, install entries, inject packets,
 and step through the trace — all in the browser.

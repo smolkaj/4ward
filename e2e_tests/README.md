@@ -1,4 +1,4 @@
-# E2E Tests
+# End-to-End Tests
 
 End-to-end tests exercising the full 4ward stack. Everything here is
 `testonly` — production code cannot depend on it. Most tests use
