@@ -56,16 +56,14 @@ cc_proto_library(
     deps = [":simulator_proto"],
 )
 
-# The p4runtime BCR module only ships cc/go/py proto targets; we generate
-# the Java ones ourselves so the Kotlin simulator (and downstream Kotlin
-# code) can import p4runtime classes. Strict-deps additionally requires
-# a *direct* java_proto_library wrapper for every proto whose generated
-# classes are referenced from Kotlin source — generated classes leaking
-# in transitively from another java_proto_library are not enough.
+# The p4runtime BCR module only ships cc/go/py proto targets; we
+# generate the Java ones ourselves. Strict-deps also requires a
+# *direct* java_proto_library wrapper for every proto referenced
+# from Kotlin — classes leaking through another wrapper aren't enough.
 #
-# TODO(strict-deps cleanup): once https://github.com/p4lang/p4runtime/pull/607
-# lands and a BCR release including it is available, drop these
-# wrappers and consume `@p4runtime//proto/p4/...:X_java_proto` directly.
+# TODO(strict-deps): drop these once p4lang/p4runtime#607 lands
+# and a BCR release ships; then depend on
+# `@p4runtime//proto/p4/...:X_java_proto` directly.
 java_proto_library(
     name = "p4runtime_java_proto",
     visibility = ["//visibility:public"],

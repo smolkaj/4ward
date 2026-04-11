@@ -30,16 +30,14 @@ cd bcr_test_module
 bazel build -- @fourward//... -@fourward//e2e_tests/... -@fourward//examples/...
 ```
 
-The `e2e_tests/` and `examples/` exclusions mirror the
-`bcr-consumer-check` CI job — they carry `dev_dependency` deps (like
-`@behavioral_model`) that aren't visible to non-root consumers, and
-they're not part of the public surface anyway.
+`e2e_tests/` and `examples/` are excluded because they carry
+`dev_dependency` targets (like `@behavioral_model`) that aren't
+visible to non-root consumers — and they're not part of the public
+surface anyway.
 
-This directory carries its own [`.bazelversion`](.bazelversion) pinning
-Bazel 8.x, because the BCR release of `grpc@1.80.0` pulls
-`rules_swift@2.5.0`, which conflicts with the `rules_swift@3.1.2` that
-`bazel_tools` carries in Bazel 9. (When `@fourward` is the root module
-its `grpc` `git_override` sidesteps this, but overrides don't apply to
-non-root modules — which is the whole point of this test.) Make sure
-you have [bazelisk](https://github.com/bazelbuild/bazelisk) installed
-so the per-directory version pin is honored automatically.
+Use [bazelisk](https://github.com/bazelbuild/bazelisk): the
+[`.bazelversion`](.bazelversion) here pins Bazel 8.x because BCR's
+`grpc@1.80.0` pulls `rules_swift@2.5.0`, which conflicts with
+`rules_swift@3.1.2` from Bazel 9's `bazel_tools`. (`@fourward`-as-root
+sidesteps this with a `grpc` `git_override`, but overrides don't
+apply to non-root modules — which is the whole point of this test.)

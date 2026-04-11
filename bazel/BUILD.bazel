@@ -7,17 +7,6 @@ package(
     licenses = ["notice"],
 )
 
-# Custom Kotlin toolchain that enforces strict dependency declarations:
-# every `kt_jvm_library.deps` must list a direct target for every symbol
-# the source code uses (no silent leaking through transitive deps).
-#
-# Registered via `register_toolchains(..., dev_dependency = True)` in
-# `MODULE.bazel`, which means it only activates when 4ward is the root
-# module (its own builds, CI, tests). BCR consumers of `@fourward` see
-# the default rules_kotlin toolchain instead — they don't inherit the
-# strict check, and they don't need the `grpc_kotlin.patch` that makes
-# the check pass here.
-#
 # `experimental_report_unused_deps` is intentionally not enabled: it
 # misfires on 4ward's mix of rules_jvm_external Maven artifacts (e.g.
 # `@fourward_maven//:io_grpc_grpc_api`) and Bazel-native targets that

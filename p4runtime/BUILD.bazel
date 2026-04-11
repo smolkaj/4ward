@@ -66,8 +66,8 @@ kt_jvm_grpc_library(
 # P4Runtime gRPC stubs (Kotlin)
 # =============================================================================
 
-# Java gRPC stubs for P4Runtime service. The Java/Kotlin proto wrappers
-# themselves live in //simulator (peer to other p4runtime java_proto wrappers).
+# Java gRPC stubs for P4Runtime service. (Java proto wrappers live
+# in //simulator, not here.)
 java_grpc_library(
     name = "p4runtime_java_grpc",
     srcs = ["@p4runtime//proto/p4/v1:p4runtime_proto"],

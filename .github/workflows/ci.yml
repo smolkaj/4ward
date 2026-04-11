@@ -221,19 +221,16 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      # Build flags (C++20, remotejdk_21, bzlmod) live in
-      # `bcr_test_module/.bazelrc` so local `bazel build` invocations
-      # reproduce this job exactly. Only CI-specific bits — the
-      # BuildBuddy remote cache and the target-pattern exclusions —
-      # stay inline. `bcr_test_module/.bazelversion` pins Bazel 8.x so
-      # bazelisk picks the right version automatically (BCR's
-      # grpc@1.80.0 pulls rules_swift@2.5.0, which conflicts with
-      # rules_swift@3.1.2 that bazel_tools carries in Bazel 9 —
-      # fourward-as-root uses a grpc `git_override` to sidestep this,
-      # but overrides don't apply to non-root modules).
+      # Build flags live in `bcr_test_module/.bazelrc` so local
+      # invocations reproduce this job exactly — CI only adds the
+      # BuildBuddy remote cache and target-pattern exclusions on top.
+      # `bcr_test_module/.bazelversion` pins Bazel 8.x: BCR's
+      # grpc@1.80.0 pulls rules_swift@2.5.0, conflicting with the
+      # rules_swift@3.1.2 bazel_tools carries in Bazel 9. (fourward
+      # -as-root sidesteps this via a grpc `git_override`, but
+      # overrides don't apply to non-root modules.)
       #
-      # Mirrors the build targets in modules/fourward/*/presubmit.yml
-      # on the BCR — keep the two in sync.
+      # Keep target patterns in sync with modules/fourward/*/presubmit.yml.
       - name: Build public targets via bcr_test_module
         env:
           BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}

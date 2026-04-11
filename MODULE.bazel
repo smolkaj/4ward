@@ -13,11 +13,9 @@ bazel_dep(name = "rules_license", version = "1.0.0")
 bazel_dep(name = "rules_proto", version = "7.1.0")
 bazel_dep(name = "rules_kotlin", version = "2.3.0")
 
-# Register 4ward's custom Kotlin toolchain (strict deps) ahead of the
-# rules_kotlin default. Marked dev_dependency so it only activates when
-# 4ward is the root module — BCR consumers see the default toolchain
-# and don't inherit the strict check. This matches the scoping of the
-# `single_version_override` patch below (also root-only).
+# `dev_dependency` so the strict-deps toolchain only activates when
+# 4ward is the root module; BCR consumers see the default rules_kotlin
+# toolchain. Same scoping as the `single_version_override` below.
 register_toolchains(
     "//bazel:fourward_kotlin_toolchain",
     dev_dependency = True,
@@ -34,11 +32,8 @@ bazel_dep(name = "grpc", version = "1.80.0")  # For cc_grpc_library (dataplane_c
 bazel_dep(name = "grpc-java", version = "1.78.0")
 bazel_dep(name = "grpc_kotlin", version = "1.5.0")
 
-# WORKAROUND: grpc_kotlin's stub/context/generator targets declare the
-# multiplatform `kotlinx-coroutines-core` artifact instead of the JVM
-# variant `kotlinx-coroutines-core-jvm`, which breaks rules_kotlin 2.x
-# strict-deps checking. Patch them to declare only the JVM variant.
-# Drop this `single_version_override` once the upstream PR lands.
+# WORKAROUND for strict-deps issues in grpc_kotlin@1.5.0 — see
+# `bazel/grpc_kotlin.patch` for the details and upstream PR link.
 single_version_override(
     module_name = "grpc_kotlin",
     patch_strip = 1,
@@ -50,11 +45,9 @@ single_version_override(
 # p4runtime provides p4info.proto, p4runtime.proto, and p4data.proto.
 bazel_dep(name = "p4runtime", version = "1.5.0.bcr.1")
 
-# googleapis provides google/rpc/status.proto, used via P4Runtime error
-# details. Pulled in transitively by @p4runtime; declared directly so
-# our BUILD files can reference it by apparent name under strict deps.
-# googleapis-java enables the //google/rpc:rpc_java_proto target we
-# consume from kt_jvm_library deps.
+# Transitively pulled by @p4runtime; declared directly so our BUILD
+# files can reference it by apparent name under strict deps.
+# googleapis-java enables //google/rpc:rpc_java_proto.
 bazel_dep(name = "googleapis", version = "0.0.0-20260223-edfe7983")
 bazel_dep(name = "googleapis-java", version = "1.0.0")
 

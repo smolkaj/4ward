@@ -1,23 +1,18 @@
-# Strict-deps fix for grpc_kotlin under rules_kotlin 2.x's
-# `experimental_strict_kotlin_deps` checker.
+# Strict-deps fixes for grpc_kotlin under rules_kotlin 2.x.
 #
-# 1. The `kt_jvm_library` for `compiler/.../generator` declares the
-#    common `kotlinx-coroutines-core` artifact, but strict-deps traces
-#    the symbols used by the generator's Kotlin source to the JVM-only
-#    `kotlinx-coroutines-core-jvm` artifact. Switch to the JVM variant.
+# 1. compiler/.../generator declares the common `kotlinx-coroutines-
+#    core` Maven artifact, but strict-deps traces its symbols to
+#    `kotlinx-coroutines-core-jvm`.
 #
-# 2. The `kt_jvm_grpc_library` macro generates a `kt_jvm_library` whose
-#    source references `io.grpc.*` symbols and `kotlinx.coroutines.*`
-#    symbols without declaring the corresponding artifacts directly;
-#    they leak in through the hardcoded `:stub`/`:context` deps. It
-#    also omits the user's own `java_proto_library` from the generated
-#    library's deps, even though the generated kt_grpc source uses
-#    classes from it. Extend the macro's `kt_deps` to declare them all.
+# 2. `kt_jvm_grpc_library` generates a kt_jvm_library whose source
+#    uses `io.grpc.*`, `kotlinx.coroutines.*`, and the user's own
+#    java_proto classes — none of them declared directly; they leak
+#    through the hardcoded `:stub`/`:context` deps. Extend the
+#    macro's `kt_deps` to declare all three.
 #
-# TODO: drop the `generator/BUILD.bazel` hunk once
-# https://github.com/grpc/grpc-kotlin/pull/756 lands and a new release
-# is cut. The `kt_jvm_grpc.bzl` macro hunk is more opinionated and may
-# need a separate upstream conversation first.
+# TODO: drop the generator hunk once grpc/grpc-kotlin#756 lands and
+# a new release ships. The macro hunk is more opinionated and may
+# need a separate upstream conversation.
 diff --git a/compiler/src/main/java/io/grpc/kotlin/generator/BUILD.bazel b/compiler/src/main/java/io/grpc/kotlin/generator/BUILD.bazel
 --- a/compiler/src/main/java/io/grpc/kotlin/generator/BUILD.bazel
 +++ b/compiler/src/main/java/io/grpc/kotlin/generator/BUILD.bazel

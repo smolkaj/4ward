@@ -1,10 +1,7 @@
-# `bcr_test_module/` is a distinct Bazel workspace, so it does NOT
-# inherit the root `.bazelrc`. These are the minimum build flags
-# needed for `bazel build @fourward//...` to work from here, both
-# locally and in the `bcr-consumer-check` CI job (which `cd`s into
-# this directory and reads these same flags). CI's inline invocation
-# only adds BuildBuddy remote-cache flags on top of what's here; keep
-# the two views in sync.
+# Distinct Bazel workspace — does NOT inherit the root `.bazelrc`.
+# Minimum flags for `bazel build @fourward//...` from here, shared
+# by local invocations and the `bcr-consumer-check` CI job. CI only
+# adds BuildBuddy remote-cache flags on top.
 
 common --enable_bzlmod
 common --noenable_workspace
