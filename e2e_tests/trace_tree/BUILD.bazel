@@ -49,8 +49,8 @@ _PASSING = _GOLDEN
 _MANUAL = []
 
 [p4c_compile(
-    name,
-    "%s.p4" % name,
+    name = name,
+    src_p4 = "%s.p4" % name,
 ) for name in _P4_PROGRAMS if name not in ("clone_with_egress", "action_selector_3", "multicast")]
 
 p4c_compile(
