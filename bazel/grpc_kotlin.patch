@@ -14,8 +14,10 @@
 #    library's deps, even though the generated kt_grpc source uses
 #    classes from it. Extend the macro's `kt_deps` to declare them all.
 #
-# TODO: drop this patch once the equivalent changes land upstream.
-# Upstream PR: file against https://github.com/grpc/grpc-kotlin (none yet).
+# TODO: drop the `generator/BUILD.bazel` hunk once
+# https://github.com/grpc/grpc-kotlin/pull/756 lands and a new release
+# is cut. The `kt_jvm_grpc.bzl` macro hunk is more opinionated and may
+# need a separate upstream conversation first.
 diff --git a/compiler/src/main/java/io/grpc/kotlin/generator/BUILD.bazel b/compiler/src/main/java/io/grpc/kotlin/generator/BUILD.bazel
 --- a/compiler/src/main/java/io/grpc/kotlin/generator/BUILD.bazel
 +++ b/compiler/src/main/java/io/grpc/kotlin/generator/BUILD.bazel
