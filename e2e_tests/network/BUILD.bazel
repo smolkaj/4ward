@@ -1,6 +1,10 @@
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
 
-package(default_testonly = True)
+package(
+    default_applicable_licenses = ["//:license"],
+    default_testonly = True,
+    licenses = ["notice"],
+)
 
 exports_files(
     [

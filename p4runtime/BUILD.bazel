@@ -8,6 +8,11 @@ load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("@rules_java//java:defs.bzl", "java_binary")
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_binary", "kt_jvm_library", "kt_jvm_test")
 
+package(
+    default_applicable_licenses = ["//:license"],
+    licenses = ["notice"],
+)
+
 # =============================================================================
 # Dataplane gRPC service (packet injection + result observation)
 # =============================================================================

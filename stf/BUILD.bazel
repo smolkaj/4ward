@@ -1,5 +1,10 @@
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_library", "kt_jvm_test")
 
+package(
+    default_applicable_licenses = ["//:license"],
+    licenses = ["notice"],
+)
+
 # STF (Simple Test Framework) parser and runner. STF is a test-input format
 # originating with BMv2's simple_switch; 4ward supports it as a first-class
 # format for driving the simulator from both the `4ward sim` CLI and from

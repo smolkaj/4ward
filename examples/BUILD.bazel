@@ -2,6 +2,11 @@
 
 load("//cli:cram.bzl", "cram_test")
 
+package(
+    default_applicable_licenses = ["//:license"],
+    licenses = ["notice"],
+)
+
 exports_files(
     [
         "passthrough.p4",

@@ -1,5 +1,10 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 
+package(
+    default_applicable_licenses = ["//:license"],
+    licenses = ["notice"],
+)
+
 cc_library(
     name = "p4c_backend_lib",
     srcs = [
