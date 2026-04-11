@@ -13,9 +13,15 @@ bazel_dep(name = "rules_license", version = "1.0.0")
 bazel_dep(name = "rules_proto", version = "7.1.0")
 bazel_dep(name = "rules_kotlin", version = "2.3.0")
 
-# Register our own Kotlin toolchain (strict deps + unused-deps reporting)
-# before the rules_kotlin default, so it takes precedence.
-register_toolchains("//bazel:fourward_kotlin_toolchain")
+# Register 4ward's custom Kotlin toolchain (strict deps) ahead of the
+# rules_kotlin default. Marked dev_dependency so it only activates when
+# 4ward is the root module — BCR consumers see the default toolchain
+# and don't inherit the strict check. This matches the scoping of the
+# `single_version_override` patch below (also root-only).
+register_toolchains(
+    "//bazel:fourward_kotlin_toolchain",
+    dev_dependency = True,
+)
 
 bazel_dep(name = "rules_java", version = "9.3.0")
 bazel_dep(name = "rules_python", version = "1.4.1")
