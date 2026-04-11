@@ -142,7 +142,7 @@ from the measurement work below.
    ephemeral working sets (HashMaps, BigIntegers, builders per thread)
    spill into L3, evicting each other. What was an L2 hit becomes an
    L3 hit (3× slower), or worse, a DRAM access (10× slower).
-   **[Confirmed — the dominant mechanism. See Phase 1.5 #2, #7.]**
+   **[Confirmed — the dominant mechanism. See Phase 1.5 #6, #7.]**
 
 3. **Memory bandwidth.** DRAM has finite bandwidth. Fresh allocations
    touch new cache lines; at gigabytes per second of allocation across
@@ -316,7 +316,12 @@ the 11 ms gap.
 
 ### The scaling curve
 
-Running wcmp×128 at varying `ForkJoinPool.common.parallelism`:
+Running wcmp×128 at varying `ForkJoinPool.common.parallelism`, all via
+the parallel (streaming `InjectPackets`) path so per-RPC overhead is
+amortized across the batch and only pure compute is being measured
+(this is why the 1-worker baseline below is 229 pps, not the 207 pps
+from the Current state table — the latter uses unary `InjectPacket`
+which pays per-call gRPC cost):
 
 | Workers | pps | Speedup vs 1 | Efficiency |
 |---|---|---|---|
@@ -447,10 +452,10 @@ size:
    this list that *directly* shrinks per-thread working set — on
    fork-heavy workloads, potentially by an order of magnitude.
    Structural change (mutation model goes from in-place to persistent)
-   but the public interface stays the same. **Expected impact: this is
-   where the ceiling lives.** Actual gain depends on what fraction of
-   deep-copied fields are never read by the branch; measurement will
-   tell.
+   but the public interface stays the same.
+   **Expected impact:** this is where the ceiling lives. Actual gain
+   depends on what fraction of deep-copied fields are never read by
+   the branch; measurement will tell.
 
 2. **`Long` fast path for narrow bit fields.** Use `Long` instead of
    `BigInteger` for `bit<N>` with N ≤ 63. A partial fast path exists
@@ -460,12 +465,15 @@ size:
    primitive `long` (often register-resident after escape analysis).
    Bit-fields are densely packed in header maps, so this compounds
    the working-set win from (1).
+   **Expected impact:** ~5× smaller per-value footprint, compounded
+   across dozens of bit-fields per header. Hard to forecast as a
+   single number without measurement.
 
 3. **`HashMap` preallocation in `deepCopy`.** Two-line change;
-   eliminates resize churn. Measured in isolation at ~2%. Small win,
-   no simplicity cost — same final maps, just fewer intermediate
+   eliminates resize churn. Same final maps, just fewer intermediate
    allocations along the way. Worth doing for cheap, but don't expect
    it to move the scaling needle.
+   **Expected impact:** ~2% (measured in isolation before Phase 1.5).
 
 **The honest realization.** None of these alone guarantees linear
 scaling. Working-set reduction from (1) has the highest ceiling by
@@ -504,7 +512,10 @@ DVaaS workload that's blocked by the current throughput.
 3. **No correctness regressions** — all tests still pass.
 
 **Done when:** wcmp×128 parallel efficiency reaches ≥80% of linear on
-16 physical cores. (Direct L3 is already at 94%.)
+16 physical cores. (Direct L3 is already at 94%.) Phase 1.5 showed the
+current ceiling is a hard one — hitting ≥80% is not a marginal
+improvement but requires breaking the L3-capacity bottleneck, which is
+exactly what (1) and (2) above are designed to do.
 
 ## Non-goals
 
