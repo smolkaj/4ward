@@ -27,8 +27,13 @@ and the `maven.install(...)` block can go away.
 
 ```sh
 cd bcr_test_module
-bazel build @fourward//...
+bazel build -- @fourward//... -@fourward//e2e_tests/... -@fourward//examples/...
 ```
+
+The `e2e_tests/` and `examples/` exclusions mirror the
+`bcr-consumer-check` CI job — they carry `dev_dependency` deps (like
+`@behavioral_model`) that aren't visible to non-root consumers, and
+they're not part of the public surface anyway.
 
 This directory carries its own [`.bazelversion`](.bazelversion) pinning
 Bazel 8.x, because the BCR release of `grpc@1.80.0` pulls
