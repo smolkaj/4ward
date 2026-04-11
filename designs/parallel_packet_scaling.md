@@ -125,9 +125,8 @@ read-only at the data-plane layer; each packet is independent).
 
 But **the algorithm and the runtime live in different worlds**. The
 algorithm doesn't know about the machine's shared physical resources,
-and there are several that matter. These are the six candidate
-mechanisms we went into Phase 1.5 with; the verdicts in brackets come
-from the measurement work below.
+and six of them could plausibly be in play. Bracketed verdicts below
+are the results of measuring each mechanism directly — see Phase 1.5.
 
 1. **The JVM allocator.** Allocations normally go into a per-thread TLAB
    (thread-local allocation buffer) — fast, no contention. But when a
@@ -147,7 +146,7 @@ from the measurement work below.
 3. **Memory bandwidth.** DRAM has finite bandwidth. Fresh allocations
    touch new cache lines; at gigabytes per second of allocation across
    all threads, memory bandwidth becomes a real constraint.
-   **[Contributory — shares root cause with (2). See Phase 1.5 #6.]**
+   **[Contributory — shares root cause with (2). See Phase 1.5 #6, #7.]**
 
 4. **Garbage collection.** G1GC steals CPU cycles for concurrent marking
    and evacuation. At high allocation rates, GC runs more often,
@@ -174,19 +173,14 @@ allocator, caches, and memory bandwidth across all threads.
 This means: closing the gap to linear scaling requires reducing shared
 resource pressure, not restructuring the algorithm. Specifically:
 
-- **Reduce working set size** → less L3 pressure, fewer DRAM misses
+- **Reduce working-set size** → less L3 pressure, fewer DRAM misses
 - **Reduce per-allocation size** → fewer cache lines touched per object
-- **Reduce allocation volume** → less memory bandwidth usage, fewer
-  TLAB refills
 
 ## Phase 1 profile findings
 
-JFR CPU profiles tell us *where* time is spent but not *why*. What
-follows are the raw profile observations from Phase 1; the Phase 1.5
-deep-dive reinterprets them in light of hardware counter measurements.
-Read them together — the profile numbers are right, the initial
-interpretation ("allocator-CPU-bound") turned out to be partially
-wrong.
+JFR CPU profiles tell us *where* time is spent, not *why*. The numbers
+below are raw sampling observations; the Phase 1.5 deep-dive
+reinterprets them using hardware counters.
 
 Two JFR profile pairs: direct single-thread vs direct parallel, and
 wcmp×128 single-thread vs wcmp×128 parallel. Both sides have intra-packet
@@ -229,7 +223,9 @@ structs) so branches don't interfere with each other.
 
 **BigInteger allocation is the single largest overhead bucket at ~9%
 combined.** HashMap put operations (`put` + `putVal`) are a close second
-at ~9% combined. Total allocation-related scaling overhead: **~23-25%**.
+at ~9% combined. The overhead inside these frames totals **~23-25%**
+of parallel-mode CPU — but Phase 1.5 shows those cycles are
+DRAM-stall cycles, not allocator-fast-path cycles.
 
 ### What the profile diff pointed at
 
@@ -254,11 +250,12 @@ Phase 1.5 answers that question.
 
 ## Phase 1.5: empirical deep-dive
 
-The Phase 1 profile told us *where* CPU time was spent
-(`HashMap.putVal`, `BigInteger.<init>`, etc.). It did not tell us
-*why*. Without that, Phase 2 priorities are guesses. Phase 1.5
-measures the six candidate mechanisms directly using JFR event data,
-hardware performance counters, and CPU pinning experiments.
+**TL;DR.** Of the six candidate mechanisms, only one is confirmed:
+**L3 capacity exhaustion**. Each thread's IPC collapses from 3.02 to
+0.88 in parallel — same total instructions, unchanged L1/L2 hit rates,
+but 3× more loads per packet miss all caches and reach DRAM. The
+allocator-adjacent hot spots from the Phase 1 profile are
+*memory-stall cycles* inside those methods, not allocator CPU cost.
 
 Nine experiments on the same machine and workload (AMD Ryzen 9
 7950X3D, SAI P4 middleblock, wcmp×128, intra-packet parallelism off on
@@ -283,7 +280,7 @@ both sides):
 | 3 | Memory bandwidth | Contributory | Aggregate ~13 GB/s allocation + 3× DRAM traffic per packet; shares root cause with (2). See Phase 1.5 #7. |
 | 4 | GC | **Refuted** | Pause share 1.8% of wall time; 2 GB ↔ 16 GB heap unchanged; best GC swap (ParallelGC) +1.9% |
 | 5 | False sharing | **Refuted** | 850 HITM events / 874K samples = 0.1%; top contended line 11 HITMs |
-| 6 | SMT interference | **Refuted** | Physical-only pinning 1436 vs 1460 baseline, within noise |
+| 6 | SMT interference | **Refuted** | Physical-only pinning (16 workers) 1436 pps vs unpinned 16-worker 1443 pps — within noise |
 
 ### The smoking gun: `perf stat`
 
@@ -309,10 +306,10 @@ the hallmark of a memory-stall-bound workload.
 L1 and L2 hit rates are essentially unchanged between modes. What
 *does* change is the small tail of loads that miss all caches: **3×
 more per packet** reach DRAM. Each DRAM miss is roughly 200 cycles of
-stall. `(228K − 73K) × 200 cycles ≈ 31M cycles ≈ 9 ms` of extra
-per-core stall per packet. The parallel per-packet core-time is ~16 ms
-vs sequential ~5 ms; the 9 ms DRAM-stall budget accounts for most of
-the 11 ms gap.
+stall. `(228K − 73K) × 200 cycles ≈ 31M extra cycles per packet`, or
+roughly 6–9 ms of per-core stall (depending on effective frequency).
+Parallel per-packet core-time is ~16 ms vs sequential ~5 ms, so the
+extra DRAM stalls account for the bulk of the 11 ms gap.
 
 ### The scaling curve
 
@@ -351,25 +348,25 @@ CCD). Pinning experiments:
 | CCD1 only (CPUs 8–15) | 8 | 8 | 1206 |
 | Both CCDs, physical only | 16 | 16 | 1436 |
 
-Three observations:
+Three observations, with the punchline first:
 
-1. **Saturation within a single CCD.** 8 workers on one CCD ≈ 8
+1. **The two CCDs don't scale additively, implicating DRAM bandwidth.**
+   CCD0 alone 1227 + CCD1 alone 1206 "should" sum to ~2400. Running
+   both together: 1436. The second CCD contributes only 17% of its
+   standalone capacity once the first is active. The only *relevant*
+   shared resource for this workload is the memory controller / DRAM
+   bandwidth — which is exactly what a DRAM-bound diagnosis predicts.
+
+2. **Saturation within a single CCD.** 8 workers on one CCD ≈ 8
    workers unpinned (1227 ≈ 1235 from the scaling curve). The
    bottleneck fills up at 8 threads on a single CCD — within one L3
    domain, we hit the ceiling long before we run out of cores.
 
-2. **3D V-cache doesn't help this workload.** CCD0 and CCD1 perform
+3. **3D V-cache doesn't help this workload.** CCD0 and CCD1 perform
    identically (1227 vs 1206). If V-cache were buying us anything,
    the V-cache CCD should be noticeably faster. Either the working
    set already exceeds 96 MB, or the allocation churn pattern doesn't
    benefit from the extra capacity. Either way: not a factor.
-
-3. **The two CCDs don't scale additively.** CCD0 alone 1227 +
-   CCD1 alone 1206 "should" sum to ~2400. Running both together: 1436.
-   The second CCD contributes only 17% of its standalone capacity once
-   the first is active. The only resource the CCDs share is the
-   memory controller / DRAM bandwidth — which is exactly what a
-   DRAM-bound diagnosis predicts.
 
 Also: `ls_any_fills_from_sys.far_cache` is **zero** in both modes. No
 cross-CCD coherency traffic. The OS scheduler keeps threads on their
@@ -377,16 +374,12 @@ home CCD. Inter-CCD contention is not the story.
 
 ### Reframed diagnosis
 
-The Phase 1 profile showed +9% HashMap and +9% BigInteger in the
-parallel-overhead diff, and the initial read was "allocator CPU cost."
-Phase 1.5 shows that framing was misleading.
-
-The extra cycles are real, and they *do* happen inside `HashMap.putVal`
-and `BigInteger.<init>`. But they're not allocator fast-path cycles —
-they're memory-stall cycles. Each `putVal` that shows up at +7% on the
-CPU profile is spending hundreds of cycles waiting for its new node's
-cache line to arrive from DRAM, because the L3 has been evicted by
-other threads doing the same thing.
+The extra cycles on the Phase 1 parallel-overhead diff *do* happen
+inside `HashMap.putVal` and `BigInteger.<init>`. They are not
+allocator fast-path cycles. They are memory-stall cycles: each
+`putVal` at +7% on the CPU profile is spending hundreds of cycles
+waiting for its new node's cache line to arrive from DRAM, because
+the L3 has been evicted by other threads doing the same thing.
 
 **The root cause is L3 capacity exhaustion under concurrent allocation
 churn.** Each wcmp×128 packet allocates on the order of 12 MB of
@@ -434,14 +427,12 @@ multi-step plan beyond the next step.
 work left to do. "Optimize" here means closing the wcmp×128 gap —
 bringing 45% efficiency closer to linear.
 
-**What to optimize for.** Phase 1.5 reframed the target. Minimize
-**per-thread working-set size**, not allocation count. Every candidate
+**What to optimize for.** Per the reframed diagnosis in Phase 1.5:
+per-thread working-set size, not allocation count. Every candidate
 should be evaluated on "does it reduce the bytes each thread touches
-per packet" — that's what directly reduces L3 footprint and therefore
-DRAM miss rate. Allocation count reductions help only to the degree
-they shrink the hot working set.
+per packet."
 
-Candidate optimizations, reordered by expected impact on working-set
+Candidate optimizations, ordered by expected impact on working-set
 size:
 
 1. **Copy-on-write `HeaderVal` / `StructVal`.** Share the underlying
@@ -512,10 +503,9 @@ DVaaS workload that's blocked by the current throughput.
 3. **No correctness regressions** — all tests still pass.
 
 **Done when:** wcmp×128 parallel efficiency reaches ≥80% of linear on
-16 physical cores. (Direct L3 is already at 94%.) Phase 1.5 showed the
-current ceiling is a hard one — hitting ≥80% is not a marginal
-improvement but requires breaking the L3-capacity bottleneck, which is
-exactly what (1) and (2) above are designed to do.
+16 physical cores. Hitting that target is not marginal tuning — it
+requires breaking the L3-capacity bottleneck, which is what candidates
+(1) and (2) above are designed to do.
 
 ## Non-goals
 
