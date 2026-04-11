@@ -137,6 +137,9 @@ def p4_testgen_test(name, src_p4 = None, includes = [], max_tests = 0, seed = 0,
         seed: random seed for p4testgen's path exploration (default: 0).
               Different seeds explore different execution paths.
         tags: Bazel tags forwarded to the test.
+        defines: P4 preprocessor macros (-D flags) passed to p4c and p4testgen.
+        target: p4testgen --target (e.g. "bmv2").
+        arch: p4testgen --arch (e.g. "v1model").
     """
     if src_p4 == None:
         src_p4 = "@p4c//testdata/p4_16_samples:" + name + ".p4"
@@ -167,6 +170,8 @@ def p4_testgen_suite(name, tests, includes = {}, max_tests = {}, tags = [], targ
         includes:  dict mapping program names to lists of extra P4 include labels.
         max_tests: dict mapping program names to max-test limits.
         tags:      Bazel tags forwarded to the kt_jvm_test.
+        target:    p4testgen --target applied to every program in the suite.
+        arch:      p4testgen --arch applied to every program in the suite.
     """
     if not tests:
         return
