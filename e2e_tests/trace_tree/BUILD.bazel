@@ -81,11 +81,10 @@ p4c_compile(
 
 _TEST_DEPS = [
     "//e2e_tests:golden_file",
-    "//stf",
     "//simulator:ir_java_proto",
-    "//simulator:p4runtime_java_proto",
     "//simulator:simulator_java_proto",
     "//simulator:simulator_lib",
+    "//stf",
     "@fourward_maven//:com_google_protobuf_protobuf_java",
     "@fourward_maven//:junit_junit",
 ]
@@ -97,7 +96,7 @@ kt_jvm_test(
            ["%s.golden.txtpb" % n for n in _PASSING] +
            [":%s_pb" % n for n in _PASSING],
     test_class = "fourward.e2e.tracetree.GoldenTraceTreeTest",
-    deps = _TEST_DEPS,
+    deps = _TEST_DEPS + ["//simulator:p4info_java_proto"],
 )
 
 kt_jvm_test(
@@ -106,7 +105,7 @@ kt_jvm_test(
     data = ["%s.stf" % n for n in _P4_PROGRAMS] +
            [":%s_pb" % n for n in _P4_PROGRAMS],
     test_class = "fourward.e2e.tracetree.TraceTreeConsistencyTest",
-    deps = _TEST_DEPS,
+    deps = _TEST_DEPS + ["//simulator:p4info_java_proto"],
 )
 
 kt_jvm_test(

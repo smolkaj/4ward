@@ -32,6 +32,7 @@ kt_jvm_test(
     test_class = "fourward.e2e.bmv2.Bmv2Benchmark",
     deps = [
         "//simulator:ir_java_proto",
+        "//simulator:p4info_java_proto",
         "@fourward_maven//:com_google_protobuf_protobuf_java",
         "@fourward_maven//:junit_junit",
     ],

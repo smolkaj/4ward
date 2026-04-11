@@ -1,0 +1,47 @@
+# Strict-deps fix for grpc_kotlin under rules_kotlin 2.x's
+# `experimental_strict_kotlin_deps` checker.
+#
+# 1. The `kt_jvm_library` for `compiler/.../generator` declares the
+#    common `kotlinx-coroutines-core` artifact, but strict-deps traces
+#    the symbols used by the generator's Kotlin source to the JVM-only
+#    `kotlinx-coroutines-core-jvm` artifact. Switch to the JVM variant.
+#
+# 2. The `kt_jvm_grpc_library` macro generates a `kt_jvm_library` whose
+#    source references `io.grpc.*` symbols and `kotlinx.coroutines.*`
+#    symbols without declaring the corresponding artifacts directly;
+#    they leak in through the hardcoded `:stub`/`:context` deps. It
+#    also omits the user's own `java_proto_library` from the generated
+#    library's deps, even though the generated kt_grpc source uses
+#    classes from it. Extend the macro's `kt_deps` to declare them all.
+#
+# TODO: drop this patch once the equivalent changes land upstream.
+# Upstream PR: file against https://github.com/grpc/grpc-kotlin (none yet).
+diff --git a/compiler/src/main/java/io/grpc/kotlin/generator/BUILD.bazel b/compiler/src/main/java/io/grpc/kotlin/generator/BUILD.bazel
+--- a/compiler/src/main/java/io/grpc/kotlin/generator/BUILD.bazel
++++ b/compiler/src/main/java/io/grpc/kotlin/generator/BUILD.bazel
+@@ -17,7 +17,7 @@ kt_jvm_library(
+         "@grpc-java//core",
+         "@grpc_kotlin_maven//:com_google_guava_guava",
+         "@grpc_kotlin_maven//:com_squareup_kotlinpoet",
+-        "@grpc_kotlin_maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
++        "@grpc_kotlin_maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core_jvm",
+         "@protobuf//:protobuf_java",
+     ],
+ )
+diff --git a/kt_jvm_grpc.bzl b/kt_jvm_grpc.bzl
+--- a/kt_jvm_grpc.bzl
++++ b/kt_jvm_grpc.bzl
+@@ -123,6 +123,13 @@ def kt_jvm_grpc_library(
+     kt_deps.extend([
+         "@grpc_kotlin//stub/src/main/java/io/grpc/kotlin:stub",
+         "@grpc_kotlin//stub/src/main/java/io/grpc/kotlin:context",
++        # Resolved at load time against grpc_kotlin's own repo mapping so
++        # external callers (whose repo doesn't see grpc_kotlin_maven) work.
++        Label("@grpc-java//api"),
++        Label("@grpc_kotlin_maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core_jvm"),
++        # Forward the user's java_proto into the generated kt_jvm_library
++        # so strict-deps recognizes it as a direct dep, not transitive.
++        deps[0],
+     ])
+
+     kt_grpc_label = ":%s_DO_NOT_DEPEND_kt_grpc" % name

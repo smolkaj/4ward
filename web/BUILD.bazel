@@ -16,16 +16,16 @@ kt_jvm_library(
     ),
     visibility = ["//visibility:public"],
     deps = [
-        "//p4runtime:p4info_java_proto",
-        "//p4runtime:p4runtime_java_proto",
         "//p4runtime:p4runtime_lib",
         "//simulator:ir_java_proto",
+        "//simulator:p4info_java_proto",
+        "//simulator:p4runtime_java_proto",
         "//simulator:simulator_java_proto",
         "//simulator:simulator_lib",
         "@fourward_maven//:com_google_protobuf_protobuf_java",
         "@fourward_maven//:com_google_protobuf_protobuf_java_util",
         "@fourward_maven//:io_grpc_grpc_api",
-        "@fourward_maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
+        "@fourward_maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core_jvm",
     ],
 )
 
@@ -41,10 +41,12 @@ kt_jvm_binary(
     deps = [
         ":web_lib",
         "//p4runtime:p4runtime_lib",
+        "//simulator:p4info_java_proto",
+        "//simulator:p4runtime_java_proto",
         "//simulator:simulator_lib",
         "@fourward_maven//:io_grpc_grpc_netty",
-        "@fourward_maven//:io_grpc_grpc_netty_shaded",
-        "@fourward_maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
+        "@fourward_maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core_jvm",
+        "@grpc-java//api",
     ],
 )
 
