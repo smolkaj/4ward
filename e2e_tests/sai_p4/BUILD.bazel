@@ -1,3 +1,5 @@
+package(default_testonly = True)
+
 # SAI P4 (middleblock instantiation) — vendored from sonic-net/sonic-pins.
 # Used for E2E testing of the P4Runtime server with @p4runtime_translation.
 

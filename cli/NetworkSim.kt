@@ -1,12 +1,12 @@
 package fourward.cli
 
-import fourward.e2e.StfFile
-import fourward.e2e.installStfEntries
-import fourward.e2e.loadPipelineConfig
 import fourward.simulator.EdgeOutput
 import fourward.simulator.NetworkHop
 import fourward.simulator.NetworkSimulator
 import fourward.simulator.NetworkTopology
+import fourward.stf.StfFile
+import fourward.stf.installStfEntries
+import fourward.stf.loadPipelineConfig
 import java.io.FileNotFoundException
 import java.nio.file.NoSuchFileException
 import java.nio.file.Path
@@ -52,6 +52,10 @@ fun networkSim(nstfPath: Path, format: OutputFormat): Int {
     }
 
   for (sw in nstf.switches) {
+    // Pipeline loading can fail with many error types (IO, proto parse,
+    // compiler diagnostics); catching `Exception` gives a uniform CLI
+    // surface. The original `e` is preserved in the printed message.
+    @Suppress("TooGenericExceptionCaught", "SwallowedException")
     val config =
       try {
         loadPipelineConfig(sw.pipelinePath)
@@ -66,6 +70,7 @@ fun networkSim(nstfPath: Path, format: OutputFormat): Int {
         System.err.println("error: ${e.message}")
         return ExitCode.USAGE_ERROR
       }
+    @Suppress("TooGenericExceptionCaught", "SwallowedException")
     try {
       sim.loadPipeline(config)
       if (sw.stfPath != null) {

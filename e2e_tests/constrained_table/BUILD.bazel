@@ -1,3 +1,5 @@
+package(default_testonly = True)
+
 genrule(
     name = "constrained_table_pb",
     srcs = ["constrained_table.p4"],

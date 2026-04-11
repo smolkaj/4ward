@@ -1,5 +1,7 @@
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
 
+package(default_testonly = True)
+
 exports_files(
     [
         "s1.stf",
@@ -26,8 +28,8 @@ kt_jvm_test(
     test_class = "fourward.e2e.network.NetworkSimulatorTest",
     deps = [
         "//e2e_tests:golden_file",
-        "//e2e_tests/stf:stf_runner",
         "//simulator:simulator_lib",
+        "//stf",
         "@fourward_maven//:com_google_protobuf_protobuf_java",
         "@fourward_maven//:junit_junit",
     ],

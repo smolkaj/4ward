@@ -1,7 +1,7 @@
 package fourward.e2e.p4testgen
 
-import fourward.e2e.TestResult
-import fourward.e2e.runStf
+import fourward.stf.TestResult
+import fourward.stf.runStf
 import java.nio.file.Files
 import java.nio.file.Paths
 import org.junit.Assert.fail

@@ -1,4 +1,4 @@
-package fourward.e2e
+package fourward.stf
 
 import java.nio.file.Files
 import org.junit.Assert.assertArrayEquals

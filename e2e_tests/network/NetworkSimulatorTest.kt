@@ -1,16 +1,16 @@
 package fourward.e2e.network
 
 import com.google.protobuf.ByteString
-import fourward.e2e.StfFile
-import fourward.e2e.decodeHex
-import fourward.e2e.installStfEntries
-import fourward.e2e.loadPipelineConfig
 import fourward.e2e.runfilePath
 import fourward.ir.PipelineConfig
 import fourward.simulator.Endpoint
 import fourward.simulator.Link
 import fourward.simulator.NetworkSimulator
 import fourward.simulator.NetworkTopology
+import fourward.stf.StfFile
+import fourward.stf.decodeHex
+import fourward.stf.installStfEntries
+import fourward.stf.loadPipelineConfig
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue

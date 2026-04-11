@@ -1,9 +1,9 @@
 package fourward.cli
 
-import fourward.e2e.StfFile
-import fourward.e2e.installStfEntries
-import fourward.e2e.loadPipelineConfig
 import fourward.p4runtime.P4RuntimeServer
+import fourward.stf.StfFile
+import fourward.stf.installStfEntries
+import fourward.stf.loadPipelineConfig
 import java.io.FileNotFoundException
 import java.nio.file.NoSuchFileException
 import java.nio.file.Path
@@ -63,6 +63,11 @@ fun startNetworkServers(nstf: NetworkStf, basePort: Int): List<P4RuntimeServer> 
     val port = if (basePort == 0) 0 else basePort + idx
     val server = P4RuntimeServer(port = port, deviceId = idx.toLong() + 1)
 
+    // Any failure loading pipelines, parsing STF, or starting a server should
+    // tear down the partially-built network and surface as a clean CLI error
+    // with the original exception preserved as the cause — catching `Exception`
+    // is intentional.
+    @Suppress("TooGenericExceptionCaught")
     try {
       val config = loadPipelineConfig(sw.pipelinePath)
       server.simulator.loadPipeline(config)
@@ -77,9 +82,10 @@ fun startNetworkServers(nstf: NetworkStf, basePort: Int): List<P4RuntimeServer> 
       }
     } catch (e: Exception) {
       servers.forEach { it.stop() }
-      throw NetworkServeException("switch '${sw.id}': ${e.message}", ExitCode.INTERNAL_ERROR)
+      throw NetworkServeException("switch '${sw.id}': ${e.message}", ExitCode.INTERNAL_ERROR, e)
     }
 
+    @Suppress("TooGenericExceptionCaught")
     try {
       server.start()
     } catch (e: Exception) {
@@ -87,6 +93,7 @@ fun startNetworkServers(nstf: NetworkStf, basePort: Int): List<P4RuntimeServer> 
       throw NetworkServeException(
         "switch '${sw.id}': failed to start on port $port: ${e.message}",
         ExitCode.INTERNAL_ERROR,
+        e,
       )
     }
     servers.add(server)
@@ -95,4 +102,5 @@ fun startNetworkServers(nstf: NetworkStf, basePort: Int): List<P4RuntimeServer> 
   return servers
 }
 
-class NetworkServeException(message: String, val exitCode: Int) : RuntimeException(message)
+class NetworkServeException(message: String, val exitCode: Int, cause: Throwable? = null) :
+  RuntimeException(message, cause)

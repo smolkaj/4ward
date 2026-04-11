@@ -97,7 +97,7 @@ exploration where you want to *see* what happened, not script it.
 
 ## STF runner
 
-**Target:** `//e2e_tests/stf:stf_runner` (library, not a binary)
+**Target:** `//stf` (library, not a binary)
 **API:** `StfRunner` / `runStfTest()` in Kotlin
 
 The STF runner drives the simulator directly from Kotlin test code. It parses

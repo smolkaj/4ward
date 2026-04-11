@@ -1,7 +1,11 @@
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_library", "kt_jvm_test")
 
+# STF (Simple Test Framework) parser and runner. STF is a test-input format
+# originating with BMv2's simple_switch; 4ward supports it as a first-class
+# format for driving the simulator from both the `4ward sim` CLI and from
+# end-to-end tests. Hence this is a production library, not testonly.
 kt_jvm_library(
-    name = "stf_runner",
+    name = "stf",
     srcs = ["Runner.kt"],
     visibility = ["//visibility:public"],
     deps = [
@@ -17,9 +21,9 @@ kt_jvm_library(
 kt_jvm_test(
     name = "StfParserTest",
     srcs = ["StfParserTest.kt"],
-    test_class = "fourward.e2e.StfParserTest",
+    test_class = "fourward.stf.StfParserTest",
     deps = [
-        ":stf_runner",
+        ":stf",
         "@fourward_maven//:junit_junit",
     ],
 )
@@ -27,9 +31,9 @@ kt_jvm_test(
 kt_jvm_test(
     name = "RunnerTest",
     srcs = ["RunnerTest.kt"],
-    test_class = "fourward.e2e.RunnerTest",
+    test_class = "fourward.stf.RunnerTest",
     deps = [
-        ":stf_runner",
+        ":stf",
         "@fourward_maven//:junit_junit",
     ],
 )

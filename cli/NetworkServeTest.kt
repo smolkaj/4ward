@@ -1,7 +1,7 @@
 package fourward.cli
 
-import fourward.e2e.decodeHex
 import fourward.e2e.runfilePath
+import fourward.stf.decodeHex
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue

@@ -59,7 +59,7 @@ def bmv2_diff_test_suite(name, tests, local_tests = {}, tags = [], includes = []
         tags = tags,
         data = data,
         deps = [
-            "//e2e_tests/stf:stf_runner",
+            "//stf",
             "//simulator:simulator_java_proto",
             "//simulator:simulator_lib",
             "@fourward_maven//:com_google_protobuf_protobuf_java",

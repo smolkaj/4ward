@@ -1,6 +1,8 @@
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_library")
 
+package(default_testonly = True)
+
 bzl_library(
     name = "corpus_bzl",
     srcs = ["corpus.bzl"],

@@ -1,8 +1,8 @@
 package fourward.cli
 
-import fourward.e2e.decodeHex
 import fourward.simulator.Endpoint
 import fourward.simulator.Link
+import fourward.stf.decodeHex
 import java.nio.file.Path
 
 /**

@@ -1,13 +1,13 @@
 package fourward.e2e.tracetree
 
 import com.google.protobuf.TextFormat
-import fourward.e2e.StfFile
 import fourward.e2e.assertMatchesGoldenFile
-import fourward.e2e.installStfEntries
-import fourward.e2e.loadPipelineConfig
 import fourward.e2e.runfilePath
 import fourward.sim.TraceTree
 import fourward.simulator.Simulator
+import fourward.stf.StfFile
+import fourward.stf.installStfEntries
+import fourward.stf.loadPipelineConfig
 import java.nio.file.Path
 import org.junit.Test
 import org.junit.runner.RunWith

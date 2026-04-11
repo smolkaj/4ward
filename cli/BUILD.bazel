@@ -13,10 +13,10 @@ kt_jvm_library(
     ),
     visibility = ["//visibility:public"],
     deps = [
-        "//e2e_tests/stf:stf_runner",
         "//p4runtime:p4runtime_lib",
         "//simulator:simulator_java_proto",
         "//simulator:simulator_lib",
+        "//stf",
         "@fourward_maven//:com_google_protobuf_protobuf_java",
         "@fourward_maven//:com_google_protobuf_protobuf_java_util",
     ],
@@ -67,7 +67,7 @@ kt_jvm_test(
     deps = [
         ":cli_lib",
         "//e2e_tests:golden_file",
-        "//e2e_tests/stf:stf_runner",
+        "//stf",
         "@fourward_maven//:junit_junit",
     ],
 )
