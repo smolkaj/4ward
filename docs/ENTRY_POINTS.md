@@ -101,7 +101,7 @@ exploration where you want to *see* what happened, not script it.
 **API:** `StfRunner` / `runStfTest()` in Kotlin
 
 The STF runner drives the simulator directly from Kotlin test code. It parses
-[STF files](https://github.com/p4lang/p4c/blob/main/backends/bmv2/testing/stf/README.md)
+[STF files](https://github.com/p4lang/p4c/tree/main/tools/stf)
 (the standard P4 test format: `packet`, `expect`, `add`, etc.), loads the
 pipeline, installs table entries, injects packets, and checks that outputs
 match expectations.
