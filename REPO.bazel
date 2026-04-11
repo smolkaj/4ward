@@ -1,3 +1,9 @@
+"""Repo-wide Bazel settings for 4ward.
+
+Applies the Apache-2.0 license in //:license as default package metadata
+for every target and lists directories Bazel should ignore when globbing.
+"""
+
 repo(default_package_metadata = ["//:license"])
 
 ignore_directories([
