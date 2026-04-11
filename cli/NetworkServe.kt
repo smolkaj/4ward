@@ -62,12 +62,11 @@ fun startNetworkServers(nstf: NetworkStf, basePort: Int): List<P4RuntimeServer> 
     // Port 0 = ephemeral (each server gets its own OS-assigned port).
     val port = if (basePort == 0) 0 else basePort + idx
     val server = P4RuntimeServer(port = port, deviceId = idx.toLong() + 1)
+    // Register for cleanup before any fallible work below, so a failure
+    // tears down this server along with the previously-built ones.
+    servers.add(server)
 
-    // Any failure loading pipelines, parsing STF, or starting a server should
-    // tear down the partially-built network and surface as a clean CLI error
-    // with the original exception preserved as the cause — catching `Exception`
-    // is intentional.
-    @Suppress("TooGenericExceptionCaught")
+    @Suppress("TooGenericExceptionCaught") // uniform CLI error for any setup failure
     try {
       val config = loadPipelineConfig(sw.pipelinePath)
       server.simulator.loadPipeline(config)
@@ -85,7 +84,7 @@ fun startNetworkServers(nstf: NetworkStf, basePort: Int): List<P4RuntimeServer> 
       throw NetworkServeException("switch '${sw.id}': ${e.message}", ExitCode.INTERNAL_ERROR, e)
     }
 
-    @Suppress("TooGenericExceptionCaught")
+    @Suppress("TooGenericExceptionCaught") // gRPC bind failure etc. — any throw should tear down
     try {
       server.start()
     } catch (e: Exception) {
@@ -96,11 +95,10 @@ fun startNetworkServers(nstf: NetworkStf, basePort: Int): List<P4RuntimeServer> 
         e,
       )
     }
-    servers.add(server)
   }
 
   return servers
 }
 
-class NetworkServeException(message: String, val exitCode: Int, cause: Throwable? = null) :
+class NetworkServeException(message: String, val exitCode: Int, cause: Throwable) :
   RuntimeException(message, cause)

@@ -53,8 +53,7 @@ fun networkSim(nstfPath: Path, format: OutputFormat): Int {
 
   for (sw in nstf.switches) {
     // Pipeline loading can fail with many error types (IO, proto parse,
-    // compiler diagnostics); catching `Exception` gives a uniform CLI
-    // surface. The original `e` is preserved in the printed message.
+    // compiler diagnostics); catching `Exception` gives a uniform CLI surface.
     @Suppress("TooGenericExceptionCaught", "SwallowedException")
     val config =
       try {
