@@ -29,3 +29,12 @@ and the `maven.install(...)` block can go away.
 cd bcr_test_module
 bazel build @fourward//...
 ```
+
+This directory carries its own [`.bazelversion`](.bazelversion) pinning
+Bazel 8.x, because the BCR release of `grpc@1.80.0` pulls
+`rules_swift@2.5.0`, which conflicts with the `rules_swift@3.1.2` that
+`bazel_tools` carries in Bazel 9. (When `@fourward` is the root module
+its `grpc` `git_override` sidesteps this, but overrides don't apply to
+non-root modules — which is the whole point of this test.) Make sure
+you have [bazelisk](https://github.com/bazelbuild/bazelisk) installed
+so the per-directory version pin is honored automatically.
