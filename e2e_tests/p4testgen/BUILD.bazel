@@ -1,7 +1,11 @@
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_library")
 load("//e2e_tests:p4testgen.bzl", "p4_testgen_suite", "p4_testgen_test")
 
-package(default_testonly = True)
+package(
+    default_applicable_licenses = ["//:license"],
+    default_testonly = True,
+    licenses = ["notice"],
+)
 
 kt_jvm_library(
     name = "p4testgen_test_class",

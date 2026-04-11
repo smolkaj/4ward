@@ -1,4 +1,8 @@
-package(default_testonly = True)
+package(
+    default_applicable_licenses = ["//:license"],
+    default_testonly = True,
+    licenses = ["notice"],
+)
 
 # SAI P4 (middleblock instantiation) — vendored from sonic-net/sonic-pins.
 # Used for E2E testing of the P4Runtime server with @p4runtime_translation.

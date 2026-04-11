@@ -1,10 +1,16 @@
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_binary")
 load("@rules_license//rules:license.bzl", "license")
 
+package(
+    default_applicable_licenses = [":license"],
+    licenses = ["notice"],
+)
+
 exports_files(["LICENSE"])
 
 license(
     name = "license",
+    package_name = "fourward",
     license_kinds = ["@rules_license//licenses/spdx:Apache-2.0"],
     license_text = "LICENSE",
 )

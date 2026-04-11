@@ -1,4 +1,8 @@
-package(default_testonly = True)
+package(
+    default_applicable_licenses = ["//:license"],
+    default_testonly = True,
+    licenses = ["notice"],
+)
 
 genrule(
     name = "constrained_table_pb",

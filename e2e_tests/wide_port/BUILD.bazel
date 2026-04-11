@@ -1,7 +1,11 @@
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
 load("//e2e_tests:p4c.bzl", "p4c_compile")
 
-package(default_testonly = True)
+package(
+    default_applicable_licenses = ["//:license"],
+    default_testonly = True,
+    licenses = ["notice"],
+)
 
 # Derive a v1model.p4 with 16-bit port fields from the upstream file.
 # This guarantees our test always tracks upstream with exactly one change.

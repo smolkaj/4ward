@@ -1,5 +1,10 @@
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_binary", "kt_jvm_library", "kt_jvm_test")
 
+package(
+    default_applicable_licenses = ["//:license"],
+    licenses = ["notice"],
+)
+
 exports_files(
     ["run_cram.py"],
     visibility = ["//:__subpackages__"],
