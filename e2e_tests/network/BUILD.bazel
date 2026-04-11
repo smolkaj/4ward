@@ -32,6 +32,8 @@ kt_jvm_test(
     test_class = "fourward.e2e.network.NetworkSimulatorTest",
     deps = [
         "//e2e_tests:golden_file",
+        "//simulator:ir_java_proto",
+        "//simulator:p4info_java_proto",
         "//simulator:simulator_lib",
         "//stf",
         "@fourward_maven//:com_google_protobuf_protobuf_java",

@@ -27,5 +27,17 @@ and the `maven.install(...)` block can go away.
 
 ```sh
 cd bcr_test_module
-bazel build @fourward//...
+bazel build -- @fourward//... -@fourward//e2e_tests/... -@fourward//examples/...
 ```
+
+`e2e_tests/` and `examples/` are excluded because they carry
+`dev_dependency` targets (like `@behavioral_model`) that aren't
+visible to non-root consumers — and they're not part of the public
+surface anyway.
+
+Use [bazelisk](https://github.com/bazelbuild/bazelisk): the
+[`.bazelversion`](.bazelversion) here pins Bazel 8.x because BCR's
+`grpc@1.80.0` pulls `rules_swift@2.5.0`, which conflicts with
+`rules_swift@3.1.2` from Bazel 9's `bazel_tools`. (`@fourward`-as-root
+sidesteps this with a `grpc` `git_override`, but overrides don't
+apply to non-root modules — which is the whole point of this test.)

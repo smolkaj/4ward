@@ -33,7 +33,6 @@ kt_jvm_test(
     test_class = "fourward.e2e.wideport.WidePortTest",
     deps = [
         "//stf",
-        "@fourward_maven//:com_google_protobuf_protobuf_java",
         "@fourward_maven//:junit_junit",
     ],
 )

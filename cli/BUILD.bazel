@@ -19,6 +19,8 @@ kt_jvm_library(
     visibility = ["//visibility:public"],
     deps = [
         "//p4runtime:p4runtime_lib",
+        "//simulator:ir_java_proto",
+        "//simulator:p4info_java_proto",
         "//simulator:simulator_java_proto",
         "//simulator:simulator_lib",
         "//stf",
@@ -72,6 +74,9 @@ kt_jvm_test(
     deps = [
         ":cli_lib",
         "//e2e_tests:golden_file",
+        "//p4runtime:p4runtime_lib",
+        "//simulator:simulator_java_proto",
+        "//simulator:simulator_lib",
         "//stf",
         "@fourward_maven//:junit_junit",
     ],

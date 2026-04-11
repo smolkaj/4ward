@@ -1,6 +1,20 @@
+# Build rules and patches for third-party dependencies.
+
+load("@rules_kotlin//kotlin:core.bzl", "define_kt_toolchain")
+
 package(
     default_applicable_licenses = ["//:license"],
     licenses = ["notice"],
 )
 
-# Build rules and patches for third-party dependencies.
+# `experimental_report_unused_deps` is intentionally not enabled: it
+# misfires on 4ward's mix of rules_jvm_external Maven artifacts (e.g.
+# `@fourward_maven//:io_grpc_grpc_api`) and Bazel-native targets that
+# provide the same classes (e.g. `@grpc-java//api`, injected by
+# grpc_kotlin's macro). 4ward uses the Maven style by design so BCR
+# consumers don't need `known_contributing_modules` boilerplate (see
+# MODULE.bazel and bcr_test_module/).
+define_kt_toolchain(
+    name = "fourward_kotlin_toolchain",
+    experimental_strict_kotlin_deps = "error",
+)

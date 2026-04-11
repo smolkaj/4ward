@@ -12,6 +12,15 @@ bazel_dep(name = "rules_cc", version = "0.2.17")
 bazel_dep(name = "rules_license", version = "1.0.0")
 bazel_dep(name = "rules_proto", version = "7.1.0")
 bazel_dep(name = "rules_kotlin", version = "2.3.0")
+
+# `dev_dependency` so the strict-deps toolchain only activates when
+# 4ward is the root module; BCR consumers see the default rules_kotlin
+# toolchain. Same scoping as the `single_version_override` below.
+register_toolchains(
+    "//bazel:fourward_kotlin_toolchain",
+    dev_dependency = True,
+)
+
 bazel_dep(name = "rules_java", version = "9.3.0")
 bazel_dep(name = "rules_python", version = "1.4.1")
 bazel_dep(name = "rules_jvm_external", version = "6.10")
@@ -23,10 +32,24 @@ bazel_dep(name = "grpc", version = "1.80.0")  # For cc_grpc_library (dataplane_c
 bazel_dep(name = "grpc-java", version = "1.78.0")
 bazel_dep(name = "grpc_kotlin", version = "1.5.0")
 
+# WORKAROUND for strict-deps issues in grpc_kotlin@1.5.0 — see
+# `bazel/grpc_kotlin.patch` for the details and upstream PR link.
+single_version_override(
+    module_name = "grpc_kotlin",
+    patch_strip = 1,
+    patches = ["//bazel:grpc_kotlin.patch"],
+)
+
 # --- P4 ecosystem ---
 
 # p4runtime provides p4info.proto, p4runtime.proto, and p4data.proto.
 bazel_dep(name = "p4runtime", version = "1.5.0.bcr.1")
+
+# Transitively pulled by @p4runtime; declared directly so our BUILD
+# files can reference it by apparent name under strict deps.
+# googleapis-java enables //google/rpc:rpc_java_proto.
+bazel_dep(name = "googleapis", version = "0.0.0-20260223-edfe7983")
+bazel_dep(name = "googleapis-java", version = "1.0.0")
 
 # p4c provides the compiler frontend and midend that our backend builds on.
 # BCR consumers get p4c 1.2.5.11.bcr.1 (which has //p4include, testdata
