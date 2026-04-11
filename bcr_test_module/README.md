@@ -1,4 +1,4 @@
-# BCR test module
+# BCR Test Module
 
 A minimal Bzlmod module that depends on `@fourward` via
 `local_path_override`, exercising the same resolution path 
