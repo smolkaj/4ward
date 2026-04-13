@@ -1,5 +1,6 @@
 package fourward.simulator
 
+import kotlin.jvm.Synchronized
 import fourward.ir.BehavioralConfig
 import fourward.ir.BinaryOperator
 import fourward.ir.ControlDecl
@@ -1327,6 +1328,7 @@ class Interpreter internal constructor(config: BehavioralConfig) {
     private var cached: Interpreter? = null
     private var cachedConfig: BehavioralConfig? = null
 
+    @Synchronized
     fun get(config: BehavioralConfig): Interpreter {
       if (config === cachedConfig) return cached!!
       return Interpreter(config).also {
