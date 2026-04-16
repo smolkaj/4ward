@@ -15,7 +15,7 @@ Usage in BUILD.bazel:
 """
 
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
-load("//e2e_tests:p4c.bzl", "p4c_compile")
+load("//bazel:fourward_pipeline.bzl", "fourward_pipeline")
 
 def compile_test_suite(name, tests, tags = [], includes = []):
     """Compiles P4 programs and verifies compilation succeeds.
@@ -30,7 +30,13 @@ def compile_test_suite(name, tests, tags = [], includes = []):
 
     for test in tests:
         p4_src = "@p4c//testdata/p4_16_samples:" + test + ".p4"
-        p4c_compile(test, p4_src, includes, tags)
+        fourward_pipeline(
+            name = test + "_pb",
+            src = p4_src,
+            out = test + ".txtpb",
+            includes = includes,
+            tags = tags,
+        )
         targets.append(":" + test + "_pb")
 
     build_test(

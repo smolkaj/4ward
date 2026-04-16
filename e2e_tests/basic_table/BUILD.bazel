@@ -1,5 +1,5 @@
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
-load("//e2e_tests:p4c.bzl", "p4c_compile")
+load("//bazel:fourward_pipeline.bzl", "fourward_pipeline")
 
 package(
     default_applicable_licenses = ["//:license"],
@@ -7,9 +7,10 @@ package(
     licenses = ["notice"],
 )
 
-p4c_compile(
-    name = "basic_table",
-    src_p4 = "basic_table.p4",
+fourward_pipeline(
+    name = "basic_table_pb",
+    src = "basic_table.p4",
+    out = "basic_table.txtpb",
     visibility = [
         "//cli:__pkg__",
         "//e2e_tests/network:__pkg__",

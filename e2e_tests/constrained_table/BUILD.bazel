@@ -1,18 +1,14 @@
+load("//bazel:fourward_pipeline.bzl", "fourward_pipeline")
+
 package(
     default_applicable_licenses = ["//:license"],
     default_testonly = True,
     licenses = ["notice"],
 )
 
-genrule(
+fourward_pipeline(
     name = "constrained_table_pb",
-    srcs = ["constrained_table.p4"],
-    outs = ["constrained_table.txtpb"],
-    cmd = "$(execpath //p4c_backend:p4c-4ward) -I $$(dirname $(execpath @p4c//p4include:core.p4)) -o $@ $(SRCS)",
-    tools = [
-        "//p4c_backend:p4c-4ward",
-        "@p4c//p4include",
-        "@p4c//p4include:core.p4",
-    ],
+    src = "constrained_table.p4",
+    out = "constrained_table.txtpb",
     visibility = ["//p4runtime:__pkg__"],
 )

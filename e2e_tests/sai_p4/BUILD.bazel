@@ -1,3 +1,5 @@
+load("//bazel:fourward_pipeline.bzl", "fourward_pipeline")
+
 package(
     default_applicable_licenses = ["//:license"],
     default_testonly = True,
@@ -28,24 +30,11 @@ filegroup(
     visibility = ["//e2e_tests:__subpackages__"],
 )
 
-genrule(
+fourward_pipeline(
     name = "sai_middleblock_pb",
-    srcs = [
-        "instantiations/google/middleblock.p4",
-        ":sai_p4_srcs",
-    ],
-    outs = ["sai_middleblock.txtpb"],
-    cmd = " ".join([
-        "$(execpath //p4c_backend:p4c-4ward)",
-        "-I $$(dirname $(execpath @p4c//p4include:core.p4))",
-        "-o $@",
-        "$(execpath instantiations/google/middleblock.p4)",
-    ]),
-    tools = [
-        "//p4c_backend:p4c-4ward",
-        "@p4c//p4include",
-        "@p4c//p4include:core.p4",
-    ],
+    src = "instantiations/google/middleblock.p4",
+    out = "sai_middleblock.txtpb",
+    extra_srcs = [":sai_p4_srcs"],
     visibility = ["//p4runtime:__pkg__"],
 )
 
@@ -73,47 +62,21 @@ genrule(
 )
 
 # 4ward PipelineConfig with BMv2 defines (for P4Info used by BMv2 benchmark).
-genrule(
+fourward_pipeline(
     name = "sai_middleblock_bmv2_pb",
-    srcs = [
-        "instantiations/google/middleblock.p4",
-        ":sai_p4_srcs",
-    ],
-    outs = ["sai_middleblock_bmv2.txtpb"],
-    cmd = " ".join([
-        "$(execpath //p4c_backend:p4c-4ward)",
-        "-I $$(dirname $(execpath @p4c//p4include:core.p4))",
-        "-DPLATFORM_BMV2",
-        "-o $@",
-        "$(execpath instantiations/google/middleblock.p4)",
-    ]),
-    tools = [
-        "//p4c_backend:p4c-4ward",
-        "@p4c//p4include",
-        "@p4c//p4include:core.p4",
-    ],
+    src = "instantiations/google/middleblock.p4",
+    out = "sai_middleblock_bmv2.txtpb",
+    defines = ["PLATFORM_BMV2"],
+    extra_srcs = [":sai_p4_srcs"],
     visibility = ["//e2e_tests/bmv2_diff:__pkg__"],
 )
 
 # Binary ForwardingPipelineConfig (for use as a pre-built artifact).
-genrule(
+fourward_pipeline(
     name = "sai_middleblock_binpb",
-    srcs = [
-        "instantiations/google/middleblock.p4",
-        ":sai_p4_srcs",
-    ],
-    outs = ["sai_middleblock.binpb"],
-    cmd = " ".join([
-        "$(execpath //p4c_backend:p4c-4ward)",
-        "--format p4runtime",
-        "-I $$(dirname $(execpath @p4c//p4include:core.p4))",
-        "-o $@",
-        "$(execpath instantiations/google/middleblock.p4)",
-    ]),
-    tools = [
-        "//p4c_backend:p4c-4ward",
-        "@p4c//p4include",
-        "@p4c//p4include:core.p4",
-    ],
+    src = "instantiations/google/middleblock.p4",
+    out = "sai_middleblock.binpb",
+    extra_srcs = [":sai_p4_srcs"],
+    out_format = "p4runtime",
     visibility = ["//visibility:public"],
 )

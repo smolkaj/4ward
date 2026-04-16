@@ -22,7 +22,7 @@ This creates:
 
 load("@rules_cc//cc:find_cc_toolchain.bzl", "CC_TOOLCHAIN_TYPE", "find_cc_toolchain", "use_cc_toolchain")
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
-load("//e2e_tests:p4c.bzl", "p4c_compile")
+load("//bazel:fourward_pipeline.bzl", "fourward_pipeline")
 
 def _p4testgen_stfs_impl(ctx):
     cc_toolchain = find_cc_toolchain(ctx)
@@ -117,7 +117,14 @@ def _p4_testgen_rules(name, src_p4, includes, max_tests, seed, tags, defines = [
     # Pass includes as extra_srcs (deps only, no -I flags) rather than
     # includes.  p4c resolves #include "..." relative to the source file,
     # so -I flags are redundant — and $(execpath) would fail on filegroups.
-    p4c_compile(name, src_p4, tags = tags, defines = defines, extra_srcs = includes)
+    fourward_pipeline(
+        name = name + "_pb",
+        src = src_p4,
+        out = name + ".txtpb",
+        defines = defines,
+        extra_srcs = includes,
+        tags = tags,
+    )
 
     return [":" + stfs_name, ":" + name + "_pb"]
 

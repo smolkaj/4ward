@@ -21,7 +21,7 @@ For each test this creates:
 """
 
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
-load("//e2e_tests:p4c.bzl", "p4c_compile")
+load("//bazel:fourward_pipeline.bzl", "fourward_pipeline")
 
 def bmv2_diff_test_suite(name, tests, local_tests = {}, tags = [], includes = []):
     """Compiles corpus P4 files for both backends and runs differential tests.
@@ -91,7 +91,13 @@ def _add_test_genrules(test, p4_src, stf_src, includes, tags, data):
     )
 
     # Compile to 4ward PipelineConfig (needed for P4Info).
-    p4c_compile(test, p4_src, includes, tags)
+    fourward_pipeline(
+        name = test + "_pb",
+        src = p4_src,
+        out = test + ".txtpb",
+        includes = includes,
+        tags = tags,
+    )
 
     native.genrule(
         name = test + "_stf",
