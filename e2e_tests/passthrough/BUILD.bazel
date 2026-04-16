@@ -1,5 +1,5 @@
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
-load("//e2e_tests:p4c.bzl", "p4c_compile")
+load("//bazel:fourward_pipeline.bzl", "fourward_pipeline")
 
 package(
     default_applicable_licenses = ["//:license"],
@@ -7,9 +7,10 @@ package(
     licenses = ["notice"],
 )
 
-p4c_compile(
+fourward_pipeline(
     name = "passthrough",
-    src_p4 = "passthrough.p4",
+    src = "passthrough.p4",
+    out = "passthrough.txtpb",
     visibility = ["//p4runtime:__pkg__"],
 )
 
@@ -19,7 +20,7 @@ kt_jvm_test(
     srcs = ["PassthroughTest.kt"],
     data = [
         "passthrough.stf",
-        ":passthrough_pb",
+        ":passthrough",
     ],
     test_class = "fourward.e2e.passthrough.PassthroughTest",
     deps = [

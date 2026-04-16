@@ -1,5 +1,5 @@
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
-load("//e2e_tests:p4c.bzl", "p4c_compile")
+load("//bazel:fourward_pipeline.bzl", "fourward_pipeline")
 
 package(
     default_applicable_licenses = ["//:license"],
@@ -7,9 +7,10 @@ package(
     licenses = ["notice"],
 )
 
-p4c_compile(
+fourward_pipeline(
     name = "switch_action_run",
-    src_p4 = "switch_action_run.p4",
+    src = "switch_action_run.p4",
+    out = "switch_action_run.txtpb",
 )
 
 kt_jvm_test(
@@ -17,7 +18,7 @@ kt_jvm_test(
     srcs = ["SwitchActionRunTest.kt"],
     data = [
         "switch_action_run.stf",
-        ":switch_action_run_pb",
+        ":switch_action_run",
     ],
     test_class = "fourward.e2e.switchactionrun.SwitchActionRunTest",
     deps = [

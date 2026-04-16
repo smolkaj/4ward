@@ -25,8 +25,8 @@ kt_jvm_test(
     srcs = ["Bmv2Benchmark.kt"],
     data = [
         ":bmv2_driver",
+        "//e2e_tests/sai_p4:sai_middleblock_bmv2",
         "//e2e_tests/sai_p4:sai_middleblock_bmv2_json",
-        "//e2e_tests/sai_p4:sai_middleblock_bmv2_pb",
     ],
     tags = ["heavy"],
     test_class = "fourward.e2e.bmv2.Bmv2Benchmark",

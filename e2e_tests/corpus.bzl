@@ -16,7 +16,7 @@ This creates:
 """
 
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
-load("//e2e_tests:p4c.bzl", "p4c_compile")
+load("//bazel:fourward_pipeline.bzl", "fourward_pipeline")
 
 def corpus_test_suite(name, tests, tags = [], includes = [], stf_overrides = {}):
     """Compiles p4c corpus P4 files and runs all STF tests in a single JVM.
@@ -39,7 +39,13 @@ def corpus_test_suite(name, tests, tags = [], includes = [], stf_overrides = {})
     for test in tests:
         p4_src = "@p4c//testdata/p4_16_samples:" + test + ".p4"
 
-        p4c_compile(test, p4_src, includes, tags)
+        fourward_pipeline(
+            name = test,
+            src = p4_src,
+            out = test + ".txtpb",
+            includes = includes,
+            tags = tags,
+        )
 
         if test in stf_overrides:
             # Local override: use the file directly, no genrule needed.
@@ -54,7 +60,7 @@ def corpus_test_suite(name, tests, tags = [], includes = [], stf_overrides = {})
             )
             data.append(":" + test + "_stf")
 
-        data.append(":" + test + "_pb")
+        data.append(":" + test)
 
     kt_jvm_test(
         name = name,

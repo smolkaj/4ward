@@ -1,5 +1,5 @@
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
-load("//e2e_tests:p4c.bzl", "p4c_compile")
+load("//bazel:fourward_pipeline.bzl", "fourward_pipeline")
 
 package(
     default_applicable_licenses = ["//:license"],
@@ -17,10 +17,11 @@ genrule(
     tools = ["@p4c//p4include:core.p4"],
 )
 
-p4c_compile(
+fourward_pipeline(
     name = "wide_port",
+    src = "wide_port.p4",
+    out = "wide_port.txtpb",
     includes = [":wide_v1model"],
-    src_p4 = "wide_port.p4",
 )
 
 kt_jvm_test(
@@ -28,7 +29,7 @@ kt_jvm_test(
     srcs = ["WidePortTest.kt"],
     data = [
         "wide_port.stf",
-        ":wide_port_pb",
+        ":wide_port",
     ],
     test_class = "fourward.e2e.wideport.WidePortTest",
     deps = [

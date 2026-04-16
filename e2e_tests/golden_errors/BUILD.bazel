@@ -1,4 +1,4 @@
-load("//e2e_tests:p4c.bzl", "p4c_compile")
+load("//bazel:fourward_pipeline.bzl", "fourward_pipeline")
 
 package(
     default_applicable_licenses = ["//:license"],
@@ -6,32 +6,37 @@ package(
     licenses = ["notice"],
 )
 
-p4c_compile(
+fourward_pipeline(
     name = "stateful",
-    src_p4 = "stateful.p4",
+    src = "stateful.p4",
+    out = "stateful.txtpb",
     visibility = ["//p4runtime:__pkg__"],
 )
 
-p4c_compile(
+fourward_pipeline(
     name = "range_table",
-    src_p4 = "range_table.p4",
+    src = "range_table.p4",
+    out = "range_table.txtpb",
     visibility = ["//p4runtime:__pkg__"],
 )
 
-p4c_compile(
+fourward_pipeline(
     name = "value_set",
-    src_p4 = "value_set.p4",
+    src = "value_set.p4",
+    out = "value_set.txtpb",
     visibility = ["//p4runtime:__pkg__"],
 )
 
-p4c_compile(
+fourward_pipeline(
     name = "action_profile",
-    src_p4 = "action_profile.p4",
+    src = "action_profile.p4",
+    out = "action_profile.txtpb",
     visibility = ["//p4runtime:__pkg__"],
 )
 
-p4c_compile(
+fourward_pipeline(
     name = "refers_to",
-    src_p4 = "refers_to.p4",
+    src = "refers_to.p4",
+    out = "refers_to.txtpb",
     visibility = ["//p4runtime:__pkg__"],
 )

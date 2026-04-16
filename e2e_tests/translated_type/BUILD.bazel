@@ -1,4 +1,4 @@
-load("//e2e_tests:p4c.bzl", "p4c_compile")
+load("//bazel:fourward_pipeline.bzl", "fourward_pipeline")
 
 package(
     default_applicable_licenses = ["//:license"],
@@ -6,8 +6,9 @@ package(
     licenses = ["notice"],
 )
 
-p4c_compile(
+fourward_pipeline(
     name = "translated_type",
-    src_p4 = "translated_type.p4",
+    src = "translated_type.p4",
+    out = "translated_type.txtpb",
     visibility = ["//p4runtime:__pkg__"],
 )
