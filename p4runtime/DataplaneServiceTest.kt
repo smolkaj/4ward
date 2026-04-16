@@ -249,7 +249,22 @@ class DataplaneServiceTest {
   @Test
   fun `InjectPacket with P4RT port fails without pipeline`() {
     val p4rtPort = ByteString.copyFrom(byteArrayOf(0, 0, 0, 1))
-    assertGrpcError(Status.Code.FAILED_PRECONDITION) {
+    assertGrpcError(Status.Code.FAILED_PRECONDITION, messageContains = "no pipeline is loaded") {
+      harness.injectPacketP4rt(p4rtPort, byteArrayOf(0x01))
+    }
+  }
+
+  @Test
+  fun `InjectPacket with P4RT port fails when pipeline has no port translation`() {
+    // Passthrough's port type has no @p4runtime_translation, so p4rt_ingress_port
+    // cannot be translated. The error must name the offending request field and
+    // point at the fix, not just report a generic FAILED_PRECONDITION.
+    harness.loadPipeline(loadPassthroughConfig())
+    val p4rtPort = ByteString.copyFrom(byteArrayOf(0, 0, 0, 1))
+    assertGrpcError(
+      Status.Code.FAILED_PRECONDITION,
+      messageContains = "no @p4runtime_translation",
+    ) {
       harness.injectPacketP4rt(p4rtPort, byteArrayOf(0x01))
     }
   }

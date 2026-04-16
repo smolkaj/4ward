@@ -16,6 +16,7 @@ import fourward.dataplane.SubscribeResultsResponse
 import fourward.dataplane.SubscriptionActive
 import fourward.sim.TraceTree
 import io.grpc.Status
+import io.grpc.StatusException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -41,7 +42,7 @@ class DataplaneService(
   override suspend fun injectPacket(request: InjectPacketRequest): InjectPacketResponse {
     val translator = typeTranslator()
     val pt = translator?.portTranslator
-    val ingressPort = resolveIngressPort(request, pt)
+    val ingressPort = resolveIngressPort(request, translator)
     val payload = request.payload.toByteArray()
     val result = broker.processPacket(ingressPort, payload)
     try {
@@ -59,12 +60,12 @@ class DataplaneService(
   }
 
   override suspend fun injectPackets(requests: Flow<InjectPacketRequest>): InjectPacketsResponse {
-    val pt = typeTranslator()?.portTranslator
+    val translator = typeTranslator()
     broker.withHookOnce { processPacket ->
       val futures = mutableListOf<java.util.concurrent.ForkJoinTask<*>>()
       kotlinx.coroutines.runBlocking {
         requests.collect { request ->
-          val port = resolveIngressPort(request, pt)
+          val port = resolveIngressPort(request, translator)
           val payload = request.payload.toByteArray()
           futures.add(
             java.util.concurrent.ForkJoinPool.commonPool().submit { processPacket(port, payload) }
@@ -149,22 +150,39 @@ class DataplaneService(
     }
   }
 
-  private fun resolveIngressPort(request: InjectPacketRequest, pt: PortTranslator?): Int =
+  private fun resolveIngressPort(request: InjectPacketRequest, translator: TypeTranslator?): Int =
     when (request.ingressPortCase) {
       InjectPacketRequest.IngressPortCase.DATAPLANE_INGRESS_PORT -> request.dataplaneIngressPort
-      InjectPacketRequest.IngressPortCase.P4RT_INGRESS_PORT -> {
-        val translator =
-          pt
-            ?: throw Status.FAILED_PRECONDITION.withDescription(
-                "P4Runtime port translation requires a loaded pipeline with " +
-                  "@p4runtime_translation on the port type"
-              )
-              .asException()
-        translator.p4rtToDataplane(request.p4RtIngressPort)
-      }
+      InjectPacketRequest.IngressPortCase.P4RT_INGRESS_PORT ->
+        (translator?.portTranslator ?: throw missingPortTranslation(request, translator))
+          .p4rtToDataplane(request.p4RtIngressPort)
       InjectPacketRequest.IngressPortCase.INGRESSPORT_NOT_SET,
       null -> 0
     }
+}
+
+// Distinguishes the two reasons InjectPacket can reject a p4rt_ingress_port:
+// no pipeline loaded at all vs. a pipeline whose port type lacks
+// @p4runtime_translation. Same status code, different remediation — the
+// caller needs to know which one they hit.
+private fun missingPortTranslation(
+  request: InjectPacketRequest,
+  translator: TypeTranslator?,
+): StatusException {
+  val requested =
+    request.p4RtIngressPort.toByteArray().joinToString("") { "%02x".format(it.toInt() and 0xFF) }
+  val reason =
+    if (translator == null) {
+      "no pipeline is loaded — call SetForwardingPipelineConfig first"
+    } else {
+      "the loaded pipeline's port type has no @p4runtime_translation — compile " +
+        "with a port type that carries the annotation (e.g. via v1model_sai.p4)"
+    }
+  return Status.FAILED_PRECONDITION.withDescription(
+      "InjectPacket uses p4rt_ingress_port (0x$requested), but $reason. " +
+        "Alternatively, use dataplane_ingress_port (numeric) to bypass P4Runtime port translation."
+    )
+    .asException()
 }
 
 private fun enrichTrace(trace: TraceTree, translator: TypeTranslator?): TraceTree =
