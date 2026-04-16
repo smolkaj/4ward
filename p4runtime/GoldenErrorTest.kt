@@ -168,6 +168,8 @@ class GoldenErrorTest(private val testName: String) {
       "refers-to-violation-no-multicast" -> triggerRefersToViolationNoMulticast()
       "type-translation-failed" -> triggerTypeTranslationFailed()
       "wrong-role-write" -> triggerWrongRoleWrite()
+      "inject-packet-no-pipeline" -> triggerInjectPacketNoPipeline()
+      "inject-packet-no-port-translation" -> triggerInjectPacketNoPortTranslation()
       else -> error("unknown test: $name")
     }
   }
@@ -175,6 +177,20 @@ class GoldenErrorTest(private val testName: String) {
   private fun triggerNoPipelineLoaded() {
     val entity = Entity.newBuilder().setTableEntry(TableEntry.newBuilder().setTableId(1)).build()
     harness.installEntry(entity)
+  }
+
+  private fun triggerInjectPacketNoPipeline() {
+    val p4rtPort = ByteString.copyFrom(byteArrayOf(0, 0, 0, 1))
+    harness.injectPacketP4rt(p4rtPort, byteArrayOf(0x01))
+  }
+
+  private fun triggerInjectPacketNoPortTranslation() {
+    // Passthrough's port type has no @p4runtime_translation, so p4rt_ingress_port
+    // hits the "pipeline loaded but no translation" branch — distinct from the
+    // no-pipeline branch above.
+    harness.loadPipeline(loadConfig("e2e_tests/passthrough/passthrough.txtpb"))
+    val p4rtPort = ByteString.copyFrom(byteArrayOf(0, 0, 0, 1))
+    harness.injectPacketP4rt(p4rtPort, byteArrayOf(0x01))
   }
 
   private fun triggerUnknownTableId() {
@@ -1664,6 +1680,8 @@ class GoldenErrorTest(private val testName: String) {
         "refers-to-violation-no-multicast",
         "type-translation-failed",
         "wrong-role-write",
+        "inject-packet-no-pipeline",
+        "inject-packet-no-port-translation",
       )
 
     private val VALIDATOR_BINARY: Path =
