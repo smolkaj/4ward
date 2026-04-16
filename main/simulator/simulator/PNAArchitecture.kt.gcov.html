@@ -31,13 +31,13 @@
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryMed">87.2&nbsp;%</td>
-            <td class="headerCovTableEntry">227</td>
-            <td class="headerCovTableEntry">198</td>
+            <td class="headerCovTableEntryMed">87.1&nbsp;%</td>
+            <td class="headerCovTableEntry">225</td>
+            <td class="headerCovTableEntry">196</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-04-16 22:43:45</td>
+            <td class="headerValue">2026-04-16 22:49:34</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">94.6&nbsp;%</td>
@@ -487,38 +487,36 @@
 <span id="L425"><span class="lineNum">     425</span> <span class="tlaGNC">           1 :     val sessionId = forwardingState.mirrorSessionId ?: return emptyList()</span></span>
 <span id="L426"><span class="lineNum">     426</span> <span class="tlaGNC">           1 :     val session = pipeline.tableStore.getCloneSession(sessionId) ?: return emptyList()</span></span>
 <span id="L427"><span class="lineNum">     427</span> <span class="tlaGNC">           1 :     return session.replicasList.map { replica -&gt;</span></span>
-<span id="L428"><span class="lineNum">     428</span> <span class="tlaGNC">           1 :       val subtree = buildOutputTrace(emptyList(), replica.egressPort, deparsedBytes)</span></span>
-<span id="L429"><span class="lineNum">     429</span> <span class="tlaGNC">           1 :       ForkBranch.newBuilder()</span></span>
-<span id="L430"><span class="lineNum">     430</span> <span class="tlaGNC">           1 :         .setLabel(&quot;mirror_port_${replica.egressPort}&quot;)</span></span>
-<span id="L431"><span class="lineNum">     431</span> <span class="tlaGNC">           1 :         .setSubtree(subtree)</span></span>
-<span id="L432"><span class="lineNum">     432</span> <span class="tlaGNC">           1 :         .build()</span></span>
-<span id="L433"><span class="lineNum">     433</span>              :     }</span>
-<span id="L434"><span class="lineNum">     434</span>              :   }</span>
-<span id="L435"><span class="lineNum">     435</span>              : </span>
-<span id="L436"><span class="lineNum">     436</span>              :   private companion object {</span>
-<span id="L437"><span class="lineNum">     437</span>              :     // PNA_Direction_t enum values (pna.p4).</span>
-<span id="L438"><span class="lineNum">     438</span>              :     const val DIRECTION_NET_TO_HOST = &quot;NET_TO_HOST&quot;</span>
-<span id="L439"><span class="lineNum">     439</span>              : </span>
-<span id="L440"><span class="lineNum">     440</span>              :     // PNA_PacketPath_t enum values (pna.p4).</span>
-<span id="L441"><span class="lineNum">     441</span>              :     const val PACKET_PATH_FROM_NET_PORT = &quot;FROM_NET_PORT&quot;</span>
-<span id="L442"><span class="lineNum">     442</span>              :     const val PACKET_PATH_FROM_NET_RECIRCULATED = &quot;FROM_NET_RECIRCULATED&quot;</span>
-<span id="L443"><span class="lineNum">     443</span>              : </span>
-<span id="L444"><span class="lineNum">     444</span>              :     /**</span>
-<span id="L445"><span class="lineNum">     445</span>              :      * Maps PNA_HashAlgorithm_t enum members to the internal algorithm names used by Hash.kt.</span>
-<span id="L446"><span class="lineNum">     446</span>              :      *</span>
-<span id="L447"><span class="lineNum">     447</span>              :      * PNA's hash algorithm enum has the same values as PSA's, plus TARGET_DEFAULT which we map to</span>
-<span id="L448"><span class="lineNum">     448</span>              :      * identity as a safe fallback.</span>
-<span id="L449"><span class="lineNum">     449</span>              :      */</span>
-<span id="L450"><span class="lineNum">     450</span> <span class="tlaUNC tlaBgUNC">           0 :     val PNA_HASH_ALGORITHMS =</span></span>
-<span id="L451"><span class="lineNum">     451</span> <span class="tlaGNC tlaBgGNC">           1 :       mapOf(</span></span>
-<span id="L452"><span class="lineNum">     452</span> <span class="tlaGNC">           1 :         &quot;IDENTITY&quot; to &quot;identity&quot;,</span></span>
-<span id="L453"><span class="lineNum">     453</span> <span class="tlaGNC">           1 :         &quot;CRC16&quot; to &quot;crc16&quot;,</span></span>
-<span id="L454"><span class="lineNum">     454</span> <span class="tlaGNC">           1 :         &quot;CRC32&quot; to &quot;crc32&quot;,</span></span>
-<span id="L455"><span class="lineNum">     455</span> <span class="tlaGNC">           1 :         &quot;ONES_COMPLEMENT16&quot; to &quot;csum16&quot;,</span></span>
-<span id="L456"><span class="lineNum">     456</span> <span class="tlaGNC">           1 :         &quot;TARGET_DEFAULT&quot; to &quot;identity&quot;,</span></span>
-<span id="L457"><span class="lineNum">     457</span>              :       )</span>
-<span id="L458"><span class="lineNum">     458</span>              :   }</span>
-<span id="L459"><span class="lineNum">     459</span>              : }</span>
+<span id="L428"><span class="lineNum">     428</span> <span class="tlaGNC">           1 :       val port = replicaPort(replica)</span></span>
+<span id="L429"><span class="lineNum">     429</span> <span class="tlaGNC">           1 :       val subtree = buildOutputTrace(emptyList(), port, deparsedBytes)</span></span>
+<span id="L430"><span class="lineNum">     430</span> <span class="tlaGNC">           1 :       ForkBranch.newBuilder().setLabel(&quot;mirror_port_$port&quot;).setSubtree(subtree).build()</span></span>
+<span id="L431"><span class="lineNum">     431</span>              :     }</span>
+<span id="L432"><span class="lineNum">     432</span>              :   }</span>
+<span id="L433"><span class="lineNum">     433</span>              : </span>
+<span id="L434"><span class="lineNum">     434</span>              :   private companion object {</span>
+<span id="L435"><span class="lineNum">     435</span>              :     // PNA_Direction_t enum values (pna.p4).</span>
+<span id="L436"><span class="lineNum">     436</span>              :     const val DIRECTION_NET_TO_HOST = &quot;NET_TO_HOST&quot;</span>
+<span id="L437"><span class="lineNum">     437</span>              : </span>
+<span id="L438"><span class="lineNum">     438</span>              :     // PNA_PacketPath_t enum values (pna.p4).</span>
+<span id="L439"><span class="lineNum">     439</span>              :     const val PACKET_PATH_FROM_NET_PORT = &quot;FROM_NET_PORT&quot;</span>
+<span id="L440"><span class="lineNum">     440</span>              :     const val PACKET_PATH_FROM_NET_RECIRCULATED = &quot;FROM_NET_RECIRCULATED&quot;</span>
+<span id="L441"><span class="lineNum">     441</span>              : </span>
+<span id="L442"><span class="lineNum">     442</span>              :     /**</span>
+<span id="L443"><span class="lineNum">     443</span>              :      * Maps PNA_HashAlgorithm_t enum members to the internal algorithm names used by Hash.kt.</span>
+<span id="L444"><span class="lineNum">     444</span>              :      *</span>
+<span id="L445"><span class="lineNum">     445</span>              :      * PNA's hash algorithm enum has the same values as PSA's, plus TARGET_DEFAULT which we map to</span>
+<span id="L446"><span class="lineNum">     446</span>              :      * identity as a safe fallback.</span>
+<span id="L447"><span class="lineNum">     447</span>              :      */</span>
+<span id="L448"><span class="lineNum">     448</span> <span class="tlaUNC tlaBgUNC">           0 :     val PNA_HASH_ALGORITHMS =</span></span>
+<span id="L449"><span class="lineNum">     449</span> <span class="tlaGNC tlaBgGNC">           1 :       mapOf(</span></span>
+<span id="L450"><span class="lineNum">     450</span> <span class="tlaGNC">           1 :         &quot;IDENTITY&quot; to &quot;identity&quot;,</span></span>
+<span id="L451"><span class="lineNum">     451</span> <span class="tlaGNC">           1 :         &quot;CRC16&quot; to &quot;crc16&quot;,</span></span>
+<span id="L452"><span class="lineNum">     452</span> <span class="tlaGNC">           1 :         &quot;CRC32&quot; to &quot;crc32&quot;,</span></span>
+<span id="L453"><span class="lineNum">     453</span> <span class="tlaGNC">           1 :         &quot;ONES_COMPLEMENT16&quot; to &quot;csum16&quot;,</span></span>
+<span id="L454"><span class="lineNum">     454</span> <span class="tlaGNC">           1 :         &quot;TARGET_DEFAULT&quot; to &quot;identity&quot;,</span></span>
+<span id="L455"><span class="lineNum">     455</span>              :       )</span>
+<span id="L456"><span class="lineNum">     456</span>              :   }</span>
+<span id="L457"><span class="lineNum">     457</span>              : }</span>
         </pre>
               </td>
             </tr>

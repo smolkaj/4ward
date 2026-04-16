@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-04-16 22:43:45</td>
+            <td class="headerValue">2026-04-16 22:49:34</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">95.5&nbsp;%</td>
@@ -125,8 +125,8 @@
 <span id="L63"><span class="lineNum">      63</span> <span class="tlaGNC">           1 :       if (!containsKey(action.name)) put(action.name, action)</span></span>
 <span id="L64"><span class="lineNum">      64</span> <span class="tlaGNC">           1 :       if (action.currentName.isNotEmpty()) put(action.currentName, action)</span></span>
 <span id="L65"><span class="lineNum">      65</span> <span class="tlaGNC">           1 :     }</span></span>
-<span id="L66"><span class="lineNum">      66</span> <span class="tlaGNC">           1 :     config.actionsList.forEach { index(it) }</span></span>
-<span id="L67"><span class="lineNum">      67</span> <span class="tlaGNC">           1 :     config.controlsList.forEach { ctrl -&gt; ctrl.localActionsList.forEach { index(it) } }</span></span>
+<span id="L66"><span class="lineNum">      66</span> <span class="tlaGNC">           1 :     for (action in config.actionsList) index(action)</span></span>
+<span id="L67"><span class="lineNum">      67</span> <span class="tlaGNC">           1 :     for (ctrl in config.controlsList) for (action in ctrl.localActionsList) index(action)</span></span>
 <span id="L68"><span class="lineNum">      68</span> <span class="tlaGNC">           1 :   }</span></span>
 <span id="L69"><span class="lineNum">      69</span>              : </span>
 <span id="L70"><span class="lineNum">      70</span> <span class="tlaGNC">           1 :   private val tables: Map&lt;String, TableBehavior&gt; = config.tablesList.associateBy { it.name }</span></span>
@@ -479,7 +479,7 @@
 <span id="L417"><span class="lineNum">     417</span> <span class="tlaGNC">           1 :         lit.hasEnumMember() -&gt; EnumVal(lit.enumMember)</span></span>
 <span id="L418"><span class="lineNum">     418</span> <span class="tlaGNC">           1 :         lit.hasStringLiteral() -&gt; StringVal(lit.stringLiteral)</span></span>
 <span id="L419"><span class="lineNum">     419</span> <span class="tlaGNC">           1 :         lit.hasInteger() -&gt; {</span></span>
-<span id="L420"><span class="lineNum">     420</span> <span class="tlaGNC">           1 :           val v = BigInteger.valueOf(lit.integer.toLong())</span></span>
+<span id="L420"><span class="lineNum">     420</span> <span class="tlaGNC">           1 :           val v = BigInteger.valueOf(lit.integer)</span></span>
 <span id="L421"><span class="lineNum">     421</span> <span class="tlaGNC">           1 :           when {</span></span>
 <span id="L422"><span class="lineNum">     422</span> <span class="tlaGNC">           1 :             type.hasBit() -&gt; BitVal(BitVector(v, type.bit.width))</span></span>
 <span id="L423"><span class="lineNum">     423</span> <span class="tlaGNC">           1 :             type.hasSignedInt() -&gt; IntVal(SignedBitVector.fromUnsignedBits(v, type.signedInt.width))</span></span>

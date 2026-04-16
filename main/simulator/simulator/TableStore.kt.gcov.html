@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-04-16 22:43:45</td>
+            <td class="headerValue">2026-04-16 22:49:34</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">97.5&nbsp;%</td>
@@ -234,17 +234,17 @@
 <span id="L172"><span class="lineNum">     172</span>              :     /** Creates a structural copy. Protobuf entries are shared; only containers are copied. */</span>
 <span id="L173"><span class="lineNum">     173</span>              :     fun deepCopy(): ForwardingSnapshot =</span>
 <span id="L174"><span class="lineNum">     174</span> <span class="tlaGNC">           1 :       ForwardingSnapshot().also { copy -&gt;</span></span>
-<span id="L175"><span class="lineNum">     175</span> <span class="tlaGNC">           1 :         tables.forEach { (k, v) -&gt; copy.tables[k] = v.toMutableList() }</span></span>
+<span id="L175"><span class="lineNum">     175</span> <span class="tlaGNC">           1 :         for ((k, v) in tables) copy.tables[k] = v.toMutableList()</span></span>
 <span id="L176"><span class="lineNum">     176</span> <span class="tlaGNC">           1 :         copy.directMeterData.putAll(directMeterData)</span></span>
 <span id="L177"><span class="lineNum">     177</span> <span class="tlaGNC">           1 :         copy.defaultActions.putAll(defaultActions)</span></span>
 <span id="L178"><span class="lineNum">     178</span> <span class="tlaGNC">           1 :         copy.modifiedDefaults.addAll(modifiedDefaults)</span></span>
-<span id="L179"><span class="lineNum">     179</span> <span class="tlaGNC">           1 :         profileMembers.forEach { (k, v) -&gt; copy.profileMembers[k] = v.toMutableMap() }</span></span>
-<span id="L180"><span class="lineNum">     180</span> <span class="tlaGNC">           1 :         profileGroups.forEach { (k, v) -&gt; copy.profileGroups[k] = v.toMutableMap() }</span></span>
-<span id="L181"><span class="lineNum">     181</span> <span class="tlaGNC">           1 :         counters.forEach { (k, v) -&gt; copy.counters[k] = v.toMutableMap() }</span></span>
-<span id="L182"><span class="lineNum">     182</span> <span class="tlaGNC">           1 :         meters.forEach { (k, v) -&gt; copy.meters[k] = v.toMutableMap() }</span></span>
+<span id="L179"><span class="lineNum">     179</span> <span class="tlaGNC">           1 :         for ((k, v) in profileMembers) copy.profileMembers[k] = v.toMutableMap()</span></span>
+<span id="L180"><span class="lineNum">     180</span> <span class="tlaGNC">           1 :         for ((k, v) in profileGroups) copy.profileGroups[k] = v.toMutableMap()</span></span>
+<span id="L181"><span class="lineNum">     181</span> <span class="tlaGNC">           1 :         for ((k, v) in counters) copy.counters[k] = v.toMutableMap()</span></span>
+<span id="L182"><span class="lineNum">     182</span> <span class="tlaGNC">           1 :         for ((k, v) in meters) copy.meters[k] = v.toMutableMap()</span></span>
 <span id="L183"><span class="lineNum">     183</span> <span class="tlaGNC">           1 :         copy.cloneSessions.putAll(cloneSessions)</span></span>
 <span id="L184"><span class="lineNum">     184</span> <span class="tlaGNC">           1 :         copy.multicastGroups.putAll(multicastGroups)</span></span>
-<span id="L185"><span class="lineNum">     185</span> <span class="tlaGNC">           1 :         valueSets.forEach { (k, v) -&gt; copy.valueSets[k] = v.toMutableList() }</span></span>
+<span id="L185"><span class="lineNum">     185</span> <span class="tlaGNC">           1 :         for ((k, v) in valueSets) copy.valueSets[k] = v.toMutableList()</span></span>
 <span id="L186"><span class="lineNum">     186</span> <span class="tlaGNC">           1 :       }</span></span>
 <span id="L187"><span class="lineNum">     187</span>              :   }</span>
 <span id="L188"><span class="lineNum">     188</span>              : </span>
