@@ -221,6 +221,7 @@ kt_jvm_test(
         "//e2e_tests/golden_errors:stateful",
         "//e2e_tests/golden_errors:value_set",
         "//e2e_tests/lpm_routing",
+        "//e2e_tests/passthrough",
         "//e2e_tests/ternary_acl",
         "//e2e_tests/trace_tree:action_selector_3",
         "//e2e_tests/trace_tree:clone_with_egress",

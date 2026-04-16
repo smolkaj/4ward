@@ -1,0 +1,1 @@
+FAILED_PRECONDITION: InjectPacket uses p4rt_ingress_port (0x00000001), but the loaded pipeline's port type has no @p4runtime_translation — compile with a port type that carries the annotation (e.g. via v1model_sai.p4). Alternatively, use dataplane_ingress_port (numeric) to bypass P4Runtime port translation.

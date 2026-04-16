@@ -41,11 +41,11 @@ class DataplaneService(
 
   override suspend fun injectPacket(request: InjectPacketRequest): InjectPacketResponse {
     val translator = typeTranslator()
-    val pt = translator?.portTranslator
     val ingressPort = resolveIngressPort(request, translator)
     val payload = request.payload.toByteArray()
     val result = broker.processPacket(ingressPort, payload)
     try {
+      val pt = translator?.portTranslator
       val possibleOutcomes =
         result.possibleOutcomes.map { world ->
           PacketSet.newBuilder().addAllPackets(world.map { it.toDualEncoded(pt) }).build()
@@ -154,23 +154,21 @@ class DataplaneService(
     when (request.ingressPortCase) {
       InjectPacketRequest.IngressPortCase.DATAPLANE_INGRESS_PORT -> request.dataplaneIngressPort
       InjectPacketRequest.IngressPortCase.P4RT_INGRESS_PORT ->
-        (translator?.portTranslator ?: throw missingPortTranslation(request, translator))
+        (translator?.portTranslator
+            ?: throw missingPortTranslation(request.p4RtIngressPort, translator))
           .p4rtToDataplane(request.p4RtIngressPort)
       InjectPacketRequest.IngressPortCase.INGRESSPORT_NOT_SET,
       null -> 0
     }
 }
 
-// Distinguishes the two reasons InjectPacket can reject a p4rt_ingress_port:
-// no pipeline loaded at all vs. a pipeline whose port type lacks
-// @p4runtime_translation. Same status code, different remediation — the
-// caller needs to know which one they hit.
+// Same FAILED_PRECONDITION covers two distinct remediations — "load a pipeline"
+// vs. "use a pipeline whose port type has @p4runtime_translation" — so the
+// message has to say which branch the caller is on.
 private fun missingPortTranslation(
-  request: InjectPacketRequest,
+  requestedPort: ByteString,
   translator: TypeTranslator?,
 ): StatusException {
-  val requested =
-    request.p4RtIngressPort.toByteArray().joinToString("") { "%02x".format(it.toInt() and 0xFF) }
   val reason =
     if (translator == null) {
       "no pipeline is loaded — call SetForwardingPipelineConfig first"
@@ -179,7 +177,7 @@ private fun missingPortTranslation(
         "with a port type that carries the annotation (e.g. via v1model_sai.p4)"
     }
   return Status.FAILED_PRECONDITION.withDescription(
-      "InjectPacket uses p4rt_ingress_port (0x$requested), but $reason. " +
+      "InjectPacket uses p4rt_ingress_port (0x${requestedPort.toHex()}), but $reason. " +
         "Alternatively, use dataplane_ingress_port (numeric) to bypass P4Runtime port translation."
     )
     .asException()
