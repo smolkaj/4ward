@@ -1,12 +1,14 @@
 package fourward.p4runtime
 
 import com.google.protobuf.ByteString
+import com.google.rpc.Status as RpcStatus
 import fourward.dataplane.DataplaneGrpcKt.DataplaneCoroutineStub
 import fourward.dataplane.InjectPacketRequest
 import fourward.dataplane.InjectPacketResponse
 import fourward.dataplane.PacketSet
 import fourward.ir.PipelineConfig
 import fourward.simulator.Simulator
+import fourward.simulator.portToBytes
 import io.grpc.ManagedChannel
 import io.grpc.Status
 import io.grpc.StatusException
@@ -209,7 +211,9 @@ class P4RuntimeTestHarness(
   fun buildBatchRequest(type: Update.Type, entities: List<Entity>): WriteRequest =
     WriteRequest.newBuilder()
       .setDeviceId(1)
-      .apply { entities.forEach { addUpdates(Update.newBuilder().setType(type).setEntity(it)) } }
+      .apply {
+        for (entity in entities) addUpdates(Update.newBuilder().setType(type).setEntity(entity))
+      }
       .build()
 
   private fun writeEntity(
@@ -454,6 +458,11 @@ class P4RuntimeTestHarness(
       runBlocking { withTimeout(STREAM_TIMEOUT_MS) { job.join() } }
       scope.cancel()
     }
+
+    /** Cancels the stream coroutine without the polite request-channel close (cf. [close]). */
+    fun cancelAbruptly() {
+      scope.cancel()
+    }
   }
 
   override fun close() {
@@ -521,7 +530,7 @@ class P4RuntimeTestHarness(
       val key =
         io.grpc.Metadata.Key.of("grpc-status-details-bin", io.grpc.Metadata.BINARY_BYTE_MARSHALLER)
       val bytes = trailers.get(key) ?: return null
-      val rpcStatus = com.google.rpc.Status.parseFrom(bytes)
+      val rpcStatus = RpcStatus.parseFrom(bytes)
       return rpcStatus.detailsList.map { any -> P4RuntimeOuterClass.Error.parseFrom(any.value) }
     }
 
@@ -585,14 +594,6 @@ class P4RuntimeTestHarness(
             )
         )
         .build()
-    }
-
-    /** Minimum-width unsigned big-endian encoding of a port number. */
-    private fun portToBytes(port: Int): ByteString {
-      val bytes = ByteArray(4) { i -> (port shr ((3 - i) * 8) and 0xFF).toByte() }
-      val firstNonZero = bytes.indexOfFirst { it != 0.toByte() }
-      val start = if (firstNonZero < 0) 3 else firstNonZero
-      return ByteString.copyFrom(bytes, start, bytes.size - start)
     }
 
     /** Loads a PipelineConfig from a Bazel runfiles-relative text proto path. */

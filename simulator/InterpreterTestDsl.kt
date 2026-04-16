@@ -160,7 +160,7 @@ fun writeCloneSession(store: TableStore, sessionId: Int, replicas: List<Pair<Int
                     replicas.map { (instance, port) ->
                       P4RuntimeOuterClass.Replica.newBuilder()
                         .setInstance(instance)
-                        .setEgressPort(port)
+                        .setPort(portToBytes(port))
                         .build()
                     }
                   )

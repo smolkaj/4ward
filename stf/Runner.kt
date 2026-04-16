@@ -5,6 +5,7 @@ import com.google.protobuf.TextFormat
 import fourward.ir.PipelineConfig
 import fourward.simulator.Simulator
 import fourward.simulator.WriteResult
+import fourward.simulator.portToBytes
 import java.math.BigInteger
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -609,7 +610,9 @@ fun resolveStfMirroringAdd(directive: StfMirroringAdd): P4RuntimeOuterClass.Upda
   val session =
     P4RuntimeOuterClass.CloneSessionEntry.newBuilder()
       .setSessionId(directive.sessionId)
-      .addReplicas(P4RuntimeOuterClass.Replica.newBuilder().setEgressPort(directive.egressPort))
+      .addReplicas(
+        P4RuntimeOuterClass.Replica.newBuilder().setPort(portToBytes(directive.egressPort))
+      )
       .build()
 
   return update(
@@ -694,7 +697,10 @@ private fun resolveReplicas(
       val node =
         nodes.getOrNull(assoc.nodeHandle) ?: error("unknown mc node handle: ${assoc.nodeHandle}")
       node.ports.map { port ->
-        P4RuntimeOuterClass.Replica.newBuilder().setEgressPort(port).setInstance(node.rid).build()
+        P4RuntimeOuterClass.Replica.newBuilder()
+          .setPort(portToBytes(port))
+          .setInstance(node.rid)
+          .build()
       }
     }
 

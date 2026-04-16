@@ -63,8 +63,8 @@ class Interpreter internal constructor(config: BehavioralConfig) {
       if (!containsKey(action.name)) put(action.name, action)
       if (action.currentName.isNotEmpty()) put(action.currentName, action)
     }
-    config.actionsList.forEach { index(it) }
-    config.controlsList.forEach { ctrl -> ctrl.localActionsList.forEach { index(it) } }
+    for (action in config.actionsList) index(action)
+    for (ctrl in config.controlsList) for (action in ctrl.localActionsList) index(action)
   }
 
   private val tables: Map<String, TableBehavior> = config.tablesList.associateBy { it.name }
@@ -417,7 +417,7 @@ class Interpreter internal constructor(config: BehavioralConfig) {
         lit.hasEnumMember() -> EnumVal(lit.enumMember)
         lit.hasStringLiteral() -> StringVal(lit.stringLiteral)
         lit.hasInteger() -> {
-          val v = BigInteger.valueOf(lit.integer.toLong())
+          val v = BigInteger.valueOf(lit.integer)
           when {
             type.hasBit() -> BitVal(BitVector(v, type.bit.width))
             type.hasSignedInt() -> IntVal(SignedBitVector.fromUnsignedBits(v, type.signedInt.width))

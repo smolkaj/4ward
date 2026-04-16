@@ -367,10 +367,8 @@ class P4RuntimeWriteErrorTest {
     val request = harness.buildBatchRequest(Update.Type.INSERT, listOf(good, badTableEntity()))
     val errors = assertBatchError { harness.writeRaw(request) }
     assert(errors.size == 2) { "expected 2 per-update errors, got ${errors.size}" }
-    assert(errors[0].getCanonicalCode() == com.google.rpc.Code.OK_VALUE) {
-      "first update should be OK"
-    }
-    assert(errors[1].getCanonicalCode() == com.google.rpc.Code.NOT_FOUND_VALUE) {
+    assert(errors[0].canonicalCode == com.google.rpc.Code.OK_VALUE) { "first update should be OK" }
+    assert(errors[1].canonicalCode == com.google.rpc.Code.NOT_FOUND_VALUE) {
       "second update should be NOT_FOUND"
     }
     // Good update was applied despite bad one failing.

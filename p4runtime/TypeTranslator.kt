@@ -360,12 +360,8 @@ private constructor(
         val typeName = typeNameMap[meta.metadataId]
         if (typeName != null) {
           val translated = translateValue(getOrCreateTable(typeName), meta.value, toDataplane)
-          if (translated != null) {
-            changed = true
-            meta.toBuilder().setValue(translated).build()
-          } else {
-            meta
-          }
+          changed = true
+          meta.toBuilder().setValue(translated).build()
         } else {
           meta
         }

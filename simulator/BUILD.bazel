@@ -121,6 +121,7 @@ kt_jvm_library(
         ":ir_java_proto",
         ":p4runtime_java_proto",
         ":simulator_lib",
+        "@fourward_maven//:com_google_protobuf_protobuf_java",
     ],
 )
 
@@ -189,6 +190,7 @@ kt_jvm_test(
     srcs = ["TableStoreTest.kt"],
     test_class = "fourward.simulator.TableStoreTest",
     deps = [
+        ":interpreter_test_dsl",
         ":ir_java_proto",
         ":p4data_java_proto",
         ":p4info_java_proto",

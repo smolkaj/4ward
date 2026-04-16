@@ -425,11 +425,9 @@ class PNAArchitecture(private val config: BehavioralConfig) : Architecture {
     val sessionId = forwardingState.mirrorSessionId ?: return emptyList()
     val session = pipeline.tableStore.getCloneSession(sessionId) ?: return emptyList()
     return session.replicasList.map { replica ->
-      val subtree = buildOutputTrace(emptyList(), replica.egressPort, deparsedBytes)
-      ForkBranch.newBuilder()
-        .setLabel("mirror_port_${replica.egressPort}")
-        .setSubtree(subtree)
-        .build()
+      val port = replicaPort(replica)
+      val subtree = buildOutputTrace(emptyList(), port, deparsedBytes)
+      ForkBranch.newBuilder().setLabel("mirror_port_$port").setSubtree(subtree).build()
     }
   }
 

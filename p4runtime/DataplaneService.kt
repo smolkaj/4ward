@@ -109,7 +109,11 @@ class DataplaneService(
                 )
                 .setTrace(enrichTrace(subResult.trace, translator))
                 .build()
-            trySend(SubscribeResultsResponse.newBuilder().setResult(result).build())
+            // Close the stream if the channel is full or closed — silently dropping a packet
+            // result would violate the SubscribeResults contract.
+            val sendResult =
+              trySend(SubscribeResultsResponse.newBuilder().setResult(result).build())
+            if (sendResult.isFailure) close(sendResult.exceptionOrNull())
           } catch (
             @Suppress("TooGenericExceptionCaught") // Any translation/encoding failure should
             e: Exception // terminate this subscription stream, not crash the packet sender.

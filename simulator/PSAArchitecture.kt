@@ -292,18 +292,19 @@ class PSAArchitecture(private val config: BehavioralConfig) : Architecture {
 
     val branches =
       group.replicasList.map { replica ->
+        val port = replicaPort(replica)
         val subtree =
           runEgressWithPostProcessing(
             egressState,
             ingress.deparsedBytes,
-            replica.egressPort,
+            port,
             replica.instance,
             PACKET_PATH_NORMAL_MULTICAST,
             depth,
             selectorMembers,
           )
         ForkBranch.newBuilder()
-          .setLabel("replica_${replica.instance}_port_${replica.egressPort}")
+          .setLabel("replica_${replica.instance}_port_$port")
           .setSubtree(subtree)
           .build()
       }
@@ -528,19 +529,17 @@ class PSAArchitecture(private val config: BehavioralConfig) : Architecture {
     val session = pipeline.tableStore.getCloneSession(sessionId) ?: return emptyList()
     val cloneState = EgressState(pipeline, ingressOutput = null)
     return session.replicasList.map { replica ->
+      val port = replicaPort(replica)
       val subtree =
         runCloneEgress(
           cloneState,
           clonePayload,
-          replica.egressPort,
+          port,
           replica.instance,
           packetPath,
           selectorMembers,
         )
-      ForkBranch.newBuilder()
-        .setLabel("clone_port_${replica.egressPort}")
-        .setSubtree(subtree)
-        .build()
+      ForkBranch.newBuilder().setLabel("clone_port_$port").setSubtree(subtree).build()
     }
   }
 
