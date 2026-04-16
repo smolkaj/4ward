@@ -97,7 +97,6 @@ maven.install(
     artifacts = [
         "com.google.protobuf:protobuf-java:4.29.3",
         "com.google.protobuf:protobuf-java-util:4.29.3",
-        "com.google.protobuf:protobuf-kotlin:4.29.3",
         "junit:junit:4.13.2",
         "com.facebook:ktfmt:0.61",
         "io.gitlab.arturbosch.detekt:detekt-cli:1.23.8",
@@ -108,12 +107,9 @@ maven.install(
         "io.grpc:grpc-inprocess:1.78.0",
         "io.grpc:grpc-kotlin-stub:1.4.3",
         "io.grpc:grpc-netty:1.78.0",
-        "io.grpc:grpc-netty-shaded:1.78.0",
-        "io.grpc:grpc-services:1.78.0",
         "io.grpc:grpc-stub:1.78.0",
         "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.1",
         "org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.10.1",
-        "javax.annotation:javax.annotation-api:1.3.2",
     ],
     repositories = [
         "https://repo1.maven.org/maven2",
