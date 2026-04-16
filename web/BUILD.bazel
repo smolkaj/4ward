@@ -28,15 +28,11 @@ kt_jvm_library(
     ],
 )
 
-kt_jvm_binary(
-    name = "playground",
+# Kept separate from `web_lib` so the heavy server deps (grpc-netty, etc.) don't propagate
+# to the test targets that only need the lighter graph-extractor logic in `web_lib`.
+kt_jvm_library(
+    name = "playground_lib",
     srcs = ["PlaygroundServer.kt"],
-    data = [
-        "//p4c_backend:p4c-4ward",
-        "@p4c//p4include",
-    ] + glob(["frontend/**"]),
-    main_class = "fourward.web.PlaygroundServerKt",
-    visibility = ["//visibility:public"],
     deps = [
         ":web_lib",
         "//p4runtime:p4runtime_lib",
@@ -47,6 +43,17 @@ kt_jvm_binary(
         "@fourward_maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core_jvm",
         "@grpc-java//api",
     ],
+)
+
+kt_jvm_binary(
+    name = "playground",
+    data = [
+        "//p4c_backend:p4c-4ward",
+        "@p4c//p4include",
+    ] + glob(["frontend/**"]),
+    main_class = "fourward.web.PlaygroundServerKt",
+    visibility = ["//visibility:public"],
+    runtime_deps = [":playground_lib"],
 )
 
 kt_jvm_test(
