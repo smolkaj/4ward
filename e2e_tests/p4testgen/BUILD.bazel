@@ -1,20 +1,9 @@
-load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_library")
 load("//e2e_tests:p4testgen.bzl", "p4_testgen_suite", "p4_testgen_test")
 
 package(
     default_applicable_licenses = ["//:license"],
     default_testonly = True,
     licenses = ["notice"],
-)
-
-kt_jvm_library(
-    name = "p4testgen_test_class",
-    srcs = ["P4TestgenSuiteTest.kt"],
-    visibility = ["//e2e_tests:__subpackages__"],
-    deps = [
-        "//stf",
-        "@fourward_maven//:junit_junit",
-    ],
 )
 
 # p4testgen-generated STF tests. Each entry runs p4testgen (symbolic execution
