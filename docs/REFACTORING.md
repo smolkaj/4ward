@@ -25,13 +25,16 @@ lands and both PNA fixes ship in a released p4c.
 
 ## Pinned dependencies inventory
 
-Three deps use `git_override` with pinned commits. `behavioral_model` and
+Four deps use `git_override` with pinned commits. `behavioral_model` and
 `bazel_clang_tidy` are dev-only (`dev_dependency = True`) and invisible to
-BCR consumers.
+BCR consumers; `p4c` and `grpc` affect BCR consumers too.
 
 - **p4c** (`smolkaj/p4c` fork, `93932df`): upstream main plus a single
   cherry-picked patch, the PNA drop-by-default fix (p4lang/p4c#5569).
   See "Drop p4c fork" above.
+- **grpc** (`smolkaj/grpc` fork, `a09a3af`): Bazel 9 compatibility patches
+  (`native.objc_library` and friends) on top of upstream 1.80.0. Drop once
+  grpc publishes a Bazel-9-compatible release to BCR.
 - **bazel_clang_tidy** (`9e54bbb`): pinned before a commit (`c4d35e0`) that
   broke `-isystem` include ordering. Upstream bug never fixed — permanent
   workaround. Re-check if upstream ever resolves the issue.
