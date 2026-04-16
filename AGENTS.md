@@ -117,6 +117,15 @@ Before submitting:
    P4Runtime server (`p4runtime/`) is a thin adapter that forwards requests;
    it holds no P4 state of its own.
 
+6. **When changing concurrency assumptions, audit every site that depended on
+   the old assumption.** Code written under "single-threaded" can hide caches,
+   shared mutable state, and lazy initialisation that becomes racy the moment
+   multiple threads enter. Update both the code and any docs that asserted the
+   old contract — a stale "single-threaded" comment is how the next
+   maintainer assumes a guarantee the code no longer provides. Document the
+   new contract per-method, not just at the class level, so it shows up at the
+   call site.
+
 ## P4 language notes
 
 The authoritative source for language semantics is the

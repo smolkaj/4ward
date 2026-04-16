@@ -11,12 +11,17 @@ import fourward.sim.TraceTree
  * layer is purely additive.
  *
  * Packet delivery is instant. A [MAX_HOP_COUNT] limit prevents infinite loops from routing
- * misconfigurations. Single-threaded — callers must serialise concurrent requests (inherited from
- * [Simulator]).
+ * misconfigurations.
+ *
+ * **Concurrency:** [addSwitch] is single-writer (callers must serialize against other [addSwitch]
+ * calls and against [processPacket]). [processPacket] is safe to call concurrently from any number
+ * of threads once topology setup is complete, inheriting [Simulator.processPacket]'s concurrency
+ * contract. The switch map uses [java.util.concurrent.ConcurrentHashMap] so that the read path is
+ * JMM-safe even if a future refactor relaxes the setup ordering.
  */
 class NetworkSimulator(topology: NetworkTopology) {
 
-  private val simulators = mutableMapOf<String, Simulator>()
+  private val simulators = java.util.concurrent.ConcurrentHashMap<String, Simulator>()
 
   /** Bidirectional link lookup: endpoint → endpoint. */
   private val linkMap: Map<Endpoint, Endpoint> = buildMap {
@@ -33,8 +38,9 @@ class NetworkSimulator(topology: NetworkTopology) {
    * installing table entries).
    */
   fun addSwitch(id: String): Simulator {
-    require(id !in simulators) { "switch '$id' already exists" }
-    return Simulator().also { simulators[id] = it }
+    val sim = Simulator()
+    require(simulators.putIfAbsent(id, sim) == null) { "switch '$id' already exists" }
+    return sim
   }
 
   /**

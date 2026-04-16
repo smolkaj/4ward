@@ -17,6 +17,21 @@ internal val IO_TYPES = setOf("packet_in", "packet_out")
 /** Guard against infinite recirculation loops. */
 internal const val MAX_RECIRCULATIONS = 16
 
+/**
+ * Resolves a named pipeline stage; throws with [archName] context if missing or has no block name.
+ * Used by architecture constructors to fail fast on misconfigured pipelines.
+ */
+internal fun resolveStage(
+  config: BehavioralConfig,
+  archName: String,
+  stageName: String,
+): PipelineStage =
+  config.architecture.stagesList
+    .first { it.name == stageName }
+    .also {
+      require(it.blockName.isNotEmpty()) { "$archName stage '$stageName' has no block name" }
+    }
+
 /** Builds a map from block name to parameter list across all parsers and controls. */
 internal fun buildBlockParamsMap(config: BehavioralConfig): Map<String, List<BlockParam>> {
   val result = mutableMapOf<String, List<BlockParam>>()
