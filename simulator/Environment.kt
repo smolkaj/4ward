@@ -87,7 +87,7 @@ class PacketContext(payload: ByteArray, initialOffset: Int = 0) {
   // -------------------------------------------------------------------------
 
   /** Remaining bytes in the input packet, consumed by parser extract(). */
-  private val buffer: PacketBuffer = PacketBuffer(payload, initialOffset)
+  private val buffer: ParserCursor = ParserCursor(payload, initialOffset)
 
   /** Number of bytes consumed from the input buffer so far (parser extract position). */
   val bytesConsumed: Int
@@ -138,8 +138,8 @@ class PacketTooShortException(message: String) : ParserErrorException("PacketToo
 /** Thrown by the interpreter when a parser error occurs (P4 spec §12.8). */
 open class ParserErrorException(val errorName: String, message: String) : Exception(message)
 
-/** A simple byte-level cursor over a packet buffer. */
-private class PacketBuffer(private val data: ByteArray, initialOffset: Int = 0) {
+/** A simple byte-level cursor over a packet buffer, used by the parser. */
+private class ParserCursor(private val data: ByteArray, initialOffset: Int = 0) {
   private var offset: Int = initialOffset
 
   /** Number of bytes consumed from the start of the buffer. */
