@@ -25,6 +25,7 @@ import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 
@@ -425,4 +426,48 @@ class DataplaneServiceTest {
     hookJob.cancel()
     stream.close()
   }
+
+  // =========================================================================
+  // Exception translation (#499)
+  // =========================================================================
+
+  @Test
+  fun `InjectPacket translates simulator exceptions into INTERNAL with description`() =
+    runBlocking {
+      // Repro for #499: before the fix, any non-IllegalStateException from the
+      // simulator surfaced as a bare gRPC UNKNOWN with no description. Now it
+      // must land as an INTERNAL status naming the exception and its message.
+      val throwingBroker =
+        PacketBroker(
+          simulatorFn = { _, _ ->
+            throw IllegalArgumentException("simulator exploded at 4000 routes")
+          },
+          writeMutex = kotlinx.coroutines.sync.Mutex(),
+        )
+      val service = DataplaneService(throwingBroker)
+
+      val request =
+        fourward.dataplane.InjectPacketRequest.newBuilder()
+          .setDataplaneIngressPort(0)
+          .setPayload(ByteString.copyFrom(byteArrayOf(0x01)))
+          .build()
+
+      val e =
+        try {
+          service.injectPacket(request)
+          fail("expected StatusException")
+          error("unreachable")
+        } catch (ex: io.grpc.StatusException) {
+          ex
+        }
+      assertEquals(Status.Code.INTERNAL, e.status.code)
+      assertTrue(
+        "description should name the exception; got: ${e.status.description}",
+        e.status.description?.contains("IllegalArgumentException") == true,
+      )
+      assertTrue(
+        "description should carry the original message; got: ${e.status.description}",
+        e.status.description?.contains("simulator exploded") == true,
+      )
+    }
 }

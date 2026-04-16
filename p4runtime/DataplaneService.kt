@@ -43,8 +43,13 @@ class DataplaneService(
     val translator = typeTranslator()
     val ingressPort = resolveIngressPort(request, translator)
     val payload = request.payload.toByteArray()
-    val result = broker.processPacket(ingressPort, payload)
+    // Any failure past this point — simulator throws, trace proto exceeds the
+    // gRPC message size limit, port translation blows up — should land as an
+    // INTERNAL with an actionable description, not a bare UNKNOWN on the wire.
+    // See #499.
+    @Suppress("TooGenericExceptionCaught")
     try {
+      val result = broker.processPacket(ingressPort, payload)
       val pt = translator?.portTranslator
       val possibleOutcomes =
         result.possibleOutcomes.map { world ->
@@ -54,8 +59,14 @@ class DataplaneService(
         .addAllPossibleOutcomes(possibleOutcomes)
         .setTrace(enrichTrace(result.trace, translator))
         .build()
-    } catch (e: IllegalStateException) {
-      throw Status.INTERNAL.withDescription(e.message).withCause(e).asException()
+    } catch (e: StatusException) {
+      throw e // already has a proper status; don't rewrap.
+    } catch (e: Exception) {
+      throw Status.INTERNAL.withDescription(
+          "InjectPacket failed: ${e.javaClass.simpleName}: ${e.message ?: "(no message)"}"
+        )
+        .withCause(e)
+        .asException()
     }
   }
 
