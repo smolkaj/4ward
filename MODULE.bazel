@@ -55,14 +55,15 @@ bazel_dep(name = "googleapis-java", version = "1.0.0")
 # BCR consumers get p4c 1.2.5.11.bcr.1 (which has //p4include, testdata
 # exports, and the macOS build fix). Our own dev builds additionally pin
 # to the smolkaj/p4c fork via git_override — only honored when fourward
-# is the root module — because the fork carries the PNA p4testgen STF
-# backend (p4lang/p4c#5570) and drop-by-default fix (p4lang/p4c#5569)
-# that our e2e_tests/p4testgen PNA suite needs. Drop the git_override
-# once both are merged and released to BCR.
+# is the root module — because our e2e_tests/p4testgen PNA suite needs
+# the drop-by-default fix (p4lang/p4c#5569) that is still open upstream.
+# The fork is upstream main plus that single patch; PR #5570 (PNA STF
+# backend) is already in upstream main. Drop the git_override once
+# #5569 lands and ships in a released p4c.
 bazel_dep(name = "p4c", version = "1.2.5.11.bcr.1")
 git_override(
     module_name = "p4c",
-    commit = "c7e38ae7a338973098ab73d08f631c98c470b71c",
+    commit = "93932df3cc9fe7de596ad257f6eee7bcddc0fd58",
     remote = "https://github.com/smolkaj/p4c.git",
 )
 
