@@ -258,7 +258,7 @@ jobs:
               --remote_header=x-buildbuddy-api-key="${BUILDBUDDY_API_KEY}"
               --remote_download_toplevel
               --remote_upload_local_results
-              --remote_timeout=3s
+              --remote_timeout=30s
               --remote_cache_compression
             )
           fi
