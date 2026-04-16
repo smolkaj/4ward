@@ -149,6 +149,16 @@ kt_jvm_test(
 )
 
 kt_jvm_test(
+    name = "DeepCopyFieldStatsTest",
+    srcs = ["DeepCopyFieldStatsTest.kt"],
+    associates = [":simulator_lib"],
+    test_class = "fourward.simulator.DeepCopyFieldStatsTest",
+    deps = [
+        "@fourward_maven//:junit_junit",
+    ],
+)
+
+kt_jvm_test(
     name = "MatchesFieldMatchTest",
     srcs = ["MatchesFieldMatchTest.kt"],
     test_class = "fourward.simulator.MatchesFieldMatchTest",

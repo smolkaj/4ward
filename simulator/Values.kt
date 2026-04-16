@@ -1,5 +1,7 @@
 package fourward.simulator
 
+import java.util.concurrent.atomic.LongAdder
+
 /**
  * Runtime value types for the 4ward simulator.
  *
@@ -12,6 +14,84 @@ package fourward.simulator
 sealed class Value {
   /** Returns an independent deep copy. Immutable leaf types return `this`. */
   open fun deepCopy(): Value = this
+}
+
+/**
+ * Diagnostic counters for deep-copy field access patterns. Measures what fraction of deep-copied
+ * HeaderVal/StructVal fields are actually read or written by fork branches, to evaluate the ceiling
+ * for a copy-on-write optimization. See `designs/parallel_packet_scaling.md`.
+ *
+ * Enabled by `-Dfourward.simulator.trackFieldReads=true`. When disabled (default), deep copies use
+ * plain HashMaps with zero overhead.
+ */
+object DeepCopyFieldStats {
+  val totalFieldsCopied = LongAdder()
+  val rawFieldReads = LongAdder()
+  val rawFieldWrites = LongAdder()
+
+  fun reset() {
+    totalFieldsCopied.reset()
+    rawFieldReads.reset()
+    rawFieldWrites.reset()
+  }
+
+  fun report(): String {
+    val copied = totalFieldsCopied.sum()
+    if (copied == 0L) return "DeepCopyFieldStats: no deep copies tracked."
+    val reads = rawFieldReads.sum()
+    val writes = rawFieldWrites.sum()
+    return buildString {
+      appendLine("=== Deep Copy Field Stats ===")
+      appendLine("Total fields copied: $copied")
+      appendLine(
+        "Raw field reads on copies: $reads (%.2f per copied field)"
+          .format(reads.toDouble() / copied)
+      )
+      appendLine(
+        "Raw field writes on copies: $writes (%.2f per copied field)"
+          .format(writes.toDouble() / copied)
+      )
+      val neverAccessed = copied - minOf(reads + writes, copied)
+      appendLine(
+        "Lower bound on fields never accessed: $neverAccessed (%.1f%%)"
+          .format(100.0 * neverAccessed / copied)
+      )
+    }
+  }
+}
+
+/**
+ * A [MutableMap] wrapper that counts [get] and [put] calls, funneling into [DeepCopyFieldStats].
+ * Used only on deep-copied instances when tracking is enabled.
+ */
+internal class TrackingMutableMap(private val delegate: MutableMap<String, Value>) :
+  MutableMap<String, Value> by delegate {
+  override fun get(key: String): Value? {
+    DeepCopyFieldStats.rawFieldReads.add(1)
+    return delegate[key]
+  }
+
+  override fun put(key: String, value: Value): Value? {
+    DeepCopyFieldStats.rawFieldWrites.add(1)
+    return delegate.put(key, value)
+  }
+
+  override fun putAll(from: Map<out String, Value>) {
+    DeepCopyFieldStats.rawFieldWrites.add(from.size.toLong())
+    delegate.putAll(from)
+  }
+
+  override fun replaceAll(function: java.util.function.BiFunction<in String, in Value, out Value>) {
+    DeepCopyFieldStats.rawFieldWrites.add(delegate.size.toLong())
+    delegate.replaceAll(function)
+  }
+}
+
+/** Wraps [fields] in a [TrackingMutableMap] if tracking is enabled; returns [fields] otherwise. */
+internal fun trackIfEnabled(fields: MutableMap<String, Value>): MutableMap<String, Value> {
+  if (System.getProperty("fourward.simulator.trackFieldReads") != "true") return fields
+  DeepCopyFieldStats.totalFieldsCopied.add(fields.size.toLong())
+  return TrackingMutableMap(fields)
 }
 
 /** A bit<N> value. */
@@ -96,7 +176,11 @@ data class HeaderVal(
   fun copy(): HeaderVal = HeaderVal(typeName, fields.toMutableMap(), valid)
 
   override fun deepCopy(): HeaderVal =
-    HeaderVal(typeName, fields.mapValuesTo(mutableMapOf()) { it.value.deepCopy() }, valid)
+    HeaderVal(
+      typeName,
+      trackIfEnabled(fields.mapValuesTo(mutableMapOf()) { it.value.deepCopy() }),
+      valid,
+    )
 }
 
 /**
@@ -108,7 +192,7 @@ data class StructVal(val typeName: String, val fields: MutableMap<String, Value>
   fun copy(): StructVal = StructVal(typeName, fields.toMutableMap())
 
   override fun deepCopy(): StructVal =
-    StructVal(typeName, fields.mapValuesTo(mutableMapOf()) { it.value.deepCopy() })
+    StructVal(typeName, trackIfEnabled(fields.mapValuesTo(mutableMapOf()) { it.value.deepCopy() }))
 
   /** P4 spec §8.20: a header union is valid if any member header is valid. */
   fun isUnionValid(): Boolean = fields.values.any { it is HeaderVal && it.valid }

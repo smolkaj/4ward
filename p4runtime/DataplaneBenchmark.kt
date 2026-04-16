@@ -4,6 +4,7 @@ import com.google.protobuf.ByteString
 import fourward.ir.PipelineConfig
 import fourward.ir.TranslationEntry
 import fourward.ir.TypeTranslation
+import fourward.simulator.DeepCopyFieldStats
 import org.junit.Test
 import p4.config.v1.P4InfoOuterClass
 import p4.v1.P4RuntimeOuterClass
@@ -129,6 +130,7 @@ class DataplaneBenchmark {
     val elapsedMs = (System.nanoTime() - startNs) / NS_PER_MS
     val pps = totalPackets / elapsedMs * 1000
     println("$workload $mode: $totalPackets packets in %.0f ms = %.0f pps".format(elapsedMs, pps))
+    if (DeepCopyFieldStats.totalFieldsCopied.sum() > 0) println(DeepCopyFieldStats.report())
     harness.close()
   }
 
