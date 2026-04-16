@@ -1,7 +1,7 @@
 # Build rules and patches for third-party dependencies.
 
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
-load("@rules_kotlin//kotlin:core.bzl", "define_kt_toolchain")
+load("@rules_kotlin//kotlin:core.bzl", "define_kt_toolchain", "kt_kotlinc_options")
 
 package(
     default_applicable_licenses = ["//:license"],
@@ -21,7 +21,19 @@ bzl_library(
 # grpc_kotlin's macro). 4ward uses the Maven style by design so BCR
 # consumers don't need `known_contributing_modules` boilerplate (see
 # MODULE.bazel and bcr_test_module/).
+
+# `warn = "error"` (Kotlin's `-Werror`) catches deprecation, redundant
+# operators, suspend-in-finally, and other categories that downstream
+# linters flag — see #531 for the catalog. Keeping these as errors
+# locally means contributors see them at compile time, not after a
+# downstream sync.
+kt_kotlinc_options(
+    name = "fourward_kotlinc_options",
+    warn = "error",
+)
+
 define_kt_toolchain(
     name = "fourward_kotlin_toolchain",
     experimental_strict_kotlin_deps = "error",
+    kotlinc_options = ":fourward_kotlinc_options",
 )

@@ -1,6 +1,7 @@
 package fourward.p4runtime
 
 import com.google.protobuf.Any as ProtoAny
+import com.google.rpc.Code
 import fourward.ir.DeviceConfig
 import fourward.ir.PipelineConfig
 import fourward.sim.OutputPacket
@@ -11,6 +12,7 @@ import io.grpc.Status
 import io.grpc.StatusException
 import java.io.Closeable
 import java.nio.file.Path
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.flow.Flow
@@ -19,6 +21,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import p4.v1.P4RuntimeGrpcKt
 import p4.v1.P4RuntimeOuterClass
 import p4.v1.P4RuntimeOuterClass.CapabilitiesRequest
@@ -653,7 +656,7 @@ class P4RuntimeService(
                 StreamMessageResponse.newBuilder()
                   .setError(
                     P4RuntimeOuterClass.StreamError.newBuilder()
-                      .setCanonicalCode(com.google.rpc.Code.INVALID_ARGUMENT_VALUE)
+                      .setCanonicalCode(Code.INVALID_ARGUMENT_VALUE)
                       .setMessage("unrecognized stream message")
                       .setOther(P4RuntimeOuterClass.StreamOtherError.getDefaultInstance())
                   )
@@ -664,7 +667,9 @@ class P4RuntimeService(
       } finally {
         packetInHandle.unsubscribe()
         notifications.close()
-        handleDisconnect(streamId)
+        // Disconnect cleanup must complete even if the stream coroutine is being cancelled —
+        // otherwise the controller stays in `controllers` and blocks role primary recomputation.
+        withContext(NonCancellable) { handleDisconnect(streamId) }
       }
     }
 
@@ -920,10 +925,7 @@ class P4RuntimeService(
         .setElectionId(electionId)
         .setStatus(
           com.google.rpc.Status.newBuilder()
-            .setCode(
-              if (isPrimary) com.google.rpc.Code.OK_VALUE
-              else com.google.rpc.Code.ALREADY_EXISTS_VALUE
-            )
+            .setCode(if (isPrimary) Code.OK_VALUE else Code.ALREADY_EXISTS_VALUE)
         )
     if (roleName.isNotEmpty()) {
       arb.setRole(P4RuntimeOuterClass.Role.newBuilder().setName(roleName))
@@ -1050,9 +1052,7 @@ class P4RuntimeService(
         .joinToString("; ") { (i, e) -> "update #${i + 1}: ${e.message}" }
     val message = "$failedCount of $totalCount updates failed: $failedDetails"
     val rpcStatus =
-      com.google.rpc.Status.newBuilder()
-        .setCode(com.google.rpc.Code.UNKNOWN_VALUE)
-        .setMessage(message)
+      com.google.rpc.Status.newBuilder().setCode(Code.UNKNOWN_VALUE).setMessage(message)
     for (error in errors) {
       rpcStatus.addDetails(ProtoAny.pack(error))
     }
@@ -1086,7 +1086,7 @@ class P4RuntimeService(
     private const val ROLE_CONFIG_NOT_SUPPORTED =
       "Role.config is not supported; use @p4runtime_role annotations in p4info instead"
 
-    private const val OK_CODE = com.google.rpc.Code.OK_VALUE
+    private const val OK_CODE = Code.OK_VALUE
 
     // P4Runtime spec §12.3: the error space for P4Runtime-specific errors.
     private const val P4RT_ERROR_SPACE = "p4.v1"

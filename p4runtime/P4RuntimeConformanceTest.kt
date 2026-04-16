@@ -1,3 +1,7 @@
+// See comment in GoldenErrorTest.kt — `val unused = stub.X(...)` discards must-be-used gRPC
+// return values flagged by the downstream sync's `@CheckReturnValue` lint.
+@file:Suppress("UnusedPrivateProperty")
+
 package fourward.p4runtime
 
 import com.google.protobuf.Any as ProtoAny
@@ -10,6 +14,7 @@ import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildGroupEntity
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildMemberEntity
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.loadConfig
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.uint128
+import fourward.simulator.portToBytes
 import io.grpc.Status
 import io.grpc.StatusException
 import kotlinx.coroutines.flow.flowOf
@@ -345,21 +350,22 @@ class P4RuntimeConformanceTest {
     // Single WriteRequest: INSERT then MODIFY of the same key.
     // If ordering is correct, both succeed and the entry has port=2.
     runBlocking {
-      harness.stub.write(
-        p4.v1.P4RuntimeOuterClass.WriteRequest.newBuilder()
-          .setDeviceId(1)
-          .addUpdates(
-            p4.v1.P4RuntimeOuterClass.Update.newBuilder()
-              .setType(p4.v1.P4RuntimeOuterClass.Update.Type.INSERT)
-              .setEntity(entry1)
-          )
-          .addUpdates(
-            p4.v1.P4RuntimeOuterClass.Update.newBuilder()
-              .setType(p4.v1.P4RuntimeOuterClass.Update.Type.MODIFY)
-              .setEntity(entry2)
-          )
-          .build()
-      )
+      val unused =
+        harness.stub.write(
+          p4.v1.P4RuntimeOuterClass.WriteRequest.newBuilder()
+            .setDeviceId(1)
+            .addUpdates(
+              p4.v1.P4RuntimeOuterClass.Update.newBuilder()
+                .setType(p4.v1.P4RuntimeOuterClass.Update.Type.INSERT)
+                .setEntity(entry1)
+            )
+            .addUpdates(
+              p4.v1.P4RuntimeOuterClass.Update.newBuilder()
+                .setType(p4.v1.P4RuntimeOuterClass.Update.Type.MODIFY)
+                .setEntity(entry2)
+            )
+            .build()
+        )
     }
 
     // Read back: should have the MODIFY's action (port=2).
@@ -1241,16 +1247,17 @@ class P4RuntimeConformanceTest {
     harness.loadPipeline(config)
     assertGrpcError(Status.Code.NOT_FOUND, "unknown device_id") {
       runBlocking {
-        harness.stub.write(
-          p4.v1.P4RuntimeOuterClass.WriteRequest.newBuilder()
-            .setDeviceId(999)
-            .addUpdates(
-              p4.v1.P4RuntimeOuterClass.Update.newBuilder()
-                .setType(p4.v1.P4RuntimeOuterClass.Update.Type.INSERT)
-                .setEntity(buildExactEntry(config, matchValue = 0x0800, port = 1))
-            )
-            .build()
-        )
+        val unused =
+          harness.stub.write(
+            p4.v1.P4RuntimeOuterClass.WriteRequest.newBuilder()
+              .setDeviceId(999)
+              .addUpdates(
+                p4.v1.P4RuntimeOuterClass.Update.newBuilder()
+                  .setType(p4.v1.P4RuntimeOuterClass.Update.Type.INSERT)
+                  .setEntity(buildExactEntry(config, matchValue = 0x0800, port = 1))
+              )
+              .build()
+          )
       }
     }
   }
@@ -1278,9 +1285,10 @@ class P4RuntimeConformanceTest {
     harness.loadPipeline(loadBasicTableConfig())
     assertGrpcError(Status.Code.NOT_FOUND, "unknown device_id") {
       runBlocking {
-        harness.stub.getForwardingPipelineConfig(
-          GetForwardingPipelineConfigRequest.newBuilder().setDeviceId(999).build()
-        )
+        val unused =
+          harness.stub.getForwardingPipelineConfig(
+            GetForwardingPipelineConfigRequest.newBuilder().setDeviceId(999).build()
+          )
       }
     }
   }
@@ -1418,14 +1426,15 @@ class P4RuntimeConformanceTest {
     val config = loadBasicTableConfig()
     assertGrpcError(Status.Code.PERMISSION_DENIED) {
       runBlocking {
-        harness.stub.setForwardingPipelineConfig(
-          SetForwardingPipelineConfigRequest.newBuilder()
-            .setDeviceId(1)
-            .setElectionId(Uint128.newBuilder().setHigh(0).setLow(3))
-            .setAction(SetForwardingPipelineConfigRequest.Action.VERIFY_AND_COMMIT)
-            .setConfig(harness.buildForwardingPipelineConfig(config))
-            .build()
-        )
+        val unused =
+          harness.stub.setForwardingPipelineConfig(
+            SetForwardingPipelineConfigRequest.newBuilder()
+              .setDeviceId(1)
+              .setElectionId(Uint128.newBuilder().setHigh(0).setLow(3))
+              .setAction(SetForwardingPipelineConfigRequest.Action.VERIFY_AND_COMMIT)
+              .setConfig(harness.buildForwardingPipelineConfig(config))
+              .build()
+          )
       }
     }
   }
@@ -1627,6 +1636,30 @@ class P4RuntimeConformanceTest {
     }
   }
 
+  /** Multiple iterations widen the cancellation race window. See `streamChannel`'s `finally`. */
+  @Test
+  fun `74b - abrupt cancel of primary stream still releases its arbitration slot`() {
+    repeat(8) {
+      val primary = harness.openStream()
+      val arbResp = primary.arbitrate(electionId = 5)
+      assertEquals(com.google.rpc.Code.OK_VALUE, arbResp.arbitration.status.code) // sanity: primary
+      primary.cancelAbruptly()
+
+      // Give the server's finally block a chance to run handleDisconnect.
+      Thread.sleep(50)
+
+      harness.openStream().use { fresh ->
+        val resp = fresh.arbitrate(electionId = 3)
+        assertEquals(
+          "after primary's abrupt cancel, election_id=3 must become primary; " +
+            "stale controller in map would demote it",
+          com.google.rpc.Code.OK_VALUE,
+          resp.arbitration.status.code,
+        )
+      }
+    }
+  }
+
   // =========================================================================
   // SetForwardingPipelineConfig actions (§7.2)
   // =========================================================================
@@ -1745,7 +1778,7 @@ class P4RuntimeConformanceTest {
               P4RuntimeOuterClass.MulticastGroupEntry.newBuilder()
                 .setMulticastGroupId(1)
                 .addReplicas(
-                  P4RuntimeOuterClass.Replica.newBuilder().setEgressPort(1).setInstance(0)
+                  P4RuntimeOuterClass.Replica.newBuilder().setPort(portToBytes(1)).setInstance(0)
                 )
             )
         )
@@ -2603,13 +2636,14 @@ class P4RuntimeConformanceTest {
 
   /** Sends a raw SetForwardingPipelineConfig — bypasses the harness to test validation paths. */
   private fun loadRawPipeline(config: ForwardingPipelineConfig.Builder) = runBlocking {
-    harness.stub.setForwardingPipelineConfig(
-      SetForwardingPipelineConfigRequest.newBuilder()
-        .setDeviceId(1)
-        .setAction(SetForwardingPipelineConfigRequest.Action.VERIFY_AND_COMMIT)
-        .setConfig(config)
-        .build()
-    )
+    val unused =
+      harness.stub.setForwardingPipelineConfig(
+        SetForwardingPipelineConfigRequest.newBuilder()
+          .setDeviceId(1)
+          .setAction(SetForwardingPipelineConfigRequest.Action.VERIFY_AND_COMMIT)
+          .setConfig(config)
+          .build()
+      )
   }
 
   /** Sends a SetForwardingPipelineConfig with a specific action. */
@@ -2623,13 +2657,14 @@ class P4RuntimeConformanceTest {
         .setP4Info(config.p4Info)
         .setP4DeviceConfig(config.device.toByteString())
         .setCookie(cookie)
-    harness.stub.setForwardingPipelineConfig(
-      SetForwardingPipelineConfigRequest.newBuilder()
-        .setDeviceId(1)
-        .setAction(action)
-        .setConfig(fwdConfig)
-        .build()
-    )
+    val unused =
+      harness.stub.setForwardingPipelineConfig(
+        SetForwardingPipelineConfigRequest.newBuilder()
+          .setDeviceId(1)
+          .setAction(action)
+          .setConfig(fwdConfig)
+          .build()
+      )
   }
 
   companion object {

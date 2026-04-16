@@ -1,3 +1,8 @@
+// `val unused = stub.X(...)` is the documented way to discard return values from gRPC stubs that
+// the downstream sync's `@CheckReturnValue` lint flags as must-be-used. Detekt's
+// `UnusedPrivateProperty` then complains about the local `unused` — suppress it here.
+@file:Suppress("UnusedPrivateProperty")
+
 package fourward.p4runtime
 
 import com.google.protobuf.Any as ProtoAny
@@ -290,30 +295,32 @@ class GoldenErrorTest(private val testName: String) {
   }
 
   private fun triggerInvalidDeviceConfig() = runBlocking {
-    harness.stub.setForwardingPipelineConfig(
-      SetForwardingPipelineConfigRequest.newBuilder()
-        .setDeviceId(1)
-        .setAction(SetForwardingPipelineConfigRequest.Action.VERIFY_AND_COMMIT)
-        .setConfig(
-          ForwardingPipelineConfig.newBuilder()
-            .setP4Info(p4.config.v1.P4InfoOuterClass.P4Info.getDefaultInstance())
-            .setP4DeviceConfig(ByteString.copyFromUtf8("garbage"))
-        )
-        .build()
-    )
+    val unused =
+      harness.stub.setForwardingPipelineConfig(
+        SetForwardingPipelineConfigRequest.newBuilder()
+          .setDeviceId(1)
+          .setAction(SetForwardingPipelineConfigRequest.Action.VERIFY_AND_COMMIT)
+          .setConfig(
+            ForwardingPipelineConfig.newBuilder()
+              .setP4Info(p4.config.v1.P4InfoOuterClass.P4Info.getDefaultInstance())
+              .setP4DeviceConfig(ByteString.copyFromUtf8("garbage"))
+          )
+          .build()
+      )
   }
 
   private fun triggerMissingPipelineConfig() = runBlocking {
-    harness.stub.setForwardingPipelineConfig(
-      SetForwardingPipelineConfigRequest.newBuilder()
-        .setDeviceId(1)
-        .setAction(SetForwardingPipelineConfigRequest.Action.VERIFY_AND_COMMIT)
-        .setConfig(
-          ForwardingPipelineConfig.newBuilder()
-            .setP4Info(p4.config.v1.P4InfoOuterClass.P4Info.getDefaultInstance())
-        )
-        .build()
-    )
+    val unused =
+      harness.stub.setForwardingPipelineConfig(
+        SetForwardingPipelineConfigRequest.newBuilder()
+          .setDeviceId(1)
+          .setAction(SetForwardingPipelineConfigRequest.Action.VERIFY_AND_COMMIT)
+          .setConfig(
+            ForwardingPipelineConfig.newBuilder()
+              .setP4Info(p4.config.v1.P4InfoOuterClass.P4Info.getDefaultInstance())
+          )
+          .build()
+      )
   }
 
   @Suppress("MagicNumber")
@@ -508,21 +515,23 @@ class GoldenErrorTest(private val testName: String) {
   }
 
   private fun triggerCommitWithoutSave() = runBlocking {
-    harness.stub.setForwardingPipelineConfig(
-      SetForwardingPipelineConfigRequest.newBuilder()
-        .setDeviceId(1)
-        .setAction(SetForwardingPipelineConfigRequest.Action.COMMIT)
-        .build()
-    )
+    val unused =
+      harness.stub.setForwardingPipelineConfig(
+        SetForwardingPipelineConfigRequest.newBuilder()
+          .setDeviceId(1)
+          .setAction(SetForwardingPipelineConfigRequest.Action.COMMIT)
+          .build()
+      )
   }
 
   private fun triggerUnrecognizedPipelineAction() = runBlocking {
-    harness.stub.setForwardingPipelineConfig(
-      SetForwardingPipelineConfigRequest.newBuilder()
-        .setDeviceId(1)
-        .setAction(SetForwardingPipelineConfigRequest.Action.UNSPECIFIED)
-        .build()
-    )
+    val unused =
+      harness.stub.setForwardingPipelineConfig(
+        SetForwardingPipelineConfigRequest.newBuilder()
+          .setDeviceId(1)
+          .setAction(SetForwardingPipelineConfigRequest.Action.UNSPECIFIED)
+          .build()
+      )
   }
 
   private fun triggerSimulatorRejectedPipeline() {
@@ -541,13 +550,14 @@ class GoldenErrorTest(private val testName: String) {
         .setP4DeviceConfig(deviceConfig.toByteString())
         .build()
     runBlocking {
-      harness.stub.setForwardingPipelineConfig(
-        SetForwardingPipelineConfigRequest.newBuilder()
-          .setDeviceId(1)
-          .setAction(SetForwardingPipelineConfigRequest.Action.VERIFY_AND_COMMIT)
-          .setConfig(fwdConfig)
-          .build()
-      )
+      val unused =
+        harness.stub.setForwardingPipelineConfig(
+          SetForwardingPipelineConfigRequest.newBuilder()
+            .setDeviceId(1)
+            .setAction(SetForwardingPipelineConfigRequest.Action.VERIFY_AND_COMMIT)
+            .setConfig(fwdConfig)
+            .build()
+        )
     }
   }
 
@@ -1081,12 +1091,13 @@ class GoldenErrorTest(private val testName: String) {
   @Suppress("MagicNumber")
   private fun triggerUnrecognizedResponseType() = runBlocking {
     harness.loadPipeline(loadBasicTable())
-    harness.stub.getForwardingPipelineConfig(
-      GetForwardingPipelineConfigRequest.newBuilder()
-        .setDeviceId(1)
-        .setResponseTypeValue(999)
-        .build()
-    )
+    val unused =
+      harness.stub.getForwardingPipelineConfig(
+        GetForwardingPipelineConfigRequest.newBuilder()
+          .setDeviceId(1)
+          .setResponseTypeValue(999)
+          .build()
+      )
   }
 
   @Suppress("MagicNumber")
@@ -1097,13 +1108,14 @@ class GoldenErrorTest(private val testName: String) {
     // RECONCILE_AND_COMMIT with ternary_acl: basic_table's table is absent.
     val ternaryAcl = loadTernaryAcl()
     runBlocking {
-      harness.stub.setForwardingPipelineConfig(
-        SetForwardingPipelineConfigRequest.newBuilder()
-          .setDeviceId(1)
-          .setAction(SetForwardingPipelineConfigRequest.Action.RECONCILE_AND_COMMIT)
-          .setConfig(harness.buildForwardingPipelineConfig(ternaryAcl))
-          .build()
-      )
+      val unused =
+        harness.stub.setForwardingPipelineConfig(
+          SetForwardingPipelineConfigRequest.newBuilder()
+            .setDeviceId(1)
+            .setAction(SetForwardingPipelineConfigRequest.Action.RECONCILE_AND_COMMIT)
+            .setConfig(harness.buildForwardingPipelineConfig(ternaryAcl))
+            .build()
+        )
     }
   }
 
@@ -1199,13 +1211,14 @@ class GoldenErrorTest(private val testName: String) {
     val patchedP4Info = config.p4Info.toBuilder().setTables(0, patchedTable).build()
     val patchedConfig = config.toBuilder().setP4Info(patchedP4Info).build()
     runBlocking {
-      harness.stub.setForwardingPipelineConfig(
-        SetForwardingPipelineConfigRequest.newBuilder()
-          .setDeviceId(1)
-          .setAction(SetForwardingPipelineConfigRequest.Action.RECONCILE_AND_COMMIT)
-          .setConfig(harness.buildForwardingPipelineConfig(patchedConfig))
-          .build()
-      )
+      val unused =
+        harness.stub.setForwardingPipelineConfig(
+          SetForwardingPipelineConfigRequest.newBuilder()
+            .setDeviceId(1)
+            .setAction(SetForwardingPipelineConfigRequest.Action.RECONCILE_AND_COMMIT)
+            .setConfig(harness.buildForwardingPipelineConfig(patchedConfig))
+            .build()
+        )
     }
   }
 

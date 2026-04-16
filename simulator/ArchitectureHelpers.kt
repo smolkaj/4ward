@@ -1,5 +1,6 @@
 package fourward.simulator
 
+import com.google.protobuf.ByteString
 import fourward.ir.BehavioralConfig
 import fourward.ir.ExternInstanceDecl
 import fourward.ir.PipelineStage
@@ -7,9 +8,32 @@ import fourward.ir.TypeDecl
 import fourward.sim.PipelineStageEvent
 import fourward.sim.TraceTree
 import java.math.BigInteger
+import p4.v1.P4RuntimeOuterClass
 
 /** Simplified parameter descriptor: just name and type. */
 internal data class BlockParam(val name: String, val typeName: String)
+
+/**
+ * Reads the egress port from a [P4RuntimeOuterClass.Replica], supporting both `port` (bytes,
+ * P4Runtime v1.4+) and the deprecated `egress_port` (uint32). On the per-packet hot path; written
+ * as a plain loop to avoid the IntRange + lambda allocation of a `fold`.
+ */
+@Suppress("DEPRECATION")
+fun replicaPort(replica: P4RuntimeOuterClass.Replica): Int {
+  val port = replica.port
+  if (port.isEmpty) return replica.egressPort
+  var acc = 0
+  for (i in 0 until port.size()) acc = (acc shl 8) or (port.byteAt(i).toInt() and 0xFF)
+  return acc
+}
+
+/** Inverse of [replicaPort]: encodes [port] as a minimum-width big-endian [ByteString]. */
+fun portToBytes(port: Int): ByteString {
+  val bytes = ByteArray(4) { i -> (port shr ((3 - i) * 8) and 0xFF).toByte() }
+  val firstNonZero = bytes.indexOfFirst { it != 0.toByte() }
+  val start = if (firstNonZero < 0) 3 else firstNonZero
+  return ByteString.copyFrom(bytes, start, bytes.size - start)
+}
 
 /** Architecture-level packet I/O types that are not user-visible parameters. */
 internal val IO_TYPES = setOf("packet_in", "packet_out")

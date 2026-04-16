@@ -314,7 +314,7 @@ class PSAArchitectureTest {
                       replicas.map { (rid, port) ->
                         P4RuntimeOuterClass.Replica.newBuilder()
                           .setInstance(rid)
-                          .setEgressPort(port)
+                          .setPort(portToBytes(port))
                           .build()
                       }
                     )
@@ -877,7 +877,7 @@ class PSAArchitectureTest {
                       replicas.map { (instance, port) ->
                         P4RuntimeOuterClass.Replica.newBuilder()
                           .setInstance(instance)
-                          .setEgressPort(port)
+                          .setPort(portToBytes(port))
                           .build()
                       }
                     )

@@ -172,17 +172,17 @@ class TableStore : TableDataReader {
     /** Creates a structural copy. Protobuf entries are shared; only containers are copied. */
     fun deepCopy(): ForwardingSnapshot =
       ForwardingSnapshot().also { copy ->
-        tables.forEach { (k, v) -> copy.tables[k] = v.toMutableList() }
+        for ((k, v) in tables) copy.tables[k] = v.toMutableList()
         copy.directMeterData.putAll(directMeterData)
         copy.defaultActions.putAll(defaultActions)
         copy.modifiedDefaults.addAll(modifiedDefaults)
-        profileMembers.forEach { (k, v) -> copy.profileMembers[k] = v.toMutableMap() }
-        profileGroups.forEach { (k, v) -> copy.profileGroups[k] = v.toMutableMap() }
-        counters.forEach { (k, v) -> copy.counters[k] = v.toMutableMap() }
-        meters.forEach { (k, v) -> copy.meters[k] = v.toMutableMap() }
+        for ((k, v) in profileMembers) copy.profileMembers[k] = v.toMutableMap()
+        for ((k, v) in profileGroups) copy.profileGroups[k] = v.toMutableMap()
+        for ((k, v) in counters) copy.counters[k] = v.toMutableMap()
+        for ((k, v) in meters) copy.meters[k] = v.toMutableMap()
         copy.cloneSessions.putAll(cloneSessions)
         copy.multicastGroups.putAll(multicastGroups)
-        valueSets.forEach { (k, v) -> copy.valueSets[k] = v.toMutableList() }
+        for ((k, v) in valueSets) copy.valueSets[k] = v.toMutableList()
       }
   }
 

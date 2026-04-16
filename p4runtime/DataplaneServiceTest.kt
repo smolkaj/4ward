@@ -204,7 +204,7 @@ class DataplaneServiceTest {
 
     val responses = results.map { it.await() }
     assertEquals("all $count should complete", count, responses.size)
-    responses.forEach { response ->
+    for (response in responses) {
       assertEquals(
         "each should produce 1 output",
         1,
@@ -234,12 +234,48 @@ class DataplaneServiceTest {
           harness.injectPacket(ingressPort = 0, payload = byteArrayOf(i.toByte()))
         }
       }
-    injections.forEach { it.await() }
+    for (job in injections) job.await()
 
     val result = messages.await()
     assertEquals("expected SubscriptionActive + $count results", count + 1, result.size)
     assertTrue("first is SubscriptionActive", result[0].hasActive())
-    result.drop(1).forEach { msg -> assertTrue("should be a result", msg.hasResult()) }
+    for (msg in result.drop(1)) assertTrue("should be a result", msg.hasResult())
+  }
+
+  // =========================================================================
+  // Subscriber-falls-behind close (regression for the silent-drop bug)
+  // =========================================================================
+
+  @Test
+  fun `SubscribeResults flow closes when subscriber falls behind`() = runBlocking {
+    harness.loadPipeline(loadPassthroughConfig())
+    val stub = DataplaneCoroutineStub(harness.channel)
+
+    val collected = java.util.concurrent.atomic.AtomicInteger(0)
+    val collectJob =
+      launch(Dispatchers.IO) {
+        // Any exception is expected here — the stream closes abruptly on overflow.
+        @Suppress("TooGenericExceptionCaught")
+        try {
+          stub.subscribeResults(SubscribeResultsRequest.getDefaultInstance()).collect {
+            collected.incrementAndGet()
+            delay(50) // slow consumer: forces the buffer to fill on bursty input
+          }
+        } catch (_: Exception) {}
+      }
+
+    delay(200) // let subscription register
+
+    // 200 packets is well above the typical callbackFlow buffer (~64).
+    repeat(200) { i -> harness.injectPacket(ingressPort = 0, payload = byteArrayOf(i.toByte())) }
+
+    withTimeout(20_000) { collectJob.join() }
+
+    assertTrue("collector should have received at least some items", collected.get() > 0)
+    assertTrue(
+      "flow should close before all 200 items delivered (overflow surfaced); got ${collected.get()}",
+      collected.get() < 200,
+    )
   }
 
   // =========================================================================

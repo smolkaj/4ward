@@ -1,5 +1,6 @@
 package fourward.stf
 
+import fourward.simulator.replicaPort
 import java.nio.file.Files
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
@@ -566,7 +567,7 @@ class StfParserTest {
     val group = req.entity.packetReplicationEngineEntry.multicastGroupEntry
     assertEquals(1, group.multicastGroupId)
     assertEquals(1, group.replicasCount)
-    assertEquals(6, group.replicasList[0].egressPort)
+    assertEquals(6, replicaPort(group.replicasList[0]))
     assertEquals(400, group.replicasList[0].instance)
   }
 
@@ -588,9 +589,9 @@ class StfParserTest {
     assertEquals(8, session.sessionId)
     // Node 0 (rid=0) has ports 6,7; node 1 (rid=1) has port 8 → 3 replicas total.
     assertEquals(3, session.replicasCount)
-    assertEquals(6, session.replicasList[0].egressPort)
-    assertEquals(7, session.replicasList[1].egressPort)
-    assertEquals(8, session.replicasList[2].egressPort)
+    assertEquals(6, replicaPort(session.replicasList[0]))
+    assertEquals(7, replicaPort(session.replicasList[1]))
+    assertEquals(8, replicaPort(session.replicasList[2]))
   }
 
   // ---------------------------------------------------------------------------

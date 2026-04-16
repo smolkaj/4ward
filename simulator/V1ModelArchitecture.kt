@@ -16,20 +16,6 @@ import fourward.sim.PipelineStageEvent
 import fourward.sim.TraceEvent
 import fourward.sim.TraceTree
 import java.math.BigInteger
-import p4.v1.P4RuntimeOuterClass
-
-/**
- * Reads the egress port from a [P4RuntimeOuterClass.Replica], supporting both the `port` (bytes,
- * P4Runtime v1.4+) and deprecated `egress_port` (uint32) fields.
- */
-@Suppress("DEPRECATION")
-internal fun replicaPort(replica: P4RuntimeOuterClass.Replica): Int =
-  if (!replica.port.isEmpty) {
-    val port = replica.port
-    (0 until port.size()).fold(0) { acc, i -> (acc shl 8) or (port.byteAt(i).toInt() and 0xFF) }
-  } else {
-    replica.egressPort
-  }
 
 /**
  * v1model pipeline implementation.

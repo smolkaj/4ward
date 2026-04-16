@@ -769,12 +769,12 @@ class TableStoreTest {
 
     val result = s.lookup(PROFILE_TABLE_NAME, listOf("1" to BitVal(0x0A, 8)))
     assertTrue(result.hit)
-    assertNotNull(result.members)
-    assertEquals(2, result.members!!.size)
-    assertEquals(0, result.members!![0].memberId)
-    assertEquals("action10", result.members!![0].actionName)
-    assertEquals(1, result.members!![1].memberId)
-    assertEquals("action20", result.members!![1].actionName)
+    val members = checkNotNull(result.members)
+    assertEquals(2, members.size)
+    assertEquals(0, members[0].memberId)
+    assertEquals("action10", members[0].actionName)
+    assertEquals(1, members[1].memberId)
+    assertEquals("action20", members[1].actionName)
   }
 
   @Test
@@ -808,7 +808,7 @@ class TableStoreTest {
     writeGroupEntry(s, fieldValue = 0x0A, groupId = 1)
 
     val result = s.lookup(PROFILE_TABLE_NAME, listOf("1" to BitVal(0x0A, 8)))
-    val params = result.members!![0].params
+    val params = checkNotNull(result.members)[0].params
     assertEquals(1, params.size)
     assertEquals(ByteString.copyFrom(byteArrayOf(0x42)), params[0].value)
   }
@@ -873,10 +873,10 @@ class TableStoreTest {
 
     val result = s.lookup(PROFILE_TABLE_NAME, listOf("1" to BitVal(0x0A, 8)))
     assertTrue(result.hit)
-    assertNotNull(result.members)
-    assertEquals(2, result.members!!.size)
-    assertEquals("action10", result.members!![0].actionName)
-    assertEquals("action20", result.members!![1].actionName)
+    val members = checkNotNull(result.members)
+    assertEquals(2, members.size)
+    assertEquals("action10", members[0].actionName)
+    assertEquals("action20", members[1].actionName)
   }
 
   @Test
@@ -886,10 +886,10 @@ class TableStoreTest {
 
     val result = s.lookup(PROFILE_TABLE_NAME, listOf("1" to BitVal(0x0B, 8)))
     assertTrue(result.hit)
-    assertNotNull(result.members)
-    assertEquals(1, result.members!!.size)
-    assertEquals("action42", result.members!![0].actionName)
-    val params = result.members!![0].params
+    val members = checkNotNull(result.members)
+    assertEquals(1, members.size)
+    assertEquals("action42", members[0].actionName)
+    val params = members[0].params
     assertEquals(1, params.size)
     assertEquals(ByteString.copyFrom(byteArrayOf(0x7F)), params[0].value)
   }
@@ -900,10 +900,11 @@ class TableStoreTest {
     writeOneShotEntry(s, fieldValue = 0x0C, actions = listOf(10 to 0x01, 20 to 0x02, 42 to 0x03))
 
     val result = s.lookup(PROFILE_TABLE_NAME, listOf("1" to BitVal(0x0C, 8)))
-    assertEquals(3, result.members!!.size)
-    assertEquals(0, result.members!![0].memberId)
-    assertEquals(1, result.members!![1].memberId)
-    assertEquals(2, result.members!![2].memberId)
+    val members = checkNotNull(result.members)
+    assertEquals(3, members.size)
+    assertEquals(0, members[0].memberId)
+    assertEquals(1, members[1].memberId)
+    assertEquals(2, members[2].memberId)
   }
 
   // ---------------------------------------------------------------------------
@@ -926,7 +927,9 @@ class TableStoreTest {
                 .setCloneSessionEntry(
                   P4RuntimeOuterClass.CloneSessionEntry.newBuilder()
                     .setSessionId(sessionId)
-                    .addReplicas(P4RuntimeOuterClass.Replica.newBuilder().setEgressPort(egressPort))
+                    .addReplicas(
+                      P4RuntimeOuterClass.Replica.newBuilder().setPort(portToBytes(egressPort))
+                    )
                 )
             )
         )
@@ -953,7 +956,7 @@ class TableStoreTest {
                       replicas.map { (rid, port) ->
                         P4RuntimeOuterClass.Replica.newBuilder()
                           .setInstance(rid)
-                          .setEgressPort(port)
+                          .setPort(portToBytes(port))
                           .build()
                       }
                     )
@@ -969,7 +972,7 @@ class TableStoreTest {
     val session = store.getCloneSession(100)
     assertNotNull(session)
     assertEquals(100, session!!.sessionId)
-    assertEquals(5, session.replicasList[0].egressPort)
+    assertEquals(5, replicaPort(session.replicasList[0]))
   }
 
   @Test
@@ -984,9 +987,9 @@ class TableStoreTest {
     assertNotNull(group)
     assertEquals(1, group!!.multicastGroupId)
     assertEquals(3, group.replicasCount)
-    assertEquals(1, group.replicasList[0].egressPort)
-    assertEquals(2, group.replicasList[1].egressPort)
-    assertEquals(3, group.replicasList[2].egressPort)
+    assertEquals(1, replicaPort(group.replicasList[0]))
+    assertEquals(2, replicaPort(group.replicasList[1]))
+    assertEquals(3, replicaPort(group.replicasList[2]))
   }
 
   @Test
@@ -1007,7 +1010,7 @@ class TableStoreTest {
       WriteResult.Success,
       writeCloneSession(sessionId = 1, egressPort = 9, type = Update.Type.MODIFY),
     )
-    assertEquals(9, store.getCloneSession(1)!!.replicasList[0].egressPort)
+    assertEquals(9, replicaPort(store.getCloneSession(1)!!.replicasList[0]))
   }
 
   @Test
