@@ -99,10 +99,14 @@
 // begin with, which are the values used by BMv2 by default, and the values
 // hard-coded in p4-symbolic. We should revisit these arbitrary values.
 // Raw integer value; use kCpuPort (typed constant) in P4 code.
+//
+// Pass --cpu-port=SAI_P4_CPU_PORT on both BMv2 and 4ward.
 #define SAI_P4_CPU_PORT 510
 
 // The port used by `mark_to_drop` from v1model.p4. For details, see the
 // documentation of `mark_to_drop`.
+//
+// Pass --drop-port=SAI_P4_DROP_PORT on both BMv2 and 4ward.
 #define SAI_P4_DROP_PORT 511
 
 // --- Copy to CPU session -----------------------------------------------------
