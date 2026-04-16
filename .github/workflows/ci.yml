@@ -118,6 +118,9 @@ jobs:
       # TODO(buf-edition-2024): Re-enable buf lint/breaking once buf supports
       # edition 2024. Tracked in https://github.com/smolkaj/4ward/pull/4.
 
+      - name: Check bzl_library coverage
+        run: ./tools/check-bzl-library.sh
+
       # On PRs, skip clang-tidy when no C++ files were modified — most PRs
       # only touch Kotlin or proto files.  Always run on pushes to main.
       - name: Detect C++ changes
