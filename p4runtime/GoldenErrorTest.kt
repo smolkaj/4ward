@@ -175,8 +175,29 @@ class GoldenErrorTest(private val testName: String) {
       "wrong-role-write" -> triggerWrongRoleWrite()
       "inject-packet-no-pipeline" -> triggerInjectPacketNoPipeline()
       "inject-packet-no-port-translation" -> triggerInjectPacketNoPortTranslation()
+      "inject-packet-simulator-throws" -> triggerInjectPacketSimulatorThrows()
       else -> error("unknown test: $name")
     }
+  }
+
+  private fun triggerInjectPacketSimulatorThrows() {
+    // Bypasses the live harness and drives DataplaneService with a broker whose
+    // simulator unconditionally throws, to pin the exception-to-gRPC-status
+    // translation (see #499). The real benchmark trigger — 4000 routes worth of
+    // entries and a trace proto over gRPC's size limit — is too expensive to
+    // reproduce here; what this golden protects is the *translation format*.
+    val throwingBroker =
+      PacketBroker(
+        simulatorFn = { _, _ -> throw IllegalArgumentException("simulated failure") },
+        writeMutex = kotlinx.coroutines.sync.Mutex(),
+      )
+    val service = DataplaneService(throwingBroker)
+    val request =
+      fourward.dataplane.InjectPacketRequest.newBuilder()
+        .setDataplaneIngressPort(0)
+        .setPayload(ByteString.copyFrom(byteArrayOf(0x01)))
+        .build()
+    runBlocking { service.injectPacket(request) }
   }
 
   private fun triggerNoPipelineLoaded() {
@@ -1695,6 +1716,7 @@ class GoldenErrorTest(private val testName: String) {
         "wrong-role-write",
         "inject-packet-no-pipeline",
         "inject-packet-no-port-translation",
+        "inject-packet-simulator-throws",
       )
 
     private val VALIDATOR_BINARY: Path =

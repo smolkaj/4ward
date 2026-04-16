@@ -43,8 +43,11 @@ class DataplaneService(
     val translator = typeTranslator()
     val ingressPort = resolveIngressPort(request, translator)
     val payload = request.payload.toByteArray()
-    val result = broker.processPacket(ingressPort, payload)
+    // Translate anything thrown past this point into INTERNAL with a
+    // description, so the client never sees a bare UNKNOWN. See #499.
+    @Suppress("TooGenericExceptionCaught")
     try {
+      val result = broker.processPacket(ingressPort, payload)
       val pt = translator?.portTranslator
       val possibleOutcomes =
         result.possibleOutcomes.map { world ->
@@ -54,8 +57,12 @@ class DataplaneService(
         .addAllPossibleOutcomes(possibleOutcomes)
         .setTrace(enrichTrace(result.trace, translator))
         .build()
-    } catch (e: IllegalStateException) {
-      throw Status.INTERNAL.withDescription(e.message).withCause(e).asException()
+    } catch (e: StatusException) {
+      throw e // already has a proper status; don't rewrap.
+    } catch (e: Exception) {
+      val detail =
+        listOfNotNull("InjectPacket failed", e.javaClass.simpleName, e.message).joinToString(": ")
+      throw Status.INTERNAL.withDescription(detail).withCause(e).asException()
     }
   }
 
