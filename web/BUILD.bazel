@@ -14,7 +14,6 @@ kt_jvm_library(
             "PlaygroundServer.kt",
         ],
     ),
-    visibility = ["//visibility:public"],
     deps = [
         "//p4runtime:p4runtime_lib",
         "//simulator:ir_java_proto",

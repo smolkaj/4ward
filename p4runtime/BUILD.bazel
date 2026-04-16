@@ -378,7 +378,6 @@ cc_binary(
     name = "constraint_validator",
     srcs = ["constraint_validator.cpp"],
     copts = ["-std=c++20"],
-    visibility = ["//visibility:public"],
     deps = [
         ":constraint_validator_cc_proto",
         "@p4_constraints//p4_constraints/backend:constraint_info",
