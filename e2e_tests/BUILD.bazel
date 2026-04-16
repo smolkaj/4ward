@@ -8,9 +8,37 @@ package(
 )
 
 bzl_library(
+    name = "bmv2_diff_bzl",
+    srcs = ["bmv2_diff.bzl"],
+    visibility = ["//e2e_tests:__subpackages__"],
+    deps = ["//bazel:fourward_pipeline_bzl"],
+)
+
+bzl_library(
+    name = "compile_test_bzl",
+    srcs = ["compile_test.bzl"],
+    visibility = ["//e2e_tests:__subpackages__"],
+    deps = [
+        "//bazel:fourward_pipeline_bzl",
+        "@bazel_skylib//rules:build_test",
+    ],
+)
+
+bzl_library(
     name = "corpus_bzl",
     srcs = ["corpus.bzl"],
-    visibility = ["//visibility:public"],
+    visibility = ["//e2e_tests:__subpackages__"],
+    deps = ["//bazel:fourward_pipeline_bzl"],
+)
+
+bzl_library(
+    name = "p4testgen_bzl",
+    srcs = ["p4testgen.bzl"],
+    visibility = ["//e2e_tests:__subpackages__"],
+    deps = [
+        "//bazel:fourward_pipeline_bzl",
+        "@rules_cc//cc:find_cc_toolchain_bzl",
+    ],
 )
 
 kt_jvm_library(

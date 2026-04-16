@@ -1,3 +1,4 @@
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_binary", "kt_jvm_library", "kt_jvm_test")
 
 package(
@@ -8,6 +9,16 @@ package(
 exports_files(
     ["run_cram.py"],
     visibility = ["//:__subpackages__"],
+)
+
+bzl_library(
+    name = "cram_bzl",
+    srcs = ["cram.bzl"],
+    visibility = [
+        "//cli:__subpackages__",
+        "//examples:__subpackages__",
+    ],
+    deps = ["@rules_python//python:defs_bzl"],
 )
 
 kt_jvm_library(
