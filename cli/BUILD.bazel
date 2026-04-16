@@ -18,7 +18,7 @@ bzl_library(
         "//cli:__subpackages__",
         "//examples:__subpackages__",
     ],
-    deps = ["@rules_python//python:defs_bzl"],
+    deps = ["@rules_python//python:py_test_bzl"],
 )
 
 kt_jvm_library(
