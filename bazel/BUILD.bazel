@@ -1,10 +1,17 @@
 # Build rules and patches for third-party dependencies.
 
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 load("@rules_kotlin//kotlin:core.bzl", "define_kt_toolchain")
 
 package(
     default_applicable_licenses = ["//:license"],
     licenses = ["notice"],
+)
+
+bzl_library(
+    name = "fourward_pipeline_bzl",
+    srcs = ["fourward_pipeline.bzl"],
+    visibility = ["//visibility:public"],
 )
 
 # `experimental_report_unused_deps` is intentionally not enabled: it
