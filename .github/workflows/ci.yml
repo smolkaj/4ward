@@ -118,6 +118,17 @@ jobs:
       # TODO(buf-edition-2024): Re-enable buf lint/breaking once buf supports
       # edition 2024. Tracked in https://github.com/smolkaj/4ward/pull/4.
 
+      # Regenerate Stardoc-based reference pages and fail if the
+      # committed copy is stale. Same run-and-diff pattern as
+      # format.sh above.
+      - run: ./tools/gen-docs.sh
+      - name: Check generated docs are up to date
+        run: |
+          if changed=$(git diff-index --name-only HEAD --) && [[ -n "$changed" ]]; then
+            echo -e "Generated docs are stale. Please run ./tools/gen-docs.sh:\n$changed"
+            exit 1
+          fi
+
       # On PRs, skip clang-tidy when no C++ files were modified — most PRs
       # only touch Kotlin or proto files.  Always run on pushes to main.
       - name: Detect C++ changes

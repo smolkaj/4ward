@@ -146,6 +146,10 @@ use_repo(pip, "pip")
 
 bazel_dep(name = "buildifier_prebuilt", version = "8.5.1.2", dev_dependency = True)
 
+# Stardoc generates Markdown API docs from Starlark rules. Used by
+# tools/gen-docs.sh to refresh userdocs/reference/bazel.md.
+bazel_dep(name = "stardoc", version = "0.8.0", dev_dependency = True)
+
 # Runs clang-tidy as a Bazel aspect — no compile_commands.json needed.
 # Usage: bazel build //p4c_backend/... --config=clang-tidy
 bazel_dep(name = "bazel_clang_tidy", dev_dependency = True)
