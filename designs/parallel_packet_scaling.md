@@ -1,10 +1,12 @@
 # Parallel Packet Scaling
 
-**Status: Phase 2 complete — flat-buffer attempt refuted the
-working-set-bytes hypothesis; diagnosis refined to per-fork
-wrapper-object churn and per-read Value allocation. See
-`designs/flat_packet_buffer.md` and
-[smolkaj/4ward#522](https://github.com/smolkaj/4ward/pull/522).**
+**Status: Phase 2 + profile complete. Flat-buffer attempt
+(#522 / `designs/flat_packet_buffer.md`) refuted the
+working-set-bytes hypothesis. Follow-up async-profiler run (200k
+samples on wcmp×128 parallel) reshuffles the candidate ordering: the
+`Long` fast path and `TableStore.scoreEntry` optimisation are the
+top two levers, interpreter hot-path refactor is smaller than
+projected. See "Phase 2.5: empirical profile" below.**
 
 ## North star
 
@@ -484,6 +486,115 @@ retrospective):
 These are catalogued so future attempts don't re-run them. See
 `designs/flat_packet_buffer.md` for the full retrospective.
 
+## Phase 2.5: empirical profile
+
+After #522 we finally ran the async-profiler baseline the earlier
+phases should have started with. This section is the evidence base
+for the candidate ordering in "Path forward".
+
+### Method
+
+```sh
+bazel test //p4runtime:DataplaneBenchmark \
+  --test_output=streamed --test_timeout=600 \
+  --jvmopt="-DprofileMode=parallel" \
+  --jvmopt="-DprofileWorkload=wcmp128" \
+  --jvmopt="-Dfourward.simulator.intraPacketParallelism=false" \
+  --jvmopt="-XX:+UnlockDiagnosticVMOptions" \
+  --jvmopt="-XX:+DebugNonSafepoints" \
+  --jvmopt="-agentpath:/path/to/libasyncProfiler.so=start,event=cpu,file=wcmp128.collapsed,output=collapsed,interval=1ms"
+```
+
+AMD Ryzen 9 7950X3D, SAI middleblock, 10k packets, 199,907 samples
+across ~6.8 s of wall time. Flame graph in collapsed-stack format;
+analysis below is by leaf method and call-site.
+
+### High-level phase breakdown
+
+| Phase | % of CPU |
+|---|---|
+| `runControl` (ingress/egress interpretation, excl. `applyTable`) | **46.4%** |
+| `applyTable` (table lookup + action execution under the applyTable frame) | **25.9%** |
+| `deepCopy` (`HeaderVal` / `StructVal` / `Environment`) | **13.4%** |
+| PacketBroker / dispatch | 3.7% |
+| proto trace events | 2.7% |
+| gRPC / coroutines | 1.1% |
+| other | 6.6% |
+
+Interpretation: interpretation (46%) + table lookup (26%) + fork-copy
+(13%) = 85% of CPU on the three compute phases inside the simulator.
+Dispatch / coroutines / proto combined are <8% — not a bottleneck.
+
+### Top cost categories (by leaf method)
+
+| Category | % of CPU | Notes |
+|---|---|---|
+| `java.math.BigInteger` ops | **19.6%** | `BitVector.<init>` alone is **13.5%** — the single biggest hot spot |
+| `java.util.HashMap` ops | **21.9%** | `getNode` (6.5%), `putVal` (3%), `resize` (2.9%), `Node.<init>` (2.6%), plus `LinkedHashMap` |
+| proto builders | 7.7% | `BranchEvent.buildPartial0` (2.1%), `TraceEvent.buildPartial` (1.4%), `setSourceInfo` (1.3%) |
+| `TableStore` | 6.2% | `scoreEntry` (3.7%), `lookup` (1.7%) |
+| Interpreter `exec*` / `eval*` | 5.5% | Small — most interpreter work is below in HashMap/BigInteger |
+| Kotlin collections | 3.3% | iterator overhead |
+
+### Single biggest hot spot: `BitVector.<init>` at 13.5% of CPU
+
+```kotlin
+init {
+  require(value >= BigInteger.ZERO) { ... }
+  require(value < BigInteger.TWO.pow(width)) { ... }
+  val longValue: Long = if (width <= LONG_WIDTH) value.toLong() else 0L
+}
+```
+
+`TWO.pow(width)` allocates a fresh `BigInteger` per call. The `<`
+comparison shells out to `compareTo` → `bitLength`. Every `BitVal`
+creation pays this. A `Long` fast path for widths ≤ 63 (most P4
+fields in practice) would eliminate most of it.
+
+### Caller breakdown for the two dominant categories
+
+**HashMap callers:**
+
+| Caller | samples | % of total |
+|---|---|---|
+| `HeaderVal.deepCopy` | 9,831 | 4.9% |
+| `Interpreter.applyTable` | 7,743 | 3.9% |
+| `StructVal.deepCopy` | 7,695 | 3.9% |
+| `Interpreter.evalFieldAccess` | 5,377 | 2.7% |
+| `Environment.lookup` / `.define` / `.update` | 6,630 | 3.3% |
+
+Fork-copy alone costs ~9% via HashMap work — matches #522's
+`skipDeepCopy()` oracle measurement to within noise.
+
+**BigInteger callers:**
+
+| Caller | samples | % of total |
+|---|---|---|
+| `BitVector.<init>` | 26,960 | **13.5%** |
+| `BitVector.concat` / `.slice` / `.binaryOp` | ~9,000 | ~4.5% |
+| `Interpreter.emitHeader` | 2,166 | 1.1% |
+| `Interpreter.evalLiteral` | 1,381 | 0.7% |
+
+Almost all BigInteger time is under `BitVector` — the other callers
+are small. The `Long` fast path is the single change that matters.
+
+### The table-lookup surprise
+
+`applyTable` is 25.9% of CPU. An earlier version of this doc had
+"optimising lookup for scaling reasons" explicitly off the table,
+reasoning that direct-L3 scales cleanly so lookup can't be a scaling
+culprit. That reasoning is formally correct *per-lookup* but misses
+the wcmp multiplier: wcmp×128 fork branches re-execute the whole
+ingress/egress pipeline from the post-parser snapshot, so each
+packet does ~128× as many table lookups as direct. Even if
+per-lookup cost is fine, the multiplier makes lookup the #2 single
+category on fork-heavy workloads.
+
+`TableStore.scoreEntry` alone is 3.7% — the ternary-match scoring
+loop. An absolute-throughput-driven lookup optimisation is still
+scope-creep for the scaling effort, but in the wcmp context it's a
+real lever that was mis-classified.
+
 ## Path forward
 
 **Discipline.** Performance work is bounded by simplicity. The project
@@ -510,63 +621,78 @@ candidate before starting.
 work left to do. "Optimize" here means closing the wcmp×128 gap —
 bringing 45% efficiency closer to linear.
 
-**What to optimize for.** Per the refined diagnosis above: per-fork
-wrapper-object allocation count and per-read `Value` allocation on
-the interpreter hot path. The earlier framing ("working-set bytes")
-is a symptom, not a cause.
+**What to optimize for.** Per Phase 2.5's profile: the two biggest
+attributable costs are (a) `BitVector` backed by `BigInteger`
+(~20% of CPU, almost all of it under one `BitVector.<init>`) and
+(b) `TableStore.scoreEntry` / `HashMap.getNode` under `applyTable`
+on fork-heavy workloads (~10% of CPU under `applyTable` is lookup
+itself, amplified by the wcmp×128 multiplier). Everything else is
+smaller.
 
-Candidate optimizations, ordered by expected impact (but *profile
-before committing* — the oracle step):
+Candidate optimizations, ordered by Phase 2.5 evidence (but *rerun
+the profile and the oracle before committing to any* — the ceilings
+below are derived from this specific profile on this specific
+hardware):
 
-0. **Interpreter hot-path refactor (new primary lever).** Three
-   complementary directions, all interpreter-level:
-   - Pre-resolve `FieldAccess` chains at pipeline load *and* give the
-     fast path its own per-packet cache (the #522 attempt failed because
-     it bypassed `BufferBackedFieldMap`'s cache — a correct version
-     would maintain equivalent caching at interpreter scope).
-   - Pool `HeaderVal` / `BufferBackedFieldMap` / scope HashMap
-     instances in a thread-local scratch; reset on each fork rather
-     than allocating fresh.
-   - Arena-allocate fork-branch state in one slab so GC sees contiguous
-     short-lived allocations instead of a graph.
-
-   All three work on `main`'s current data representation; none of
-   them require the #522 primitives. Run the oracle benchmark for each
-   before starting.
-
-1. **Copy-on-write `HeaderVal` / `StructVal` (persistent-map variant).**
-   Historical top pick (prior to Phase 2). Share the underlying map
-   between fork branches; copy only on first write to a given field,
-   with the mutation model going from in-place to persistent. **Not to
-   be confused with** the narrower "COW on the per-slot value cache"
-   that #522 tested and reverted (−2%; shared-flag check outweighed
-   savings). Phase 2 also tested a related cache-forwarding variant
-   that delivered the +6.3% — the full persistent-map COW has a larger
-   surface but shares the same ceiling dynamic — fork-copy is ~9% of
-   per-fork time, so a perfect COW can't exceed that. Worth considering
-   as a stacking optimisation on top of (0), not a replacement.
-
-2. **`Long` fast path for narrow bit fields.** Use `Long` instead of
+1. **`Long` fast path for narrow bit fields.** Use `Long` instead of
    `BigInteger` for `bit<N>` with N ≤ 63. A partial fast path exists
-   in `matchesFieldMatch`; extend it to `BitVector` arithmetic. Shrinks
-   each bit-field value from ~40 bytes (`BigInteger` object + int[]
-   payload) to 8 bytes of primitive `long` (often register-resident
-   after escape analysis). Orthogonal to (0) and (1); stacks on either.
-   **Expected impact:** ~5× smaller per-value footprint, compounded
-   across dozens of bit-fields per header. Hard to forecast as a
-   single number without measurement.
+   in `matchesFieldMatch`; extend it to `BitVector` construction and
+   arithmetic. Directly attacks `BitVector.<init>` (13.5% of CPU)
+   and the rest of `BigInteger` work (~6% more), plus secondarily
+   reduces `HashMap` churn around `BitVal` wrapper allocation.
+   **Phase 2.5 ceiling:** ~20-25%. Self-contained change. Run an
+   oracle first (stub `BitVector.<init>` to a no-op for widths ≤ 63)
+   to confirm the ceiling before committing.
 
-3. **`HashMap` preallocation in `deepCopy`.** Two-line change;
-   eliminates resize churn. Same final maps, just fewer intermediate
-   allocations along the way. Worth doing for cheap, but don't expect
+2. **Optimise `TableStore` lookup for fork-heavy workloads.** 26% of
+   CPU on wcmp×128 parallel is under `applyTable`; ~10% of that is
+   the lookup+scoring itself (`scoreEntry` 3.7%, `HashMap.getNode`
+   under applyTable 4.4%, `lookup` 1.7%). The earlier "off the table"
+   statement in this doc was based on direct-workload reasoning and
+   doesn't apply to wcmp's 128× lookup multiplier. Candidates:
+   profile `scoreEntry` inner loop, consider a compact ternary
+   index, cache per-branch lookup results where keys are unchanged
+   from the pre-fork snapshot (the #522 branch tried something
+   similar; check its caching heuristics for reusable ideas).
+   **Phase 2.5 ceiling:** harder to estimate without the oracle,
+   but lookup is 26% so even a 2× speedup is ~13% of total.
+
+3. **Interpreter hot-path refactor.** Previously listed as the
+   primary lever; Phase 2.5 shows it's more diffuse and smaller
+   than that suggested. Concrete slices:
+   - Pre-resolve `FieldAccess` chains at pipeline load *and* give
+     the fast path its own per-packet cache (the #522 attempt failed
+     because it bypassed `BufferBackedFieldMap`'s cache — a correct
+     version would maintain equivalent caching at interpreter scope).
+     Attributable cost: `evalFieldAccess`-driven HashMap is ~2.7%.
+   - Pool `HeaderVal` / scope HashMap instances in a thread-local
+     scratch. Attributable cost: `deepCopy`-driven HashMap is
+     ~8.8%, of which fork-copy is the hard bound (~9%).
+   - Arena-allocate fork-branch state. Overlaps with the pooling
+     option.
+
+   **Phase 2.5 ceiling:** combined ≤~12%, less than (1) or (2) on
+   the measured profile.
+
+4. **Copy-on-write `HeaderVal` / `StructVal` (persistent-map variant).**
+   Share the underlying map between fork branches; copy only on first
+   write. **Not to be confused with** the narrower "COW on the
+   per-slot value cache" that #522 tested and reverted. Ceiling is
+   the fork-copy phase total (~13.4% per Phase 2.5), and a realistic
+   implementation won't capture all of it. Worth considering as a
+   stacking optimisation once (1)-(3) are measured.
+
+5. **`HashMap` preallocation in `deepCopy`.** Two-line change;
+   eliminates resize churn. Worth doing for cheap, but don't expect
    it to move the scaling needle.
    **Expected impact:** ~2% (measured in isolation before Phase 1.5).
 
-**The honest realization.** None of these alone guarantees linear
-scaling. The interpreter hot path (0) is now the primary lever — the
-flat-buffer attempt established that data layout alone caps at ~16%.
-Hitting the north star likely requires (0) to deliver big, with (1)
-and (2) stacking on top.
+**The honest realization.** No single candidate gets to linear
+scaling. Phase 2.5 evidence says (1) is the highest-probability
+win, (2) is the second-best lever on fork-heavy workloads, and
+(3)-(5) stack below those. Any phase that commits to more than one
+of these should re-run the profile between each landing to confirm
+the new ceiling — each change shifts where the next bottleneck is.
 
 **Before committing to anything:** the simplicity budget matters. The
 lock-free dataplane PR was a clear simplification AND had measurable
@@ -579,10 +705,14 @@ DVaaS workload that's blocked by the current throughput.
 - **Replacing `for (x in list)` with index-based loops.** Kotlin idiom
   is the for-loop; index loops are a readability regression. Iterator
   allocation is real but not the current bottleneck.
-- **Optimizing lookup (`toUnsignedLong`, hash index, LPM trie) for
-  scaling reasons.** Lookup cost is real but does not affect scaling —
-  direct L3 proves it scales cleanly. Lookup optimization is a separate
-  absolute-throughput concern, not part of the scaling north star.
+- ~~**Optimizing lookup (`toUnsignedLong`, hash index, LPM trie) for
+  scaling reasons.**~~ **Removed by Phase 2.5.** This was originally
+  off the table on the reasoning that direct-L3 scales cleanly, so
+  per-lookup cost can't be a scaling culprit. That logic holds for
+  direct; it doesn't for wcmp×128, where each packet does ~128×
+  more lookups (fork branches re-run ingress/egress from the
+  post-parser snapshot). Phase 2.5 measured `applyTable` at 26% of
+  CPU. Lookup optimisation is now candidate (2) in "Path forward".
 - **Disabling intra-packet parallelism.** Throughput-neutral in the
   parallel (inter-packet) mode (1,506 vs 1,501 pps — noise) but 3×
   regression in single-packet latency. Keep it for CLI/STF/playground
@@ -598,9 +728,9 @@ DVaaS workload that's blocked by the current throughput.
 3. **No correctness regressions** — all tests still pass.
 
 **Done when:** wcmp×128 parallel efficiency reaches ≥80% of linear on
-16 physical cores. Hitting that target is not marginal tuning; the
-flat-buffer experiment showed it requires interpreter-level work
-(candidate 0 above), not just data-layout compaction.
+16 physical cores. Phase 2.5 evidence says this requires candidate (1)
+(`Long` fast path) and (2) (lookup optimisation) to both deliver —
+no single lever gets there on its own.
 
 ## Non-goals
 
@@ -621,12 +751,20 @@ flat-buffer experiment showed it requires interpreter-level work
   compute, it's dispatch (gRPC, coroutines, or `ForkJoinPool` task
   submission serial fraction). Not worth chasing — direct is already at
   94% efficiency despite leaving cores idle.
-- **How much of the interpreter's per-fork cost is field access vs.
-  table lookup vs. action dispatch?** Phase 2 established that fork-
-  copy is only ~9%; the remaining ~91% is interpretation. Which slice
-  of that is the biggest single target? A flame graph on wcmp×128
-  parallel would answer this in minutes and is the prerequisite for
-  candidate (0).
+- ~~How much of the interpreter's per-fork cost is field access vs.
+  table lookup vs. action dispatch?~~ **Answered by Phase 2.5.** See
+  the "High-level phase breakdown" table: `runControl` (excl.
+  `applyTable`) is 46%, `applyTable` is 26%, fork-copy is 13%.
+  Within `applyTable`, lookup itself is ~10% and action execution
+  is ~6%. Within `runControl`, the bulk of cost is
+  `BitVector.<init>` (13.5%) and `HashMap` operations for field /
+  scope access (~6%).
+- **Does the `Long` fast path stack cleanly with a lookup
+  optimisation, or do their gains overlap?** `BitVector.<init>`
+  fires in both the interpreter and the lookup path (`scoreEntry`
+  constructs `BitVector`s to compare keys). If (1) lands first,
+  some of (2)'s cost goes away with it. Worth measuring (2)'s
+  oracle after (1) is in, not before.
 - **Why doesn't the 7950X3D's V-cache help?** Both CCDs measured
   identically despite one having 3× the L3 capacity. Possibilities: the
   working set genuinely exceeds 96 MB (but see Phase 2 — shrinking byte
