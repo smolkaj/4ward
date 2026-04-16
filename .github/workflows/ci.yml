@@ -221,6 +221,22 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      # Separate cache namespace (`bazel-bcr-*`) from the main
+      # build-and-test job: this workspace pins Bazel 8.x, uses a
+      # different `.bazelrc`, and resolves its own dependency graph via
+      # `bcr_test_module/MODULE.bazel`, so sharing a key would cause
+      # constant eviction churn. The key folds in root MODULE files
+      # because fourward is pulled in via `local_path_override`.
+      - name: Restore Bazel cache
+        uses: actions/cache/restore@v5
+        with:
+          path: ~/.cache/bazel
+          key: bazel-bcr-${{ hashFiles('bcr_test_module/MODULE.bazel', 'bcr_test_module/.bazelversion', 'MODULE.bazel', 'MODULE.bazel.lock', 'bazel/*.patch') }}
+          restore-keys: bazel-bcr-
+
+      - name: Save start time
+        run: echo "START_TIME=$(date +%s)" >> "$GITHUB_ENV"
+
       # Build flags live in `bcr_test_module/.bazelrc` so local
       # invocations reproduce this job exactly — CI only adds the
       # BuildBuddy remote cache and target-pattern exclusions on top.
@@ -251,6 +267,20 @@ jobs:
             @fourward//... \
             -@fourward//e2e_tests/... \
             -@fourward//examples/...
+
+      - name: Calculate build duration
+        if: always()
+        run: echo "DURATION=$(( $(date +%s) - START_TIME ))" >> "$GITHUB_ENV"
+
+      # Mirror build-and-test: save on main (authoritative cache) or
+      # when the build was slow enough (>5 min) that persisting is
+      # worthwhile despite the PR-branch scoping.
+      - name: Save Bazel cache
+        uses: actions/cache/save@v5
+        if: always() && (github.ref_name == 'main' || env.DURATION > 300)
+        with:
+          path: ~/.cache/bazel
+          key: bazel-bcr-${{ hashFiles('bcr_test_module/MODULE.bazel', 'bcr_test_module/.bazelversion', 'MODULE.bazel', 'MODULE.bazel.lock', 'bazel/*.patch') }}-${{ github.run_id }}
 
 
   coverage:
