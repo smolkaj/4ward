@@ -14,6 +14,13 @@ import java.util.concurrent.atomic.LongAdder
 sealed class Value {
   /** Returns an independent deep copy. Immutable leaf types return `this`. */
   open fun deepCopy(): Value = this
+
+  /**
+   * Returns a copy-on-write wrapper if this value is mutable, or `null` if immutable. COW copies
+   * share the underlying field map with the original — writes go to a per-instance overlay, reads
+   * of mutable children are recursively COW-wrapped on first access.
+   */
+  internal open fun cowCopy(): Value? = null
 }
 
 /**
@@ -92,6 +99,103 @@ internal fun trackIfEnabled(fields: MutableMap<String, Value>): MutableMap<Strin
   if (System.getProperty("fourward.simulator.trackFieldReads") != "true") return fields
   DeepCopyFieldStats.totalFieldsCopied.add(fields.size.toLong())
   return TrackingMutableMap(fields)
+}
+
+/**
+ * A copy-on-write field map for [HeaderVal] and [StructVal] deep copies.
+ *
+ * Wraps a shared (read-only) parent map. Reads of immutable values return the parent's reference
+ * directly. Reads of mutable values (HeaderVal, StructVal) lazily create a COW-wrapped child and
+ * cache it in a per-instance overlay. Writes always go to the overlay. The parent map is never
+ * mutated.
+ *
+ * This avoids the O(N) eager deep-copy of all fields at fork time. Only fields that are actually
+ * written by a fork branch pay for their own copy. Fields that are only read share the parent's
+ * data. Fields that are never accessed cost nothing. See `designs/parallel_packet_scaling.md`.
+ */
+internal class CopyOnWriteFieldMap(private val shared: Map<String, Value>) :
+  AbstractMutableMap<String, Value>() {
+
+  init {
+    if (System.getProperty("fourward.simulator.trackFieldReads") == "true") {
+      DeepCopyFieldStats.totalFieldsCopied.add(shared.size.toLong())
+    }
+  }
+
+  /** Overlay of values that differ from [shared]: writes and COW-wrapped mutable children. */
+  private var overlay: MutableMap<String, Value>? = null
+
+  /**
+   * Set to true by [clear]. When true, [shared] is logically empty and only [overlay] matters. This
+   * supports [HeaderVal.setValid] which calls `fields.clear(); fields.putAll(newFields)`.
+   */
+  private var cleared = false
+
+  override val size: Int
+    get() =
+      if (cleared) {
+        overlay?.size ?: 0
+      } else {
+        // P4 field maps don't add new keys, so shared.size is the base.
+        shared.size
+      }
+
+  override fun get(key: String): Value? {
+    if (System.getProperty("fourward.simulator.trackFieldReads") == "true") {
+      DeepCopyFieldStats.rawFieldReads.add(1)
+    }
+    overlay?.get(key)?.let {
+      return it
+    }
+    if (cleared) return null
+    val v = shared[key] ?: return null
+    // Immutable values are safe to share. Mutable values need COW wrapping
+    // so that mutations to the child don't affect the parent.
+    val cow = v.cowCopy() ?: return v
+    val o = overlay ?: HashMap<String, Value>(4).also { overlay = it }
+    o[key] = cow
+    return cow
+  }
+
+  override fun put(key: String, value: Value): Value? {
+    if (System.getProperty("fourward.simulator.trackFieldReads") == "true") {
+      DeepCopyFieldStats.rawFieldWrites.add(1)
+    }
+    val old = get(key)
+    val o = overlay ?: HashMap<String, Value>(4).also { overlay = it }
+    o[key] = value
+    return old
+  }
+
+  override fun clear() {
+    overlay?.clear()
+    cleared = true
+  }
+
+  override fun containsKey(key: String): Boolean {
+    if (overlay?.containsKey(key) == true) return true
+    return !cleared && shared.containsKey(key)
+  }
+
+  override fun isEmpty(): Boolean = size == 0
+
+  /**
+   * Materializes the merged view of shared + overlay. Each call creates a new snapshot — callers
+   * that iterate should capture the result rather than calling repeatedly.
+   */
+  override val entries: MutableSet<MutableMap.MutableEntry<String, Value>>
+    get() {
+      val merged = LinkedHashMap<String, Value>(size)
+      if (!cleared) {
+        for ((k, v) in shared) {
+          val overlayVal = overlay?.get(k)
+          merged[k] = overlayVal ?: (v.cowCopy() ?: v)
+        }
+      }
+      // Add overlay-only entries (if any — shouldn't happen for P4 fields, but be safe).
+      overlay?.forEach { (k, v) -> if (k !in merged) merged[k] = v }
+      return merged.entries
+    }
 }
 
 /** A bit<N> value. */
@@ -175,12 +279,10 @@ data class HeaderVal(
 
   fun copy(): HeaderVal = HeaderVal(typeName, fields.toMutableMap(), valid)
 
-  override fun deepCopy(): HeaderVal =
-    HeaderVal(
-      typeName,
-      trackIfEnabled(fields.mapValuesTo(mutableMapOf()) { it.value.deepCopy() }),
-      valid,
-    )
+  override fun deepCopy(): HeaderVal = cowCopy()
+
+  internal override fun cowCopy(): HeaderVal =
+    HeaderVal(typeName, CopyOnWriteFieldMap(fields), valid)
 }
 
 /**
@@ -191,8 +293,9 @@ data class StructVal(val typeName: String, val fields: MutableMap<String, Value>
   Value() {
   fun copy(): StructVal = StructVal(typeName, fields.toMutableMap())
 
-  override fun deepCopy(): StructVal =
-    StructVal(typeName, trackIfEnabled(fields.mapValuesTo(mutableMapOf()) { it.value.deepCopy() }))
+  override fun deepCopy(): StructVal = cowCopy()
+
+  internal override fun cowCopy(): StructVal = StructVal(typeName, CopyOnWriteFieldMap(fields))
 
   /** P4 spec §8.20: a header union is valid if any member header is valid. */
   fun isUnionValid(): Boolean = fields.values.any { it is HeaderVal && it.valid }

@@ -54,8 +54,7 @@ class DeepCopyFieldStatsTest {
 
   @Test
   fun `writes on deep-copied instance are tracked`() {
-    val header =
-      HeaderVal("eth", mutableMapOf("dst" to BitVal(0L, 48), "src" to BitVal(0L, 48)))
+    val header = HeaderVal("eth", mutableMapOf("dst" to BitVal(0L, 48), "src" to BitVal(0L, 48)))
     val copy = header.deepCopy()
 
     copy.fields["dst"] = BitVal(1L, 48)
@@ -75,8 +74,7 @@ class DeepCopyFieldStatsTest {
 
   @Test
   fun `StructVal deepCopy is also tracked`() {
-    val struct =
-      StructVal("meta", mutableMapOf("port" to BitVal(0L, 9), "flag" to BoolVal(false)))
+    val struct = StructVal("meta", mutableMapOf("port" to BitVal(0L, 9), "flag" to BoolVal(false)))
     val copy = struct.deepCopy()
 
     assertEquals(2, DeepCopyFieldStats.totalFieldsCopied.sum())
