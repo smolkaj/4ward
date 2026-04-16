@@ -132,11 +132,20 @@ class Interpreter internal constructor(config: BehavioralConfig) {
       return if (loc.isNotEmpty()) " (at $loc)" else ""
     }
 
+    // Pooled proto builders — reused across events within the same Execution to avoid
+    // allocating a fresh Builder per trace event. Proto builders are independent of the
+    // messages they produce (build() copies the state), so clear() + set + build() is safe.
+    // Each Execution is single-threaded (one pipeline run), so no synchronization needed.
+    private val traceEventPool = TraceEvent.newBuilder()
+    private val branchEventPool = BranchEvent.newBuilder()
+    private val tableLookupPool = TableLookupEvent.newBuilder()
+    private val actionExecPool = ActionExecutionEvent.newBuilder()
+
     /** Builds a TraceEvent with source info attached, if available. */
     private fun traceEventBuilder(sourceInfo: SourceInfo? = currentSourceInfo): TraceEvent.Builder {
-      val b = TraceEvent.newBuilder()
-      sourceInfo?.let { b.sourceInfo = it }
-      return b
+      traceEventPool.clear()
+      sourceInfo?.let { traceEventPool.sourceInfo = it }
+      return traceEventPool
     }
 
     // -------------------------------------------------------------------------
@@ -357,7 +366,7 @@ class Interpreter internal constructor(config: BehavioralConfig) {
       packetCtx?.addTraceEvent(
         traceEventBuilder()
           .setBranch(
-            BranchEvent.newBuilder().setControlName(currentControlName ?: "").setTaken(condition)
+            branchEventPool.clear().setControlName(currentControlName ?: "").setTaken(condition)
           )
           .build()
       )
@@ -805,7 +814,8 @@ class Interpreter internal constructor(config: BehavioralConfig) {
       packetCtx?.addTraceEvent(
         traceEventBuilder()
           .setTableLookup(
-            TableLookupEvent.newBuilder()
+            tableLookupPool
+              .clear()
               .setTableName(tableStore.tableDisplayName(tableName))
               .setHit(result.hit)
               .setActionName(tableStore.actionDisplayName(result.actionName))
@@ -857,7 +867,7 @@ class Interpreter internal constructor(config: BehavioralConfig) {
       if (actionName == "NoAction") {
         packetCtx?.addTraceEvent(
           traceEventBuilder()
-            .setActionExecution(ActionExecutionEvent.newBuilder().setActionName(actionName))
+            .setActionExecution(actionExecPool.clear().setActionName(actionName))
             .build()
         )
         return
@@ -888,7 +898,8 @@ class Interpreter internal constructor(config: BehavioralConfig) {
         packetCtx?.addTraceEvent(
           traceEventBuilder()
             .setActionExecution(
-              ActionExecutionEvent.newBuilder()
+              actionExecPool
+                .clear()
                 .setActionName(displayName)
                 .putAllParams(paramMap.mapValues { it.value })
             )

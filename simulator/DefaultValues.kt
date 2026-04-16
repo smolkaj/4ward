@@ -54,9 +54,9 @@ internal fun defaultValue(typeName: String, types: Map<String, TypeDecl>): Value
       HeaderVal(
         typeName = typeName,
         fields =
-          typeDecl.header.fieldsList.associateTo(mutableMapOf()) { f ->
-            f.name to defaultValue(f.type, types)
-          },
+          CompactFieldMap.of(
+            typeDecl.header.fieldsList.map { f -> f.name to defaultValue(f.type, types) }
+          ),
         valid = false,
       )
     typeDecl.hasStruct() -> defaultStruct(typeName, typeDecl.struct.fieldsList, types)
@@ -73,8 +73,16 @@ private fun defaultStruct(
   typeName: String,
   fieldDecls: List<fourward.ir.FieldDecl>,
   types: Map<String, TypeDecl>,
-): StructVal =
-  StructVal(
-    typeName = typeName,
-    fields = fieldDecls.associateTo(mutableMapOf()) { f -> f.name to defaultValue(f.type, types) },
-  )
+): StructVal {
+  val entries = fieldDecls.map { f -> f.name to defaultValue(f.type, types) }
+  // CompactFieldMap is faster to copy (fork hot path) but slower to look up (linear scan) than
+  // LinkedHashMap. For structs with ≤ 16 fields the copy win dominates; for larger structs (SAI's
+  // standard_metadata_t has ~30 fields) the linear scan regresses sequential throughput.
+  val fields: MutableMap<String, Value> =
+    if (fieldDecls.size <= COMPACT_MAP_THRESHOLD) CompactFieldMap.of(entries)
+    else entries.toMap(sizedInsertionOrderMap(fieldDecls.size))
+  return StructVal(typeName = typeName, fields = fields)
+}
+
+/** Structs with more fields than this use LinkedHashMap; smaller ones use CompactFieldMap. */
+private const val COMPACT_MAP_THRESHOLD = 16
