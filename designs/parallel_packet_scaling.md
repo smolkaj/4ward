@@ -1,12 +1,14 @@
 # Parallel Packet Scaling
 
-**Status: Phase 2 + profile complete. Flat-buffer attempt
-(#522 / `designs/flat_packet_buffer.md`) refuted the
-working-set-bytes hypothesis. Follow-up async-profiler run (200k
-samples on wcmp×128 parallel) reshuffles the candidate ordering: the
-`Long` fast path and `TableStore.scoreEntry` optimisation are the
-top two levers, interpreter hot-path refactor is smaller than
-projected. See "Phase 2.5: empirical profile" below.**
+**Status: Phase 2.5 + sequential/parallel diff complete. Flat-buffer
+attempt (#522 / `designs/flat_packet_buffer.md`) refuted the
+working-set-bytes hypothesis. Follow-up profile + seq/par diff
+isolates ~35% of parallel CPU as *scaling-specific* excess (mostly
+`BigInteger` + `HashMap` allocation + proto trace-event builders);
+the rest scales cleanly. Candidates are now scored on two axes —
+efficiency lever (the north-star concern) vs sequential speedup —
+because a uniform CPU-time reduction improves throughput without
+changing the scaling ratio. See "Phase 2.5: empirical profile" below.**
 
 ## North star
 
@@ -595,6 +597,66 @@ loop. An absolute-throughput-driven lookup optimisation is still
 scope-creep for the scaling effort, but in the wcmp context it's a
 real lever that was mis-classified.
 
+### Sequential vs parallel diff (what's actually scaling-specific)
+
+The initial Phase 2.5 analysis above looks at "where does parallel
+CPU go?" — but "efficiency" is defined as
+`parallel_pps / (16 × sequential_pps)`, so a uniform CPU-time
+reduction speeds up both sides proportionally and leaves efficiency
+unchanged. Faster baseline, same scaling cliff.
+
+To isolate the scaling cost, the same async-profiler run was
+repeated in sequential mode and the two profiles were diffed. For
+each leaf method, `excess = parallel_share − sequential_share`. A
+positive excess is CPU that *only* appears in parallel — the
+cache-line thrash / allocator contention / GC pressure that Phase
+1.5's `perf stat` detected via IPC collapse. A near-zero or
+negative excess means the method scales cleanly — optimising it
+speeds up absolute throughput but doesn't close the scaling gap.
+
+**Aggregated excess by category** (positive = scaling-specific):
+
+| Category | Excess (parallel − sequential share) | % of parallel CPU |
+|---|---|---|
+| `BigInteger` allocation (`bitLength`, `<init>`, `pow`, `compareTo`, `shiftRight`, ...) | **+11.7%** | 18.2% |
+| `HashMap`/`LinkedHashMap` allocation (`Node.<init>`, `newNode`, `resize`, `putVal`, `findKey`) | **+10.4%** | 16.0% |
+| Proto trace-event builders (`BranchEvent.buildPartial0`, `TraceEvent.setSourceInfo`, `MapField.newMapField`) | **+6.6%** | 8.2% |
+| Bounds checks / iterator boxing (`Preconditions.checkFromToIndex`, `ArrayList$Itr`) | **+4.1%** | 5.9% |
+| Other simulator | +1.7% | 3.3% |
+| GC (`G1ParScanThreadState`) | +0.6% | 1.0% |
+
+Total excess ~35% of parallel CPU — the headroom above
+linearly-scaling compute that a scaling-targeted optimisation could
+address.
+
+**What scales *well* (reaches the parallel side at lower cost share
+than sequential)** — optimising these is absolute-throughput work,
+not efficiency work:
+
+| Method | Ratio (par-share / seq-share) | Note |
+|---|---|---|
+| `TableStore.scoreEntry` | **0.28** | 3.7% par / 13.1% seq — scales excellently |
+| `TableStore.lookup` | 0.52 | 1.7% par / 3.3% seq |
+| `String.equals` | 0.52 | 2.9% par / 5.5% seq |
+| `HashMap.getNode` | 0.73 | 6.5% par / 8.8% seq — read-only lookup scales well |
+
+**Implication for the north star.** Roughly 35% of parallel CPU is
+scaling-specific overhead. Fully eliminating it is the ceiling for
+efficiency-targeted work. At the measured ~45% Phase 1 efficiency
+baseline, collapsing that overhead would take efficiency to
+~1/(1−0.35) × 45% ≈ 69%. Hitting the ≥80% north star realistically
+requires that plus some absolute-compute speedup whose savings
+fall disproportionately on the parallel side (e.g., allocation
+reduction rather than arithmetic speedup).
+
+**Caveat on absolute numbers.** The async-profiler run here lowers
+observed sequential throughput (~102 pps vs Phase 1.5's 207 pps
+without profiler) more than parallel throughput. The diff analysis
+is robust to this because it uses *shares*, not absolute counts —
+the profiler-induced cost is additive to both, and the shapes of
+the top-leaf distributions stay intact — but rerun without profiler
+for any absolute-efficiency claims.
+
 ## Path forward
 
 **Discipline.** Performance work is bounded by simplicity. The project
@@ -621,78 +683,48 @@ candidate before starting.
 work left to do. "Optimize" here means closing the wcmp×128 gap —
 bringing 45% efficiency closer to linear.
 
-**What to optimize for.** Per Phase 2.5's profile: the two biggest
-attributable costs are (a) `BitVector` backed by `BigInteger`
-(~20% of CPU, almost all of it under one `BitVector.<init>`) and
-(b) `TableStore.scoreEntry` / `HashMap.getNode` under `applyTable`
-on fork-heavy workloads (~10% of CPU under `applyTable` is lookup
-itself, amplified by the wcmp×128 multiplier). Everything else is
-smaller.
+**What to optimize for.** Two axes, scored independently — the
+north star is scaling efficiency, but sequential speedup is still
+valuable on its own merits (CLI, single-packet latency, raw
+throughput on embarrassingly parallel workloads that already scale
+well). Every candidate below gets both scores:
 
-Candidate optimizations, ordered by Phase 2.5 evidence (but *rerun
-the profile and the oracle before committing to any* — the ceilings
-below are derived from this specific profile on this specific
-hardware):
+- **Efficiency lever** — does it reduce the allocation / contention
+  costs that appear *disproportionately* in parallel mode (the
+  "excess" in Phase 2.5's diff)? These move the scaling ratio.
+- **Sequential speedup** — does it reduce baseline per-packet CPU?
+  Speeds up both modes proportionally; doesn't improve efficiency
+  by itself but benefits the CLI / single-packet latency and
+  shortens test-suite wall time.
 
-1. **`Long` fast path for narrow bit fields.** Use `Long` instead of
-   `BigInteger` for `bit<N>` with N ≤ 63. A partial fast path exists
-   in `matchesFieldMatch`; extend it to `BitVector` construction and
-   arithmetic. Directly attacks `BitVector.<init>` (13.5% of CPU)
-   and the rest of `BigInteger` work (~6% more), plus secondarily
-   reduces `HashMap` churn around `BitVal` wrapper allocation.
-   **Phase 2.5 ceiling:** ~20-25%. Self-contained change. Run an
-   oracle first (stub `BitVector.<init>` to a no-op for widths ≤ 63)
-   to confirm the ceiling before committing.
+Candidate optimizations (scored by Phase 2.5 diff; rerun the
+profile and the oracle before committing — ceilings are from this
+specific profile on this specific hardware):
 
-2. **Optimise `TableStore` lookup for fork-heavy workloads.** 26% of
-   CPU on wcmp×128 parallel is under `applyTable`; ~10% of that is
-   the lookup+scoring itself (`scoreEntry` 3.7%, `HashMap.getNode`
-   under applyTable 4.4%, `lookup` 1.7%). The earlier "off the table"
-   statement in this doc was based on direct-workload reasoning and
-   doesn't apply to wcmp's 128× lookup multiplier. Candidates:
-   profile `scoreEntry` inner loop, consider a compact ternary
-   index, cache per-branch lookup results where keys are unchanged
-   from the pre-fork snapshot (the #522 branch tried something
-   similar; check its caching heuristics for reusable ideas).
-   **Phase 2.5 ceiling:** harder to estimate without the oracle,
-   but lookup is 26% so even a 2× speedup is ~13% of total.
+| # | Candidate | Efficiency lever? | Sequential speedup? | Ceiling |
+|---|---|---|---|---|
+| 1 | **`Long` fast path for narrow bit fields** | **Yes** — directly kills `BigInteger` allocation (+11.7% excess) and the `BigInteger.*` methods that dominate both the scaling diff AND the absolute profile | **Yes** — `BitVector.<init>` is 13.5% of absolute CPU | Efficiency: ~12%. Absolute: ~20-25%. |
+| 2 | **Wrapper pooling / arena per fork** (thread-local scratch `HeaderVal` / `BufferBackedFieldMap` / scope HashMap) | **Yes** — directly kills `HashMap$Node.<init>`, `LinkedHashMap.newNode`, `HashMap.resize` (+10.4% excess combined) | Small — `HashMap.getNode` is read-only and scales fine; pooling benefits are mostly parallel-mode | Efficiency: ~10%. Absolute: ~5%. |
+| 3 | **Persistent-map COW** for `HeaderVal` / `StructVal` | Partial — overlaps with (2); fork-copy is 13% of parallel CPU | Similar | Efficiency: ≤~10% (overlaps with (2), not additive). |
+| 4 | **Trim proto trace-event construction** — build only what's actually read, lazy-init trace builders for ignored branches | **Yes** — builders are +6.6% excess (scales disproportionately with fork count) | Small — trace events are 2.7% of sequential CPU | Efficiency: ~5%. Absolute: ~3%. |
+| 5 | **Pre-resolve `FieldAccess` with an interpreter-scoped cache** (corrected version of the #522 attempt) | Marginal — `HashMap.getNode` scales well (ratio 0.73); savings mostly absolute-throughput | **Yes** — `evalFieldAccess` HashMap is 2.7% of absolute CPU | Efficiency: ~1%. Absolute: ~3%. |
+| 6 | **Optimise `TableStore.scoreEntry`** (ternary match inner loop) | **No** — scoreEntry scales *excellently* (ratio 0.28, 13% sequential → 4% parallel) | **Yes, large** — 3.7% parallel, 13% sequential | Efficiency: ~0. Absolute: ~5-10% depending on approach. |
+| 7 | **`HashMap` preallocation in `deepCopy`** | Small — attacks `HashMap.resize` (+1.5% excess) | Small | Efficiency: ~2%. Absolute: ~2%. |
 
-3. **Interpreter hot-path refactor.** Previously listed as the
-   primary lever; Phase 2.5 shows it's more diffuse and smaller
-   than that suggested. Concrete slices:
-   - Pre-resolve `FieldAccess` chains at pipeline load *and* give
-     the fast path its own per-packet cache (the #522 attempt failed
-     because it bypassed `BufferBackedFieldMap`'s cache — a correct
-     version would maintain equivalent caching at interpreter scope).
-     Attributable cost: `evalFieldAccess`-driven HashMap is ~2.7%.
-   - Pool `HeaderVal` / scope HashMap instances in a thread-local
-     scratch. Attributable cost: `deepCopy`-driven HashMap is
-     ~8.8%, of which fork-copy is the hard bound (~9%).
-   - Arena-allocate fork-branch state. Overlaps with the pooling
-     option.
+**Ordering interpretation.** If the goal is **scaling efficiency**,
+rank (1) → (2) → (3) → (4) → (7), with (5) and (6) largely off the
+efficiency table. If the goal is **absolute wcmp×128 throughput**
+(still useful for test-suite time, replay scenarios), (1) and (6)
+are the biggest single levers, (2)-(4) follow.
 
-   **Phase 2.5 ceiling:** combined ≤~12%, less than (1) or (2) on
-   the measured profile.
-
-4. **Copy-on-write `HeaderVal` / `StructVal` (persistent-map variant).**
-   Share the underlying map between fork branches; copy only on first
-   write. **Not to be confused with** the narrower "COW on the
-   per-slot value cache" that #522 tested and reverted. Ceiling is
-   the fork-copy phase total (~13.4% per Phase 2.5), and a realistic
-   implementation won't capture all of it. Worth considering as a
-   stacking optimisation once (1)-(3) are measured.
-
-5. **`HashMap` preallocation in `deepCopy`.** Two-line change;
-   eliminates resize churn. Worth doing for cheap, but don't expect
-   it to move the scaling needle.
-   **Expected impact:** ~2% (measured in isolation before Phase 1.5).
-
-**The honest realization.** No single candidate gets to linear
-scaling. Phase 2.5 evidence says (1) is the highest-probability
-win, (2) is the second-best lever on fork-heavy workloads, and
-(3)-(5) stack below those. Any phase that commits to more than one
-of these should re-run the profile between each landing to confirm
-the new ceiling — each change shifts where the next bottleneck is.
+**The honest realization.** No single candidate gets to ≥80%
+efficiency. The Phase 2.5 diff measured ~35% of parallel CPU as
+scaling-specific excess; eliminating all of it would take the
+measured 45% efficiency to ~69%, still short of the north star. The
+remaining gap is per-core compute that scales cleanly plus residual
+memory-bandwidth limits at >8 threads. Closing to 80% likely needs
+(1)+(2)+(3) stacked, re-profiled between each landing (each change
+shifts where the next bottleneck is).
 
 **Before committing to anything:** the simplicity budget matters. The
 lock-free dataplane PR was a clear simplification AND had measurable
@@ -728,9 +760,12 @@ DVaaS workload that's blocked by the current throughput.
 3. **No correctness regressions** — all tests still pass.
 
 **Done when:** wcmp×128 parallel efficiency reaches ≥80% of linear on
-16 physical cores. Phase 2.5 evidence says this requires candidate (1)
-(`Long` fast path) and (2) (lookup optimisation) to both deliver —
-no single lever gets there on its own.
+16 physical cores. This is the north star; sequential speedup is
+welcome but doesn't count toward it (a uniform CPU-time reduction
+raises both single-thread and parallel pps proportionally and
+leaves efficiency unchanged). Phase 2.5 evidence says hitting 80%
+likely needs candidates (1)+(2)+(3) stacked — no single lever gets
+there on its own.
 
 ## Non-goals
 
