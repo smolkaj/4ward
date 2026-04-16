@@ -60,19 +60,20 @@ internal fun buildBlockParamsMap(config: BehavioralConfig): Map<String, List<Blo
 internal fun createDefaultValues(
   config: BehavioralConfig,
   typesByName: Map<String, TypeDecl>,
+  layouts: PipelineLayouts? = null,
 ): MutableMap<String, Value> {
   val values = mutableMapOf<String, Value>()
   for (parser in config.parsersList) {
     for (param in parser.paramsList) {
       if (param.type.hasNamed() && param.type.named !in IO_TYPES) {
-        values.getOrPut(param.type.named) { defaultValue(param.type.named, typesByName) }
+        values.getOrPut(param.type.named) { defaultValue(param.type.named, typesByName, layouts) }
       }
     }
   }
   for (control in config.controlsList) {
     for (param in control.paramsList) {
       if (param.type.hasNamed() && param.type.named !in IO_TYPES) {
-        values.getOrPut(param.type.named) { defaultValue(param.type.named, typesByName) }
+        values.getOrPut(param.type.named) { defaultValue(param.type.named, typesByName, layouts) }
       }
     }
   }

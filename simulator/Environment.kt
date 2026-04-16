@@ -16,6 +16,14 @@ class Environment {
 
   private val scopes: ArrayDeque<MutableMap<String, Value>> = ArrayDeque()
 
+  /**
+   * The shared per-packet [PacketBuffer] — or null on the legacy path. When set, every
+   * buffer-backed [Value] in [scopes] points into this buffer, and [deepCopy] performs one bulk
+   * [PacketBuffer.copyOf] followed by a cheap rewire of the value tree instead of per-value
+   * `buffer.copyOf()` calls.
+   */
+  var packetBuffer: PacketBuffer? = null
+
   init {
     pushScope()
   } // top-level scope
@@ -60,12 +68,26 @@ class Environment {
     error("undefined variable: $name")
   }
 
-  /** Returns an independent deep copy of this environment (all scopes and values). */
+  /**
+   * Returns an independent deep copy of this environment (all scopes and values).
+   *
+   * When [packetBuffer] is non-null, copies that single buffer once and rewires every buffer-backed
+   * value to the copy — avoiding the per-value `buffer.copyOf()` that the legacy path performs.
+   * Non-buffer-backed values still flow through [Value.deepCopy].
+   */
   fun deepCopy(): Environment {
     val copy = Environment()
     copy.scopes.clear()
+    val oldBuf = packetBuffer
+    val newBuf = oldBuf?.copyOf()
+    copy.packetBuffer = newBuf
     for (scope in scopes) {
-      copy.scopes.addLast(scope.mapValuesTo(mutableMapOf()) { it.value.deepCopy() })
+      val newScope = HashMap<String, Value>(scope.size)
+      for ((k, v) in scope) {
+        newScope[k] =
+          if (oldBuf != null && newBuf != null) v.rewire(oldBuf, newBuf) else v.deepCopy()
+      }
+      copy.scopes.addLast(newScope)
     }
     return copy
   }
@@ -87,7 +109,7 @@ class PacketContext(payload: ByteArray, initialOffset: Int = 0) {
   // -------------------------------------------------------------------------
 
   /** Remaining bytes in the input packet, consumed by parser extract(). */
-  private val buffer: PacketBuffer = PacketBuffer(payload, initialOffset)
+  private val buffer: ParserCursor = ParserCursor(payload, initialOffset)
 
   /** Number of bytes consumed from the input buffer so far (parser extract position). */
   val bytesConsumed: Int
@@ -138,8 +160,8 @@ class PacketTooShortException(message: String) : ParserErrorException("PacketToo
 /** Thrown by the interpreter when a parser error occurs (P4 spec §12.8). */
 open class ParserErrorException(val errorName: String, message: String) : Exception(message)
 
-/** A simple byte-level cursor over a packet buffer. */
-private class PacketBuffer(private val data: ByteArray, initialOffset: Int = 0) {
+/** A simple byte-level cursor over a packet buffer, used by the parser. */
+private class ParserCursor(private val data: ByteArray, initialOffset: Int = 0) {
   private var offset: Int = initialOffset
 
   /** Number of bytes consumed from the start of the buffer. */

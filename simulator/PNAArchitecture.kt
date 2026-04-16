@@ -36,7 +36,8 @@ class PNAArchitecture(private val config: BehavioralConfig) : Architecture {
   // misconfigured pipelines.
   private val interpreter: Interpreter = Interpreter(config)
   private val blockParams: Map<String, List<BlockParam>> = buildBlockParamsMap(config)
-  private val typesByName: Map<String, TypeDecl> = config.typesList.associateBy { it.name }
+  private val typesByName: Map<String, TypeDecl> = interpreter.typesByName
+  private val layouts: PipelineLayouts = interpreter.layouts
   private val externInstances: Map<String, ExternInstanceDecl> = buildExternInstancesMap(config)
   private val mainParser: PipelineStage = resolveStage(config, "PNA", "main_parser")
   private val preControl: PipelineStage = resolveStage(config, "PNA", "pre_control")
@@ -52,6 +53,7 @@ class PNAArchitecture(private val config: BehavioralConfig) : Architecture {
     val tableStore: TableStore,
     val blockParams: Map<String, List<BlockParam>>,
     val typesByName: Map<String, TypeDecl>,
+    val layouts: PipelineLayouts,
     val externInstances: Map<String, ExternInstanceDecl>,
     val interpreter: Interpreter,
     val mainParser: PipelineStage,
@@ -87,6 +89,7 @@ class PNAArchitecture(private val config: BehavioralConfig) : Architecture {
         tableStore,
         blockParams,
         typesByName,
+        layouts,
         externInstances,
         interpreter,
         mainParser,
@@ -130,7 +133,7 @@ class PNAArchitecture(private val config: BehavioralConfig) : Architecture {
 
     val ctx = PacketContext(payload)
     val env = Environment()
-    val values = createDefaultValues(pipeline.config, pipeline.typesByName)
+    val values = createDefaultValues(pipeline.config, pipeline.typesByName, pipeline.layouts)
     val forwardingState = ForwardingState()
 
     initMetadata(values, ingressPort, passNumber)

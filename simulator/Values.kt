@@ -12,6 +12,16 @@ package fourward.simulator
 sealed class Value {
   /** Returns an independent deep copy. Immutable leaf types return `this`. */
   open fun deepCopy(): Value = this
+
+  /**
+   * Consolidated-fork variant of [deepCopy]: returns a value whose buffer-backed descendants point
+   * at [newBuffer] instead of [oldBuffer] — without copying the buffer (the caller copies it once
+   * for the entire packet tree).
+   *
+   * Leaf / non-buffer-backed values simply return `this` (they're immutable) or fall back to
+   * [deepCopy]. See [Environment.deepCopy] for the one-buffer-copy-per-fork invariant.
+   */
+  open fun rewire(oldBuffer: PacketBuffer, newBuffer: PacketBuffer): Value = deepCopy()
 }
 
 /** A bit<N> value. */
@@ -93,10 +103,38 @@ data class HeaderVal(
     }
   }
 
-  fun copy(): HeaderVal = HeaderVal(typeName, fields.toMutableMap(), valid)
+  fun copy(): HeaderVal = HeaderVal(typeName, copyFields(fields), valid)
 
-  override fun deepCopy(): HeaderVal =
-    HeaderVal(typeName, fields.mapValuesTo(mutableMapOf()) { it.value.deepCopy() }, valid)
+  override fun deepCopy(): HeaderVal = HeaderVal(typeName, deepCopyFields(fields), valid)
+
+  override fun rewire(oldBuffer: PacketBuffer, newBuffer: PacketBuffer): Value {
+    val bb = fields as? BufferBackedFieldMap
+    if (bb != null && bb.buffer === oldBuffer) {
+      return HeaderVal(typeName, bb.withBuffer(newBuffer), valid)
+    }
+    // Non-shared HashMap-backed: fall back to a full deep copy.
+    return deepCopy()
+  }
+
+  companion object {
+    /**
+     * Constructs a buffer-backed [HeaderVal] whose [fields] is a [BufferBackedFieldMap] over the
+     * supplied [buffer] at absolute bit offset [base]. Reads cache returned values per slot so
+     * repeated reads are zero-allocation. Writes invalidate the cached entry.
+     *
+     * When [base] is nonzero the caller is placing this header inside a larger shared packet buffer
+     * — see `designs/flat_packet_buffer.md` "Measured results and what's left".
+     */
+    fun bufferBacked(
+      layout: HeaderLayout,
+      buffer: PacketBuffer = PacketBuffer(layout.totalBits),
+      base: Int = 0,
+    ): HeaderVal {
+      val fields = BufferBackedFieldMap(buffer, layout.fields, base = base)
+      val valid = buffer.readBits(base + layout.validBitOffset, 1) == 1L
+      return HeaderVal(layout.typeName, fields, valid)
+    }
+  }
 }
 
 /**
@@ -105,10 +143,20 @@ data class HeaderVal(
  */
 data class StructVal(val typeName: String, val fields: MutableMap<String, Value> = mutableMapOf()) :
   Value() {
-  fun copy(): StructVal = StructVal(typeName, fields.toMutableMap())
+  fun copy(): StructVal = StructVal(typeName, copyFields(fields))
 
-  override fun deepCopy(): StructVal =
-    StructVal(typeName, fields.mapValuesTo(mutableMapOf()) { it.value.deepCopy() })
+  override fun deepCopy(): StructVal = StructVal(typeName, deepCopyFields(fields))
+
+  override fun rewire(oldBuffer: PacketBuffer, newBuffer: PacketBuffer): Value {
+    val bb = fields as? BufferBackedFieldMap
+    if (bb != null && bb.buffer === oldBuffer) {
+      return StructVal(typeName, bb.withBuffer(newBuffer))
+    }
+    // HashMap-backed: rewire each child (most will be buffer-backed headers sharing oldBuffer).
+    val rewired = HashMap<String, Value>(fields.size)
+    for ((k, v) in fields) rewired[k] = v.rewire(oldBuffer, newBuffer)
+    return StructVal(typeName, rewired)
+  }
 
   /** P4 spec §8.20: a header union is valid if any member header is valid. */
   fun isUnionValid(): Boolean = fields.values.any { it is HeaderVal && it.valid }
@@ -134,7 +182,38 @@ data class StructVal(val typeName: String, val fields: MutableMap<String, Value>
     val field = checkNotNull(fields[name] as? BitVal) { "$typeName.$name is not a bit field" }
     return field.bits.width
   }
+
+  companion object {
+    /**
+     * Constructs a buffer-backed [StructVal] whose [fields] is a [BufferBackedFieldMap] over the
+     * supplied [buffer] at absolute bit offset [base]. Only the struct's primitive members are
+     * exposed through the map — nested members (headers, structs, header stacks) aren't supported
+     * here; use a HashMap-backed [StructVal] with buffer-backed children instead.
+     */
+    fun bufferBacked(
+      layout: StructLayout,
+      buffer: PacketBuffer = PacketBuffer(layout.totalBits),
+      base: Int = 0,
+    ): StructVal {
+      val fields = BufferBackedFieldMap(buffer, layout.primitiveSlots, base = base)
+      return StructVal(layout.typeName, fields)
+    }
+  }
 }
+
+/** Shallow-copy [fields]: buffer-backed maps copy the buffer; HashMaps copy the entries. */
+private fun copyFields(fields: MutableMap<String, Value>): MutableMap<String, Value> =
+  when (fields) {
+    is BufferBackedFieldMap -> fields.copy()
+    else -> fields.toMutableMap()
+  }
+
+/** Deep-copy [fields]: buffer-backed maps copy the buffer; HashMaps recurse. */
+private fun deepCopyFields(fields: MutableMap<String, Value>): MutableMap<String, Value> =
+  when (fields) {
+    is BufferBackedFieldMap -> fields.copy()
+    else -> fields.mapValuesTo(mutableMapOf()) { it.value.deepCopy() }
+  }
 
 /**
  * A header stack (fixed-size array of headers with a next/last pointer).
@@ -152,6 +231,13 @@ data class HeaderStackVal(
 
   override fun deepCopy(): HeaderStackVal =
     HeaderStackVal(elementTypeName, headers.mapTo(mutableListOf()) { it.deepCopy() }, nextIndex)
+
+  override fun rewire(oldBuffer: PacketBuffer, newBuffer: PacketBuffer): Value =
+    HeaderStackVal(
+      elementTypeName,
+      headers.mapTo(mutableListOf()) { it.rewire(oldBuffer, newBuffer) },
+      nextIndex,
+    )
 }
 
 /** Sentinel for void returns and uninitialised variables. */

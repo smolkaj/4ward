@@ -27,11 +27,11 @@ import java.math.BigInteger
 /**
  * Long-lived P4 interpreter engine, built once per pipeline config.
  *
- * Holds config-derived maps (parsers, controls, actions, tables, types) that never change between
- * packets. Call [execution] for each pipeline run — the [Execution] inner class walks the IR tree
- * and is cheap to construct (just field assignments). Variable scopes live in [Environment];
- * packet-level state (input buffer, output buffer, trace) lives in [PacketContext]; program-global
- * state (table entries, extern instances) lives in [TableStore].
+ * Holds config-derived maps (parsers, controls, actions, tables, typesByName) that never change
+ * between packets. Call [execution] for each pipeline run — the [Execution] inner class walks the
+ * IR tree and is cheap to construct (just field assignments). Variable scopes live in
+ * [Environment]; packet-level state (input buffer, output buffer, trace) lives in [PacketContext];
+ * program-global state (table entries, extern instances) lives in [TableStore].
  *
  * The interpreter is deliberately simple: it pattern-matches on proto oneof fields and dispatches
  * to focused methods. There is no bytecode compilation or optimisation — correctness and
@@ -46,6 +46,16 @@ class Interpreter internal constructor(config: BehavioralConfig) {
   private val parsers: Map<String, ParserDecl> = config.parsersList.associateBy { it.name }
 
   private val controls: Map<String, ControlDecl> = config.controlsList.associateBy { it.name }
+
+  /** Type declarations indexed by name. Computed once per pipeline. */
+  val typesByName: Map<String, fourward.ir.TypeDecl> = config.typesList.associateBy { it.name }
+
+  /**
+   * Buffer-backed layouts for every type that supports them. Computed once per pipeline.
+   * Architectures pass this to [createDefaultValues] so per-packet setup produces buffer-backed
+   * values where possible.
+   */
+  val layouts: PipelineLayouts = tryComputeLayouts(typesByName)
 
   // Actions may be declared either at the top level or as local actions inside controls.
   // After the midend, all relevant actions end up in control.localActionsList.
@@ -68,8 +78,6 @@ class Interpreter internal constructor(config: BehavioralConfig) {
   }
 
   private val tables: Map<String, TableBehavior> = config.tablesList.associateBy { it.name }
-
-  private val types: Map<String, fourward.ir.TypeDecl> = config.typesList.associateBy { it.name }
 
   private data class TableResult(val hit: Boolean, val actionName: String)
 
@@ -319,7 +327,7 @@ class Interpreter internal constructor(config: BehavioralConfig) {
         for (varDecl in localVars) {
           val init =
             if (varDecl.hasInitializer()) evalExpr(varDecl.initializer, env)
-            else defaultValue(varDecl.type, types)
+            else defaultValue(varDecl.type, typesByName)
           env.define(varDecl.name, init)
         }
         body()
@@ -447,6 +455,7 @@ class Interpreter internal constructor(config: BehavioralConfig) {
           else -> error("unknown field '${fa.fieldName}' on table apply result${sourceContext()}")
         }
       }
+
       val target = evalExpr(fa.expr, env)
       return when (target) {
         is HeaderVal ->
@@ -490,7 +499,7 @@ class Interpreter internal constructor(config: BehavioralConfig) {
         evalExpr(ai.expr, env) as? HeaderStackVal
           ?: error("array index on non-stack value${sourceContext()}")
       val index = intValue(evalExpr(ai.index, env))
-      if (index !in 0 until stack.size) return defaultValue(stack.elementTypeName, types)
+      if (index !in 0 until stack.size) return defaultValue(stack.elementTypeName, typesByName)
       return stack.headers[index]
     }
 
@@ -726,7 +735,7 @@ class Interpreter internal constructor(config: BehavioralConfig) {
             stack.headers[i] = stack.headers[i - count]
           }
           for (i in 0 until count) {
-            stack.headers[i] = defaultValue(stack.elementTypeName, types)
+            stack.headers[i] = defaultValue(stack.elementTypeName, typesByName)
           }
           stack.nextIndex = (stack.nextIndex + count).coerceAtMost(stack.size)
           UnitVal
@@ -739,7 +748,7 @@ class Interpreter internal constructor(config: BehavioralConfig) {
             stack.headers[i] = stack.headers[i + count]
           }
           for (i in stack.size - count until stack.size) {
-            stack.headers[i] = defaultValue(stack.elementTypeName, types)
+            stack.headers[i] = defaultValue(stack.elementTypeName, typesByName)
           }
           stack.nextIndex = (stack.nextIndex - count).coerceAtLeast(0)
           UnitVal
@@ -965,7 +974,7 @@ class Interpreter internal constructor(config: BehavioralConfig) {
         override fun writeOutArg(index: Int, value: Value) =
           setLValue(call.argsList[index], value, env)
 
-        override fun defaultValue(type: Type): Value = defaultValue(type, types)
+        override fun defaultValue(type: Type): Value = defaultValue(type, typesByName)
 
         override fun traceEventBuilder(): TraceEvent.Builder = this@Execution.traceEventBuilder()
 
@@ -1012,7 +1021,7 @@ class Interpreter internal constructor(config: BehavioralConfig) {
     private fun isUnionFieldAccess(expr: Expr): Boolean =
       expr.hasFieldAccess() &&
         expr.fieldAccess.expr.type.let { t ->
-          t.hasNamed() && types[t.named]?.hasHeaderUnion() == true
+          t.hasNamed() && typesByName[t.named]?.hasHeaderUnion() == true
         }
 
     /** If [expr] is a field access into a header union, enforce one-valid-at-a-time (P4 §8.20). */
@@ -1037,7 +1046,7 @@ class Interpreter internal constructor(config: BehavioralConfig) {
       var unionHandled = false
       val header =
         if (arg.hasNameRef() && env.lookup(arg.nameRef.name) == null && arg.type.hasNamed()) {
-          defaultValue(arg.type.named, types) as? HeaderVal
+          defaultValue(arg.type.named, typesByName) as? HeaderVal
             ?: error("type not found for don't-care extract: ${arg.type.named}")
         } else if (isUnionFieldAccess(arg)) {
           // Parent is a header union — resolve it once, invalidate siblings (P4 §8.20).
@@ -1050,7 +1059,7 @@ class Interpreter internal constructor(config: BehavioralConfig) {
           evalExpr(arg, env) as HeaderVal
         }
       val headerDecl =
-        (types[header.typeName] ?: error("type not found: ${header.typeName}")).header
+        (typesByName[header.typeName] ?: error("type not found: ${header.typeName}")).header
 
       // The 2-argument form b.extract(hdr, varbitBits) is used when the header contains a varbit
       // field. The second argument gives the varbit field's runtime length in bits.
@@ -1095,7 +1104,7 @@ class Interpreter internal constructor(config: BehavioralConfig) {
       }
 
       val typeName = returnType.named
-      val typeDecl = types[typeName] ?: error("type not found for lookahead: $typeName")
+      val typeDecl = typesByName[typeName] ?: error("type not found for lookahead: $typeName")
       val fields =
         when {
           typeDecl.hasHeader() -> typeDecl.header.fieldsList
@@ -1156,7 +1165,7 @@ class Interpreter internal constructor(config: BehavioralConfig) {
         type.hasBoolean() -> 1
         type.hasVarbit() -> varbitBits
         type.hasNamed() -> {
-          val decl = types[type.named]
+          val decl = typesByName[type.named]
           when {
             decl != null && decl.hasEnum() -> decl.enum.width
             else -> 0
@@ -1196,7 +1205,7 @@ class Interpreter internal constructor(config: BehavioralConfig) {
         is HeaderVal -> emitHeader(value)
         is StructVal -> {
           // Emit in the declaration order from the TypeDecl; fall back to map order if unknown.
-          val typeDecl = types[value.typeName]
+          val typeDecl = typesByName[value.typeName]
           val fieldDecls =
             when {
               typeDecl != null && typeDecl.hasStruct() -> typeDecl.struct.fieldsList
@@ -1222,7 +1231,7 @@ class Interpreter internal constructor(config: BehavioralConfig) {
     private fun emitHeader(header: HeaderVal) {
       if (!header.valid) return
       val headerDecl =
-        (types[header.typeName] ?: error("type not found: ${header.typeName}")).header
+        (typesByName[header.typeName] ?: error("type not found: ${header.typeName}")).header
       // Compute total wire bits from field declarations; varbit fields use their stored BitVal
       // width since we don't have the runtime length separately at emit time.
       val totalBits =

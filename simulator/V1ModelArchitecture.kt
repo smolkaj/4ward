@@ -86,6 +86,34 @@ class V1ModelArchitecture(
   private val interpreter: Interpreter = Interpreter(config)
 
   /**
+   * Top-level parser user-param types (hdr, meta, standard_metadata), or null when the config has
+   * no parsers (minimal unit-test configs). v1model always declares: (packet_in, hdr, meta,
+   * standard_metadata).
+   */
+  private val parserUserTypes: List<String>? =
+    config.parsersList.firstOrNull()?.let { p ->
+      p.paramsList
+        .filter { it.type.hasNamed() && it.type.named !in IO_TYPES }
+        .map { it.type.named }
+        .also {
+          require(it.size == V1MODEL_USER_PARAM_COUNT) {
+            "Expected $V1MODEL_USER_PARAM_COUNT non-IO parser params, got ${it.size}"
+          }
+        }
+    }
+
+  /**
+   * Per-packet consolidated allocator — null when [parserUserTypes] is null. One [PacketBuffer]
+   * holds all three top-level values (hdr, meta, standard_metadata) at fixed offsets. Forks copy
+   * the buffer once and rewire the value tree — the primary lever for the flat-buffer rewrite's
+   * 2-3x target. See `designs/flat_packet_buffer.md`.
+   */
+  private val allocator: ConsolidatedPacketAllocator? =
+    parserUserTypes?.let {
+      ConsolidatedPacketAllocator.build(it, interpreter.layouts, interpreter.typesByName)
+    }
+
+  /**
    * Post-parser snapshot captured during the first [runPipeline] execution of a packet. Read by
    * [forkSpecs] when an [ActionSelectorFork] is caught, to pass to fork re-executions. Reset at the
    * start of each [processPacket] to prevent stale state across packets.
@@ -300,24 +328,19 @@ class V1ModelArchitecture(
       "max pipeline depth exceeded ($MAX_PIPELINE_DEPTH) — possible infinite resubmit/recirculate loop"
     }
     val config = ctx.config
-    val typesByName = config.typesList.associateBy { it.name }
+    val types =
+      checkNotNull(parserUserTypes) { "initPipelineState called on a config with no parsers" }
+    val alloc = checkNotNull(allocator) { "initPipelineState called on a config with no allocator" }
 
-    // Derive the type names for hdr/meta/standard_metadata from the parser's
-    // parameter list, filtering out the architecture-level packet I/O params.
-    // v1model always declares: (packet_in, hdr, meta, standard_metadata) in that order.
-    val parserUserParams =
-      config.parsersList.first().paramsList.filter {
-        it.type.hasNamed() && it.type.named !in IO_TYPES
-      }
-    require(parserUserParams.size == V1MODEL_USER_PARAM_COUNT) {
-      "Expected $V1MODEL_USER_PARAM_COUNT non-IO parser params, got ${parserUserParams.size}"
-    }
-    val headersTypeName = parserUserParams[0].type.named
-    val metaTypeName = parserUserParams[1].type.named
-    val standardMetaTypeName = parserUserParams[2].type.named
+    val headersTypeName = types[0]
+    val metaTypeName = types[1]
+    val standardMetaTypeName = types[2]
+
+    // One buffer, one value tree — all top-level headers/metadata share it.
+    val allocated = alloc.allocate()
 
     val standardMetadata =
-      (defaultValue(standardMetaTypeName, typesByName) as? StructVal)
+      (allocated.byType[standardMetaTypeName] as? StructVal)
         ?: error("$standardMetaTypeName not found in IR types; is v1model.p4 included?")
     check("ingress_port" in standardMetadata.fields) { "$standardMetaTypeName has no ingress_port" }
     check("packet_length" in standardMetadata.fields) {
@@ -330,7 +353,7 @@ class V1ModelArchitecture(
       standardMetadata.setBitField("instance_type", decisions.instanceTypeOverride)
     }
 
-    val metaValue = defaultValue(metaTypeName, typesByName)
+    val metaValue = allocated.byType.getValue(metaTypeName)
     if (decisions.preservedMetadata != null && metaValue is StructVal) {
       for ((name, value) in decisions.preservedMetadata) {
         metaValue.fields[name] = value
@@ -338,9 +361,10 @@ class V1ModelArchitecture(
     }
 
     val env = Environment()
+    env.packetBuffer = allocated.buffer
     val sharedByType =
       mapOf(
-        headersTypeName to defaultValue(headersTypeName, typesByName),
+        headersTypeName to allocated.byType.getValue(headersTypeName),
         metaTypeName to metaValue,
         standardMetaTypeName to standardMetadata,
       )
@@ -383,7 +407,7 @@ class V1ModelArchitecture(
       )
 
     val config = ctx.config
-    val typesByName = config.typesList.associateBy { it.name }
+    val typesByName = ctx.interpreter.typesByName
     val parserUserParams =
       config.parsersList.first().paramsList.filter {
         it.type.hasNamed() && it.type.named !in IO_TYPES

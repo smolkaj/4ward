@@ -40,7 +40,8 @@ class PSAArchitecture(private val config: BehavioralConfig) : Architecture {
   // misconfigured pipelines.
   private val interpreter: Interpreter = Interpreter(config)
   private val blockParams: Map<String, List<BlockParam>> = buildBlockParamsMap(config)
-  private val typesByName: Map<String, TypeDecl> = config.typesList.associateBy { it.name }
+  private val typesByName: Map<String, TypeDecl> = interpreter.typesByName
+  private val layouts: PipelineLayouts = interpreter.layouts
   private val externInstances: Map<String, ExternInstanceDecl> = buildExternInstancesMap(config)
   private val ingressParser: PipelineStage = resolveStage(config, "PSA", "ingress_parser")
   private val ingress: PipelineStage = resolveStage(config, "PSA", "ingress")
@@ -58,6 +59,7 @@ class PSAArchitecture(private val config: BehavioralConfig) : Architecture {
     val tableStore: TableStore,
     val blockParams: Map<String, List<BlockParam>>,
     val typesByName: Map<String, TypeDecl>,
+    val layouts: PipelineLayouts,
     val externInstances: Map<String, ExternInstanceDecl>,
     val interpreter: Interpreter,
     val ingressParser: PipelineStage,
@@ -79,6 +81,7 @@ class PSAArchitecture(private val config: BehavioralConfig) : Architecture {
         tableStore,
         blockParams,
         typesByName,
+        layouts,
         externInstances,
         interpreter,
         ingressParser,
@@ -221,7 +224,7 @@ class PSAArchitecture(private val config: BehavioralConfig) : Architecture {
   ): IngressResult {
     val ctx = PacketContext(payload)
     val env = Environment()
-    val values = createDefaultValues(pipeline.config, pipeline.typesByName)
+    val values = createDefaultValues(pipeline.config, pipeline.typesByName, pipeline.layouts)
 
     initIngressMetadata(values, ingressPort, packetPath)
     val output = values["psa_ingress_output_metadata_t"] as? StructVal
@@ -418,7 +421,7 @@ class PSAArchitecture(private val config: BehavioralConfig) : Architecture {
     val p = state.pipeline
     val egressCtx = PacketContext(deparsedBytes)
     val egressEnv = Environment()
-    val egressValues = createDefaultValues(p.config, p.typesByName)
+    val egressValues = createDefaultValues(p.config, p.typesByName, p.layouts)
 
     initEgressMetadata(egressValues, egressPort, instance, packetPath, state.ingressOutput)
     val egressOutput = egressValues["psa_egress_output_metadata_t"] as? StructVal

@@ -149,6 +149,99 @@ kt_jvm_test(
 )
 
 kt_jvm_test(
+    name = "PacketBufferTest",
+    srcs = ["PacketBufferTest.kt"],
+    associates = [":simulator_lib"],
+    test_class = "fourward.simulator.PacketBufferTest",
+    deps = [
+        "@fourward_maven//:junit_junit",
+    ],
+)
+
+kt_jvm_test(
+    name = "HeaderViewTest",
+    srcs = ["HeaderViewTest.kt"],
+    test_class = "fourward.simulator.HeaderViewTest",
+    deps = [
+        ":simulator_lib",
+        "@fourward_maven//:junit_junit",
+    ],
+)
+
+kt_jvm_test(
+    name = "StructViewTest",
+    srcs = ["StructViewTest.kt"],
+    test_class = "fourward.simulator.StructViewTest",
+    deps = [
+        ":simulator_lib",
+        "@fourward_maven//:junit_junit",
+    ],
+)
+
+kt_jvm_test(
+    name = "LayoutComputerTest",
+    srcs = ["LayoutComputerTest.kt"],
+    test_class = "fourward.simulator.LayoutComputerTest",
+    deps = [
+        ":ir_java_proto",
+        ":simulator_lib",
+        "@fourward_maven//:junit_junit",
+    ],
+)
+
+kt_jvm_test(
+    name = "PacketTraceTest",
+    srcs = ["PacketTraceTest.kt"],
+    test_class = "fourward.simulator.PacketTraceTest",
+    deps = [
+        ":simulator_lib",
+        "@fourward_maven//:junit_junit",
+    ],
+)
+
+kt_jvm_test(
+    name = "PipelineLayoutsFromConfigTest",
+    srcs = ["PipelineLayoutsFromConfigTest.kt"],
+    test_class = "fourward.simulator.PipelineLayoutsFromConfigTest",
+    deps = [
+        ":ir_java_proto",
+        ":simulator_lib",
+        "@fourward_maven//:junit_junit",
+    ],
+)
+
+kt_jvm_test(
+    name = "FlatBufferIntegrationTest",
+    srcs = ["FlatBufferIntegrationTest.kt"],
+    test_class = "fourward.simulator.FlatBufferIntegrationTest",
+    deps = [
+        ":ir_java_proto",
+        ":simulator_lib",
+        "@fourward_maven//:junit_junit",
+    ],
+)
+
+kt_jvm_test(
+    name = "HeaderStackViewTest",
+    srcs = ["HeaderStackViewTest.kt"],
+    test_class = "fourward.simulator.HeaderStackViewTest",
+    deps = [
+        ":simulator_lib",
+        "@fourward_maven//:junit_junit",
+    ],
+)
+
+kt_jvm_test(
+    name = "PacketStateTest",
+    srcs = ["PacketStateTest.kt"],
+    test_class = "fourward.simulator.PacketStateTest",
+    deps = [
+        ":simulator_lib",
+        "@fourward_maven//:junit_junit",
+    ],
+)
+
+kt_jvm_test(
     name = "MatchesFieldMatchTest",
     srcs = ["MatchesFieldMatchTest.kt"],
     test_class = "fourward.simulator.MatchesFieldMatchTest",
