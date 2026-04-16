@@ -7,7 +7,7 @@ package(
 )
 
 fourward_pipeline(
-    name = "constrained_table_pb",
+    name = "constrained_table",
     src = "constrained_table.p4",
     out = "constrained_table.txtpb",
     visibility = ["//p4runtime:__pkg__"],

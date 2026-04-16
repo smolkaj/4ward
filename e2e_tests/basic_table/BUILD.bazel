@@ -8,7 +8,7 @@ package(
 )
 
 fourward_pipeline(
-    name = "basic_table_pb",
+    name = "basic_table",
     src = "basic_table.p4",
     out = "basic_table.txtpb",
     visibility = [
@@ -23,7 +23,7 @@ kt_jvm_test(
     srcs = ["BasicTableTest.kt"],
     data = [
         "basic_table.stf",
-        ":basic_table_pb",
+        ":basic_table",
     ],
     test_class = "fourward.e2e.basictable.BasicTableTest",
     deps = [

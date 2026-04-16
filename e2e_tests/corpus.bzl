@@ -40,7 +40,7 @@ def corpus_test_suite(name, tests, tags = [], includes = [], stf_overrides = {})
         p4_src = "@p4c//testdata/p4_16_samples:" + test + ".p4"
 
         fourward_pipeline(
-            name = test + "_pb",
+            name = test,
             src = p4_src,
             out = test + ".txtpb",
             includes = includes,
@@ -60,7 +60,7 @@ def corpus_test_suite(name, tests, tags = [], includes = [], stf_overrides = {})
             )
             data.append(":" + test + "_stf")
 
-        data.append(":" + test + "_pb")
+        data.append(":" + test)
 
     kt_jvm_test(
         name = name,

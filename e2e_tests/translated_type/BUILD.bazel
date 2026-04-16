@@ -7,7 +7,7 @@ package(
 )
 
 fourward_pipeline(
-    name = "translated_type_pb",
+    name = "translated_type",
     src = "translated_type.p4",
     out = "translated_type.txtpb",
     visibility = ["//p4runtime:__pkg__"],

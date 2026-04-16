@@ -7,7 +7,7 @@ package(
 )
 
 fourward_pipeline(
-    name = "translated_port_pb",
+    name = "translated_port",
     src = "translated_port.p4",
     out = "translated_port.txtpb",
     extra_srcs = ["//e2e_tests/sai_p4:sai_p4_srcs"],

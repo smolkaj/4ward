@@ -92,7 +92,7 @@ def _add_test_genrules(test, p4_src, stf_src, includes, tags, data):
 
     # Compile to 4ward PipelineConfig (needed for P4Info).
     fourward_pipeline(
-        name = test + "_pb",
+        name = test,
         src = p4_src,
         out = test + ".txtpb",
         includes = includes,
@@ -109,6 +109,6 @@ def _add_test_genrules(test, p4_src, stf_src, includes, tags, data):
 
     data.extend([
         ":" + test + "_json",
-        ":" + test + "_pb",
+        ":" + test,
         ":" + test + "_stf",
     ])

@@ -31,7 +31,7 @@ filegroup(
 )
 
 fourward_pipeline(
-    name = "sai_middleblock_pb",
+    name = "sai_middleblock",
     src = "instantiations/google/middleblock.p4",
     out = "sai_middleblock.txtpb",
     extra_srcs = [":sai_p4_srcs"],
@@ -63,7 +63,7 @@ genrule(
 
 # 4ward PipelineConfig with BMv2 defines (for P4Info used by BMv2 benchmark).
 fourward_pipeline(
-    name = "sai_middleblock_bmv2_pb",
+    name = "sai_middleblock_bmv2",
     src = "instantiations/google/middleblock.p4",
     out = "sai_middleblock_bmv2.txtpb",
     defines = ["PLATFORM_BMV2"],

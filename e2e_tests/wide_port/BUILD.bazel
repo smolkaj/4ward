@@ -18,7 +18,7 @@ genrule(
 )
 
 fourward_pipeline(
-    name = "wide_port_pb",
+    name = "wide_port",
     src = "wide_port.p4",
     out = "wide_port.txtpb",
     includes = [":wide_v1model"],
@@ -29,7 +29,7 @@ kt_jvm_test(
     srcs = ["WidePortTest.kt"],
     data = [
         "wide_port.stf",
-        ":wide_port_pb",
+        ":wide_port",
     ],
     test_class = "fourward.e2e.wideport.WidePortTest",
     deps = [

@@ -8,7 +8,7 @@ package(
 )
 
 fourward_pipeline(
-    name = "switch_action_run_pb",
+    name = "switch_action_run",
     src = "switch_action_run.p4",
     out = "switch_action_run.txtpb",
 )
@@ -18,7 +18,7 @@ kt_jvm_test(
     srcs = ["SwitchActionRunTest.kt"],
     data = [
         "switch_action_run.stf",
-        ":switch_action_run_pb",
+        ":switch_action_run",
     ],
     test_class = "fourward.e2e.switchactionrun.SwitchActionRunTest",
     deps = [

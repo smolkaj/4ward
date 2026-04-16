@@ -8,7 +8,7 @@ package(
 )
 
 fourward_pipeline(
-    name = "passthrough_pb",
+    name = "passthrough",
     src = "passthrough.p4",
     out = "passthrough.txtpb",
     visibility = ["//p4runtime:__pkg__"],
@@ -20,7 +20,7 @@ kt_jvm_test(
     srcs = ["PassthroughTest.kt"],
     data = [
         "passthrough.stf",
-        ":passthrough_pb",
+        ":passthrough",
     ],
     test_class = "fourward.e2e.passthrough.PassthroughTest",
     deps = [

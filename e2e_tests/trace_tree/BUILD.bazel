@@ -53,13 +53,13 @@ _PASSING = _GOLDEN
 _MANUAL = []
 
 [fourward_pipeline(
-    name = name + "_pb",
+    name = name,
     src = "%s.p4" % name,
     out = "%s.txtpb" % name,
 ) for name in _P4_PROGRAMS if name not in ("clone_with_egress", "action_selector_3", "multicast")]
 
 fourward_pipeline(
-    name = "multicast_pb",
+    name = "multicast",
     src = "multicast.p4",
     out = "multicast.txtpb",
     visibility = [
@@ -70,14 +70,14 @@ fourward_pipeline(
 
 # Compiled separately so p4runtime conformance tests can use them as data deps.
 fourward_pipeline(
-    name = "clone_with_egress_pb",
+    name = "clone_with_egress",
     src = "clone_with_egress.p4",
     out = "clone_with_egress.txtpb",
     visibility = ["//p4runtime:__pkg__"],
 )
 
 fourward_pipeline(
-    name = "action_selector_3_pb",
+    name = "action_selector_3",
     src = "action_selector_3.p4",
     out = "action_selector_3.txtpb",
     visibility = ["//p4runtime:__pkg__"],
@@ -98,7 +98,7 @@ kt_jvm_test(
     srcs = ["GoldenTraceTreeTest.kt"],
     data = ["%s.stf" % n for n in _PASSING] +
            ["%s.golden.txtpb" % n for n in _PASSING] +
-           [":%s_pb" % n for n in _PASSING],
+           [":%s" % n for n in _PASSING],
     test_class = "fourward.e2e.tracetree.GoldenTraceTreeTest",
     deps = _TEST_DEPS + ["//simulator:p4info_java_proto"],
 )
@@ -107,7 +107,7 @@ kt_jvm_test(
     name = "trace_tree_consistency_test",
     srcs = ["TraceTreeConsistencyTest.kt"],
     data = ["%s.stf" % n for n in _P4_PROGRAMS] +
-           [":%s_pb" % n for n in _P4_PROGRAMS],
+           [":%s" % n for n in _P4_PROGRAMS],
     test_class = "fourward.e2e.tracetree.TraceTreeConsistencyTest",
     deps = _TEST_DEPS + ["//simulator:p4info_java_proto"],
 )
@@ -117,7 +117,7 @@ kt_jvm_test(
     srcs = ["GoldenTraceTreeTest.kt"],
     data = ["%s.stf" % n for n in _MANUAL] +
            ["%s.golden.txtpb" % n for n in _MANUAL] +
-           [":%s_pb" % n for n in _MANUAL],
+           [":%s" % n for n in _MANUAL],
     tags = ["manual"],
     test_class = "fourward.e2e.tracetree.GoldenTraceTreeTest",
     deps = _TEST_DEPS,

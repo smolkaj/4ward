@@ -8,7 +8,7 @@ package(
 )
 
 fourward_pipeline(
-    name = "assert_log_msg_pb",
+    name = "assert_log_msg",
     src = "assert_log_msg.p4",
     out = "assert_log_msg.txtpb",
 )
@@ -18,7 +18,7 @@ kt_jvm_test(
     srcs = ["AssertLogMsgTest.kt"],
     data = [
         "assert_log_msg.stf",
-        ":assert_log_msg_pb",
+        ":assert_log_msg",
     ],
     test_class = "fourward.e2e.assertlogmsg.AssertLogMsgTest",
     deps = [

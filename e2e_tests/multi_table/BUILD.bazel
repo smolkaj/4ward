@@ -8,7 +8,7 @@ package(
 )
 
 fourward_pipeline(
-    name = "multi_table_pb",
+    name = "multi_table",
     src = "multi_table.p4",
     out = "multi_table.txtpb",
 )
@@ -18,7 +18,7 @@ kt_jvm_test(
     srcs = ["MultiTableTest.kt"],
     data = [
         "multi_table.stf",
-        ":multi_table_pb",
+        ":multi_table",
     ],
     test_class = "fourward.e2e.multitable.MultiTableTest",
     deps = [

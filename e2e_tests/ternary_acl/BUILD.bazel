@@ -8,7 +8,7 @@ package(
 )
 
 fourward_pipeline(
-    name = "ternary_acl_pb",
+    name = "ternary_acl",
     src = "ternary_acl.p4",
     out = "ternary_acl.txtpb",
     visibility = ["//p4runtime:__pkg__"],
@@ -19,7 +19,7 @@ kt_jvm_test(
     srcs = ["TernaryAclTest.kt"],
     data = [
         "ternary_acl.stf",
-        ":ternary_acl_pb",
+        ":ternary_acl",
     ],
     test_class = "fourward.e2e.ternaryacl.TernaryAclTest",
     deps = [

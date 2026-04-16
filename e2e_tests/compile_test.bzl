@@ -31,13 +31,13 @@ def compile_test_suite(name, tests, tags = [], includes = []):
     for test in tests:
         p4_src = "@p4c//testdata/p4_16_samples:" + test + ".p4"
         fourward_pipeline(
-            name = test + "_pb",
+            name = test,
             src = p4_src,
             out = test + ".txtpb",
             includes = includes,
             tags = tags,
         )
-        targets.append(":" + test + "_pb")
+        targets.append(":" + test)
 
     build_test(
         name = name,

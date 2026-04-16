@@ -118,7 +118,7 @@ def _p4_testgen_rules(name, src_p4, includes, max_tests, seed, tags, defines = [
     # includes.  p4c resolves #include "..." relative to the source file,
     # so -I flags are redundant — and $(execpath) would fail on filegroups.
     fourward_pipeline(
-        name = name + "_pb",
+        name = name,
         src = src_p4,
         out = name + ".txtpb",
         defines = defines,
@@ -126,7 +126,7 @@ def _p4_testgen_rules(name, src_p4, includes, max_tests, seed, tags, defines = [
         tags = tags,
     )
 
-    return [":" + stfs_name, ":" + name + "_pb"]
+    return [":" + stfs_name, ":" + name]
 
 def p4_testgen_test(name, src_p4 = None, includes = [], max_tests = 0, seed = 0, tags = [], defines = [], target = "bmv2", arch = "v1model"):
     """Generates p4testgen STF tests and runs them against the 4ward simulator.
