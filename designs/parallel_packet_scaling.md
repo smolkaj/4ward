@@ -1,6 +1,10 @@
 # Parallel Packet Scaling
 
-**Status: Phase 1.5 complete (empirically validated; diagnosis refined)**
+**Status: Phase 2 complete — flat-buffer attempt refuted the
+working-set-bytes hypothesis; diagnosis refined to per-fork
+wrapper-object churn and per-read Value allocation. See
+`designs/flat_packet_buffer.md` and
+[smolkaj/4ward#522](https://github.com/smolkaj/4ward/pull/522).**
 
 ## North star
 
@@ -409,7 +413,78 @@ each thread *touches* per packet. Allocation-count optimizations are
 the secondary axis, valuable only to the degree that they translate
 into footprint reduction.
 
-## Phase 2: optimize (proposed)
+> **Phase 2 postscript:** this framing turned out to be only half
+> right. See the next section — the byte-footprint-reduction hypothesis
+> was tested end-to-end in #522 and capped at +6.3%. The IPC / DRAM
+> stalls Phase 1.5 measured are real, but they're driven by per-fork
+> wrapper-object *churn* (allocation count × cache-line thrash), not
+> by the byte count of the resident state. The diagnosis above
+> correctly identified the cache-pressure symptom; the
+> working-set-bytes framing was the wrong lever to pull.
+
+## Phase 2: flat-buffer attempt (refuted direction)
+
+Phase 1.5 identified "per-thread working-set bytes exceed L3" as the
+bottleneck and pointed at shrinking per-packet state as the primary
+lever. [smolkaj/4ward#522](https://github.com/smolkaj/4ward/pull/522)
+tested that hypothesis end-to-end: replaced the heap-of-objects packet
+state (many `HashMap`s across `HeaderVal` / `StructVal`) with one
+contiguous `PacketBuffer` per packet plus thin views at static offsets.
+The packet's field data dropped from ~12 MB of `HeaderVal` graph to
+~540 bytes of bit-packed buffer. Fork became one `buffer.copyOf()` plus
+a `rewire()` walk instead of a Value-tree `deepCopy`.
+
+**Measured outcome** (AMD Ryzen 9 7950X3D, best 3-run mean):
+
+| Workload | Baseline | Flat buffer + consolidation | Δ |
+|---|---|---|---|
+| wcmp×128 parallel | 1,528 pps | 1,625 pps | **+6.3%** |
+| wcmp×128 sequential | 207 pps | 200 pps | within noise |
+| direct parallel | 39,800 pps | 39,743 pps | within noise |
+
+Short of the 2-3× target by a wide margin. A `skipDeepCopy()` oracle
+benchmark in the same session capped the maximum possible win from
+fork-copy elimination at ~16% — the 2-3× target was incompatible with
+a data-layout-only change from the start.
+
+**What the flat-buffer result means for the diagnosis.** The packet's
+raw field bytes were never the bottleneck. What Phase 1.5's IPC
+counters detected is real, but the cache pressure comes from:
+
+- **Per-fork wrapper-object churn.** `HeaderVal`, `StructVal`,
+  `HashMap`, and scope entries — ~55 Java object allocations per fork
+  branch, mostly unchanged by consolidating the underlying byte
+  storage. Each allocation touches a fresh cache line; the allocator,
+  GC, and JIT traversals dominate the L3 footprint.
+- **Per-read Value-wrapper allocation on the interpreter hot path.**
+  Every `target.fields[name]` returns a `BitVal` / `IntVal` / `BoolVal`
+  object. Absent a cache, fork branches re-allocate these for every
+  field they read. The flat-buffer PR's `BufferBackedFieldMap` per-slot
+  cache is what preserved parity on direct workloads — bypassing it in
+  any follow-on optimization regressed by 8-14%.
+
+**Refined diagnosis.** Shrinking per-packet byte footprint has a low
+ceiling (the `skipDeepCopy` oracle, ~16%). The real lever is the
+**per-fork wrapper-object graph** and the **per-read `Value` allocation
+on the interpreter hot path**. Those are interpreter-level concerns,
+not data-layout concerns — the existing `HeaderVal` / `StructVal` /
+`HashMap` representation is fine scaffolding for the follow-ups that
+actually move the needle.
+
+**Specific optimisations tested and reverted in #522** (numbers in the
+retrospective):
+
+- Pre-resolved `FieldAccess` fast path that bypassed the per-slot cache
+  → −14%.
+- Copy-on-write on the per-slot cache → −2% (shared-flag check outweighs
+  save; SAI branches write enough).
+- Identity-based rewire dedup for aliased scope entries → −2%.
+- Array-backed cache indexed by slot position → −8%.
+
+These are catalogued so future attempts don't re-run them. See
+`designs/flat_packet_buffer.md` for the full retrospective.
+
+## Path forward
 
 **Discipline.** Performance work is bounded by simplicity. The project
 rules are explicit: "correctness over performance" and "readability over
@@ -419,43 +494,64 @@ must clear that bar before it lands.
 
 **Approach.** Measure first, optimize second — same mantra that governed
 the lock-free dataplane work (where we discovered the lock wasn't the
-bottleneck after all). One optimization at a time. Measure → fix the
-smallest thing → re-measure → decide what's next. Don't pre-commit to a
-multi-step plan beyond the next step.
+bottleneck after all). **Profile with async-profiler before committing
+to a direction.** Phase 2 is a case study in what happens when you skip
+that step: the flat-buffer rewrite was a week of work motivated by a
+hypothesis a 15-minute flame graph would have put lower on the list.
+
+**Approach, concretely.** Build a "what if this optimization were
+free?" oracle benchmark before writing the optimization. In Phase 2's
+case, `skipDeepCopy()` was a three-line change that would have capped
+the project's upside at 16% in Phase 1. Use similar oracles (stub out
+table lookup, stub out `evalExpr`) to bound the ceiling on any future
+candidate before starting.
 
 **Scope.** Direct L3 is already at 94% efficiency with no meaningful
 work left to do. "Optimize" here means closing the wcmp×128 gap —
 bringing 45% efficiency closer to linear.
 
-**What to optimize for.** Per the reframed diagnosis in Phase 1.5:
-per-thread working-set size, not allocation count. Every candidate
-should be evaluated on "does it reduce the bytes each thread touches
-per packet."
+**What to optimize for.** Per the refined diagnosis above: per-fork
+wrapper-object allocation count and per-read `Value` allocation on
+the interpreter hot path. The earlier framing ("working-set bytes")
+is a symptom, not a cause.
 
-Candidate optimizations, ordered by expected impact on working-set
-size:
+Candidate optimizations, ordered by expected impact (but *profile
+before committing* — the oracle step):
 
-1. **Copy-on-write `HeaderVal` / `StructVal`.** Share the underlying
-   map between fork branches; copy only on first write. Each fork
-   branch typically touches a small subset of fields, so most of the
-   deep-copy work produces bytes that are allocated, filled, and
-   evicted without ever being read. COW is the only optimization on
-   this list that *directly* shrinks per-thread working set — on
-   fork-heavy workloads, potentially by an order of magnitude.
-   Structural change (mutation model goes from in-place to persistent)
-   but the public interface stays the same.
-   **Expected impact:** this is where the ceiling lives. Actual gain
-   depends on what fraction of deep-copied fields are never read by
-   the branch; measurement will tell.
+0. **Interpreter hot-path refactor (new primary lever).** Three
+   complementary directions, all interpreter-level:
+   - Pre-resolve `FieldAccess` chains at pipeline load *and* give the
+     fast path its own per-packet cache (the #522 attempt failed because
+     it bypassed `BufferBackedFieldMap`'s cache — a correct version
+     would maintain equivalent caching at interpreter scope).
+   - Pool `HeaderVal` / `BufferBackedFieldMap` / scope HashMap
+     instances in a thread-local scratch; reset on each fork rather
+     than allocating fresh.
+   - Arena-allocate fork-branch state in one slab so GC sees contiguous
+     short-lived allocations instead of a graph.
+
+   All three work on `main`'s current data representation; none of
+   them require the #522 primitives. Run the oracle benchmark for each
+   before starting.
+
+1. **Copy-on-write `HeaderVal` / `StructVal` (persistent-map variant).**
+   Historical top pick (prior to Phase 2). Share the underlying map
+   between fork branches; copy only on first write to a given field,
+   with the mutation model going from in-place to persistent. **Not to
+   be confused with** the narrower "COW on the per-slot value cache"
+   that #522 tested and reverted (−2%; shared-flag check outweighed
+   savings). Phase 2 also tested a related cache-forwarding variant
+   that delivered the +6.3% — the full persistent-map COW has a larger
+   surface but shares the same ceiling dynamic — fork-copy is ~9% of
+   per-fork time, so a perfect COW can't exceed that. Worth considering
+   as a stacking optimisation on top of (0), not a replacement.
 
 2. **`Long` fast path for narrow bit fields.** Use `Long` instead of
    `BigInteger` for `bit<N>` with N ≤ 63. A partial fast path exists
-   in `matchesFieldMatch`; extend it to `BitVector` arithmetic.
-   Doesn't change map structure, but shrinks each bit-field value from
-   ~40 bytes of `BigInteger` object + int[] payload to 8 bytes of
-   primitive `long` (often register-resident after escape analysis).
-   Bit-fields are densely packed in header maps, so this compounds
-   the working-set win from (1).
+   in `matchesFieldMatch`; extend it to `BitVector` arithmetic. Shrinks
+   each bit-field value from ~40 bytes (`BigInteger` object + int[]
+   payload) to 8 bytes of primitive `long` (often register-resident
+   after escape analysis). Orthogonal to (0) and (1); stacks on either.
    **Expected impact:** ~5× smaller per-value footprint, compounded
    across dozens of bit-fields per header. Hard to forecast as a
    single number without measurement.
@@ -467,11 +563,10 @@ size:
    **Expected impact:** ~2% (measured in isolation before Phase 1.5).
 
 **The honest realization.** None of these alone guarantees linear
-scaling. Working-set reduction from (1) has the highest ceiling by
-far, but its actual size depends on how much of the deep-copy work is
-wasted in the average fork branch — an open empirical question.
-Getting to truly linear would likely require (1) to deliver big *and*
-stacking (2) on top.
+scaling. The interpreter hot path (0) is now the primary lever — the
+flat-buffer attempt established that data layout alone caps at ~16%.
+Hitting the north star likely requires (0) to deliver big, with (1)
+and (2) stacking on top.
 
 **Before committing to anything:** the simplicity budget matters. The
 lock-free dataplane PR was a clear simplification AND had measurable
@@ -503,9 +598,9 @@ DVaaS workload that's blocked by the current throughput.
 3. **No correctness regressions** — all tests still pass.
 
 **Done when:** wcmp×128 parallel efficiency reaches ≥80% of linear on
-16 physical cores. Hitting that target is not marginal tuning — it
-requires breaking the L3-capacity bottleneck, which is what candidates
-(1) and (2) above are designed to do.
+16 physical cores. Hitting that target is not marginal tuning; the
+flat-buffer experiment showed it requires interpreter-level work
+(candidate 0 above), not just data-layout compaction.
 
 ## Non-goals
 
@@ -526,17 +621,17 @@ requires breaking the L3-capacity bottleneck, which is what candidates
   compute, it's dispatch (gRPC, coroutines, or `ForkJoinPool` task
   submission serial fraction). Not worth chasing — direct is already at
   94% efficiency despite leaving cores idle.
-- **How much does copy-on-write help in practice?** The ceiling is set
-  by what fraction of deep-copied fields are *never read* in the
-  average fork branch. For wcmp×128 we don't know this fraction yet; it
-  could be small (5-10%) if most branches read most of the header, or
-  large (≥90%) if branches mostly touch the fields affected by the
-  selected action. The first prototype should measure this before
-  committing to the full refactor.
+- **How much of the interpreter's per-fork cost is field access vs.
+  table lookup vs. action dispatch?** Phase 2 established that fork-
+  copy is only ~9%; the remaining ~91% is interpretation. Which slice
+  of that is the biggest single target? A flame graph on wcmp×128
+  parallel would answer this in minutes and is the prerequisite for
+  candidate (0).
 - **Why doesn't the 7950X3D's V-cache help?** Both CCDs measured
   identically despite one having 3× the L3 capacity. Possibilities: the
-  working set genuinely exceeds 96 MB; V-cache allocation policy
-  disfavors short-lived allocation churn; or the test process was
-  scheduled onto the non-V-cache CCD. Not worth chasing for the scaling
-  question (the answer is still "reduce working-set size") but would be
-  nice to understand.
+  working set genuinely exceeds 96 MB (but see Phase 2 — shrinking byte
+  footprint didn't help, so the V-cache shouldn't have either);
+  V-cache allocation policy disfavors short-lived allocation churn; or
+  the test process was scheduled onto the non-V-cache CCD. Consistent
+  with the refined diagnosis that cache-line churn, not total bytes,
+  is the bottleneck.
