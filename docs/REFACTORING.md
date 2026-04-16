@@ -14,13 +14,22 @@ Blocked on buf support for proto edition 2024.
 ## Drop p4c fork
 
 The `smolkaj/p4c` fork adds the PNA STF backend for p4testgen and a
-PNA drop-by-default fix. Upstream PRs:
-- https://github.com/p4lang/p4c/pull/5570 (PNA STF backend)
-- https://github.com/p4lang/p4c/issues/5569 (drop-by-default)
+PNA drop-by-default fix. Upstream status:
+- https://github.com/p4lang/p4c/pull/5570 (PNA STF backend) — **merged
+  2026-04-06**, not yet in a released p4c (v1.2.5.12 was tagged
+  2026-04-04, just before).
+- https://github.com/p4lang/p4c/issues/5569 (drop-by-default) — still
+  open.
 
 The `//p4include` and macOS fixes (p4lang/p4c#5533) already landed and
-are available in BCR as p4c 1.2.5.11.bcr.1. Once the remaining changes
-are merged and released, drop the `git_override` in `MODULE.bazel`.
+are available in BCR as p4c 1.2.5.11.bcr.1. Once #5569 lands upstream
+and both fixes ship in a released p4c, drop the `git_override` in
+`MODULE.bazel`.
+
+**Interim narrowing opportunity**: the fork currently carries a
+redundant bazel/p4include/macOS patch (`2a38af8`) that duplicates the
+already-landed #5533 fix. Rebasing the fork onto a commit containing
+#5533 would shrink it from 3 patches to 2 (the two PNA fixes only).
 
 ---
 
@@ -30,8 +39,9 @@ Three deps use `git_override` with pinned commits. `behavioral_model` and
 `bazel_clang_tidy` are dev-only (`dev_dependency = True`) and invisible to
 BCR consumers.
 
-- **p4c** (`smolkaj/p4c` fork, `2a38af8`): adds `//p4include` package,
-  testdata exports, macOS build fix. See "Drop p4c fork" above.
+- **p4c** (`smolkaj/p4c` fork, `c7e38ae`): carries three patches — the
+  two PNA fixes (p4lang/p4c#5570, #5569) plus a now-redundant bazel/
+  p4include/macOS patch. See "Drop p4c fork" above.
 - **bazel_clang_tidy** (`9e54bbb`): pinned before a commit (`c4d35e0`) that
   broke `-isystem` include ordering. Upstream bug never fixed — permanent
   workaround. Re-check if upstream ever resolves the issue.
