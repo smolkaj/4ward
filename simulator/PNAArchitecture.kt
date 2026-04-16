@@ -28,11 +28,24 @@ import java.math.BigInteger
  * - PNA spec: https://p4.org/p4-spec/docs/PNA.html
  * - p4c pna.p4: https://github.com/p4lang/p4c/blob/main/p4include/pna.p4
  */
-class PNAArchitecture : Architecture {
+class PNAArchitecture(private val config: BehavioralConfig) : Architecture {
 
-  private val interpreterCache = Interpreter.Cache()
+  // Pipeline-invariant state derived from [config], built once per loaded pipeline. All vals are
+  // immutable after publication, so safe to read concurrently from any number of [processPacket]
+  // threads without synchronization. Pre-resolving the pipeline stages here also fails fast on
+  // misconfigured pipelines.
+  private val interpreter: Interpreter = Interpreter(config)
+  private val blockParams: Map<String, List<BlockParam>> = buildBlockParamsMap(config)
+  private val typesByName: Map<String, TypeDecl> = config.typesList.associateBy { it.name }
+  private val externInstances: Map<String, ExternInstanceDecl> = buildExternInstancesMap(config)
+  private val mainParser: PipelineStage = resolveStage(config, "PNA", "main_parser")
+  private val preControl: PipelineStage = resolveStage(config, "PNA", "pre_control")
+  private val mainControl: PipelineStage = resolveStage(config, "PNA", "main_control")
+  private val mainDeparser: PipelineStage = resolveStage(config, "PNA", "main_deparser")
 
-  /** Pipeline-invariant state derived from the [BehavioralConfig]. */
+  /**
+   * Per-call binding: pipeline invariants (held by the architecture) plus the live [TableStore].
+   */
   @Suppress("LongParameterList")
   private class PipelineConfig(
     val config: BehavioralConfig,
@@ -66,26 +79,20 @@ class PNAArchitecture : Architecture {
   override fun processPacket(
     ingressPort: UInt,
     payload: ByteArray,
-    config: BehavioralConfig,
     tableStore: TableStore,
   ): PipelineResult {
-    val stages = config.architecture.stagesList
-    fun stage(name: String) =
-      stages
-        .first { it.name == name }
-        .also { require(it.blockName.isNotEmpty()) { "PNA stage '$name' has no block name" } }
     val pipeline =
       PipelineConfig(
         config,
         tableStore,
-        blockParams = buildBlockParamsMap(config),
-        typesByName = config.typesList.associateBy { it.name },
-        externInstances = buildExternInstancesMap(config),
-        interpreter = interpreterCache.get(config),
-        mainParser = stage("main_parser"),
-        preControl = stage("pre_control"),
-        mainControl = stage("main_control"),
-        mainDeparser = stage("main_deparser"),
+        blockParams,
+        typesByName,
+        externInstances,
+        interpreter,
+        mainParser,
+        preControl,
+        mainControl,
+        mainDeparser,
       )
 
     val tree =

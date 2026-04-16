@@ -32,11 +32,26 @@ import java.math.BigInteger
  * - PSA spec: https://p4.org/p4-spec/docs/PSA.html
  * - BMv2 psa.p4: https://github.com/p4lang/p4c/blob/main/p4include/bmv2/psa.p4
  */
-class PSAArchitecture : Architecture {
+class PSAArchitecture(private val config: BehavioralConfig) : Architecture {
 
-  private val interpreterCache = Interpreter.Cache()
+  // Pipeline-invariant state derived from [config], built once per loaded pipeline. All vals are
+  // immutable after publication, so safe to read concurrently from any number of [processPacket]
+  // threads without synchronization. Pre-resolving the pipeline stages here also fails fast on
+  // misconfigured pipelines.
+  private val interpreter: Interpreter = Interpreter(config)
+  private val blockParams: Map<String, List<BlockParam>> = buildBlockParamsMap(config)
+  private val typesByName: Map<String, TypeDecl> = config.typesList.associateBy { it.name }
+  private val externInstances: Map<String, ExternInstanceDecl> = buildExternInstancesMap(config)
+  private val ingressParser: PipelineStage = resolveStage(config, "PSA", "ingress_parser")
+  private val ingress: PipelineStage = resolveStage(config, "PSA", "ingress")
+  private val ingressDeparser: PipelineStage = resolveStage(config, "PSA", "ingress_deparser")
+  private val egressParser: PipelineStage = resolveStage(config, "PSA", "egress_parser")
+  private val egress: PipelineStage = resolveStage(config, "PSA", "egress")
+  private val egressDeparser: PipelineStage = resolveStage(config, "PSA", "egress_deparser")
 
-  /** Pipeline-invariant state derived from the [BehavioralConfig]. */
+  /**
+   * Per-call binding: pipeline invariants (held by the architecture) plus the live [TableStore].
+   */
   @Suppress("LongParameterList")
   private class PipelineConfig(
     val config: BehavioralConfig,
@@ -45,7 +60,6 @@ class PSAArchitecture : Architecture {
     val typesByName: Map<String, TypeDecl>,
     val externInstances: Map<String, ExternInstanceDecl>,
     val interpreter: Interpreter,
-    // Pre-resolved PSA pipeline stages (fail fast on misconfigured pipelines).
     val ingressParser: PipelineStage,
     val ingress: PipelineStage,
     val ingressDeparser: PipelineStage,
@@ -57,28 +71,22 @@ class PSAArchitecture : Architecture {
   override fun processPacket(
     ingressPort: UInt,
     payload: ByteArray,
-    config: BehavioralConfig,
     tableStore: TableStore,
   ): PipelineResult {
-    val stages = config.architecture.stagesList
-    fun stage(name: String) =
-      stages
-        .first { it.name == name }
-        .also { require(it.blockName.isNotEmpty()) { "PSA stage '$name' has no block name" } }
     val pipeline =
       PipelineConfig(
         config,
         tableStore,
-        blockParams = buildBlockParamsMap(config),
-        typesByName = config.typesList.associateBy { it.name },
-        externInstances = buildExternInstancesMap(config),
-        interpreter = interpreterCache.get(config),
-        ingressParser = stage("ingress_parser"),
-        ingress = stage("ingress"),
-        ingressDeparser = stage("ingress_deparser"),
-        egressParser = stage("egress_parser"),
-        egress = stage("egress"),
-        egressDeparser = stage("egress_deparser"),
+        blockParams,
+        typesByName,
+        externInstances,
+        interpreter,
+        ingressParser,
+        ingress,
+        ingressDeparser,
+        egressParser,
+        egress,
+        egressDeparser,
       )
 
     val tree = processPacketRecursive(pipeline, payload, ingressPort, PACKET_PATH_NORMAL, depth = 0)

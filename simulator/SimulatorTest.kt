@@ -281,6 +281,101 @@ class SimulatorTest {
     assertEquals(1, outputs.size)
     assertEquals(V1ModelArchitecture.DEFAULT_DROP_PORT, outputs[0].dataplaneEgressPort)
   }
+
+  // ---------------------------------------------------------------------------
+  // Concurrency: atomic loadPipeline publish
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `concurrent loadPipeline and processPacket never observe a torn snapshot`() {
+    // Two pipelines with distinguishable outputs: a torn (architecture, tableStore) snapshot
+    // would throw or yield a port outside {1, 2}. Because tableStore now lives inside
+    // LoadedPipeline, both fields publish via the same AtomicReference — atomic by structure.
+    val configA = v1modelPipelineConfig(egressPort = 1)
+    val configB = v1modelPipelineConfig(egressPort = 2)
+
+    val sim = Simulator()
+    sim.loadPipeline(configA)
+
+    val errors = java.util.concurrent.ConcurrentLinkedQueue<Throwable>()
+    val stop = java.util.concurrent.atomic.AtomicBoolean(false)
+    val processed = java.util.concurrent.atomic.AtomicInteger(0)
+
+    val readers =
+      (0 until 8).map {
+        Thread {
+            try {
+              while (!stop.get()) {
+                val result = sim.processPacket(ingressPort = 0, payload = byteArrayOf(0x01))
+                val port = result.possibleOutcomes.single().singleOrNull()?.dataplaneEgressPort
+                require(port == 1 || port == 2) { "torn snapshot: got port=$port" }
+                processed.incrementAndGet()
+              }
+            } catch (
+              @Suppress("TooGenericExceptionCaught")
+              t: Throwable) { // any failure is a race symptom
+              errors.add(t)
+            }
+          }
+          .also { it.start() }
+      }
+
+    repeat(200) { sim.loadPipeline(if (it % 2 == 0) configB else configA) }
+
+    Thread.sleep(50) // let readers run a bit longer to expose any final race
+    stop.set(true)
+    readers.forEach { it.join() }
+
+    assertEquals(
+      "expected no errors during concurrent reload (processed ${processed.get()} packets); " +
+        "first: ${errors.firstOrNull()}",
+      0,
+      errors.size,
+    )
+  }
+
+  @Test
+  fun `concurrent loadPipelinePreservingEntries and processPacket never throw`() {
+    // RECONCILE_AND_COMMIT path: snapshots old tableStore, builds new pipeline, restores entries.
+    // The whole sequence happens against a single LoadedPipeline atomic publish, so concurrent
+    // processPacket must never observe a half-restored tableStore.
+    val configA = v1modelPipelineConfig(egressPort = 1)
+    val configB = v1modelPipelineConfig(egressPort = 2)
+
+    val sim = Simulator()
+    sim.loadPipeline(configA)
+
+    val errors = java.util.concurrent.ConcurrentLinkedQueue<Throwable>()
+    val stop = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    val readers =
+      (0 until 4).map {
+        Thread {
+            try {
+              while (!stop.get()) {
+                sim.processPacket(ingressPort = 0, payload = byteArrayOf(0x01))
+              }
+            } catch (
+              @Suppress("TooGenericExceptionCaught")
+              t: Throwable) { // any failure is a race symptom
+              errors.add(t)
+            }
+          }
+          .also { it.start() }
+      }
+
+    repeat(50) { sim.loadPipelinePreservingEntries(if (it % 2 == 0) configB else configA) }
+
+    Thread.sleep(50)
+    stop.set(true)
+    readers.forEach { it.join() }
+
+    assertEquals(
+      "expected no errors during concurrent reconcile reload; first: ${errors.firstOrNull()}",
+      0,
+      errors.size,
+    )
+  }
 }
 
 /** Unit tests for [collectPossibleOutcomes] — the parallel vs alternative fork semantics. */

@@ -1,6 +1,5 @@
 package fourward.simulator
 
-import fourward.ir.BehavioralConfig
 import fourward.sim.OutputPacket
 import fourward.sim.TraceTree
 
@@ -29,12 +28,7 @@ interface Architecture {
    * - Handling architecture-specific operations (clone, resubmit, etc.).
    * - Returning the trace tree (with packet outcomes at leaves).
    */
-  fun processPacket(
-    ingressPort: UInt,
-    payload: ByteArray,
-    config: BehavioralConfig,
-    tableStore: TableStore,
-  ): PipelineResult
+  fun processPacket(ingressPort: UInt, payload: ByteArray, tableStore: TableStore): PipelineResult
 }
 
 /**

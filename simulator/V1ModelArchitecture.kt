@@ -72,12 +72,18 @@ private val INTRA_PACKET_PARALLELISM_ENABLED =
   System.getProperty("fourward.simulator.intraPacketParallelism", "true").toBoolean()
 
 class V1ModelArchitecture(
+  private val config: BehavioralConfig,
   /**
    * Override for the drop port. When null (default), derived from `standard_metadata` port width:
    * `2^N - 1` (511 for 9-bit ports). Applied in [PipelineState] and in the `mark_to_drop` extern.
    */
-  private val dropPortOverride: Int? = null
+  private val dropPortOverride: Int? = null,
 ) : Architecture {
+
+  // Pipeline-invariant state derived from [config], built once per loaded pipeline. Immutable
+  // after publication, so safe to read concurrently from any number of [processPacket] threads
+  // without synchronization.
+  private val interpreter: Interpreter = Interpreter(config)
 
   /**
    * Post-parser snapshot captured during the first [runPipeline] execution of a packet. Read by
@@ -87,7 +93,6 @@ class V1ModelArchitecture(
   // ThreadLocal: parallel fork branches each get their own snapshot, avoiding races when
   // nested forks (clone after selector) write concurrently.
   private val postParserSnapshot = ThreadLocal<PostParserSnapshot?>()
-  private val interpreterCache = Interpreter.Cache()
 
   /** Invariant inputs to the pipeline, shared across fork re-executions. */
   private data class PipelineContext(
@@ -128,12 +133,10 @@ class V1ModelArchitecture(
   override fun processPacket(
     ingressPort: UInt,
     payload: ByteArray,
-    config: BehavioralConfig,
     tableStore: TableStore,
   ): PipelineResult {
     postParserSnapshot.set(null)
-    val ctx =
-      PipelineContext(ingressPort, payload, config, tableStore, interpreterCache.get(config))
+    val ctx = PipelineContext(ingressPort, payload, config, tableStore, interpreter)
     return buildTraceTree(ctx, V1ModelDecisions(), prefixLength = 0)
   }
 

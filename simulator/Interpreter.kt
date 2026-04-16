@@ -36,6 +36,11 @@ import java.math.BigInteger
  * The interpreter is deliberately simple: it pattern-matches on proto oneof fields and dispatches
  * to focused methods. There is no bytecode compilation or optimisation — correctness and
  * readability are the goals.
+ *
+ * Thread safety: all fields are `val`s holding immutable proto messages and Kotlin Maps populated
+ * during construction. JMM final-field publication makes the [Interpreter] safe to share across any
+ * number of [Execution] threads after construction. Mutable per-run state lives in [Execution],
+ * which is created fresh for each call.
  */
 class Interpreter internal constructor(config: BehavioralConfig) {
   private val parsers: Map<String, ParserDecl> = config.parsersList.associateBy { it.name }
@@ -1321,20 +1326,6 @@ class Interpreter internal constructor(config: BehavioralConfig) {
       }
     }
   } // end Execution
-
-  /** Holds one [Interpreter] per [BehavioralConfig], rebuilding only when the config changes. */
-  class Cache {
-    private var cached: Interpreter? = null
-    private var cachedConfig: BehavioralConfig? = null
-
-    fun get(config: BehavioralConfig): Interpreter {
-      if (config === cachedConfig) return cached!!
-      return Interpreter(config).also {
-        cached = it
-        cachedConfig = config
-      }
-    }
-  }
 
   companion object {
     // P4 spec §8.18: header stack lastIndex/size are bit<32>.

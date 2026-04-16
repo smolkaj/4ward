@@ -3,6 +3,7 @@ package fourward.simulator
 import fourward.ir.PipelineConfig
 import fourward.sim.OutputPacket
 import fourward.sim.TraceTree
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * Result of processing a single packet through the pipeline.
@@ -31,8 +32,11 @@ data class ProcessPacketResult(val trace: TraceTree, val possibleOutcomes: List<
  * Public methods: [loadPipeline], [processPacket], [writeEntry], [readEntries]. These use natural
  * Kotlin error handling (exceptions, sealed results).
  *
- * One [Simulator] instance runs for the lifetime of the process; it is single-threaded (callers
- * must serialise concurrent requests).
+ * One [Simulator] instance runs for the lifetime of the process. [processPacket] is safe to call
+ * concurrently from any number of threads — it reads the loaded pipeline atomically (one snapshot,
+ * no tearing across reload) and the published forwarding snapshot from [TableStore]. Control-plane
+ * mutations ([loadPipeline], [writeEntry]) must be serialized by the caller (the P4Runtime layer
+ * does this via its write mutex), but they do not require packet processing to be quiesced.
  */
 class Simulator(
   /**
@@ -42,61 +46,87 @@ class Simulator(
   private val dropPortOverride: Int? = null
 ) : TableDataReader {
 
-  private var pipeline: PipelineConfig? = null
-  private var architecture: Architecture? = null
-  private val tableStore = TableStore()
+  /**
+   * Atomically published bundle of "the currently loaded pipeline". Includes the [TableStore] so
+   * `(architecture, tableStore)` publish as one snapshot — no torn pair across reload.
+   */
+  private data class LoadedPipeline(
+    val config: PipelineConfig,
+    val architecture: Architecture,
+    val tableStore: TableStore,
+  )
+
+  // Single source of truth for "the loaded pipeline". Published via AtomicReference so all
+  // readers (processPacket, writeEntry, snapshot, ...) observe the architecture and tableStore
+  // as one consistent pair, even mid-reload. JMM happens-before across the .set() carries the
+  // prior tableStore.loadMappings writes along with the publish.
+  private val current = AtomicReference<LoadedPipeline?>(null)
+
+  /** Throws if no pipeline is loaded; otherwise returns the current snapshot. */
+  private fun loaded(): LoadedPipeline = checkNotNull(current.get()) { "no pipeline loaded" }
 
   /**
    * Installs a compiled P4 program. Must be called before [processPacket].
    *
    * Replaces the current program and clears all table entries.
    *
+   * **Concurrency:** single-writer. Callers must serialize this against other [loadPipeline],
+   * [loadPipelinePreservingEntries], and [writeEntry] calls (P4Runtime does this via its write
+   * mutex). Concurrent [processPacket] callers are safe — they observe either the old or the new
+   * pipeline as one atomic `(architecture, tableStore)` snapshot, never a torn mix.
+   *
    * @throws IllegalArgumentException if the architecture is unsupported.
    */
   fun loadPipeline(config: PipelineConfig) {
-    pipeline = config
-
+    val tableStore = TableStore()
     tableStore.loadMappings(config.p4Info, config.device)
-
-    architecture =
-      when (val archName = config.device.behavioral.architecture.name) {
-        "v1model" -> V1ModelArchitecture(dropPortOverride)
-        "psa" -> PSAArchitecture()
-        "pna" -> PNAArchitecture()
+    val behavioral = config.device.behavioral
+    val architecture =
+      when (val archName = behavioral.architecture.name) {
+        "v1model" -> V1ModelArchitecture(behavioral, dropPortOverride)
+        "psa" -> PSAArchitecture(behavioral)
+        "pna" -> PNAArchitecture(behavioral)
         else -> throw IllegalArgumentException("unsupported architecture: $archName")
       }
+    current.set(LoadedPipeline(config, architecture, tableStore))
   }
 
   /**
    * Like [loadPipeline], but preserves forwarding state for tables whose schema is unchanged.
    *
    * Used by RECONCILE_AND_COMMIT. Snapshots the current write-state, loads the new pipeline (which
-   * clears all state), then restores entries for tables that exist in both pipelines. The caller
-   * must verify schema compatibility before calling this.
+   * starts with a fresh [TableStore]), then restores entries for tables that exist in both
+   * pipelines. The caller must verify schema compatibility before calling this.
+   *
+   * **Concurrency:** same as [loadPipeline] — single-writer.
    */
   fun loadPipelinePreservingEntries(config: PipelineConfig) {
-    val snapshot = tableStore.snapshot()
-    val oldAliasByName = tableStore.tableAliasByName
+    val old = loaded()
+    val oldSnapshot = old.tableStore.snapshot()
+    val oldAliasByName = old.tableStore.tableAliasByName
     loadPipeline(config)
-    tableStore.restoreTableEntries(snapshot.forwarding, oldAliasByName)
-    tableStore.publishSnapshot()
+    val newTableStore = loaded().tableStore
+    newTableStore.restoreTableEntries(oldSnapshot.forwarding, oldAliasByName)
+    newTableStore.publishSnapshot()
   }
 
   /**
    * Processes a single packet through the pipeline.
    *
+   * **Concurrency:** safe to call concurrently from any number of threads. Reads the loaded
+   * pipeline as one atomic snapshot; reads forwarding state from [TableStore]'s published snapshot.
+   * No locks on the hot path.
+   *
    * @throws IllegalStateException if no pipeline is loaded.
    */
   fun processPacket(ingressPort: Int, payload: ByteArray): ProcessPacketResult {
-    val config = checkNotNull(pipeline) { "no pipeline loaded" }
-    val arch = checkNotNull(architecture) { "no pipeline loaded" }
+    val loaded = loaded()
 
     val result =
-      arch.processPacket(
+      loaded.architecture.processPacket(
         ingressPort = ingressPort.toUInt(),
         payload = payload,
-        config = config.device.behavioral,
-        tableStore = tableStore,
+        tableStore = loaded.tableStore,
       )
 
     // Output packets are extracted from trace tree leaves — the tree is the single source
@@ -109,21 +139,23 @@ class Simulator(
   /**
    * Writes a table entry (insert, modify, or delete).
    *
+   * **Concurrency:** single-writer. Callers must serialize this against other [writeEntry] and
+   * [loadPipeline] calls (P4Runtime does this via its write mutex). [TableStore.write] mutates
+   * write-state; visibility to [processPacket] requires a subsequent [publishSnapshot].
+   *
    * @throws IllegalStateException if no pipeline is loaded.
    */
-  fun writeEntry(update: p4.v1.P4RuntimeOuterClass.Update): WriteResult {
-    checkNotNull(pipeline) { "no pipeline loaded" }
-    return tableStore.write(update)
-  }
+  fun writeEntry(update: p4.v1.P4RuntimeOuterClass.Update): WriteResult =
+    loaded().tableStore.write(update)
 
   /** Captures a checkpoint of all mutable state for rollback. */
-  fun snapshot(): TableStore.RollbackCheckpoint = tableStore.snapshot()
+  fun snapshot(): TableStore.RollbackCheckpoint = loaded().tableStore.snapshot()
 
   /** Restores all mutable state to a previously captured checkpoint. */
-  fun restore(checkpoint: TableStore.RollbackCheckpoint) = tableStore.restore(checkpoint)
+  fun restore(checkpoint: TableStore.RollbackCheckpoint) = loaded().tableStore.restore(checkpoint)
 
   /** Publishes the current write-state as a new immutable snapshot for data-plane threads. */
-  fun publishSnapshot() = tableStore.publishSnapshot()
+  fun publishSnapshot() = loaded().tableStore.publishSnapshot()
 
   /**
    * Returns true if the table with p4info [tableId] has an entry with match field [fieldId] equal
@@ -135,10 +167,11 @@ class Simulator(
     tableId: Int,
     fieldId: Int,
     value: com.google.protobuf.ByteString,
-  ): Boolean = tableStore.hasEntryWithFieldValue(tableId, fieldId, value)
+  ): Boolean = loaded().tableStore.hasEntryWithFieldValue(tableId, fieldId, value)
 
   /** Returns true if a multicast group with [groupId] exists in the PRE. */
-  fun hasMulticastGroup(groupId: Int): Boolean = tableStore.getMulticastGroup(groupId) != null
+  fun hasMulticastGroup(groupId: Int): Boolean =
+    loaded().tableStore.getMulticastGroup(groupId) != null
 
   // -------------------------------------------------------------------------
   // Raw data accessors (used by the P4Runtime layer's EntityReader)
@@ -146,30 +179,31 @@ class Simulator(
 
   /** ID→name maps populated by [loadPipeline], for building P4Runtime Entity protos. */
   val tableNameById: Map<Int, String>
-    get() = tableStore.tableNameById
+    get() = loaded().tableStore.tableNameById
 
   val actionNameById: Map<Int, String>
-    get() = tableStore.actionNameById
+    get() = loaded().tableStore.actionNameById
 
   /** P4info alias names of tables that have at least one installed entry. */
   val populatedTableAliases: Set<String>
-    get() = tableStore.populatedTableAliases()
+    get() = loaded().tableStore.populatedTableAliases()
 
-  override fun getTableEntries(tableName: String) = tableStore.getTableEntries(tableName)
+  override fun getTableEntries(tableName: String) = loaded().tableStore.getTableEntries(tableName)
 
-  override fun getDefaultAction(tableName: String) = tableStore.getDefaultAction(tableName)
+  override fun getDefaultAction(tableName: String) = loaded().tableStore.getDefaultAction(tableName)
 
-  override fun isDefaultModified(tableName: String) = tableStore.isDefaultModified(tableName)
+  override fun isDefaultModified(tableName: String) =
+    loaded().tableStore.isDefaultModified(tableName)
 
   override fun getDirectCounterData(entry: p4.v1.P4RuntimeOuterClass.TableEntry) =
-    tableStore.getDirectCounterData(entry)
+    loaded().tableStore.getDirectCounterData(entry)
 
   override fun getDirectMeterData(entry: p4.v1.P4RuntimeOuterClass.TableEntry) =
-    tableStore.getDirectMeterData(entry)
+    loaded().tableStore.getDirectMeterData(entry)
 
-  override fun hasDirectCounter(tableName: String) = tableStore.hasDirectCounter(tableName)
+  override fun hasDirectCounter(tableName: String) = loaded().tableStore.hasDirectCounter(tableName)
 
-  override fun hasDirectMeter(tableName: String) = tableStore.hasDirectMeter(tableName)
+  override fun hasDirectMeter(tableName: String) = loaded().tableStore.hasDirectMeter(tableName)
 
   /**
    * Reads non-table entities matching the given filters.
@@ -179,8 +213,9 @@ class Simulator(
    */
   fun readEntries(
     filters: List<p4.v1.P4RuntimeOuterClass.Entity>
-  ): List<p4.v1.P4RuntimeOuterClass.Entity> =
-    filters.flatMap { entity ->
+  ): List<p4.v1.P4RuntimeOuterClass.Entity> {
+    val tableStore = loaded().tableStore
+    return filters.flatMap { entity ->
       when {
         entity.hasTableEntry() -> emptyList()
         entity.hasActionProfileMember() -> tableStore.readProfileMembers(entity.actionProfileMember)
@@ -197,9 +232,10 @@ class Simulator(
         else -> error("unsupported entity type for read: ${entity.entityCase}")
       }
     }
+  }
 
   /** Returns the short p4info alias for a behavioral name (table or action), or the name itself. */
-  fun displayName(behavioralName: String): String = tableStore.displayName(behavioralName)
+  fun displayName(behavioralName: String): String = loaded().tableStore.displayName(behavioralName)
 }
 
 /**

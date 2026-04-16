@@ -127,9 +127,9 @@ Add your architecture to the dispatcher in [`Simulator.kt`](https://github.com/s
 
 ```kotlin
 architecture = when (archName) {
-  "v1model" -> V1ModelArchitecture(dropPort)
-  "psa" -> PSAArchitecture()
-  "pna" -> PnaArchitecture()       // ← add here
+  "v1model" -> V1ModelArchitecture(behavioral, dropPort)
+  "psa" -> PSAArchitecture(behavioral)
+  "pna" -> PnaArchitecture(behavioral)   // ← add here
   else -> throw IllegalArgumentException("unsupported architecture: $archName")
 }
 ```

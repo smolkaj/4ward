@@ -301,7 +301,7 @@ class V1ModelArchitectureTest {
     writeMulticastGroup(tableStore, groupId = 1, replicas = listOf(0 to 2, 0 to 3))
 
     val payload = byteArrayOf(0xAA.toByte(), 0xBB.toByte())
-    val result = V1ModelArchitecture().processPacket(0u, payload, config, tableStore)
+    val result = V1ModelArchitecture(config).processPacket(0u, payload, tableStore)
     val outputs = result.possibleOutcomes.single()
 
     assertEquals(2, outputs.size)
@@ -317,7 +317,7 @@ class V1ModelArchitectureTest {
     val config =
       v1modelConfig(assignField("sm", "egress_spec", 5, V1ModelArchitecture.DEFAULT_PORT_BITS))
     val payload = byteArrayOf(0x01, 0x02, 0x03)
-    val result = V1ModelArchitecture().processPacket(0u, payload, config, TableStore())
+    val result = V1ModelArchitecture(config).processPacket(0u, payload, TableStore())
     val outputs = result.possibleOutcomes.single()
 
     assertEquals(1, outputs.size)
@@ -336,7 +336,7 @@ class V1ModelArchitectureTest {
           V1ModelArchitecture.DEFAULT_PORT_BITS,
         )
       )
-    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val result = V1ModelArchitecture(config).processPacket(0u, byteArrayOf(0x01), TableStore())
 
     assertTrue(result.trace.hasPacketOutcome())
     assertTrue(result.trace.packetOutcome.hasDrop())
@@ -355,7 +355,7 @@ class V1ModelArchitectureTest {
           V1ModelArchitecture.DEFAULT_PORT_BITS,
         )
       )
-    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val result = V1ModelArchitecture(config).processPacket(0u, byteArrayOf(0x01), TableStore())
 
     val stageNames =
       result.trace.eventsList.filter { it.hasPipelineStage() }.map { it.pipelineStage.stageName }
@@ -385,7 +385,7 @@ class V1ModelArchitectureTest {
             assignField("sm", "egress_spec", 5, V1ModelArchitecture.DEFAULT_PORT_BITS),
           ),
       )
-    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val result = V1ModelArchitecture(config).processPacket(0u, byteArrayOf(0x01), TableStore())
     val outputs = result.possibleOutcomes.single()
 
     assertEquals(1, outputs.size)
@@ -398,7 +398,7 @@ class V1ModelArchitectureTest {
     val tableStore = TableStore()
     writeMulticastGroup(tableStore, groupId = 1, replicas = listOf(0 to 2, 0 to 3))
 
-    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, tableStore)
+    val result = V1ModelArchitecture(config).processPacket(0u, byteArrayOf(0x01), tableStore)
 
     assertTrue(result.trace.hasForkOutcome())
     assertEquals(ForkReason.MULTICAST, result.trace.forkOutcome.reason)
@@ -417,7 +417,7 @@ class V1ModelArchitectureTest {
     writeCloneSession(tableStore, sessionId = 1, egressPort = 7)
 
     val payload = byteArrayOf(0xAA.toByte())
-    val result = V1ModelArchitecture().processPacket(0u, payload, config, tableStore)
+    val result = V1ModelArchitecture(config).processPacket(0u, payload, tableStore)
 
     assertTrue(result.trace.hasForkOutcome())
     assertEquals(ForkReason.CLONE, result.trace.forkOutcome.reason)
@@ -445,7 +445,7 @@ class V1ModelArchitectureTest {
     writeCloneSession(tableStore, sessionId = 1, egressPort = 7, usePortBytes = true)
 
     val result =
-      V1ModelArchitecture().processPacket(0u, byteArrayOf(0xAA.toByte()), config, tableStore)
+      V1ModelArchitecture(config).processPacket(0u, byteArrayOf(0xAA.toByte()), tableStore)
     val outputs = result.possibleOutcomes.single()
 
     assertEquals(2, outputs.size)
@@ -465,7 +465,7 @@ class V1ModelArchitectureTest {
     writeCloneSession(tableStore, sessionId = 1, egressPort = 510, usePortBytes = true)
 
     val result =
-      V1ModelArchitecture().processPacket(0u, byteArrayOf(0xAA.toByte()), config, tableStore)
+      V1ModelArchitecture(config).processPacket(0u, byteArrayOf(0xAA.toByte()), tableStore)
     val outputs = result.possibleOutcomes.single()
 
     assertEquals(2, outputs.size)
@@ -483,7 +483,7 @@ class V1ModelArchitectureTest {
       usePortBytes = true,
     )
 
-    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, tableStore)
+    val result = V1ModelArchitecture(config).processPacket(0u, byteArrayOf(0x01), tableStore)
     val outputs = result.possibleOutcomes.single()
 
     assertEquals(2, outputs.size)
@@ -503,7 +503,7 @@ class V1ModelArchitectureTest {
     val tableStore = TableStore()
     writeCloneSession(tableStore, sessionId = 1, egressPort = 8)
 
-    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, tableStore)
+    val result = V1ModelArchitecture(config).processPacket(0u, byteArrayOf(0x01), tableStore)
 
     assertTrue(result.trace.hasForkOutcome())
     assertEquals(ForkReason.CLONE, result.trace.forkOutcome.reason)
@@ -527,7 +527,7 @@ class V1ModelArchitectureTest {
         ifFieldEquals("sm", "instance_type", 0, 32, externCall("resubmit", intArg(0, 8)))
       )
 
-    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val result = V1ModelArchitecture(config).processPacket(0u, byteArrayOf(0x01), TableStore())
 
     assertTrue(result.trace.hasForkOutcome())
     assertEquals(ForkReason.RESUBMIT, result.trace.forkOutcome.reason)
@@ -550,7 +550,7 @@ class V1ModelArchitectureTest {
           ),
       )
 
-    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val result = V1ModelArchitecture(config).processPacket(0u, byteArrayOf(0x01), TableStore())
 
     assertTrue(result.trace.hasForkOutcome())
     assertEquals(ForkReason.RECIRCULATE, result.trace.forkOutcome.reason)
@@ -569,7 +569,7 @@ class V1ModelArchitectureTest {
         assignField("sm", "egress_spec", 2, V1ModelArchitecture.DEFAULT_PORT_BITS),
       )
 
-    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val result = V1ModelArchitecture(config).processPacket(0u, byteArrayOf(0x01), TableStore())
 
     assertFalse(result.trace.hasForkOutcome())
     val outputs = result.possibleOutcomes.single()
@@ -587,7 +587,7 @@ class V1ModelArchitectureTest {
         egressStmts = listOf(externCall("clone", enumArg("E2E"), intArg(99, 32))),
       )
 
-    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val result = V1ModelArchitecture(config).processPacket(0u, byteArrayOf(0x01), TableStore())
 
     assertFalse(result.trace.hasForkOutcome())
     val outputs = result.possibleOutcomes.single()
@@ -604,7 +604,7 @@ class V1ModelArchitectureTest {
         assignField("sm", "egress_spec", 5, V1ModelArchitecture.DEFAULT_PORT_BITS),
       )
 
-    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val result = V1ModelArchitecture(config).processPacket(0u, byteArrayOf(0x01), TableStore())
 
     // No fork — falls through to unicast path.
     val outputs = result.possibleOutcomes.single()
@@ -630,7 +630,7 @@ class V1ModelArchitectureTest {
     writeMulticastGroup(tableStore, groupId = 1, replicas = listOf(0 to 2, 0 to 3))
 
     val result =
-      V1ModelArchitecture().processPacket(0u, byteArrayOf(0xAA.toByte()), config, tableStore)
+      V1ModelArchitecture(config).processPacket(0u, byteArrayOf(0xAA.toByte()), tableStore)
     val outputs = result.possibleOutcomes.single()
 
     assertEquals(2, outputs.size)
@@ -646,7 +646,7 @@ class V1ModelArchitectureTest {
     val tableStore = TableStore()
     writeCloneSession(tableStore, sessionId = 1, egressPort = 7)
 
-    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, tableStore)
+    val result = V1ModelArchitecture(config).processPacket(0u, byteArrayOf(0x01), tableStore)
 
     assertTrue(result.trace.hasForkOutcome())
     val outputs = result.possibleOutcomes.single()
@@ -680,7 +680,7 @@ class V1ModelArchitectureTest {
     val tableStore = TableStore()
     writeCloneSession(tableStore, sessionId = 1, egressPort = 8)
 
-    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, tableStore)
+    val result = V1ModelArchitecture(config).processPacket(0u, byteArrayOf(0x01), tableStore)
 
     assertTrue(result.trace.hasForkOutcome())
     val outputs = result.possibleOutcomes.single()
@@ -701,7 +701,7 @@ class V1ModelArchitectureTest {
   fun `trace starts with packet ingress and has enter-exit pairs for all stages`() {
     val config =
       v1modelConfig(assignField("sm", "egress_spec", 1, V1ModelArchitecture.DEFAULT_PORT_BITS))
-    val result = V1ModelArchitecture().processPacket(7u, byteArrayOf(0x01), config, TableStore())
+    val result = V1ModelArchitecture(config).processPacket(7u, byteArrayOf(0x01), TableStore())
     val events = stageEvents(result.trace)
 
     // First event: packet ingress with correct port.
@@ -753,7 +753,7 @@ class V1ModelArchitectureTest {
         .build()
 
     val config = v1modelConfig(parser = exitParser)
-    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val result = V1ModelArchitecture(config).processPacket(0u, byteArrayOf(0x01), TableStore())
 
     // Should be a drop.
     assertTrue(result.trace.hasPacketOutcome())
@@ -800,7 +800,7 @@ class V1ModelArchitectureTest {
     val portBits = 16
     val largePort = 1000L // beyond bit<9> range
     val config = widePortConfig(portBits, assignField("sm", "egress_spec", largePort, portBits))
-    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val result = V1ModelArchitecture(config).processPacket(0u, byteArrayOf(0x01), TableStore())
     val outputs = result.possibleOutcomes.single()
 
     assertEquals(1, outputs.size)
@@ -812,7 +812,7 @@ class V1ModelArchitectureTest {
     val portBits = 16
     val dropPort = (1L shl portBits) - 1 // 65535, not 511
     val config = widePortConfig(portBits, assignField("sm", "egress_spec", dropPort, portBits))
-    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val result = V1ModelArchitecture(config).processPacket(0u, byteArrayOf(0x01), TableStore())
 
     assertTrue(result.trace.hasPacketOutcome())
     assertTrue(result.trace.packetOutcome.hasDrop())
@@ -823,7 +823,7 @@ class V1ModelArchitectureTest {
     // Port 511 is NOT the drop port when port width is 16 bits — it's a valid port.
     val portBits = 16
     val config = widePortConfig(portBits, assignField("sm", "egress_spec", 511, portBits))
-    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val result = V1ModelArchitecture(config).processPacket(0u, byteArrayOf(0x01), TableStore())
     val outputs = result.possibleOutcomes.single()
 
     assertEquals(1, outputs.size)
@@ -838,7 +838,7 @@ class V1ModelArchitectureTest {
     val portBits = 16
     val markToDrop = externCall("mark_to_drop", nameRef("sm"))
     val config = widePortConfig(portBits, markToDrop)
-    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val result = V1ModelArchitecture(config).processPacket(0u, byteArrayOf(0x01), TableStore())
 
     assertTrue(result.trace.hasPacketOutcome())
     assertTrue(result.trace.packetOutcome.hasDrop())
@@ -849,7 +849,7 @@ class V1ModelArchitectureTest {
     val portBits = 32
     val largePort = 100_000L
     val config = widePortConfig(portBits, assignField("sm", "egress_spec", largePort, portBits))
-    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val result = V1ModelArchitecture(config).processPacket(0u, byteArrayOf(0x01), TableStore())
     val outputs = result.possibleOutcomes.single()
 
     assertEquals(1, outputs.size)
@@ -903,7 +903,7 @@ class V1ModelArchitectureTest {
     val tableStore = TableStore()
     writeCloneSession(tableStore, sessionId = 1, egressPort = 7)
 
-    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, tableStore)
+    val result = V1ModelArchitecture(config).processPacket(0u, byteArrayOf(0x01), tableStore)
 
     assertTrue(result.trace.hasForkOutcome())
     assertEquals(ForkReason.CLONE, result.trace.forkOutcome.reason)
@@ -949,7 +949,7 @@ class V1ModelArchitectureTest {
     val tableStore = TableStore()
     writeCloneSession(tableStore, sessionId = 1, egressPort = 8)
 
-    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, tableStore)
+    val result = V1ModelArchitecture(config).processPacket(0u, byteArrayOf(0x01), tableStore)
 
     assertTrue(result.trace.hasForkOutcome())
     assertEquals(ForkReason.CLONE, result.trace.forkOutcome.reason)
@@ -992,7 +992,7 @@ class V1ModelArchitectureTest {
     val tableStore = TableStore()
     writeCloneSession(tableStore, sessionId = 1, egressPort = 7)
 
-    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, tableStore)
+    val result = V1ModelArchitecture(config).processPacket(0u, byteArrayOf(0x01), tableStore)
 
     val outputs = result.possibleOutcomes.single()
     assertEquals(2, outputs.size)
@@ -1037,7 +1037,7 @@ class V1ModelArchitectureTest {
         metaTypeDecl = metaTypeWithFieldList,
       )
 
-    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val result = V1ModelArchitecture(config).processPacket(0u, byteArrayOf(0x01), TableStore())
 
     assertTrue(result.trace.hasForkOutcome())
     assertEquals(ForkReason.RESUBMIT, result.trace.forkOutcome.reason)
@@ -1090,7 +1090,7 @@ class V1ModelArchitectureTest {
         metaTypeDecl = metaTypeWithFieldList,
       )
 
-    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val result = V1ModelArchitecture(config).processPacket(0u, byteArrayOf(0x01), TableStore())
 
     assertTrue(result.trace.hasForkOutcome())
     assertEquals(ForkReason.RECIRCULATE, result.trace.forkOutcome.reason)
@@ -1135,7 +1135,7 @@ class V1ModelArchitectureTest {
     val tableStore = TableStore()
     writeCloneSession(tableStore, sessionId = 1, egressPort = 7)
 
-    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, tableStore)
+    val result = V1ModelArchitecture(config).processPacket(0u, byteArrayOf(0x01), tableStore)
 
     assertTrue(result.trace.hasForkOutcome())
     val outputs = result.possibleOutcomes.single()
@@ -1154,7 +1154,7 @@ class V1ModelArchitectureTest {
         externCall("assert", boolLit(true)),
         assignField("sm", "egress_spec", 1, V1ModelArchitecture.DEFAULT_PORT_BITS),
       )
-    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val result = V1ModelArchitecture(config).processPacket(0u, byteArrayOf(0x01), TableStore())
     val outputs = result.possibleOutcomes.single()
 
     assertEquals(1, outputs.size)
@@ -1166,7 +1166,7 @@ class V1ModelArchitectureTest {
   @Test
   fun `assert false drops packet with ASSERTION_FAILURE reason`() {
     val config = v1modelConfig(externCall("assert", boolLit(false)))
-    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val result = V1ModelArchitecture(config).processPacket(0u, byteArrayOf(0x01), TableStore())
 
     assertTrue(result.trace.hasPacketOutcome())
     assertTrue(result.trace.packetOutcome.hasDrop())
@@ -1178,7 +1178,7 @@ class V1ModelArchitectureTest {
   @Test
   fun `assume false drops packet with ASSERTION_FAILURE reason`() {
     val config = v1modelConfig(externCall("assume", boolLit(false)))
-    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val result = V1ModelArchitecture(config).processPacket(0u, byteArrayOf(0x01), TableStore())
 
     assertTrue(result.trace.hasPacketOutcome())
     assertTrue(result.trace.packetOutcome.hasDrop())
@@ -1196,7 +1196,7 @@ class V1ModelArchitectureTest {
         externCall("log_msg", stringLit("hello world")),
         assignField("sm", "egress_spec", 1, V1ModelArchitecture.DEFAULT_PORT_BITS),
       )
-    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val result = V1ModelArchitecture(config).processPacket(0u, byteArrayOf(0x01), TableStore())
     val outputs = result.possibleOutcomes.single()
 
     assertEquals(1, outputs.size)
@@ -1212,7 +1212,7 @@ class V1ModelArchitectureTest {
         externCall("log_msg", stringLit("value = {}"), bit(42, 8)),
         assignField("sm", "egress_spec", 1, V1ModelArchitecture.DEFAULT_PORT_BITS),
       )
-    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val result = V1ModelArchitecture(config).processPacket(0u, byteArrayOf(0x01), TableStore())
     val outputs = result.possibleOutcomes.single()
 
     assertEquals(1, outputs.size)
@@ -1229,7 +1229,7 @@ class V1ModelArchitectureTest {
           listOf(assignField("sm", "egress_spec", 1, V1ModelArchitecture.DEFAULT_PORT_BITS)),
         egressStmts = listOf(externCall("assert", boolLit(false))),
       )
-    val result = V1ModelArchitecture().processPacket(0u, byteArrayOf(0x01), config, TableStore())
+    val result = V1ModelArchitecture(config).processPacket(0u, byteArrayOf(0x01), TableStore())
 
     assertTrue(result.trace.hasPacketOutcome())
     assertTrue(result.trace.packetOutcome.hasDrop())
@@ -1246,8 +1246,8 @@ class V1ModelArchitectureTest {
     // Sending to port 42 should now be a drop.
     val config = v1modelConfig(assignField("sm", "egress_spec", 42, DEFAULT_PORT_BITS))
     val result =
-      V1ModelArchitecture(dropPortOverride = 42)
-        .processPacket(0u, byteArrayOf(0x01), config, TableStore())
+      V1ModelArchitecture(config, dropPortOverride = 42)
+        .processPacket(0u, byteArrayOf(0x01), TableStore())
 
     assertTrue(result.trace.hasPacketOutcome())
     assertTrue(result.trace.packetOutcome.hasDrop())
@@ -1259,8 +1259,8 @@ class V1ModelArchitectureTest {
     val config =
       v1modelConfig(assignField("sm", "egress_spec", DEFAULT_DROP_PORT.toLong(), DEFAULT_PORT_BITS))
     val result =
-      V1ModelArchitecture(dropPortOverride = 42)
-        .processPacket(0u, byteArrayOf(0x01), config, TableStore())
+      V1ModelArchitecture(config, dropPortOverride = 42)
+        .processPacket(0u, byteArrayOf(0x01), TableStore())
 
     val outputs = result.possibleOutcomes.single()
     assertEquals(1, outputs.size)
@@ -1272,8 +1272,8 @@ class V1ModelArchitectureTest {
     // mark_to_drop should set egress_spec to the override value, not the default.
     val config = v1modelConfig(externCall("mark_to_drop", nameRef("sm")))
     val result =
-      V1ModelArchitecture(dropPortOverride = 42)
-        .processPacket(0u, byteArrayOf(0x01), config, TableStore())
+      V1ModelArchitecture(config, dropPortOverride = 42)
+        .processPacket(0u, byteArrayOf(0x01), TableStore())
 
     assertTrue(result.trace.hasPacketOutcome())
     assertTrue(result.trace.packetOutcome.hasDrop())
@@ -1285,8 +1285,8 @@ class V1ModelArchitectureTest {
     val config =
       v1modelConfig(assignField("sm", "egress_spec", DEFAULT_DROP_PORT.toLong(), DEFAULT_PORT_BITS))
     val result =
-      V1ModelArchitecture(dropPortOverride = null)
-        .processPacket(0u, byteArrayOf(0x01), config, TableStore())
+      V1ModelArchitecture(config, dropPortOverride = null)
+        .processPacket(0u, byteArrayOf(0x01), TableStore())
 
     assertTrue(result.trace.hasPacketOutcome())
     assertTrue(result.trace.packetOutcome.hasDrop())

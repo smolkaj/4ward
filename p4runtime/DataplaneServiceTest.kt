@@ -189,7 +189,11 @@ class DataplaneServiceTest {
   @Test
   fun `concurrent InjectPacket calls all produce correct results`() = runBlocking {
     harness.loadPipeline(loadPassthroughConfig())
-    val count = 10
+    // Demonstrates concurrent processing is a supported use case. Cannot deterministically
+    // catch JMM races on x86 (TSO hides most reordering), so this is documentation-by-test,
+    // not a regression test for the underlying race fixed in the PR — that lives in the
+    // architecture-level invariants, audited at review time.
+    val count = 100
 
     val results =
       (0 until count).map { i ->
