@@ -36,6 +36,9 @@ def _p4testgen_stfs_impl(ctx):
         "--max-tests " + str(ctx.attr.max_tests),
         "--seed " + str(ctx.attr.seed),
         "-I " + ctx.file._core_p4.dirname,
+        # Workspace root of the target's repo, so `#include "path/from/root.p4"`
+        # resolves in both in-repo builds AND BCR consumer builds.
+        "-I " + (ctx.label.workspace_root or "."),
     ] + include_flags + define_flags + [
         ctx.file.src_p4.path,
         "--out-dir " + out_dir.path,

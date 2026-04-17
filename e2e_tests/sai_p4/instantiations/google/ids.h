@@ -1,7 +1,7 @@
 #ifndef PINS_SAI_IDS_H_
 #define PINS_SAI_IDS_H_
 
-#include "../../fixed/ids.h"
+#include "e2e_tests/sai_p4/fixed/ids.h"
 
 // All declarations (tables, actions, action profiles, meters, counters) have a
 // stable ID. This list will evolve as new declarations are added. IDs cannot be
