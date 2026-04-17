@@ -1,6 +1,6 @@
 #define SAI_INSTANTIATION_WBB
 
-#include "../../fixed/v1model_sai.p4"
+#include "e2e_tests/sai_p4/fixed/v1model_sai.p4"
 
 // These headers have to come first, to override their fixed counterparts.
 #include "roles.h"
@@ -8,9 +8,9 @@
 #include "bitwidths.p4"
 #include "minimum_guaranteed_sizes.h"
 
-#include "../../fixed/headers.p4"
-#include "../../fixed/metadata.p4"
-#include "../../fixed/roles.h"
+#include "e2e_tests/sai_p4/fixed/headers.p4"
+#include "e2e_tests/sai_p4/fixed/metadata.p4"
+#include "e2e_tests/sai_p4/fixed/roles.h"
 #include "acl_wbb_ingress.p4"
 
 control ingress(inout headers_t headers,

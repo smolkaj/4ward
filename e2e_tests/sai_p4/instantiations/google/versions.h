@@ -76,10 +76,6 @@
 // Indicates that the program supports reconciliation of populated ACL tables.
 #define SAI_P4_PKGINFO_VERSION_SUPPORTS_ACL_RECONCILE "3.0.2"
 
-// Indicates the switch executes batched updates in order, aborting every update
-// after the first failed one.
-#define SAI_P4_PKGINFO_VERSION_USES_FAIL_ON_FIRST "3.1.0"
-
 // Indicates the switch rejects duplicate sub-port RIFs.
 #define SAI_P4_PKGINFO_VERSION_REJECTS_DUPLICATE_SUB_PORT_RIFS "3.1.1"
 

@@ -30,6 +30,11 @@ def _fourward_pipeline_impl(ctx):
     for directory in include_dirs:
         arguments += ["-I", directory]
     arguments += ["-I", ctx.file._p4include_anchor.dirname]
+
+    # Workspace root of the target's repo, so `#include "path/from/root.p4"`
+    # resolves in both in-repo builds AND BCR consumer builds (where our sources
+    # live under external/<repo>+/). Avoids brittle `../../...` relative paths.
+    arguments += ["-I", ctx.label.workspace_root or "."]
     for define in ctx.attr.defines:
         arguments.append("-D" + define)
 

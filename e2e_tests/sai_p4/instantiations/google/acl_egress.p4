@@ -1,9 +1,9 @@
 #ifndef SAI_ACL_EGRESS_P4_
 #define SAI_ACL_EGRESS_P4_
 
-#include "../../fixed/v1model_sai.p4"
-#include "../../fixed/headers.p4"
-#include "../../fixed/metadata.p4"
+#include "e2e_tests/sai_p4/fixed/v1model_sai.p4"
+#include "e2e_tests/sai_p4/fixed/headers.p4"
+#include "e2e_tests/sai_p4/fixed/metadata.p4"
 #include "acl_common_actions.p4"
 #include "ids.h"
 #include "minimum_guaranteed_sizes.h"
