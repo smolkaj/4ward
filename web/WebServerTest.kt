@@ -101,7 +101,9 @@ class WebServerTest {
         )
         .build()
     assertEquals(
-      """{"ethernet_t":[{"name":"dstAddr","bitwidth":48},{"name":"srcAddr","bitwidth":48},{"name":"etherType","bitwidth":16}]}""",
+      """{"ethernet_t":[{"name":"dstAddr","bitwidth":48},""" +
+        """{"name":"srcAddr","bitwidth":48},""" +
+        """{"name":"etherType","bitwidth":16}]}""",
       WebServer.headerTypesJson(config),
     )
   }

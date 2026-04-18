@@ -66,6 +66,7 @@ class WebServer(
   // CORS wrapper
   // ---------------------------------------------------------------------------
 
+  @Suppress("TooGenericExceptionCaught")
   private fun cors(exchange: HttpExchange, handler: (HttpExchange) -> Unit) {
     exchange.responseHeaders.add("Access-Control-Allow-Origin", "*")
     exchange.responseHeaders.add("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
@@ -139,7 +140,8 @@ class WebServer(
       sendJson(
         exchange,
         HTTP_OK,
-        """{"success":true,"p4info":${jsonPrinter.print(config.p4Info)},"control_graph":$controlGraphJson,"header_types":$headerTypesJson}""",
+        """{"success":true,"p4info":${jsonPrinter.print(config.p4Info)},""" +
+          """"control_graph":$controlGraphJson,"header_types":$headerTypesJson}""",
       )
     } finally {
       Files.deleteIfExists(tempP4)
@@ -437,10 +439,11 @@ class WebServer(
             't' -> sb.append('\t')
             '/' -> sb.append('/')
             'u' -> {
-              if (i + 4 < json.length) {
-                val hex = json.substring(i + 1, i + 5)
+              val unicodeLen = 4
+              if (i + unicodeLen < json.length) {
+                val hex = json.substring(i + 1, i + 1 + unicodeLen)
                 sb.append(hex.toInt(16).toChar())
-                i += 4
+                i += unicodeLen
               }
             }
             else -> {
