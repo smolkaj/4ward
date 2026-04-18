@@ -1,6 +1,17 @@
 package fourward.simulator
 
 /**
+ * Returns a `LinkedHashMap<K, V>` pre-sized to hold [expectedSize] mappings without any rehash /
+ * resize. HashMap resizes when `size > capacity * 0.75`, so we round capacity up to
+ * `ceil(expectedSize / 0.75)`. `LinkedHashMap` (not `HashMap`) is used so iteration order matches
+ * insertion order, which the deparser relies on for field emission ordering. Used on the fork-copy
+ * hot path where the destination size is known from the source and [java.util.HashMap.resize] shows
+ * up heavily in profiles.
+ */
+internal fun <K, V> sizedInsertionOrderMap(expectedSize: Int): LinkedHashMap<K, V> =
+  LinkedHashMap(expectedSize * 4 / 3 + 1)
+
+/**
  * Runtime value types for the 4ward simulator.
  *
  * Every P4 runtime value is one of these. The sealed hierarchy maps to P4's type system: bit<N> ->
@@ -16,9 +27,15 @@ sealed class Value {
 
 /** A bit<N> value. */
 data class BitVal(val bits: BitVector) : Value() {
-  constructor(value: Long, width: Int) : this(BitVector.ofLong(value, width))
+  constructor(
+    value: Long,
+    width: Int,
+  ) : this(
+    if (width <= BitVector.LONG_WIDTH) BitVector.ofLong(value, width)
+    else BitVector(java.math.BigInteger.valueOf(value), width)
+  )
 
-  constructor(value: Int, width: Int) : this(BitVector.ofInt(value, width))
+  constructor(value: Int, width: Int) : this(BitVector.ofLong(value.toLong(), width))
 }
 
 /**
@@ -93,10 +110,23 @@ data class HeaderVal(
     }
   }
 
-  fun copy(): HeaderVal = HeaderVal(typeName, fields.toMutableMap(), valid)
+  fun copy(): HeaderVal {
+    val newFields =
+      if (fields is CompactFieldMap) (fields as CompactFieldMap).copy() else LinkedHashMap(fields)
+    return HeaderVal(typeName, newFields, valid)
+  }
 
-  override fun deepCopy(): HeaderVal =
-    HeaderVal(typeName, fields.mapValuesTo(mutableMapOf()) { it.value.deepCopy() }, valid)
+  /**
+   * P4 headers may only contain primitive fields (`bit<N>`, `int<N>`, `bool`, `varbit`), whose
+   * [Value.deepCopy] returns `this`. So deep-copy is equivalent to a shallow map copy. For
+   * [CompactFieldMap]-backed headers (the common case), this is a single [Array.copyOf] —
+   * eliminating the per-entry [LinkedHashMap] Node allocation that was 9% of parallel CPU.
+   */
+  override fun deepCopy(): HeaderVal {
+    val newFields =
+      if (fields is CompactFieldMap) (fields as CompactFieldMap).copy() else LinkedHashMap(fields)
+    return HeaderVal(typeName, newFields, valid)
+  }
 }
 
 /**
@@ -105,10 +135,18 @@ data class HeaderVal(
  */
 data class StructVal(val typeName: String, val fields: MutableMap<String, Value> = mutableMapOf()) :
   Value() {
-  fun copy(): StructVal = StructVal(typeName, fields.toMutableMap())
+  fun copy(): StructVal {
+    val newFields =
+      if (fields is CompactFieldMap) (fields as CompactFieldMap).copy() else LinkedHashMap(fields)
+    return StructVal(typeName, newFields)
+  }
 
-  override fun deepCopy(): StructVal =
-    StructVal(typeName, fields.mapValuesTo(mutableMapOf()) { it.value.deepCopy() })
+  override fun deepCopy(): StructVal {
+    val newFields =
+      if (fields is CompactFieldMap) (fields as CompactFieldMap).deepCopy()
+      else fields.mapValuesTo(sizedInsertionOrderMap(fields.size)) { it.value.deepCopy() }
+    return StructVal(typeName, newFields)
+  }
 
   /** P4 spec §8.20: a header union is valid if any member header is valid. */
   fun isUnionValid(): Boolean = fields.values.any { it is HeaderVal && it.valid }
