@@ -125,7 +125,7 @@ fourward::ir::Expr FourWardBackend::emitExpr(const IR::Expression* expr) {
     if (cnst->fitsUint64()) {
       lit->set_integer(cnst->asUint64());
     } else {
-      // Serialise as big-endian bytes using boost::multiprecision::export_bits.
+      // Serialise as big-endian bytes.
       std::string bytes;
       auto v = cnst->value;
       while (v != 0) {
