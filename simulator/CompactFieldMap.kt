@@ -10,31 +10,27 @@ package fourward.simulator
  * `fieldValues.copyOf()` call per header — no per-entry allocation, no rehashing, no bucket
  * management.
  *
- * [keys] is shared across all instances of the same header type (by reference). [values] is
- * per-instance. Lookup is linear scan on [keys], which is competitive with [HashMap] for N ≤ ~20
- * entries due to cache-line locality.
+ * [fieldNames] and [indexByName] are shared across all instances of the same header type (by
+ * reference, via [copy] / [deepCopy]). [fieldValues] is per-instance. Lookup is O(1) via the shared
+ * [indexByName] HashMap.
  */
-class CompactFieldMap(
+class CompactFieldMap
+private constructor(
   private val fieldNames: Array<String>,
   private val fieldValues: Array<Value?>,
+  /**
+   * Shared across all copies of the same type. One HashMap per header/struct TYPE, not per instance
+   * — amortized to zero per fork-copy.
+   */
+  private val indexByName: HashMap<String, Int>,
 ) : AbstractMutableMap<String, Value>() {
-
-  init {
-    require(fieldNames.size == fieldValues.size) {
-      "keys/values size mismatch: ${fieldNames.size} vs ${fieldValues.size}"
-    }
-  }
 
   override val size: Int
     get() = fieldNames.size
 
-  /** O(N) scan — fast for N ≤ 20 (1–2 cache lines). */
-  private fun indexOf(key: String): Int {
-    for (i in fieldNames.indices) if (fieldNames[i] == key) return i
-    return -1
-  }
+  private fun indexOf(key: String): Int = indexByName.getOrDefault(key, -1)
 
-  override fun containsKey(key: String): Boolean = indexOf(key) >= 0
+  override fun containsKey(key: String): Boolean = key in indexByName
 
   override fun get(key: String): Value? {
     val i = indexOf(key)
@@ -54,18 +50,17 @@ class CompactFieldMap(
     fieldValues.fill(null)
   }
 
-  /** Shallow copy: shared keys, independent values array (values themselves shared by ref). */
-  fun copy(): CompactFieldMap = CompactFieldMap(fieldNames, fieldValues.copyOf())
+  /** Shallow copy: shared keys + index map, independent values array. */
+  fun copy(): CompactFieldMap = CompactFieldMap(fieldNames, fieldValues.copyOf(), indexByName)
 
   /**
-   * Deep copy: shared keys, each value deep-copied. Primitives return `this`, so only nested
-   * aggregates (HeaderVal, StructVal, HeaderStackVal) allocate — same semantics as the
-   * LinkedHashMap deepCopy path but without per-entry Node allocation.
+   * Deep copy: shared keys + index map, each value deep-copied. Primitives return `this`, so only
+   * nested aggregates (HeaderVal, StructVal, HeaderStackVal) allocate.
    */
   fun deepCopy(): CompactFieldMap {
     val newValues = fieldValues.copyOf()
     for (i in newValues.indices) newValues[i] = newValues[i]?.deepCopy()
-    return CompactFieldMap(fieldNames, newValues)
+    return CompactFieldMap(fieldNames, newValues, indexByName)
   }
 
   // --- AbstractMutableMap plumbing ---
@@ -115,7 +110,9 @@ class CompactFieldMap(
     fun of(entries: List<Pair<String, Value>>): CompactFieldMap {
       val keys = Array(entries.size) { i -> entries[i].first }
       val values = Array<Value?>(entries.size) { i -> entries[i].second }
-      return CompactFieldMap(keys, values)
+      val index = HashMap<String, Int>(keys.size * 4 / 3 + 1)
+      for (i in keys.indices) index[keys[i]] = i
+      return CompactFieldMap(keys, values, index)
     }
   }
 }
