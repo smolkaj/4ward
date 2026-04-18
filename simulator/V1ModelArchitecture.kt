@@ -283,7 +283,8 @@ class V1ModelArchitecture(
    */
   private fun initPipelineState(ctx: PipelineContext, decisions: V1ModelDecisions): PipelineState {
     require(decisions.pipelineDepth <= MAX_PIPELINE_DEPTH) {
-      "max pipeline depth exceeded ($MAX_PIPELINE_DEPTH) — possible infinite resubmit/recirculate loop"
+      "max pipeline depth exceeded ($MAX_PIPELINE_DEPTH) — " +
+        "possible infinite resubmit/recirculate loop"
     }
     val config = ctx.config
     val typesByName = config.typesList.associateBy { it.name }
@@ -393,7 +394,8 @@ class V1ModelArchitecture(
   @Suppress("CyclomaticComplexMethod", "ThrowsCount")
   private fun runPipeline(ctx: PipelineContext, decisions: V1ModelDecisions): TraceTree {
     require(decisions.pipelineDepth <= MAX_PIPELINE_DEPTH) {
-      "max pipeline depth exceeded ($MAX_PIPELINE_DEPTH) — possible infinite resubmit/recirculate loop"
+      "max pipeline depth exceeded ($MAX_PIPELINE_DEPTH) — " +
+        "possible infinite resubmit/recirculate loop"
     }
     val snapshot = decisions.postParserSnapshot
 
@@ -905,7 +907,8 @@ class V1ModelArchitecture(
           }
           else ->
             error(
-              "v1model register method '${call.method}' is not implemented (on ${call.instanceName})"
+              "v1model register method '${call.method}' " +
+                "is not implemented (on ${call.instanceName})"
             )
         }
       "counter",
@@ -939,7 +942,8 @@ class V1ModelArchitecture(
           }
           else ->
             error(
-              "v1model direct_meter method '${call.method}' is not implemented (on ${call.instanceName})"
+              "v1model direct_meter method '${call.method}' " +
+                "is not implemented (on ${call.instanceName})"
             )
         }
       else ->

@@ -182,7 +182,9 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
         paramLookup[param.paramId]
           ?: throw invalidArg(
             "unknown param ID ${param.paramId} for action '${actionInfo.preamble.name}' " +
-              "(valid params: ${formatOptions(paramLookup.entries.map { "'${it.value.name}' (${it.key})" })})"
+              "(valid params: ${formatOptions(paramLookup.entries.map {
+                "'${it.value.name}' (${it.key})"
+              })})"
           )
       // §8.3: canonical byte width. Skip if bitwidth is 0
       // (e.g. @p4runtime_translation with sdn_string).
@@ -208,7 +210,9 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
         fieldLookup[fm.fieldId]
           ?: throw invalidArg(
             "unknown match field ID ${fm.fieldId} in table '${tableInfo.tableName}' " +
-              "(valid fields: ${formatOptions(fieldLookup.entries.map { "'${it.value.name}' (${it.key})" })})"
+              "(valid fields: ${formatOptions(fieldLookup.entries.map {
+                "'${it.value.name}' (${it.key})"
+              })})"
           )
       // §9.1: each match field may appear at most once.
       if (!presentFieldIds.add(fm.fieldId)) {

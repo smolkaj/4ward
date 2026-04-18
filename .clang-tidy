@@ -14,13 +14,10 @@
 #   else-after-return         — early-return-then-else is often clearer
 #   identifier-length         — single-letter vars (i, p, b) fine in small scopes
 #   magic-numbers             — proto field IDs, bit widths, etc. are clear in context
-#
-# TODO: Re-enable these checks and fix the existing violations:
-#   bugprone-easily-swappable-parameters, bugprone-exception-escape,
-#   google-build-using-namespace, google-readability-braces-around-statements,
-#   performance-avoid-endl, readability-function-cognitive-complexity,
-#   readability-implicit-bool-conversion,
-#   readability-inconsistent-declaration-parameter-name
+#   easily-swappable-params   — not worth introducing wrapper types for 2 call sites
+#   avoid-endl                — all violations from p4c LOG macros, not our code
+#   cognitive-complexity      — IR-walking emit functions are large dispatchers;
+#                               any threshold that permits them catches nothing
 Checks: >
   -*,
   bugprone-*,
@@ -35,13 +32,9 @@ Checks: >
   -readability-identifier-length,
   -readability-magic-numbers,
   -bugprone-easily-swappable-parameters,
-  -bugprone-exception-escape,
-  -google-build-using-namespace,
   -google-readability-braces-around-statements,
   -performance-avoid-endl,
   -readability-function-cognitive-complexity,
-  -readability-implicit-bool-conversion,
-  -readability-inconsistent-declaration-parameter-name,
 
 # Treat all enabled checks as errors so CI fails on violations.
 WarningsAsErrors: "*"

@@ -21,6 +21,9 @@
 //
 //   p4c-4ward --arch v1model -o output.txtpb input.p4
 
+#include <cstdlib>
+#include <exception>
+#include <iostream>
 #include <map>
 #include <set>
 #include <string>
@@ -44,7 +47,8 @@
 #include "p4c_backend/midend.h"
 #include "p4c_backend/options.h"
 
-using namespace P4;
+namespace IR = P4::IR;
+using P4::literals::operator""_cs;
 
 // Walks the post-frontend IR to extract @p4runtime_translation_mappings
 // annotations from Type_Newtype declarations.  These annotations specify
@@ -59,71 +63,75 @@ static std::vector<fourward::ir::TypeTranslation> extractTypeTranslations(
   std::vector<fourward::ir::TypeTranslation> result;
   const auto& newTypes = p4Info.type_info().new_types();
 
-  forAllMatching<IR::Type_Newtype>(program, [&](const IR::Type_Newtype* nt) {
-    const auto* ann = nt->getAnnotation("p4runtime_translation_mappings"_cs);
-    if (ann == nullptr) return;
+  P4::forAllMatching<IR::Type_Newtype>(
+      program, [&](const IR::Type_Newtype* nt) {
+        const auto* ann =
+            nt->getAnnotation("p4runtime_translation_mappings"_cs);
+        if (ann == nullptr) return;
 
-    // Look up the URI from p4info's type_info.new_types map.
-    std::string typeName(nt->name.name.c_str());
-    auto it = newTypes.find(typeName);
-    if (it == newTypes.end() || !it->second.has_translated_type()) {
-      ::P4::warning(ErrorType::WARN_MISSING,
-                    "%1%: @p4runtime_translation_mappings on type without "
-                    "matching p4info translated type; ignoring",
-                    nt);
-      return;
-    }
-    const auto& translatedType = it->second.translated_type();
-    bool isSdnString = translatedType.has_sdn_string();
-
-    fourward::ir::TypeTranslation translation;
-    // Use type_name (not type_uri): the TypeTranslator keys translation
-    // tables by type name, and SAI P4 leaves the URI empty (unset) for
-    // all translated types, relying on type names for disambiguation.
-    translation.set_type_name(typeName);
-    translation.set_auto_allocate(true);
-
-    int bitWidth = nt->type->width_bits();
-    int byteWidth = (bitWidth + 7) / 8;
-
-    // Annotation body: { {sdnValue, dpValue}, ... }
-    const auto& exprs = ann->getExpr();
-    const auto* outerList = exprs.at(0)->checkedTo<IR::ListExpression>();
-    for (const auto* component : outerList->components) {
-      const auto* tuple = component->checkedTo<IR::ListExpression>();
-      auto* entry = translation.add_entries();
-
-      // SDN value.
-      if (isSdnString) {
-        const auto* sdnStr =
-            tuple->components.at(0)->checkedTo<IR::StringLiteral>();
-        entry->set_sdn_str(std::string(sdnStr->value.c_str()));
-      } else {
-        const auto* sdnConst =
-            tuple->components.at(0)->checkedTo<IR::Constant>();
-        int sdnByteWidth = (translatedType.sdn_bitwidth() + 7) / 8;
-        std::string sdnBytes(sdnByteWidth, '\0');
-        auto sv = sdnConst->value.convert_to<uint64_t>();
-        for (int i = sdnByteWidth - 1; i >= 0; --i) {
-          sdnBytes[i] = static_cast<char>(sv & 0xFF);
-          sv >>= 8;
+        // Look up the URI from p4info's type_info.new_types map.
+        std::string typeName(nt->name.name.c_str());
+        auto it = newTypes.find(typeName);
+        if (it == newTypes.end() || !it->second.has_translated_type()) {
+          ::P4::warning(P4::ErrorType::WARN_MISSING,
+                        "%1%: @p4runtime_translation_mappings on type without "
+                        "matching p4info translated type; ignoring",
+                        nt);
+          return;
         }
-        entry->set_sdn_bitstring(sdnBytes);
-      }
+        const auto& translatedType = it->second.translated_type();
+        bool isSdnString = translatedType.has_sdn_string();
 
-      // Dataplane value (big-endian bytes matching the underlying bit width).
-      const auto* dpConst = tuple->components.at(1)->checkedTo<IR::Constant>();
-      std::string dpBytes(byteWidth, '\0');
-      auto dv = dpConst->value.convert_to<uint64_t>();
-      for (int i = byteWidth - 1; i >= 0; --i) {
-        dpBytes[i] = static_cast<char>(dv & 0xFF);
-        dv >>= 8;
-      }
-      entry->set_dataplane_value(dpBytes);
-    }
+        fourward::ir::TypeTranslation translation;
+        // Use type_name (not type_uri): the TypeTranslator keys translation
+        // tables by type name, and SAI P4 leaves the URI empty (unset) for
+        // all translated types, relying on type names for disambiguation.
+        translation.set_type_name(typeName);
+        translation.set_auto_allocate(true);
 
-    result.push_back(std::move(translation));
-  });
+        int bitWidth = nt->type->width_bits();
+        int byteWidth = (bitWidth + 7) / 8;
+
+        // Annotation body: { {sdnValue, dpValue}, ... }
+        const auto& exprs = ann->getExpr();
+        const auto* outerList = exprs.at(0)->checkedTo<IR::ListExpression>();
+        for (const auto* component : outerList->components) {
+          const auto* tuple = component->checkedTo<IR::ListExpression>();
+          auto* entry = translation.add_entries();
+
+          // SDN value.
+          if (isSdnString) {
+            const auto* sdnStr =
+                tuple->components.at(0)->checkedTo<IR::StringLiteral>();
+            entry->set_sdn_str(std::string(sdnStr->value.c_str()));
+          } else {
+            const auto* sdnConst =
+                tuple->components.at(0)->checkedTo<IR::Constant>();
+            int sdnByteWidth = (translatedType.sdn_bitwidth() + 7) / 8;
+            std::string sdnBytes(sdnByteWidth, '\0');
+            auto sv = sdnConst->value.convert_to<uint64_t>();
+            for (int i = sdnByteWidth - 1; i >= 0; --i) {
+              sdnBytes[i] = static_cast<char>(sv & 0xFF);
+              sv >>= 8;
+            }
+            entry->set_sdn_bitstring(sdnBytes);
+          }
+
+          // Dataplane value (big-endian bytes matching the underlying bit
+          // width).
+          const auto* dpConst =
+              tuple->components.at(1)->checkedTo<IR::Constant>();
+          std::string dpBytes(byteWidth, '\0');
+          auto dv = dpConst->value.convert_to<uint64_t>();
+          for (int i = byteWidth - 1; i >= 0; --i) {
+            dpBytes[i] = static_cast<char>(dv & 0xFF);
+            dv >>= 8;
+          }
+          entry->set_dataplane_value(dpBytes);
+        }
+
+        result.push_back(std::move(translation));
+      });
 
   return result;
 }
@@ -138,7 +146,7 @@ static std::vector<fourward::ir::TypeTranslation> extractTypeTranslations(
 // standard_metadata.ingress_port has the translated type.
 static std::string derivePortTypeName(const IR::P4Program* program) {
   std::string result;
-  forAllMatching<IR::Type_Struct>(program, [&](const IR::Type_Struct* st) {
+  P4::forAllMatching<IR::Type_Struct>(program, [&](const IR::Type_Struct* st) {
     // v1model: standard_metadata_t
     // PSA: psa_ingress_input_metadata_t
     if (st->name != "standard_metadata_t" &&
@@ -169,11 +177,11 @@ static void fixConstEntryPriorities(const IR::P4Program* program,
                                     p4::v1::WriteRequest* entries) {
   // 1. Walk IR to find tables whose const entries have @priority.
   std::set<std::string> tablesWithPriority;
-  forAllMatching<IR::P4Table>(program, [&](const IR::P4Table* table) {
+  P4::forAllMatching<IR::P4Table>(program, [&](const IR::P4Table* table) {
     const auto* el = table->getEntries();
-    if (!el) return;
+    if (el == nullptr) return;
     for (const auto* e : el->entries) {
-      if (e->getAnnotation("priority"_cs)) {
+      if (e->getAnnotation("priority"_cs) != nullptr) {
         auto name = std::string(table->externalName().c_str());
         if (!name.empty() && name[0] == '.') name = name.substr(1);
         tablesWithPriority.insert(name);
@@ -209,58 +217,65 @@ static void fixConstEntryPriorities(const IR::P4Program* program,
 
 int main(int argc, char* const argv[]) {
   setup_gc_logging();
-  setup_signals();
+  P4::setup_signals();
 
-  AutoCompileContext autoContext(
-      new P4CContextWithOptions<FourWard::FourWardOptions>);
-  auto& options =
-      P4CContextWithOptions<FourWard::FourWardOptions>::get().options();
-  options.langVersion = CompilerOptions::FrontendVersion::P4_16;
+  try {
+    P4::AutoCompileContext autoContext(
+        new P4::P4CContextWithOptions<P4::FourWard::FourWardOptions>);
+    auto& options =
+        P4::P4CContextWithOptions<P4::FourWard::FourWardOptions>::get()
+            .options();
+    options.langVersion = P4::CompilerOptions::FrontendVersion::P4_16;
 
-  if (options.process(argc, argv) != nullptr) {
-    options.setInputFile();
+    if (options.process(argc, argv) != nullptr) {
+      options.setInputFile();
+    }
+    if (::P4::errorCount() > 0) return EXIT_FAILURE;
+
+    const IR::P4Program* program = P4::parseP4File(options);
+    if (program == nullptr || ::P4::errorCount() > 0) return EXIT_FAILURE;
+
+    P4::FrontEnd frontend;
+    program = frontend.run(options, program);
+    if (program == nullptr || ::P4::errorCount() > 0) return EXIT_FAILURE;
+
+    // Generate p4info from the post-frontend program (before midend
+    // simplifications strip out information needed for the control-plane API).
+    auto p4Runtime = P4::generateP4Runtime(program, "v1model"_cs);
+    if (::P4::errorCount() > 0) return EXIT_FAILURE;
+
+    auto entries = *p4Runtime.entries;
+    fixConstEntryPriorities(program, *p4Runtime.p4Info, &entries);
+
+    // Parse @p4runtime_translation_mappings annotations (not handled by the
+    // standard frontend) so extractTypeTranslations can read them as expression
+    // lists.  Must happen before the midend, which eliminates Type_Newtype.
+    P4::ParseAnnotations parseTranslationMappings(
+        "FourWard", false,
+        {{"p4runtime_translation_mappings"_cs,
+          &P4::ParseAnnotations::parseExpressionList}});
+    program = program->apply(parseTranslationMappings);
+
+    auto translations = extractTypeTranslations(program, *p4Runtime.p4Info);
+
+    P4::FourWard::MidEnd midend(options);
+    const IR::ToplevelBlock* toplevel = midend.process(program);
+    if (toplevel == nullptr || ::P4::errorCount() > 0) return EXIT_FAILURE;
+
+    P4::FourWard::FourWardBackend backend(options, midend.refMap,
+                                          midend.typeMap);
+    // setP4Info must come before process so emitTable can look up match field
+    // IDs.
+    backend.setP4Info(*p4Runtime.p4Info);
+    backend.setStaticEntries(entries);
+    backend.setTypeTranslations(std::move(translations));
+    backend.process(toplevel);
+    backend.setPortTypeName(derivePortTypeName(program));
+
+    if (!backend.writePipelineConfig()) return EXIT_FAILURE;
+    return ::P4::errorCount() > 0 ? EXIT_FAILURE : EXIT_SUCCESS;
+  } catch (const std::exception& e) {
+    std::cerr << "p4c-4ward: " << e.what() << '\n';
+    return EXIT_FAILURE;
   }
-  if (::P4::errorCount() > 0) return 1;
-
-  const IR::P4Program* program = parseP4File(options);
-  if (program == nullptr || ::P4::errorCount() > 0) return 1;
-
-  FrontEnd frontend;
-  program = frontend.run(options, program);
-  if (program == nullptr || ::P4::errorCount() > 0) return 1;
-
-  // Generate p4info from the post-frontend program (before midend
-  // simplifications strip out information needed for the control-plane API).
-  auto p4Runtime = generateP4Runtime(program, "v1model"_cs);
-  if (::P4::errorCount() > 0) return 1;
-
-  auto entries = *p4Runtime.entries;
-  fixConstEntryPriorities(program, *p4Runtime.p4Info, &entries);
-
-  // Parse @p4runtime_translation_mappings annotations (not handled by the
-  // standard frontend) so extractTypeTranslations can read them as expression
-  // lists.  Must happen before the midend, which eliminates Type_Newtype.
-  P4::ParseAnnotations parseTranslationMappings(
-      "FourWard", false,
-      {{"p4runtime_translation_mappings"_cs,
-        &P4::ParseAnnotations::parseExpressionList}});
-  program = program->apply(parseTranslationMappings);
-
-  auto translations = extractTypeTranslations(program, *p4Runtime.p4Info);
-
-  FourWard::MidEnd midend(options);
-  const IR::ToplevelBlock* toplevel = midend.process(program);
-  if (toplevel == nullptr || ::P4::errorCount() > 0) return 1;
-
-  FourWard::FourWardBackend backend(options, midend.refMap, midend.typeMap);
-  // setP4Info must come before process so emitTable can look up match field
-  // IDs.
-  backend.setP4Info(*p4Runtime.p4Info);
-  backend.setStaticEntries(entries);
-  backend.setTypeTranslations(std::move(translations));
-  backend.process(toplevel);
-  backend.setPortTypeName(derivePortTypeName(program));
-
-  if (!backend.writePipelineConfig()) return 1;
-  return ::P4::errorCount() > 0 ? 1 : 0;
 }

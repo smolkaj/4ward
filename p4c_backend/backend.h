@@ -87,7 +87,7 @@ class FourWardBackend : public Inspector {
   // detection) and typeMap_ directly.
   fourward::ir::Type emitType(const IR::Type* type);
   fourward::ir::Expr emitExpr(const IR::Expression* expr);
-  fourward::ir::Stmt emitStmt(const IR::StatOrDecl* stmt);
+  fourward::ir::Stmt emitStmt(const IR::StatOrDecl* node);
   fourward::ir::BlockStmt emitBlock(const IR::BlockStatement* block);
   static fourward::ir::SourceInfo emitSourceInfo(const IR::Node* node);
 
