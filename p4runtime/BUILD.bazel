@@ -45,6 +45,9 @@ cc_proto_library(
 cc_grpc_library(
     name = "dataplane_cc_grpc",
     srcs = [":dataplane_proto"],
+    # cc_grpc_library's generated code #includes many grpcpp headers without
+    # declaring them as deps on the generated target — out of our control.
+    features = ["-layering_check"],
     grpc_only = True,
     visibility = ["//visibility:public"],
     deps = [":dataplane_cc_proto"],

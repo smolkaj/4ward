@@ -4,7 +4,14 @@ Applies the Apache-2.0 license in //:license as default package metadata
 for every target and lists directories Bazel should ignore when globbing.
 """
 
-repo(default_package_metadata = ["//:license"])
+repo(
+    default_package_metadata = ["//:license"],
+    # Layering check enforces that a target only #includes headers from its
+    # direct `deps`, not transitive ones. Clang-only (GCC ignores it silently).
+    # Scoped to our repo via REPO.bazel so external deps (e.g. @p4c) aren't
+    # affected.
+    features = ["layering_check"],
+)
 
 ignore_directories([
     # Bazel output symlinks. The last component depends on the workspace

@@ -22,6 +22,8 @@ cc_library(
         "@p4c//:ir_frontend_midend_control_plane",
         "@p4c//:lib",
         "@p4c//:p4c_backends_common_lib",
+        "@p4runtime//proto/p4/v1:p4runtime_cc_proto",
+        "@protobuf",
     ],
 )
 
