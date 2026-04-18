@@ -728,9 +728,172 @@ DVaaS workload that's blocked by the current throughput.
 3. **No correctness regressions** — all tests still pass.
 
 **Done when:** wcmp×128 parallel efficiency reaches ≥80% of linear on
-16 physical cores. Phase 2.5 evidence says this requires candidate (1)
-(`Long` fast path) and (2) (lookup optimisation) to both deliver —
-no single lever gets there on its own.
+16 physical cores. The Phase 2.5 incremental work delivered +15 pp
+(45% → 60%); the remaining 20 pp requires the structural candidates
+in Phase 3 — most likely A (fork-on-write overlay) + B (skip prefix
+events), with C (compiled interpreter) as the high-ceiling fallback
+if A+B aren't sufficient.
+
+## Phase 3: structural candidates
+
+Phase 2.5's incremental work (Long-backed `BitVector`,
+`CompactFieldMap`, proto builder pooling, map preallocation) moved
+wcmp×128 efficiency from 45% to ~60% — a +15 pp gain from ~360
+lines of code. But the profile is now diffuse: no single method
+exceeds 7% of CPU. Further gains require structural changes to how
+the interpreter executes fork branches, not more micro-optimization
+of individual methods.
+
+Three observations motivate the candidates below:
+
+1. **The interpreter re-executes the full pipeline per fork branch.**
+   128 branches × full ingress+egress pipeline walk. But branches
+   share >95% of their state — only the selected action's ~5 field
+   writes diverge. We pay full interpretation cost for a small delta.
+
+2. **Fork-copy allocates a new value tree even though most values
+   are never written.** Each branch copies ~200 field values; ~5
+   actually change. `CompactFieldMap` made the copy cheaper (array
+   copy vs HashMap node allocation), but it's still copying 200
+   values when only 5 will diverge.
+
+3. **Proto trace events are constructed 128× for mostly-identical
+   content.** The pre-fork prefix events are deterministic replays;
+   post-fork events differ only in the selected action's trace. Full
+   proto messages are built for all of them.
+
+### Candidates
+
+| | Candidate | Ceiling | Effort | Best for |
+|---|---|---|---|---|
+| **A** | Fork-on-write overlay | ~5-7% CPU, several pp efficiency | Medium | Next incremental step toward 80% |
+| **B** | Skip trace construction during fork prefix replay | ~6% CPU | Medium | Quick standalone win |
+| **C** | Compiled instruction sequence (flatten the AST walk) | ~15-20% CPU | Very high | "One big bet" choice |
+| **D** | Thread-local fork state pool | ~5-7% CPU | Medium | Alternative to A |
+| **E** | Deferred trace serialization (lightweight internal events) | ~8-10% CPU | High | Stacks after A or D |
+| **F** | Reactive / dataflow evaluation (re-evaluate only changed dependencies) | Huge (theoretical) | Very high | Research project |
+
+### A. Fork-on-write overlay
+
+Instead of deep-copying headers/structs at fork time, share the base
+value tree across all branches. Each branch gets a lightweight
+overlay map that intercepts writes. Reads check the overlay first,
+then fall through to the shared base.
+
+For SAI wcmp×128: each branch writes ~5 fields (nexthop, egress
+port, MAC rewrites, TTL decrement) out of ~200 total. The overlay
+per branch is ~5 entries vs ~200 copied values today. Fork-copy
+becomes O(mutations) instead of O(total fields).
+
+Implementation: a two-layer `OverlayFieldMap` wrapping the base
+`CompactFieldMap`. The interpreter's mutation pattern
+(`target.fields[name] = value`) stays unchanged; only the map
+implementation underneath changes. `deepCopy` creates a new empty
+overlay sharing the same base — no per-entry work.
+
+This is architecturally simpler than persistent collections (no
+trie, no structural sharing) while capturing the same fundamental
+win: don't copy state that won't be written.
+
+### B. Skip trace construction during fork prefix replay
+
+Fork branch re-executions replay the first `prefixLength` events
+deterministically (same control flow, same table results, same
+trace output), then drop them via `levelEvents.drop(prefixLength)`.
+Those events are constructed-then-discarded — pure waste.
+
+Add a skip counter to `PacketContext`. Guard each
+`addTraceEvent` / `addLightEvent` call site with a
+`packetCtx.isTracing` check that returns false while the counter
+is positive. When skipping, the event isn't constructed at all —
+saves the proto builder + message allocation.
+
+Requires changing the trace tree format: branch subtrees would
+start at the fork point, not at event 0. Consumers (STF runner,
+CLI formatter, web playground) need to handle the stripped format.
+The pre-fork events are already in the outer-level trace; including
+them again in each branch subtree is redundant information.
+
+### C. Compiled instruction sequence
+
+At pipeline load: walk the proto AST once and compile each
+expression / statement into a flat `Array<Instruction>` where each
+`Instruction` is a sealed class with pre-resolved field indices,
+pre-computed literal values, and direct function references.
+Runtime: iterate the array and dispatch on the instruction type.
+No proto field access, no `evalExpr` recursion, no `hasFieldAccess`
+checks, no `env.lookup` for known variables.
+
+Eliminates the ~10% interpreter-dispatch cost AND the HashMap /
+String.equals cost from field-name lookups (field accesses become
+`fieldValues[precomputedIndex]`). Highest single-change ceiling of
+any candidate.
+
+Also the largest refactor — essentially rewriting the interpreter.
+The existing interpreter (proto-walking, HashMap-backed) would
+remain as a reference / fallback; the compiled path runs when the
+pipeline's IR is fully resolvable.
+
+### D. Thread-local fork state pool
+
+Pre-allocate one complete value tree (Environment + all
+HeaderVal / StructVal / CompactFieldMap instances) per worker
+thread. At fork time: `System.arraycopy` the snapshot's field
+values into the pool's arrays, rebind scope variables. No object
+allocation per fork — just array copies and pointer reassignments.
+After the branch completes: return the state to the pool.
+
+Similar ceiling to (A) but a different tradeoff: no overlay-
+dispatch overhead per read, but requires lifecycle management
+(borrow / return protocol, reset between uses).
+
+### E. Deferred trace serialization
+
+Store trace events as lightweight Kotlin sealed classes
+(`LightBranch`, `LightTableLookup`, etc.) throughout the fork path.
+Convert to proto only at the final API boundary (gRPC
+`InjectPacketResponse`, CLI trace output).
+
+Differs from the experiment-B attempt (which regressed -10%)
+because experiment B converted per-branch via `getEvents()`. This
+candidate defers conversion to once-per-packet at the outermost
+`buildTraceTree` call — 128× less conversion work.
+
+Requires refactoring the internal `TraceTree` representation to
+carry lightweight events, converting to proto only at serialization
+time.
+
+### F. Reactive / dataflow evaluation
+
+Instead of re-executing the full pipeline per fork branch, track
+which fields the selected action modifies and only re-evaluate
+expressions that depend on those fields. Tables whose keys are
+unchanged reuse the first execution's result; if-conditions on
+unchanged values don't re-evaluate.
+
+Highest theoretical ceiling (could make 128 branches nearly as
+cheap as 1), but extremely complex — requires full dependency
+tracking across the P4 program. Research-project scope.
+
+### Recommended sequencing
+
+If pursuing Phase 3:
+
+1. **(A) Fork-on-write overlay** — most natural next step. Attacks
+   the structural inefficiency (copying unmodified state) rather than
+   optimizing the copy mechanics. Build the overlay, measure, decide
+   whether to stack more.
+2. **(B) Skip prefix events** — independent of A, can stack in any
+   order. Well-scoped.
+3. **Reassess.** If A+B together reach ~70% efficiency, evaluate
+   whether the remaining 10 pp to 80% justifies (C) or (E). If not,
+   declare victory and move on.
+
+**Oracle-first rule still applies.** For each candidate, build a
+"what if this were free?" stub before committing to the full
+implementation. A+B have obvious stubs (make deepCopy return `this`;
+make addTraceEvent a no-op during replay). C and E are harder to
+stub but the methodology holds.
 
 ## Non-goals
 
