@@ -14,11 +14,11 @@ kt_jvm_library(
     srcs = ["Runner.kt"],
     visibility = ["//visibility:public"],
     deps = [
+        "//simulator",
         "//simulator:ir_java_proto",
         "//simulator:p4info_java_proto",
         "//simulator:p4runtime_java_proto",
         "//simulator:simulator_java_proto",
-        "//simulator:simulator_lib",
         "@fourward_maven//:com_google_protobuf_protobuf_java",
     ],
 )
@@ -29,8 +29,8 @@ kt_jvm_test(
     test_class = "fourward.stf.StfParserTest",
     deps = [
         ":stf",
+        "//simulator",
         "//simulator:p4runtime_java_proto",
-        "//simulator:simulator_lib",
         "@fourward_maven//:junit_junit",
     ],
 )

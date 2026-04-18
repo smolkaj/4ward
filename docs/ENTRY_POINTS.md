@@ -121,7 +121,7 @@ testing against BMv2.
 
 ## P4Runtime test harness
 
-**Target:** `//p4runtime:p4runtime_lib` (library)
+**Target:** `//p4runtime` (library)
 **API:** `P4RuntimeTestHarness` in Kotlin
 
 An in-process test harness that stands up a full P4Runtime + Dataplane gRPC
