@@ -392,23 +392,26 @@ class Interpreter internal constructor(config: BehavioralConfig) {
     // Expressions
     // -------------------------------------------------------------------------
 
+    // Dispatch on kindCase enum (compiles to tableswitch) rather than a chain of hasXxx()
+    // calls (compiles to if-else). evalExpr is the interpreter's innermost loop — 3.2% of
+    // parallel CPU in the Phase 2.5 profile was dispatch overhead alone.
     fun evalExpr(expr: Expr, env: Environment): Value =
-      when {
-        expr.hasLiteral() -> evalLiteral(expr.literal, expr.type)
-        expr.hasNameRef() ->
+      when (expr.kindCase) {
+        Expr.KindCase.LITERAL -> evalLiteral(expr.literal, expr.type)
+        Expr.KindCase.NAME_REF ->
           env.lookup(expr.nameRef.name)
             ?: error("undefined variable: ${expr.nameRef.name}${sourceContext()}")
-        expr.hasFieldAccess() -> evalFieldAccess(expr.fieldAccess, env)
-        expr.hasArrayIndex() -> evalArrayIndex(expr.arrayIndex, env)
-        expr.hasSlice() -> evalSlice(expr.slice, env)
-        expr.hasConcat() -> evalConcat(expr.concat, env)
-        expr.hasCast() -> evalCast(expr.cast, env)
-        expr.hasBinaryOp() -> evalBinaryOp(expr.binaryOp, env)
-        expr.hasUnaryOp() -> evalUnaryOp(expr.unaryOp, env)
-        expr.hasMethodCall() -> evalMethodCall(expr.methodCall, expr.type, env)
-        expr.hasMux() -> evalMux(expr.mux, env)
-        expr.hasStructExpr() -> evalStructExpr(expr.structExpr, expr.type, env)
-        expr.hasTableApply() -> {
+        Expr.KindCase.FIELD_ACCESS -> evalFieldAccess(expr.fieldAccess, env)
+        Expr.KindCase.ARRAY_INDEX -> evalArrayIndex(expr.arrayIndex, env)
+        Expr.KindCase.SLICE -> evalSlice(expr.slice, env)
+        Expr.KindCase.CONCAT -> evalConcat(expr.concat, env)
+        Expr.KindCase.CAST -> evalCast(expr.cast, env)
+        Expr.KindCase.BINARY_OP -> evalBinaryOp(expr.binaryOp, env)
+        Expr.KindCase.UNARY_OP -> evalUnaryOp(expr.unaryOp, env)
+        Expr.KindCase.METHOD_CALL -> evalMethodCall(expr.methodCall, expr.type, env)
+        Expr.KindCase.MUX -> evalMux(expr.mux, env)
+        Expr.KindCase.STRUCT_EXPR -> evalStructExpr(expr.structExpr, expr.type, env)
+        Expr.KindCase.TABLE_APPLY -> {
           val result = applyTable(expr.tableApply.tableName, env)
           when (expr.tableApply.accessKind) {
             TableApplyExpr.AccessKind.HIT -> BoolVal(result.hit)
@@ -416,7 +419,8 @@ class Interpreter internal constructor(config: BehavioralConfig) {
             else -> UnitVal // RESULT / default: switch context
           }
         }
-        else -> error("unhandled expression kind: $expr${sourceContext()}")
+        Expr.KindCase.KIND_NOT_SET,
+        null -> error("unhandled expression kind: $expr${sourceContext()}")
       }
 
     private fun evalLiteral(lit: Literal, type: fourward.ir.Type): Value =
