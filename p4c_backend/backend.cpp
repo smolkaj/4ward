@@ -51,13 +51,15 @@ fourward::ir::Type FourWardBackend::emitType(const IR::Type* type) {
     // underlying concrete types so the simulator sees bit widths instead of
     // opaque typedef names.
     const auto* decl = refMap_.getDeclaration(tn->path, false);
-    if (const auto* td = decl ? decl->to<IR::Type_Typedef>() : nullptr) {
+    if (const auto* td =
+            decl != nullptr ? decl->to<IR::Type_Typedef>() : nullptr) {
       return emitType(td->type);
     }
     // P4's `type` keyword (Type_Newtype) creates a distinct named type, but
     // the simulator only needs the underlying bit width — resolve it here so
     // action params and struct fields get concrete types.
-    if (const auto* nt = decl ? decl->to<IR::Type_Newtype>() : nullptr) {
+    if (const auto* nt =
+            decl != nullptr ? decl->to<IR::Type_Newtype>() : nullptr) {
       return emitType(nt->type);
     }
     out.set_named(tn->path->name.name.c_str());
@@ -86,8 +88,9 @@ fourward::ir::Type FourWardBackend::emitType(const IR::Type* type) {
     // Emit the base type name so the simulator can identify the extern.
     return emitType(spec->baseType);
   } else {
-    LOG1("WARNING: unhandled type " << type->node_type_name()
-                                    << "; emitting as unnamed");
+    // clang-format off
+    LOG1("WARNING: unhandled type " << type->node_type_name() << "; emitting as unnamed");
+    // clang-format on
   }
   return out;
 }
@@ -101,14 +104,14 @@ fourward::ir::Type FourWardBackend::emitType(const IR::Type* type) {
 static bool isTableApply(const IR::Expression* expr, const ReferenceMap& refMap,
                          std::string* tableName) {
   const auto* mc = expr->to<IR::MethodCallExpression>();
-  if (!mc) return false;
+  if (mc == nullptr) return false;
   const auto* mem = mc->method->to<IR::Member>();
-  if (!mem || mem->member != "apply") return false;
+  if (mem == nullptr || mem->member != "apply") return false;
   const auto* pe = mem->expr->to<IR::PathExpression>();
-  if (!pe) return false;
+  if (pe == nullptr) return false;
   const auto* decl = refMap.getDeclaration(pe->path);
-  if (!decl || !decl->is<IR::P4Table>()) return false;
-  if (tableName)
+  if (decl == nullptr || !decl->is<IR::P4Table>()) return false;
+  if (tableName != nullptr)
     *tableName = decl->to<IR::P4Table>()->name.originalName.c_str();
   return true;
 }
@@ -159,18 +162,21 @@ fourward::ir::Expr FourWardBackend::emitExpr(const IR::Expression* expr) {
       // The base TypeNameExpression has no runtime value of its own; the whole
       // expression reduces to a compile-time literal.
       const auto* exprType = typeMap_.getType(expr);
-      if (exprType && exprType->is<IR::Type_Error>()) {
+      if (exprType != nullptr && exprType->is<IR::Type_Error>()) {
         // error.X → literal { error_member: "X" }
         out.mutable_literal()->set_error_member(mem->member.name.c_str());
-      } else if (const auto* serEnum =
-                     exprType ? exprType->to<IR::Type_SerEnum>() : nullptr) {
+      } else if (const auto* serEnum = exprType != nullptr
+                                           ? exprType->to<IR::Type_SerEnum>()
+                                           : nullptr) {
         // SerializableEnum.X → literal { integer: X.value }
         // The underlying integer value is stored in the SerEnumMember after
         // constant folding by the frontend.
         const auto* decl = serEnum->getDeclByName(mem->member.name);
-        const auto* sem = decl ? decl->to<IR::SerEnumMember>() : nullptr;
-        const auto* cnst = sem ? sem->value->to<IR::Constant>() : nullptr;
-        if (cnst) {
+        const auto* sem =
+            decl != nullptr ? decl->to<IR::SerEnumMember>() : nullptr;
+        const auto* cnst =
+            sem != nullptr ? sem->value->to<IR::Constant>() : nullptr;
+        if (cnst != nullptr) {
           auto* lit = out.mutable_literal();
           if (cnst->fitsUint64()) {
             lit->set_integer(cnst->asUint64());
@@ -186,8 +192,9 @@ fourward::ir::Expr FourWardBackend::emitExpr(const IR::Expression* expr) {
             lit->set_big_integer(bytes);
           }
         } else {
-          LOG1("WARNING: could not resolve SerEnum member value for "
-               << mem->member.name);
+          // clang-format off
+          LOG1("WARNING: could not resolve SerEnum member value for " << mem->member.name);
+          // clang-format on
         }
       } else {
         // Plain (non-serializable) enum member, e.g. HashAlgorithm.crc16.
@@ -260,8 +267,11 @@ fourward::ir::Expr FourWardBackend::emitExpr(const IR::Expression* expr) {
       b->set_op(fourward::ir::BinaryOperator::AND);
     else if (binop->is<IR::LOr>())
       b->set_op(fourward::ir::BinaryOperator::OR);
-    else
+    else {
+      // clang-format off
       LOG1("WARNING: unhandled binary operator: " << binop->node_type_name());
+      // clang-format on
+    }
   } else if (const auto* unop = expr->to<IR::Operation_Unary>()) {
     auto* u = out.mutable_unary_op();
     *u->mutable_expr() = emitExpr(unop->expr);
@@ -271,8 +281,11 @@ fourward::ir::Expr FourWardBackend::emitExpr(const IR::Expression* expr) {
       u->set_op(fourward::ir::UnaryOperator::BIT_NOT);
     else if (unop->is<IR::LNot>())
       u->set_op(fourward::ir::UnaryOperator::NOT);
-    else
+    else {
+      // clang-format off
       LOG1("WARNING: unhandled unary operator: " << unop->node_type_name());
+      // clang-format on
+    }
   } else if (const auto* mux = expr->to<IR::Mux>()) {
     auto* m = out.mutable_mux();
     *m->mutable_condition() = emitExpr(mux->e0);
@@ -306,7 +319,9 @@ fourward::ir::Expr FourWardBackend::emitExpr(const IR::Expression* expr) {
       *field->mutable_value() = emitExpr(comp->expression);
     }
   } else {
+    // clang-format off
     LOG1("WARNING: unhandled expression " << expr->node_type_name());
+    // clang-format on
   }
 
   // Always populate the type annotation.
@@ -364,7 +379,7 @@ fourward::ir::Stmt FourWardBackend::emitStmt(const IR::StatOrDecl* node) {
       return branch;
     };
     *i->mutable_then_block() = emitBranch(ifst->ifTrue);
-    if (ifst->ifFalse) {
+    if (ifst->ifFalse != nullptr) {
       *i->mutable_else_block() = emitBranch(ifst->ifFalse);
     }
   } else if (const auto* sw = node->to<IR::SwitchStatement>()) {
@@ -392,7 +407,7 @@ fourward::ir::Stmt FourWardBackend::emitStmt(const IR::StatOrDecl* node) {
         cond->set_op(fourward::ir::BinaryOperator::EQ);
         *cond->mutable_left() = emitExpr(sw->expression);
         *cond->mutable_right() = emitExpr(c->label);
-        if (c->statement) {
+        if (c->statement != nullptr) {
           if (const auto* b = c->statement->to<IR::BlockStatement>()) {
             *ifStmt->mutable_then_block() = emitBlock(b);
           }
@@ -402,7 +417,7 @@ fourward::ir::Stmt FourWardBackend::emitStmt(const IR::StatOrDecl* node) {
       }
       // Emit default case as the final else block.
       for (const auto* c : sw->cases) {
-        if (c->label->is<IR::DefaultExpression>() && c->statement) {
+        if (c->label->is<IR::DefaultExpression>() && c->statement != nullptr) {
           if (const auto* b = c->statement->to<IR::BlockStatement>()) {
             // cursor points to an empty stmt in the last else block; replace
             // the surrounding block with the default's statements.
@@ -429,7 +444,7 @@ fourward::ir::Stmt FourWardBackend::emitStmt(const IR::StatOrDecl* node) {
             // aliases.
             sc->set_action_name(pe->path->name.originalName.c_str());
           }
-          if (c->statement) {
+          if (c->statement != nullptr) {
             if (const auto* b = c->statement->to<IR::BlockStatement>()) {
               *sc->mutable_block() = emitBlock(b);
             }
@@ -442,13 +457,15 @@ fourward::ir::Stmt FourWardBackend::emitStmt(const IR::StatOrDecl* node) {
   } else if (node->is<IR::ExitStatement>()) {
     out.mutable_exit();
   } else if (const auto* ret = node->to<IR::ReturnStatement>()) {
-    if (ret->expression) {
+    if (ret->expression != nullptr) {
       *out.mutable_return_stmt()->mutable_value() = emitExpr(ret->expression);
     } else {
       out.mutable_return_stmt();
     }
   } else {
+    // clang-format off
     LOG1("WARNING: unhandled statement " << node->node_type_name());
+    // clang-format on
   }
   // For if-statements, use the condition as the source fragment (e.g.
   // "hdr.ipv4.isValid()") — the statement's own toString() is just
@@ -604,7 +621,7 @@ void FourWardBackend::emitParser(const IR::P4Parser* parser) {
       auto* vd = pd->add_local_vars();
       vd->set_name(varDecl->name.name.c_str());
       *vd->mutable_type() = emitType(varDecl->type);
-      if (varDecl->initializer) {
+      if (varDecl->initializer != nullptr) {
         *vd->mutable_initializer() = emitExpr(varDecl->initializer);
       }
     } else if (const auto* inst = decl->to<IR::Declaration_Instance>()) {
@@ -639,7 +656,7 @@ void FourWardBackend::emitParser(const IR::P4Parser* parser) {
     }
 
     // accept/reject are terminal states with no selectExpression.
-    if (!state->selectExpression) {
+    if (state->selectExpression == nullptr) {
     } else if (const auto* sel =
                    state->selectExpression->to<IR::SelectExpression>()) {
       auto* selectTrans = ps->mutable_transition()->mutable_select();
@@ -663,7 +680,7 @@ void FourWardBackend::emitParser(const IR::P4Parser* parser) {
           // P4 spec §12.14: a PathExpression in a select keyset may refer to a
           // parser value_set rather than a compile-time constant.
           const auto* decl = refMap_.getDeclaration(pe->path, false);
-          if (decl && decl->is<IR::P4ValueSet>()) {
+          if (decl != nullptr && decl->is<IR::P4ValueSet>()) {
             k->set_value_set(pe->path->name.name.c_str());
           } else {
             *k->mutable_exact() = emitExpr(expr);
@@ -732,7 +749,7 @@ void FourWardBackend::emitControl(const IR::P4Control* control) {
       auto* vd = cd->add_local_vars();
       vd->set_name(varDecl->name.name.c_str());
       *vd->mutable_type() = emitType(varDecl->type);
-      if (varDecl->initializer) {
+      if (varDecl->initializer != nullptr) {
         *vd->mutable_initializer() = emitExpr(varDecl->initializer);
       }
     } else if (const auto* inst = decl->to<IR::Declaration_Instance>()) {
@@ -808,12 +825,13 @@ void FourWardBackend::emitTable(const IR::P4Table* table) {
           break;
         }
       }
-      if (p4Table) break;
+      if (p4Table != nullptr) break;
     }
   }
-  if (!p4Table) {
-    LOG1("WARNING: no p4info table found for " << tableName
-                                               << "; skipping emitTable");
+  if (p4Table == nullptr) {
+    // clang-format off
+    LOG1("WARNING: no p4info table found for " << tableName << "; skipping emitTable");
+    // clang-format on
     return;
   }
 
@@ -824,7 +842,7 @@ void FourWardBackend::emitTable(const IR::P4Table* table) {
   // field ID as a string; this is what TableStore.lookup compares against
   // FieldMatch.fieldId from P4Runtime write requests.
   const IR::Key* key = table->getKey();
-  if (!key) return;
+  if (key == nullptr) return;
   int keyIdx = 0;
   for (const auto* keyElem : key->keyElements) {
     if (keyIdx >= p4Table->match_fields_size()) break;
@@ -837,7 +855,7 @@ void FourWardBackend::emitTable(const IR::P4Table* table) {
   // Record per-table action specializations so the interpreter can resolve
   // the correct midend copy when the p4info returns a single original name.
   const auto* actionList = table->getActionList();
-  if (actionList) {
+  if (actionList != nullptr) {
     for (const auto* ale : actionList->actionList) {
       auto id = ale->getName();
       if (id.name != id.originalName) {
@@ -852,7 +870,7 @@ void FourWardBackend::emitArchitecture(const IR::ToplevelBlock* toplevel) {
   auto* arch = behavioral_->mutable_architecture();
 
   const auto* main = toplevel->getMain();
-  if (!main) return;
+  if (main == nullptr) return;
 
   auto addStage = [&](const std::string& name, const std::string& blockName,
                       fourward::ir::StageKind kind) {
@@ -919,11 +937,11 @@ void FourWardBackend::emitArchitecture(const IR::ToplevelBlock* toplevel) {
     auto pipelineArgs =
         [&](const IR::Expression* ref) -> const IR::Vector<IR::Argument>* {
       const auto* pe = ref->to<IR::PathExpression>();
-      if (!pe) return nullptr;
+      if (pe == nullptr) return nullptr;
       const auto* decl = refMap_.getDeclaration(pe->path, false);
-      if (!decl) return nullptr;
+      if (decl == nullptr) return nullptr;
       const auto* inst = decl->to<IR::Declaration_Instance>();
-      return inst ? inst->arguments : nullptr;
+      return inst != nullptr ? inst->arguments : nullptr;
     };
 
     const auto* mainArgs =
@@ -936,8 +954,8 @@ void FourWardBackend::emitArchitecture(const IR::ToplevelBlock* toplevel) {
 
     const auto* ingressArgs = pipelineArgs((*mainArgs)[0]->expression);
     const auto* egressArgs = pipelineArgs((*mainArgs)[2]->expression);
-    if (!ingressArgs || ingressArgs->size() < 3 || !egressArgs ||
-        egressArgs->size() < 3) {
+    if (ingressArgs == nullptr || ingressArgs->size() < 3 ||
+        egressArgs == nullptr || egressArgs->size() < 3) {
       ::P4::error(
           "PSA_Switch: could not resolve IngressPipeline or EgressPipeline "
           "constructor arguments");
@@ -1026,7 +1044,7 @@ bool FourWardBackend::writePipelineConfig() const {
   const std::string path = outputFilePath();
   const bool binary = path.ends_with(".binpb") || path.ends_with(".bin");
   std::ofstream out(path, std::ios::binary);
-  if (!out) {
+  if (!out.is_open()) {
     ::P4::error("4ward: cannot open output file '%1%'", path);
     return false;
   }
@@ -1047,12 +1065,14 @@ bool FourWardBackend::writePipelineConfig() const {
       return false;
   }
 
+  // clang-format off
   LOG1("4ward: wrote " << path);
+  // clang-format on
   return true;
 }
 
 std::string FourWardBackend::outputFilePath() const {
-  if (options_.outputFile) return *options_.outputFile;
+  if (options_.outputFile.has_value()) return *options_.outputFile;
   return std::filesystem::path(options_.file)
       .replace_extension(".txtpb")
       .string();
