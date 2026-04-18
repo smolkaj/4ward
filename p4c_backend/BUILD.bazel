@@ -2,6 +2,7 @@ load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 
 package(
     default_applicable_licenses = ["//:license"],
+    features = ["exceptions"],  # p4c uses C++ exceptions throughout.
     licenses = ["notice"],
 )
 
