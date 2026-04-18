@@ -91,9 +91,8 @@ jobs:
           fi
 
       # Restore-only: the build-and-test job owns the authoritative cache for
-      # this key.  Lint builds a subset (p4c_backend + formatting tools), so
-      # letting it save would evict simulator/e2e artifacts that build-and-test
-      # needs.
+      # this key.  Lint builds a subset of targets, so letting it save would
+      # evict simulator/e2e artifacts that build-and-test needs.
       - name: Restore Bazel cache
         uses: actions/cache/restore@v5
         with:
@@ -104,24 +103,9 @@ jobs:
       - name: Install clang tools
         run: sudo apt install -y clang-format clang-tidy
 
-      # format.sh modifies files in-place; the diff check below catches any
-      # changes, so we use a single "run and diff" pattern for both clang-format
-      # and buildifier rather than separate --dry-run/--check invocations.
-      - run: ./tools/format.sh
-      - name: Check formatting diff
-        run: |
-          if changed=$(git diff-index --name-only HEAD --) && [[ -n "$changed" ]]; then
-            echo -e "Please run ./tools/format.sh. Files needing formatting:\n$changed"
-            exit 1
-          fi
-
-      # TODO(buf-edition-2024): Re-enable buf lint/breaking once buf supports
-      # edition 2024. Tracked in https://github.com/smolkaj/4ward/pull/4.
-
       # On PRs, skip clang-tidy when no C++ files were modified — most PRs
       # only touch Kotlin or proto files.  Always run on pushes to main.
       - name: Detect C++ changes
-        id: cpp
         if: github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -129,12 +113,10 @@ jobs:
           FILES=$(gh pr diff "${{ github.event.pull_request.number }}" --name-only)
           if ! printf '%s\n' "$FILES" | grep -qE '\.(cpp|cc|h)$|\.clang-tidy$'; then
             echo "No C++ files changed; skipping clang-tidy."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "SKIP_CLANG_TIDY=1" >> "$GITHUB_ENV"
           fi
 
-      - name: Run clang-tidy
-        if: steps.cpp.outputs.skip != 'true'
-        run: bazel build //p4c_backend/... --config=clang-tidy
+      - run: ./tools/lint.sh
 
 
   build-and-test:
