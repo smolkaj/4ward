@@ -22,18 +22,18 @@ bzl_library(
 )
 
 kt_jvm_library(
-    name = "cli_lib",
+    name = "cli",
     srcs = glob(
         ["*.kt"],
         exclude = ["*Test.kt"],
     ),
     visibility = ["//visibility:public"],
     deps = [
-        "//p4runtime:p4runtime_lib",
+        "//p4runtime",
+        "//simulator",
         "//simulator:ir_java_proto",
         "//simulator:p4info_java_proto",
         "//simulator:simulator_java_proto",
-        "//simulator:simulator_lib",
         "//stf",
         "@fourward_maven//:com_google_protobuf_protobuf_java",
         "@fourward_maven//:com_google_protobuf_protobuf_java_util",
@@ -48,7 +48,7 @@ kt_jvm_binary(
     ],
     main_class = "fourward.cli.MainKt",
     visibility = ["//visibility:public"],
-    runtime_deps = [":cli_lib"],
+    runtime_deps = [":cli"],
 )
 
 kt_jvm_test(
@@ -56,7 +56,7 @@ kt_jvm_test(
     srcs = ["TraceFormatterTest.kt"],
     test_class = "fourward.cli.TraceFormatterTest",
     deps = [
-        ":cli_lib",
+        ":cli",
         "//simulator:simulator_java_proto",
         "@fourward_maven//:com_google_protobuf_protobuf_java",
         "@fourward_maven//:junit_junit",
@@ -68,8 +68,8 @@ kt_jvm_test(
     srcs = ["NetworkStfTest.kt"],
     test_class = "fourward.cli.NetworkStfTest",
     deps = [
-        ":cli_lib",
-        "//simulator:simulator_lib",
+        ":cli",
+        "//simulator",
         "@fourward_maven//:junit_junit",
     ],
 )
@@ -83,11 +83,11 @@ kt_jvm_test(
     ],
     test_class = "fourward.cli.NetworkServeTest",
     deps = [
-        ":cli_lib",
+        ":cli",
         "//e2e_tests:golden_file",
-        "//p4runtime:p4runtime_lib",
+        "//p4runtime",
+        "//simulator",
         "//simulator:simulator_java_proto",
-        "//simulator:simulator_lib",
         "//stf",
         "@fourward_maven//:junit_junit",
     ],
@@ -109,7 +109,7 @@ kt_jvm_test(
     ],
     test_class = "fourward.cli.NetworkSimCliTest",
     deps = [
-        ":cli_lib",
+        ":cli",
         "//e2e_tests:golden_file",
         "@fourward_maven//:junit_junit",
     ],

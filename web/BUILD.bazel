@@ -6,7 +6,7 @@ package(
 )
 
 kt_jvm_library(
-    name = "web_lib",
+    name = "web",
     srcs = glob(
         ["*.kt"],
         exclude = [
@@ -15,12 +15,12 @@ kt_jvm_library(
         ],
     ),
     deps = [
-        "//p4runtime:p4runtime_lib",
+        "//p4runtime",
+        "//simulator",
         "//simulator:ir_java_proto",
         "//simulator:p4info_java_proto",
         "//simulator:p4runtime_java_proto",
         "//simulator:simulator_java_proto",
-        "//simulator:simulator_lib",
         "@fourward_maven//:com_google_protobuf_protobuf_java",
         "@fourward_maven//:com_google_protobuf_protobuf_java_util",
         "@fourward_maven//:io_grpc_grpc_api",
@@ -28,17 +28,17 @@ kt_jvm_library(
     ],
 )
 
-# Kept separate from `web_lib` so the heavy server deps (grpc-netty, etc.) don't propagate
-# to the test targets that only need the lighter graph-extractor logic in `web_lib`.
+# Kept separate from `web` so the heavy server deps (grpc-netty, etc.) don't propagate
+# to the test targets that only need the lighter graph-extractor logic in `web`.
 kt_jvm_library(
     name = "playground_lib",
     srcs = ["PlaygroundServer.kt"],
     deps = [
-        ":web_lib",
-        "//p4runtime:p4runtime_lib",
+        ":web",
+        "//p4runtime",
+        "//simulator",
         "//simulator:p4info_java_proto",
         "//simulator:p4runtime_java_proto",
-        "//simulator:simulator_lib",
         "@fourward_maven//:io_grpc_grpc_netty",
         "@fourward_maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core_jvm",
         "@grpc-java//api",
@@ -61,7 +61,7 @@ kt_jvm_test(
     srcs = ["WebServerTest.kt"],
     test_class = "fourward.web.WebServerTest",
     deps = [
-        ":web_lib",
+        ":web",
         "//simulator:ir_java_proto",
         "@fourward_maven//:junit_junit",
     ],
@@ -72,7 +72,7 @@ kt_jvm_test(
     srcs = ["ControlGraphExtractorTest.kt"],
     test_class = "fourward.web.ControlGraphExtractorTest",
     deps = [
-        ":web_lib",
+        ":web",
         "//simulator:ir_java_proto",
         "@fourward_maven//:junit_junit",
     ],
@@ -83,7 +83,7 @@ kt_jvm_test(
     srcs = ["ParserGraphExtractorTest.kt"],
     test_class = "fourward.web.ParserGraphExtractorTest",
     deps = [
-        ":web_lib",
+        ":web",
         "//simulator:ir_java_proto",
         "@fourward_maven//:junit_junit",
     ],

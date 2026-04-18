@@ -5,19 +5,33 @@ package(
     licenses = ["notice"],
 )
 
+# Shared command-line options struct used by both midend and backend.
 cc_library(
-    name = "p4c_backend_lib",
-    srcs = [
-        "backend.cpp",
-        "midend.cpp",
-        "options.cpp",
-    ],
-    hdrs = [
-        "backend.h",
-        "midend.h",
-        "options.h",
-    ],
+    name = "options",
+    srcs = ["options.cpp"],
+    hdrs = ["options.h"],
+    deps = ["@p4c//:ir_frontend_midend_control_plane"],
+)
+
+# p4c midend pipeline — simplification passes applied before the 4ward backend.
+cc_library(
+    name = "midend",
+    srcs = ["midend.cpp"],
+    hdrs = ["midend.h"],
     deps = [
+        ":options",
+        "@p4c//:ir_frontend_midend_control_plane",
+    ],
+)
+
+# 4ward backend — walks post-midend IR and emits PipelineConfig.
+# The only unit that touches protobuf / p4runtime directly.
+cc_library(
+    name = "backend",
+    srcs = ["backend.cpp"],
+    hdrs = ["backend.h"],
+    deps = [
+        ":options",
         "//simulator:ir_cc_proto",
         "@p4c//:ir_frontend_midend_control_plane",
         "@p4c//:lib",
@@ -36,8 +50,9 @@ cc_binary(
     data = ["@p4c//p4include"],
     visibility = ["//visibility:public"],
     deps = [
-        ":p4c_backend_lib",
-        "//simulator:ir_cc_proto",
+        ":backend",
+        ":midend",
+        ":options",
         "@p4c//:ir_frontend_midend_control_plane",
         "@p4c//:lib",
     ],
