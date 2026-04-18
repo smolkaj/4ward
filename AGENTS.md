@@ -104,6 +104,14 @@ Before submitting:
    checks are needed, fail loudly (`error()`, `require()`, gRPC
    `UNIMPLEMENTED`). Never let unhandled inputs fall through to a default path.
 
+   **Proto oneofs: always switch on the case enum.** When dispatching on a
+   proto `oneof`, use `when (msg.kindCase) { KindCase.FOO -> ... }`, never
+   `when { msg.hasFoo() -> ... msg.hasBar() -> ... }`. The enum-based form
+   is exhaustive at compile time — adding a new oneof variant produces a
+   compiler warning rather than silently falling through to `else`. This
+   applies everywhere: the interpreter's `evalExpr`, `evalLiteral`,
+   `execStmt`, statement/expression visitors, type dispatchers, etc.
+
 3. **The proto IR uses names, not IDs.** All cross-references in `ir.proto` and
    `simulator.proto` use string names. Numeric IDs belong to p4info (the
    control-plane API) only.
