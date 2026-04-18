@@ -17,7 +17,10 @@ cc_binary(
         "@platforms//os:linux": ["-latomic"],
         "//conditions:default": [],
     }),
-    deps = ["@behavioral_model//:simple_switch_lib"],
+    deps = [
+        "@behavioral_model//:bm_sim",
+        "@behavioral_model//:simple_switch_lib",
+    ],
 )
 
 kt_jvm_test(
