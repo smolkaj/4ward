@@ -2870,6 +2870,7 @@ class TableStoreTest {
   // ---------------------------------------------------------------------------
 
   @Test
+  @Suppress("MaxLineLength")
   fun `publishSnapshot creates a new snapshot that does not share mutable state with the old one`() {
     store.writeAndPublish(
       insertUpdate(exactEntry(fieldId = 1, value = byteArrayOf(10), actionId = 10))

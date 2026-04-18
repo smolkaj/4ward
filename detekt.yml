@@ -21,10 +21,7 @@ naming:
 
 style:
   MaxLineLength:
-    # Google style says 100, but error messages with inline formatting
-    # (e.g. listing valid options) naturally exceed that. 120 avoids
-    # contorting error strings while keeping code readable.
-    maxLineLength: 120
+    maxLineLength: 100
 
   # TODOs are tracked in the issue tracker and are not a style violation.
   ForbiddenComment:

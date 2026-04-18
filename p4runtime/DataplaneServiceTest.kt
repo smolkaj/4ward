@@ -273,7 +273,8 @@ class DataplaneServiceTest {
 
     assertTrue("collector should have received at least some items", collected.get() > 0)
     assertTrue(
-      "flow should close before all 200 items delivered (overflow surfaced); got ${collected.get()}",
+      "flow should close before all 200 items delivered " +
+        "(overflow surfaced); got ${collected.get()}",
       collected.get() < 200,
     )
   }

@@ -22,7 +22,8 @@ fun networkSim(nstfPath: Path, format: OutputFormat): Int {
   // TODO: support textproto/json output for NetworkHop once the network trace proto is defined.
   if (format != OutputFormat.HUMAN) {
     System.err.println(
-      "warning: --format=${format.name.lowercase()} is not yet supported for network simulation; using human format"
+      "warning: --format=${format.name.lowercase()} is not yet supported " +
+        "for network simulation; using human format"
     )
   }
   val nstf =
@@ -120,7 +121,8 @@ private fun printNetworkHop(hop: NetworkHop, indent: String) {
   println(trace)
   for (output in hop.edgeOutputs) {
     println(
-      "$indent  → edge output: ${output.switchId}:${output.egressPort} (${output.payload.size()} bytes)"
+      "$indent  → edge output: ${output.switchId}:${output.egressPort} " +
+        "(${output.payload.size()} bytes)"
     )
   }
   for (next in hop.nextHops) {

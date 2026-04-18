@@ -732,7 +732,9 @@ class TableStore : TableDataReader {
       registerInfoById[entry.registerId]
         ?: return WriteResult.NotFound(
           "unknown register ID ${entry.registerId} " +
-            "(valid registers: ${formatOptions(registerInfoById.entries.map { "'${it.value.name}' (${it.key})" })})"
+            "(valid registers: ${formatOptions(registerInfoById.entries.map {
+              "'${it.value.name}' (${it.key})"
+            })})"
         )
     val index = entry.index.index.toInt()
     if (index < 0 || index >= info.size)
@@ -934,7 +936,9 @@ class TableStore : TableDataReader {
       tableNameById[tableEntry.tableId]
         ?: return WriteResult.NotFound(
           "unknown table ID ${tableEntry.tableId} " +
-            "(valid tables: ${formatOptions(tableNameById.entries.map { "'${it.value}' (${it.key})" })})"
+            "(valid tables: ${formatOptions(tableNameById.entries.map {
+              "'${it.value}' (${it.key})"
+            })})"
         )
     if (tableName !in knownTables)
       return WriteResult.InvalidArgument("table '$tableName' has no $entityName")
@@ -1030,7 +1034,9 @@ class TableStore : TableDataReader {
       valueSetInfoById[entry.valueSetId]
         ?: return WriteResult.NotFound(
           "unknown value_set ID ${entry.valueSetId} " +
-            "(valid value_sets: ${formatOptions(valueSetInfoById.entries.map { "'${it.value.name}' (${it.key})" })})"
+            "(valid value_sets: ${formatOptions(valueSetInfoById.entries.map {
+              "'${it.value.name}' (${it.key})"
+            })})"
         )
     val name = info.name
     val maxSize = info.size
@@ -1097,7 +1103,9 @@ class TableStore : TableDataReader {
       tableNameById[entry.tableId]
         ?: return WriteResult.NotFound(
           "unknown table ID ${entry.tableId} " +
-            "(valid tables: ${formatOptions(tableNameById.entries.map { "'${it.value}' (${it.key})" })})"
+            "(valid tables: ${formatOptions(tableNameById.entries.map {
+              "'${it.value}' (${it.key})"
+            })})"
         )
 
     // P4Runtime spec §9.1: default entries are stored separately and only support MODIFY.
@@ -1242,7 +1250,8 @@ class TableStore : TableDataReader {
     val current = memberCount + groupCount
     if (current >= limit) {
       return WriteResult.ResourceExhausted(
-        "action profile '${profileNameById[profileId] ?: profileId}' is at capacity ($current/$limit members+groups)"
+        "action profile '${profileNameById[profileId] ?: profileId}' " +
+          "is at capacity ($current/$limit members+groups)"
       )
     }
     return null
@@ -1572,7 +1581,9 @@ class TableStore : TableDataReader {
     actionNameById[actionId]
       ?: error(
         "unknown action ID $actionId " +
-          "(valid actions: ${formatOptions(actionNameById.entries.map { "'${it.value}' (${it.key})" })})"
+          "(valid actions: ${formatOptions(actionNameById.entries.map {
+            "'${it.value}' (${it.key})"
+          })})"
       )
 
   /** Resolves an action name (alias or behavioral) to its behavioral name. */
