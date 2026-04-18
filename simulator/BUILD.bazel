@@ -153,6 +153,16 @@ kt_jvm_test(
 )
 
 kt_jvm_test(
+    name = "CompactFieldMapTest",
+    srcs = ["CompactFieldMapTest.kt"],
+    test_class = "fourward.simulator.CompactFieldMapTest",
+    deps = [
+        ":simulator",
+        "@fourward_maven//:junit_junit",
+    ],
+)
+
+kt_jvm_test(
     name = "MatchesFieldMatchTest",
     srcs = ["MatchesFieldMatchTest.kt"],
     test_class = "fourward.simulator.MatchesFieldMatchTest",

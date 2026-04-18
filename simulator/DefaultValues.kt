@@ -54,9 +54,9 @@ internal fun defaultValue(typeName: String, types: Map<String, TypeDecl>): Value
       HeaderVal(
         typeName = typeName,
         fields =
-          typeDecl.header.fieldsList.associateTo(mutableMapOf()) { f ->
-            f.name to defaultValue(f.type, types)
-          },
+          CompactFieldMap.of(
+            typeDecl.header.fieldsList.map { f -> f.name to defaultValue(f.type, types) }
+          ),
         valid = false,
       )
     typeDecl.hasStruct() -> defaultStruct(typeName, typeDecl.struct.fieldsList, types)
