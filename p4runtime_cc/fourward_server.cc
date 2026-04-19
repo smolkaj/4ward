@@ -11,12 +11,15 @@
 #include <unistd.h>
 
 #include <cerrno>
+#include <charconv>
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <memory>
 #include <string>
+#include <system_error>
 #include <utility>
 #include <vector>
 
@@ -82,10 +85,15 @@ void RemoveScratchDir(const std::string& path) {
 
 absl::StatusOr<int> ReadPortFile(const std::string& path) {
   std::ifstream in(path);
+  std::string contents((std::istreambuf_iterator<char>(in)),
+                       std::istreambuf_iterator<char>());
   int port = 0;
-  if (!(in >> port) || port <= 0 || port > 65535) {
+  auto [ptr, ec] = std::from_chars(contents.data(),
+                                   contents.data() + contents.size(), port);
+  if (ec != std::errc() || port <= 0 || port > 65535) {
     return absl::InternalError(
-        absl::StrCat("port file at ", path, " has invalid contents"));
+        absl::StrCat("port file at ", path, " has invalid contents: '",
+                     contents, "'"));
   }
   return port;
 }
