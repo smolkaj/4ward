@@ -1,8 +1,10 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 
+# p4c uses C++ exceptions throughout.
+_P4C_COPTS = ["-fexceptions"]
+
 package(
     default_applicable_licenses = ["//:license"],
-    features = ["exceptions"],  # p4c uses C++ exceptions throughout.
     licenses = ["notice"],
 )
 
@@ -11,6 +13,7 @@ cc_library(
     name = "options",
     srcs = ["options.cpp"],
     hdrs = ["options.h"],
+    copts = _P4C_COPTS,
     deps = ["@p4c//:ir_frontend_midend_control_plane"],
 )
 
@@ -19,6 +22,7 @@ cc_library(
     name = "midend",
     srcs = ["midend.cpp"],
     hdrs = ["midend.h"],
+    copts = _P4C_COPTS,
     deps = [
         ":options",
         "@p4c//:ir_frontend_midend_control_plane",
@@ -31,6 +35,7 @@ cc_library(
     name = "backend",
     srcs = ["backend.cpp"],
     hdrs = ["backend.h"],
+    copts = _P4C_COPTS,
     deps = [
         ":options",
         "//simulator:ir_cc_proto",
@@ -45,6 +50,7 @@ cc_library(
 cc_binary(
     name = "p4c-4ward",
     srcs = ["main.cpp"],
+    copts = _P4C_COPTS,
     # p4include provides core.p4, v1model.p4, etc. The binary resolves them via
     # CONFIG_PKGDATADIR = "external/p4c+" (set at build time in config.h), so
     # the files must be present in the runfiles tree under that path.
