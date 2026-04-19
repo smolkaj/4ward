@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-04-19 02:47:29</td>
+            <td class="headerValue">2026-04-19 02:52:48</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">94.6&nbsp;%</td>
@@ -314,7 +314,7 @@
 <span id="L252"><span class="lineNum">     252</span>              : </span>
 <span id="L253"><span class="lineNum">     253</span> <span class="tlaGNC">           1 :     (values[&quot;pna_pre_input_metadata_t&quot;] as? StructVal)?.let {</span></span>
 <span id="L254"><span class="lineNum">     254</span> <span class="tlaGNC">           1 :       it.setBitField(&quot;input_port&quot;, portLong)</span></span>
-<span id="L255"><span class="lineNum">     255</span> <span class="tlaGNC">           1 :       it.fields[&quot;parser_error&quot;] = ErrorVal(&quot;NoError&quot;)</span></span>
+<span id="L255"><span class="lineNum">     255</span> <span class="tlaGNC">           1 :       it.fields[&quot;parser_error&quot;] = ErrorVal.NO_ERROR</span></span>
 <span id="L256"><span class="lineNum">     256</span> <span class="tlaGNC">           1 :       it.fields[&quot;direction&quot;] = EnumVal(direction)</span></span>
 <span id="L257"><span class="lineNum">     257</span> <span class="tlaGNC">           1 :       if (it.fields.containsKey(&quot;pass&quot;)) it.setBitField(&quot;pass&quot;, passTruncated)</span></span>
 <span id="L258"><span class="lineNum">     258</span> <span class="tlaGNC">           1 :       it.fields[&quot;loopedback&quot;] = BoolVal(loopedback)</span></span>
@@ -333,7 +333,7 @@
 <span id="L271"><span class="lineNum">     271</span> <span class="tlaGNC">           1 :       if (it.fields.containsKey(&quot;pass&quot;)) it.setBitField(&quot;pass&quot;, passTruncated)</span></span>
 <span id="L272"><span class="lineNum">     272</span> <span class="tlaGNC">           1 :       it.fields[&quot;loopedback&quot;] = BoolVal(loopedback)</span></span>
 <span id="L273"><span class="lineNum">     273</span> <span class="tlaGNC">           1 :       if (it.fields.containsKey(&quot;timestamp&quot;)) it.setBitField(&quot;timestamp&quot;, 0L)</span></span>
-<span id="L274"><span class="lineNum">     274</span> <span class="tlaGNC">           1 :       it.fields[&quot;parser_error&quot;] = ErrorVal(&quot;NoError&quot;)</span></span>
+<span id="L274"><span class="lineNum">     274</span> <span class="tlaGNC">           1 :       it.fields[&quot;parser_error&quot;] = ErrorVal.NO_ERROR</span></span>
 <span id="L275"><span class="lineNum">     275</span> <span class="tlaGNC">           1 :       if (it.fields.containsKey(&quot;class_of_service&quot;)) it.setBitField(&quot;class_of_service&quot;, 0L)</span></span>
 <span id="L276"><span class="lineNum">     276</span> <span class="tlaGNC">           1 :       it.setBitField(&quot;input_port&quot;, portLong)</span></span>
 <span id="L277"><span class="lineNum">     277</span> <span class="tlaGNC">           1 :     }</span></span>

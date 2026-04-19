@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-04-19 02:47:29</td>
+            <td class="headerValue">2026-04-19 02:52:48</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryMed">85.9&nbsp;%</td>
@@ -649,7 +649,7 @@
 <span id="L587"><span class="lineNum">     587</span> <span class="tlaGNC">           1 :     (values[&quot;psa_ingress_input_metadata_t&quot;] as? StructVal)?.let {</span></span>
 <span id="L588"><span class="lineNum">     588</span> <span class="tlaGNC">           1 :       it.setBitField(&quot;ingress_port&quot;, ingressPort.toLong())</span></span>
 <span id="L589"><span class="lineNum">     589</span> <span class="tlaGNC">           1 :       it.fields[&quot;packet_path&quot;] = EnumVal(packetPath)</span></span>
-<span id="L590"><span class="lineNum">     590</span> <span class="tlaGNC">           1 :       it.fields[&quot;parser_error&quot;] = ErrorVal(&quot;NoError&quot;)</span></span>
+<span id="L590"><span class="lineNum">     590</span> <span class="tlaGNC">           1 :       it.fields[&quot;parser_error&quot;] = ErrorVal.NO_ERROR</span></span>
 <span id="L591"><span class="lineNum">     591</span> <span class="tlaGNC">           1 :     }</span></span>
 <span id="L592"><span class="lineNum">     592</span>              :     // PSA spec: ingress output metadata defaults to drop=true.</span>
 <span id="L593"><span class="lineNum">     593</span> <span class="tlaGNC">           1 :     (values[&quot;psa_ingress_output_metadata_t&quot;] as? StructVal)?.let {</span></span>
@@ -679,7 +679,7 @@
 <span id="L617"><span class="lineNum">     617</span>              :       // PSA spec §6.5: instance identifies the replica within a multicast group.</span>
 <span id="L618"><span class="lineNum">     618</span>              :       // Only set if the program declares the field (not all PSA programs use it).</span>
 <span id="L619"><span class="lineNum">     619</span> <span class="tlaGNC">           1 :       if (it.fields.containsKey(&quot;instance&quot;)) it.setBitField(&quot;instance&quot;, instance.toLong())</span></span>
-<span id="L620"><span class="lineNum">     620</span> <span class="tlaGNC">           1 :       it.fields[&quot;parser_error&quot;] = ErrorVal(&quot;NoError&quot;)</span></span>
+<span id="L620"><span class="lineNum">     620</span> <span class="tlaGNC">           1 :       it.fields[&quot;parser_error&quot;] = ErrorVal.NO_ERROR</span></span>
 <span id="L621"><span class="lineNum">     621</span> <span class="tlaGNC">           1 :     }</span></span>
 <span id="L622"><span class="lineNum">     622</span>              :     // PSA spec: egress output metadata defaults to drop=false.</span>
 <span id="L623"><span class="lineNum">     623</span> <span class="tlaGNC">           1 :     (values[&quot;psa_egress_output_metadata_t&quot;] as? StructVal)?.let {</span></span>
