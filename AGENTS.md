@@ -48,6 +48,10 @@ obvious approach, works around a non-obvious constraint, or implements a
 subtle spec requirement. Include spec references (section numbers, GitHub
 issues) where helpful. Do not add comments that merely restate the code.
 
+**Never use deprecated APIs.** When a library marks a function deprecated,
+find and use the successor immediately — don't suppress the warning. A
+deprecated call that works today is a broken call on the next upgrade.
+
 If you take a shortcut or skip a corner case, note it in
 [LIMITATIONS.md](docs/LIMITATIONS.md) with a `TODO` comment at the site.
 Mark workarounds with a prominent `WORKAROUND` comment explaining what is
