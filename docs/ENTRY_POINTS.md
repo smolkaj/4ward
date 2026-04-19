@@ -152,9 +152,7 @@ spawns the P4Runtime + Dataplane server as a subprocess, blocks until it
 is accepting RPCs, and returns an RAII handle that owns the subprocess
 plus factories for both service stubs. Destruction kills the subprocess.
 Your project's BUILD files stay all-C++; the JVM is an implementation
-detail of the server binary. Startup synchronization goes through a
-machine-readable `--port-file` that the server writes atomically once
-it is ready to serve.
+detail of the server binary.
 
 ```cpp
 #include "p4runtime_cc/fourward_server.h"
