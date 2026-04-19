@@ -133,6 +133,16 @@ kt_jvm_library(
 # =============================================================================
 
 kt_jvm_test(
+    name = "HeaderValTest",
+    srcs = ["HeaderValTest.kt"],
+    test_class = "fourward.simulator.HeaderValTest",
+    deps = [
+        ":simulator",
+        "@fourward_maven//:junit_junit",
+    ],
+)
+
+kt_jvm_test(
     name = "HashTest",
     srcs = ["HashTest.kt"],
     test_class = "fourward.simulator.HashTest",

@@ -55,7 +55,12 @@ data class BoolVal(val value: Boolean) : Value() {
 }
 
 /** A P4 error value (one of the named error members, e.g. "NoError"). */
-data class ErrorVal(val member: String) : Value()
+data class ErrorVal(val member: String) : Value() {
+  companion object {
+    /** P4 spec §7.1.4: the default error value. */
+    val NO_ERROR = ErrorVal("NoError")
+  }
+}
 
 /** A plain (non-serializable) P4 enum value, e.g. HashAlgorithm.crc16. */
 data class EnumVal(val member: String) : Value()
@@ -93,8 +98,11 @@ data class HeaderVal(
     fields.replaceAll { _, v ->
       when (v) {
         is BitVal -> BitVal(0L, v.bits.width)
+        is IntVal -> IntVal(SignedBitVector(java.math.BigInteger.ZERO, v.bits.width))
         is BoolVal -> BoolVal(false)
-        else -> v
+        is ErrorVal -> ErrorVal.NO_ERROR
+        is UnitVal -> v
+        else -> error("unexpected header field type: ${v::class.simpleName}")
       }
     }
   }

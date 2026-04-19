@@ -312,7 +312,7 @@ class V1ModelArchitecture(
     }
     standardMetadata.setBitField("ingress_port", ctx.ingressPort.toLong())
     standardMetadata.setBitField("packet_length", ctx.payload.size.toLong())
-    standardMetadata.fields["parser_error"] = ErrorVal("NoError")
+    standardMetadata.fields["parser_error"] = ErrorVal.NO_ERROR
     if (decisions.instanceTypeOverride != null) {
       standardMetadata.setBitField("instance_type", decisions.instanceTypeOverride)
     }
