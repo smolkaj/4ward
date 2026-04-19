@@ -3448,241 +3448,345 @@ LH:103
 LF:112
 end_of_record
 SF:simulator/BitVector.kt
-FN:14,fourward/simulator/BitVector::<init> (Ljava/math/BigInteger;I)V
-FNDA:1,fourward/simulator/BitVector::<init> (Ljava/math/BigInteger;I)V
-FN:14,fourward/simulator/BitVector::getValue ()Ljava/math/BigInteger;
-FNDA:1,fourward/simulator/BitVector::getValue ()Ljava/math/BigInteger;
-FN:14,fourward/simulator/BitVector::getWidth ()I
+FN:14,fourward/simulator/BitVector::<init> (IJLjava/math/BigInteger;)V
+FNDA:1,fourward/simulator/BitVector::<init> (IJLjava/math/BigInteger;)V
+FN:17,fourward/simulator/BitVector::getWidth ()I
 FNDA:1,fourward/simulator/BitVector::getWidth ()I
-FN:25,fourward/simulator/BitVector::getLongValue ()J
+FN:19,fourward/simulator/BitVector::getLongValue ()J
 FNDA:1,fourward/simulator/BitVector::getLongValue ()J
-FN:29,fourward/simulator/BitVector::plus (Lfourward/simulator/BitVector;)Lfourward/simulator/BitVector;
+FN:25,fourward/simulator/BitVector::getValue ()Ljava/math/BigInteger;
+FNDA:1,fourward/simulator/BitVector::getValue ()Ljava/math/BigInteger;
+FN:31,fourward/simulator/BitVector::<init> (Ljava/math/BigInteger;I)V
+FNDA:1,fourward/simulator/BitVector::<init> (Ljava/math/BigInteger;I)V
+FN:44,fourward/simulator/BitVector::plus (Lfourward/simulator/BitVector;)Lfourward/simulator/BitVector;
 FNDA:1,fourward/simulator/BitVector::plus (Lfourward/simulator/BitVector;)Lfourward/simulator/BitVector;
-FN:31,fourward/simulator/BitVector::minus (Lfourward/simulator/BitVector;)Lfourward/simulator/BitVector;
+FN:46,fourward/simulator/BitVector::minus (Lfourward/simulator/BitVector;)Lfourward/simulator/BitVector;
 FNDA:1,fourward/simulator/BitVector::minus (Lfourward/simulator/BitVector;)Lfourward/simulator/BitVector;
-FN:33,fourward/simulator/BitVector::times (Lfourward/simulator/BitVector;)Lfourward/simulator/BitVector;
+FN:48,fourward/simulator/BitVector::times (Lfourward/simulator/BitVector;)Lfourward/simulator/BitVector;
 FNDA:1,fourward/simulator/BitVector::times (Lfourward/simulator/BitVector;)Lfourward/simulator/BitVector;
-FN:35,fourward/simulator/BitVector::div (Lfourward/simulator/BitVector;)Lfourward/simulator/BitVector;
+FN:51,fourward/simulator/BitVector::div (Lfourward/simulator/BitVector;)Lfourward/simulator/BitVector;
 FNDA:1,fourward/simulator/BitVector::div (Lfourward/simulator/BitVector;)Lfourward/simulator/BitVector;
-FN:37,fourward/simulator/BitVector::rem (Lfourward/simulator/BitVector;)Lfourward/simulator/BitVector;
+FN:57,fourward/simulator/BitVector::rem (Lfourward/simulator/BitVector;)Lfourward/simulator/BitVector;
 FNDA:1,fourward/simulator/BitVector::rem (Lfourward/simulator/BitVector;)Lfourward/simulator/BitVector;
-FN:41,fourward/simulator/BitVector::addSat (Lfourward/simulator/BitVector;)Lfourward/simulator/BitVector;
+FN:64,fourward/simulator/BitVector::addSat (Lfourward/simulator/BitVector;)Lfourward/simulator/BitVector;
 FNDA:1,fourward/simulator/BitVector::addSat (Lfourward/simulator/BitVector;)Lfourward/simulator/BitVector;
-FN:48,fourward/simulator/BitVector::subSat (Lfourward/simulator/BitVector;)Lfourward/simulator/BitVector;
+FN:77,fourward/simulator/BitVector::subSat (Lfourward/simulator/BitVector;)Lfourward/simulator/BitVector;
 FNDA:1,fourward/simulator/BitVector::subSat (Lfourward/simulator/BitVector;)Lfourward/simulator/BitVector;
-FN:56,fourward/simulator/BitVector::and (Lfourward/simulator/BitVector;)Lfourward/simulator/BitVector;
+FN:85,fourward/simulator/BitVector::and (Lfourward/simulator/BitVector;)Lfourward/simulator/BitVector;
 FNDA:1,fourward/simulator/BitVector::and (Lfourward/simulator/BitVector;)Lfourward/simulator/BitVector;
-FN:58,fourward/simulator/BitVector::or (Lfourward/simulator/BitVector;)Lfourward/simulator/BitVector;
+FN:87,fourward/simulator/BitVector::or (Lfourward/simulator/BitVector;)Lfourward/simulator/BitVector;
 FNDA:1,fourward/simulator/BitVector::or (Lfourward/simulator/BitVector;)Lfourward/simulator/BitVector;
-FN:60,fourward/simulator/BitVector::xor (Lfourward/simulator/BitVector;)Lfourward/simulator/BitVector;
+FN:89,fourward/simulator/BitVector::xor (Lfourward/simulator/BitVector;)Lfourward/simulator/BitVector;
 FNDA:1,fourward/simulator/BitVector::xor (Lfourward/simulator/BitVector;)Lfourward/simulator/BitVector;
-FN:62,fourward/simulator/BitVector::inv ()Lfourward/simulator/BitVector;
+FN:92,fourward/simulator/BitVector::inv ()Lfourward/simulator/BitVector;
 FNDA:1,fourward/simulator/BitVector::inv ()Lfourward/simulator/BitVector;
-FN:66,fourward/simulator/BitVector::shl (I)Lfourward/simulator/BitVector;
+FN:98,fourward/simulator/BitVector::shl (I)Lfourward/simulator/BitVector;
 FNDA:1,fourward/simulator/BitVector::shl (I)Lfourward/simulator/BitVector;
-FN:68,fourward/simulator/BitVector::shr (I)Lfourward/simulator/BitVector;
+FN:103,fourward/simulator/BitVector::shr (I)Lfourward/simulator/BitVector;
 FNDA:1,fourward/simulator/BitVector::shr (I)Lfourward/simulator/BitVector;
-FN:73,fourward/simulator/BitVector::compareTo (Lfourward/simulator/BitVector;)I
+FN:108,fourward/simulator/BitVector::compareTo (Lfourward/simulator/BitVector;)I
 FNDA:1,fourward/simulator/BitVector::compareTo (Lfourward/simulator/BitVector;)I
-FN:83,fourward/simulator/BitVector::slice (II)Lfourward/simulator/BitVector;
+FN:114,fourward/simulator/BitVector::slice (II)Lfourward/simulator/BitVector;
 FNDA:1,fourward/simulator/BitVector::slice (II)Lfourward/simulator/BitVector;
-FN:95,fourward/simulator/BitVector::concat (Lfourward/simulator/BitVector;)Lfourward/simulator/BitVector;
+FN:123,fourward/simulator/BitVector::concat (Lfourward/simulator/BitVector;)Lfourward/simulator/BitVector;
 FNDA:1,fourward/simulator/BitVector::concat (Lfourward/simulator/BitVector;)Lfourward/simulator/BitVector;
-FN:100,fourward/simulator/BitVector::toSigned ()Lfourward/simulator/SignedBitVector;
+FN:129,fourward/simulator/BitVector::toSigned ()Lfourward/simulator/SignedBitVector;
 FNDA:1,fourward/simulator/BitVector::toSigned ()Lfourward/simulator/SignedBitVector;
-FN:104,fourward/simulator/BitVector::toByteArray ()[B
+FN:133,fourward/simulator/BitVector::toByteArray ()[B
 FNDA:1,fourward/simulator/BitVector::toByteArray ()[B
-FN:113,fourward/simulator/BitVector::toString ()Ljava/lang/String;
+FN:143,fourward/simulator/BitVector::toString ()Ljava/lang/String;
 FNDA:0,fourward/simulator/BitVector::toString ()Ljava/lang/String;
-FN:116,fourward/simulator/BitVector::getMax ()Ljava/math/BigInteger;
-FNDA:1,fourward/simulator/BitVector::getMax ()Ljava/math/BigInteger;
-FN:119,fourward/simulator/BitVector::binaryOp (Lfourward/simulator/BitVector;Lkotlin/jvm/functions/Function2;)Lfourward/simulator/BitVector;
-FNDA:1,fourward/simulator/BitVector::binaryOp (Lfourward/simulator/BitVector;Lkotlin/jvm/functions/Function2;)Lfourward/simulator/BitVector;
-FN:126,fourward/simulator/BitVector::requireSameWidth (Lfourward/simulator/BitVector;)V
+FN:146,fourward/simulator/BitVector::equals (Ljava/lang/Object;)Z
+FNDA:1,fourward/simulator/BitVector::equals (Ljava/lang/Object;)Z
+FN:152,fourward/simulator/BitVector::hashCode ()I
+FNDA:1,fourward/simulator/BitVector::hashCode ()I
+FN:155,fourward/simulator/BitVector::isNarrow ()Z
+FNDA:1,fourward/simulator/BitVector::isNarrow ()Z
+FN:158,fourward/simulator/BitVector::narrow (J)Lfourward/simulator/BitVector;
+FNDA:1,fourward/simulator/BitVector::narrow (J)Lfourward/simulator/BitVector;
+FN:161,fourward/simulator/BitVector::narrowAt (IJ)Lfourward/simulator/BitVector;
+FNDA:1,fourward/simulator/BitVector::narrowAt (IJ)Lfourward/simulator/BitVector;
+FN:164,fourward/simulator/BitVector::wide (Ljava/math/BigInteger;)Lfourward/simulator/BitVector;
+FNDA:1,fourward/simulator/BitVector::wide (Ljava/math/BigInteger;)Lfourward/simulator/BitVector;
+FN:176,fourward/simulator/BitVector::binaryOp (Lfourward/simulator/BitVector;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;)Lfourward/simulator/BitVector;
+FNDA:1,fourward/simulator/BitVector::binaryOp (Lfourward/simulator/BitVector;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;)Lfourward/simulator/BitVector;
+FN:187,fourward/simulator/BitVector::bitwiseOp (Lfourward/simulator/BitVector;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;)Lfourward/simulator/BitVector;
+FNDA:1,fourward/simulator/BitVector::bitwiseOp (Lfourward/simulator/BitVector;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;)Lfourward/simulator/BitVector;
+FN:193,fourward/simulator/BitVector::requireSameWidth (Lfourward/simulator/BitVector;)V
 FNDA:1,fourward/simulator/BitVector::requireSameWidth (Lfourward/simulator/BitVector;)V
-FN:138,fourward/simulator/BitVector::<clinit> ()V
+FN:201,fourward/simulator/BitVector::<clinit> ()V
 FNDA:1,fourward/simulator/BitVector::<clinit> ()V
-FN:142,fourward/simulator/BitVector$Companion::maskFor (I)Ljava/math/BigInteger;
+FN:205,fourward/simulator/BitVector$Companion::maskFor (I)Ljava/math/BigInteger;
 FNDA:1,fourward/simulator/BitVector$Companion::maskFor (I)Ljava/math/BigInteger;
-FN:145,fourward/simulator/BitVector$Companion::ofInt (II)Lfourward/simulator/BitVector;
+FN:211,fourward/simulator/BitVector$Companion::longMaskFor (I)J
+FNDA:1,fourward/simulator/BitVector$Companion::longMaskFor (I)J
+FN:213,fourward/simulator/BitVector$Companion::ofInt (II)Lfourward/simulator/BitVector;
 FNDA:1,fourward/simulator/BitVector$Companion::ofInt (II)Lfourward/simulator/BitVector;
-FN:147,fourward/simulator/BitVector$Companion::ofLong (JI)Lfourward/simulator/BitVector;
+FN:217,fourward/simulator/BitVector$Companion::ofLong (JI)Lfourward/simulator/BitVector;
 FNDA:1,fourward/simulator/BitVector$Companion::ofLong (JI)Lfourward/simulator/BitVector;
-FN:151,fourward/simulator/BitVector$Companion::ofBytes ([BI)Lfourward/simulator/BitVector;
+FN:225,fourward/simulator/BitVector$Companion::ofBytes ([BI)Lfourward/simulator/BitVector;
 FNDA:1,fourward/simulator/BitVector$Companion::ofBytes ([BI)Lfourward/simulator/BitVector;
-FN:142,fourward/simulator/BitVector$Companion$maskFor$1::apply (Ljava/lang/Integer;)Ljava/math/BigInteger;
+FN:205,fourward/simulator/BitVector$Companion$maskFor$1::apply (Ljava/lang/Integer;)Ljava/math/BigInteger;
 FNDA:1,fourward/simulator/BitVector$Companion$maskFor$1::apply (Ljava/lang/Integer;)Ljava/math/BigInteger;
-FN:56,fourward/simulator/BitVector$and$1::invoke (Ljava/math/BigInteger;Ljava/math/BigInteger;)Ljava/math/BigInteger;
-FNDA:1,fourward/simulator/BitVector$and$1::invoke (Ljava/math/BigInteger;Ljava/math/BigInteger;)Ljava/math/BigInteger;
-FN:35,fourward/simulator/BitVector$div$1::invoke (Ljava/math/BigInteger;Ljava/math/BigInteger;)Ljava/math/BigInteger;
-FNDA:1,fourward/simulator/BitVector$div$1::invoke (Ljava/math/BigInteger;Ljava/math/BigInteger;)Ljava/math/BigInteger;
-FN:31,fourward/simulator/BitVector$minus$1::invoke (Ljava/math/BigInteger;Ljava/math/BigInteger;)Ljava/math/BigInteger;
-FNDA:1,fourward/simulator/BitVector$minus$1::invoke (Ljava/math/BigInteger;Ljava/math/BigInteger;)Ljava/math/BigInteger;
-FN:58,fourward/simulator/BitVector$or$1::invoke (Ljava/math/BigInteger;Ljava/math/BigInteger;)Ljava/math/BigInteger;
-FNDA:1,fourward/simulator/BitVector$or$1::invoke (Ljava/math/BigInteger;Ljava/math/BigInteger;)Ljava/math/BigInteger;
-FN:29,fourward/simulator/BitVector$plus$1::invoke (Ljava/math/BigInteger;Ljava/math/BigInteger;)Ljava/math/BigInteger;
-FNDA:1,fourward/simulator/BitVector$plus$1::invoke (Ljava/math/BigInteger;Ljava/math/BigInteger;)Ljava/math/BigInteger;
-FN:37,fourward/simulator/BitVector$rem$1::invoke (Ljava/math/BigInteger;Ljava/math/BigInteger;)Ljava/math/BigInteger;
-FNDA:1,fourward/simulator/BitVector$rem$1::invoke (Ljava/math/BigInteger;Ljava/math/BigInteger;)Ljava/math/BigInteger;
-FN:33,fourward/simulator/BitVector$times$1::invoke (Ljava/math/BigInteger;Ljava/math/BigInteger;)Ljava/math/BigInteger;
-FNDA:1,fourward/simulator/BitVector$times$1::invoke (Ljava/math/BigInteger;Ljava/math/BigInteger;)Ljava/math/BigInteger;
-FN:60,fourward/simulator/BitVector$xor$1::invoke (Ljava/math/BigInteger;Ljava/math/BigInteger;)Ljava/math/BigInteger;
-FNDA:1,fourward/simulator/BitVector$xor$1::invoke (Ljava/math/BigInteger;Ljava/math/BigInteger;)Ljava/math/BigInteger;
-FN:163,fourward/simulator/SignedBitVector::<init> (Ljava/math/BigInteger;I)V
+FN:237,fourward/simulator/SignedBitVector::<init> (Ljava/math/BigInteger;I)V
 FNDA:1,fourward/simulator/SignedBitVector::<init> (Ljava/math/BigInteger;I)V
-FN:163,fourward/simulator/SignedBitVector::getValue ()Ljava/math/BigInteger;
+FN:237,fourward/simulator/SignedBitVector::getValue ()Ljava/math/BigInteger;
 FNDA:1,fourward/simulator/SignedBitVector::getValue ()Ljava/math/BigInteger;
-FN:163,fourward/simulator/SignedBitVector::getWidth ()I
+FN:237,fourward/simulator/SignedBitVector::getWidth ()I
 FNDA:1,fourward/simulator/SignedBitVector::getWidth ()I
-FN:176,fourward/simulator/SignedBitVector::addSat (Lfourward/simulator/SignedBitVector;)Lfourward/simulator/SignedBitVector;
+FN:250,fourward/simulator/SignedBitVector::addSat (Lfourward/simulator/SignedBitVector;)Lfourward/simulator/SignedBitVector;
 FNDA:1,fourward/simulator/SignedBitVector::addSat (Lfourward/simulator/SignedBitVector;)Lfourward/simulator/SignedBitVector;
-FN:183,fourward/simulator/SignedBitVector::subSat (Lfourward/simulator/SignedBitVector;)Lfourward/simulator/SignedBitVector;
+FN:257,fourward/simulator/SignedBitVector::subSat (Lfourward/simulator/SignedBitVector;)Lfourward/simulator/SignedBitVector;
 FNDA:1,fourward/simulator/SignedBitVector::subSat (Lfourward/simulator/SignedBitVector;)Lfourward/simulator/SignedBitVector;
-FN:188,fourward/simulator/SignedBitVector::getMinVal ()Ljava/math/BigInteger;
+FN:262,fourward/simulator/SignedBitVector::getMinVal ()Ljava/math/BigInteger;
 FNDA:1,fourward/simulator/SignedBitVector::getMinVal ()Ljava/math/BigInteger;
-FN:189,fourward/simulator/SignedBitVector::getMaxVal ()Ljava/math/BigInteger;
+FN:263,fourward/simulator/SignedBitVector::getMaxVal ()Ljava/math/BigInteger;
 FNDA:1,fourward/simulator/SignedBitVector::getMaxVal ()Ljava/math/BigInteger;
-FN:193,fourward/simulator/SignedBitVector::toUnsigned ()Lfourward/simulator/BitVector;
+FN:267,fourward/simulator/SignedBitVector::toUnsigned ()Lfourward/simulator/BitVector;
 FNDA:1,fourward/simulator/SignedBitVector::toUnsigned ()Lfourward/simulator/BitVector;
-FN:205,fourward/simulator/SignedBitVector$Companion::fromUnsignedBits (Ljava/math/BigInteger;I)Lfourward/simulator/SignedBitVector;
+FN:279,fourward/simulator/SignedBitVector$Companion::fromUnsignedBits (Ljava/math/BigInteger;I)Lfourward/simulator/SignedBitVector;
 FNDA:1,fourward/simulator/SignedBitVector$Companion::fromUnsignedBits (Ljava/math/BigInteger;I)Lfourward/simulator/SignedBitVector;
-FN:189,fourward/simulator/SignedBitVector$maxVal$2::invoke ()Ljava/math/BigInteger;
+FN:263,fourward/simulator/SignedBitVector$maxVal$2::invoke ()Ljava/math/BigInteger;
 FNDA:1,fourward/simulator/SignedBitVector$maxVal$2::invoke ()Ljava/math/BigInteger;
-FN:188,fourward/simulator/SignedBitVector$minVal$2::invoke ()Ljava/math/BigInteger;
+FN:262,fourward/simulator/SignedBitVector$minVal$2::invoke ()Ljava/math/BigInteger;
 FNDA:1,fourward/simulator/SignedBitVector$minVal$2::invoke ()Ljava/math/BigInteger;
-BRDA:18,0,0,1
-BRDA:18,0,1,0
-BRDA:18,0,2,0
-BRDA:18,0,3,1
-BRDA:19,0,0,1
-BRDA:19,0,1,0
-BRDA:19,0,2,0
-BRDA:19,0,3,1
-BRDA:21,0,0,1
-BRDA:21,0,1,0
-BRDA:21,0,2,0
-BRDA:21,0,3,1
 BRDA:25,0,0,1
 BRDA:25,0,1,1
-BRDA:43,0,0,1
-BRDA:43,0,1,1
-BRDA:50,0,0,1
-BRDA:50,0,1,1
-BRDA:83,0,0,1
-BRDA:83,0,1,0
-BRDA:83,0,2,0
-BRDA:83,0,3,1
-BRDA:84,0,0,1
-BRDA:84,0,1,0
-BRDA:84,0,2,0
-BRDA:84,0,3,1
-BRDA:107,0,0,1
-BRDA:107,0,1,1
+BRDA:33,0,0,1
+BRDA:33,0,1,1
+BRDA:34,0,0,1
+BRDA:34,0,1,1
+BRDA:36,0,0,1
+BRDA:36,0,1,0
+BRDA:36,0,2,0
+BRDA:36,0,3,1
+BRDA:37,0,0,1
+BRDA:37,0,1,0
+BRDA:37,0,2,0
+BRDA:37,0,3,1
+BRDA:39,0,0,1
+BRDA:39,0,1,0
+BRDA:39,0,2,0
+BRDA:39,0,3,1
+BRDA:52,0,0,1
+BRDA:52,0,1,0
+BRDA:58,0,0,1
+BRDA:58,0,1,0
+BRDA:65,0,0,1
+BRDA:65,0,1,0
+BRDA:68,0,0,1
+BRDA:68,0,1,0
+BRDA:68,0,2,1
+BRDA:68,0,3,1
+BRDA:72,0,0,-
+BRDA:72,0,1,-
+BRDA:78,0,0,1
+BRDA:78,0,1,0
+BRDA:80,0,0,-
+BRDA:80,0,1,-
+BRDA:92,0,0,1
+BRDA:92,0,1,1
+BRDA:98,0,0,1
+BRDA:98,0,1,0
+BRDA:103,0,0,1
+BRDA:103,0,1,0
 BRDA:109,0,0,1
-BRDA:109,0,1,1
-BRDA:126,0,0,1
-BRDA:126,0,1,1
-BRDA:126,0,2,1
-BRDA:126,0,3,1
-BRDA:166,0,0,1
-BRDA:166,0,1,0
-BRDA:166,0,2,0
-BRDA:166,0,3,1
-BRDA:169,0,0,1
-BRDA:169,0,1,0
-BRDA:169,0,2,1
-BRDA:169,0,3,0
-BRDA:169,0,4,0
-BRDA:169,0,5,1
-BRDA:176,0,0,1
-BRDA:176,0,1,0
-BRDA:176,0,2,0
-BRDA:176,0,3,1
-BRDA:183,0,0,1
-BRDA:183,0,1,0
-BRDA:183,0,2,0
-BRDA:183,0,3,1
-BRDA:194,0,0,1
-BRDA:194,0,1,1
-BRDA:206,0,0,1
-BRDA:206,0,1,1
+BRDA:109,0,1,0
+BRDA:114,0,0,1
+BRDA:114,0,1,0
+BRDA:114,0,2,0
+BRDA:114,0,3,1
+BRDA:115,0,0,1
+BRDA:115,0,1,0
+BRDA:115,0,2,0
+BRDA:115,0,3,1
+BRDA:117,0,0,1
+BRDA:117,0,1,1
+BRDA:117,0,2,1
+BRDA:117,0,3,0
+BRDA:124,0,0,1
+BRDA:124,0,1,1
+BRDA:137,0,0,1
+BRDA:137,0,1,1
+BRDA:139,0,0,1
+BRDA:139,0,1,1
+BRDA:146,0,0,0
+BRDA:146,0,1,1
+BRDA:147,0,0,1
+BRDA:147,0,1,0
+BRDA:147,0,2,0
+BRDA:147,0,3,1
+BRDA:148,0,0,1
+BRDA:148,0,1,1
+BRDA:148,0,2,1
+BRDA:148,0,3,1
+BRDA:152,0,0,1
+BRDA:152,0,1,0
+BRDA:155,0,0,1
+BRDA:155,0,1,1
+BRDA:177,0,0,-
+BRDA:177,0,1,-
+BRDA:188,0,0,-
+BRDA:188,0,1,-
+BRDA:193,0,0,1
+BRDA:193,0,1,1
+BRDA:193,0,2,1
+BRDA:193,0,3,1
+BRDA:208,0,0,1
+BRDA:208,0,1,1
+BRDA:208,0,2,1
+BRDA:208,0,3,1
+BRDA:217,0,0,1
+BRDA:217,0,1,1
+BRDA:217,0,2,1
+BRDA:217,0,3,1
+BRDA:218,0,0,1
+BRDA:218,0,1,0
+BRDA:218,0,2,1
+BRDA:218,0,3,0
+BRDA:218,0,4,0
+BRDA:218,0,5,1
+BRDA:219,0,0,1
+BRDA:219,0,1,1
+BRDA:219,0,2,1
+BRDA:219,0,3,1
+BRDA:219,0,4,1
+BRDA:219,0,5,1
+BRDA:240,0,0,1
+BRDA:240,0,1,0
+BRDA:240,0,2,0
+BRDA:240,0,3,1
+BRDA:243,0,0,1
+BRDA:243,0,1,0
+BRDA:243,0,2,1
+BRDA:243,0,3,0
+BRDA:243,0,4,0
+BRDA:243,0,5,1
+BRDA:250,0,0,1
+BRDA:250,0,1,0
+BRDA:250,0,2,0
+BRDA:250,0,3,1
+BRDA:257,0,0,1
+BRDA:257,0,1,0
+BRDA:257,0,2,0
+BRDA:257,0,3,1
+BRDA:268,0,0,1
+BRDA:268,0,1,1
+BRDA:280,0,0,1
+BRDA:280,0,1,1
 DA:14,1
-DA:16,1
-DA:18,1
+DA:15,1
+DA:17,1
 DA:19,1
 DA:21,1
-DA:22,1
 DA:25,1
-DA:29,1
 DA:31,1
+DA:32,1
 DA:33,1
-DA:35,1
+DA:34,1
+DA:36,1
 DA:37,1
-DA:41,1
-DA:42,1
-DA:43,1
+DA:39,1
+DA:40,1
+DA:44,1
+DA:46,1
 DA:48,1
-DA:49,1
-DA:50,1
 DA:51,1
-DA:56,1
+DA:52,1
+DA:53,0
+DA:57,1
 DA:58,1
-DA:60,1
-DA:62,1
+DA:59,0
+DA:64,1
+DA:65,1
 DA:66,1
+DA:67,1
 DA:68,1
-DA:73,1
-DA:74,1
-DA:83,1
-DA:84,1
+DA:70,0
+DA:71,0
+DA:72,0
+DA:77,1
+DA:78,1
+DA:79,0
+DA:80,0
 DA:85,1
-DA:86,1
-DA:95,1
-DA:96,1
-DA:100,1
-DA:104,1
-DA:105,1
-DA:107,1
+DA:87,1
+DA:89,1
+DA:92,1
+DA:93,1
+DA:98,1
+DA:99,1
+DA:103,1
 DA:108,1
 DA:109,1
-DA:113,0
+DA:114,1
+DA:115,1
 DA:116,1
-DA:119,1
-DA:122,1
-DA:126,1
-DA:127,1
+DA:117,1
+DA:118,1
+DA:123,1
+DA:124,1
+DA:125,1
+DA:129,1
+DA:133,1
+DA:136,1
+DA:137,1
 DA:138,1
-DA:142,1
-DA:145,1
+DA:139,1
+DA:143,0
+DA:146,1
 DA:147,1
-DA:151,1
+DA:148,1
 DA:152,1
-DA:163,1
-DA:165,1
-DA:166,1
-DA:167,1
-DA:168,1
-DA:169,1
-DA:170,0
-DA:172,1
+DA:155,1
+DA:158,1
+DA:161,1
+DA:164,1
 DA:176,1
 DA:177,1
 DA:178,1
-DA:183,1
-DA:184,1
-DA:185,1
+DA:187,1
 DA:188,1
 DA:189,1
 DA:193,1
 DA:194,1
-DA:195,1
-DA:197,1
-DA:199,1
+DA:201,1
 DA:205,1
-DA:206,1
-DA:207,1
-LH:73
-LF:75
+DA:208,1
+DA:211,1
+DA:213,1
+DA:217,1
+DA:218,1
+DA:219,1
+DA:220,1
+DA:225,1
+DA:226,1
+DA:237,1
+DA:239,1
+DA:240,1
+DA:241,1
+DA:242,1
+DA:243,1
+DA:244,0
+DA:246,1
+DA:250,1
+DA:251,1
+DA:252,1
+DA:257,1
+DA:258,1
+DA:259,1
+DA:262,1
+DA:263,1
+DA:267,1
+DA:268,1
+DA:269,1
+DA:271,1
+DA:273,1
+DA:279,1
+DA:280,1
+DA:281,1
+LH:102
+LF:111
 end_of_record
 SF:simulator/CompactFieldMap.kt
 FN:12,fourward/simulator/CompactFieldMap::<init> ([Ljava/lang/String;[Lfourward/simulator/Value;)V
@@ -10043,203 +10147,208 @@ FN:18,fourward/simulator/BitVal::<init> (Lfourward/simulator/BitVector;)V
 FNDA:1,fourward/simulator/BitVal::<init> (Lfourward/simulator/BitVector;)V
 FN:18,fourward/simulator/BitVal::getBits ()Lfourward/simulator/BitVector;
 FNDA:1,fourward/simulator/BitVal::getBits ()Lfourward/simulator/BitVector;
-FN:19,fourward/simulator/BitVal::<init> (JI)V
+FN:22,fourward/simulator/BitVal::<init> (JI)V
 FNDA:1,fourward/simulator/BitVal::<init> (JI)V
-FN:21,fourward/simulator/BitVal::<init> (II)V
+FN:27,fourward/simulator/BitVal::<init> (II)V
 FNDA:1,fourward/simulator/BitVal::<init> (II)V
-FN:44,fourward/simulator/BoolVal::<init> (Z)V
+FN:50,fourward/simulator/BoolVal::<init> (Z)V
 FNDA:1,fourward/simulator/BoolVal::<init> (Z)V
-FN:44,fourward/simulator/BoolVal::getValue ()Z
+FN:50,fourward/simulator/BoolVal::getValue ()Z
 FNDA:1,fourward/simulator/BoolVal::getValue ()Z
-FN:46,fourward/simulator/BoolVal::<clinit> ()V
+FN:52,fourward/simulator/BoolVal::<clinit> ()V
 FNDA:1,fourward/simulator/BoolVal::<clinit> ()V
-FN:46,fourward/simulator/BoolVal$Companion::getTRUE ()Lfourward/simulator/BoolVal;
+FN:52,fourward/simulator/BoolVal$Companion::getTRUE ()Lfourward/simulator/BoolVal;
 FNDA:0,fourward/simulator/BoolVal$Companion::getTRUE ()Lfourward/simulator/BoolVal;
-FN:47,fourward/simulator/BoolVal$Companion::getFALSE ()Lfourward/simulator/BoolVal;
+FN:53,fourward/simulator/BoolVal$Companion::getFALSE ()Lfourward/simulator/BoolVal;
 FNDA:0,fourward/simulator/BoolVal$Companion::getFALSE ()Lfourward/simulator/BoolVal;
-FN:55,fourward/simulator/EnumVal::<init> (Ljava/lang/String;)V
+FN:61,fourward/simulator/EnumVal::<init> (Ljava/lang/String;)V
 FNDA:1,fourward/simulator/EnumVal::<init> (Ljava/lang/String;)V
-FN:55,fourward/simulator/EnumVal::getMember ()Ljava/lang/String;
+FN:61,fourward/simulator/EnumVal::getMember ()Ljava/lang/String;
 FNDA:1,fourward/simulator/EnumVal::getMember ()Ljava/lang/String;
-FN:52,fourward/simulator/ErrorVal::<init> (Ljava/lang/String;)V
+FN:58,fourward/simulator/ErrorVal::<init> (Ljava/lang/String;)V
 FNDA:1,fourward/simulator/ErrorVal::<init> (Ljava/lang/String;)V
-FN:52,fourward/simulator/ErrorVal::getMember ()Ljava/lang/String;
+FN:58,fourward/simulator/ErrorVal::getMember ()Ljava/lang/String;
 FNDA:1,fourward/simulator/ErrorVal::getMember ()Ljava/lang/String;
-FN:157,fourward/simulator/HeaderStackVal::<init> (Ljava/lang/String;Ljava/util/List;I)V
+FN:163,fourward/simulator/HeaderStackVal::<init> (Ljava/lang/String;Ljava/util/List;I)V
 FNDA:1,fourward/simulator/HeaderStackVal::<init> (Ljava/lang/String;Ljava/util/List;I)V
-FN:157,fourward/simulator/HeaderStackVal::<init> (Ljava/lang/String;Ljava/util/List;IILkotlin/jvm/internal/DefaultConstructorMarker;)V
+FN:163,fourward/simulator/HeaderStackVal::<init> (Ljava/lang/String;Ljava/util/List;IILkotlin/jvm/internal/DefaultConstructorMarker;)V
 FNDA:1,fourward/simulator/HeaderStackVal::<init> (Ljava/lang/String;Ljava/util/List;IILkotlin/jvm/internal/DefaultConstructorMarker;)V
-FN:158,fourward/simulator/HeaderStackVal::getElementTypeName ()Ljava/lang/String;
+FN:164,fourward/simulator/HeaderStackVal::getElementTypeName ()Ljava/lang/String;
 FNDA:1,fourward/simulator/HeaderStackVal::getElementTypeName ()Ljava/lang/String;
-FN:159,fourward/simulator/HeaderStackVal::getHeaders ()Ljava/util/List;
+FN:165,fourward/simulator/HeaderStackVal::getHeaders ()Ljava/util/List;
 FNDA:1,fourward/simulator/HeaderStackVal::getHeaders ()Ljava/util/List;
-FN:160,fourward/simulator/HeaderStackVal::getNextIndex ()I
+FN:166,fourward/simulator/HeaderStackVal::getNextIndex ()I
 FNDA:1,fourward/simulator/HeaderStackVal::getNextIndex ()I
-FN:160,fourward/simulator/HeaderStackVal::setNextIndex (I)V
+FN:166,fourward/simulator/HeaderStackVal::setNextIndex (I)V
 FNDA:1,fourward/simulator/HeaderStackVal::setNextIndex (I)V
-FN:163,fourward/simulator/HeaderStackVal::getSize ()I
+FN:169,fourward/simulator/HeaderStackVal::getSize ()I
 FNDA:1,fourward/simulator/HeaderStackVal::getSize ()I
-FN:166,fourward/simulator/HeaderStackVal::deepCopy ()Lfourward/simulator/HeaderStackVal;
+FN:172,fourward/simulator/HeaderStackVal::deepCopy ()Lfourward/simulator/HeaderStackVal;
 FNDA:1,fourward/simulator/HeaderStackVal::deepCopy ()Lfourward/simulator/HeaderStackVal;
-FN:66,fourward/simulator/HeaderVal::<init> (Ljava/lang/String;Ljava/util/Map;Z)V
+FN:72,fourward/simulator/HeaderVal::<init> (Ljava/lang/String;Ljava/util/Map;Z)V
 FNDA:1,fourward/simulator/HeaderVal::<init> (Ljava/lang/String;Ljava/util/Map;Z)V
-FN:66,fourward/simulator/HeaderVal::<init> (Ljava/lang/String;Ljava/util/Map;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+FN:72,fourward/simulator/HeaderVal::<init> (Ljava/lang/String;Ljava/util/Map;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
 FNDA:1,fourward/simulator/HeaderVal::<init> (Ljava/lang/String;Ljava/util/Map;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
-FN:67,fourward/simulator/HeaderVal::getTypeName ()Ljava/lang/String;
+FN:73,fourward/simulator/HeaderVal::getTypeName ()Ljava/lang/String;
 FNDA:1,fourward/simulator/HeaderVal::getTypeName ()Ljava/lang/String;
-FN:68,fourward/simulator/HeaderVal::getFields ()Ljava/util/Map;
+FN:74,fourward/simulator/HeaderVal::getFields ()Ljava/util/Map;
 FNDA:1,fourward/simulator/HeaderVal::getFields ()Ljava/util/Map;
-FN:69,fourward/simulator/HeaderVal::getValid ()Z
+FN:75,fourward/simulator/HeaderVal::getValid ()Z
 FNDA:1,fourward/simulator/HeaderVal::getValid ()Z
-FN:69,fourward/simulator/HeaderVal::setValid (Z)V
+FN:75,fourward/simulator/HeaderVal::setValid (Z)V
 FNDA:1,fourward/simulator/HeaderVal::setValid (Z)V
-FN:74,fourward/simulator/HeaderVal::setValid (Ljava/util/Map;)V
+FN:80,fourward/simulator/HeaderVal::setValid (Ljava/util/Map;)V
 FNDA:1,fourward/simulator/HeaderVal::setValid (Ljava/util/Map;)V
-FN:84,fourward/simulator/HeaderVal::setInvalid ()V
+FN:90,fourward/simulator/HeaderVal::setInvalid ()V
 FNDA:1,fourward/simulator/HeaderVal::setInvalid ()V
-FN:96,fourward/simulator/HeaderVal::copy ()Lfourward/simulator/HeaderVal;
+FN:102,fourward/simulator/HeaderVal::copy ()Lfourward/simulator/HeaderVal;
 FNDA:1,fourward/simulator/HeaderVal::copy ()Lfourward/simulator/HeaderVal;
-FN:104,fourward/simulator/HeaderVal::deepCopy ()Lfourward/simulator/HeaderVal;
+FN:110,fourward/simulator/HeaderVal::deepCopy ()Lfourward/simulator/HeaderVal;
 FNDA:1,fourward/simulator/HeaderVal::deepCopy ()Lfourward/simulator/HeaderVal;
-FN:107,fourward/simulator/HeaderVal::copyFields ()Ljava/util/Map;
+FN:113,fourward/simulator/HeaderVal::copyFields ()Ljava/util/Map;
 FNDA:1,fourward/simulator/HeaderVal::copyFields ()Ljava/util/Map;
-FN:88,fourward/simulator/HeaderVal$setInvalid$1::apply (Ljava/lang/String;Lfourward/simulator/Value;)Lfourward/simulator/Value;
+FN:94,fourward/simulator/HeaderVal$setInvalid$1::apply (Ljava/lang/String;Lfourward/simulator/Value;)Lfourward/simulator/Value;
 FNDA:1,fourward/simulator/HeaderVal$setInvalid$1::apply (Ljava/lang/String;Lfourward/simulator/Value;)Lfourward/simulator/Value;
-FN:30,fourward/simulator/InfIntVal::<init> (Ljava/math/BigInteger;)V
+FN:36,fourward/simulator/InfIntVal::<init> (Ljava/math/BigInteger;)V
 FNDA:1,fourward/simulator/InfIntVal::<init> (Ljava/math/BigInteger;)V
-FN:30,fourward/simulator/InfIntVal::getValue ()Ljava/math/BigInteger;
+FN:36,fourward/simulator/InfIntVal::getValue ()Ljava/math/BigInteger;
 FNDA:1,fourward/simulator/InfIntVal::getValue ()Ljava/math/BigInteger;
-FN:33,fourward/simulator/InfIntVal::toBitVal (I)Lfourward/simulator/BitVal;
+FN:39,fourward/simulator/InfIntVal::toBitVal (I)Lfourward/simulator/BitVal;
 FNDA:1,fourward/simulator/InfIntVal::toBitVal (I)Lfourward/simulator/BitVal;
-FN:37,fourward/simulator/InfIntVal::toIntVal (I)Lfourward/simulator/IntVal;
+FN:43,fourward/simulator/InfIntVal::toIntVal (I)Lfourward/simulator/IntVal;
 FNDA:0,fourward/simulator/InfIntVal::toIntVal (I)Lfourward/simulator/IntVal;
-FN:41,fourward/simulator/IntVal::<init> (Lfourward/simulator/SignedBitVector;)V
+FN:47,fourward/simulator/IntVal::<init> (Lfourward/simulator/SignedBitVector;)V
 FNDA:1,fourward/simulator/IntVal::<init> (Lfourward/simulator/SignedBitVector;)V
-FN:41,fourward/simulator/IntVal::getBits ()Lfourward/simulator/SignedBitVector;
+FN:47,fourward/simulator/IntVal::getBits ()Lfourward/simulator/SignedBitVector;
 FNDA:1,fourward/simulator/IntVal::getBits ()Lfourward/simulator/SignedBitVector;
-FN:58,fourward/simulator/StringVal::<init> (Ljava/lang/String;)V
+FN:64,fourward/simulator/StringVal::<init> (Ljava/lang/String;)V
 FNDA:1,fourward/simulator/StringVal::<init> (Ljava/lang/String;)V
-FN:58,fourward/simulator/StringVal::getValue ()Ljava/lang/String;
+FN:64,fourward/simulator/StringVal::getValue ()Ljava/lang/String;
 FNDA:1,fourward/simulator/StringVal::getValue ()Ljava/lang/String;
-FN:114,fourward/simulator/StructVal::<init> (Ljava/lang/String;Ljava/util/Map;)V
+FN:120,fourward/simulator/StructVal::<init> (Ljava/lang/String;Ljava/util/Map;)V
 FNDA:1,fourward/simulator/StructVal::<init> (Ljava/lang/String;Ljava/util/Map;)V
-FN:114,fourward/simulator/StructVal::<init> (Ljava/lang/String;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+FN:120,fourward/simulator/StructVal::<init> (Ljava/lang/String;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 FNDA:0,fourward/simulator/StructVal::<init> (Ljava/lang/String;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-FN:114,fourward/simulator/StructVal::getTypeName ()Ljava/lang/String;
+FN:120,fourward/simulator/StructVal::getTypeName ()Ljava/lang/String;
 FNDA:1,fourward/simulator/StructVal::getTypeName ()Ljava/lang/String;
-FN:114,fourward/simulator/StructVal::getFields ()Ljava/util/Map;
+FN:120,fourward/simulator/StructVal::getFields ()Ljava/util/Map;
 FNDA:1,fourward/simulator/StructVal::getFields ()Ljava/util/Map;
-FN:116,fourward/simulator/StructVal::copy ()Lfourward/simulator/StructVal;
+FN:122,fourward/simulator/StructVal::copy ()Lfourward/simulator/StructVal;
 FNDA:0,fourward/simulator/StructVal::copy ()Lfourward/simulator/StructVal;
-FN:119,fourward/simulator/StructVal::deepCopy ()Lfourward/simulator/StructVal;
+FN:125,fourward/simulator/StructVal::deepCopy ()Lfourward/simulator/StructVal;
 FNDA:1,fourward/simulator/StructVal::deepCopy ()Lfourward/simulator/StructVal;
-FN:126,fourward/simulator/StructVal::isUnionValid ()Z
+FN:132,fourward/simulator/StructVal::isUnionValid ()Z
 FNDA:1,fourward/simulator/StructVal::isUnionValid ()Z
-FN:130,fourward/simulator/StructVal::invalidateUnion ()V
+FN:136,fourward/simulator/StructVal::invalidateUnion ()V
 FNDA:0,fourward/simulator/StructVal::invalidateUnion ()V
-FN:135,fourward/simulator/StructVal::invalidateUnionExcept (Lfourward/simulator/HeaderVal;)V
+FN:141,fourward/simulator/StructVal::invalidateUnionExcept (Lfourward/simulator/HeaderVal;)V
 FNDA:1,fourward/simulator/StructVal::invalidateUnionExcept (Lfourward/simulator/HeaderVal;)V
-FN:140,fourward/simulator/StructVal::setBitField (Ljava/lang/String;J)V
+FN:146,fourward/simulator/StructVal::setBitField (Ljava/lang/String;J)V
 FNDA:1,fourward/simulator/StructVal::setBitField (Ljava/lang/String;J)V
-FN:146,fourward/simulator/StructVal::bitWidth (Ljava/lang/String;)I
+FN:152,fourward/simulator/StructVal::bitWidth (Ljava/lang/String;)I
 FNDA:1,fourward/simulator/StructVal::bitWidth (Ljava/lang/String;)I
-FN:170,fourward/simulator/UnitVal::<init> ()V
+FN:176,fourward/simulator/UnitVal::<init> ()V
 FNDA:1,fourward/simulator/UnitVal::<init> ()V
 FN:14,fourward/simulator/Value::deepCopy ()Lfourward/simulator/Value;
 FNDA:1,fourward/simulator/Value::deepCopy ()Lfourward/simulator/Value;
-FN:181,fourward/simulator/ValuesKt::asStructVal (Lfourward/simulator/Value;)Lfourward/simulator/StructVal;
+FN:187,fourward/simulator/ValuesKt::asStructVal (Lfourward/simulator/Value;)Lfourward/simulator/StructVal;
 FNDA:1,fourward/simulator/ValuesKt::asStructVal (Lfourward/simulator/Value;)Lfourward/simulator/StructVal;
-BRDA:107,0,0,1
-BRDA:107,0,1,1
-BRDA:89,0,0,1
-BRDA:89,0,1,1
-BRDA:90,0,0,1
-BRDA:90,0,1,1
-BRDA:126,0,0,1
-BRDA:126,0,1,0
-BRDA:126,0,2,0
-BRDA:126,0,3,1
-BRDA:130,0,0,-
-BRDA:130,0,1,-
-BRDA:135,0,0,1
-BRDA:135,0,1,0
-BRDA:135,0,2,1
-BRDA:135,0,3,1
-BRDA:140,0,0,1
-BRDA:140,0,1,0
-BRDA:140,0,2,0
-BRDA:140,0,3,1
+BRDA:23,0,0,1
+BRDA:23,0,1,1
+BRDA:113,0,0,1
+BRDA:113,0,1,1
+BRDA:95,0,0,1
+BRDA:95,0,1,1
+BRDA:96,0,0,1
+BRDA:96,0,1,1
+BRDA:132,0,0,1
+BRDA:132,0,1,0
+BRDA:132,0,2,0
+BRDA:132,0,3,1
+BRDA:136,0,0,-
+BRDA:136,0,1,-
+BRDA:141,0,0,1
+BRDA:141,0,1,0
+BRDA:141,0,2,1
+BRDA:141,0,3,1
 BRDA:146,0,0,1
 BRDA:146,0,1,0
 BRDA:146,0,2,0
 BRDA:146,0,3,1
-BRDA:182,0,0,1
-BRDA:182,0,1,1
-BRDA:183,0,0,1
-BRDA:183,0,1,0
+BRDA:152,0,0,1
+BRDA:152,0,1,0
+BRDA:152,0,2,0
+BRDA:152,0,3,1
+BRDA:188,0,0,1
+BRDA:188,0,1,1
+BRDA:189,0,0,1
+BRDA:189,0,1,0
 DA:14,1
 DA:18,1
-DA:19,1
-DA:21,1
-DA:30,1
-DA:33,1
-DA:37,0
-DA:41,1
-DA:44,1
-DA:46,1
+DA:22,1
+DA:23,1
+DA:24,1
+DA:25,1
+DA:27,1
+DA:36,1
+DA:39,1
+DA:43,0
 DA:47,1
+DA:50,1
 DA:52,1
-DA:55,1
+DA:53,1
 DA:58,1
-DA:66,1
-DA:67,1
-DA:68,1
-DA:69,1
-DA:70,1
+DA:61,1
+DA:64,1
+DA:72,1
+DA:73,1
 DA:74,1
 DA:75,1
 DA:76,1
-DA:77,1
-DA:84,1
-DA:87,1
-DA:88,1
-DA:89,1
+DA:80,1
+DA:81,1
+DA:82,1
+DA:83,1
 DA:90,1
-DA:91,1
-DA:92,1
+DA:93,1
 DA:94,1
+DA:95,1
 DA:96,1
-DA:104,1
-DA:107,1
-DA:114,1
-DA:116,0
-DA:119,1
+DA:97,1
+DA:98,1
+DA:100,1
+DA:102,1
+DA:110,1
+DA:113,1
 DA:120,1
-DA:122,1
-DA:123,1
+DA:122,0
+DA:125,1
 DA:126,1
-DA:130,0
-DA:131,0
-DA:135,1
-DA:136,1
-DA:140,1
+DA:128,1
+DA:129,1
+DA:132,1
+DA:136,0
+DA:137,0
 DA:141,1
 DA:142,1
 DA:146,1
 DA:147,1
-DA:157,1
-DA:158,1
-DA:159,1
-DA:160,1
-DA:161,1
+DA:148,1
+DA:152,1
+DA:153,1
 DA:163,1
+DA:164,1
+DA:165,1
 DA:166,1
-DA:170,1
-DA:181,1
-DA:182,1
-DA:183,1
-DA:184,0
-DA:185,1
-LH:58
-LF:63
+DA:167,1
+DA:169,1
+DA:172,1
+DA:176,1
+DA:187,1
+DA:188,1
+DA:189,1
+DA:190,0
+DA:191,1
+LH:61
+LF:66
 end_of_record
