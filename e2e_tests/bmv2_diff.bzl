@@ -59,7 +59,6 @@ def bmv2_diff_test_suite(name, tests, local_tests = {}, tags = [], includes = []
         tags = tags,
         data = data,
         deps = [
-            "//e2e_tests:runfiles_helper",
             "//simulator:ir_java_proto",
             "//simulator:p4info_java_proto",
             "//simulator:simulator_java_proto",

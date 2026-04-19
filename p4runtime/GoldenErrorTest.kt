@@ -24,6 +24,7 @@ import fourward.p4runtime.P4RuntimeTestHarness.Companion.uint128
 import io.grpc.Status
 import io.grpc.StatusException
 import java.nio.file.Path
+import java.nio.file.Paths
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -1719,13 +1720,15 @@ class GoldenErrorTest(private val testName: String) {
       )
 
     private val VALIDATOR_BINARY: Path =
-      fourward.e2e.RunfilesHelper.rlocation("p4runtime/constraint_validator")
+      Paths.get(System.getenv("JAVA_RUNFILES") ?: ".", "_main/p4runtime/constraint_validator")
 
     private const val MCAST_ACTION_ID = 99997
 
     private const val DCTR_ID = 800
 
-    private fun goldenDir(): java.nio.file.Path =
-      fourward.e2e.RunfilesHelper.rlocation("p4runtime/golden_errors")
+    private fun goldenDir(): java.nio.file.Path {
+      val r = System.getenv("JAVA_RUNFILES") ?: "."
+      return Paths.get(r, "_main/p4runtime/golden_errors")
+    }
   }
 }

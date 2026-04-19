@@ -598,7 +598,8 @@ class P4RuntimeTestHarness(
 
     /** Loads a PipelineConfig from a Bazel runfiles-relative text proto path. */
     fun loadConfig(relativePath: String): PipelineConfig {
-      val path = fourward.e2e.RunfilesHelper.rlocation(relativePath)
+      val r = System.getenv("JAVA_RUNFILES") ?: "."
+      val path = java.nio.file.Paths.get(r, "_main/$relativePath")
       val builder = PipelineConfig.newBuilder()
       com.google.protobuf.TextFormat.merge(path.toFile().readText(), builder)
       return builder.build()

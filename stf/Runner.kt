@@ -1,6 +1,5 @@
 package fourward.stf
 
-import com.google.devtools.build.runfiles.Runfiles
 import com.google.protobuf.ByteString
 import com.google.protobuf.TextFormat
 import fourward.ir.PipelineConfig
@@ -8,8 +7,8 @@ import fourward.simulator.Simulator
 import fourward.simulator.WriteResult
 import fourward.simulator.portToBytes
 import java.math.BigInteger
-import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.Paths
 import p4.config.v1.P4InfoOuterClass
 import p4.v1.P4RuntimeOuterClass
 
@@ -200,28 +199,16 @@ sealed class TestResult {
 /**
  * Runs the STF test named [testName] using the standard Bazel runfiles layout.
  *
- * Resolves `<pkg>/<testName>.txtpb` and `<pkg>/<testName>.stf` via the Bazel Runfiles library. The
- * [pkg] defaults to `e2e_tests/<testName>` (matching the per-test package layout of the regular e2e
- * tests).
+ * Looks for `_main/<pkg>/<testName>.txtpb` and `_main/<pkg>/<testName>.stf` under `JAVA_RUNFILES`.
+ * The [pkg] defaults to `e2e_tests/<testName>` (matching the per-test package layout of the regular
+ * e2e tests).
  */
-fun runStfTest(testName: String, pkg: String = "e2e_tests/$testName"): TestResult =
-  runStf(rlocation("$pkg/$testName.txtpb"), rlocation("$pkg/$testName.stf"))
-
-// Portable runfiles resolution across OSS Bazel and google3/blaze.
-private val runfiles: Runfiles? =
-  try {
-    Runfiles.preload().withSourceRepository("_main")
-  } catch (_: Exception) {
-    null
-  }
-
-private fun rlocation(repoRelativePath: String): Path {
-  runfiles?.rlocation(repoRelativePath)?.let { resolved ->
-    val path = Path.of(resolved)
-    if (Files.exists(path)) return path
-  }
-  val root = System.getenv("JAVA_RUNFILES") ?: "."
-  return Path.of(root, "_main", repoRelativePath)
+fun runStfTest(testName: String, pkg: String = "e2e_tests/$testName"): TestResult {
+  val r = System.getenv("JAVA_RUNFILES") ?: "."
+  return runStf(
+    Paths.get(r, "_main/$pkg/$testName.txtpb"),
+    Paths.get(r, "_main/$pkg/$testName.stf"),
+  )
 }
 
 fun runStf(configPath: Path, stfPath: Path): TestResult = StfRunner(configPath).run(stfPath)

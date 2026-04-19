@@ -37,7 +37,6 @@ kt_jvm_library(
         "//stf",
         "@fourward_maven//:com_google_protobuf_protobuf_java",
         "@fourward_maven//:com_google_protobuf_protobuf_java_util",
-        "@rules_java//java/runfiles",
     ],
 )
 
