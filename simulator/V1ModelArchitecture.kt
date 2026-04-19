@@ -254,58 +254,18 @@ class V1ModelArchitecture(
       }
 
       if (selectorFork.duringIngress) {
-        // Fork was in ingress — run the full post-ingress pipeline.
+        // Fork was in ingress — run boundary + egress + deparser.
         ingressEgressBoundary(ctx, s, decisions, 0)
         if (egressPortIsDropPort(s)) {
           return buildDropTrace(s.packetCtx.getEvents(), DropReason.MARK_TO_DROP)
         }
-
-        resetEgressSpec(s)
-        runControlStages(s, s.egressControls)
-        postEgressBoundary(ctx, s, decisions)
-
-        if (decisions.branchMode is BranchMode.E2EClone) {
-          resetEgressSpec(s)
-          runControlStages(s, s.egressControls)
-        }
-
-        if (egressSpecIsDropPort(s)) {
-          return buildDropTrace(s.packetCtx.getEvents(), DropReason.MARK_TO_DROP)
-        }
-      } else {
-        // Fork was in egress — boundary already ran, just check for E2E clone.
-        postEgressBoundary(ctx, s, decisions)
-
-        if (egressSpecIsDropPort(s)) {
-          return buildDropTrace(s.packetCtx.getEvents(), DropReason.MARK_TO_DROP)
-        }
+        return runEgressAndDeparser(ctx, s)
       }
-
-      if (s.deparserStage != null) {
-        s.packetCtx.addTraceEvent(stageEvent(s.deparserStage, PipelineStageEvent.Direction.ENTER))
-        try {
-          s.interpreter.runControl(s.deparserStage.blockName, s.env)
-        } finally {
-          s.packetCtx.addTraceEvent(stageEvent(s.deparserStage, PipelineStageEvent.Direction.EXIT))
-        }
-      }
+      // Fork was in egress — remaining egress stages already ran, just finish.
+      return runPostEgressAndDeparser(ctx, s)
     } catch (_: AssertionFailureException) {
       return buildDropTrace(s.packetCtx.getEvents(), DropReason.ASSERTION_FAILURE)
     }
-
-    val outputBytes = s.packetCtx.outputPayload() + s.packetCtx.drainRemainingInput()
-
-    if (s.pendingOps.recirculate) {
-      throw RecirculateFork(
-        outputBytes,
-        s.packetCtx.getEvents(),
-        snapshotPreservedMetadata(s, s.pendingOps.recirculateFieldListId),
-      )
-    }
-
-    val egressPort =
-      (s.standardMetadata.fields["egress_port"] as? BitVal)?.bits?.value?.toInt() ?: 0
-    return buildOutputTrace(s.packetCtx.getEvents(), egressPort, outputBytes)
   }
 
   /** Handles non-selector forks (clone, multicast, resubmit, recirculate) via replay. */
@@ -620,44 +580,65 @@ class V1ModelArchitecture(
         return buildDropTrace(s.packetCtx.getEvents(), DropReason.MARK_TO_DROP)
       }
 
-      // --- Egress controls (egress, compute checksum) ---
-      // BMv2: egress_spec starts matching egress_port for each egress run. This
-      // ensures mark_to_drop() during egress is the only way to set the drop port,
-      // regardless of what ingress or a prior egress run left in egress_spec.
-      resetEgressSpec(s)
-      runControlStages(s, s.egressControls)
-
-      // --- Post-egress boundary (E2E clone / recirculate) ---
-      postEgressBoundary(ctx, s, decisions)
-
-      // E2E clone branch: postEgressBoundary set up clone metadata — run egress again.
-      if (decisions.branchMode is BranchMode.E2EClone) {
-        resetEgressSpec(s)
-        runControlStages(s, s.egressControls)
-      }
-
-      // mark_to_drop() called during egress (or the E2E clone's second egress run)
-      // sets egress_spec to the drop port.
-      if (egressSpecIsDropPort(s)) {
-        return buildDropTrace(s.packetCtx.getEvents(), DropReason.MARK_TO_DROP)
-      }
-
-      // --- Deparser ---
-      if (s.deparserStage != null) {
-        s.packetCtx.addTraceEvent(stageEvent(s.deparserStage, PipelineStageEvent.Direction.ENTER))
-        try {
-          s.interpreter.runControl(s.deparserStage.blockName, s.env)
-        } finally {
-          s.packetCtx.addTraceEvent(stageEvent(s.deparserStage, PipelineStageEvent.Direction.EXIT))
-        }
-      }
+      // --- Egress + deparser ---
+      return runEgressAndDeparser(ctx, s, decisions)
     } catch (_: AssertionFailureException) {
       return buildDropTrace(s.packetCtx.getEvents(), DropReason.ASSERTION_FAILURE)
     }
+  }
 
-    // Append any bytes the parser did not extract (the un-parsed packet body).
-    // In P4, the deparser emits re-serialised headers; the remaining payload
-    // is transparently forwarded after them.
+  /**
+   * Runs egress controls, post-egress boundary, deparser, and output. Called after the
+   * ingress-egress boundary has set egress_port.
+   */
+  private fun runEgressAndDeparser(
+    ctx: PipelineContext,
+    s: PipelineState,
+    decisions: V1ModelDecisions = V1ModelDecisions(),
+  ): TraceTree {
+    resetEgressSpec(s)
+    runControlStages(s, s.egressControls)
+    postEgressBoundary(ctx, s, decisions)
+
+    // E2E clone branch: postEgressBoundary set up clone metadata — run egress again.
+    if (decisions.branchMode is BranchMode.E2EClone) {
+      resetEgressSpec(s)
+      runControlStages(s, s.egressControls)
+    }
+
+    if (egressSpecIsDropPort(s)) {
+      return buildDropTrace(s.packetCtx.getEvents(), DropReason.MARK_TO_DROP)
+    }
+
+    return runDeparser(s)
+  }
+
+  /**
+   * Post-egress boundary + deparser + output. Used by [continueFromForkPoint] after resuming from a
+   * fork inside the egress controls (remaining egress stages already ran).
+   */
+  private fun runPostEgressAndDeparser(ctx: PipelineContext, s: PipelineState): TraceTree {
+    postEgressBoundary(ctx, s, V1ModelDecisions())
+
+    if (egressSpecIsDropPort(s)) {
+      return buildDropTrace(s.packetCtx.getEvents(), DropReason.MARK_TO_DROP)
+    }
+
+    return runDeparser(s)
+  }
+
+  /** Deparser + output (or recirculate). The innermost pipeline tail. */
+  @Suppress("ThrowsCount")
+  private fun runDeparser(s: PipelineState): TraceTree {
+    if (s.deparserStage != null) {
+      s.packetCtx.addTraceEvent(stageEvent(s.deparserStage, PipelineStageEvent.Direction.ENTER))
+      try {
+        s.interpreter.runControl(s.deparserStage.blockName, s.env)
+      } finally {
+        s.packetCtx.addTraceEvent(stageEvent(s.deparserStage, PipelineStageEvent.Direction.EXIT))
+      }
+    }
+
     val outputBytes = s.packetCtx.outputPayload() + s.packetCtx.drainRemainingInput()
 
     if (s.pendingOps.recirculate) {
