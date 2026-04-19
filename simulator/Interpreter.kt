@@ -327,6 +327,25 @@ class Interpreter internal constructor(config: BehavioralConfig) {
       withLocalScope(control.localVarsList, env) { execBlock(control.applyBodyList, env) }
     }
 
+    /**
+     * Resumes from an action selector fork point: executes the selected member's action, then the
+     * continuation (remaining statements captured as the fork propagated through [execBlock]). The
+     * caller must pop the control scope afterwards.
+     */
+    fun resumeFromFork(
+      fork: ActionSelectorFork,
+      member: TableStore.MemberAction,
+      env: Environment,
+    ) {
+      currentSourceInfo = fork.sourceInfo
+      val tableBehavior = tables[fork.tableName] ?: error("unknown table: ${fork.tableName}")
+      val resolvedName = tableBehavior.actionOverridesMap[member.actionName] ?: member.actionName
+      execAction(resolvedName, member.params, env)
+      for (stmts in fork.remainingStmts) {
+        execBlock(stmts, env)
+      }
+    }
+
     /** Pushes a scope, defines [localVars], runs [body], then pops the scope. */
     private inline fun withLocalScope(
       localVars: List<fourward.ir.VarDecl>,
@@ -352,7 +371,15 @@ class Interpreter internal constructor(config: BehavioralConfig) {
     // -------------------------------------------------------------------------
 
     private fun execBlock(stmts: List<Stmt>, env: Environment) {
-      for (stmt in stmts) execStmt(stmt, env)
+      for ((i, stmt) in stmts.withIndex()) {
+        try {
+          execStmt(stmt, env)
+        } catch (fork: ActionSelectorFork) {
+          // Capture the continuation: statements after the fork in this block.
+          fork.remainingStmts.addLast(stmts.subList(i + 1, stmts.size))
+          throw fork
+        }
+      }
     }
 
     private fun execStmt(stmt: Stmt, env: Environment) {
@@ -857,12 +884,14 @@ class Interpreter internal constructor(config: BehavioralConfig) {
           execAction(resolvedMember, member.params, env)
           return TableResult(result.hit, member.actionName)
         }
-        // First encounter: throw to let the architecture build the trace tree.
+        // First encounter: capture state and throw to let the architecture fork.
         throw ActionSelectorFork(
           tableName,
           result.members,
           packetCtx!!.getEvents(),
-          recordedLookups.toMap(),
+          env.deepCopy(),
+          packetCtx!!.bytesConsumed,
+          currentSourceInfo,
         )
       }
 
@@ -1415,11 +1444,25 @@ class ReturnException(val value: Value) : Exception()
  */
 sealed class ForkException(val eventsBeforeFork: List<TraceEvent>) : Exception()
 
-/** Fork at an action selector group hit — one branch per group member. */
+/**
+ * Fork at an action selector group hit — one branch per group member.
+ *
+ * Carries the full interpreter state at the fork point so each branch can continue from there
+ * (fork-on-write) instead of replaying the entire pipeline.
+ */
 class ActionSelectorFork(
   val tableName: String,
   val members: List<TableStore.MemberAction>,
   eventsBeforeFork: List<TraceEvent>,
-  /** Table lookup results from before the fork point, for caching in re-executions. */
-  val preForkLookups: Map<String, TableStore.LookupResult> = emptyMap(),
+  /** Deep copy of the environment at the fork point — each branch restores from this. */
+  val forkPointEnv: Environment,
+  /** Parser buffer position at the fork point. */
+  val bytesConsumed: Int,
+  /** Source info at the fork point (the table apply statement), for trace events in branches. */
+  val sourceInfo: fourward.ir.SourceInfo? = null,
+  /**
+   * Continuation: remaining statements at each block nesting level (innermost first). Populated as
+   * the exception propagates through [Interpreter.Execution.execBlock].
+   */
+  val remainingStmts: ArrayDeque<List<fourward.ir.Stmt>> = ArrayDeque(),
 ) : ForkException(eventsBeforeFork)
