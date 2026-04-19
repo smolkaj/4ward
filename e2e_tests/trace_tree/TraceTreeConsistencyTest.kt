@@ -88,10 +88,11 @@ class TraceTreeConsistencyTest(private val testName: String) {
 
   /** Recursively collects all leaf [PacketOutcome]s from a trace tree. */
   private fun collectLeafOutcomes(tree: TraceTree): List<PacketOutcome> =
-    when {
-      tree.hasPacketOutcome() -> listOf(tree.packetOutcome)
-      tree.hasForkOutcome() ->
+    when (tree.outcomeCase) {
+      TraceTree.OutcomeCase.PACKET_OUTCOME -> listOf(tree.packetOutcome)
+      TraceTree.OutcomeCase.FORK_OUTCOME ->
         tree.forkOutcome.branchesList.flatMap { collectLeafOutcomes(it.subtree) }
-      else -> emptyList()
+      TraceTree.OutcomeCase.OUTCOME_NOT_SET,
+      null -> emptyList()
     }
 }

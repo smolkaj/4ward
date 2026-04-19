@@ -537,8 +537,8 @@ class P4RuntimeService(
     }
 
     val translatedPre =
-      when {
-        pre.hasMulticastGroupEntry() -> {
+      when (pre.typeCase) {
+        P4RuntimeOuterClass.PacketReplicationEngineEntry.TypeCase.MULTICAST_GROUP_ENTRY -> {
           val group = pre.multicastGroupEntry
           val translated = group.replicasList.map { translateReplica(it) }
           pre
@@ -546,7 +546,7 @@ class P4RuntimeService(
             .setMulticastGroupEntry(group.toBuilder().clearReplicas().addAllReplicas(translated))
             .build()
         }
-        pre.hasCloneSessionEntry() -> {
+        P4RuntimeOuterClass.PacketReplicationEngineEntry.TypeCase.CLONE_SESSION_ENTRY -> {
           val session = pre.cloneSessionEntry
           val translated = session.replicasList.map { translateReplica(it) }
           pre
@@ -554,7 +554,8 @@ class P4RuntimeService(
             .setCloneSessionEntry(session.toBuilder().clearReplicas().addAllReplicas(translated))
             .build()
         }
-        else -> return update
+        P4RuntimeOuterClass.PacketReplicationEngineEntry.TypeCase.TYPE_NOT_SET,
+        null -> return update
       }
     return update
       .toBuilder()
@@ -644,14 +645,16 @@ class P4RuntimeService(
 
       try {
         requests.collect { msg ->
-          when {
-            msg.hasArbitration() ->
+          when (msg.updateCase) {
+            StreamMessageRequest.UpdateCase.ARBITRATION ->
               send(handleArbitration(streamId, msg.arbitration, notifications))
-            msg.hasPacket() -> handlePacketOut(msg.packet)
-            msg.hasDigestAck() ->
+            StreamMessageRequest.UpdateCase.PACKET -> handlePacketOut(msg.packet)
+            StreamMessageRequest.UpdateCase.DIGEST_ACK ->
               throw Status.UNIMPLEMENTED.withDescription(DIGEST_NOT_SUPPORTED).asException()
             // P4Runtime spec §16: unrecognized stream messages get an error response.
-            else ->
+            StreamMessageRequest.UpdateCase.OTHER,
+            StreamMessageRequest.UpdateCase.UPDATE_NOT_SET,
+            null ->
               send(
                 StreamMessageResponse.newBuilder()
                   .setError(
@@ -1023,12 +1026,24 @@ class P4RuntimeService(
 
   /** Rejects entity types that are documented but not implemented. */
   private fun rejectUnsupportedEntity(entity: P4RuntimeOuterClass.Entity) {
-    when {
-      entity.hasDigestEntry() ->
+    when (entity.entityCase) {
+      P4RuntimeOuterClass.Entity.EntityCase.DIGEST_ENTRY ->
         throw Status.UNIMPLEMENTED.withDescription(DIGEST_NOT_SUPPORTED).asException()
-      // ValueSetEntry is now handled via the normal write/read path in TableStore.
-      entity.hasExternEntry() ->
+      P4RuntimeOuterClass.Entity.EntityCase.EXTERN_ENTRY ->
         throw Status.UNIMPLEMENTED.withDescription(EXTERN_ENTRY_NOT_SUPPORTED).asException()
+      // All other entity types are handled via the normal write/read path.
+      P4RuntimeOuterClass.Entity.EntityCase.TABLE_ENTRY,
+      P4RuntimeOuterClass.Entity.EntityCase.ACTION_PROFILE_MEMBER,
+      P4RuntimeOuterClass.Entity.EntityCase.ACTION_PROFILE_GROUP,
+      P4RuntimeOuterClass.Entity.EntityCase.COUNTER_ENTRY,
+      P4RuntimeOuterClass.Entity.EntityCase.DIRECT_COUNTER_ENTRY,
+      P4RuntimeOuterClass.Entity.EntityCase.METER_ENTRY,
+      P4RuntimeOuterClass.Entity.EntityCase.DIRECT_METER_ENTRY,
+      P4RuntimeOuterClass.Entity.EntityCase.REGISTER_ENTRY,
+      P4RuntimeOuterClass.Entity.EntityCase.PACKET_REPLICATION_ENGINE_ENTRY,
+      P4RuntimeOuterClass.Entity.EntityCase.VALUE_SET_ENTRY,
+      P4RuntimeOuterClass.Entity.EntityCase.ENTITY_NOT_SET,
+      null -> {}
     }
   }
 

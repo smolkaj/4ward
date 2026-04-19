@@ -216,20 +216,30 @@ class Simulator(
   ): List<p4.v1.P4RuntimeOuterClass.Entity> {
     val tableStore = loaded().tableStore
     return filters.flatMap { entity ->
-      when {
-        entity.hasTableEntry() -> emptyList()
-        entity.hasActionProfileMember() -> tableStore.readProfileMembers(entity.actionProfileMember)
-        entity.hasActionProfileGroup() -> tableStore.readProfileGroups(entity.actionProfileGroup)
-        entity.hasRegisterEntry() -> tableStore.readRegisterEntries(entity.registerEntry)
-        entity.hasCounterEntry() -> tableStore.readCounterEntries(entity.counterEntry)
-        entity.hasMeterEntry() -> tableStore.readMeterEntries(entity.meterEntry)
-        entity.hasDirectCounterEntry() ->
+      when (entity.entityCase) {
+        p4.v1.P4RuntimeOuterClass.Entity.EntityCase.TABLE_ENTRY -> emptyList()
+        p4.v1.P4RuntimeOuterClass.Entity.EntityCase.ACTION_PROFILE_MEMBER ->
+          tableStore.readProfileMembers(entity.actionProfileMember)
+        p4.v1.P4RuntimeOuterClass.Entity.EntityCase.ACTION_PROFILE_GROUP ->
+          tableStore.readProfileGroups(entity.actionProfileGroup)
+        p4.v1.P4RuntimeOuterClass.Entity.EntityCase.REGISTER_ENTRY ->
+          tableStore.readRegisterEntries(entity.registerEntry)
+        p4.v1.P4RuntimeOuterClass.Entity.EntityCase.COUNTER_ENTRY ->
+          tableStore.readCounterEntries(entity.counterEntry)
+        p4.v1.P4RuntimeOuterClass.Entity.EntityCase.METER_ENTRY ->
+          tableStore.readMeterEntries(entity.meterEntry)
+        p4.v1.P4RuntimeOuterClass.Entity.EntityCase.DIRECT_COUNTER_ENTRY ->
           tableStore.readDirectCounterEntries(entity.directCounterEntry)
-        entity.hasDirectMeterEntry() -> tableStore.readDirectMeterEntries(entity.directMeterEntry)
-        entity.hasPacketReplicationEngineEntry() ->
+        p4.v1.P4RuntimeOuterClass.Entity.EntityCase.DIRECT_METER_ENTRY ->
+          tableStore.readDirectMeterEntries(entity.directMeterEntry)
+        p4.v1.P4RuntimeOuterClass.Entity.EntityCase.PACKET_REPLICATION_ENGINE_ENTRY ->
           tableStore.readPreEntries(entity.packetReplicationEngineEntry)
-        entity.hasValueSetEntry() -> tableStore.readValueSetEntries(entity.valueSetEntry)
-        else -> error("unsupported entity type for read: ${entity.entityCase}")
+        p4.v1.P4RuntimeOuterClass.Entity.EntityCase.VALUE_SET_ENTRY ->
+          tableStore.readValueSetEntries(entity.valueSetEntry)
+        p4.v1.P4RuntimeOuterClass.Entity.EntityCase.EXTERN_ENTRY,
+        p4.v1.P4RuntimeOuterClass.Entity.EntityCase.DIGEST_ENTRY,
+        p4.v1.P4RuntimeOuterClass.Entity.EntityCase.ENTITY_NOT_SET,
+        null -> error("unsupported entity type for read: ${entity.entityCase}")
       }
     }
   }
@@ -251,12 +261,16 @@ class Simulator(
  * from a single real execution.
  */
 fun collectPossibleOutcomes(tree: TraceTree): List<List<OutputPacket>> {
-  if (!tree.hasForkOutcome()) {
-    return if (tree.hasPacketOutcome() && tree.packetOutcome.hasOutput()) {
-      listOf(listOf(tree.packetOutcome.output))
-    } else {
-      listOf(emptyList())
-    }
+  when (tree.outcomeCase) {
+    TraceTree.OutcomeCase.PACKET_OUTCOME ->
+      return if (tree.packetOutcome.hasOutput()) {
+        listOf(listOf(tree.packetOutcome.output))
+      } else {
+        listOf(emptyList())
+      }
+    TraceTree.OutcomeCase.OUTCOME_NOT_SET,
+    null -> return listOf(emptyList())
+    TraceTree.OutcomeCase.FORK_OUTCOME -> {} // fall through to fork handling below
   }
   val fork = tree.forkOutcome
   val branchOutcomes = fork.branchesList.map { collectPossibleOutcomes(it.subtree) }

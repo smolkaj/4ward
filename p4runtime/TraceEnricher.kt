@@ -45,8 +45,8 @@ object TraceEnricher {
       }
     }
 
-    when {
-      tree.hasForkOutcome() -> {
+    when (tree.outcomeCase) {
+      TraceTree.OutcomeCase.FORK_OUTCOME -> {
         val fork = tree.forkOutcome
         for (i in 0 until fork.branchesCount) {
           val branch = fork.getBranches(i)
@@ -58,15 +58,17 @@ object TraceEnricher {
           }
         }
       }
-      tree.hasPacketOutcome() && pt != null -> {
-        val output = tree.packetOutcome.output
-        if (tree.packetOutcome.hasOutput()) {
+      TraceTree.OutcomeCase.PACKET_OUTCOME -> {
+        if (pt != null && tree.packetOutcome.hasOutput()) {
+          val output = tree.packetOutcome.output
           val p4rtPort = pt.dataplaneToP4rt(output.dataplaneEgressPort)
           if (p4rtPort != null) {
             lazyBuilder().packetOutcomeBuilder.outputBuilder.setP4RtEgressPort(p4rtPort)
           }
         }
       }
+      TraceTree.OutcomeCase.OUTCOME_NOT_SET,
+      null -> {}
     }
 
     return builder?.build() ?: tree

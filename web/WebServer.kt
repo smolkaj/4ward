@@ -487,12 +487,16 @@ class WebServer(
             val fields =
               typeDecl.header.fieldsList.joinToString(",") { field ->
                 val bitwidth =
-                  when {
-                    field.type.hasBit() -> field.type.bit.width
-                    field.type.hasSignedInt() -> field.type.signedInt.width
-                    field.type.boolean -> 1
-                    field.type.hasVarbit() -> field.type.varbit.maxWidth
-                    else -> 0
+                  when (field.type.kindCase) {
+                    fourward.ir.Type.KindCase.BIT -> field.type.bit.width
+                    fourward.ir.Type.KindCase.SIGNED_INT -> field.type.signedInt.width
+                    fourward.ir.Type.KindCase.BOOLEAN -> 1
+                    fourward.ir.Type.KindCase.VARBIT -> field.type.varbit.maxWidth
+                    fourward.ir.Type.KindCase.NAMED,
+                    fourward.ir.Type.KindCase.HEADER_STACK,
+                    fourward.ir.Type.KindCase.ERROR,
+                    fourward.ir.Type.KindCase.KIND_NOT_SET,
+                    null -> 0
                   }
                 """{"name":${jsonEscape(field.name)},"bitwidth":$bitwidth}"""
               }
