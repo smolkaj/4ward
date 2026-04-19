@@ -16,9 +16,15 @@ sealed class Value {
 
 /** A bit<N> value. */
 data class BitVal(val bits: BitVector) : Value() {
-  constructor(value: Long, width: Int) : this(BitVector.ofLong(value, width))
+  constructor(
+    value: Long,
+    width: Int,
+  ) : this(
+    if (width <= BitVector.LONG_WIDTH) BitVector.ofLong(value, width)
+    else BitVector(java.math.BigInteger.valueOf(value), width)
+  )
 
-  constructor(value: Int, width: Int) : this(BitVector.ofInt(value, width))
+  constructor(value: Int, width: Int) : this(BitVector.ofLong(value.toLong(), width))
 }
 
 /**
