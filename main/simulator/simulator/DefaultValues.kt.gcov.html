@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-04-19 00:08:36</td>
+            <td class="headerValue">2026-04-19 00:24:05</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -116,9 +116,9 @@
 <span id="L54"><span class="lineNum">      54</span> <span class="tlaGNC">           1 :       HeaderVal(</span></span>
 <span id="L55"><span class="lineNum">      55</span> <span class="tlaGNC">           1 :         typeName = typeName,</span></span>
 <span id="L56"><span class="lineNum">      56</span>              :         fields =</span>
-<span id="L57"><span class="lineNum">      57</span> <span class="tlaGNC">           1 :           typeDecl.header.fieldsList.associateTo(mutableMapOf()) { f -&gt;</span></span>
-<span id="L58"><span class="lineNum">      58</span> <span class="tlaGNC">           1 :             f.name to defaultValue(f.type, types)</span></span>
-<span id="L59"><span class="lineNum">      59</span>              :           },</span>
+<span id="L57"><span class="lineNum">      57</span> <span class="tlaGNC">           1 :           CompactFieldMap.of(</span></span>
+<span id="L58"><span class="lineNum">      58</span> <span class="tlaGNC">           1 :             typeDecl.header.fieldsList.map { f -&gt; f.name to defaultValue(f.type, types) }</span></span>
+<span id="L59"><span class="lineNum">      59</span>              :           ),</span>
 <span id="L60"><span class="lineNum">      60</span> <span class="tlaGNC">           1 :         valid = false,</span></span>
 <span id="L61"><span class="lineNum">      61</span>              :       )</span>
 <span id="L62"><span class="lineNum">      62</span> <span class="tlaGNC">           1 :     typeDecl.hasStruct() -&gt; defaultStruct(typeName, typeDecl.struct.fieldsList, types)</span></span>
