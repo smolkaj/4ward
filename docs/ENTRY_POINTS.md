@@ -53,10 +53,11 @@ with a hardware switch or BMv2.
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--port=<N>` | 9559 | gRPC listen port |
+| `--port=<N>` | 9559 | gRPC listen port (use `0` to let the kernel pick an ephemeral port) |
 | `--device-id=<N>` | 1 | P4Runtime device ID |
 | `--drop-port=<N>` | *(derived)* | Override the drop port value |
 | `--cpu-port=<N>` | *(derived)* | Override the CPU port value |
+| `--port-file=<PATH>` | *(off)* | After binding, atomically write the listening port here. Intended for embedders (see the [C++ wrapper](#c-embedding-wrapper)). |
 
 In addition to the standard P4Runtime RPCs, the server exposes a **Dataplane
 service** for direct packet injection:
@@ -141,6 +142,38 @@ P4RuntimeTestHarness().use { harness ->
 loading, PacketOut/PacketIn routing, `@p4runtime_translation`. Gives you full
 gRPC semantics (status codes, streaming) without network flakiness.
 
+## C++ embedding wrapper
+
+**Target:** `//p4runtime_cc:fourward_server`
+**API:** `fourward::FourwardServer::Start()` (C++)
+
+An RAII wrapper that spawns the P4Runtime server as a child process, waits
+until it is accepting gRPC calls, and tears it down on destruction. The
+server's listening port is discovered via a machine-readable
+`--port-file`, not the stdout banner — so log-format changes never break
+embedders.
+
+```cpp
+#include "p4runtime_cc/fourward_server.h"
+
+ASSIGN_OR_RETURN(fourward::FourwardServer server,
+                 fourward::FourwardServer::Start());
+auto channel = grpc::CreateChannel(server.Address(),
+                                   grpc::InsecureChannelCredentials());
+// ... drive the server via gRPC; subprocess is killed on scope exit ...
+```
+
+`Options` exposes `device_id`, `port` (unset = kernel picks ephemeral),
+`drop_port`, `cpu_port`, and `startup_timeout`.
+
+**When to use:** C++ test harnesses, reference implementations, or
+differential-testing infrastructure that wants to drive 4ward without
+pulling Kotlin or JVM build tooling into its own project. The canonical
+replacement for hand-rolled subprocess wrappers.
+
+See the [user-facing embedding guide](https://smolkaj.github.io/4ward/reference/embedding-cc/)
+for the Bazel setup and full example.
+
 ## Intrinsic port configuration
 
 All entry points share the same defaults for intrinsic ports (drop port, CPU
@@ -155,6 +188,7 @@ override them in whatever way fits its context. See the
 | **Web playground** | Same as P4Runtime server | Same as P4Runtime server |
 | **STF runner** | Constructor param | N/A (no P4Runtime layer) |
 | **Test harness** | Constructor param | Constructor param |
+| **C++ wrapper** | `Options::drop_port` | `Options::cpu_port` |
 
 ### Defaults
 
