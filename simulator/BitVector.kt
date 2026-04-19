@@ -5,95 +5,124 @@ import java.math.BigInteger
 /**
  * A bit-precise unsigned integer of fixed width, corresponding to P4's `bit<N>` type.
  *
- * All arithmetic is performed with BigInteger and then masked to [width] bits, matching the P4
- * spec's truncating-on-overflow semantics. No operation ever produces a value outside [0, 2^width).
+ * For widths ≤ 63 (the vast majority of P4 fields), the value is stored as a primitive [Long] — no
+ * [BigInteger] allocation on construction or arithmetic. The [value] property lazily reconstructs a
+ * [BigInteger] only when callers need it (byte serialization, wide-operand interop).
  *
- * For widths ≤ 63, [longValue] provides a cached Long for zero-allocation comparisons in table
- * matching — the hot path.
+ * All arithmetic is truncated to [width] bits, matching the P4 spec's overflow semantics.
  */
-data class BitVector(val value: BigInteger, val width: Int) {
+class BitVector
+private constructor(
+  /** Bit width of this value. */
+  val width: Int,
+  /** The value as a non-negative Long. Meaningful for all widths ≤ [LONG_WIDTH]; zero for wider. */
+  val longValue: Long,
+  /** BigInteger representation. Stored eagerly for wide values; lazily reconstructed for narrow. */
+  @Volatile private var bigVal: BigInteger?,
+) {
+  /** The value as a non-negative [BigInteger]. Lazy for narrow widths. */
+  val value: BigInteger
+    get() = bigVal ?: BigInteger.valueOf(longValue).also { bigVal = it }
 
-  init {
-    // Width 0 is valid for varbit fields with no runtime data (e.g. IPv4 options when IHL=5).
+  /** Public constructor from [BigInteger]. Validates, then stores as Long when narrow. */
+  constructor(
+    value: BigInteger,
+    width: Int,
+  ) : this(
+    width = width,
+    longValue = if (width <= LONG_WIDTH) value.toLong() else 0L,
+    bigVal = if (width > LONG_WIDTH) value else null,
+  ) {
     require(width >= 0) { "width must be non-negative, got $width" }
     require(value.signum() >= 0) { "value must be non-negative, got $value" }
     // Equivalent to `value < 2^width` without allocating a BigInteger from `TWO.pow(width)`.
     require(value.bitLength() <= width) { "value $value does not fit in $width bits" }
   }
 
-  /** Cached Long representation for fast comparison. Valid when width ≤ 63. */
-  val longValue: Long = if (width <= LONG_WIDTH) value.toLong() else 0L
+  // Arithmetic — each operator is one line; dispatch lives in the helpers.
 
-  // Arithmetic — all results are truncated to [width] bits.
+  operator fun plus(other: BitVector) = binaryOp(other, Long::plus, BigInteger::plus)
 
-  operator fun plus(other: BitVector): BitVector = binaryOp(other) { a, b -> a + b }
+  operator fun minus(other: BitVector) = binaryOp(other, Long::minus, BigInteger::minus)
 
-  operator fun minus(other: BitVector): BitVector = binaryOp(other) { a, b -> a - b }
+  operator fun times(other: BitVector) = binaryOp(other, Long::times, BigInteger::times)
 
-  operator fun times(other: BitVector): BitVector = binaryOp(other) { a, b -> a * b }
+  operator fun div(other: BitVector): BitVector {
+    requireSameWidth(other)
+    return if (isNarrow) narrow(longValue / other.longValue)
+    else wide((value / other.value) and maskFor(width))
+  }
 
-  operator fun div(other: BitVector): BitVector = binaryOp(other) { a, b -> a / b }
-
-  operator fun rem(other: BitVector): BitVector = binaryOp(other) { a, b -> a % b }
+  operator fun rem(other: BitVector): BitVector {
+    requireSameWidth(other)
+    return if (isNarrow) narrow(longValue % other.longValue)
+    else wide((value % other.value) and maskFor(width))
+  }
 
   /** Saturating addition: clamps to 2^width - 1 on overflow. */
   fun addSat(other: BitVector): BitVector {
     requireSameWidth(other)
-    val result = value + other.value
-    return if (result >= max) BitVector(max, width) else BitVector(result, width)
+    if (isNarrow) {
+      val r = longValue + other.longValue
+      val max = longMaskFor(width)
+      return narrow(if (r < 0 || r > max) max else r)
+    }
+    val r = value + other.value
+    val max = maskFor(width)
+    return if (r > max) wide(max) else wide(r)
   }
 
   /** Saturating subtraction: clamps to 0 on underflow. */
   fun subSat(other: BitVector): BitVector {
     requireSameWidth(other)
-    val result = value - other.value
-    return if (result < BigInteger.ZERO) BitVector(BigInteger.ZERO, width)
-    else BitVector(result, width)
+    if (isNarrow) return narrow(maxOf(0L, longValue - other.longValue))
+    val r = value - other.value
+    return if (r < BigInteger.ZERO) wide(BigInteger.ZERO) else wide(r)
   }
 
-  // Bitwise operations — operands must have the same width.
+  // Bitwise — operands must have the same width.
 
-  infix fun and(other: BitVector): BitVector = binaryOp(other) { a, b -> a and b }
+  infix fun and(other: BitVector) = bitwiseOp(other, Long::and, BigInteger::and)
 
-  infix fun or(other: BitVector): BitVector = binaryOp(other) { a, b -> a or b }
+  infix fun or(other: BitVector) = bitwiseOp(other, Long::or, BigInteger::or)
 
-  infix fun xor(other: BitVector): BitVector = binaryOp(other) { a, b -> a xor b }
+  infix fun xor(other: BitVector) = bitwiseOp(other, Long::xor, BigInteger::xor)
 
-  fun inv(): BitVector = BitVector(value.not() and maskFor(width), width)
+  fun inv(): BitVector =
+    if (isNarrow) narrow(longValue.inv() and longMaskFor(width))
+    else wide(value.not() and maskFor(width))
 
-  // Shifts — the shift amount is an arbitrary non-negative integer.
+  // Shifts
 
-  fun shl(amount: Int): BitVector = BitVector((value shl amount) and maskFor(width), width)
+  fun shl(amount: Int): BitVector =
+    if (isNarrow) narrow((longValue shl amount) and longMaskFor(width))
+    else wide((value shl amount) and maskFor(width))
 
-  fun shr(amount: Int): BitVector = BitVector(value shr amount, width) // logical shift
+  // Logical shift — ushr for Long (unsigned), shr for BigInteger (non-negative, so equivalent).
+  fun shr(amount: Int): BitVector =
+    if (isNarrow) narrow(longValue ushr amount) else wide(value shr amount)
 
   // Comparisons — operands must have the same width.
 
   operator fun compareTo(other: BitVector): Int {
     requireSameWidth(other)
-    return value.compareTo(other.value)
+    return if (isNarrow) longValue.compareTo(other.longValue) else value.compareTo(other.value)
   }
 
-  /**
-   * Extracts bits [hi:lo] (inclusive, P4 slice notation).
-   *
-   * Example: for a bit<16> value 0xABCD, slice(11, 8) returns 0xB as bit<4>.
-   */
+  /** Extracts bits [hi:lo] (inclusive, P4 slice notation). */
   fun slice(hi: Int, lo: Int): BitVector {
     require(hi >= lo) { "hi ($hi) must be >= lo ($lo)" }
     require(hi < width) { "hi ($hi) out of range for width $width" }
-    val newWidth = hi - lo + 1
-    return BitVector((value shr lo) and maskFor(newWidth), newWidth)
+    val w = hi - lo + 1
+    return if (isNarrow && w <= LONG_WIDTH) narrowAt(w, (longValue ushr lo) and longMaskFor(w))
+    else BitVector((value shr lo) and maskFor(w), w)
   }
 
-  /**
-   * Concatenates this (most-significant) with [other] (least-significant).
-   *
-   * Corresponds to P4's `++` operator: bit<m> ++ bit<n> produces bit<m+n>.
-   */
+  /** Concatenates this (most-significant) with [other] (least-significant). */
   fun concat(other: BitVector): BitVector {
-    val newWidth = width + other.width
-    return BitVector((value shl other.width) or other.value, newWidth)
+    val w = width + other.width
+    return if (w <= LONG_WIDTH) narrowAt(w, (longValue shl other.width) or other.longValue)
+    else BitVector((value shl other.width) or other.value, w)
   }
 
   /** Converts to a signed [SignedBitVector] of the same width (reinterprets bits). */
@@ -102,8 +131,9 @@ data class BitVector(val value: BigInteger, val width: Int) {
   /** Returns the value as a big-endian byte array, padded to ceil(width/8) bytes. */
   fun toByteArray(): ByteArray {
     val byteLen = (width + BITS_PER_BYTE - 1) / BITS_PER_BYTE
+    // BigInteger.toByteArray() may include a leading 0x00 sign byte, so raw can be longer than
+    // byteLen. The srcIdx < 0 guard handles that by zero-padding the high bytes.
     val raw = value.toByteArray()
-    // BigInteger.toByteArray() may include a leading 0x00 sign byte.
     return ByteArray(byteLen) { i ->
       val srcIdx = raw.size - byteLen + i
       if (srcIdx < 0) 0 else raw[srcIdx]
@@ -112,14 +142,51 @@ data class BitVector(val value: BigInteger, val width: Int) {
 
   override fun toString(): String = "0x${value.toString(16)} : bit<$width>"
 
-  private val max: BigInteger
-    get() = maskFor(width)
+  override fun equals(other: Any?): Boolean {
+    if (this === other) return true
+    if (other !is BitVector || width != other.width) return false
+    return if (isNarrow) longValue == other.longValue else value == other.value
+  }
 
-  private fun binaryOp(other: BitVector, op: (BigInteger, BigInteger) -> BigInteger): BitVector {
+  override fun hashCode(): Int =
+    if (isNarrow) 31 * width + longValue.hashCode() else 31 * width + value.hashCode()
+
+  private val isNarrow: Boolean
+    get() = width <= LONG_WIDTH
+
+  /** Narrow result at this width, truncated to width bits. */
+  private fun narrow(v: Long) = BitVector(width, v and longMaskFor(width), null)
+
+  /** Narrow result at a different width — for slice/concat where the result width differs. */
+  private fun narrowAt(w: Int, v: Long) = BitVector(w, v, null)
+
+  /** Wide result at this width. */
+  private fun wide(v: BigInteger) = BitVector(width, 0L, v)
+
+  /**
+   * Binary arithmetic op with truncation. For +/−/× the Long result may overflow or go negative;
+   * masking handles both. Division and modulo have different overflow semantics and use their own
+   * implementations above.
+   */
+  private inline fun binaryOp(
+    other: BitVector,
+    longOp: (Long, Long) -> Long,
+    bigOp: (BigInteger, BigInteger) -> BigInteger,
+  ): BitVector {
     requireSameWidth(other)
-    // `and mask` truncates to width bits. Safe even when op produces a negative intermediate
-    // (e.g., minus underflow): BigInteger.and sign-extends, so (-1).and(0xFF) = 255.
-    return BitVector(op(value, other.value) and maskFor(width), width)
+    return if (isNarrow) narrow(longOp(longValue, other.longValue))
+    else wide(bigOp(value, other.value) and maskFor(width))
+  }
+
+  /** Bitwise op — no masking needed (inputs are in range and bitwise ops preserve width). */
+  private inline fun bitwiseOp(
+    other: BitVector,
+    longOp: (Long, Long) -> Long,
+    bigOp: (BigInteger, BigInteger) -> BigInteger,
+  ): BitVector {
+    requireSameWidth(other)
+    return if (isNarrow) narrowAt(width, longOp(longValue, other.longValue))
+    else wide(bigOp(value, other.value))
   }
 
   private fun requireSameWidth(other: BitVector) {
@@ -128,27 +195,34 @@ data class BitVector(val value: BigInteger, val width: Int) {
 
   companion object {
     const val BITS_PER_BYTE = 8
-    // 63 not 64: Java Long is signed, so we reserve bit 63 to keep unsigned comparisons simple.
     const val LONG_WIDTH = 63
 
-    /**
-     * Cache of `2^width - 1` by width. Eliminates repeated `TWO.pow(width)` allocations in
-     * arithmetic, slice, shift, and inv — a few dozen distinct widths per pipeline.
-     */
+    /** Cache of `2^width - 1` by width. */
     private val maskByWidth = java.util.concurrent.ConcurrentHashMap<Int, BigInteger>()
 
-    /** Returns `2^width - 1`, cached. */
+    /** Returns `2^width - 1` as BigInteger, cached. */
     fun maskFor(width: Int): BigInteger =
       maskByWidth.computeIfAbsent(width) { BigInteger.TWO.pow(it).minus(BigInteger.ONE) }
 
-    fun ofInt(value: Int, width: Int): BitVector =
-      BitVector(BigInteger.valueOf(value.toLong()), width)
+    /** Long masks by width, precomputed for widths 0..63. */
+    private val longMasks = LongArray(LONG_WIDTH + 1) { w -> if (w == 0) 0L else (1L shl w) - 1 }
 
-    fun ofLong(value: Long, width: Int): BitVector = BitVector(BigInteger.valueOf(value), width)
+    /** Returns `2^width - 1` as Long. Width must be in 0..[LONG_WIDTH]. */
+    fun longMaskFor(width: Int): Long = longMasks[width]
+
+    fun ofInt(value: Int, width: Int): BitVector = ofLong(value.toLong(), width)
+
+    /** Constructs from a non-negative Long. No BigInteger allocation. */
+    fun ofLong(value: Long, width: Int): BitVector {
+      require(value >= 0) { "value must be non-negative, got $value" }
+      require(width in 0..LONG_WIDTH) { "ofLong requires width in 0..$LONG_WIDTH, got $width" }
+      require(width == 0 || value ushr width == 0L) { "value $value does not fit in $width bits" }
+      return BitVector(width, value, null)
+    }
 
     /** Decodes a big-endian byte array into a bit<N> value. */
     fun ofBytes(bytes: ByteArray, width: Int): BitVector {
-      val value = BigInteger(1, bytes) // 1 = positive sign
+      val value = BigInteger(1, bytes)
       return BitVector(value, width)
     }
   }
@@ -158,7 +232,7 @@ data class BitVector(val value: BigInteger, val width: Int) {
  * A bit-precise signed integer of fixed width, corresponding to P4's `int<N>` type.
  *
  * Stored internally as a two's-complement signed BigInteger in the range [-2^(width-1),
- * 2^(width-1)).
+ * 2^(width-1)). No Long fast path — signed integers are rare on the P4 hot path.
  */
 data class SignedBitVector(val value: BigInteger, val width: Int) {
 
