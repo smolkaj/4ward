@@ -355,14 +355,15 @@ class Interpreter internal constructor(config: BehavioralConfig) {
     // -------------------------------------------------------------------------
 
     private fun execBlock(stmts: List<Stmt>, env: Environment) {
-      for ((i, stmt) in stmts.withIndex()) {
-        try {
-          execStmt(stmt, env)
-        } catch (fork: ActionSelectorFork) {
-          // Capture the continuation: statements after the fork in this block.
-          fork.remainingStmts.addLast(stmts.subList(i + 1, stmts.size))
-          throw fork
+      var i = 0
+      try {
+        while (i < stmts.size) {
+          execStmt(stmts[i], env)
+          i++
         }
+      } catch (fork: ActionSelectorFork) {
+        fork.remainingStmts.addLast(stmts.subList(i + 1, stmts.size))
+        throw fork
       }
     }
 
@@ -1413,8 +1414,8 @@ class ReturnException(val value: Value) : Exception()
 
 /**
  * Thrown at non-deterministic choice points to signal the architecture to fork the trace tree. The
- * architecture catches this and handles each fork type via fork-on-write: continuing each branch
- * from the fork point instead of replaying the pipeline.
+ * architecture catches this and continues each branch from the fork point (fork-point resume)
+ * instead of replaying the pipeline.
  */
 sealed class ForkException(val eventsBeforeFork: List<TraceEvent>) : Exception()
 
@@ -1422,7 +1423,7 @@ sealed class ForkException(val eventsBeforeFork: List<TraceEvent>) : Exception()
  * Fork at an action selector group hit — one branch per group member.
  *
  * Carries the full interpreter state at the fork point so each branch can continue from there
- * (fork-on-write) instead of replaying the entire pipeline.
+ * (fork-point resume) instead of replaying the entire pipeline.
  */
 class ActionSelectorFork(
   val tableName: String,

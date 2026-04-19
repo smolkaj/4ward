@@ -38,6 +38,9 @@ _GOLDEN = [
     "multicast_drop_replica",
     "multicast_selector",
     "selector_exit",
+    "e2e_clone",
+    "resubmit",
+    "recirculate",
 ]
 
 # Programs without golden files — tested via STF expect directives only.

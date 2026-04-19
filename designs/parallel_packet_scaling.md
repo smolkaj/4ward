@@ -1,14 +1,10 @@
 # Parallel Packet Scaling
 
-**Status: Phase 2.5 + sequential/parallel diff complete. Flat-buffer
-attempt (#522 / `designs/flat_packet_buffer.md`) refuted the
-working-set-bytes hypothesis. Follow-up profile + seq/par diff
-isolates ~35% of parallel CPU as *scaling-specific* excess (mostly
-`BigInteger` + `HashMap` allocation + proto trace-event builders);
-the rest scales cleanly. Candidates are now scored on two axes —
-efficiency lever (the north-star concern) vs sequential speedup —
-because a uniform CPU-time reduction improves throughput without
-changing the scaling ratio. See "Phase 2.5: empirical profile" below.**
+**Status: Phase 3 complete (PRs #554, #562, #567). wcmp×128 parallel
+throughput improved +120% from baseline (1,501 → 3,393 pps), efficiency
+from 45% to ~59%. The three main wins: Long-backed BitVector (#562),
+CompactFieldMap + proto builder pooling (#554), and fork-point resume
+(#567). See "Phase 3 results" below for measurements.**
 
 ## North star
 
@@ -907,25 +903,35 @@ Highest theoretical ceiling (could make 128 branches nearly as
 cheap as 1), but extremely complex — requires full dependency
 tracking across the P4 program. Research-project scope.
 
-### Recommended sequencing
+### What we actually shipped (Phase 3 results)
 
-If pursuing Phase 3:
+**Fork-point resume (#567)** superseded both Candidate A (fork-on-write
+overlay) and Candidate B (skip prefix events). Instead of optimizing
+the deep copy (A) or skipping trace construction during replay (B), it
+eliminates prefix replay entirely — each branch continues from the fork
+point, producing only its own events. No prefix stripping, no replay
+infrastructure, no `BranchMode` dispatch.
 
-1. **(A) Fork-on-write overlay** — most natural next step. Attacks
-   the structural inefficiency (copying unmodified state) rather than
-   optimizing the copy mechanics. Build the overlay, measure, decide
-   whether to stack more.
-2. **(B) Skip prefix events** — independent of A, can stack in any
-   order. Well-scoped.
-3. **Reassess.** If A+B together reach ~70% efficiency, evaluate
-   whether the remaining 10 pp to 80% justifies (C) or (E). If not,
-   declare victory and move on.
+Measured on the same hardware (AMD Ryzen 9 7950X3D), same workload
+(SAI P4, 10k routes, intra-packet parallelism off):
 
-**Oracle-first rule still applies.** For each candidate, build a
-"what if this were free?" stub before committing to the full
-implementation. A+B have obvious stubs (make deepCopy return `this`;
-make addTraceEvent a no-op during replay). C and E are harder to
-stub but the methodology holds.
+| Workload | Baseline | After Phase 3 | Sequential Δ | Parallel Δ |
+|----------|----------|---------------|-------------|------------|
+| wcmp×128 seq | 207 pps | 345 pps | **+67%** | — |
+| wcmp×128 par | 1,501 pps | 3,393 pps | — | **+126%** |
+| direct seq | 2,568 pps | ~2,500 pps | ≈0% | — |
+| direct par | 38,449 pps | ~38,000 pps | — | ≈0% |
+
+Direct L3 is unaffected (no forks, nothing to optimize). wcmp×128
+sees the full benefit: +67% sequential, +126% parallel. Efficiency
+improved from 45% to ~59%.
+
+**Remaining candidates.** C (compiled instruction sequence) and E
+(deferred trace serialization) are still viable for further gains but
+are higher effort. The fork-point resume design also opens a path for
+Candidate A (copy-on-write `Environment`) which would stack on top by
+reducing the per-branch `env.deepCopy()` cost — currently the
+dominant remaining cost on the fork hot path.
 
 
 ## Non-goals

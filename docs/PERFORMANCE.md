@@ -42,8 +42,8 @@ ternary ACL entries.
 | Workload | Sequential, 1 core | Sequential, 16 cores | Batch, 1 core | Batch, 16 cores |
 |----------|--------------------|----------------------|---------------|-----------------|
 | L3 forwarding | 2,500 | 2,600 | 2,600 | 29,000 |
-| WCMP ×16 | 1,400 | 1,700 | 1,200 | 10,000 |
-| WCMP ×16 + mirror | 970 | 1,200 | 710 | 5,200 |
+| WCMP ×16 | 1,900 | 2,200 | 1,600 | 12,000 |
+| WCMP ×16 + mirror | 1,300 | 1,600 | 1,000 | 8,000 |
 
 - **Sequential** = `InjectPacket` (one packet at a time, wait for result).
 - **Batch** = `InjectPackets` (1000 packets streamed concurrently).
@@ -64,7 +64,7 @@ with the same table entries: 10k LPM routes + 500 ternary ACL entries.
 | Workload | BMv2 | 4ward, 1 core | 4ward, 16 cores |
 |----------|------|---------------|-----------------|
 | L3 forwarding | 4,500 | 2,500 | 29,000 |
-| WCMP ×16 | 4,400 | 1,400 | 10,000 |
+| WCMP ×16 | 4,400 | 1,900 | 12,000 |
 
 (packets/sec; higher is better)
 
@@ -122,15 +122,15 @@ bazel test //p4runtime:DataplaneBenchmark --test_output=streamed
 
 ## Optimizations
 
-Starting from an unoptimized baseline, eight optimizations delivered a
-**127× improvement** on the hardest workload (WCMP ×16 + mirror, batch,
-16 cores) and **29× single-core sequential**.
+Starting from an unoptimized baseline, eleven optimizations delivered a
+**195× improvement** on the hardest workload (WCMP ×16 + mirror, batch,
+16 cores) and **32× single-core sequential**.
 
 | Workload | Baseline | Current (1 core) | Current (16 cores) |
 |----------|----------|-------------------|--------------------|
 | L3 forwarding | 1,400 | 2,500 | 29,000 |
-| WCMP ×16 | 83 | 1,400 | 10,000 |
-| WCMP ×16 + mirror | 41 | 970 | 5,200 |
+| WCMP ×16 | 83 | 1,900 | 12,000 |
+| WCMP ×16 + mirror | 41 | 1,300 | 8,000 |
 
 (sequential packets/sec, except "16 cores" column which uses batch mode)
 
@@ -152,6 +152,17 @@ Starting from an unoptimized baseline, eight optimizations delivered a
 8. **Array-indexed field lookup** (PR #430): field ID array replaces
    HashMap + String conversion in scoreEntry. Zero allocation per
    match field.
+9. **Long-backed BitVector** (PR #562): fields ≤ 63 bits use a `Long`
+   instead of `BigInteger`. Eliminates heap allocation for the
+   majority of field operations.
+10. **CompactFieldMap + proto builder pooling** (PR #554):
+    array-backed header field map (copy = `Array.copyOf`) and reused
+    `TraceEvent.Builder` per execution.
+11. **Fork-point resume** (PR #567): instead of replaying the pipeline
+    for each fork branch, captures state at the fork point and
+    continues each branch from there. Eliminates prefix re-execution,
+    prefix event stripping, and the entire replay infrastructure.
+    v1model only — PSA/PNA still use replay.
 
 **What didn't help** (tried and reverted):
 - Caching `defaultValue()` templates — negligible impact.

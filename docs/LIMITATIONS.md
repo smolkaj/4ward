@@ -81,6 +81,12 @@ guilt — just write it down so someone can find it later.
 
 ## Simulator
 
+- **Fork-point resume is v1model only.** When the trace tree forks (action
+  selectors, clone, multicast), v1model continues each branch from the fork
+  point instead of replaying the pipeline. PSA and PNA still use the
+  replay-based approach (`handleActionSelectorFork` in `ArchitectureHelpers.kt`).
+  Other v1model-specific optimizations (Long-backed `BitVector`, `CompactFieldMap`,
+  proto builder pooling) benefit all architectures.
 - **Multicast: basic replication only.** Multicast group replication works
   for the trace tree (forking per replica). PRE entries are installed via
   P4Runtime `PacketReplicationEngineEntry`.
