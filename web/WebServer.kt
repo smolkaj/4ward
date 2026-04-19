@@ -4,6 +4,8 @@ import com.google.protobuf.TextFormat
 import com.google.protobuf.util.JsonFormat
 import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
+import fourward.bazel.requireP4IncludeProperty
+import fourward.bazel.resolveRunfile
 import fourward.bazel.resolveRunfileOrNull
 import fourward.ir.PipelineConfig
 import fourward.simulator.Simulator
@@ -321,9 +323,8 @@ class WebServer(
 
     val cmd = mutableListOf(p4c.toString())
 
-    // Add standard includes (core.p4, v1model.p4) from runfiles.
-    resolveRunfileOrNull("p4c/p4include/core.p4")?.parent?.let { p4include ->
-      if (Files.isDirectory(p4include)) cmd += listOf("-I", p4include.toString())
+    resolveRunfile(requireP4IncludeProperty()).parent?.let { p4include ->
+      cmd += listOf("-I", p4include.toString())
     }
 
     cmd += listOf("-o", outputPath.toString())

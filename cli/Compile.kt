@@ -1,5 +1,7 @@
 package fourward.cli
 
+import fourward.bazel.requireP4IncludeProperty
+import fourward.bazel.resolveRunfile
 import fourward.bazel.resolveRunfileOrNull
 import java.nio.file.Files
 import java.nio.file.Path
@@ -88,8 +90,7 @@ private fun findP4c4ward(): Path? {
 private fun resolveIncludeDirs(userDirs: List<Path>): List<Path> {
   val dirs = mutableListOf<Path>()
 
-  // p4c standard includes (core.p4, v1model.p4, etc.).
-  resolveRunfileOrNull("p4c/p4include")?.let { if (Files.isDirectory(it)) dirs.add(it) }
+  resolveRunfile(requireP4IncludeProperty()).parent?.let { dirs.add(it) }
 
   dirs.addAll(userDirs)
   return dirs

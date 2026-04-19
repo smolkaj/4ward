@@ -30,3 +30,13 @@ fun resolveRunfileOrNull(path: String): Path? {
   val p = Path.of(resolved)
   return if (Files.exists(p)) p else null
 }
+
+/**
+ * Returns the `fourward.p4include` system property, which the BUILD rule must set via `jvm_flags =
+ * ["-Dfourward.p4include=$(rlocationpath @p4c//p4include:core.p4)"]`.
+ */
+fun requireP4IncludeProperty(): String =
+  checkNotNull(System.getProperty("fourward.p4include")) {
+    "fourward.p4include system property not set. " +
+      "The kt_jvm_binary must pass -Dfourward.p4include=\$(rlocationpath @p4c//p4include:core.p4)"
+  }

@@ -51,7 +51,11 @@ kt_jvm_binary(
     data = [
         "//p4c_backend:p4c-4ward",
         "@p4c//p4include",
+        "@p4c//p4include:core.p4",
     ] + glob(["frontend/**"]),
+    jvm_flags = [
+        "-Dfourward.p4include=$(rlocationpath @p4c//p4include:core.p4)",
+    ],
     main_class = "fourward.web.PlaygroundServerKt",
     visibility = ["//visibility:public"],
     runtime_deps = [":playground_lib"],
@@ -63,7 +67,11 @@ kt_jvm_test(
     data = [
         "//p4c_backend:p4c-4ward",
         "@p4c//p4include",
+        "@p4c//p4include:core.p4",
     ] + glob(["frontend/**"]),
+    jvm_flags = [
+        "-Dfourward.p4include=$(rlocationpath @p4c//p4include:core.p4)",
+    ],
     test_class = "fourward.web.WebServerTest",
     deps = [
         ":web",
