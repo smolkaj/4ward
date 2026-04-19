@@ -167,7 +167,7 @@ auto dataplane = server.NewDataplaneStub();
 `Options` exposes `device_id`, `port` (unset = kernel picks ephemeral),
 `drop_port`, `cpu_port`, and `startup_timeout`.
 
-**When to use:** Any C++ project that needs to drive 4ward.
+**When to use:** Any C++ project that wants to use 4ward.
 
 See the [user-facing embedding guide](https://smolkaj.github.io/4ward/reference/embedding-cc/)
 for the Bazel setup and full example.
