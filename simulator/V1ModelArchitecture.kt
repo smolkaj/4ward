@@ -71,15 +71,6 @@ class V1ModelArchitecture(
   // without synchronization.
   private val interpreter: Interpreter = Interpreter(config)
 
-  /**
-   * Post-parser snapshot captured during the first [runPipeline] execution of a packet. Read by
-   * [forkSpecs] when an [ActionSelectorFork] is caught, to pass to fork re-executions. Reset at the
-   * start of each [processPacket] to prevent stale state across packets.
-   */
-  // ThreadLocal: parallel fork branches each get their own snapshot, avoiding races when
-  // nested forks (clone after selector) write concurrently.
-  private val postParserSnapshot = ThreadLocal<PostParserSnapshot?>()
-
   /** Invariant inputs to the pipeline, shared across fork re-executions. */
   private data class PipelineContext(
     val ingressPort: UInt,
@@ -124,42 +115,31 @@ class V1ModelArchitecture(
     payload: ByteArray,
     tableStore: TableStore,
   ): PipelineResult {
-    postParserSnapshot.set(null)
     val ctx = PipelineContext(ingressPort, payload, config, tableStore, interpreter)
-    return buildTraceTree(ctx, V1ModelDecisions(), prefixLength = 0)
+    return buildTraceTree(ctx, V1ModelDecisions())
   }
 
   /**
-   * Recursively builds a trace tree by executing the pipeline and forking at non-deterministic
-   * choice points. Fork branches run in parallel on a shared thread pool.
+   * Builds a trace tree by executing the pipeline and handling forks via fork-on-write. Each fork
+   * type has a dedicated handler that continues branches from the fork point. Only
+   * resubmit/recirculate call back into this method (they restart the pipeline).
    */
-  private fun buildTraceTree(
-    ctx: PipelineContext,
-    decisions: V1ModelDecisions,
-    prefixLength: Int,
-  ): PipelineResult {
-    val trace: TraceTree
+  private fun buildTraceTree(ctx: PipelineContext, decisions: V1ModelDecisions): PipelineResult {
     try {
-      trace = runPipeline(ctx, decisions)
-    } catch (selectorFork: V1ModelSelectorFork) {
-      return buildSelectorForkTree(ctx, decisions, selectorFork, prefixLength)
-    } catch (multicastFork: MulticastFork) {
-      return buildMulticastForkTree(ctx, multicastFork, prefixLength)
-    } catch (cloneFork: CloneFork) {
-      return buildCloneForkTree(ctx, cloneFork, prefixLength)
-    } catch (egressCloneFork: EgressCloneFork) {
-      return buildEgressCloneForkTree(ctx, egressCloneFork, prefixLength)
-    } catch (resubmitFork: ResubmitFork) {
-      return buildResubmitForkTree(ctx, resubmitFork, prefixLength)
-    } catch (recirculateFork: RecirculateFork) {
-      return buildRecirculateForkTree(ctx, recirculateFork, prefixLength)
-    } catch (fork: ForkException) {
-      return buildReplayForkTree(ctx, decisions, fork, prefixLength)
+      return PipelineResult(runPipeline(ctx, decisions))
+    } catch (fork: V1ModelSelectorFork) {
+      return buildSelectorForkTree(ctx, decisions, fork)
+    } catch (fork: MulticastFork) {
+      return buildMulticastForkTree(ctx, fork)
+    } catch (fork: CloneFork) {
+      return buildCloneForkTree(ctx, fork)
+    } catch (fork: EgressCloneFork) {
+      return buildEgressCloneForkTree(ctx, fork)
+    } catch (fork: ResubmitFork) {
+      return buildResubmitForkTree(ctx, fork)
+    } catch (fork: RecirculateFork) {
+      return buildRecirculateForkTree(ctx, fork)
     }
-
-    val stripped = TraceTree.newBuilder().addAllEvents(trace.eventsList.drop(prefixLength))
-    if (trace.hasPacketOutcome()) stripped.setPacketOutcome(trace.packetOutcome)
-    return PipelineResult(stripped.build())
   }
 
   /**
@@ -171,16 +151,14 @@ class V1ModelArchitecture(
     ctx: PipelineContext,
     decisions: V1ModelDecisions,
     selectorFork: V1ModelSelectorFork,
-    prefixLength: Int,
   ): PipelineResult {
     val fork = selectorFork.fork
-    val levelEvents = fork.eventsBeforeFork.drop(prefixLength)
+    val levelEvents = fork.eventsBeforeFork
 
     val buildBranch = { member: TableStore.MemberAction ->
       val branchDecisions =
         decisions.copy(
-          selectorMembers = decisions.selectorMembers + (fork.tableName to member.memberId),
-          postParserSnapshot = postParserSnapshot.get(),
+          selectorMembers = decisions.selectorMembers + (fork.tableName to member.memberId)
         )
       try {
         val trace = continueFromForkPoint(ctx, branchDecisions, selectorFork, member)
@@ -269,7 +247,7 @@ class V1ModelArchitecture(
 
       if (selectorFork.duringIngress) {
         // Fork was in ingress — run boundary + egress + deparser.
-        ingressEgressBoundary(ctx, s, decisions, 0)
+        ingressEgressBoundary(ctx, s)
         if (egressPortIsDropPort(s)) {
           return buildDropTrace(s.packetCtx.getEvents(), DropReason.MARK_TO_DROP)
         }
@@ -292,7 +270,7 @@ class V1ModelArchitecture(
     fork: MulticastFork,
     prefixLength: Int = 0,
   ): PipelineResult {
-    val buildBranch = { replica: BranchMode.Replica ->
+    val buildBranch = { replica: Replica ->
       val packetCtx = PacketContext(ctx.payload, fork.bytesConsumed)
       val env = fork.forkPointEnv.deepCopy()
       val pendingOps = fork.forkPointPendingOps.copy()
@@ -350,12 +328,8 @@ class V1ModelArchitecture(
    * "Clone" branch: uses the post-parser state (BMv2: clone gets parsed-but-not-ingress-modified
    * headers), applies preserved metadata, sets clone metadata, runs egress + deparser.
    */
-  private fun buildCloneForkTree(
-    ctx: PipelineContext,
-    fork: CloneFork,
-    prefixLength: Int = 0,
-  ): PipelineResult {
-    val levelEvents = fork.eventsBeforeFork.drop(prefixLength)
+  private fun buildCloneForkTree(ctx: PipelineContext, fork: CloneFork): PipelineResult {
+    val levelEvents = fork.eventsBeforeFork
 
     val buildOriginal = {
       val packetCtx = PacketContext(ctx.payload, fork.bytesConsumed)
@@ -368,12 +342,8 @@ class V1ModelArchitecture(
 
       try {
         // Resume boundary: check resubmit, multicast, unicast (clone already handled).
-        ingressEgressBoundary(
-          ctx,
-          s,
-          V1ModelDecisions(branchMode = BranchMode.Normal(suppressI2EClone = true)),
-          0,
-        )
+        // pendingOps.cloneSessionId already cleared — boundary won't re-clone.
+        ingressEgressBoundary(ctx, s)
         if (egressPortIsDropPort(s)) {
           buildDropTrace(s.packetCtx.getEvents(), DropReason.MARK_TO_DROP)
         } else {
@@ -434,9 +404,8 @@ class V1ModelArchitecture(
   private fun buildEgressCloneForkTree(
     ctx: PipelineContext,
     fork: EgressCloneFork,
-    prefixLength: Int = 0,
   ): PipelineResult {
-    val levelEvents = fork.eventsBeforeFork.drop(prefixLength)
+    val levelEvents = fork.eventsBeforeFork
 
     val buildOriginal = {
       val packetCtx = PacketContext(ctx.payload, fork.bytesConsumed)
@@ -507,19 +476,15 @@ class V1ModelArchitecture(
   }
 
   /** Handles a resubmit fork: restarts the pipeline with preserved metadata. */
-  private fun buildResubmitForkTree(
-    ctx: PipelineContext,
-    fork: ResubmitFork,
-    prefixLength: Int = 0,
-  ): PipelineResult {
-    val levelEvents = fork.eventsBeforeFork.drop(prefixLength)
+  private fun buildResubmitForkTree(ctx: PipelineContext, fork: ResubmitFork): PipelineResult {
+    val levelEvents = fork.eventsBeforeFork
     val decisions =
       V1ModelDecisions(
         pipelineDepth = 1,
         instanceTypeOverride = RESUBMIT_INSTANCE_TYPE,
         preservedMetadata = fork.preservedMetadata,
       )
-    val result = buildTraceTree(ctx, decisions, 0)
+    val result = buildTraceTree(ctx, decisions)
     val branch = ForkBranch.newBuilder().setLabel("resubmit").setSubtree(result.trace).build()
     return PipelineResult(buildForkTree(levelEvents, ForkReason.RESUBMIT, listOf(branch)))
   }
@@ -528,9 +493,8 @@ class V1ModelArchitecture(
   private fun buildRecirculateForkTree(
     ctx: PipelineContext,
     fork: RecirculateFork,
-    prefixLength: Int = 0,
   ): PipelineResult {
-    val levelEvents = fork.eventsBeforeFork.drop(prefixLength)
+    val levelEvents = fork.eventsBeforeFork
     val decisions =
       V1ModelDecisions(
         pipelineDepth = 1,
@@ -538,7 +502,7 @@ class V1ModelArchitecture(
         preservedMetadata = fork.preservedMetadata,
       )
     val recircCtx = ctx.copy(payload = fork.deparsedBytes)
-    val result = buildTraceTree(recircCtx, decisions, 0)
+    val result = buildTraceTree(recircCtx, decisions)
     val branch = ForkBranch.newBuilder().setLabel("recirculate").setSubtree(result.trace).build()
     return PipelineResult(buildForkTree(levelEvents, ForkReason.RECIRCULATE, listOf(branch)))
   }
@@ -549,82 +513,13 @@ class V1ModelArchitecture(
    */
   private fun handleNestedFork(ctx: PipelineContext, fork: ForkException): TraceTree =
     when (fork) {
-      is V1ModelSelectorFork -> buildSelectorForkTree(ctx, V1ModelDecisions(), fork, 0).trace
+      is V1ModelSelectorFork -> buildSelectorForkTree(ctx, V1ModelDecisions(), fork).trace
       is MulticastFork -> buildMulticastForkTree(ctx, fork).trace
       is CloneFork -> buildCloneForkTree(ctx, fork).trace
       is EgressCloneFork -> buildEgressCloneForkTree(ctx, fork).trace
       is ResubmitFork -> buildResubmitForkTree(ctx, fork).trace
       is RecirculateFork -> buildRecirculateForkTree(ctx, fork).trace
       is ActionSelectorFork -> error("unwrapped ActionSelectorFork — should be V1ModelSelectorFork")
-    }
-
-  /** Handles non-selector forks (clone, multicast, resubmit, recirculate) via replay. */
-  private fun buildReplayForkTree(
-    ctx: PipelineContext,
-    decisions: V1ModelDecisions,
-    fork: ForkException,
-    prefixLength: Int,
-  ): PipelineResult {
-    val levelEvents = fork.eventsBeforeFork.drop(prefixLength)
-    val (reason, specs) = forkSpecs(ctx, decisions, fork)
-
-    val subtrees =
-      if (INTRA_PACKET_PARALLELISM_ENABLED) {
-        specs
-          .parallelStream()
-          .map { spec -> buildTraceTree(spec.ctx, spec.decisions, spec.prefixLength) }
-          .toList()
-      } else {
-        specs.map { spec -> buildTraceTree(spec.ctx, spec.decisions, spec.prefixLength) }
-      }
-
-    val branches =
-      specs.zip(subtrees).map { (spec, result) ->
-        ForkBranch.newBuilder().setLabel(spec.label).setSubtree(result.trace).build()
-      }
-    val tree =
-      TraceTree.newBuilder()
-        .addAllEvents(levelEvents)
-        .setForkOutcome(Fork.newBuilder().setReason(reason).addAllBranches(branches))
-        .build()
-    return PipelineResult(tree)
-  }
-
-  /** A branch specification: everything needed to re-execute one fork branch. */
-  private data class BranchSpec(
-    val label: String,
-    val ctx: PipelineContext,
-    val decisions: V1ModelDecisions,
-    val prefixLength: Int,
-  )
-
-  /** Maps a [ForkException] to the fork reason and per-branch execution specs. */
-  private fun forkSpecs(
-    ctx: PipelineContext,
-    decisions: V1ModelDecisions,
-    fork: ForkException,
-  ): Pair<ForkReason, List<BranchSpec>> =
-    when (fork) {
-      is V1ModelSelectorFork ->
-        error("V1ModelSelectorFork is handled by buildSelectorForkTree, not forkSpecs")
-      is ActionSelectorFork -> {
-        // Fallback replay path — used when fork-on-write encounters a nested fork.
-        val specs =
-          fork.members.map { member ->
-            val d =
-              decisions.copy(
-                selectorMembers = decisions.selectorMembers + (fork.tableName to member.memberId),
-                postParserSnapshot = postParserSnapshot.get(),
-              )
-            BranchSpec("member_${member.memberId}", ctx, d, fork.eventsBeforeFork.size)
-          }
-        ForkReason.ACTION_SELECTOR to specs
-      }
-      is CloneFork -> error("CloneFork handled by buildCloneForkTree")
-      is EgressCloneFork -> error("EgressCloneFork handled by buildEgressCloneForkTree")
-      is MulticastFork -> error("MulticastFork handled by buildMulticastForkTree")
-      is ResubmitFork -> error("ResubmitFork handled by buildResubmitForkTree")
-      is RecirculateFork -> error("RecirculateFork handled by buildRecirculateForkTree")
     }
 
   /**
@@ -719,7 +614,6 @@ class V1ModelArchitecture(
         packetCtx,
         decisions.selectorMembers,
         createExternHandler(standardMetadata, pendingOps, ctx.tableStore, dropPort),
-        decisions.tableLookupCache,
       )
 
     val config = ctx.config
@@ -750,63 +644,27 @@ class V1ModelArchitecture(
       "max pipeline depth exceeded ($MAX_PIPELINE_DEPTH) — " +
         "possible infinite resubmit/recirculate loop"
     }
-    val snapshot = decisions.postParserSnapshot
 
     // --- Init + Parser ---
-    val s: PipelineState
-    val parserExitDrop: Boolean
-    if (snapshot != null) {
-      // Fork re-execution: restore from post-parser snapshot instead of re-parsing.
-      val packetCtx = PacketContext(ctx.payload, snapshot.bytesConsumed)
-      val env = snapshot.env.deepCopy()
-      val standardMetadata =
-        env.lookup(snapshot.standardMetaParamName) as? StructVal
-          ?: error("standard_metadata not found in snapshot environment")
-      s = finishPipelineState(ctx, decisions, packetCtx, env, standardMetadata)
-      for (event in snapshot.eventsThroughParser) s.packetCtx.addTraceEvent(event)
-      parserExitDrop = snapshot.parserExitDrop
-    } else {
-      s = initPipelineState(ctx, decisions)
-      s.packetCtx.addTraceEvent(packetIngressEvent(ctx.ingressPort))
-      parserExitDrop = runParser(s)
-      // Post-parser env for I2E clone fork-on-write (clone gets pre-ingress state).
-      s.postParserEnv = s.env.deepCopy()
-      // Capture snapshot for potential fork re-executions.
-      val parserUserParams =
-        ctx.config.parsersList.first().paramsList.filter {
-          it.type.hasNamed() && it.type.named !in IO_TYPES
-        }
-      postParserSnapshot.set(
-        PostParserSnapshot(
-          env = s.env.deepCopy(),
-          bytesConsumed = s.packetCtx.bytesConsumed,
-          eventsThroughParser = s.packetCtx.getEvents(),
-          parserExitDrop = parserExitDrop,
-          standardMetaParamName = parserUserParams[2].name,
-        )
-      )
-    }
+    val s = initPipelineState(ctx, decisions)
+    s.packetCtx.addTraceEvent(packetIngressEvent(ctx.ingressPort))
+    val parserExitDrop = runParser(s)
+    s.postParserEnv = s.env.deepCopy()
     if (parserExitDrop) return buildDropTrace(s.packetCtx.getEvents(), DropReason.MARK_TO_DROP)
-
-    val parserEventCount = s.packetCtx.getEvents().size
 
     // An assert()/assume() failure anywhere in the pipeline drops the packet.
     try {
       // --- Ingress controls (verify checksum, ingress) ---
-      // I2E clone branch: skip ingress — the clone gets the original parsed packet,
-      // not the version modified by ingress (BMv2 simple_switch semantics).
-      if (decisions.branchMode !is BranchMode.I2EClone) {
-        runControlStages(s, s.ingressControls, duringIngress = true)
-      }
+      runControlStages(s, s.ingressControls, duringIngress = true)
 
       // --- Ingress→egress boundary (traffic manager) ---
-      ingressEgressBoundary(ctx, s, decisions, parserEventCount)
+      ingressEgressBoundary(ctx, s)
       if (egressPortIsDropPort(s)) {
         return buildDropTrace(s.packetCtx.getEvents(), DropReason.MARK_TO_DROP)
       }
 
       // --- Egress + deparser ---
-      return runEgressAndDeparser(ctx, s, decisions)
+      return runEgressAndDeparser(ctx, s)
     } catch (_: AssertionFailureException) {
       return buildDropTrace(s.packetCtx.getEvents(), DropReason.ASSERTION_FAILURE)
     }
@@ -816,20 +674,10 @@ class V1ModelArchitecture(
    * Runs egress controls, post-egress boundary, deparser, and output. Called after the
    * ingress-egress boundary has set egress_port.
    */
-  private fun runEgressAndDeparser(
-    ctx: PipelineContext,
-    s: PipelineState,
-    decisions: V1ModelDecisions = V1ModelDecisions(),
-  ): TraceTree {
+  private fun runEgressAndDeparser(ctx: PipelineContext, s: PipelineState): TraceTree {
     resetEgressSpec(s)
     runControlStages(s, s.egressControls)
-    postEgressBoundary(ctx, s, decisions)
-
-    // E2E clone branch: postEgressBoundary set up clone metadata — run egress again.
-    if (decisions.branchMode is BranchMode.E2EClone) {
-      resetEgressSpec(s)
-      runControlStages(s, s.egressControls)
-    }
+    postEgressBoundary(ctx, s)
 
     if (egressSpecIsDropPort(s)) {
       return buildDropTrace(s.packetCtx.getEvents(), DropReason.MARK_TO_DROP)
@@ -843,7 +691,7 @@ class V1ModelArchitecture(
    * fork inside the egress controls (remaining egress stages already ran).
    */
   private fun runPostEgressAndDeparser(ctx: PipelineContext, s: PipelineState): TraceTree {
-    postEgressBoundary(ctx, s, V1ModelDecisions())
+    postEgressBoundary(ctx, s)
 
     if (egressSpecIsDropPort(s)) {
       return buildDropTrace(s.packetCtx.getEvents(), DropReason.MARK_TO_DROP)
@@ -932,69 +780,46 @@ class V1ModelArchitecture(
    * https://github.com/p4lang/behavioral-model/blob/main/docs/simple_switch.md
    */
   @Suppress("ThrowsCount") // one throw per fork type at the boundary
-  private fun ingressEgressBoundary(
-    ctx: PipelineContext,
-    s: PipelineState,
-    decisions: V1ModelDecisions,
-    parserEventCount: Int,
-  ) {
-    when (val mode = decisions.branchMode) {
-      is BranchMode.I2EClone -> {
-        s.standardMetadata.setBitField("instance_type", CLONE_I2E_INSTANCE_TYPE)
-        s.standardMetadata.setBitField("egress_port", mode.clonePort)
-      }
-      is BranchMode.Replica -> {
-        s.standardMetadata.setBitField("instance_type", REPLICATION_INSTANCE_TYPE)
-        s.standardMetadata.setBitField("egress_port", mode.port.toLong())
-        s.standardMetadata.setBitField("egress_rid", mode.rid.toLong())
-      }
-      is BranchMode.Normal,
-      is BranchMode.E2EClone -> {
-        // Both Normal and E2EClone run ingress normally and check for I2E clone/resubmit/multicast.
-        val suppressI2E = (mode as? BranchMode.Normal)?.suppressI2EClone == true
-        val pendingClone = s.pendingOps.cloneSessionId
-        if (pendingClone != null && !suppressI2E) {
-          resolveCloneSession(ctx, s, pendingClone)?.let { clonePort ->
-            throw CloneFork(
-              pendingClone,
-              clonePort,
-              s.packetCtx.getEvents(),
-              snapshotPreservedMetadata(s, s.pendingOps.cloneFieldListId),
-              s.env.deepCopy(),
-              s.packetCtx.bytesConsumed,
-              s.pendingOps.copy(),
-              s.postParserEnv ?: error("no post-parser env for I2E clone"),
-            )
-          }
-        }
-        if (s.pendingOps.resubmit) {
-          throw ResubmitFork(
-            s.packetCtx.getEvents(),
-            snapshotPreservedMetadata(s, s.pendingOps.resubmitFieldListId),
-          )
-        }
-        val mcastGrp =
-          (s.standardMetadata.fields["mcast_grp"] as? BitVal)?.bits?.value?.toInt() ?: 0
-        if (mcastGrp != 0) {
-          // BMv2 silently ignores unknown multicast groups (no fork, no output).
-          val group = ctx.tableStore.getMulticastGroup(mcastGrp)
-          if (group != null) {
-            val replicas =
-              group.replicasList.map { r -> BranchMode.Replica(r.instance, replicaPort(r)) }
-            throw MulticastFork(
-              replicas,
-              s.packetCtx.getEvents(),
-              s.env.deepCopy(),
-              s.packetCtx.bytesConsumed,
-              s.pendingOps.copy(),
-            )
-          }
-        }
-        // Normal unicast: copy egress_spec → egress_port for uniform read below.
-        s.standardMetadata.fields["egress_port"] =
-          s.standardMetadata.fields["egress_spec"] ?: BitVal(0, s.portBits)
+  private fun ingressEgressBoundary(ctx: PipelineContext, s: PipelineState) {
+    // BMv2 priority order: I2E clone > resubmit > multicast > unicast/drop.
+    val pendingClone = s.pendingOps.cloneSessionId
+    if (pendingClone != null) {
+      resolveCloneSession(ctx, s, pendingClone)?.let { clonePort ->
+        throw CloneFork(
+          pendingClone,
+          clonePort,
+          s.packetCtx.getEvents(),
+          snapshotPreservedMetadata(s, s.pendingOps.cloneFieldListId),
+          s.env.deepCopy(),
+          s.packetCtx.bytesConsumed,
+          s.pendingOps.copy(),
+          s.postParserEnv ?: error("no post-parser env for I2E clone"),
+        )
       }
     }
+    if (s.pendingOps.resubmit) {
+      throw ResubmitFork(
+        s.packetCtx.getEvents(),
+        snapshotPreservedMetadata(s, s.pendingOps.resubmitFieldListId),
+      )
+    }
+    val mcastGrp = (s.standardMetadata.fields["mcast_grp"] as? BitVal)?.bits?.value?.toInt() ?: 0
+    if (mcastGrp != 0) {
+      val group = ctx.tableStore.getMulticastGroup(mcastGrp)
+      if (group != null) {
+        val replicas = group.replicasList.map { r -> Replica(r.instance, replicaPort(r)) }
+        throw MulticastFork(
+          replicas,
+          s.packetCtx.getEvents(),
+          s.env.deepCopy(),
+          s.packetCtx.bytesConsumed,
+          s.pendingOps.copy(),
+        )
+      }
+    }
+    // Normal unicast: copy egress_spec → egress_port.
+    s.standardMetadata.fields["egress_port"] =
+      s.standardMetadata.fields["egress_spec"] ?: BitVal(0, s.portBits)
   }
 
   /**
@@ -1002,34 +827,19 @@ class V1ModelArchitecture(
    *
    * BMv2 priority order after egress: E2E clone > recirculate > output/drop.
    */
-  private fun postEgressBoundary(
-    ctx: PipelineContext,
-    s: PipelineState,
-    decisions: V1ModelDecisions,
-  ) {
-    when (val mode = decisions.branchMode) {
-      is BranchMode.E2EClone -> {
-        s.standardMetadata.setBitField("instance_type", CLONE_E2E_INSTANCE_TYPE)
-        s.standardMetadata.setBitField("egress_port", mode.clonePort)
-        // Suppress chained E2E clones: BMv2 does not re-clone from a clone's egress run.
-        s.pendingOps.egressCloneSessionId = null
-      }
-      else -> {
-        val suppressE2E = (mode as? BranchMode.Normal)?.suppressE2EClone == true
-        val pendingE2EClone = s.pendingOps.egressCloneSessionId
-        if (pendingE2EClone != null && !suppressE2E) {
-          resolveCloneSession(ctx, s, pendingE2EClone)?.let { clonePort ->
-            throw EgressCloneFork(
-              pendingE2EClone,
-              clonePort,
-              s.packetCtx.getEvents(),
-              snapshotPreservedMetadata(s, s.pendingOps.egressCloneFieldListId),
-              s.env.deepCopy(),
-              s.packetCtx.bytesConsumed,
-              s.pendingOps.copy(),
-            )
-          }
-        }
+  private fun postEgressBoundary(ctx: PipelineContext, s: PipelineState) {
+    val pendingE2EClone = s.pendingOps.egressCloneSessionId
+    if (pendingE2EClone != null) {
+      resolveCloneSession(ctx, s, pendingE2EClone)?.let { clonePort ->
+        throw EgressCloneFork(
+          pendingE2EClone,
+          clonePort,
+          s.packetCtx.getEvents(),
+          snapshotPreservedMetadata(s, s.pendingOps.egressCloneFieldListId),
+          s.env.deepCopy(),
+          s.packetCtx.bytesConsumed,
+          s.pendingOps.copy(),
+        )
       }
     }
   }
@@ -1385,29 +1195,11 @@ class V1ModelArchitecture(
 // v1model-specific fork types and pipeline execution decisions
 // =============================================================================
 
-/**
- * Which mode this v1model pipeline execution is in.
- *
- * BMv2 priority ordering guarantees at most one mode per boundary crossing: ingress (I2E clone >
- * resubmit > multicast > unicast), egress (E2E clone > recirculate > output).
- */
-internal sealed class BranchMode {
-  /** Normal pipeline — may fork at any choice point. */
-  data class Normal(val suppressI2EClone: Boolean = false, val suppressE2EClone: Boolean = false) :
-    BranchMode()
-
-  /** I2E clone branch: skip ingress, set CLONE_I2E at boundary. */
-  data class I2EClone(val sessionId: Int, val clonePort: Long) : BranchMode()
-
-  /** E2E clone branch: re-run egress with CLONE_E2E after original egress completes. */
-  data class E2EClone(val sessionId: Int, val clonePort: Long) : BranchMode()
-
-  /** Multicast replica: set REPLICATION metadata at boundary. */
-  data class Replica(val rid: Int, val port: Int) : BranchMode()
-}
+/** Multicast replica descriptor: egress port and replication ID. */
+internal data class Replica(val rid: Int, val port: Int)
 
 /**
- * v1model-specific policies for re-execution of a pipeline branch in the trace tree.
+ * v1model-specific policies for pipeline execution.
  *
  * @property selectorMembers Forced member selections per table (action selector branches).
  * @property branchMode The execution mode for this branch (normal, clone, or replica).
@@ -1416,28 +1208,11 @@ internal sealed class BranchMode {
  * @property preservedMetadata Pre-filtered metadata fields to restore from
  *   clone/resubmit/recirculate.
  */
-
-/** Post-parser state snapshot for reuse in fork re-executions (avoids re-parsing). */
-internal data class PostParserSnapshot(
-  val env: Environment,
-  val bytesConsumed: Int,
-  /** Trace events through parser completion (includes packet ingress event). */
-  val eventsThroughParser: List<TraceEvent>,
-  val parserExitDrop: Boolean,
-  /** Name of the standard_metadata parameter, for resolving it from the restored [env]. */
-  val standardMetaParamName: String,
-)
-
 internal data class V1ModelDecisions(
   val selectorMembers: Map<String, Int> = emptyMap(),
-  val branchMode: BranchMode = BranchMode.Normal(),
   val instanceTypeOverride: Long? = null,
   val pipelineDepth: Int = 0,
   val preservedMetadata: Map<String, Value>? = null,
-  /** Cached table lookup results from before a selector fork, to avoid redundant O(n) scans. */
-  val tableLookupCache: Map<String, TableStore.LookupResult>? = null,
-  /** Post-parser state to restore instead of re-running the parser on fork re-executions. */
-  val postParserSnapshot: PostParserSnapshot? = null,
 )
 
 /**
@@ -1545,7 +1320,7 @@ internal class EgressCloneFork(
 
 /** Fork at the ingress→egress boundary when mcast_grp is set — one branch per replica. */
 internal class MulticastFork(
-  val replicas: List<BranchMode.Replica>,
+  val replicas: List<Replica>,
   eventsBeforeFork: List<TraceEvent>,
   /** Deep copy of the environment at the fork point (post-ingress). */
   val forkPointEnv: Environment,
