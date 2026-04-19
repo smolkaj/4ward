@@ -17,7 +17,6 @@ package fourward.e2e.corpus
 import fourward.stf.TestResult
 import fourward.stf.runStfTest
 import java.nio.file.Files
-import java.nio.file.Paths
 import org.junit.Assert.fail
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -37,8 +36,7 @@ class CorpusStfTest(private val testName: String) {
     @JvmStatic
     @Parameterized.Parameters(name = "{0}")
     fun testCases(): List<Array<String>> {
-      val r = System.getenv("JAVA_RUNFILES") ?: "."
-      val corpusDir = Paths.get(r, "_main/e2e_tests/corpus")
+      val corpusDir = fourward.bazel.resolveRunfile("_main/e2e_tests/corpus")
       return Files.list(corpusDir).use { stream ->
         stream
           .filter { it.toString().endsWith(".stf") }

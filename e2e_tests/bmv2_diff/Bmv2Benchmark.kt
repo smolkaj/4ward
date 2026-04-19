@@ -21,9 +21,9 @@ class Bmv2Benchmark {
 
   @Test
   fun `bmv2 SAI P4 benchmark`() {
-    val jsonPath = resolveRunfile("e2e_tests/sai_p4/sai_middleblock.json")
-    val p4Info = loadP4Info("e2e_tests/sai_p4/sai_middleblock_bmv2.txtpb")
-    val driverPath = resolveRunfile("e2e_tests/bmv2_diff/bmv2_driver")
+    val jsonPath = fourward.bazel.resolveRunfile("_main/e2e_tests/sai_p4/sai_middleblock.json")
+    val p4Info = loadP4Info("_main/e2e_tests/sai_p4/sai_middleblock_bmv2.txtpb")
+    val driverPath = fourward.bazel.resolveRunfile("_main/e2e_tests/bmv2_diff/bmv2_driver")
 
     val cores = Runtime.getRuntime().availableProcessors()
     println()
@@ -371,17 +371,10 @@ class Bmv2Benchmark {
     }
 
     private fun loadP4Info(path: String): P4InfoOuterClass.P4Info {
-      val runfile = resolveRunfile(path)
-      val text = runfile.toFile().readText()
+      val text = fourward.bazel.resolveRunfile(path).toFile().readText()
       val builder = PipelineConfig.newBuilder()
       TextFormat.merge(text, builder)
       return builder.build().p4Info
-    }
-
-    private fun resolveRunfile(path: String): Path {
-      val runfilesDir = System.getenv("TEST_SRCDIR") ?: "."
-      val workspace = System.getenv("TEST_WORKSPACE") ?: "_main"
-      return Path.of(runfilesDir, workspace, path)
     }
   }
 }

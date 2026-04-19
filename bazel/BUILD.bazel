@@ -2,10 +2,33 @@
 
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 load("@rules_kotlin//kotlin:core.bzl", "define_kt_toolchain", "kt_kotlinc_options")
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_library", "kt_jvm_test")
 
 package(
     default_applicable_licenses = ["//:license"],
     licenses = ["notice"],
+)
+
+kt_jvm_library(
+    name = "runfiles",
+    srcs = ["Runfiles.kt"],
+    visibility = ["//visibility:public"],
+    deps = ["@rules_java//java/runfiles"],
+)
+
+kt_jvm_test(
+    name = "RunfilesTest",
+    srcs = ["RunfilesTest.kt"],
+    data = [
+        "Runfiles.kt",
+        "//p4c_backend:p4c-4ward",
+        "@p4c//p4include",
+    ],
+    test_class = "fourward.bazel.RunfilesTest",
+    deps = [
+        ":runfiles",
+        "@fourward_maven//:junit_junit",
+    ],
 )
 
 bzl_library(

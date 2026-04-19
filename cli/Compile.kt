@@ -1,5 +1,6 @@
 package fourward.cli
 
+import fourward.bazel.resolveRunfileOrNull
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -60,25 +61,21 @@ fun compileToTemp(p4Source: Path, includeDirs: List<Path>): Pair<Path?, Int> {
 /** Locates the p4c-4ward binary: runfiles → env → PATH. Returns null if not found. */
 private fun findP4c4ward(): Path? {
   // 1. Bazel runfiles: works when invoked via `bazel run //cli:4ward`.
-  val runfiles = System.getenv("JAVA_RUNFILES")
-  if (runfiles != null) {
-    val candidate = Path.of(runfiles, "_main/p4c_backend/p4c-4ward")
-    if (Files.isExecutable(candidate)) return candidate
-  }
+  resolveRunfileOrNull("_main/p4c_backend/p4c-4ward")?.let { if (Files.isExecutable(it)) return it }
 
   // 2. Explicit env var.
   val envPath = System.getenv("P4C_4WARD_PATH")
   if (envPath != null) {
-    val candidate = Path.of(envPath)
-    if (Files.isExecutable(candidate)) return candidate
+    val envCandidate = Path.of(envPath)
+    if (Files.isExecutable(envCandidate)) return envCandidate
     System.err.println("warning: P4C_4WARD_PATH=$envPath is not executable, trying PATH")
   }
 
   // 3. PATH lookup.
   val pathDirs = System.getenv("PATH")?.split(":") ?: emptyList()
   for (dir in pathDirs) {
-    val candidate = Path.of(dir, "p4c-4ward")
-    if (Files.isExecutable(candidate)) return candidate
+    val pathCandidate = Path.of(dir, "p4c-4ward")
+    if (Files.isExecutable(pathCandidate)) return pathCandidate
   }
 
   return null
@@ -91,15 +88,8 @@ private fun findP4c4ward(): Path? {
 private fun resolveIncludeDirs(userDirs: List<Path>): List<Path> {
   val dirs = mutableListOf<Path>()
 
-  // p4c standard includes from runfiles (core.p4, v1model.p4, etc.).
-  // Bzlmod maps `@p4c` to `p4c+` in the runfiles tree.
-  val runfiles = System.getenv("JAVA_RUNFILES")
-  if (runfiles != null) {
-    val p4include = Path.of(runfiles, "p4c+/p4include")
-    if (Files.isDirectory(p4include)) {
-      dirs.add(p4include)
-    }
-  }
+  // p4c standard includes (core.p4, v1model.p4, etc.).
+  resolveRunfileOrNull("p4c/p4include")?.let { if (Files.isDirectory(it)) dirs.add(it) }
 
   dirs.addAll(userDirs)
   return dirs
