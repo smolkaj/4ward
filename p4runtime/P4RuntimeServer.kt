@@ -3,6 +3,9 @@ package fourward.p4runtime
 import fourward.simulator.Simulator
 import io.grpc.Server
 import io.grpc.netty.NettyServerBuilder
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.StandardCopyOption
 import java.util.concurrent.Executors
 import kotlinx.coroutines.sync.Mutex
 
@@ -80,10 +83,23 @@ fun main(args: Array<String>) {
     flagValue(args, "--device-id")?.toLongOrNull() ?: P4RuntimeService.DEFAULT_DEVICE_ID
   val dropPort = flagValue(args, "--drop-port")?.toIntOrNull()
   val cpuPortConfig = CpuPortConfig.fromFlag(flagValue(args, "--cpu-port"))
+  val portFile = flagValue(args, "--port-file")?.let(Path::of)
 
   val server = P4RuntimeServer(port, deviceId, dropPort, cpuPortConfig).start()
   println("P4Runtime server listening on port ${server.port()}")
+
+  // Machine-readable readiness signal for embedders. Write the port to a temp
+  // file and rename into place atomically so a concurrent reader never sees a
+  // partial value. See p4runtime_cc/fourward_server.h for the embedding API.
+  portFile?.let { writePortFileAtomic(it, server.port()) }
+
   server.blockUntilShutdown()
+}
+
+private fun writePortFileAtomic(path: Path, port: Int) {
+  val tmp = path.resolveSibling("${path.fileName}.tmp")
+  Files.writeString(tmp, port.toString())
+  Files.move(tmp, path, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
 }
 
 private fun flagValue(args: Array<String>, flag: String): String? =
