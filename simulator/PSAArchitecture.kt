@@ -587,7 +587,7 @@ class PSAArchitecture(private val config: BehavioralConfig) : Architecture {
     (values["psa_ingress_input_metadata_t"] as? StructVal)?.let {
       it.setBitField("ingress_port", ingressPort.toLong())
       it.fields["packet_path"] = EnumVal(packetPath)
-      it.fields["parser_error"] = ErrorVal("NoError")
+      it.fields["parser_error"] = ErrorVal.NO_ERROR
     }
     // PSA spec: ingress output metadata defaults to drop=true.
     (values["psa_ingress_output_metadata_t"] as? StructVal)?.let {
@@ -617,7 +617,7 @@ class PSAArchitecture(private val config: BehavioralConfig) : Architecture {
       // PSA spec §6.5: instance identifies the replica within a multicast group.
       // Only set if the program declares the field (not all PSA programs use it).
       if (it.fields.containsKey("instance")) it.setBitField("instance", instance.toLong())
-      it.fields["parser_error"] = ErrorVal("NoError")
+      it.fields["parser_error"] = ErrorVal.NO_ERROR
     }
     // PSA spec: egress output metadata defaults to drop=false.
     (values["psa_egress_output_metadata_t"] as? StructVal)?.let {

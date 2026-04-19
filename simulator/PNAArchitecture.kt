@@ -252,7 +252,7 @@ class PNAArchitecture(private val config: BehavioralConfig) : Architecture {
 
     (values["pna_pre_input_metadata_t"] as? StructVal)?.let {
       it.setBitField("input_port", portLong)
-      it.fields["parser_error"] = ErrorVal("NoError")
+      it.fields["parser_error"] = ErrorVal.NO_ERROR
       it.fields["direction"] = EnumVal(direction)
       if (it.fields.containsKey("pass")) it.setBitField("pass", passTruncated)
       it.fields["loopedback"] = BoolVal(loopedback)
@@ -271,7 +271,7 @@ class PNAArchitecture(private val config: BehavioralConfig) : Architecture {
       if (it.fields.containsKey("pass")) it.setBitField("pass", passTruncated)
       it.fields["loopedback"] = BoolVal(loopedback)
       if (it.fields.containsKey("timestamp")) it.setBitField("timestamp", 0L)
-      it.fields["parser_error"] = ErrorVal("NoError")
+      it.fields["parser_error"] = ErrorVal.NO_ERROR
       if (it.fields.containsKey("class_of_service")) it.setBitField("class_of_service", 0L)
       it.setBitField("input_port", portLong)
     }
