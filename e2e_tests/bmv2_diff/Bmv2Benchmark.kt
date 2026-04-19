@@ -378,6 +378,10 @@ class Bmv2Benchmark {
       return builder.build().p4Info
     }
 
-    private fun resolveRunfile(path: String): Path = fourward.e2e.RunfilesHelper.rlocation(path)
+    private fun resolveRunfile(path: String): Path {
+      val runfilesDir = System.getenv("TEST_SRCDIR") ?: "."
+      val workspace = System.getenv("TEST_WORKSPACE") ?: "_main"
+      return Path.of(runfilesDir, workspace, path)
+    }
   }
 }

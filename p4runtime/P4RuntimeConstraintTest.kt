@@ -7,6 +7,7 @@ import fourward.p4runtime.P4RuntimeTestHarness.Companion.loadConfig
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.longToBytes
 import io.grpc.Status
 import java.nio.file.Path
+import java.nio.file.Paths
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -172,6 +173,6 @@ class P4RuntimeConstraintTest {
 
   companion object {
     private val VALIDATOR_BINARY: Path =
-      fourward.e2e.RunfilesHelper.rlocation("p4runtime/constraint_validator")
+      Paths.get(System.getenv("JAVA_RUNFILES") ?: ".", "_main/p4runtime/constraint_validator")
   }
 }

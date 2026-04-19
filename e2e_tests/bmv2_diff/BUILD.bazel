@@ -34,7 +34,6 @@ kt_jvm_test(
     tags = ["heavy"],
     test_class = "fourward.e2e.bmv2.Bmv2Benchmark",
     deps = [
-        "//e2e_tests:runfiles_helper",
         "//simulator:ir_java_proto",
         "//simulator:p4info_java_proto",
         "@fourward_maven//:com_google_protobuf_protobuf_java",

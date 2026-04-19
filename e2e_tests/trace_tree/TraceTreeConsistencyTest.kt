@@ -8,6 +8,7 @@ import fourward.simulator.Simulator
 import fourward.stf.StfFile
 import fourward.stf.installStfEntries
 import fourward.stf.loadPipelineConfig
+import java.nio.file.Paths
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -31,7 +32,8 @@ class TraceTreeConsistencyTest(private val testName: String) {
     @JvmStatic
     @Parameters(name = "{0}")
     fun testCases(): List<Array<String>> {
-      val dir = fourward.e2e.RunfilesHelper.rlocation(PKG).toFile()
+      val r = System.getenv("JAVA_RUNFILES") ?: "."
+      val dir = Paths.get(r, "_main/$PKG").toFile()
       return dir
         .listFiles { f -> f.name.endsWith(".stf") }
         ?.map { arrayOf(it.name.removeSuffix(".stf")) }
@@ -41,8 +43,9 @@ class TraceTreeConsistencyTest(private val testName: String) {
 
   @Test
   fun `output packets match trace tree leaves`() {
-    val configPath = fourward.e2e.RunfilesHelper.rlocation("$PKG/$testName.txtpb")
-    val stfPath = fourward.e2e.RunfilesHelper.rlocation("$PKG/$testName.stf")
+    val r = System.getenv("JAVA_RUNFILES") ?: "."
+    val configPath = Paths.get(r, "_main/$PKG/$testName.txtpb")
+    val stfPath = Paths.get(r, "_main/$PKG/$testName.stf")
 
     val config = loadPipelineConfig(configPath)
     val stf = StfFile.parse(stfPath)

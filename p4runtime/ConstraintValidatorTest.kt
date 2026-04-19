@@ -3,6 +3,7 @@ package fourward.p4runtime
 import com.google.protobuf.ByteString
 import fourward.ir.PipelineConfig
 import java.nio.file.Path
+import java.nio.file.Paths
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -89,7 +90,8 @@ class ConstraintValidatorTest {
   // =========================================================================
 
   private fun loadP4Info(configPath: String): p4.config.v1.P4InfoOuterClass.P4Info {
-    val path = fourward.e2e.RunfilesHelper.rlocation(configPath)
+    val r = System.getenv("JAVA_RUNFILES") ?: "."
+    val path = Paths.get(r, "_main/$configPath")
     val builder = PipelineConfig.newBuilder()
     com.google.protobuf.TextFormat.merge(path.toFile().readText(), builder)
     return builder.build().p4Info
@@ -161,6 +163,6 @@ class ConstraintValidatorTest {
 
   companion object {
     private val VALIDATOR_BINARY: Path =
-      fourward.e2e.RunfilesHelper.rlocation("p4runtime/constraint_validator")
+      Paths.get(System.getenv("JAVA_RUNFILES") ?: ".", "_main/p4runtime/constraint_validator")
   }
 }

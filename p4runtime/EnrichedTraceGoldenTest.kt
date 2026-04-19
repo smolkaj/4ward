@@ -7,6 +7,7 @@ import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildEthernetFrame
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.loadConfig
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.longToBytes
 import fourward.sim.TraceTree
+import java.nio.file.Paths
 import org.junit.After
 import org.junit.Assert.fail
 import org.junit.Before
@@ -63,7 +64,8 @@ class EnrichedTraceGoldenTest {
   }
 
   private fun loadGolden(): TraceTree {
-    val path = fourward.e2e.RunfilesHelper.rlocation(GOLDEN_PATH)
+    val r = System.getenv("JAVA_RUNFILES") ?: "."
+    val path = Paths.get(r, "_main/$GOLDEN_PATH")
     val builder = TraceTree.newBuilder()
     TextFormat.merge(path.toFile().readText(), builder)
     return builder.build()

@@ -11,6 +11,7 @@ import fourward.p4runtime.P4RuntimeTestHarness.Companion.matchFieldId
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.paramId
 import io.grpc.Status
 import java.nio.file.Path
+import java.nio.file.Paths
 import org.junit.AfterClass
 import org.junit.BeforeClass
 import org.junit.Test
@@ -304,7 +305,7 @@ class SaiP4ConstraintTest {
   companion object {
     private const val MAC_LEN = 6
     private val VALIDATOR_BINARY: Path =
-      fourward.e2e.RunfilesHelper.rlocation("p4runtime/constraint_validator")
+      Paths.get(System.getenv("JAVA_RUNFILES") ?: ".", "_main/p4runtime/constraint_validator")
 
     // Shared across all tests — pipeline load + constraint validator subprocess is expensive.
     private lateinit var harness: P4RuntimeTestHarness

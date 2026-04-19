@@ -3,6 +3,7 @@ package fourward.e2e.p4testgen
 import fourward.stf.TestResult
 import fourward.stf.runStf
 import java.nio.file.Files
+import java.nio.file.Paths
 import org.junit.Assert.fail
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -18,12 +19,13 @@ import org.junit.runners.Parameterized
 class P4TestgenSuiteTest(private val testName: String) {
 
   companion object {
-    private const val PKG = "e2e_tests/p4testgen"
+    private val runfiles = System.getenv("JAVA_RUNFILES") ?: "."
+    private const val PKG = "_main/e2e_tests/p4testgen"
 
     @JvmStatic
     @Parameterized.Parameters(name = "{0}")
     fun testCases(): List<Array<String>> {
-      val pkgDir = fourward.e2e.RunfilesHelper.rlocation(PKG)
+      val pkgDir = Paths.get(runfiles, PKG)
       return Files.list(pkgDir)
         .use { it.toList() }
         .filter { Files.isDirectory(it) && it.fileName.toString().endsWith("_stfs") }
@@ -42,8 +44,8 @@ class P4TestgenSuiteTest(private val testName: String) {
   @Test
   fun test() {
     val (program, stfName) = testName.split("/", limit = 2)
-    val configPath = fourward.e2e.RunfilesHelper.rlocation("$PKG/$program.txtpb")
-    val stfPath = fourward.e2e.RunfilesHelper.rlocation("$PKG/${program}_stfs/$stfName.stf")
+    val configPath = Paths.get(runfiles, "$PKG/$program.txtpb")
+    val stfPath = Paths.get(runfiles, "$PKG/${program}_stfs/$stfName.stf")
     val result = runStf(configPath, stfPath)
     if (result is TestResult.Failure) fail(result.message)
   }
