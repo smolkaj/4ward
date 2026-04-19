@@ -12,18 +12,21 @@
 // infrastructure) that want to embed 4ward without touching the JVM toolchain
 // directly.
 //
-// Example:
+// Example (`ASSIGN_OR_RETURN` is the common project-local macro that early-
+// returns on a non-OK `absl::Status`; any equivalent works):
 //
 //     #include "p4runtime_cc/fourward_server.h"
 //
-//     absl::StatusOr<fourward::FourwardServer> server =
-//         fourward::FourwardServer::Start();
-//     ASSERT_TRUE(server.ok()) << server.status();
-//     auto channel = grpc::CreateChannel(server->Address(),
-//                                        grpc::InsecureChannelCredentials());
-//     auto stub = p4::v1::P4Runtime::NewStub(channel);
-//     // ... drive the server via gRPC ...
-//     // Server is killed when `server` goes out of scope.
+//     absl::Status RunAgainstFourward() {
+//       ASSIGN_OR_RETURN(fourward::FourwardServer server,
+//                        fourward::FourwardServer::Start());
+//       auto channel = grpc::CreateChannel(server.Address(),
+//                                          grpc::InsecureChannelCredentials());
+//       auto stub = p4::v1::P4Runtime::NewStub(channel);
+//       // ... drive the server via gRPC ...
+//       return absl::OkStatus();
+//       // Server is killed when `server` goes out of scope.
+//     }
 //
 // A Bazel consumer only needs to add this target to `deps`; the server binary
 // is propagated through `cc_library.data` into the test's runfiles.
