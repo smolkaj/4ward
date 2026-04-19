@@ -14,10 +14,11 @@ bazel run //p4runtime:p4runtime_server -- [flags]
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--port` | 9559 | gRPC listen port |
+| `--port` | 9559 | gRPC listen port (use `0` to let the kernel assign an ephemeral port; pair with `--port-file` to discover it) |
 | `--device-id` | 1 | P4Runtime device ID |
 | `--drop-port` | `2^N - 1` | Override drop port (e.g., 511 for 9-bit ports) |
 | `--cpu-port` | `2^N - 2` | Override CPU port (e.g., 510 for 9-bit ports; auto-enabled when `@controller_header` is present) |
+| `--port-file` | — | After binding, atomically write the listening port to this path. File-exists ≡ ready to serve. Intended for embedders — see [Embedding in C++](embedding-cc.md). |
 
 ## P4Runtime service
 

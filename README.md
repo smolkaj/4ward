@@ -323,7 +323,9 @@ report in about 5. No flakes, no "works on my machine." See for yourself on the
 
 **[User documentation](https://smolkaj.github.io/4ward/)** — getting started
 guides, reference pages, and concept explainers for the web playground, CLI,
-and gRPC API.
+and gRPC API. C++ consumers embedding the server in their own harnesses
+should start at
+**[Embedding in C++](https://smolkaj.github.io/4ward/reference/embedding-cc/)**.
 
 **[Tutorial](examples/tutorial.t)** — a hands-on walkthrough from hello
 world to machine-readable trace output. Doubles as a regression test (cram
