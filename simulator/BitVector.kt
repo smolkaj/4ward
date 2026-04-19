@@ -16,12 +16,9 @@ data class BitVector(val value: BigInteger, val width: Int) {
   init {
     // Width 0 is valid for varbit fields with no runtime data (e.g. IPv4 options when IHL=5).
     require(width >= 0) { "width must be non-negative, got $width" }
-    require(value >= BigInteger.ZERO) { "value must be non-negative, got $value" }
-    if (width > 0) {
-      require(value < BigInteger.TWO.pow(width)) { "value $value does not fit in $width bits" }
-    } else {
-      require(value == BigInteger.ZERO) { "zero-width BitVector must have value 0" }
-    }
+    require(value.signum() >= 0) { "value must be non-negative, got $value" }
+    // Equivalent to `value < 2^width` without allocating a BigInteger from `TWO.pow(width)`.
+    require(value.bitLength() <= width) { "value $value does not fit in $width bits" }
   }
 
   /** Cached Long representation for fast comparison. Valid when width ≤ 63. */
@@ -62,11 +59,11 @@ data class BitVector(val value: BigInteger, val width: Int) {
 
   infix fun xor(other: BitVector): BitVector = binaryOp(other) { a, b -> a xor b }
 
-  fun inv(): BitVector = BitVector(value.not() and mask, width)
+  fun inv(): BitVector = BitVector(value.not() and maskFor(width), width)
 
   // Shifts — the shift amount is an arbitrary non-negative integer.
 
-  fun shl(amount: Int): BitVector = BitVector((value shl amount) and mask, width)
+  fun shl(amount: Int): BitVector = BitVector((value shl amount) and maskFor(width), width)
 
   fun shr(amount: Int): BitVector = BitVector(value shr amount, width) // logical shift
 
@@ -86,10 +83,7 @@ data class BitVector(val value: BigInteger, val width: Int) {
     require(hi >= lo) { "hi ($hi) must be >= lo ($lo)" }
     require(hi < width) { "hi ($hi) out of range for width $width" }
     val newWidth = hi - lo + 1
-    return BitVector(
-      (value shr lo) and BigInteger.TWO.pow(newWidth).minus(BigInteger.ONE),
-      newWidth,
-    )
+    return BitVector((value shr lo) and maskFor(newWidth), newWidth)
   }
 
   /**
@@ -118,15 +112,14 @@ data class BitVector(val value: BigInteger, val width: Int) {
 
   override fun toString(): String = "0x${value.toString(16)} : bit<$width>"
 
-  private val mask: BigInteger
-    get() = BigInteger.TWO.pow(width).minus(BigInteger.ONE)
-
   private val max: BigInteger
-    get() = mask
+    get() = maskFor(width)
 
   private fun binaryOp(other: BitVector, op: (BigInteger, BigInteger) -> BigInteger): BitVector {
     requireSameWidth(other)
-    return BitVector(op(value, other.value).mod(BigInteger.TWO.pow(width)), width)
+    // `and mask` truncates to width bits. Safe even when op produces a negative intermediate
+    // (e.g., minus underflow): BigInteger.and sign-extends, so (-1).and(0xFF) = 255.
+    return BitVector(op(value, other.value) and maskFor(width), width)
   }
 
   private fun requireSameWidth(other: BitVector) {
@@ -137,6 +130,16 @@ data class BitVector(val value: BigInteger, val width: Int) {
     const val BITS_PER_BYTE = 8
     // 63 not 64: Java Long is signed, so we reserve bit 63 to keep unsigned comparisons simple.
     const val LONG_WIDTH = 63
+
+    /**
+     * Cache of `2^width - 1` by width. Eliminates repeated `TWO.pow(width)` allocations in
+     * arithmetic, slice, shift, and inv — a few dozen distinct widths per pipeline.
+     */
+    private val maskByWidth = java.util.concurrent.ConcurrentHashMap<Int, BigInteger>()
+
+    /** Returns `2^width - 1`, cached. */
+    fun maskFor(width: Int): BigInteger =
+      maskByWidth.computeIfAbsent(width) { BigInteger.TWO.pow(it).minus(BigInteger.ONE) }
 
     fun ofInt(value: Int, width: Int): BitVector =
       BitVector(BigInteger.valueOf(value.toLong()), width)

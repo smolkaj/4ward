@@ -93,10 +93,18 @@ data class HeaderVal(
     }
   }
 
-  fun copy(): HeaderVal = HeaderVal(typeName, fields.toMutableMap(), valid)
+  fun copy(): HeaderVal = HeaderVal(typeName, copyFields(), valid)
 
-  override fun deepCopy(): HeaderVal =
-    HeaderVal(typeName, fields.mapValuesTo(mutableMapOf()) { it.value.deepCopy() }, valid)
+  /**
+   * P4 headers contain only primitive fields (`bit<N>`, `int<N>`, `bool`, `varbit`), whose
+   * [Value.deepCopy] returns `this`. So deep-copy is equivalent to a shallow map copy — no
+   * per-entry recursion needed. For [CompactFieldMap]-backed headers (the common path via
+   * [defaultValue]), this is a single [Array.copyOf] with no per-entry allocation.
+   */
+  override fun deepCopy(): HeaderVal = HeaderVal(typeName, copyFields(), valid)
+
+  private fun copyFields(): MutableMap<String, Value> =
+    if (fields is CompactFieldMap) fields.copy() else LinkedHashMap(fields)
 }
 
 /**
@@ -105,10 +113,14 @@ data class HeaderVal(
  */
 data class StructVal(val typeName: String, val fields: MutableMap<String, Value> = mutableMapOf()) :
   Value() {
-  fun copy(): StructVal = StructVal(typeName, fields.toMutableMap())
+  fun copy(): StructVal = StructVal(typeName, LinkedHashMap(fields))
 
   override fun deepCopy(): StructVal =
-    StructVal(typeName, fields.mapValuesTo(mutableMapOf()) { it.value.deepCopy() })
+    StructVal(
+      typeName,
+      // Pre-size to avoid HashMap.resize on the fork-copy hot path (load factor 0.75).
+      fields.mapValuesTo(LinkedHashMap(fields.size * 4 / 3 + 1)) { it.value.deepCopy() },
+    )
 
   /** P4 spec §8.20: a header union is valid if any member header is valid. */
   fun isUnionValid(): Boolean = fields.values.any { it is HeaderVal && it.valid }

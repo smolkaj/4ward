@@ -65,7 +65,10 @@ class Environment {
     val copy = Environment()
     copy.scopes.clear()
     for (scope in scopes) {
-      copy.scopes.addLast(scope.mapValuesTo(mutableMapOf()) { it.value.deepCopy() })
+      // Pre-size to skip HashMap.resize on the fork-copy hot path (load factor 0.75).
+      copy.scopes.addLast(
+        scope.mapValuesTo(LinkedHashMap(scope.size * 4 / 3 + 1)) { it.value.deepCopy() }
+      )
     }
     return copy
   }
