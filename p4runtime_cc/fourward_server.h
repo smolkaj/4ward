@@ -24,7 +24,6 @@
 //       auto stub = server.NewP4RuntimeStub();
 //       // ... drive the server via gRPC ...
 //       return absl::OkStatus();
-//       // Server is killed when `server` goes out of scope.
 //     }
 //
 // A Bazel consumer only needs to add this target to `deps`; the server binary
@@ -34,7 +33,7 @@
 // and atomically writes its listening port there once it is accepting RPCs.
 // File existence is the readiness signal; contents are the port.
 
-#include <sys/types.h>  // pid_t
+#include <sys/types.h>
 
 #include <cstdint>
 #include <memory>
@@ -42,6 +41,7 @@
 #include <string>
 
 #include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
 #include "absl/time/time.h"
 #include "grpcpp/channel.h"
 #include "p4/v1/p4runtime.grpc.pb.h"
@@ -86,17 +86,15 @@ struct FourwardServerOptions {
 
 class FourwardServer {
  public:
-  using Options = FourwardServerOptions;
-
   // Forks a server subprocess and blocks until it is accepting gRPC calls.
   // Returns NotFoundError if the server binary is missing from runfiles,
-  // DeadlineExceededError on startup timeout, InternalError on other
-  // lifecycle failures.
-  static absl::StatusOr<FourwardServer> Start(Options options = {});
+  // DeadlineExceededError on startup timeout, and a canonical-errno-mapped
+  // status on other lifecycle failures.
+  static absl::StatusOr<FourwardServer> Start(
+      FourwardServerOptions options = {});
 
   ~FourwardServer();
 
-  // Move-only. The server is killed by whichever instance owns the PID.
   FourwardServer(FourwardServer&& other) noexcept;
   FourwardServer& operator=(FourwardServer&& other) noexcept;
   FourwardServer(const FourwardServer&) = delete;
@@ -113,7 +111,7 @@ class FourwardServer {
   }
 
   // Address suitable for grpc::CreateChannel, e.g. "localhost:42517".
-  const std::string& Address() const { return address_; }
+  std::string Address() const { return absl::StrCat("localhost:", port_); }
 
   // TCP port the server is listening on.
   int Port() const { return port_; }
@@ -128,7 +126,6 @@ class FourwardServer {
   // Shared insecure channel to the server, suitable for helpers that accept
   // `shared_ptr<grpc::Channel>` directly (e.g. p4_pdpi).
   const std::shared_ptr<grpc::Channel>& Channel() const { return channel_; }
-  // PID of the server subprocess.
   pid_t Pid() const { return pid_; }
 
  private:
@@ -142,7 +139,6 @@ class FourwardServer {
   pid_t pid_ = -1;
   int port_ = 0;
   uint64_t device_id_ = 0;
-  std::string address_;
   // Scratch directory holding the `--port-file`. Removed on Shutdown.
   std::string scratch_dir_;
   std::shared_ptr<grpc::Channel> channel_;

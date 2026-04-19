@@ -13,7 +13,6 @@
 #include <cerrno>
 #include <cstdint>
 #include <cstdlib>
-#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <memory>
@@ -49,10 +48,14 @@ using ::bazel::tools::cpp::runfiles::Runfiles;
 // build.
 constexpr char kServerRunfile[] = FOURWARD_SERVER_RLOCATION;
 
-absl::Status PosixError(const std::string& what, int err) {
-  return absl::InternalError(
-      absl::StrCat(what, ": ", std::strerror(err), " (errno=", err, ")"));
-}
+// Flag names passed to the Kotlin server, kept in one place so the drift
+// between wrapper and server is easy to audit.
+constexpr char kFlagPort[] = "--port=";
+constexpr char kFlagDeviceId[] = "--device-id=";
+constexpr char kFlagPortFile[] = "--port-file=";
+constexpr char kFlagDropPort[] = "--drop-port=";
+constexpr char kFlagCpuPort[] = "--cpu-port=";
+constexpr char kCpuPortNoneValue[] = "none";
 
 // Creates a unique scratch directory under $TEST_TMPDIR (honored by Bazel
 // test shards) or /tmp.
@@ -63,7 +66,7 @@ absl::StatusOr<std::string> MakeScratchDir() {
   std::vector<char> buf(tmpl.begin(), tmpl.end());
   buf.push_back('\0');
   if (mkdtemp(buf.data()) == nullptr) {
-    return PosixError("mkdtemp", errno);
+    return absl::ErrnoToStatus(errno, "mkdtemp");
   }
   return std::string(buf.data());
 }
@@ -129,11 +132,13 @@ bool TryReap(pid_t pid, absl::Duration budget) {
 }
 
 // Kills the process group led by `pid` (SIGTERM then SIGKILL) and reaps the
-// child. Safe to call when `pid <= 0`.
+// child. Safe to call when `pid <= 0`. The 4ward server holds no persistent
+// state (see AGENTS.md invariant #5), so a 1s SIGTERM grace is ample; the
+// remaining 2s covers SIGKILL reap after the escalation.
 void KillAndReap(pid_t pid) {
   if (pid <= 0) return;
   ::killpg(pid, SIGTERM);
-  if (!TryReap(pid, absl::Seconds(5))) {
+  if (!TryReap(pid, absl::Seconds(1))) {
     ::killpg(pid, SIGKILL);
     TryReap(pid, absl::Seconds(2));
   }
@@ -141,7 +146,8 @@ void KillAndReap(pid_t pid) {
 
 }  // namespace
 
-absl::StatusOr<FourwardServer> FourwardServer::Start(Options options) {
+absl::StatusOr<FourwardServer> FourwardServer::Start(
+    FourwardServerOptions options) {
   std::string runfiles_error;
   std::unique_ptr<Runfiles> runfiles(
       Runfiles::Create("", BAZEL_CURRENT_REPOSITORY, &runfiles_error));
@@ -150,10 +156,10 @@ absl::StatusOr<FourwardServer> FourwardServer::Start(Options options) {
         absl::StrCat("failed to resolve runfiles: ", runfiles_error));
   }
   std::string server_path = runfiles->Rlocation(kServerRunfile);
-  if (server_path.empty() || ::access(server_path.c_str(), X_OK) != 0) {
+  if (server_path.empty()) {
     return absl::NotFoundError(absl::StrCat(
         "4ward P4Runtime server binary not found in runfiles (expected ",
-        kServerRunfile, "). Resolved path: '", server_path, "'"));
+        kServerRunfile, ")"));
   }
 
   absl::StatusOr<std::string> scratch = MakeScratchDir();
@@ -172,25 +178,23 @@ absl::StatusOr<FourwardServer> FourwardServer::Start(Options options) {
 
   std::vector<std::string> args = {
       server_path,
-      absl::StrCat("--port=", options.port.value_or(0)),
-      absl::StrCat("--device-id=", options.device_id),
-      absl::StrCat("--port-file=", port_file),
+      absl::StrCat(kFlagPort, options.port.value_or(0)),
+      absl::StrCat(kFlagDeviceId, options.device_id),
+      absl::StrCat(kFlagPortFile, port_file),
   };
   if (options.drop_port.has_value()) {
-    args.push_back(absl::StrCat("--drop-port=", *options.drop_port));
+    args.push_back(absl::StrCat(kFlagDropPort, *options.drop_port));
   }
   switch (options.cpu_port.kind) {
     case CpuPort::Kind::kAuto:
       break;  // Default; omit the flag.
     case CpuPort::Kind::kDisabled:
-      args.emplace_back("--cpu-port=none");
+      args.push_back(absl::StrCat(kFlagCpuPort, kCpuPortNoneValue));
       break;
     case CpuPort::Kind::kOverride:
-      args.push_back(absl::StrCat("--cpu-port=", options.cpu_port.port));
+      args.push_back(absl::StrCat(kFlagCpuPort, options.cpu_port.port));
       break;
   }
-  // posix_spawn needs a NULL-terminated char* const[]; build argv from the
-  // `args` strings after they're fully populated so pointers stay valid.
   std::vector<char*> argv;
   argv.reserve(args.size() + 1);
   for (auto& a : args) argv.push_back(a.data());
@@ -202,21 +206,21 @@ absl::StatusOr<FourwardServer> FourwardServer::Start(Options options) {
   // is the portable way to request that.
   posix_spawnattr_t attr;
   if (int rc = posix_spawnattr_init(&attr); rc != 0) {
-    return PosixError("posix_spawnattr_init", rc);
+    return absl::ErrnoToStatus(rc, "posix_spawnattr_init");
   }
   absl::Cleanup attr_destroy = [&] { posix_spawnattr_destroy(&attr); };
   if (int rc = posix_spawnattr_setflags(&attr, POSIX_SPAWN_SETPGROUP);
       rc != 0) {
-    return PosixError("posix_spawnattr_setflags", rc);
+    return absl::ErrnoToStatus(rc, "posix_spawnattr_setflags");
   }
   if (int rc = posix_spawnattr_setpgroup(&attr, 0); rc != 0) {
-    return PosixError("posix_spawnattr_setpgroup", rc);
+    return absl::ErrnoToStatus(rc, "posix_spawnattr_setpgroup");
   }
 
   if (int rc = posix_spawn(&pid, server_path.c_str(), /*file_actions=*/nullptr,
                            &attr, argv.data(), environ);
       rc != 0) {
-    return PosixError("posix_spawn", rc);
+    return absl::ErrnoToStatus(rc, "posix_spawn");
   }
 
   absl::Time deadline = absl::Now() + options.startup_timeout;
@@ -226,9 +230,8 @@ absl::StatusOr<FourwardServer> FourwardServer::Start(Options options) {
   absl::StatusOr<int> port = ReadPortFile(port_file);
   if (!port.ok()) return std::move(port).status();
 
-  std::string address = absl::StrCat("localhost:", *port);
-  auto channel =
-      grpc::CreateChannel(address, grpc::InsecureChannelCredentials());
+  auto channel = grpc::CreateChannel(absl::StrCat("localhost:", *port),
+                                     grpc::InsecureChannelCredentials());
 
   std::move(guard).Cancel();
   return FourwardServer(pid, *port, options.device_id, std::move(*scratch),
@@ -241,30 +244,24 @@ FourwardServer::FourwardServer(pid_t pid, int port, uint64_t device_id,
     : pid_(pid),
       port_(port),
       device_id_(device_id),
-      address_(absl::StrCat("localhost:", port)),
       scratch_dir_(std::move(scratch_dir)),
       channel_(std::move(channel)) {}
 
 FourwardServer::FourwardServer(FourwardServer&& other) noexcept
-    : pid_(other.pid_),
+    : pid_(std::exchange(other.pid_, -1)),
       port_(other.port_),
       device_id_(other.device_id_),
-      address_(std::move(other.address_)),
       scratch_dir_(std::move(other.scratch_dir_)),
-      channel_(std::move(other.channel_)) {
-  other.pid_ = -1;
-}
+      channel_(std::move(other.channel_)) {}
 
 FourwardServer& FourwardServer::operator=(FourwardServer&& other) noexcept {
   if (this != &other) {
     Shutdown();
-    pid_ = other.pid_;
+    pid_ = std::exchange(other.pid_, -1);
     port_ = other.port_;
     device_id_ = other.device_id_;
-    address_ = std::move(other.address_);
     scratch_dir_ = std::move(other.scratch_dir_);
     channel_ = std::move(other.channel_);
-    other.pid_ = -1;
   }
   return *this;
 }
@@ -272,9 +269,9 @@ FourwardServer& FourwardServer::operator=(FourwardServer&& other) noexcept {
 FourwardServer::~FourwardServer() { Shutdown(); }
 
 void FourwardServer::Shutdown() {
-  // Drop our channel reference first. Stubs held by callers keep their own
-  // shared_ptr alive and will surface CANCELLED/UNAVAILABLE for in-flight
-  // RPCs once the subprocess dies — which we do next.
+  // Drop our channel reference before killing the subprocess so the channel
+  // has a chance to finalize cleanly rather than noticing the socket die
+  // from under it.
   channel_.reset();
   KillAndReap(pid_);
   pid_ = -1;

@@ -38,14 +38,6 @@ void ExpectHealthy(const FourwardServer& server) {
   EXPECT_FALSE(resp.p4runtime_api_version().empty());
 }
 
-TEST(FourwardServerTest, ExposesChannelAndBothStubFactories) {
-  absl::StatusOr<FourwardServer> server = FourwardServer::Start();
-  ASSERT_TRUE(server.ok()) << server.status();
-  EXPECT_NE(server->Channel(), nullptr);
-  EXPECT_NE(server->NewP4RuntimeStub(), nullptr);
-  EXPECT_NE(server->NewDataplaneStub(), nullptr);
-}
-
 TEST(FourwardServerTest, StartExposesLiveGrpcEndpoint) {
   absl::StatusOr<FourwardServer> server = FourwardServer::Start();
   ASSERT_TRUE(server.ok()) << server.status();
@@ -54,6 +46,9 @@ TEST(FourwardServerTest, StartExposesLiveGrpcEndpoint) {
   EXPECT_EQ(server->Address(), absl::StrCat("localhost:", server->Port()));
   EXPECT_EQ(server->DeviceId(), 1u);
   EXPECT_GT(server->Pid(), 0);
+  EXPECT_NE(server->Channel(), nullptr);
+  EXPECT_NE(server->NewP4RuntimeStub(), nullptr);
+  EXPECT_NE(server->NewDataplaneStub(), nullptr);
 
   ExpectHealthy(*server);
 }
