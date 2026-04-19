@@ -1,18 +1,18 @@
 ---
-description: "Use 4ward from C++ without writing a line of Kotlin or Java — Bazel setup, example usage, and the stable startup contract wrappers in other languages can rely on."
+description: "Treat 4ward like a native C++ library — Bazel setup, example usage, and the stable startup contract wrappers in other languages can rely on."
 ---
 
 # Embedding the server in C++
 
-**Use 4ward from C++ without writing a line of Kotlin or Java.** Your
-project's BUILD files stay all-C++; the JVM is an implementation detail
-of the server binary.
+**Treat 4ward like a native C++ library.** Depend on
+`//p4runtime_cc:fourward_server`, construct a `FourwardServer`, and
+you have factories for P4Runtime and Dataplane stubs on a shared gRPC
+channel. Your project sees a C++ API and a Bazel target; the server's
+implementation language never enters the picture.
 
-`//p4runtime_cc:fourward_server` is the RAII handle. `Start()` spawns
-the P4Runtime + Dataplane server as a subprocess, blocks until it is
-accepting RPCs, and returns a value that owns the subprocess, a shared
-gRPC channel, and factories for both service stubs. Destruction kills
-the subprocess.
+Under the hood, `Start()` spawns the server as a subprocess, blocks
+until it is accepting RPCs, and returns an RAII handle. Destruction
+kills the subprocess.
 
 ## Bazel dependency
 

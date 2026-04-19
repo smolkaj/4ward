@@ -4,14 +4,14 @@
 #ifndef FOURWARD_P4RUNTIME_CC_FOURWARD_SERVER_H_
 #define FOURWARD_P4RUNTIME_CC_FOURWARD_SERVER_H_
 
-// Use 4ward from C++ without writing a line of Kotlin or Java.
+// Treat 4ward like a native C++ library.
 //
 // FourwardServer is an RAII handle to a 4ward P4Runtime + Dataplane gRPC
 // server running as a child process. `Start()` spawns it, blocks until it
 // is accepting RPCs, and hands back a value that owns the subprocess, a
 // shared gRPC channel, and factories for both service stubs. Destruction
-// kills the subprocess. Your project's BUILD files stay all-C++; the JVM
-// is an implementation detail of the server binary.
+// kills the subprocess. Your project sees a C++ API and a Bazel target;
+// the server's implementation language never enters the picture.
 //
 // Example (`ASSIGN_OR_RETURN` is the common project-local macro that early-
 // returns on a non-OK `absl::Status`; any equivalent works):

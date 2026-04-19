@@ -326,7 +326,7 @@ report in about 5. No flakes, no "works on my machine." See for yourself on the
 guides, reference pages, and concept explainers for the web playground, CLI,
 and gRPC API. Working in a C++ codebase?
 **[Embedding in C++](https://smolkaj.github.io/4ward/reference/embedding-cc/)**
-lets you use 4ward without writing a line of Kotlin or Java.
+lets you treat 4ward like a native C++ library.
 
 **[Tutorial](examples/tutorial.t)** — a hands-on walkthrough from hello
 world to machine-readable trace output. Doubles as a regression test (cram
