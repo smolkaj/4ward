@@ -74,8 +74,7 @@ struct FourwardServerOptions {
   // CPU port configuration (the `--cpu-port` flag).
   CpuPort cpu_port = CpuPort::Auto();
 
-  // Maximum time to wait for the server to become ready. JVM warm-up on cold
-  // caches dominates — 30s is generous but not paranoid.
+  // Maximum time to wait for Start() to complete.
   absl::Duration startup_timeout = absl::Seconds(30);
 };
 
