@@ -28,10 +28,7 @@ namespace {
 // pipeline to be loaded (FAILED_PRECONDITION otherwise), which is orthogonal
 // to the "is the server up" question under test.
 void ExpectHealthy(const FourwardServer& server) {
-  auto channel = grpc::CreateChannel(server.Address(),
-                                     grpc::InsecureChannelCredentials());
-  auto stub = p4::v1::P4Runtime::NewStub(channel);
-
+  auto stub = server.NewP4RuntimeStub();
   p4::v1::CapabilitiesRequest req;
   p4::v1::CapabilitiesResponse resp;
   grpc::ClientContext ctx;
@@ -39,6 +36,13 @@ void ExpectHealthy(const FourwardServer& server) {
   EXPECT_TRUE(status.ok()) << "Capabilities failed: code=" << status.error_code()
                            << " msg=" << status.error_message();
   EXPECT_FALSE(resp.p4runtime_api_version().empty());
+}
+
+TEST(FourwardServerTest, ExposesBothP4RuntimeAndDataplaneStubs) {
+  absl::StatusOr<FourwardServer> server = FourwardServer::Start();
+  ASSERT_TRUE(server.ok()) << server.status();
+  EXPECT_NE(server->NewP4RuntimeStub(), nullptr);
+  EXPECT_NE(server->NewDataplaneStub(), nullptr);
 }
 
 TEST(FourwardServerTest, StartExposesLiveGrpcEndpoint) {

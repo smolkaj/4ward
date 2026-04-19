@@ -29,6 +29,8 @@ cc_library(
     strip_include_prefix = "/",
     visibility = ["//visibility:public"],
     deps = [
+        "//p4runtime:dataplane_cc_grpc",
+        "//p4runtime:dataplane_cc_proto",
         "@abseil-cpp//absl/cleanup",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
@@ -36,6 +38,9 @@ cc_library(
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/time",
         "@bazel_tools//tools/cpp/runfiles",
+        "@grpc//:grpc++",
+        "@p4runtime//:p4runtime_cc_grpc",
+        "@p4runtime//:p4runtime_cc_proto",
     ],
 )
 

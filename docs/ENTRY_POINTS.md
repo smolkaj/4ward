@@ -149,17 +149,16 @@ gRPC semantics (status codes, streaming) without network flakiness.
 
 An RAII wrapper that spawns the P4Runtime server as a child process, waits
 until it is accepting gRPC calls, and tears it down on destruction. The
-server's listening port is discovered via a machine-readable
-`--port-file`, not the stdout banner — so log-format changes never break
-embedders.
+server's listening port is discovered via a machine-readable `--port-file`
+that the server writes atomically once it is ready to serve.
 
 ```cpp
 #include "p4runtime_cc/fourward_server.h"
 
 ASSIGN_OR_RETURN(fourward::FourwardServer server,
                  fourward::FourwardServer::Start());
-auto channel = grpc::CreateChannel(server.Address(),
-                                   grpc::InsecureChannelCredentials());
+auto p4rt = server.NewP4RuntimeStub();
+auto dataplane = server.NewDataplaneStub();
 // ... drive the server via gRPC; subprocess is killed on scope exit ...
 ```
 

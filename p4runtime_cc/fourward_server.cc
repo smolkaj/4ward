@@ -28,6 +28,8 @@
 #include "absl/strings/str_format.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
+#include "grpcpp/create_channel.h"
+#include "grpcpp/security/credentials.h"
 #include "tools/cpp/runfiles/runfiles.h"
 
 #ifndef FOURWARD_SERVER_RLOCATION
@@ -224,24 +226,32 @@ absl::StatusOr<FourwardServer> FourwardServer::Start(Options options) {
   absl::StatusOr<int> port = ReadPortFile(port_file);
   if (!port.ok()) return std::move(port).status();
 
+  std::string address = absl::StrCat("localhost:", *port);
+  auto channel =
+      grpc::CreateChannel(address, grpc::InsecureChannelCredentials());
+
   std::move(guard).Cancel();
-  return FourwardServer(pid, *port, options.device_id, std::move(*scratch));
+  return FourwardServer(pid, *port, options.device_id, std::move(*scratch),
+                        std::move(channel));
 }
 
 FourwardServer::FourwardServer(pid_t pid, int port, uint64_t device_id,
-                               std::string scratch_dir)
+                               std::string scratch_dir,
+                               std::shared_ptr<grpc::Channel> channel)
     : pid_(pid),
       port_(port),
       device_id_(device_id),
       address_(absl::StrCat("localhost:", port)),
-      scratch_dir_(std::move(scratch_dir)) {}
+      scratch_dir_(std::move(scratch_dir)),
+      channel_(std::move(channel)) {}
 
 FourwardServer::FourwardServer(FourwardServer&& other) noexcept
     : pid_(other.pid_),
       port_(other.port_),
       device_id_(other.device_id_),
       address_(std::move(other.address_)),
-      scratch_dir_(std::move(other.scratch_dir_)) {
+      scratch_dir_(std::move(other.scratch_dir_)),
+      channel_(std::move(other.channel_)) {
   other.pid_ = -1;
 }
 
@@ -253,6 +263,7 @@ FourwardServer& FourwardServer::operator=(FourwardServer&& other) noexcept {
     device_id_ = other.device_id_;
     address_ = std::move(other.address_);
     scratch_dir_ = std::move(other.scratch_dir_);
+    channel_ = std::move(other.channel_);
     other.pid_ = -1;
   }
   return *this;
@@ -261,6 +272,10 @@ FourwardServer& FourwardServer::operator=(FourwardServer&& other) noexcept {
 FourwardServer::~FourwardServer() { Shutdown(); }
 
 void FourwardServer::Shutdown() {
+  // Drop our channel reference first. Stubs held by callers keep their own
+  // shared_ptr alive and will surface CANCELLED/UNAVAILABLE for in-flight
+  // RPCs once the subprocess dies — which we do next.
+  channel_.reset();
   KillAndReap(pid_);
   pid_ = -1;
   RemoveScratchDir(scratch_dir_);

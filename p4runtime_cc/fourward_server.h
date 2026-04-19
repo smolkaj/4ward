@@ -20,9 +20,7 @@
 //     absl::Status RunAgainstFourward() {
 //       ASSIGN_OR_RETURN(fourward::FourwardServer server,
 //                        fourward::FourwardServer::Start());
-//       auto channel = grpc::CreateChannel(server.Address(),
-//                                          grpc::InsecureChannelCredentials());
-//       auto stub = p4::v1::P4Runtime::NewStub(channel);
+//       auto stub = server.NewP4RuntimeStub();
 //       // ... drive the server via gRPC ...
 //       return absl::OkStatus();
 //       // Server is killed when `server` goes out of scope.
@@ -31,20 +29,22 @@
 // A Bazel consumer only needs to add this target to `deps`; the server binary
 // is propagated through `cc_library.data` into the test's runfiles.
 //
-// Startup contract (stable): the server is launched with `--port-file=PATH`,
-// to which it atomically writes its listening port once it is accepting RPCs.
-// This wrapper polls for the file and parses the port, which is why the
-// log-format of the banner on stdout is NOT part of the contract and may
-// change without notice.
+// Startup contract (stable): the server is launched with `--port-file=PATH`
+// and atomically writes its listening port there once it is accepting RPCs.
+// File existence is the readiness signal; contents are the port.
 
 #include <sys/types.h>  // pid_t
 
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <string>
 
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
+#include "grpcpp/channel.h"
+#include "p4/v1/p4runtime.grpc.pb.h"
+#include "p4runtime/dataplane.grpc.pb.h"
 
 namespace fourward {
 
@@ -113,9 +113,22 @@ class FourwardServer {
   // PID of the server subprocess. Primarily useful for diagnostics.
   pid_t Pid() const { return pid_; }
 
+  // Stub factories for the two services the server hosts. Both share a single
+  // insecure channel created at Start() and reused across calls. TLS and
+  // custom channel args are intentionally unsupported — this wrapper targets
+  // localhost use.
+  std::unique_ptr<p4::v1::P4Runtime::Stub> NewP4RuntimeStub() const {
+    return p4::v1::P4Runtime::NewStub(channel_);
+  }
+  std::unique_ptr<fourward::dataplane::Dataplane::Stub> NewDataplaneStub()
+      const {
+    return fourward::dataplane::Dataplane::NewStub(channel_);
+  }
+
  private:
   FourwardServer(pid_t pid, int port, uint64_t device_id,
-                 std::string scratch_dir);
+                 std::string scratch_dir,
+                 std::shared_ptr<grpc::Channel> channel);
 
   // Kills the subprocess (SIGTERM → SIGKILL) and removes the scratch dir.
   void Shutdown();
@@ -126,6 +139,7 @@ class FourwardServer {
   std::string address_;
   // Scratch directory holding the `--port-file`. Removed on Shutdown.
   std::string scratch_dir_;
+  std::shared_ptr<grpc::Channel> channel_;
 };
 
 }  // namespace fourward
