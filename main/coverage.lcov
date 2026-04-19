@@ -7167,7 +7167,7 @@ FNDA:1,fourward/simulator/Simulator::hasDirectMeter (Ljava/lang/String;)Z
 FN:217,fourward/simulator/Simulator::readEntries (Ljava/util/List;)Ljava/util/List;
 FNDA:1,fourward/simulator/Simulator::readEntries (Ljava/util/List;)Ljava/util/List;
 FN:248,fourward/simulator/Simulator::displayName (Ljava/lang/String;)Ljava/lang/String;
-FNDA:0,fourward/simulator/Simulator::displayName (Ljava/lang/String;)Ljava/lang/String;
+FNDA:1,fourward/simulator/Simulator::displayName (Ljava/lang/String;)Ljava/lang/String;
 FN:53,fourward/simulator/Simulator$LoadedPipeline::<init> (Lfourward/ir/PipelineConfig;Lfourward/simulator/Architecture;Lfourward/simulator/TableStore;)V
 FNDA:1,fourward/simulator/Simulator$LoadedPipeline::<init> (Lfourward/ir/PipelineConfig;Lfourward/simulator/Architecture;Lfourward/simulator/TableStore;)V
 FN:54,fourward/simulator/Simulator$LoadedPipeline::getConfig ()Lfourward/ir/PipelineConfig;
@@ -7282,7 +7282,7 @@ DA:236,1
 DA:238,1
 DA:242,0
 DA:243,1
-DA:248,0
+DA:248,1
 DA:264,1
 DA:266,1
 DA:267,1
@@ -7295,7 +7295,7 @@ DA:278,1
 DA:280,1
 DA:284,1
 DA:285,1
-LH:78
+LH:79
 LF:81
 end_of_record
 SF:simulator/TableDataReader.kt
@@ -7498,7 +7498,7 @@ FNDA:1,fourward/simulator/TableStore::actionDisplayName (Ljava/lang/String;)Ljav
 FN:1640,fourward/simulator/TableStore::tableDisplayName (Ljava/lang/String;)Ljava/lang/String;
 FNDA:1,fourward/simulator/TableStore::tableDisplayName (Ljava/lang/String;)Ljava/lang/String;
 FN:1644,fourward/simulator/TableStore::displayName (Ljava/lang/String;)Ljava/lang/String;
-FNDA:0,fourward/simulator/TableStore::displayName (Ljava/lang/String;)Ljava/lang/String;
+FNDA:1,fourward/simulator/TableStore::displayName (Ljava/lang/String;)Ljava/lang/String;
 FN:1652,fourward/simulator/TableStore::scoreEntry (Lp4/v1/P4RuntimeOuterClass$TableEntry;[Lfourward/simulator/Value;)Ljava/lang/Long;
 FNDA:1,fourward/simulator/TableStore::scoreEntry (Lp4/v1/P4RuntimeOuterClass$TableEntry;[Lfourward/simulator/Value;)Ljava/lang/Long;
 FN:435,fourward/simulator/TableStore::loadMappings$resolveName (Ljava/lang/String;Ljava/util/List;)Ljava/lang/String;
@@ -8105,10 +8105,10 @@ BRDA:1636,0,0,1
 BRDA:1636,0,1,1
 BRDA:1640,0,0,0
 BRDA:1640,0,1,1
-BRDA:1644,0,0,-
-BRDA:1644,0,1,-
-BRDA:1644,0,2,-
-BRDA:1644,0,3,-
+BRDA:1644,0,0,1
+BRDA:1644,0,1,0
+BRDA:1644,0,2,1
+BRDA:1644,0,3,0
 BRDA:1654,0,0,1
 BRDA:1654,0,1,1
 BRDA:1656,0,0,1
@@ -8977,7 +8977,7 @@ DA:1629,1
 DA:1631,0
 DA:1636,1
 DA:1640,1
-DA:1644,0
+DA:1644,1
 DA:1652,1
 DA:1653,1
 DA:1654,1
@@ -8996,7 +8996,7 @@ DA:1674,1
 DA:1682,1
 DA:1687,1
 DA:1688,1
-LH:762
+LH:763
 LF:817
 end_of_record
 SF:simulator/TraceHelpers.kt

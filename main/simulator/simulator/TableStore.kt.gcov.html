@@ -31,18 +31,18 @@
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">93.3&nbsp;%</td>
+            <td class="headerCovTableEntryHi">93.4&nbsp;%</td>
             <td class="headerCovTableEntry">817</td>
-            <td class="headerCovTableEntry">762</td>
+            <td class="headerCovTableEntry">763</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-04-19 03:02:54</td>
+            <td class="headerValue">2026-04-19 05:25:33</td>
             <td></td>
             <td class="headerItem">Functions:</td>
-            <td class="headerCovTableEntryHi">97.5&nbsp;%</td>
+            <td class="headerCovTableEntryHi">98.1&nbsp;%</td>
             <td class="headerCovTableEntry">159</td>
-            <td class="headerCovTableEntry">155</td>
+            <td class="headerCovTableEntry">156</td>
           </tr>
                   <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
                 </table>
@@ -1703,7 +1703,7 @@
 <span id="L1641"><span class="lineNum">    1641</span>              : </span>
 <span id="L1642"><span class="lineNum">    1642</span>              :   /** Returns the short p4info alias for a behavioral name (table or action), or the name itself. */</span>
 <span id="L1643"><span class="lineNum">    1643</span>              :   fun displayName(behavioralName: String): String =</span>
-<span id="L1644"><span class="lineNum">    1644</span> <span class="tlaUNC tlaBgUNC">           0 :     tableAliasByName[behavioralName] ?: actionAliasByName[behavioralName] ?: behavioralName</span></span>
+<span id="L1644"><span class="lineNum">    1644</span> <span class="tlaGNC">           1 :     tableAliasByName[behavioralName] ?: actionAliasByName[behavioralName] ?: behavioralName</span></span>
 <span id="L1645"><span class="lineNum">    1645</span>              : </span>
 <span id="L1646"><span class="lineNum">    1646</span>              :   /**</span>
 <span id="L1647"><span class="lineNum">    1647</span>              :    * Scores an entry against [keyByFieldId]. Returns null if the entry does not match. Returns a</span>
@@ -1711,7 +1711,7 @@
 <span id="L1649"><span class="lineNum">    1649</span>              :    * longest-prefix and ternary priority semantics).</span>
 <span id="L1650"><span class="lineNum">    1650</span>              :    */</span>
 <span id="L1651"><span class="lineNum">    1651</span>              :   private fun scoreEntry(entry: TableEntry, keyByFieldId: Array&lt;Value?&gt;): Long? {</span>
-<span id="L1652"><span class="lineNum">    1652</span> <span class="tlaGNC tlaBgGNC">           1 :     var score = 0L</span></span>
+<span id="L1652"><span class="lineNum">    1652</span> <span class="tlaGNC">           1 :     var score = 0L</span></span>
 <span id="L1653"><span class="lineNum">    1653</span> <span class="tlaGNC">           1 :     val matchList = entry.matchList</span></span>
 <span id="L1654"><span class="lineNum">    1654</span> <span class="tlaGNC">           1 :     for (i in 0 until matchList.size) {</span></span>
 <span id="L1655"><span class="lineNum">    1655</span> <span class="tlaGNC">           1 :       val match = matchList[i]</span></span>
