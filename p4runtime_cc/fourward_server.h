@@ -113,10 +113,14 @@ class FourwardServer {
   // PID of the server subprocess. Primarily useful for diagnostics.
   pid_t Pid() const { return pid_; }
 
-  // Stub factories for the two services the server hosts. Both share a single
-  // insecure channel created at Start() and reused across calls. TLS and
-  // custom channel args are intentionally unsupported — this wrapper targets
-  // localhost use.
+  // Shared insecure channel to the server, created once at Start() and
+  // reused. TLS and custom channel args are intentionally unsupported — this
+  // wrapper targets localhost use. Exposed for third-party helper libraries
+  // (e.g. p4_pdpi) that accept a `shared_ptr<grpc::Channel>`.
+  const std::shared_ptr<grpc::Channel>& Channel() const { return channel_; }
+
+  // Stub factories for the two services the server hosts. Equivalent to
+  // `p4::v1::P4Runtime::NewStub(server.Channel())` etc.
   std::unique_ptr<p4::v1::P4Runtime::Stub> NewP4RuntimeStub() const {
     return p4::v1::P4Runtime::NewStub(channel_);
   }
