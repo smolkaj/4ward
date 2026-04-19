@@ -19,6 +19,8 @@ File extension of `out` determines serialization: `.txtpb` for text proto,
 `.binpb` for binary proto.
 """
 
+load("@rules_cc//cc:find_cc_toolchain.bzl", "CC_TOOLCHAIN_TYPE", "find_cc_toolchain", "use_cc_toolchain")
+
 _VALID_OUT_FORMATS = ["native", "p4runtime"]
 
 def _fourward_pipeline_impl(ctx):
@@ -26,36 +28,52 @@ def _fourward_pipeline_impl(ctx):
     for inc in ctx.files.includes:
         include_dirs.append(inc.dirname)
 
-    arguments = []
+    p4c_args = []
     for directory in include_dirs:
-        arguments += ["-I", directory]
-    arguments += ["-I", ctx.file._p4include_anchor.dirname]
+        p4c_args += ["-I", directory]
+    p4c_args += ["-I", ctx.file._p4include_anchor.dirname]
 
     # Workspace root of the target's repo, so `#include "path/from/root.p4"`
     # resolves in both in-repo builds AND BCR consumer builds (where our sources
     # live under external/<repo>+/). Avoids brittle `../../...` relative paths.
-    arguments += ["-I", ctx.label.workspace_root or "."]
+    p4c_args += ["-I", ctx.label.workspace_root or "."]
     for define in ctx.attr.defines:
-        arguments.append("-D" + define)
+        p4c_args.append("-D" + define)
 
     if ctx.attr.out_format == "p4runtime":
-        arguments += ["--format", "p4runtime"]
+        p4c_args += ["--format", "p4runtime"]
 
-    arguments += ["-o", ctx.outputs.out.path, ctx.file.src.path]
+    p4c_args += ["-o", ctx.outputs.out.path, ctx.file.src.path]
 
     inputs = depset(
         [ctx.file.src] + ctx.files.includes + ctx.files.extra_srcs,
         transitive = [ctx.attr._p4include[DefaultInfo].files],
     )
 
-    # p4c shells out to the system C preprocessor (cpp -> cc1), which needs
-    # PATH to resolve.
-    ctx.actions.run(
+    # p4c shells out to `cc` for preprocessing. Provide it via the CC
+    # toolchain rather than relying on PATH — remote execution sandboxes
+    # (e.g. google3/blaze) don't have a system `cc`.
+    # Pattern from @p4c//bazel:p4_library.bzl.
+    cc_toolchain = find_cc_toolchain(ctx)
+    p4c = ctx.executable._p4c_4ward
+    ctx.actions.run_shell(
         outputs = [ctx.outputs.out],
         inputs = inputs,
-        executable = ctx.executable._p4c_4ward,
-        arguments = arguments,
+        command = """
+            function cc () {{ "{cc}" "$@"; }}
+            export -f cc
+            "{p4c}" {p4c_args}
+        """.format(
+            cc = cc_toolchain.compiler_executable,
+            p4c = p4c.path,
+            p4c_args = " ".join(p4c_args),
+        ),
+        tools = depset(
+            direct = [p4c],
+            transitive = [cc_toolchain.all_files],
+        ),
         use_default_shell_env = True,
+        toolchain = CC_TOOLCHAIN_TYPE,
         mnemonic = "FourwardPipeline",
         progress_message = "Compiling %{input} to 4ward pipeline",
     )
@@ -111,4 +129,5 @@ fourward_pipeline = rule(
             default = "@p4c//p4include",
         ),
     },
+    toolchains = use_cc_toolchain(),
 )
