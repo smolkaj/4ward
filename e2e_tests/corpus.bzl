@@ -69,6 +69,7 @@ def corpus_test_suite(name, tests, tags = [], includes = [], stf_overrides = {})
         tags = tags,
         data = data,
         deps = [
+            "//bazel:runfiles",
             "//stf",
             "@fourward_maven//:junit_junit",
         ],

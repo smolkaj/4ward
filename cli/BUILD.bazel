@@ -29,6 +29,7 @@ kt_jvm_library(
     ),
     visibility = ["//visibility:public"],
     deps = [
+        "//bazel:runfiles",
         "//p4runtime",
         "//simulator",
         "//simulator:ir_java_proto",

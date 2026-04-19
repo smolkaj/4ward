@@ -15,6 +15,7 @@ kt_jvm_library(
         ],
     ),
     deps = [
+        "//bazel:runfiles",
         "//p4runtime",
         "//simulator",
         "//simulator:ir_java_proto",
@@ -25,7 +26,6 @@ kt_jvm_library(
         "@fourward_maven//:com_google_protobuf_protobuf_java_util",
         "@fourward_maven//:io_grpc_grpc_api",
         "@fourward_maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core_jvm",
-        "@rules_java//java/runfiles",
     ],
 )
 
@@ -60,11 +60,18 @@ kt_jvm_binary(
 kt_jvm_test(
     name = "WebServerTest",
     srcs = ["WebServerTest.kt"],
+    data = [
+        "//p4c_backend:p4c-4ward",
+        "@p4c//p4include",
+    ] + glob(["frontend/**"]),
     test_class = "fourward.web.WebServerTest",
     deps = [
         ":web",
+        "//p4runtime",
+        "//simulator",
         "//simulator:ir_java_proto",
         "@fourward_maven//:junit_junit",
+        "@fourward_maven//:org_jetbrains_kotlinx_kotlinx_coroutines_core_jvm",
     ],
 )
 

@@ -1,10 +1,10 @@
 package fourward.web
 
-import com.google.devtools.build.runfiles.Runfiles
 import com.google.protobuf.TextFormat
 import com.google.protobuf.util.JsonFormat
 import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
+import fourward.bazel.resolveRunfileOrNull
 import fourward.ir.PipelineConfig
 import fourward.simulator.Simulator
 import java.net.InetSocketAddress
@@ -45,34 +45,6 @@ class WebServer(
   private val jsonParser: JsonFormat.Parser = JsonFormat.parser().ignoringUnknownFields()
   private val textPrinter: TextFormat.Printer = TextFormat.printer().escapingNonAscii(false)
 
-  // Resolves runfiles paths portably across OSS Bazel and google3/blaze.
-  private val runfiles: Runfiles? =
-    try {
-      Runfiles.preload().withSourceRepository("_main")
-    } catch (_: Exception) {
-      null
-    }
-
-  /** Resolves a repo-relative path (e.g. "web/frontend/index.html") via the Runfiles library. */
-  private fun rlocation(repoRelativePath: String): Path? {
-    val r = runfiles ?: return null
-    // bzlmod: main repo is "_main"; WORKSPACE: may use the workspace name or empty.
-    for (prefix in listOf("_main", "fourward")) {
-      val resolved = r.rlocation("$prefix/$repoRelativePath")
-      if (resolved != null) {
-        val path = Path.of(resolved)
-        if (Files.exists(path)) return path
-      }
-    }
-    // External repos (e.g. p4c+/p4include) — try the path as-is.
-    val resolved = r.rlocation(repoRelativePath)
-    if (resolved != null) {
-      val path = Path.of(resolved)
-      if (Files.exists(path)) return path
-    }
-    return null
-  }
-
   @Volatile private var loadedP4Info: p4.config.v1.P4InfoOuterClass.P4Info? = null
 
   fun start(): WebServer {
@@ -86,6 +58,9 @@ class WebServer(
     server.start()
     return this
   }
+
+  /** The port the server is listening on (useful when started with port 0). */
+  fun port(): Int = server.address.port
 
   fun stop() {
     server.stop(0)
@@ -327,7 +302,7 @@ class WebServer(
     }
 
     // 2. Bazel runfiles (works across OSS Bazel and google3/blaze).
-    rlocation("web/frontend/$relativePath")?.let { file ->
+    resolveRunfileOrNull("_main/web/frontend/$relativePath")?.let { file ->
       if (Files.isRegularFile(file)) return Files.readAllBytes(file)
     }
 
@@ -347,7 +322,7 @@ class WebServer(
     val cmd = mutableListOf(p4c.toString())
 
     // Add standard includes (core.p4, v1model.p4) from runfiles.
-    rlocation("p4c+/p4include/core.p4")?.parent?.let { p4include ->
+    resolveRunfileOrNull("p4c/p4include/core.p4")?.parent?.let { p4include ->
       if (Files.isDirectory(p4include)) cmd += listOf("-I", p4include.toString())
     }
 
@@ -361,8 +336,8 @@ class WebServer(
   }
 
   private fun findP4c(): Path? {
-    rlocation("p4c_backend/p4c-4ward")?.let { candidate ->
-      if (Files.isExecutable(candidate)) return candidate
+    resolveRunfileOrNull("_main/p4c_backend/p4c-4ward")?.let {
+      if (Files.isExecutable(it)) return it
     }
     val pathDirs = System.getenv("PATH")?.split(":") ?: emptyList()
     for (dir in pathDirs) {

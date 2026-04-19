@@ -11,6 +11,7 @@ import fourward.ir.VarbitType
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class WebServerTest {
@@ -79,6 +80,62 @@ class WebServerTest {
   fun `errorJson produces valid JSON`() {
     assertEquals("""{"error":"oops"}""", WebServer.errorJson("oops"))
     assertEquals("""{"error":"a\"b"}""", WebServer.errorJson("a\"b"))
+  }
+
+  // ---------------------------------------------------------------------------
+  // Integration: static file serving + P4 compilation via runfiles
+  // ---------------------------------------------------------------------------
+
+  private fun <T> withServer(block: (port: Int) -> T): T {
+    val simulator = fourward.simulator.Simulator()
+    val writeMutex = kotlinx.coroutines.sync.Mutex()
+    val broker = fourward.p4runtime.PacketBroker(simulator::processPacket, writeMutex)
+    val service = fourward.p4runtime.P4RuntimeService(simulator, broker, writeMutex = writeMutex)
+    val server = WebServer(simulator, service, httpPort = 0).start()
+    try {
+      return block(server.port())
+    } finally {
+      server.stop()
+      service.close()
+    }
+  }
+
+  @Test
+  fun `serves index_html from runfiles`() = withServer { port ->
+    val conn =
+      java.net.URI("http://localhost:$port/").toURL().openConnection() as java.net.HttpURLConnection
+    assertEquals("GET / should return 200", 200, conn.responseCode)
+    val body = conn.inputStream.bufferedReader().readText()
+    assertTrue("body should contain HTML", body.contains("<html"))
+  }
+
+  @Test
+  fun `compile endpoint finds p4c-4ward and compiles`() = withServer { port ->
+    val conn =
+      java.net.URI("http://localhost:$port/api/compile-and-load").toURL().openConnection()
+        as java.net.HttpURLConnection
+    conn.requestMethod = "POST"
+    conn.doOutput = true
+    conn.setRequestProperty("Content-Type", "application/json")
+    val p4 =
+      """
+      #include <core.p4>
+      #include <v1model.p4>
+      header h {} struct m {} struct hdrs {}
+      parser P(packet_in p, out hdrs h, inout m m,
+               inout standard_metadata_t s) {
+        state start { transition accept; }
+      }
+      control C(inout hdrs h, inout m m,
+                inout standard_metadata_t s) { apply {} }
+      control D(packet_out p, in hdrs h) { apply {} }
+      control VC(inout hdrs h, inout m m) { apply {} }
+      control CC(inout hdrs h, inout m m) { apply {} }
+      V1Switch(P(), VC(), C(), C(), CC(), D()) main;
+      """
+        .trimIndent()
+    conn.outputStream.write("""{"source":${WebServer.jsonEscape(p4)}}""".toByteArray())
+    assertTrue("compile should succeed (2xx)", conn.responseCode in 200..299)
   }
 
   // ---------------------------------------------------------------------------
