@@ -42,10 +42,19 @@ bzl_library(
 )
 
 kt_jvm_library(
+    name = "runfiles_helper",
+    testonly = True,
+    srcs = ["RunfilesHelper.kt"],
+    visibility = ["//visibility:public"],
+    deps = ["@rules_java//java/runfiles"],
+)
+
+kt_jvm_library(
     name = "golden_file",
     srcs = ["GoldenFile.kt"],
     visibility = ["//visibility:public"],
     deps = [
+        ":runfiles_helper",
         "@fourward_maven//:junit_junit",
     ],
 )

@@ -1,5 +1,6 @@
 package fourward.cli
 
+import com.google.devtools.build.runfiles.Runfiles
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -60,25 +61,22 @@ fun compileToTemp(p4Source: Path, includeDirs: List<Path>): Pair<Path?, Int> {
 /** Locates the p4c-4ward binary: runfiles → env → PATH. Returns null if not found. */
 private fun findP4c4ward(): Path? {
   // 1. Bazel runfiles: works when invoked via `bazel run //cli:4ward`.
-  val runfiles = System.getenv("JAVA_RUNFILES")
-  if (runfiles != null) {
-    val candidate = Path.of(runfiles, "_main/p4c_backend/p4c-4ward")
-    if (Files.isExecutable(candidate)) return candidate
-  }
+  val candidate = rlocation("p4c_backend/p4c-4ward")
+  if (candidate != null && Files.isExecutable(candidate)) return candidate
 
   // 2. Explicit env var.
   val envPath = System.getenv("P4C_4WARD_PATH")
   if (envPath != null) {
-    val candidate = Path.of(envPath)
-    if (Files.isExecutable(candidate)) return candidate
+    val envCandidate = Path.of(envPath)
+    if (Files.isExecutable(envCandidate)) return envCandidate
     System.err.println("warning: P4C_4WARD_PATH=$envPath is not executable, trying PATH")
   }
 
   // 3. PATH lookup.
   val pathDirs = System.getenv("PATH")?.split(":") ?: emptyList()
   for (dir in pathDirs) {
-    val candidate = Path.of(dir, "p4c-4ward")
-    if (Files.isExecutable(candidate)) return candidate
+    val pathCandidate = Path.of(dir, "p4c-4ward")
+    if (Files.isExecutable(pathCandidate)) return pathCandidate
   }
 
   return null
@@ -93,14 +91,51 @@ private fun resolveIncludeDirs(userDirs: List<Path>): List<Path> {
 
   // p4c standard includes from runfiles (core.p4, v1model.p4, etc.).
   // Bzlmod maps `@p4c` to `p4c+` in the runfiles tree.
-  val runfiles = System.getenv("JAVA_RUNFILES")
-  if (runfiles != null) {
-    val p4include = Path.of(runfiles, "p4c+/p4include")
-    if (Files.isDirectory(p4include)) {
-      dirs.add(p4include)
-    }
+  // External repo path — resolved without the _main source repository prefix.
+  val p4include = rlocationExternal("p4c+/p4include")
+  if (p4include != null && Files.isDirectory(p4include)) {
+    dirs.add(p4include)
   }
 
   dirs.addAll(userDirs)
   return dirs
+}
+
+// Portable runfiles resolution across OSS Bazel and google3/blaze.
+private val mainRepoRunfiles: Runfiles? =
+  try {
+    Runfiles.preload().withSourceRepository("_main")
+  } catch (_: Exception) {
+    null
+  }
+
+private val rawRunfiles: Runfiles? =
+  try {
+    Runfiles.preload().unmapped()
+  } catch (_: Exception) {
+    null
+  }
+
+/** Resolves a main-repo-relative path via the Runfiles library. */
+private fun rlocation(repoRelativePath: String): Path? {
+  mainRepoRunfiles?.rlocation(repoRelativePath)?.let { resolved ->
+    val path = Path.of(resolved)
+    if (Files.exists(path)) return path
+  }
+  // Legacy fallback.
+  val root = System.getenv("JAVA_RUNFILES") ?: return null
+  val path = Path.of(root, "_main", repoRelativePath)
+  return if (Files.exists(path)) path else null
+}
+
+/** Resolves an external-repo path (e.g. "p4c+/p4include") via the Runfiles library. */
+private fun rlocationExternal(path: String): Path? {
+  rawRunfiles?.rlocation(path)?.let { resolved ->
+    val p = Path.of(resolved)
+    if (Files.exists(p)) return p
+  }
+  // Legacy fallback: external repos sit next to _main in the runfiles tree.
+  val root = System.getenv("JAVA_RUNFILES") ?: return null
+  val p = Path.of(root, path)
+  return if (Files.exists(p)) p else null
 }
