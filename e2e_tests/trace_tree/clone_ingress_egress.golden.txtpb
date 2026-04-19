@@ -84,6 +84,13 @@ fork_outcome {
         pipeline_stage {
           stage_name: "egress"
           stage_kind: CONTROL
+          direction: ENTER
+        }
+      }
+      events {
+        pipeline_stage {
+          stage_name: "egress"
+          stage_kind: CONTROL
           direction: EXIT
         }
       }
