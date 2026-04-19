@@ -31,13 +31,13 @@
             <td class="headerValue">coverage.lcov</td>
             <td></td>
             <td class="headerItem">Lines:</td>
-            <td class="headerCovTableEntryHi">98.8&nbsp;%</td>
-            <td class="headerCovTableEntry">82</td>
+            <td class="headerCovTableEntryHi">96.3&nbsp;%</td>
             <td class="headerCovTableEntry">81</td>
+            <td class="headerCovTableEntry">78</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-04-19 00:51:37</td>
+            <td class="headerValue">2026-04-19 02:11:37</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">93.8&nbsp;%</td>
@@ -278,62 +278,76 @@
 <span id="L216"><span class="lineNum">     216</span>              :   ): List&lt;p4.v1.P4RuntimeOuterClass.Entity&gt; {</span>
 <span id="L217"><span class="lineNum">     217</span> <span class="tlaGNC">           1 :     val tableStore = loaded().tableStore</span></span>
 <span id="L218"><span class="lineNum">     218</span> <span class="tlaGNC">           1 :     return filters.flatMap { entity -&gt;</span></span>
-<span id="L219"><span class="lineNum">     219</span> <span class="tlaGNC">           1 :       when {</span></span>
-<span id="L220"><span class="lineNum">     220</span> <span class="tlaGNC">           1 :         entity.hasTableEntry() -&gt; emptyList()</span></span>
-<span id="L221"><span class="lineNum">     221</span> <span class="tlaGNC">           1 :         entity.hasActionProfileMember() -&gt; tableStore.readProfileMembers(entity.actionProfileMember)</span></span>
-<span id="L222"><span class="lineNum">     222</span> <span class="tlaGNC">           1 :         entity.hasActionProfileGroup() -&gt; tableStore.readProfileGroups(entity.actionProfileGroup)</span></span>
-<span id="L223"><span class="lineNum">     223</span> <span class="tlaGNC">           1 :         entity.hasRegisterEntry() -&gt; tableStore.readRegisterEntries(entity.registerEntry)</span></span>
-<span id="L224"><span class="lineNum">     224</span> <span class="tlaGNC">           1 :         entity.hasCounterEntry() -&gt; tableStore.readCounterEntries(entity.counterEntry)</span></span>
-<span id="L225"><span class="lineNum">     225</span> <span class="tlaGNC">           1 :         entity.hasMeterEntry() -&gt; tableStore.readMeterEntries(entity.meterEntry)</span></span>
-<span id="L226"><span class="lineNum">     226</span> <span class="tlaGNC">           1 :         entity.hasDirectCounterEntry() -&gt;</span></span>
-<span id="L227"><span class="lineNum">     227</span> <span class="tlaGNC">           1 :           tableStore.readDirectCounterEntries(entity.directCounterEntry)</span></span>
-<span id="L228"><span class="lineNum">     228</span> <span class="tlaGNC">           1 :         entity.hasDirectMeterEntry() -&gt; tableStore.readDirectMeterEntries(entity.directMeterEntry)</span></span>
-<span id="L229"><span class="lineNum">     229</span> <span class="tlaGNC">           1 :         entity.hasPacketReplicationEngineEntry() -&gt;</span></span>
-<span id="L230"><span class="lineNum">     230</span> <span class="tlaGNC">           1 :           tableStore.readPreEntries(entity.packetReplicationEngineEntry)</span></span>
-<span id="L231"><span class="lineNum">     231</span> <span class="tlaGNC">           1 :         entity.hasValueSetEntry() -&gt; tableStore.readValueSetEntries(entity.valueSetEntry)</span></span>
-<span id="L232"><span class="lineNum">     232</span> <span class="tlaGNC">           1 :         else -&gt; error(&quot;unsupported entity type for read: ${entity.entityCase}&quot;)</span></span>
-<span id="L233"><span class="lineNum">     233</span> <span class="tlaGNC">           1 :       }</span></span>
-<span id="L234"><span class="lineNum">     234</span>              :     }</span>
-<span id="L235"><span class="lineNum">     235</span>              :   }</span>
-<span id="L236"><span class="lineNum">     236</span>              : </span>
-<span id="L237"><span class="lineNum">     237</span>              :   /** Returns the short p4info alias for a behavioral name (table or action), or the name itself. */</span>
-<span id="L238"><span class="lineNum">     238</span> <span class="tlaUNC tlaBgUNC">           0 :   fun displayName(behavioralName: String): String = loaded().tableStore.displayName(behavioralName)</span></span>
-<span id="L239"><span class="lineNum">     239</span>              : }</span>
-<span id="L240"><span class="lineNum">     240</span>              : </span>
-<span id="L241"><span class="lineNum">     241</span>              : /**</span>
-<span id="L242"><span class="lineNum">     242</span>              :  * Collects all possible outcome sets from a trace tree, respecting fork semantics.</span>
-<span id="L243"><span class="lineNum">     243</span>              :  * - **Parallel forks** (clone, multicast, resubmit, recirculate): outputs from all branches are</span>
-<span id="L244"><span class="lineNum">     244</span>              :  *   combined within each possible world (Cartesian product of branch outcomes).</span>
-<span id="L245"><span class="lineNum">     245</span>              :  * - **Alternative forks** (action selector): each branch is a separate possible world; outcomes are</span>
-<span id="L246"><span class="lineNum">     246</span>              :  *   concatenated (union of branch outcomes).</span>
-<span id="L247"><span class="lineNum">     247</span>              :  * - **Leaf (output):** one possible world with one packet.</span>
-<span id="L248"><span class="lineNum">     248</span>              :  * - **Leaf (drop):** one possible world with no packets.</span>
-<span id="L249"><span class="lineNum">     249</span>              :  *</span>
-<span id="L250"><span class="lineNum">     250</span>              :  * Returns a non-empty list. Each inner list is one complete set of output packets that could result</span>
-<span id="L251"><span class="lineNum">     251</span>              :  * from a single real execution.</span>
-<span id="L252"><span class="lineNum">     252</span>              :  */</span>
-<span id="L253"><span class="lineNum">     253</span>              : fun collectPossibleOutcomes(tree: TraceTree): List&lt;List&lt;OutputPacket&gt;&gt; {</span>
-<span id="L254"><span class="lineNum">     254</span> <span class="tlaGNC tlaBgGNC">           1 :   if (!tree.hasForkOutcome()) {</span></span>
-<span id="L255"><span class="lineNum">     255</span> <span class="tlaGNC">           1 :     return if (tree.hasPacketOutcome() &amp;&amp; tree.packetOutcome.hasOutput()) {</span></span>
-<span id="L256"><span class="lineNum">     256</span> <span class="tlaGNC">           1 :       listOf(listOf(tree.packetOutcome.output))</span></span>
-<span id="L257"><span class="lineNum">     257</span>              :     } else {</span>
-<span id="L258"><span class="lineNum">     258</span> <span class="tlaGNC">           1 :       listOf(emptyList())</span></span>
-<span id="L259"><span class="lineNum">     259</span>              :     }</span>
-<span id="L260"><span class="lineNum">     260</span>              :   }</span>
-<span id="L261"><span class="lineNum">     261</span> <span class="tlaGNC">           1 :   val fork = tree.forkOutcome</span></span>
-<span id="L262"><span class="lineNum">     262</span> <span class="tlaGNC">           1 :   val branchOutcomes = fork.branchesList.map { collectPossibleOutcomes(it.subtree) }</span></span>
-<span id="L263"><span class="lineNum">     263</span> <span class="tlaGNC">           1 :   if (branchOutcomes.isEmpty()) return listOf(emptyList())</span></span>
-<span id="L264"><span class="lineNum">     264</span> <span class="tlaGNC">           1 :   return when (forkModeOf(fork.reason)) {</span></span>
-<span id="L265"><span class="lineNum">     265</span>              :     // Alternative: each branch adds its worlds to the result.</span>
-<span id="L266"><span class="lineNum">     266</span> <span class="tlaGNC">           1 :     ForkMode.ALTERNATIVE -&gt; branchOutcomes.flatten()</span></span>
-<span id="L267"><span class="lineNum">     267</span>              :     // Parallel: Cartesian product across branches — for each combination of one world per</span>
-<span id="L268"><span class="lineNum">     268</span>              :     // branch, concatenate the packets.</span>
-<span id="L269"><span class="lineNum">     269</span>              :     ForkMode.PARALLEL -&gt;</span>
-<span id="L270"><span class="lineNum">     270</span> <span class="tlaGNC">           1 :       branchOutcomes.reduce { acc, next -&gt;</span></span>
-<span id="L271"><span class="lineNum">     271</span> <span class="tlaGNC">           1 :         acc.flatMap { world -&gt; next.map { branchWorld -&gt; world + branchWorld } }</span></span>
-<span id="L272"><span class="lineNum">     272</span>              :       }</span>
-<span id="L273"><span class="lineNum">     273</span>              :   }</span>
-<span id="L274"><span class="lineNum">     274</span>              : }</span>
+<span id="L219"><span class="lineNum">     219</span> <span class="tlaGNC">           1 :       when (entity.entityCase) {</span></span>
+<span id="L220"><span class="lineNum">     220</span> <span class="tlaUNC tlaBgUNC">           0 :         p4.v1.P4RuntimeOuterClass.Entity.EntityCase.TABLE_ENTRY -&gt; emptyList()</span></span>
+<span id="L221"><span class="lineNum">     221</span>              :         p4.v1.P4RuntimeOuterClass.Entity.EntityCase.ACTION_PROFILE_MEMBER -&gt;</span>
+<span id="L222"><span class="lineNum">     222</span> <span class="tlaGNC tlaBgGNC">           1 :           tableStore.readProfileMembers(entity.actionProfileMember)</span></span>
+<span id="L223"><span class="lineNum">     223</span>              :         p4.v1.P4RuntimeOuterClass.Entity.EntityCase.ACTION_PROFILE_GROUP -&gt;</span>
+<span id="L224"><span class="lineNum">     224</span> <span class="tlaGNC">           1 :           tableStore.readProfileGroups(entity.actionProfileGroup)</span></span>
+<span id="L225"><span class="lineNum">     225</span>              :         p4.v1.P4RuntimeOuterClass.Entity.EntityCase.REGISTER_ENTRY -&gt;</span>
+<span id="L226"><span class="lineNum">     226</span> <span class="tlaGNC">           1 :           tableStore.readRegisterEntries(entity.registerEntry)</span></span>
+<span id="L227"><span class="lineNum">     227</span>              :         p4.v1.P4RuntimeOuterClass.Entity.EntityCase.COUNTER_ENTRY -&gt;</span>
+<span id="L228"><span class="lineNum">     228</span> <span class="tlaGNC">           1 :           tableStore.readCounterEntries(entity.counterEntry)</span></span>
+<span id="L229"><span class="lineNum">     229</span>              :         p4.v1.P4RuntimeOuterClass.Entity.EntityCase.METER_ENTRY -&gt;</span>
+<span id="L230"><span class="lineNum">     230</span> <span class="tlaGNC">           1 :           tableStore.readMeterEntries(entity.meterEntry)</span></span>
+<span id="L231"><span class="lineNum">     231</span>              :         p4.v1.P4RuntimeOuterClass.Entity.EntityCase.DIRECT_COUNTER_ENTRY -&gt;</span>
+<span id="L232"><span class="lineNum">     232</span> <span class="tlaGNC">           1 :           tableStore.readDirectCounterEntries(entity.directCounterEntry)</span></span>
+<span id="L233"><span class="lineNum">     233</span>              :         p4.v1.P4RuntimeOuterClass.Entity.EntityCase.DIRECT_METER_ENTRY -&gt;</span>
+<span id="L234"><span class="lineNum">     234</span> <span class="tlaGNC">           1 :           tableStore.readDirectMeterEntries(entity.directMeterEntry)</span></span>
+<span id="L235"><span class="lineNum">     235</span>              :         p4.v1.P4RuntimeOuterClass.Entity.EntityCase.PACKET_REPLICATION_ENGINE_ENTRY -&gt;</span>
+<span id="L236"><span class="lineNum">     236</span> <span class="tlaGNC">           1 :           tableStore.readPreEntries(entity.packetReplicationEngineEntry)</span></span>
+<span id="L237"><span class="lineNum">     237</span>              :         p4.v1.P4RuntimeOuterClass.Entity.EntityCase.VALUE_SET_ENTRY -&gt;</span>
+<span id="L238"><span class="lineNum">     238</span> <span class="tlaGNC">           1 :           tableStore.readValueSetEntries(entity.valueSetEntry)</span></span>
+<span id="L239"><span class="lineNum">     239</span>              :         p4.v1.P4RuntimeOuterClass.Entity.EntityCase.EXTERN_ENTRY,</span>
+<span id="L240"><span class="lineNum">     240</span>              :         p4.v1.P4RuntimeOuterClass.Entity.EntityCase.DIGEST_ENTRY,</span>
+<span id="L241"><span class="lineNum">     241</span>              :         p4.v1.P4RuntimeOuterClass.Entity.EntityCase.ENTITY_NOT_SET,</span>
+<span id="L242"><span class="lineNum">     242</span> <span class="tlaUNC tlaBgUNC">           0 :         null -&gt; error(&quot;unsupported entity type for read: ${entity.entityCase}&quot;)</span></span>
+<span id="L243"><span class="lineNum">     243</span> <span class="tlaGNC tlaBgGNC">           1 :       }</span></span>
+<span id="L244"><span class="lineNum">     244</span>              :     }</span>
+<span id="L245"><span class="lineNum">     245</span>              :   }</span>
+<span id="L246"><span class="lineNum">     246</span>              : </span>
+<span id="L247"><span class="lineNum">     247</span>              :   /** Returns the short p4info alias for a behavioral name (table or action), or the name itself. */</span>
+<span id="L248"><span class="lineNum">     248</span> <span class="tlaUNC tlaBgUNC">           0 :   fun displayName(behavioralName: String): String = loaded().tableStore.displayName(behavioralName)</span></span>
+<span id="L249"><span class="lineNum">     249</span>              : }</span>
+<span id="L250"><span class="lineNum">     250</span>              : </span>
+<span id="L251"><span class="lineNum">     251</span>              : /**</span>
+<span id="L252"><span class="lineNum">     252</span>              :  * Collects all possible outcome sets from a trace tree, respecting fork semantics.</span>
+<span id="L253"><span class="lineNum">     253</span>              :  * - **Parallel forks** (clone, multicast, resubmit, recirculate): outputs from all branches are</span>
+<span id="L254"><span class="lineNum">     254</span>              :  *   combined within each possible world (Cartesian product of branch outcomes).</span>
+<span id="L255"><span class="lineNum">     255</span>              :  * - **Alternative forks** (action selector): each branch is a separate possible world; outcomes are</span>
+<span id="L256"><span class="lineNum">     256</span>              :  *   concatenated (union of branch outcomes).</span>
+<span id="L257"><span class="lineNum">     257</span>              :  * - **Leaf (output):** one possible world with one packet.</span>
+<span id="L258"><span class="lineNum">     258</span>              :  * - **Leaf (drop):** one possible world with no packets.</span>
+<span id="L259"><span class="lineNum">     259</span>              :  *</span>
+<span id="L260"><span class="lineNum">     260</span>              :  * Returns a non-empty list. Each inner list is one complete set of output packets that could result</span>
+<span id="L261"><span class="lineNum">     261</span>              :  * from a single real execution.</span>
+<span id="L262"><span class="lineNum">     262</span>              :  */</span>
+<span id="L263"><span class="lineNum">     263</span>              : fun collectPossibleOutcomes(tree: TraceTree): List&lt;List&lt;OutputPacket&gt;&gt; {</span>
+<span id="L264"><span class="lineNum">     264</span> <span class="tlaGNC tlaBgGNC">           1 :   when (tree.outcomeCase) {</span></span>
+<span id="L265"><span class="lineNum">     265</span>              :     TraceTree.OutcomeCase.PACKET_OUTCOME -&gt;</span>
+<span id="L266"><span class="lineNum">     266</span> <span class="tlaGNC">           1 :       return if (tree.packetOutcome.hasOutput()) {</span></span>
+<span id="L267"><span class="lineNum">     267</span> <span class="tlaGNC">           1 :         listOf(listOf(tree.packetOutcome.output))</span></span>
+<span id="L268"><span class="lineNum">     268</span>              :       } else {</span>
+<span id="L269"><span class="lineNum">     269</span> <span class="tlaGNC">           1 :         listOf(emptyList())</span></span>
+<span id="L270"><span class="lineNum">     270</span>              :       }</span>
+<span id="L271"><span class="lineNum">     271</span>              :     TraceTree.OutcomeCase.OUTCOME_NOT_SET,</span>
+<span id="L272"><span class="lineNum">     272</span> <span class="tlaGNC">           1 :     null -&gt; return listOf(emptyList())</span></span>
+<span id="L273"><span class="lineNum">     273</span>              :     TraceTree.OutcomeCase.FORK_OUTCOME -&gt; {} // fall through to fork handling below</span>
+<span id="L274"><span class="lineNum">     274</span>              :   }</span>
+<span id="L275"><span class="lineNum">     275</span> <span class="tlaGNC">           1 :   val fork = tree.forkOutcome</span></span>
+<span id="L276"><span class="lineNum">     276</span> <span class="tlaGNC">           1 :   val branchOutcomes = fork.branchesList.map { collectPossibleOutcomes(it.subtree) }</span></span>
+<span id="L277"><span class="lineNum">     277</span> <span class="tlaGNC">           1 :   if (branchOutcomes.isEmpty()) return listOf(emptyList())</span></span>
+<span id="L278"><span class="lineNum">     278</span> <span class="tlaGNC">           1 :   return when (forkModeOf(fork.reason)) {</span></span>
+<span id="L279"><span class="lineNum">     279</span>              :     // Alternative: each branch adds its worlds to the result.</span>
+<span id="L280"><span class="lineNum">     280</span> <span class="tlaGNC">           1 :     ForkMode.ALTERNATIVE -&gt; branchOutcomes.flatten()</span></span>
+<span id="L281"><span class="lineNum">     281</span>              :     // Parallel: Cartesian product across branches — for each combination of one world per</span>
+<span id="L282"><span class="lineNum">     282</span>              :     // branch, concatenate the packets.</span>
+<span id="L283"><span class="lineNum">     283</span>              :     ForkMode.PARALLEL -&gt;</span>
+<span id="L284"><span class="lineNum">     284</span> <span class="tlaGNC">           1 :       branchOutcomes.reduce { acc, next -&gt;</span></span>
+<span id="L285"><span class="lineNum">     285</span> <span class="tlaGNC">           1 :         acc.flatMap { world -&gt; next.map { branchWorld -&gt; world + branchWorld } }</span></span>
+<span id="L286"><span class="lineNum">     286</span>              :       }</span>
+<span id="L287"><span class="lineNum">     287</span>              :   }</span>
+<span id="L288"><span class="lineNum">     288</span>              : }</span>
         </pre>
               </td>
             </tr>

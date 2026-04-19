@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-04-19 00:51:37</td>
+            <td class="headerValue">2026-04-19 02:11:37</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">93.8&nbsp;%</td>
@@ -232,14 +232,19 @@
 <span id="L170"><span class="lineNum">     170</span>              :     private const val DEFAULT_PORT_BITS = 9</span>
 <span id="L171"><span class="lineNum">     171</span>              : </span>
 <span id="L172"><span class="lineNum">     172</span>              :     private fun bitWidth(type: Type): Int =</span>
-<span id="L173"><span class="lineNum">     173</span> <span class="tlaGNC">           1 :       when {</span></span>
-<span id="L174"><span class="lineNum">     174</span> <span class="tlaGNC">           1 :         type.hasBit() -&gt; type.bit.width</span></span>
-<span id="L175"><span class="lineNum">     175</span> <span class="tlaUNC tlaBgUNC">           0 :         type.hasSignedInt() -&gt; type.signedInt.width</span></span>
-<span id="L176"><span class="lineNum">     176</span> <span class="tlaUNC">           0 :         type.hasBoolean() -&gt; 1</span></span>
-<span id="L177"><span class="lineNum">     177</span> <span class="tlaUNC">           0 :         else -&gt; error(&quot;unsupported type in packet header: $type&quot;)</span></span>
-<span id="L178"><span class="lineNum">     178</span> <span class="tlaGNC tlaBgGNC">           1 :       }</span></span>
-<span id="L179"><span class="lineNum">     179</span>              :   }</span>
-<span id="L180"><span class="lineNum">     180</span>              : }</span>
+<span id="L173"><span class="lineNum">     173</span> <span class="tlaGNC">           1 :       when (type.kindCase) {</span></span>
+<span id="L174"><span class="lineNum">     174</span> <span class="tlaGNC">           1 :         Type.KindCase.BIT -&gt; type.bit.width</span></span>
+<span id="L175"><span class="lineNum">     175</span> <span class="tlaUNC tlaBgUNC">           0 :         Type.KindCase.SIGNED_INT -&gt; type.signedInt.width</span></span>
+<span id="L176"><span class="lineNum">     176</span> <span class="tlaUNC">           0 :         Type.KindCase.BOOLEAN -&gt; 1</span></span>
+<span id="L177"><span class="lineNum">     177</span>              :         Type.KindCase.VARBIT,</span>
+<span id="L178"><span class="lineNum">     178</span>              :         Type.KindCase.NAMED,</span>
+<span id="L179"><span class="lineNum">     179</span>              :         Type.KindCase.HEADER_STACK,</span>
+<span id="L180"><span class="lineNum">     180</span>              :         Type.KindCase.ERROR,</span>
+<span id="L181"><span class="lineNum">     181</span>              :         Type.KindCase.KIND_NOT_SET,</span>
+<span id="L182"><span class="lineNum">     182</span> <span class="tlaUNC">           0 :         null -&gt; error(&quot;unsupported type in packet header: $type&quot;)</span></span>
+<span id="L183"><span class="lineNum">     183</span> <span class="tlaGNC tlaBgGNC">           1 :       }</span></span>
+<span id="L184"><span class="lineNum">     184</span>              :   }</span>
+<span id="L185"><span class="lineNum">     185</span>              : }</span>
         </pre>
               </td>
             </tr>
