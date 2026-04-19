@@ -4,13 +4,14 @@
 #ifndef FOURWARD_P4RUNTIME_CC_FOURWARD_SERVER_H_
 #define FOURWARD_P4RUNTIME_CC_FOURWARD_SERVER_H_
 
-// RAII wrapper that brings up a 4ward P4Runtime + Dataplane gRPC server as a
-// child process, waits until it is ready to serve RPCs, and tears it down
-// when the wrapper goes out of scope.
+// Use 4ward from C++ without writing a line of Kotlin or Java.
 //
-// Intended for C++ clients (tests, reference harnesses, differential-testing
-// infrastructure) that want to embed 4ward without touching the JVM toolchain
-// directly.
+// FourwardServer is an RAII handle to a 4ward P4Runtime + Dataplane gRPC
+// server running as a child process. `Start()` spawns it, blocks until it
+// is accepting RPCs, and hands back a value that owns the subprocess, a
+// shared gRPC channel, and factories for both service stubs. Destruction
+// kills the subprocess. Your project's BUILD files stay all-C++; the JVM
+// is an implementation detail of the server binary.
 //
 // Example (`ASSIGN_OR_RETURN` is the common project-local macro that early-
 // returns on a non-OK `absl::Status`; any equivalent works):
@@ -101,6 +102,16 @@ class FourwardServer {
   FourwardServer(const FourwardServer&) = delete;
   FourwardServer& operator=(const FourwardServer&) = delete;
 
+  // Stub factories for the two services the server hosts. The common way to
+  // drive the server — `server.NewP4RuntimeStub()->Write(...)` etc.
+  std::unique_ptr<p4::v1::P4Runtime::Stub> NewP4RuntimeStub() const {
+    return p4::v1::P4Runtime::NewStub(channel_);
+  }
+  std::unique_ptr<fourward::dataplane::Dataplane::Stub> NewDataplaneStub()
+      const {
+    return fourward::dataplane::Dataplane::NewStub(channel_);
+  }
+
   // Address suitable for grpc::CreateChannel, e.g. "localhost:42517".
   const std::string& Address() const { return address_; }
 
@@ -110,24 +121,15 @@ class FourwardServer {
   // P4Runtime device ID exposed by the server.
   uint64_t DeviceId() const { return device_id_; }
 
-  // PID of the server subprocess. Primarily useful for diagnostics.
-  pid_t Pid() const { return pid_; }
-
-  // Shared insecure channel to the server, created once at Start() and
-  // reused. TLS and custom channel args are intentionally unsupported — this
-  // wrapper targets localhost use. Exposed for third-party helper libraries
-  // (e.g. p4_pdpi) that accept a `shared_ptr<grpc::Channel>`.
+  // Escape hatches. Not needed to drive the server — reach for these when
+  // interoperating with third-party helpers or diagnosing a misbehaving
+  // subprocess.
+  //
+  // Shared insecure channel to the server, suitable for helpers that accept
+  // `shared_ptr<grpc::Channel>` directly (e.g. p4_pdpi).
   const std::shared_ptr<grpc::Channel>& Channel() const { return channel_; }
-
-  // Stub factories for the two services the server hosts. Equivalent to
-  // `p4::v1::P4Runtime::NewStub(server.Channel())` etc.
-  std::unique_ptr<p4::v1::P4Runtime::Stub> NewP4RuntimeStub() const {
-    return p4::v1::P4Runtime::NewStub(channel_);
-  }
-  std::unique_ptr<fourward::dataplane::Dataplane::Stub> NewDataplaneStub()
-      const {
-    return fourward::dataplane::Dataplane::NewStub(channel_);
-  }
+  // PID of the server subprocess.
+  pid_t Pid() const { return pid_; }
 
  private:
   FourwardServer(pid_t pid, int port, uint64_t device_id,

@@ -147,10 +147,14 @@ gRPC semantics (status codes, streaming) without network flakiness.
 **Target:** `//p4runtime_cc:fourward_server`
 **API:** `fourward::FourwardServer::Start()` (C++)
 
-An RAII wrapper that spawns the P4Runtime server as a child process, waits
-until it is accepting gRPC calls, and tears it down on destruction. The
-server's listening port is discovered via a machine-readable `--port-file`
-that the server writes atomically once it is ready to serve.
+Use 4ward from C++ without writing a line of Kotlin or Java. `Start()`
+spawns the P4Runtime + Dataplane server as a subprocess, blocks until it
+is accepting RPCs, and returns an RAII handle that owns the subprocess
+plus factories for both service stubs. Destruction kills the subprocess.
+Your project's BUILD files stay all-C++; the JVM is an implementation
+detail of the server binary. Startup synchronization goes through a
+machine-readable `--port-file` that the server writes atomically once
+it is ready to serve.
 
 ```cpp
 #include "p4runtime_cc/fourward_server.h"

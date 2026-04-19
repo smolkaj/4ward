@@ -1,15 +1,18 @@
 ---
-description: "Embedding the 4ward server in a C++ program via the p4runtime_cc wrapper — Bazel setup, example usage, and the stable startup contract downstream wrappers can rely on."
+description: "Use 4ward from C++ without writing a line of Kotlin or Java — Bazel setup, example usage, and the stable startup contract wrappers in other languages can rely on."
 ---
 
 # Embedding the server in C++
 
-`//p4runtime_cc:fourward_server` is a C++ RAII wrapper that brings up the
-4ward P4Runtime + Dataplane server as a child process, waits until it is
-accepting gRPC calls, and tears it down when it goes out of scope. Use it
-when you want to drive 4ward from C++ test harnesses, reference
-implementations, or differential-testing infrastructure without pulling
-Kotlin or the JVM build tools into your own project.
+**Use 4ward from C++ without writing a line of Kotlin or Java.** Your
+project's BUILD files stay all-C++; the JVM is an implementation detail
+of the server binary.
+
+`//p4runtime_cc:fourward_server` is the RAII handle. `Start()` spawns
+the P4Runtime + Dataplane server as a subprocess, blocks until it is
+accepting RPCs, and returns a value that owns the subprocess, a shared
+gRPC channel, and factories for both service stubs. Destruction kills
+the subprocess.
 
 ## Bazel dependency
 
