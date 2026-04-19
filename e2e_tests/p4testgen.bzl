@@ -163,6 +163,7 @@ def p4_testgen_test(name, src_p4 = None, includes = [], max_tests = 0, seed = 0,
         tags = tags + ["heavy"],
         data = data,
         deps = [
+            "//e2e_tests:runfiles_helper",
             "//stf",
             "@fourward_maven//:junit_junit",
         ],
@@ -201,6 +202,7 @@ def p4_testgen_suite(name, tests, includes = {}, max_tests = {}, tags = [], targ
         tags = tags + ["heavy"],
         data = data,
         deps = [
+            "//e2e_tests:runfiles_helper",
             "//stf",
             "@fourward_maven//:junit_junit",
         ],

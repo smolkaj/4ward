@@ -43,7 +43,4 @@ fun assertMatchesGoldenFile(goldenFileName: String, pkg: String, actual: String)
 fun isUpdateMode(): Boolean = System.getProperty("sun.java.command")?.contains("--update") == true
 
 /** Resolves a file path relative to a Bazel package in runfiles. */
-fun runfilePath(pkg: String, fileName: String): Path {
-  val runfiles = System.getenv("JAVA_RUNFILES") ?: "."
-  return Paths.get(runfiles, "_main", pkg, fileName)
-}
+fun runfilePath(pkg: String, fileName: String): Path = RunfilesHelper.rlocation("$pkg/$fileName")

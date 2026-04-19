@@ -85,6 +85,7 @@ fourward_pipeline(
 
 _TEST_DEPS = [
     "//e2e_tests:golden_file",
+    "//e2e_tests:runfiles_helper",
     "//simulator:ir_java_proto",
     "//simulator:simulator_java_proto",
     "//simulator",
