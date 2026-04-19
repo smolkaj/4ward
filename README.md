@@ -278,10 +278,15 @@ ergonomics (sealed classes, pattern matching).
 - **Java?** Kotlin, but worse.
 - **OCaml?** Excellent fit, but not well-supported within Google's ecosystem :(
 
-> [!IMPORTANT]  
-> **You don't need to know Kotlin to contribute to 4ward!**
-> [The AI writes the code](docs/AI_WORKFLOW.md) — you just need to know your
-requirements.
+> [!IMPORTANT]
+> **You don't need to know Kotlin to contribute to — or use — 4ward.**
+> [The AI writes the code](docs/AI_WORKFLOW.md); you just need to know
+> your requirements. And if you're consuming 4ward from another
+> language, Kotlin is an implementation detail: C++ projects can embed
+> the server via
+> [`//p4runtime_cc:fourward_server`](https://smolkaj.github.io/4ward/reference/embedding-cc/)
+> with all-C++ BUILD files, and any language with a gRPC client can
+> speak to the server directly.
 
 ## Project structure
 
