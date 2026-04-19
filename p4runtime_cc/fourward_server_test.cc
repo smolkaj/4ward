@@ -105,6 +105,31 @@ TEST(FourwardServerTest, MoveConstructionPreservesOwnership) {
   ExpectHealthy(moved);
 }
 
+TEST(FourwardServerTest, MoveAssignmentKillsOldAndAdoptsNew) {
+  absl::StatusOr<FourwardServer> a = FourwardServer::Start();
+  absl::StatusOr<FourwardServer> b = FourwardServer::Start();
+  ASSERT_TRUE(a.ok()) << a.status();
+  ASSERT_TRUE(b.ok()) << b.status();
+  pid_t pid_a = a->Pid();
+  pid_t pid_b = b->Pid();
+  ASSERT_NE(pid_a, pid_b);
+
+  // Move-assign b into a: a's old subprocess must be killed, b's must live
+  // and serve RPCs through the moved-to wrapper.
+  *a = *std::move(b);
+
+  EXPECT_EQ(a->Pid(), pid_b);
+  ExpectHealthy(*a);
+
+  auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+  while (std::chrono::steady_clock::now() < deadline) {
+    if (::kill(pid_a, 0) != 0) return;
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  }
+  FAIL() << "old subprocess pid " << pid_a
+         << " should have been killed by move-assign";
+}
+
 TEST(FourwardServerTest, DropAndCpuPortFlagsAcceptedByServer) {
   // This is mostly a smoke test — the wrapper passes the flags through, and
   // the server comes up. Deeper validation of drop/cpu port semantics belongs
