@@ -14,21 +14,25 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <memory>
-#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "absl/cleanup/cleanup.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
-#include "absl/strings/strip.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "tools/cpp/runfiles/runfiles.h"
+
+#ifndef FOURWARD_SERVER_RLOCATION
+#error "FOURWARD_SERVER_RLOCATION must be set by the BUILD rule"
+#endif
 
 extern char** environ;
 
@@ -37,9 +41,11 @@ namespace {
 
 using ::bazel::tools::cpp::runfiles::Runfiles;
 
-// Bazel label of the server binary. Resolved via runfiles at launch so the
-// wrapper works identically from `bazel test` and installed-binary scenarios.
-constexpr char kServerRunfile[] = "_main/p4runtime/p4runtime_server";
+// Runfile path of the server binary, baked in from BUILD via
+// `$(rlocationpath //p4runtime:p4runtime_server)`. Has the canonical repo
+// name (e.g. `_main/...` or `fourward+/...`) appropriate to the current
+// build.
+constexpr char kServerRunfile[] = FOURWARD_SERVER_RLOCATION;
 
 absl::Status PosixError(const std::string& what, int err) {
   return absl::InternalError(
@@ -47,10 +53,7 @@ absl::Status PosixError(const std::string& what, int err) {
 }
 
 // Creates a unique scratch directory under $TEST_TMPDIR (honored by Bazel
-// test shards) or /tmp. Not deleted on Shutdown — the test harness cleans
-// $TEST_TMPDIR, and for non-test embeds a handful of stale dirs under /tmp
-// are harmless relative to the cost of racing cleanup against a still-alive
-// subprocess on error paths.
+// test shards) or /tmp.
 absl::StatusOr<std::string> MakeScratchDir() {
   const char* base = std::getenv("TEST_TMPDIR");
   if (base == nullptr || *base == '\0') base = "/tmp";
@@ -63,21 +66,21 @@ absl::StatusOr<std::string> MakeScratchDir() {
   return std::string(buf.data());
 }
 
+// Best-effort recursive removal of `path`; errors are swallowed because
+// cleanup runs from destructors and we've already done our job if the
+// process was reaped.
+void RemoveScratchDir(const std::string& path) {
+  if (path.empty()) return;
+  std::error_code ec;
+  std::filesystem::remove_all(path, ec);
+}
+
 absl::StatusOr<int> ReadPortFile(const std::string& path) {
   std::ifstream in(path);
-  if (!in) return PosixError(absl::StrCat("open ", path), errno);
-  std::stringstream ss;
-  ss << in.rdbuf();
-  std::string contents = ss.str();
-  // The writer uses atomic rename, so a successful open never observes a
-  // partial value — but it may still observe trailing whitespace from a
-  // future writer. Be forgiving.
-  absl::string_view trimmed = absl::StripAsciiWhitespace(contents);
   int port = 0;
-  if (!absl::SimpleAtoi(trimmed, &port) || port <= 0 || port > 65535) {
+  if (!(in >> port) || port <= 0 || port > 65535) {
     return absl::InternalError(
-        absl::StrCat("port file at ", path, " has invalid contents: '",
-                     contents, "'"));
+        absl::StrCat("port file at ", path, " has invalid contents"));
   }
   return port;
 }
@@ -123,6 +126,17 @@ bool TryReap(pid_t pid, absl::Duration budget) {
   return false;
 }
 
+// Kills the process group led by `pid` (SIGTERM then SIGKILL) and reaps the
+// child. Safe to call when `pid <= 0`.
+void KillAndReap(pid_t pid) {
+  if (pid <= 0) return;
+  ::killpg(pid, SIGTERM);
+  if (!TryReap(pid, absl::Seconds(5))) {
+    ::killpg(pid, SIGKILL);
+    TryReap(pid, absl::Seconds(2));
+  }
+}
+
 }  // namespace
 
 absl::StatusOr<FourwardServer> FourwardServer::Start(Options options) {
@@ -137,17 +151,23 @@ absl::StatusOr<FourwardServer> FourwardServer::Start(Options options) {
   if (server_path.empty() || ::access(server_path.c_str(), X_OK) != 0) {
     return absl::NotFoundError(absl::StrCat(
         "4ward P4Runtime server binary not found in runfiles (expected ",
-        kServerRunfile,
-        "). Does your cc_test list `@fourward//p4runtime:p4runtime_server` "
-        "in `data`?"));
+        kServerRunfile, "). Resolved path: '", server_path, "'"));
   }
 
   absl::StatusOr<std::string> scratch = MakeScratchDir();
   if (!scratch.ok()) return std::move(scratch).status();
   std::string port_file = absl::StrCat(*scratch, "/port");
 
-  // Build argv. posix_spawn takes a char* const[]; build strings first,
-  // then snapshot their c_str()s into the argv array.
+  // One guard owns every in-flight resource until Start() commits. On any
+  // early return (spawn failure, port-file timeout, malformed port, …) the
+  // guard kills the child and removes the scratch dir. On success we cancel
+  // it and transfer ownership of scratch to the FourwardServer instance.
+  pid_t pid = -1;
+  absl::Cleanup guard = [&] {
+    KillAndReap(pid);
+    RemoveScratchDir(*scratch);
+  };
+
   std::vector<std::string> args = {
       server_path,
       absl::StrCat("--port=", options.port.value_or(0)),
@@ -167,6 +187,8 @@ absl::StatusOr<FourwardServer> FourwardServer::Start(Options options) {
       args.push_back(absl::StrCat("--cpu-port=", options.cpu_port.port));
       break;
   }
+  // posix_spawn needs a NULL-terminated char* const[]; build argv from the
+  // `args` strings after they're fully populated so pointers stay valid.
   std::vector<char*> argv;
   argv.reserve(args.size() + 1);
   for (auto& a : args) argv.push_back(a.data());
@@ -174,55 +196,52 @@ absl::StatusOr<FourwardServer> FourwardServer::Start(Options options) {
 
   // Put the server into its own process group so SIGTERM to the group fans
   // out to any JVM grandchildren (e.g. native Netty helpers) without
-  // touching the parent test process. posix_spawn with POSIX_SPAWN_SETPGROUP
-  // + pgroup=0 is the portable way to request that.
+  // touching the parent. posix_spawn with POSIX_SPAWN_SETPGROUP + pgroup=0
+  // is the portable way to request that.
   posix_spawnattr_t attr;
   if (int rc = posix_spawnattr_init(&attr); rc != 0) {
     return PosixError("posix_spawnattr_init", rc);
   }
+  absl::Cleanup attr_destroy = [&] { posix_spawnattr_destroy(&attr); };
   if (int rc = posix_spawnattr_setflags(&attr, POSIX_SPAWN_SETPGROUP);
       rc != 0) {
-    posix_spawnattr_destroy(&attr);
     return PosixError("posix_spawnattr_setflags", rc);
   }
   if (int rc = posix_spawnattr_setpgroup(&attr, 0); rc != 0) {
-    posix_spawnattr_destroy(&attr);
     return PosixError("posix_spawnattr_setpgroup", rc);
   }
 
-  pid_t pid = -1;
-  int spawn_rc = posix_spawn(&pid, server_path.c_str(), /*file_actions=*/nullptr,
-                             &attr, argv.data(), environ);
-  posix_spawnattr_destroy(&attr);
-  if (spawn_rc != 0) return PosixError("posix_spawn", spawn_rc);
+  if (int rc = posix_spawn(&pid, server_path.c_str(), /*file_actions=*/nullptr,
+                           &attr, argv.data(), environ);
+      rc != 0) {
+    return PosixError("posix_spawn", rc);
+  }
 
   absl::Time deadline = absl::Now() + options.startup_timeout;
   if (absl::Status s = WaitForPortFile(port_file, pid, deadline); !s.ok()) {
-    ::kill(pid, SIGKILL);
-    TryReap(pid, absl::Seconds(5));
     return s;
   }
   absl::StatusOr<int> port = ReadPortFile(port_file);
-  if (!port.ok()) {
-    ::kill(pid, SIGKILL);
-    TryReap(pid, absl::Seconds(5));
-    return std::move(port).status();
-  }
+  if (!port.ok()) return std::move(port).status();
 
-  return FourwardServer(pid, *port, options.device_id);
+  std::move(guard).Cancel();
+  return FourwardServer(pid, *port, options.device_id, std::move(*scratch));
 }
 
-FourwardServer::FourwardServer(pid_t pid, int port, uint64_t device_id)
+FourwardServer::FourwardServer(pid_t pid, int port, uint64_t device_id,
+                               std::string scratch_dir)
     : pid_(pid),
       port_(port),
       device_id_(device_id),
-      address_(absl::StrCat("localhost:", port)) {}
+      address_(absl::StrCat("localhost:", port)),
+      scratch_dir_(std::move(scratch_dir)) {}
 
 FourwardServer::FourwardServer(FourwardServer&& other) noexcept
     : pid_(other.pid_),
       port_(other.port_),
       device_id_(other.device_id_),
-      address_(std::move(other.address_)) {
+      address_(std::move(other.address_)),
+      scratch_dir_(std::move(other.scratch_dir_)) {
   other.pid_ = -1;
 }
 
@@ -233,6 +252,7 @@ FourwardServer& FourwardServer::operator=(FourwardServer&& other) noexcept {
     port_ = other.port_;
     device_id_ = other.device_id_;
     address_ = std::move(other.address_);
+    scratch_dir_ = std::move(other.scratch_dir_);
     other.pid_ = -1;
   }
   return *this;
@@ -241,14 +261,10 @@ FourwardServer& FourwardServer::operator=(FourwardServer&& other) noexcept {
 FourwardServer::~FourwardServer() { Shutdown(); }
 
 void FourwardServer::Shutdown() {
-  if (pid_ <= 0) return;
-  // Signal the process group so any JVM-spawned helpers go too.
-  ::killpg(pid_, SIGTERM);
-  if (!TryReap(pid_, absl::Seconds(5))) {
-    ::killpg(pid_, SIGKILL);
-    TryReap(pid_, absl::Seconds(2));
-  }
+  KillAndReap(pid_);
   pid_ = -1;
+  RemoveScratchDir(scratch_dir_);
+  scratch_dir_.clear();
 }
 
 }  // namespace fourward

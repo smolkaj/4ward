@@ -16,15 +16,17 @@
 //
 //     #include "p4runtime_cc/fourward_server.h"
 //
-//     ASSERT_OK_AND_ASSIGN(auto server, fourward::FourwardServer::Start());
-//     auto channel = grpc::CreateChannel(server.Address(),
+//     absl::StatusOr<fourward::FourwardServer> server =
+//         fourward::FourwardServer::Start();
+//     ASSERT_TRUE(server.ok()) << server.status();
+//     auto channel = grpc::CreateChannel(server->Address(),
 //                                        grpc::InsecureChannelCredentials());
 //     auto stub = p4::v1::P4Runtime::NewStub(channel);
 //     // ... drive the server via gRPC ...
 //     // Server is killed when `server` goes out of scope.
 //
-// A Bazel consumer must list `@fourward//p4runtime:p4runtime_server` in its
-// `data` attribute so the server binary is present in runfiles.
+// A Bazel consumer only needs to add this target to `deps`; the server binary
+// is propagated through `cc_library.data` into the test's runfiles.
 //
 // Startup contract (stable): the server is launched with `--port-file=PATH`,
 // to which it atomically writes its listening port once it is accepting RPCs.
@@ -109,15 +111,18 @@ class FourwardServer {
   pid_t Pid() const { return pid_; }
 
  private:
-  FourwardServer(pid_t pid, int port, uint64_t device_id);
+  FourwardServer(pid_t pid, int port, uint64_t device_id,
+                 std::string scratch_dir);
 
-  // Sends SIGTERM, reaps with a timeout, then SIGKILLs if still alive.
+  // Kills the subprocess (SIGTERM → SIGKILL) and removes the scratch dir.
   void Shutdown();
 
   pid_t pid_ = -1;
   int port_ = 0;
   uint64_t device_id_ = 0;
   std::string address_;
+  // Scratch directory holding the `--port-file`. Removed on Shutdown.
+  std::string scratch_dir_;
 };
 
 }  // namespace fourward
