@@ -50,13 +50,16 @@ object ControlGraphExtractor {
   }
 
   private fun walkStmt(stmt: Stmt, currentIds: Set<String>, ctx: Context): Set<String> =
-    when {
-      stmt.hasSwitchStmt() -> walkSwitch(stmt.switchStmt, currentIds, ctx)
-      stmt.hasIfStmt() -> walkIf(stmt.ifStmt, currentIds, ctx)
-      stmt.hasBlock() -> walkStmts(stmt.block.stmtsList, currentIds, ctx)
-      stmt.hasMethodCall() -> walkMethodCall(stmt.methodCall.call, currentIds, ctx)
-      stmt.hasExit() || stmt.hasReturnStmt() -> emptySet()
-      else -> currentIds // assignments and other non-branching stmts: invisible
+    when (stmt.kindCase) {
+      Stmt.KindCase.SWITCH_STMT -> walkSwitch(stmt.switchStmt, currentIds, ctx)
+      Stmt.KindCase.IF_STMT -> walkIf(stmt.ifStmt, currentIds, ctx)
+      Stmt.KindCase.BLOCK -> walkStmts(stmt.block.stmtsList, currentIds, ctx)
+      Stmt.KindCase.METHOD_CALL -> walkMethodCall(stmt.methodCall.call, currentIds, ctx)
+      Stmt.KindCase.EXIT,
+      Stmt.KindCase.RETURN_STMT -> emptySet()
+      Stmt.KindCase.ASSIGNMENT,
+      Stmt.KindCase.KIND_NOT_SET,
+      null -> currentIds // assignments and other non-branching stmts: invisible
     }
 
   private fun walkSwitch(sw: SwitchStmt, currentIds: Set<String>, ctx: Context): Set<String> {
@@ -142,37 +145,55 @@ object ControlGraphExtractor {
 
   /** Recursively search an expression tree for a TableApplyExpr. */
   private fun findTableApply(expr: Expr): TableApplyExpr? =
-    when {
-      expr.hasTableApply() -> expr.tableApply
-      expr.hasMethodCall() -> findTableApply(expr.methodCall.target)
-      expr.hasUnaryOp() -> findTableApply(expr.unaryOp.expr)
-      else -> null
+    when (expr.kindCase) {
+      Expr.KindCase.TABLE_APPLY -> expr.tableApply
+      Expr.KindCase.METHOD_CALL -> findTableApply(expr.methodCall.target)
+      Expr.KindCase.UNARY_OP -> findTableApply(expr.unaryOp.expr)
+      Expr.KindCase.LITERAL,
+      Expr.KindCase.NAME_REF,
+      Expr.KindCase.FIELD_ACCESS,
+      Expr.KindCase.ARRAY_INDEX,
+      Expr.KindCase.SLICE,
+      Expr.KindCase.CONCAT,
+      Expr.KindCase.CAST,
+      Expr.KindCase.BINARY_OP,
+      Expr.KindCase.MUX,
+      Expr.KindCase.STRUCT_EXPR,
+      Expr.KindCase.KIND_NOT_SET,
+      null -> null
     }
 
   /** Extract a human-readable label from a condition expression. */
   private fun conditionLabel(expr: Expr): String =
-    when {
-      expr.hasMethodCall() -> {
+    when (expr.kindCase) {
+      Expr.KindCase.METHOD_CALL -> {
         val target = expr.methodCall.target
         val method = expr.methodCall.method
-        if (target.hasFieldAccess()) {
-          "${target.fieldAccess.fieldName}.$method()"
-        } else if (target.hasNameRef()) {
-          "${target.nameRef.name}.$method()"
-        } else {
-          "$method()"
+        when (target.kindCase) {
+          Expr.KindCase.FIELD_ACCESS -> "${target.fieldAccess.fieldName}.$method()"
+          Expr.KindCase.NAME_REF -> "${target.nameRef.name}.$method()"
+          else -> "$method()"
         }
       }
-      expr.hasFieldAccess() -> expr.fieldAccess.fieldName
-      expr.hasNameRef() -> expr.nameRef.name
-      expr.hasBinaryOp() -> {
+      Expr.KindCase.FIELD_ACCESS -> expr.fieldAccess.fieldName
+      Expr.KindCase.NAME_REF -> expr.nameRef.name
+      Expr.KindCase.BINARY_OP -> {
         val left = conditionLabel(expr.binaryOp.left)
         val right = conditionLabel(expr.binaryOp.right)
         val op = binaryOpSymbol(expr.binaryOp.op)
         "$left $op $right"
       }
-      expr.hasUnaryOp() -> "!${conditionLabel(expr.unaryOp.expr)}"
-      else -> "?"
+      Expr.KindCase.UNARY_OP -> "!${conditionLabel(expr.unaryOp.expr)}"
+      Expr.KindCase.LITERAL,
+      Expr.KindCase.ARRAY_INDEX,
+      Expr.KindCase.SLICE,
+      Expr.KindCase.CONCAT,
+      Expr.KindCase.CAST,
+      Expr.KindCase.TABLE_APPLY,
+      Expr.KindCase.MUX,
+      Expr.KindCase.STRUCT_EXPR,
+      Expr.KindCase.KIND_NOT_SET,
+      null -> "?"
     }
 
   private fun binaryOpSymbol(op: BinaryOperator): String =

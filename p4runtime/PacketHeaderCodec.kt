@@ -170,11 +170,16 @@ private constructor(
     private const val DEFAULT_PORT_BITS = 9
 
     private fun bitWidth(type: Type): Int =
-      when {
-        type.hasBit() -> type.bit.width
-        type.hasSignedInt() -> type.signedInt.width
-        type.hasBoolean() -> 1
-        else -> error("unsupported type in packet header: $type")
+      when (type.kindCase) {
+        Type.KindCase.BIT -> type.bit.width
+        Type.KindCase.SIGNED_INT -> type.signedInt.width
+        Type.KindCase.BOOLEAN -> 1
+        Type.KindCase.VARBIT,
+        Type.KindCase.NAMED,
+        Type.KindCase.HEADER_STACK,
+        Type.KindCase.ERROR,
+        Type.KindCase.KIND_NOT_SET,
+        null -> error("unsupported type in packet header: $type")
       }
   }
 }

@@ -5,15 +5,22 @@ import fourward.ir.BinaryOperator
 import fourward.ir.ControlDecl
 import fourward.ir.Direction
 import fourward.ir.Expr
+import fourward.ir.Expr.KindCase as ExprKind
 import fourward.ir.FieldDecl
+import fourward.ir.KeysetExpr
 import fourward.ir.Literal
+import fourward.ir.Literal.KindCase as LiteralKind
 import fourward.ir.MethodCall
 import fourward.ir.ParserDecl
 import fourward.ir.SourceInfo
 import fourward.ir.Stmt
+import fourward.ir.Stmt.KindCase as StmtKind
 import fourward.ir.TableApplyExpr
 import fourward.ir.TableBehavior
+import fourward.ir.Transition
 import fourward.ir.Type
+import fourward.ir.Type.KindCase as TypeKind
+import fourward.ir.TypeDecl
 import fourward.ir.UnaryOperator
 import fourward.sim.ActionExecutionEvent
 import fourward.sim.AssertionEvent
@@ -167,9 +174,11 @@ class Interpreter internal constructor(config: BehavioralConfig) {
         for (stmt in state.stmtsList) execStmt(stmt, env)
 
         val (nextState, selectValue, selectExpr) =
-          when {
-            state.transition.hasSelect() -> evalSelectWithValue(state.transition.select, env)
-            else -> Triple(state.transition.nextState, "", "")
+          when (state.transition.kindCase) {
+            Transition.KindCase.SELECT -> evalSelectWithValue(state.transition.select, env)
+            Transition.KindCase.NEXT_STATE,
+            Transition.KindCase.KIND_NOT_SET,
+            null -> Triple(state.transition.nextState, "", "")
           }
 
         packetCtx?.addTraceEvent(
@@ -234,18 +243,18 @@ class Interpreter internal constructor(config: BehavioralConfig) {
 
     /** Human-readable rendering of an IR expression (best-effort, for trace display). */
     private fun formatExpr(expr: fourward.ir.Expr): String =
-      when {
-        expr.hasNameRef() -> expr.nameRef.name
-        expr.hasFieldAccess() ->
+      when (expr.kindCase) {
+        ExprKind.NAME_REF -> expr.nameRef.name
+        ExprKind.FIELD_ACCESS ->
           "${formatExpr(expr.fieldAccess.expr)}.${expr.fieldAccess.fieldName}"
-        expr.hasArrayIndex() ->
+        ExprKind.ARRAY_INDEX ->
           "${formatExpr(expr.arrayIndex.expr)}[${formatExpr(expr.arrayIndex.index)}]"
-        expr.hasSlice() -> "${formatExpr(expr.slice.expr)}[${expr.slice.hi}:${expr.slice.lo}]"
-        expr.hasLiteral() -> {
+        ExprKind.SLICE -> "${formatExpr(expr.slice.expr)}[${expr.slice.hi}:${expr.slice.lo}]"
+        ExprKind.LITERAL -> {
           val lit = expr.literal
-          when {
-            lit.hasInteger() -> "0x${lit.integer.toString(16).uppercase()}"
-            lit.hasBoolean() -> lit.boolean.toString()
+          when (lit.kindCase) {
+            LiteralKind.INTEGER -> "0x${lit.integer.toString(16).uppercase()}"
+            LiteralKind.BOOLEAN -> lit.boolean.toString()
             else -> lit.toString().trim()
           }
         }
@@ -257,22 +266,25 @@ class Interpreter internal constructor(config: BehavioralConfig) {
       keyset: fourward.ir.KeysetExpr,
       constEnv: Environment,
     ): Boolean =
-      when {
-        keyset.hasDefaultCase() -> true
-        keyset.hasExact() -> value == evalExpr(keyset.exact, constEnv)
-        keyset.hasMask() -> {
+      when (keyset.kindCase) {
+        KeysetExpr.KindCase.DEFAULT_CASE -> true
+        KeysetExpr.KindCase.EXACT -> value == evalExpr(keyset.exact, constEnv)
+        KeysetExpr.KindCase.MASK -> {
           val v = (value as BitVal).bits
           val mask = (evalExpr(keyset.mask.mask, constEnv) as BitVal).bits
           val want = (evalExpr(keyset.mask.value, constEnv) as BitVal).bits
           (v and mask) == (want and mask)
         }
-        keyset.hasRange() -> {
+        KeysetExpr.KindCase.RANGE -> {
           val v = (value as BitVal).bits
           val lo = (evalExpr(keyset.range.lo, constEnv) as BitVal).bits
           val hi = (evalExpr(keyset.range.hi, constEnv) as BitVal).bits
           v >= lo && v <= hi
         }
-        else -> error("unhandled keyset kind: $keyset${sourceContext()}")
+        KeysetExpr.KindCase.VALUE_SET ->
+          error("value_set keyset should be handled before matchesKeyset${sourceContext()}")
+        KeysetExpr.KindCase.KIND_NOT_SET,
+        null -> error("unhandled keyset kind: $keyset${sourceContext()}")
       }
 
     /**
@@ -345,16 +357,17 @@ class Interpreter internal constructor(config: BehavioralConfig) {
 
     private fun execStmt(stmt: Stmt, env: Environment) {
       if (stmt.hasSourceInfo()) currentSourceInfo = stmt.sourceInfo else currentSourceInfo = null
-      when {
-        stmt.hasAssignment() ->
+      when (stmt.kindCase) {
+        StmtKind.ASSIGNMENT ->
           setLValue(stmt.assignment.lhs, evalExpr(stmt.assignment.rhs, env), env)
-        stmt.hasMethodCall() -> evalExpr(stmt.methodCall.call, env) // result discarded
-        stmt.hasIfStmt() -> execIf(stmt.ifStmt, env)
-        stmt.hasSwitchStmt() -> execSwitch(stmt.switchStmt, env)
-        stmt.hasBlock() -> execBlock(stmt.block.stmtsList, env)
-        stmt.hasExit() -> throw ExitException()
-        stmt.hasReturnStmt() -> throw ReturnException(evalExpr(stmt.returnStmt.value, env))
-        else -> error("unhandled statement kind: $stmt${sourceContext()}")
+        StmtKind.METHOD_CALL -> evalExpr(stmt.methodCall.call, env) // result discarded
+        StmtKind.IF_STMT -> execIf(stmt.ifStmt, env)
+        StmtKind.SWITCH_STMT -> execSwitch(stmt.switchStmt, env)
+        StmtKind.BLOCK -> execBlock(stmt.block.stmtsList, env)
+        StmtKind.EXIT -> throw ExitException()
+        StmtKind.RETURN_STMT -> throw ReturnException(evalExpr(stmt.returnStmt.value, env))
+        StmtKind.KIND_NOT_SET,
+        null -> error("unhandled statement kind: $stmt${sourceContext()}")
       }
     }
 
@@ -393,21 +406,21 @@ class Interpreter internal constructor(config: BehavioralConfig) {
     // Dispatch on kindCase for exhaustive matching (compiler-enforced coverage of all oneof arms).
     fun evalExpr(expr: Expr, env: Environment): Value =
       when (expr.kindCase) {
-        Expr.KindCase.LITERAL -> evalLiteral(expr.literal, expr.type)
-        Expr.KindCase.NAME_REF ->
+        ExprKind.LITERAL -> evalLiteral(expr.literal, expr.type)
+        ExprKind.NAME_REF ->
           env.lookup(expr.nameRef.name)
             ?: error("undefined variable: ${expr.nameRef.name}${sourceContext()}")
-        Expr.KindCase.FIELD_ACCESS -> evalFieldAccess(expr.fieldAccess, env)
-        Expr.KindCase.ARRAY_INDEX -> evalArrayIndex(expr.arrayIndex, env)
-        Expr.KindCase.SLICE -> evalSlice(expr.slice, env)
-        Expr.KindCase.CONCAT -> evalConcat(expr.concat, env)
-        Expr.KindCase.CAST -> evalCast(expr.cast, env)
-        Expr.KindCase.BINARY_OP -> evalBinaryOp(expr.binaryOp, env)
-        Expr.KindCase.UNARY_OP -> evalUnaryOp(expr.unaryOp, env)
-        Expr.KindCase.METHOD_CALL -> evalMethodCall(expr.methodCall, expr.type, env)
-        Expr.KindCase.MUX -> evalMux(expr.mux, env)
-        Expr.KindCase.STRUCT_EXPR -> evalStructExpr(expr.structExpr, expr.type, env)
-        Expr.KindCase.TABLE_APPLY -> {
+        ExprKind.FIELD_ACCESS -> evalFieldAccess(expr.fieldAccess, env)
+        ExprKind.ARRAY_INDEX -> evalArrayIndex(expr.arrayIndex, env)
+        ExprKind.SLICE -> evalSlice(expr.slice, env)
+        ExprKind.CONCAT -> evalConcat(expr.concat, env)
+        ExprKind.CAST -> evalCast(expr.cast, env)
+        ExprKind.BINARY_OP -> evalBinaryOp(expr.binaryOp, env)
+        ExprKind.UNARY_OP -> evalUnaryOp(expr.unaryOp, env)
+        ExprKind.METHOD_CALL -> evalMethodCall(expr.methodCall, expr.type, env)
+        ExprKind.MUX -> evalMux(expr.mux, env)
+        ExprKind.STRUCT_EXPR -> evalStructExpr(expr.structExpr, expr.type, env)
+        ExprKind.TABLE_APPLY -> {
           val result = applyTable(expr.tableApply.tableName, env)
           when (expr.tableApply.accessKind) {
             TableApplyExpr.AccessKind.HIT -> BoolVal(result.hit)
@@ -415,33 +428,34 @@ class Interpreter internal constructor(config: BehavioralConfig) {
             else -> UnitVal // RESULT / default: switch context
           }
         }
-        Expr.KindCase.KIND_NOT_SET,
+        ExprKind.KIND_NOT_SET,
         null -> error("unhandled expression kind: $expr${sourceContext()}")
       }
 
     private fun evalLiteral(lit: Literal, type: fourward.ir.Type): Value =
-      when {
-        lit.hasBoolean() -> BoolVal(lit.boolean)
-        lit.hasErrorMember() -> ErrorVal(lit.errorMember)
-        lit.hasEnumMember() -> EnumVal(lit.enumMember)
-        lit.hasStringLiteral() -> StringVal(lit.stringLiteral)
-        lit.hasInteger() -> {
+      when (lit.kindCase) {
+        LiteralKind.BOOLEAN -> BoolVal(lit.boolean)
+        LiteralKind.ERROR_MEMBER -> ErrorVal(lit.errorMember)
+        LiteralKind.ENUM_MEMBER -> EnumVal(lit.enumMember)
+        LiteralKind.STRING_LITERAL -> StringVal(lit.stringLiteral)
+        LiteralKind.INTEGER -> {
           val v = BigInteger.valueOf(lit.integer)
-          when {
-            type.hasBit() -> BitVal(BitVector(v, type.bit.width))
-            type.hasSignedInt() -> IntVal(SignedBitVector.fromUnsignedBits(v, type.signedInt.width))
+          when (type.kindCase) {
+            TypeKind.BIT -> BitVal(BitVector(v, type.bit.width))
+            TypeKind.SIGNED_INT -> IntVal(SignedBitVector.fromUnsignedBits(v, type.signedInt.width))
             else -> InfIntVal(v) // compile-time constant integer (P4 spec §8.1)
           }
         }
-        lit.hasBigInteger() -> {
+        LiteralKind.BIG_INTEGER -> {
           val v = BigInteger(1, lit.bigInteger.toByteArray())
-          when {
-            type.hasSignedInt() -> IntVal(SignedBitVector.fromUnsignedBits(v, type.signedInt.width))
-            type.hasBit() -> BitVal(BitVector(v, type.bit.width))
+          when (type.kindCase) {
+            TypeKind.SIGNED_INT -> IntVal(SignedBitVector.fromUnsignedBits(v, type.signedInt.width))
+            TypeKind.BIT -> BitVal(BitVector(v, type.bit.width))
             else -> error("big integer literal with unexpected type: $type${sourceContext()}")
           }
         }
-        else -> error("unhandled literal kind: $lit${sourceContext()}")
+        LiteralKind.KIND_NOT_SET,
+        null -> error("unhandled literal kind: $lit${sourceContext()}")
       }
 
     private fun evalFieldAccess(fa: fourward.ir.FieldAccess, env: Environment): Value {
@@ -516,8 +530,8 @@ class Interpreter internal constructor(config: BehavioralConfig) {
 
     private fun evalCast(cast: fourward.ir.Cast, env: Environment): Value {
       val inner = evalExpr(cast.expr, env)
-      return when {
-        cast.targetType.hasBit() -> {
+      return when (cast.targetType.kindCase) {
+        TypeKind.BIT -> {
           val targetWidth = cast.targetType.bit.width
           val sourceBits =
             when (inner) {
@@ -529,7 +543,7 @@ class Interpreter internal constructor(config: BehavioralConfig) {
             }
           BitVal(BitVector(sourceBits.mod(BigInteger.TWO.pow(targetWidth)), targetWidth))
         }
-        cast.targetType.hasSignedInt() -> {
+        TypeKind.SIGNED_INT -> {
           val targetWidth = cast.targetType.signedInt.width
           when (inner) {
             // int<N> → int<M>: preserve the signed value (sign-extends or truncates).
@@ -556,7 +570,7 @@ class Interpreter internal constructor(config: BehavioralConfig) {
             }
           }
         }
-        cast.targetType.boolean -> {
+        TypeKind.BOOLEAN -> {
           val v =
             when (inner) {
               is BitVal -> inner.bits.value
@@ -565,7 +579,12 @@ class Interpreter internal constructor(config: BehavioralConfig) {
             }
           BoolVal(v != BigInteger.ZERO)
         }
-        else -> error("unsupported cast target type: ${cast.targetType}${sourceContext()}")
+        TypeKind.VARBIT,
+        TypeKind.NAMED,
+        TypeKind.HEADER_STACK,
+        TypeKind.ERROR,
+        TypeKind.KIND_NOT_SET,
+        null -> error("unsupported cast target type: ${cast.targetType}${sourceContext()}")
       }
     }
 
@@ -1108,10 +1127,13 @@ class Interpreter internal constructor(config: BehavioralConfig) {
       val typeName = returnType.named
       val typeDecl = types[typeName] ?: error("type not found for lookahead: $typeName")
       val fields =
-        when {
-          typeDecl.hasHeader() -> typeDecl.header.fieldsList
-          typeDecl.hasStruct() -> typeDecl.struct.fieldsList
-          else -> error("lookahead type must be a header or struct: $typeName")
+        when (typeDecl.kindCase) {
+          TypeDecl.KindCase.HEADER -> typeDecl.header.fieldsList
+          TypeDecl.KindCase.STRUCT -> typeDecl.struct.fieldsList
+          TypeDecl.KindCase.HEADER_UNION,
+          TypeDecl.KindCase.ENUM,
+          TypeDecl.KindCase.KIND_NOT_SET,
+          null -> error("lookahead type must be a header or struct: $typeName")
         }
       val widths = fields.map { fieldWireWidth(it.type) }
       val totalBits = widths.sum()
@@ -1161,19 +1183,26 @@ class Interpreter internal constructor(config: BehavioralConfig) {
      * Serializable enums are looked up by name and use their declared underlying width.
      */
     private fun fieldWireWidth(type: Type, varbitBits: Int = 0): Int =
-      when {
-        type.hasBit() -> type.bit.width
-        type.hasSignedInt() -> type.signedInt.width
-        type.hasBoolean() -> 1
-        type.hasVarbit() -> varbitBits
-        type.hasNamed() -> {
+      when (type.kindCase) {
+        TypeKind.BIT -> type.bit.width
+        TypeKind.SIGNED_INT -> type.signedInt.width
+        TypeKind.BOOLEAN -> 1
+        TypeKind.VARBIT -> varbitBits
+        TypeKind.NAMED -> {
           val decl = types[type.named]
-          when {
-            decl != null && decl.hasEnum() -> decl.enum.width
-            else -> 0
+          when (decl?.kindCase) {
+            TypeDecl.KindCase.ENUM -> decl.enum.width
+            TypeDecl.KindCase.HEADER,
+            TypeDecl.KindCase.STRUCT,
+            TypeDecl.KindCase.HEADER_UNION,
+            TypeDecl.KindCase.KIND_NOT_SET,
+            null -> 0
           }
         }
-        else -> 0
+        TypeKind.HEADER_STACK,
+        TypeKind.ERROR,
+        TypeKind.KIND_NOT_SET,
+        null -> 0
       }
 
     /**
@@ -1182,9 +1211,9 @@ class Interpreter internal constructor(config: BehavioralConfig) {
      * bit<N> → [BitVal], bool → [BoolVal], int<N> → [IntVal], varbit / enum → [BitVal].
      */
     private fun bitsToValue(type: Type, raw: BigInteger, width: Int): Value =
-      when {
-        type.hasBoolean() -> BoolVal(raw != BigInteger.ZERO)
-        type.hasSignedInt() -> IntVal(SignedBitVector.fromUnsignedBits(raw, width))
+      when (type.kindCase) {
+        TypeKind.BOOLEAN -> BoolVal(raw != BigInteger.ZERO)
+        TypeKind.SIGNED_INT -> IntVal(SignedBitVector.fromUnsignedBits(raw, width))
         else -> BitVal(BitVector(raw, width))
       }
 
@@ -1209,10 +1238,13 @@ class Interpreter internal constructor(config: BehavioralConfig) {
           // Emit in the declaration order from the TypeDecl; fall back to map order if unknown.
           val typeDecl = types[value.typeName]
           val fieldDecls =
-            when {
-              typeDecl != null && typeDecl.hasStruct() -> typeDecl.struct.fieldsList
-              typeDecl != null && typeDecl.hasHeaderUnion() -> typeDecl.headerUnion.fieldsList
-              else -> null
+            when (typeDecl?.kindCase) {
+              TypeDecl.KindCase.STRUCT -> typeDecl.struct.fieldsList
+              TypeDecl.KindCase.HEADER_UNION -> typeDecl.headerUnion.fieldsList
+              TypeDecl.KindCase.HEADER,
+              TypeDecl.KindCase.ENUM,
+              TypeDecl.KindCase.KIND_NOT_SET,
+              null -> null
             }
           if (fieldDecls != null) {
             for (field in fieldDecls) {
@@ -1300,11 +1332,11 @@ class Interpreter internal constructor(config: BehavioralConfig) {
           is StructVal -> value.copy()
           else -> value
         }
-      when {
-        lhs.hasNameRef() -> {
+      when (lhs.kindCase) {
+        ExprKind.NAME_REF -> {
           env.update(lhs.nameRef.name, copy)
         }
-        lhs.hasFieldAccess() -> {
+        ExprKind.FIELD_ACCESS -> {
           val target = evalExpr(lhs.fieldAccess.expr, env)
           when (target) {
             is HeaderVal -> target.fields[lhs.fieldAccess.fieldName] = copy
@@ -1313,12 +1345,12 @@ class Interpreter internal constructor(config: BehavioralConfig) {
           }
         }
         // P4 spec §8.18: out-of-bounds writes are no-ops.
-        lhs.hasArrayIndex() -> {
+        ExprKind.ARRAY_INDEX -> {
           val stack = evalExpr(lhs.arrayIndex.expr, env) as HeaderStackVal
           val index = intValue(evalExpr(lhs.arrayIndex.index, env))
           if (index in 0 until stack.size) stack.headers[index] = copy
         }
-        lhs.hasSlice() -> {
+        ExprKind.SLICE -> {
           // Slice assignment: update [hi:lo] bits of the target.
           val target = evalExpr(lhs.slice.expr, env) as BitVal
           val src = value as BitVal
@@ -1329,7 +1361,17 @@ class Interpreter internal constructor(config: BehavioralConfig) {
           val result = (target.bits and mask.inv()) or (shifted and mask)
           setLValue(lhs.slice.expr, BitVal(result), env)
         }
-        else -> error("unhandled lvalue kind: $lhs${sourceContext()}")
+        ExprKind.LITERAL,
+        ExprKind.CONCAT,
+        ExprKind.CAST,
+        ExprKind.BINARY_OP,
+        ExprKind.UNARY_OP,
+        ExprKind.METHOD_CALL,
+        ExprKind.TABLE_APPLY,
+        ExprKind.MUX,
+        ExprKind.STRUCT_EXPR,
+        ExprKind.KIND_NOT_SET,
+        null -> error("unhandled lvalue kind: $lhs${sourceContext()}")
       }
     }
   } // end Execution

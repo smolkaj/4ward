@@ -153,12 +153,12 @@ private constructor(
   /** Translates a Write update from P4Runtime to data-plane representation. */
   fun translateForWrite(update: Update): Update {
     val entity = update.entity
-    return when {
-      entity.hasTableEntry() -> {
+    return when (entity.entityCase) {
+      Entity.EntityCase.TABLE_ENTRY -> {
         val translated = translateTableEntry(entity.tableEntry, toDataplane = true) ?: return update
         update.toBuilder().setEntity(entity.toBuilder().setTableEntry(translated)).build()
       }
-      entity.hasActionProfileMember() -> {
+      Entity.EntityCase.ACTION_PROFILE_MEMBER -> {
         val member = entity.actionProfileMember
         val translated = translateAction(member.action, toDataplane = true) ?: return update
         update
@@ -168,24 +168,46 @@ private constructor(
           )
           .build()
       }
-      else -> update
+      Entity.EntityCase.ACTION_PROFILE_GROUP,
+      Entity.EntityCase.COUNTER_ENTRY,
+      Entity.EntityCase.DIRECT_COUNTER_ENTRY,
+      Entity.EntityCase.METER_ENTRY,
+      Entity.EntityCase.DIRECT_METER_ENTRY,
+      Entity.EntityCase.REGISTER_ENTRY,
+      Entity.EntityCase.PACKET_REPLICATION_ENGINE_ENTRY,
+      Entity.EntityCase.VALUE_SET_ENTRY,
+      Entity.EntityCase.DIGEST_ENTRY,
+      Entity.EntityCase.EXTERN_ENTRY,
+      Entity.EntityCase.ENTITY_NOT_SET,
+      null -> update
     }
   }
 
   /** Translates a Read entity from data-plane to P4Runtime representation. */
   fun translateForRead(entity: Entity): Entity =
-    when {
-      entity.hasTableEntry() -> {
+    when (entity.entityCase) {
+      Entity.EntityCase.TABLE_ENTRY -> {
         val translated =
           translateTableEntry(entity.tableEntry, toDataplane = false) ?: return entity
         entity.toBuilder().setTableEntry(translated).build()
       }
-      entity.hasActionProfileMember() -> {
+      Entity.EntityCase.ACTION_PROFILE_MEMBER -> {
         val member = entity.actionProfileMember
         val translated = translateAction(member.action, toDataplane = false) ?: return entity
         entity.toBuilder().setActionProfileMember(member.toBuilder().setAction(translated)).build()
       }
-      else -> entity
+      Entity.EntityCase.ACTION_PROFILE_GROUP,
+      Entity.EntityCase.COUNTER_ENTRY,
+      Entity.EntityCase.DIRECT_COUNTER_ENTRY,
+      Entity.EntityCase.METER_ENTRY,
+      Entity.EntityCase.DIRECT_METER_ENTRY,
+      Entity.EntityCase.REGISTER_ENTRY,
+      Entity.EntityCase.PACKET_REPLICATION_ENGINE_ENTRY,
+      Entity.EntityCase.VALUE_SET_ENTRY,
+      Entity.EntityCase.DIGEST_ENTRY,
+      Entity.EntityCase.EXTERN_ENTRY,
+      Entity.EntityCase.ENTITY_NOT_SET,
+      null -> entity
     }
 
   /**
@@ -320,8 +342,8 @@ private constructor(
         if (typeName != null) {
           changed = true
           val table = getOrCreateTable(typeName)
-          when {
-            match.hasExact() -> {
+          when (match.fieldMatchTypeCase) {
+            p4.v1.P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.EXACT -> {
               val translated = translateValue(table, match.exact.value, toDataplane)
               match
                 .toBuilder()
@@ -330,7 +352,7 @@ private constructor(
                 )
                 .build()
             }
-            match.hasOptional() -> {
+            p4.v1.P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.OPTIONAL -> {
               val translated = translateValue(table, match.optional.value, toDataplane)
               match
                 .toBuilder()
@@ -340,7 +362,12 @@ private constructor(
                 .build()
             }
             // Ternary/LPM/Range on translated types is nonsensical — pass through.
-            else -> match
+            p4.v1.P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.TERNARY,
+            p4.v1.P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.LPM,
+            p4.v1.P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.RANGE,
+            p4.v1.P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.OTHER,
+            p4.v1.P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.FIELDMATCHTYPE_NOT_SET,
+            null -> match
           }
         } else {
           match

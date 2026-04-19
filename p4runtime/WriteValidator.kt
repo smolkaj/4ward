@@ -56,10 +56,21 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
    */
   fun validate(update: P4RuntimeOuterClass.Update) {
     val entity = update.entity
-    when {
-      entity.hasTableEntry() -> validateTableEntry(update)
-      entity.hasActionProfileMember() -> validateMember(update)
-      entity.hasActionProfileGroup() -> validateGroup(update)
+    when (entity.entityCase) {
+      P4RuntimeOuterClass.Entity.EntityCase.TABLE_ENTRY -> validateTableEntry(update)
+      P4RuntimeOuterClass.Entity.EntityCase.ACTION_PROFILE_MEMBER -> validateMember(update)
+      P4RuntimeOuterClass.Entity.EntityCase.ACTION_PROFILE_GROUP -> validateGroup(update)
+      P4RuntimeOuterClass.Entity.EntityCase.EXTERN_ENTRY,
+      P4RuntimeOuterClass.Entity.EntityCase.COUNTER_ENTRY,
+      P4RuntimeOuterClass.Entity.EntityCase.DIRECT_COUNTER_ENTRY,
+      P4RuntimeOuterClass.Entity.EntityCase.METER_ENTRY,
+      P4RuntimeOuterClass.Entity.EntityCase.DIRECT_METER_ENTRY,
+      P4RuntimeOuterClass.Entity.EntityCase.REGISTER_ENTRY,
+      P4RuntimeOuterClass.Entity.EntityCase.PACKET_REPLICATION_ENGINE_ENTRY,
+      P4RuntimeOuterClass.Entity.EntityCase.VALUE_SET_ENTRY,
+      P4RuntimeOuterClass.Entity.EntityCase.DIGEST_ENTRY,
+      P4RuntimeOuterClass.Entity.EntityCase.ENTITY_NOT_SET,
+      null -> {}
     }
   }
 
@@ -98,13 +109,18 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
 
     if (entry.hasAction()) {
       val tableAction = entry.action
-      when {
-        tableAction.hasAction() -> validateAction(tableAction.action, tableInfo)
+      when (tableAction.typeCase) {
+        P4RuntimeOuterClass.TableAction.TypeCase.ACTION ->
+          validateAction(tableAction.action, tableInfo)
         // P4Runtime spec §9.2.3: validate each action in a one-shot action set.
-        tableAction.hasActionProfileActionSet() ->
+        P4RuntimeOuterClass.TableAction.TypeCase.ACTION_PROFILE_ACTION_SET ->
           for (profileAction in tableAction.actionProfileActionSet.actionProfileActionsList) {
             validateAction(profileAction.action, tableInfo)
           }
+        P4RuntimeOuterClass.TableAction.TypeCase.ACTION_PROFILE_MEMBER_ID,
+        P4RuntimeOuterClass.TableAction.TypeCase.ACTION_PROFILE_GROUP_ID,
+        P4RuntimeOuterClass.TableAction.TypeCase.TYPE_NOT_SET,
+        null -> {}
       }
     }
     validateMatchFields(entry, tableInfo)
@@ -243,13 +259,20 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
     fieldInfo: P4InfoOuterClass.MatchField,
   ) {
     val actual =
-      when {
-        fm.hasExact() -> P4InfoOuterClass.MatchField.MatchType.EXACT
-        fm.hasTernary() -> P4InfoOuterClass.MatchField.MatchType.TERNARY
-        fm.hasLpm() -> P4InfoOuterClass.MatchField.MatchType.LPM
-        fm.hasRange() -> P4InfoOuterClass.MatchField.MatchType.RANGE
-        fm.hasOptional() -> P4InfoOuterClass.MatchField.MatchType.OPTIONAL
-        else -> throw invalidArg("match field '${fieldInfo.name}' has no value set")
+      when (fm.fieldMatchTypeCase) {
+        P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.EXACT ->
+          P4InfoOuterClass.MatchField.MatchType.EXACT
+        P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.TERNARY ->
+          P4InfoOuterClass.MatchField.MatchType.TERNARY
+        P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.LPM ->
+          P4InfoOuterClass.MatchField.MatchType.LPM
+        P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.RANGE ->
+          P4InfoOuterClass.MatchField.MatchType.RANGE
+        P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.OPTIONAL ->
+          P4InfoOuterClass.MatchField.MatchType.OPTIONAL
+        P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.OTHER,
+        P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.FIELDMATCHTYPE_NOT_SET,
+        null -> throw invalidArg("match field '${fieldInfo.name}' has no value set")
       }
     if (actual != fieldInfo.matchType) {
       throw invalidArg(
@@ -264,26 +287,31 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
   ) {
     val w = fieldInfo.bitwidth
     val f = fieldInfo.name
-    when {
-      fm.hasExact() -> checkWidth(w, fm.exact.value.size(), "match field '$f' value")
-      fm.hasTernary() -> {
+    when (fm.fieldMatchTypeCase) {
+      P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.EXACT ->
+        checkWidth(w, fm.exact.value.size(), "match field '$f' value")
+      P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.TERNARY -> {
         checkWidth(w, fm.ternary.value.size(), "match field '$f' value")
         checkWidth(w, fm.ternary.mask.size(), "match field '$f' mask")
         // §8.3: bits where mask is 0 must also be 0 in value.
         checkTernaryMaskedBits(fm.ternary.value, fm.ternary.mask, f)
       }
-      fm.hasLpm() -> {
+      P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.LPM -> {
         checkWidth(w, fm.lpm.value.size(), "match field '$f' value")
         // §8.3: bits beyond prefix_len must be zero.
         checkLpmTrailingBits(fm.lpm.value, fm.lpm.prefixLen, f)
       }
-      fm.hasRange() -> {
+      P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.RANGE -> {
         checkWidth(w, fm.range.low.size(), "match field '$f' low")
         checkWidth(w, fm.range.high.size(), "match field '$f' high")
         // P4Runtime spec §9.1.1: low must be <= high.
         checkRangeOrder(fm.range.low, fm.range.high, f)
       }
-      fm.hasOptional() -> checkWidth(w, fm.optional.value.size(), "match field '$f' value")
+      P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.OPTIONAL ->
+        checkWidth(w, fm.optional.value.size(), "match field '$f' value")
+      P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.OTHER,
+      P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.FIELDMATCHTYPE_NOT_SET,
+      null -> {}
     }
   }
 

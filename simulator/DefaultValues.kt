@@ -26,18 +26,22 @@ import java.math.BigInteger
  * unrecognised types → [UnitVal].
  */
 internal fun defaultValue(type: Type, types: Map<String, TypeDecl>): Value =
-  when {
-    type.hasBit() -> BitVal(0L, type.bit.width)
-    type.hasSignedInt() -> IntVal(SignedBitVector(java.math.BigInteger.ZERO, type.signedInt.width))
-    type.hasBoolean() -> BoolVal(false)
-    type.hasNamed() -> defaultValue(type.named, types)
-    type.hasHeaderStack() ->
+  when (type.kindCase) {
+    Type.KindCase.BIT -> BitVal(0L, type.bit.width)
+    Type.KindCase.SIGNED_INT ->
+      IntVal(SignedBitVector(java.math.BigInteger.ZERO, type.signedInt.width))
+    Type.KindCase.BOOLEAN -> BoolVal(false)
+    Type.KindCase.NAMED -> defaultValue(type.named, types)
+    Type.KindCase.HEADER_STACK ->
       HeaderStackVal(
         elementTypeName = type.headerStack.elementType,
         headers =
           MutableList(type.headerStack.size) { defaultValue(type.headerStack.elementType, types) },
       )
-    else -> UnitVal // varbit<N>: variable-length; no fixed default
+    Type.KindCase.VARBIT,
+    Type.KindCase.ERROR,
+    Type.KindCase.KIND_NOT_SET,
+    null -> UnitVal // varbit<N>: variable-length; no fixed default
   }
 
 /**
@@ -49,8 +53,8 @@ internal fun defaultValue(type: Type, types: Map<String, TypeDecl>): Value =
  */
 internal fun defaultValue(typeName: String, types: Map<String, TypeDecl>): Value {
   val typeDecl = types[typeName] ?: return UnitVal
-  return when {
-    typeDecl.hasHeader() ->
+  return when (typeDecl.kindCase) {
+    TypeDecl.KindCase.HEADER ->
       HeaderVal(
         typeName = typeName,
         fields =
@@ -59,13 +63,16 @@ internal fun defaultValue(typeName: String, types: Map<String, TypeDecl>): Value
           ),
         valid = false,
       )
-    typeDecl.hasStruct() -> defaultStruct(typeName, typeDecl.struct.fieldsList, types)
+    TypeDecl.KindCase.STRUCT -> defaultStruct(typeName, typeDecl.struct.fieldsList, types)
     // Header union (P4 spec §8.20): represented as a StructVal so field access works
     // uniformly; per-member validity is tracked via HeaderVal.valid.
-    typeDecl.hasHeaderUnion() -> defaultStruct(typeName, typeDecl.headerUnion.fieldsList, types)
+    TypeDecl.KindCase.HEADER_UNION ->
+      defaultStruct(typeName, typeDecl.headerUnion.fieldsList, types)
     // Serializable enum: default to zero of the underlying bit width.
-    typeDecl.hasEnum() && typeDecl.enum.width > 0 -> BitVal(0L, typeDecl.enum.width)
-    else -> UnitVal
+    TypeDecl.KindCase.ENUM ->
+      if (typeDecl.enum.width > 0) BitVal(0L, typeDecl.enum.width) else UnitVal
+    TypeDecl.KindCase.KIND_NOT_SET,
+    null -> UnitVal
   }
 }
 

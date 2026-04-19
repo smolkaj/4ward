@@ -55,8 +55,8 @@ private constructor(
     if (update.type == P4RuntimeOuterClass.Update.Type.DELETE) return
     val entity = update.entity
 
-    when {
-      entity.hasTableEntry() -> {
+    when (entity.entityCase) {
+      P4RuntimeOuterClass.Entity.EntityCase.TABLE_ENTRY -> {
         val entry = entity.tableEntry
 
         // Check match fields.
@@ -74,19 +74,36 @@ private constructor(
         // Check action params — direct action or one-shot action profile action set.
         if (entry.hasAction()) {
           val tableAction = entry.action
-          when {
-            tableAction.hasAction() ->
+          when (tableAction.typeCase) {
+            P4RuntimeOuterClass.TableAction.TypeCase.ACTION ->
               validateActionParams(tableAction.action, entryExists, multicastGroupExists)
-            tableAction.hasActionProfileActionSet() ->
+            P4RuntimeOuterClass.TableAction.TypeCase.ACTION_PROFILE_ACTION_SET ->
               for (profileAction in tableAction.actionProfileActionSet.actionProfileActionsList) {
                 validateActionParams(profileAction.action, entryExists, multicastGroupExists)
               }
+            P4RuntimeOuterClass.TableAction.TypeCase.ACTION_PROFILE_MEMBER_ID,
+            P4RuntimeOuterClass.TableAction.TypeCase.ACTION_PROFILE_GROUP_ID,
+            P4RuntimeOuterClass.TableAction.TypeCase.TYPE_NOT_SET,
+            null -> {}
           }
         }
       }
 
-      entity.hasActionProfileMember() ->
+      P4RuntimeOuterClass.Entity.EntityCase.ACTION_PROFILE_MEMBER ->
         validateActionParams(entity.actionProfileMember.action, entryExists, multicastGroupExists)
+
+      P4RuntimeOuterClass.Entity.EntityCase.ACTION_PROFILE_GROUP,
+      P4RuntimeOuterClass.Entity.EntityCase.COUNTER_ENTRY,
+      P4RuntimeOuterClass.Entity.EntityCase.DIRECT_COUNTER_ENTRY,
+      P4RuntimeOuterClass.Entity.EntityCase.METER_ENTRY,
+      P4RuntimeOuterClass.Entity.EntityCase.DIRECT_METER_ENTRY,
+      P4RuntimeOuterClass.Entity.EntityCase.REGISTER_ENTRY,
+      P4RuntimeOuterClass.Entity.EntityCase.PACKET_REPLICATION_ENGINE_ENTRY,
+      P4RuntimeOuterClass.Entity.EntityCase.VALUE_SET_ENTRY,
+      P4RuntimeOuterClass.Entity.EntityCase.DIGEST_ENTRY,
+      P4RuntimeOuterClass.Entity.EntityCase.EXTERN_ENTRY,
+      P4RuntimeOuterClass.Entity.EntityCase.ENTITY_NOT_SET,
+      null -> {}
     }
   }
 
@@ -132,10 +149,15 @@ private constructor(
 
   /** Extracts the exact-match value from a FieldMatch, or null for non-exact fields. */
   private fun extractExactValue(fm: P4RuntimeOuterClass.FieldMatch): ByteString? =
-    when {
-      fm.hasExact() -> fm.exact.value
-      fm.hasOptional() -> fm.optional.value
-      else -> null
+    when (fm.fieldMatchTypeCase) {
+      P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.EXACT -> fm.exact.value
+      P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.OPTIONAL -> fm.optional.value
+      P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.TERNARY,
+      P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.LPM,
+      P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.RANGE,
+      P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.OTHER,
+      P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.FIELDMATCHTYPE_NOT_SET,
+      null -> null
     }
 
   companion object {

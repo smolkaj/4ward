@@ -40,13 +40,14 @@ fun matchesFieldMatch(bits: BitVector, match: P4RuntimeOuterClass.FieldMatch): B
   else matchBig(bits.value, bits.width, match)
 
 private fun matchLong(bits: Long, width: Int, match: P4RuntimeOuterClass.FieldMatch): Boolean =
-  when {
-    match.hasExact() -> bits == match.exact.value.toUnsignedLong()
-    match.hasTernary() -> {
+  when (match.fieldMatchTypeCase) {
+    P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.EXACT ->
+      bits == match.exact.value.toUnsignedLong()
+    P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.TERNARY -> {
       val mask = match.ternary.mask.toUnsignedLong()
       (bits and mask) == (match.ternary.value.toUnsignedLong() and mask)
     }
-    match.hasLpm() -> {
+    P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.LPM -> {
       val prefixLen = match.lpm.prefixLen
       if (prefixLen == 0) true
       else {
@@ -54,19 +55,24 @@ private fun matchLong(bits: Long, width: Int, match: P4RuntimeOuterClass.FieldMa
         bits ushr shift == match.lpm.value.toUnsignedLong() ushr shift
       }
     }
-    match.hasRange() -> bits in match.range.low.toUnsignedLong()..match.range.high.toUnsignedLong()
-    match.hasOptional() -> bits == match.optional.value.toUnsignedLong()
-    else -> true
+    P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.RANGE ->
+      bits in match.range.low.toUnsignedLong()..match.range.high.toUnsignedLong()
+    P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.OPTIONAL ->
+      bits == match.optional.value.toUnsignedLong()
+    P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.OTHER,
+    P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.FIELDMATCHTYPE_NOT_SET,
+    null -> true
   }
 
 private fun matchBig(bits: BigInteger, width: Int, match: P4RuntimeOuterClass.FieldMatch): Boolean =
-  when {
-    match.hasExact() -> bits == match.exact.value.toUnsignedBigInteger()
-    match.hasTernary() -> {
+  when (match.fieldMatchTypeCase) {
+    P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.EXACT ->
+      bits == match.exact.value.toUnsignedBigInteger()
+    P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.TERNARY -> {
       val mask = match.ternary.mask.toUnsignedBigInteger()
       bits.and(mask) == match.ternary.value.toUnsignedBigInteger().and(mask)
     }
-    match.hasLpm() -> {
+    P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.LPM -> {
       val prefixLen = match.lpm.prefixLen
       if (prefixLen == 0) true
       else {
@@ -74,13 +80,16 @@ private fun matchBig(bits: BigInteger, width: Int, match: P4RuntimeOuterClass.Fi
         bits.shiftRight(shift) == match.lpm.value.toUnsignedBigInteger().shiftRight(shift)
       }
     }
-    match.hasRange() -> {
+    P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.RANGE -> {
       val lo = match.range.low.toUnsignedBigInteger()
       val hi = match.range.high.toUnsignedBigInteger()
       bits in lo..hi
     }
-    match.hasOptional() -> bits == match.optional.value.toUnsignedBigInteger()
-    else -> true
+    P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.OPTIONAL ->
+      bits == match.optional.value.toUnsignedBigInteger()
+    P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.OTHER,
+    P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.FIELDMATCHTYPE_NOT_SET,
+    null -> true
   }
 
 /**
@@ -1076,20 +1085,30 @@ class TableStore : TableDataReader {
   @Synchronized
   fun write(update: Update): WriteResult {
     val entity = update.entity
-    return when {
-      entity.hasActionProfileMember() -> writeProfileMember(update.type, entity.actionProfileMember)
-      entity.hasActionProfileGroup() -> writeProfileGroup(update.type, entity.actionProfileGroup)
-      entity.hasRegisterEntry() -> writeRegisterEntry(update.type, entity.registerEntry)
-      entity.hasCounterEntry() -> writeCounterEntry(update.type, entity.counterEntry)
-      entity.hasMeterEntry() -> writeMeterEntry(update.type, entity.meterEntry)
-      entity.hasDirectCounterEntry() ->
+    return when (entity.entityCase) {
+      P4RuntimeOuterClass.Entity.EntityCase.ACTION_PROFILE_MEMBER ->
+        writeProfileMember(update.type, entity.actionProfileMember)
+      P4RuntimeOuterClass.Entity.EntityCase.ACTION_PROFILE_GROUP ->
+        writeProfileGroup(update.type, entity.actionProfileGroup)
+      P4RuntimeOuterClass.Entity.EntityCase.REGISTER_ENTRY ->
+        writeRegisterEntry(update.type, entity.registerEntry)
+      P4RuntimeOuterClass.Entity.EntityCase.COUNTER_ENTRY ->
+        writeCounterEntry(update.type, entity.counterEntry)
+      P4RuntimeOuterClass.Entity.EntityCase.METER_ENTRY ->
+        writeMeterEntry(update.type, entity.meterEntry)
+      P4RuntimeOuterClass.Entity.EntityCase.DIRECT_COUNTER_ENTRY ->
         writeDirectCounterEntry(update.type, entity.directCounterEntry)
-      entity.hasDirectMeterEntry() -> writeDirectMeterEntry(update.type, entity.directMeterEntry)
-      entity.hasPacketReplicationEngineEntry() ->
+      P4RuntimeOuterClass.Entity.EntityCase.DIRECT_METER_ENTRY ->
+        writeDirectMeterEntry(update.type, entity.directMeterEntry)
+      P4RuntimeOuterClass.Entity.EntityCase.PACKET_REPLICATION_ENGINE_ENTRY ->
         writePreEntry(update.type, entity.packetReplicationEngineEntry)
-      entity.hasValueSetEntry() -> writeValueSetEntry(update.type, entity.valueSetEntry)
-      entity.hasTableEntry() -> writeTableEntry(update)
-      else ->
+      P4RuntimeOuterClass.Entity.EntityCase.VALUE_SET_ENTRY ->
+        writeValueSetEntry(update.type, entity.valueSetEntry)
+      P4RuntimeOuterClass.Entity.EntityCase.TABLE_ENTRY -> writeTableEntry(update)
+      P4RuntimeOuterClass.Entity.EntityCase.EXTERN_ENTRY,
+      P4RuntimeOuterClass.Entity.EntityCase.DIGEST_ENTRY,
+      P4RuntimeOuterClass.Entity.EntityCase.ENTITY_NOT_SET,
+      null ->
         WriteResult.InvalidArgument(
           "unsupported entity type; only table entries, action profiles, counters, meters, " +
             "registers, value sets, and PRE entries are supported"
@@ -1261,8 +1280,8 @@ class TableStore : TableDataReader {
     type: Update.Type,
     pre: P4RuntimeOuterClass.PacketReplicationEngineEntry,
   ): WriteResult =
-    when {
-      pre.hasCloneSessionEntry() -> {
+    when (pre.typeCase) {
+      P4RuntimeOuterClass.PacketReplicationEngineEntry.TypeCase.CLONE_SESSION_ENTRY -> {
         val entry = pre.cloneSessionEntry
         writeProfileEntity(
           type,
@@ -1272,7 +1291,7 @@ class TableStore : TableDataReader {
           "clone session ${entry.sessionId}",
         )
       }
-      pre.hasMulticastGroupEntry() -> {
+      P4RuntimeOuterClass.PacketReplicationEngineEntry.TypeCase.MULTICAST_GROUP_ENTRY -> {
         val entry = pre.multicastGroupEntry
         writeProfileEntity(
           type,
@@ -1282,7 +1301,8 @@ class TableStore : TableDataReader {
           "multicast group ${entry.multicastGroupId}",
         )
       }
-      else -> WriteResult.InvalidArgument("PRE entry must have a clone session or multicast group")
+      P4RuntimeOuterClass.PacketReplicationEngineEntry.TypeCase.TYPE_NOT_SET,
+      null -> WriteResult.InvalidArgument("PRE entry must have a clone session or multicast group")
     }
 
   fun getCloneSession(sessionId: Int): P4RuntimeOuterClass.CloneSessionEntry? =
@@ -1459,10 +1479,15 @@ class TableStore : TableDataReader {
     return writeState.tables[tableName]?.any { entry ->
       entry.matchList.any { fm ->
         fm.fieldId == fieldId &&
-          when {
-            fm.hasExact() -> fm.exact.value == value
-            fm.hasOptional() -> fm.optional.value == value
-            else -> false
+          when (fm.fieldMatchTypeCase) {
+            P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.EXACT -> fm.exact.value == value
+            P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.OPTIONAL -> fm.optional.value == value
+            P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.TERNARY,
+            P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.LPM,
+            P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.RANGE,
+            P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.OTHER,
+            P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.FIELDMATCHTYPE_NOT_SET,
+            null -> false
           }
       }
     } ?: false
@@ -1641,10 +1666,17 @@ class TableStore : TableDataReader {
 
       // Accumulate score for priority-based match kinds.
       // Exact and optional don't contribute — all exact fields either match or don't.
-      when {
-        match.hasLpm() -> score += match.lpm.prefixLen.toLong()
-        match.hasTernary() -> score += entry.priority.toLong()
-        match.hasRange() -> score += entry.priority.toLong()
+      when (match.fieldMatchTypeCase) {
+        P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.LPM ->
+          score += match.lpm.prefixLen.toLong()
+        P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.TERNARY ->
+          score += entry.priority.toLong()
+        P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.RANGE -> score += entry.priority.toLong()
+        P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.EXACT,
+        P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.OPTIONAL,
+        P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.OTHER,
+        P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.FIELDMATCHTYPE_NOT_SET,
+        null -> {}
       }
     }
     return score
