@@ -27,10 +27,6 @@
 //     }
 //
 // Add this target to `deps`; nothing else is needed.
-//
-// Startup contract (stable): the server is launched with `--port-file=PATH`
-// and atomically writes its listening port there once it is accepting RPCs.
-// File existence is the readiness signal; contents are the port.
 
 #include <sys/types.h>
 
