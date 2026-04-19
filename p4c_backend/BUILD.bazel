@@ -5,6 +5,10 @@ _P4C_COPTS = ["-fexceptions"]
 
 package(
     default_applicable_licenses = ["//:license"],
+    # -use_header_modules: precompiled modules in google3 are built with
+    # -fno-exceptions; our -fexceptions flag creates a configuration mismatch
+    # that prevents loading them. Disable header modules for this package.
+    features = ["-use_header_modules"],
     licenses = ["notice"],
 )
 
