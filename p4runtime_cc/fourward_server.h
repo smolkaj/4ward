@@ -26,8 +26,7 @@
 //       return absl::OkStatus();
 //     }
 //
-// A Bazel consumer only needs to add this target to `deps`; the server binary
-// is propagated through `cc_library.data` into the test's runfiles.
+// Add this target to `deps`; nothing else is needed.
 //
 // Startup contract (stable): the server is launched with `--port-file=PATH`
 // and atomically writes its listening port there once it is accepting RPCs.
