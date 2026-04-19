@@ -139,8 +139,9 @@ class V1ModelArchitecture(
     try {
       trace = runPipeline(ctx, decisions)
     } catch (selectorFork: V1ModelSelectorFork) {
-      // Fork-on-write: continue each branch from the fork point instead of replaying.
       return buildSelectorForkTree(ctx, decisions, selectorFork, prefixLength)
+    } catch (multicastFork: MulticastFork) {
+      return buildMulticastForkTree(ctx, multicastFork, prefixLength)
     } catch (fork: ForkException) {
       return buildReplayForkTree(ctx, decisions, fork, prefixLength)
     }
@@ -222,15 +223,7 @@ class V1ModelArchitecture(
     val env = fork.forkPointEnv.deepCopy()
     val pendingOps = selectorFork.pendingOps.copy()
 
-    // Resolve standard_metadata from the restored environment.
-    val parserUserParams =
-      ctx.config.parsersList.first().paramsList.filter {
-        it.type.hasNamed() && it.type.named !in IO_TYPES
-      }
-    val standardMetaParamName = parserUserParams[2].name
-    val standardMetadata =
-      env.lookup(standardMetaParamName) as? StructVal
-        ?: error("standard_metadata not found in fork-point environment")
+    val standardMetadata = resolveStandardMetadata(ctx, env)
 
     val s = finishPipelineState(ctx, decisions, packetCtx, env, standardMetadata, pendingOps)
 
@@ -266,6 +259,66 @@ class V1ModelArchitecture(
     } catch (_: AssertionFailureException) {
       return buildDropTrace(s.packetCtx.getEvents(), DropReason.ASSERTION_FAILURE)
     }
+  }
+
+  /**
+   * Handles a multicast fork via fork-on-write: each replica gets a deep copy of the fork-point
+   * state with its metadata (instance_type, egress_port, egress_rid) set, then runs egress +
+   * deparser independently.
+   */
+  private fun buildMulticastForkTree(
+    ctx: PipelineContext,
+    fork: MulticastFork,
+    prefixLength: Int = 0,
+  ): PipelineResult {
+    val buildBranch = { replica: BranchMode.Replica ->
+      val packetCtx = PacketContext(ctx.payload, fork.bytesConsumed)
+      val env = fork.forkPointEnv.deepCopy()
+      val pendingOps = fork.forkPointPendingOps.copy()
+
+      val standardMetadata = resolveStandardMetadata(ctx, env)
+      standardMetadata.setBitField("instance_type", REPLICATION_INSTANCE_TYPE)
+      standardMetadata.setBitField("egress_port", replica.port.toLong())
+      standardMetadata.setBitField("egress_rid", replica.rid.toLong())
+
+      val s =
+        finishPipelineState(ctx, V1ModelDecisions(), packetCtx, env, standardMetadata, pendingOps)
+      try {
+        runEgressAndDeparser(ctx, s)
+      } catch (nestedFork: V1ModelSelectorFork) {
+        // Nested action selector in egress — handle via fork-on-write.
+        buildSelectorForkTree(ctx, V1ModelDecisions(), nestedFork, 0).trace
+      } catch (_: AssertionFailureException) {
+        buildDropTrace(s.packetCtx.getEvents(), DropReason.ASSERTION_FAILURE)
+      }
+    }
+
+    val results =
+      if (INTRA_PACKET_PARALLELISM_ENABLED) {
+        fork.replicas.parallelStream().map(buildBranch).toList()
+      } else {
+        fork.replicas.map(buildBranch)
+      }
+
+    val branches =
+      fork.replicas.zip(results).map { (replica, trace) ->
+        ForkBranch.newBuilder()
+          .setLabel("replica_${replica.rid}_port_${replica.port}")
+          .setSubtree(trace)
+          .build()
+      }
+    val levelEvents = fork.eventsBeforeFork.drop(prefixLength)
+    return PipelineResult(buildForkTree(levelEvents, ForkReason.MULTICAST, branches))
+  }
+
+  /** Resolves standard_metadata from the environment using the config's parser parameter names. */
+  private fun resolveStandardMetadata(ctx: PipelineContext, env: Environment): StructVal {
+    val parserUserParams =
+      ctx.config.parsersList.first().paramsList.filter {
+        it.type.hasNamed() && it.type.named !in IO_TYPES
+      }
+    return env.lookup(parserUserParams[2].name) as? StructVal
+      ?: error("standard_metadata not found in environment")
   }
 
   /** Handles non-selector forks (clone, multicast, resubmit, recirculate) via replay. */
@@ -752,7 +805,13 @@ class V1ModelArchitecture(
           if (group != null) {
             val replicas =
               group.replicasList.map { r -> BranchMode.Replica(r.instance, replicaPort(r)) }
-            throw MulticastFork(replicas, s.packetCtx.getEvents())
+            throw MulticastFork(
+              replicas,
+              s.packetCtx.getEvents(),
+              s.env.deepCopy(),
+              s.packetCtx.bytesConsumed,
+              s.pendingOps.copy(),
+            )
           }
         }
         // Normal unicast: copy egress_spec → egress_port for uniform read below.
@@ -1293,6 +1352,12 @@ internal class EgressCloneFork(
 internal class MulticastFork(
   val replicas: List<BranchMode.Replica>,
   eventsBeforeFork: List<TraceEvent>,
+  /** Deep copy of the environment at the fork point (post-ingress). */
+  val forkPointEnv: Environment,
+  /** Parser buffer position at the fork point. */
+  val bytesConsumed: Int,
+  /** Pending operations at the fork point. */
+  val forkPointPendingOps: V1ModelPendingOps,
 ) : ForkException(eventsBeforeFork)
 
 /** Fork at the ingress→egress boundary when resubmit was requested — single branch re-ingress. */
