@@ -417,100 +417,112 @@ LH:47
 LF:47
 end_of_record
 SF:p4runtime/P4RuntimeServer.kt
-FN:10,fourward/p4runtime/P4RuntimeServer::<init> (IJLjava/lang/Integer;Lfourward/p4runtime/CpuPortConfig;)V
+FN:13,fourward/p4runtime/P4RuntimeServer::<init> (IJLjava/lang/Integer;Lfourward/p4runtime/CpuPortConfig;)V
 FNDA:1,fourward/p4runtime/P4RuntimeServer::<init> (IJLjava/lang/Integer;Lfourward/p4runtime/CpuPortConfig;)V
-FN:10,fourward/p4runtime/P4RuntimeServer::<init> (IJLjava/lang/Integer;Lfourward/p4runtime/CpuPortConfig;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+FN:13,fourward/p4runtime/P4RuntimeServer::<init> (IJLjava/lang/Integer;Lfourward/p4runtime/CpuPortConfig;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 FNDA:1,fourward/p4runtime/P4RuntimeServer::<init> (IJLjava/lang/Integer;Lfourward/p4runtime/CpuPortConfig;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-FN:21,fourward/p4runtime/P4RuntimeServer::getSimulator ()Lfourward/simulator/Simulator;
+FN:24,fourward/p4runtime/P4RuntimeServer::getSimulator ()Lfourward/simulator/Simulator;
 FNDA:1,fourward/p4runtime/P4RuntimeServer::getSimulator ()Lfourward/simulator/Simulator;
-FN:45,fourward/p4runtime/P4RuntimeServer::start ()Lfourward/p4runtime/P4RuntimeServer;
+FN:48,fourward/p4runtime/P4RuntimeServer::start ()Lfourward/p4runtime/P4RuntimeServer;
 FNDA:1,fourward/p4runtime/P4RuntimeServer::start ()Lfourward/p4runtime/P4RuntimeServer;
-FN:61,fourward/p4runtime/P4RuntimeServer::stop ()V
+FN:64,fourward/p4runtime/P4RuntimeServer::stop ()V
 FNDA:1,fourward/p4runtime/P4RuntimeServer::stop ()V
-FN:67,fourward/p4runtime/P4RuntimeServer::blockUntilShutdown ()V
+FN:70,fourward/p4runtime/P4RuntimeServer::blockUntilShutdown ()V
 FNDA:0,fourward/p4runtime/P4RuntimeServer::blockUntilShutdown ()V
-FN:70,fourward/p4runtime/P4RuntimeServer::port ()I
+FN:73,fourward/p4runtime/P4RuntimeServer::port ()I
 FNDA:1,fourward/p4runtime/P4RuntimeServer::port ()I
-FN:37,fourward/p4runtime/P4RuntimeServer$1::invoke ()Ljava/util/List;
+FN:40,fourward/p4runtime/P4RuntimeServer$1::invoke ()Ljava/util/List;
 FNDA:0,fourward/p4runtime/P4RuntimeServer$1::invoke ()Ljava/util/List;
-FN:38,fourward/p4runtime/P4RuntimeServer$2::invoke ()Lp4/config/v1/P4InfoOuterClass$P4Info;
+FN:41,fourward/p4runtime/P4RuntimeServer$2::invoke ()Lp4/config/v1/P4InfoOuterClass$P4Info;
 FNDA:0,fourward/p4runtime/P4RuntimeServer$2::invoke ()Lp4/config/v1/P4InfoOuterClass$P4Info;
-FN:39,fourward/p4runtime/P4RuntimeServer$3::invoke (Ljava/util/List;)V
+FN:42,fourward/p4runtime/P4RuntimeServer$3::invoke (Ljava/util/List;)V
 FNDA:0,fourward/p4runtime/P4RuntimeServer$3::invoke (Ljava/util/List;)V
-FN:33,fourward/p4runtime/P4RuntimeServer$dataplaneService$1::invoke ()Lfourward/p4runtime/TypeTranslator;
+FN:36,fourward/p4runtime/P4RuntimeServer$dataplaneService$1::invoke ()Lfourward/p4runtime/TypeTranslator;
 FNDA:0,fourward/p4runtime/P4RuntimeServer$dataplaneService$1::invoke ()Lfourward/p4runtime/TypeTranslator;
-FN:56,fourward/p4runtime/P4RuntimeServer$start$1::run ()V
+FN:59,fourward/p4runtime/P4RuntimeServer$start$1::run ()V
 FNDA:1,fourward/p4runtime/P4RuntimeServer$start$1::run ()V
-FN:78,fourward/p4runtime/P4RuntimeServerKt::main ([Ljava/lang/String;)V
+FN:81,fourward/p4runtime/P4RuntimeServerKt::main ([Ljava/lang/String;)V
 FNDA:0,fourward/p4runtime/P4RuntimeServerKt::main ([Ljava/lang/String;)V
-FN:90,fourward/p4runtime/P4RuntimeServerKt::flagValue ([Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+FN:100,fourward/p4runtime/P4RuntimeServerKt::writePortFileAtomic (Ljava/nio/file/Path;I)V
+FNDA:0,fourward/p4runtime/P4RuntimeServerKt::writePortFileAtomic (Ljava/nio/file/Path;I)V
+FN:106,fourward/p4runtime/P4RuntimeServerKt::flagValue ([Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
 FNDA:0,fourward/p4runtime/P4RuntimeServerKt::flagValue ([Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
-BRDA:61,0,0,1
-BRDA:61,0,1,1
-BRDA:78,0,0,-
-BRDA:78,0,1,-
-BRDA:78,0,2,-
-BRDA:78,0,3,-
-BRDA:80,0,0,-
-BRDA:80,0,1,-
-BRDA:80,0,2,-
-BRDA:80,0,3,-
+BRDA:64,0,0,1
+BRDA:64,0,1,1
 BRDA:81,0,0,-
 BRDA:81,0,1,-
-BRDA:90,0,0,-
-BRDA:90,0,1,-
-BRDA:90,0,2,-
-BRDA:90,0,3,-
-BRDA:90,0,4,-
-BRDA:90,0,5,-
-DA:10,1
-DA:11,1
-DA:12,1
+BRDA:81,0,2,-
+BRDA:81,0,3,-
+BRDA:83,0,0,-
+BRDA:83,0,1,-
+BRDA:83,0,2,-
+BRDA:83,0,3,-
+BRDA:84,0,0,-
+BRDA:84,0,1,-
+BRDA:86,0,0,-
+BRDA:86,0,1,-
+BRDA:94,0,0,-
+BRDA:94,0,1,-
+BRDA:106,0,0,-
+BRDA:106,0,1,-
+BRDA:106,0,2,-
+BRDA:106,0,3,-
+BRDA:106,0,4,-
+BRDA:106,0,5,-
 DA:13,1
 DA:14,1
 DA:15,1
-DA:21,1
-DA:22,1
-DA:23,1
+DA:16,1
+DA:17,1
+DA:18,1
+DA:24,1
 DA:25,1
 DA:26,1
-DA:27,1
 DA:28,1
 DA:29,1
 DA:30,1
+DA:31,1
+DA:32,1
 DA:33,1
-DA:35,1
-DA:37,1
+DA:36,1
 DA:38,1
-DA:39,1
 DA:40,1
-DA:45,1
-DA:46,1
-DA:51,1
-DA:52,1
-DA:53,1
+DA:41,1
+DA:42,1
+DA:43,1
+DA:48,1
+DA:49,1
 DA:54,1
 DA:55,1
 DA:56,1
 DA:57,1
-DA:61,1
-DA:62,1
+DA:58,1
+DA:59,1
+DA:60,1
 DA:64,1
-DA:67,0
-DA:68,0
-DA:70,1
-DA:78,0
-DA:79,0
-DA:80,0
+DA:65,1
+DA:67,1
+DA:70,0
+DA:71,0
+DA:73,1
 DA:81,0
 DA:82,0
+DA:83,0
 DA:84,0
 DA:85,0
 DA:86,0
-DA:87,0
-DA:90,0
+DA:88,0
+DA:89,0
+DA:94,0
+DA:96,0
+DA:97,0
+DA:100,0
+DA:101,0
+DA:102,0
+DA:103,0
+DA:106,0
 LH:34
-LF:46
+LF:52
 end_of_record
 SF:p4runtime/P4RuntimeService.kt
 FN:65,fourward/p4runtime/P4RuntimeService::<init> (Lfourward/simulator/Simulator;Lfourward/p4runtime/PacketBroker;Ljava/nio/file/Path;Lkotlinx/coroutines/sync/Mutex;JLfourward/p4runtime/CpuPortConfig;)V
