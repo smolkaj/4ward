@@ -75,7 +75,7 @@ struct FourwardServerOptions {
   CpuPort cpu_port = CpuPort::Auto();
 
   // Maximum time to wait for Start() to complete.
-  absl::Duration startup_timeout = absl::Seconds(30);
+  absl::Duration startup_timeout = absl::Seconds(5);
 };
 
 class FourwardServer {
