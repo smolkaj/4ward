@@ -14,15 +14,18 @@ class RunfilesTest {
   }
 
   @Test
-  fun `resolves external-repo file via apparent name`() {
-    val path = resolveRunfile("p4c/p4include/core.p4")
-    assertTrue("resolved path should exist: $path", Files.isRegularFile(path))
-  }
-
-  @Test
   fun `resolves p4c-4ward binary`() {
     val path = resolveRunfile("_main/p4c_backend/p4c-4ward")
     assertTrue(Files.isExecutable(path))
+  }
+
+  @Test
+  fun `resolves external-repo file via rlocationpath property`() {
+    // External repos use canonical names that differ across environments.
+    // Production code gets the path via $(rlocationpath ...) in BUILD jvm_flags.
+    // This test verifies the same mechanism works.
+    val path = resolveRunfile(requireP4IncludeProperty())
+    assertTrue("resolved path should exist: $path", Files.isRegularFile(path))
   }
 
   @Test
