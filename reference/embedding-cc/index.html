@@ -3,33 +3,35 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Ready-to-run P4 example programs for 4ward: passthrough, table-based forwarding, and the interactive tutorial.">
+        <meta name="description" content="Treat 4ward like a native C++ library — Bazel setup, example usage, and the stable startup contract wrappers in other languages can rely on.">
       
       
       
-        <link rel="canonical" href="https://smolka.st/4ward/examples/">
+        <link rel="canonical" href="https://smolka.st/4ward/reference/embedding-cc/">
       
       
-        <link rel="prev" href="../concepts/architecture-modifications/">
+        <link rel="prev" href="../grpc/">
       
+      
+        <link rel="next" href="../../concepts/traces/">
       
       
         
       
       
-      <link rel="icon" href="../assets/favicon.png">
+      <link rel="icon" href="../../assets/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
-        <title>Examples - 4ward</title>
+        <title>Embedding in C++ - 4ward</title>
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -48,9 +50,9 @@
       
     
     
-      <link rel="stylesheet" href="../stylesheets/extra.css">
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
     
-    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -61,18 +63,18 @@
 
 <!-- Open Graph -->
 <meta property="og:type" content="website">
-<meta property="og:title" content="Examples - 4ward">
-<meta property="og:description" content="Ready-to-run P4 example programs for 4ward: passthrough, table-based forwarding, and the interactive tutorial.">
+<meta property="og:title" content="Embedding in C++ - 4ward">
+<meta property="og:description" content="Treat 4ward like a native C++ library — Bazel setup, example usage, and the stable startup contract wrappers in other languages can rely on.">
 <meta property="og:image" content="https://smolka.st/4ward/assets/social-card.png">
-<meta property="og:url" content="https://smolka.st/4ward/examples/">
+<meta property="og:url" content="https://smolka.st/4ward/reference/embedding-cc/">
 <meta property="og:site_name" content="4ward">
 <meta property="article:author" content="Steffen Smolka">
 <meta property="article:published_time" content="2026-03-03T06:37:14Z">
 
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Examples - 4ward">
-<meta name="twitter:description" content="Ready-to-run P4 example programs for 4ward: passthrough, table-based forwarding, and the interactive tutorial.">
+<meta name="twitter:title" content="Embedding in C++ - 4ward">
+<meta name="twitter:description" content="Treat 4ward like a native C++ library — Bazel setup, example usage, and the stable startup contract wrappers in other languages can rely on.">
 <meta name="twitter:image" content="https://smolka.st/4ward/assets/social-card.png">
 
 <!-- Author -->
@@ -81,7 +83,7 @@
 <!-- Apple Touch Icon -->
 <link rel="apple-touch-icon" href="https://smolka.st/4ward/assets/apple-touch-icon.png">
 
-  <link href="../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
+  <link href="../../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
             html.glightbox-open { overflow: initial; height: 100%; }
             .gslide-title { margin-top: 0px; user-select: text; }
             .gslide-desc { color: #666; user-select: text; }
@@ -110,7 +112,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#examples" class="md-skip">
+        <a href="#embedding-the-server-in-c" class="md-skip">
           Skip to content
         </a>
       
@@ -126,9 +128,9 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="4ward" class="md-header__button md-logo" aria-label="4ward" data-md-component="logo">
+    <a href="../.." title="4ward" class="md-header__button md-logo" aria-label="4ward" data-md-component="logo">
       
-  <img src="../assets/logo.svg" alt="logo">
+  <img src="../../assets/logo.svg" alt="logo">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -145,7 +147,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Examples
+              Embedding in C++
             
           </span>
         </div>
@@ -261,9 +263,9 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="4ward" class="md-nav__button md-logo" aria-label="4ward" data-md-component="logo">
+    <a href="../.." title="4ward" class="md-nav__button md-logo" aria-label="4ward" data-md-component="logo">
       
-  <img src="../assets/logo.svg" alt="logo">
+  <img src="../../assets/logo.svg" alt="logo">
 
     </a>
     4ward
@@ -290,7 +292,7 @@
   
   
     <li class="md-nav__item">
-      <a href=".." class="md-nav__link">
+      <a href="../.." class="md-nav__link">
         
   
   
@@ -371,7 +373,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../getting-started/playground/" class="md-nav__link">
+      <a href="../../getting-started/playground/" class="md-nav__link">
         
   
   
@@ -399,7 +401,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../reference/playground/" class="md-nav__link">
+      <a href="../playground/" class="md-nav__link">
         
   
   
@@ -488,7 +490,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../getting-started/cli/" class="md-nav__link">
+      <a href="../../getting-started/cli/" class="md-nav__link">
         
   
   
@@ -516,7 +518,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../reference/cli/" class="md-nav__link">
+      <a href="../cli/" class="md-nav__link">
         
   
   
@@ -544,7 +546,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../reference/stf/" class="md-nav__link">
+      <a href="../stf/" class="md-nav__link">
         
   
   
@@ -576,8 +578,10 @@
       
   
   
+    
   
   
+  
     
     
     
@@ -588,13 +592,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4">
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked="">
         
           
           <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
@@ -615,7 +617,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
@@ -633,7 +635,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../getting-started/grpc/" class="md-nav__link">
+      <a href="../../getting-started/grpc/" class="md-nav__link">
         
   
   
@@ -661,7 +663,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../reference/grpc/" class="md-nav__link">
+      <a href="../grpc/" class="md-nav__link">
         
   
   
@@ -686,10 +688,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../reference/embedding-cc/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Embedding in C++
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -705,6 +734,70 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#bazel-dependency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bazel dependency
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#startup-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Startup contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Related
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -778,7 +871,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../concepts/traces/" class="md-nav__link">
+      <a href="../../concepts/traces/" class="md-nav__link">
         
   
   
@@ -806,7 +899,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../concepts/type-translation/" class="md-nav__link">
+      <a href="../../concepts/type-translation/" class="md-nav__link">
         
   
   
@@ -834,7 +927,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../concepts/p4runtime-features/" class="md-nav__link">
+      <a href="../../concepts/p4runtime-features/" class="md-nav__link">
         
   
   
@@ -862,7 +955,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../concepts/architectures/" class="md-nav__link">
+      <a href="../../concepts/architectures/" class="md-nav__link">
         
   
   
@@ -890,7 +983,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../reference/errors/" class="md-nav__link">
+      <a href="../errors/" class="md-nav__link">
         
   
   
@@ -918,7 +1011,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../concepts/architecture-modifications/" class="md-nav__link">
+      <a href="../../concepts/architecture-modifications/" class="md-nav__link">
         
   
   
@@ -950,37 +1043,10 @@
       
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Examples
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../examples/" class="md-nav__link">
         
   
   
@@ -996,70 +1062,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
-      
-        <li class="md-nav__item">
-  <a href="#passthrough" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        passthrough
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#basic_table" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        basic_table
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#mirror" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        mirror
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#sai_middleblock" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        sai_middleblock
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1091,10 +1093,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
       
         <li class="md-nav__item">
-  <a href="#passthrough" class="md-nav__link">
+  <a href="#bazel-dependency" class="md-nav__link">
     <span class="md-ellipsis">
       
-        passthrough
+        Bazel dependency
       
     </span>
   </a>
@@ -1102,10 +1104,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#basic_table" class="md-nav__link">
+  <a href="#example" class="md-nav__link">
     <span class="md-ellipsis">
       
-        basic_table
+        Example
       
     </span>
   </a>
@@ -1113,10 +1115,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#mirror" class="md-nav__link">
+  <a href="#startup-contract" class="md-nav__link">
     <span class="md-ellipsis">
       
-        mirror
+        Startup contract
       
     </span>
   </a>
@@ -1124,10 +1126,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#sai_middleblock" class="md-nav__link">
+  <a href="#related" class="md-nav__link">
     <span class="md-ellipsis">
       
-        sai_middleblock
+        Related
       
     </span>
   </a>
@@ -1154,95 +1156,81 @@
   
 
 
-<h1 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">¶</a></h1>
-<p>4ward ships with example P4 programs that demonstrate core concepts. Each one
-works with the <a href="../getting-started/cli/">CLI</a> and the
-<a href="../getting-started/playground/">web playground</a>.</p>
-<p>For a guided walkthrough using these examples, see the
-<a href="https://github.com/smolkaj/4ward/blob/main/examples/tutorial.t">tutorial</a>.</p>
-<h2 id="passthrough">passthrough<a class="headerlink" href="#passthrough" title="Permanent link">¶</a></h2>
-<p><strong>Source:</strong> <a href="https://github.com/smolkaj/4ward/blob/main/examples/passthrough.p4"><code>examples/passthrough.p4</code></a></p>
-<p>The simplest possible v1model program. Parses an Ethernet header, hardcodes
-every packet to port 1, emits it unchanged. No tables, no actions.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>control MyIngress(inout headers_t hdr, inout metadata_t meta,
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>                  inout standard_metadata_t standard_metadata) {
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    apply {
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>        standard_metadata.egress_spec = 1;
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    }
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>}
+<h1 id="embedding-the-server-in-c">Embedding the server in C++<a class="headerlink" href="#embedding-the-server-in-c" title="Permanent link">¶</a></h1>
+<p><strong>Treat 4ward like a native C++ library.</strong> Depend on
+<code>//p4runtime_cc:fourward_server</code>, construct a <code>FourwardServer</code>, and
+you have factories for P4Runtime and Dataplane stubs on a shared gRPC
+channel. Your project sees a C++ API and a Bazel target; the server's
+implementation language never enters the picture.</p>
+<p>Under the hood, <code>Start()</code> spawns the server as a subprocess, blocks
+until it is accepting RPCs, and returns an RAII handle. Destruction
+kills the subprocess.</p>
+<h2 id="bazel-dependency">Bazel dependency<a class="headerlink" href="#bazel-dependency" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">cc_test</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">name</span> <span class="o">=</span> <span class="s2">"my_test"</span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">srcs</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"my_test.cc"</span><span class="p">],</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">deps</span> <span class="o">=</span> <span class="p">[</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>        <span class="s2">"@fourward//p4runtime_cc:fourward_server"</span><span class="p">,</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>        <span class="c1"># ... your gRPC / P4Runtime deps ...</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="p">],</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">)</span>
 </code></pre></div>
-<p><strong>Try it:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>4ward<span class="w"> </span>run<span class="w"> </span>examples/passthrough.p4<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;'EOF'</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="s">packet 0 FFFFFFFFFFFF 000000000001 0800</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="s">expect 1 FFFFFFFFFFFF 000000000001 0800</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="s">EOF</span>
+<p>The library propagates the server binary through its <code>data</code> attribute, so
+consumers do not need to list <code>@fourward//p4runtime:p4runtime_server</code>
+themselves.</p>
+<h2 id="example">Example<a class="headerlink" href="#example" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">"p4runtime_cc/fourward_server.h"</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">absl</span><span class="o">::</span><span class="n">Status</span><span class="w"> </span><span class="nf">RunAgainstFourward</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span><span class="n">ASSIGN_OR_RETURN</span><span class="p">(</span><span class="n">fourward</span><span class="o">::</span><span class="n">FourwardServer</span><span class="w"> </span><span class="n">server</span><span class="p">,</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">                   </span><span class="n">fourward</span><span class="o">::</span><span class="n">FourwardServer</span><span class="o">::</span><span class="n">Start</span><span class="p">());</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="n">p4rt</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">server</span><span class="p">.</span><span class="n">NewP4RuntimeStub</span><span class="p">();</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="n">dataplane</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">server</span><span class="p">.</span><span class="n">NewDataplaneStub</span><span class="p">();</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">  </span><span class="c1">// ... drive the server via gRPC ...</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">absl</span><span class="o">::</span><span class="n">OkStatus</span><span class="p">();</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">  </span><span class="c1">// `server` is killed here via SIGTERM; the scratch directory holding its</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">  </span><span class="c1">// port-file is removed on the same path.</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="p">}</span>
 </code></pre></div>
-<p><strong>What to look for in the trace:</strong> a linear trace with no tables — just
-parser, ingress (no events), and output on port 1.</p>
-<h2 id="basic_table">basic_table<a class="headerlink" href="#basic_table" title="Permanent link">¶</a></h2>
-<p><strong>Source:</strong> <a href="https://github.com/smolkaj/4ward/blob/main/examples/basic_table.p4"><code>examples/basic_table.p4</code></a></p>
-<p>An exact-match table keyed on <code>etherType</code>. Matching packets are forwarded to
-a specified port; non-matching packets are dropped.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>table port_table {
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>    key = { hdr.ethernet.etherType : exact; }
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>    actions = { forward; drop; NoAction; }
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    default_action = drop();
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>}
-</code></pre></div>
-<p><strong>Try it:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>4ward<span class="w"> </span>run<span class="w"> </span>examples/basic_table.p4<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;'EOF'</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="s">add port_table hdr.ethernet.etherType:0x0800 forward(1)</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="s">packet 0 FFFFFFFFFFFF 000000000001 0800 DEADBEEF</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="s">expect 1 FFFFFFFFFFFF 000000000001 0800 DEADBEEF</span>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="s">packet 0 FFFFFFFFFFFF 000000000001 0806 DEADBEEF</span>
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="s">EOF</span>
-</code></pre></div>
-<p><strong>What to look for in the trace:</strong> the first packet shows
-<code>table port_table: hit → forward</code>; the second shows
-<code>table port_table: miss → drop</code> followed by <code>mark_to_drop()</code>.</p>
-<h2 id="mirror">mirror<a class="headerlink" href="#mirror" title="Permanent link">¶</a></h2>
-<p><strong>Available in:</strong> web playground (select <strong>mirror</strong> from the example dropdown)</p>
-<p>An IPv4 router with port mirroring. Parses Ethernet + IPv4, routes via LPM
-on destination IP, and clones every forwarded packet to a mirror session.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>apply {
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>    if (hdr.ipv4.isValid()) {
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>        ipv4_lpm.apply();
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>        clone(CloneType.I2E, 32w100);  // mirror to session 100
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>    }
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>}
-</code></pre></div>
-<p>The egress pipeline uses <code>instance_type</code> to distinguish originals from clones
-and tags cloned packets with a distinctive source MAC.</p>
-<p><strong>What to look for in the trace:</strong> the trace tree <strong>forks</strong> at the clone
-point — one branch for the original packet (exits on the routed port) and
-one for the clone (exits on the mirror port with rewritten source MAC).</p>
-<p><strong>Concepts demonstrated:</strong></p>
+<p>Both stubs share a single insecure channel to <code>localhost:&lt;port&gt;</code> managed
+by the wrapper.</p>
+<p>Options cover <code>device_id</code>, the listening <code>port</code> (unset by default — the
+kernel picks an ephemeral port), <code>drop_port</code>, <code>cpu_port</code>, and
+<code>startup_timeout</code>. See <a href="https://github.com/smolkaj/4ward/blob/main/p4runtime_cc/fourward_server.h"><code>fourward_server.h</code></a>
+for the full API.</p>
+<h2 id="startup-contract">Startup contract<a class="headerlink" href="#startup-contract" title="Permanent link">¶</a></h2>
+<p>The wrapper spawns the server with <code>--port-file=PATH</code>. The server
+atomically writes its listening port to <code>PATH</code> once it is accepting RPCs;
+file existence is the readiness signal, file contents are the port. The
+contract is stable and suitable for hand-rolled wrappers in other
+languages.</p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Semantics</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--port=N</code></td>
+<td>Pin the listening port. <code>--port=0</code> (the default) lets the kernel pick an ephemeral port — recommended for parallel test shards.</td>
+</tr>
+<tr>
+<td><code>--port-file=PATH</code></td>
+<td>After binding, the server atomically writes the bound port as ASCII to <code>PATH</code> (tempfile + rename, so a concurrent reader never sees a partial value).</td>
+</tr>
+</tbody>
+</table>
+<h2 id="related">Related<a class="headerlink" href="#related" title="Permanent link">¶</a></h2>
 <ul>
-<li>Parser state transitions (<code>select</code> on <code>etherType</code>)</li>
-<li>LPM table matching</li>
-<li>Packet cloning and trace tree forking</li>
-<li>Egress branching on <code>instance_type</code></li>
+<li><a href="https://github.com/smolkaj/4ward/tree/main/p4runtime_cc"><code>p4runtime_cc/</code></a>
+  — source of the wrapper.</li>
+<li><a href="../grpc/">gRPC API reference</a> — server flags, RPC surface, and proto
+  definitions.</li>
 </ul>
-<h2 id="sai_middleblock">sai_middleblock<a class="headerlink" href="#sai_middleblock" title="Permanent link">¶</a></h2>
-<p><strong>Available in:</strong> web playground (select <strong>sai_middleblock</strong> from the example
-dropdown)</p>
-<p>A simplified version of the SAI P4 middleblock — Google's production P4
-pipeline for network switches. Real table names, real control flow, with
-<code>@p4runtime_translation</code> on all ID types.</p>
-<p>This example demonstrates:</p>
-<ul>
-<li>Multiple tables applied in sequence (VRF lookup, L3 routing, next-hop
-  resolution, neighbor rewrite)</li>
-<li>String-typed port names (<code>"Ethernet0"</code>, <code>"Ethernet1"</code>)</li>
-<li><a href="../concepts/type-translation/">Type translation</a> across the full stack
-  (note: <code>@p4runtime_translation</code> on port types is aspirational for SAI P4;
-  the middleblock example uses it on non-port ID types like VRF and nexthop)</li>
-</ul>
-<p>This is an advanced example. Start with <code>basic_table</code> to understand the
-fundamentals, then explore <code>sai_middleblock</code> to see how a production pipeline
-works.</p>
 
 
 
@@ -1317,10 +1305,10 @@ works.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.expand", "navigation.top", "content.code.copy", "search.highlight"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.expand", "navigation.top", "content.code.copy", "search.highlight"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   

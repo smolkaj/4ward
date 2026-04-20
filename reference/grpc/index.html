@@ -13,7 +13,7 @@
         <link rel="prev" href="../../getting-started/grpc/">
       
       
-        <link rel="next" href="../../concepts/traces/">
+        <link rel="next" href="../embedding-cc/">
       
       
         
@@ -892,6 +892,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../embedding-cc/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Embedding in C++
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1379,7 +1407,7 @@
 <tr>
 <td><code>--port</code></td>
 <td>9559</td>
-<td>gRPC listen port</td>
+<td>gRPC listen port (use <code>0</code> to let the kernel assign an ephemeral port; pair with <code>--port-file</code> to discover it)</td>
 </tr>
 <tr>
 <td><code>--device-id</code></td>
@@ -1395,6 +1423,11 @@
 <td><code>--cpu-port</code></td>
 <td><code>2^N - 2</code></td>
 <td>Override CPU port (e.g., 510 for 9-bit ports; auto-enabled when <code>@controller_header</code> is present)</td>
+</tr>
+<tr>
+<td><code>--port-file</code></td>
+<td>—</td>
+<td>After binding, atomically write the listening port to this path. File-exists ≡ ready to serve. Intended for embedders — see <a href="../embedding-cc/">Embedding in C++</a>.</td>
 </tr>
 </tbody>
 </table>
