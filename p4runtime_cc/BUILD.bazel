@@ -6,27 +6,16 @@ package(
     licenses = ["notice"],
 )
 
-# C++ RAII wrapper for embedding the 4ward P4Runtime + Dataplane server as a
-# child process. See fourward_server.h for the full API contract.
-#
-# The server binary is propagated to consumers via `data`, so a cc_test that
-# depends on this library does not need to add anything else.
 cc_library(
     name = "fourward_server",
     srcs = ["fourward_server.cc"],
     hdrs = ["fourward_server.h"],
     data = ["//p4runtime:p4runtime_server"],
-    # `$(rlocationpath)` expands to the canonical runfile path under the
-    # current build's repo naming (e.g. `_main/...` when fourward is the root
-    # module, `fourward+/...` when a BCR consumer pulls it in). Baking this in
-    # via local_defines avoids hardcoding `_main/`, which would break for
-    # every consumer but ourselves.
+    # Runfile path baked in per build for BCR portability — the apparent
+    # repo name differs between root and BCR consumers.
     local_defines = [
-        "FOURWARD_SERVER_RLOCATION=\\\"$(rlocationpath //p4runtime:p4runtime_server)\\\"",
+        'FOURWARD_SERVER_RLOCATION=\\"$(rlocationpath //p4runtime:p4runtime_server)\\"',
     ],
-    # Exposed via the apparent include path "p4runtime_cc/fourward_server.h"
-    # for downstream consumers.
-    strip_include_prefix = "/",
     visibility = ["//visibility:public"],
     deps = [
         "//p4runtime:dataplane_cc_grpc",
@@ -39,8 +28,8 @@ cc_library(
         "@abseil-cpp//absl/time",
         "@bazel_tools//tools/cpp/runfiles",
         "@grpc//:grpc++",
-        "@p4runtime//:p4runtime_cc_grpc",
-        "@p4runtime//:p4runtime_cc_proto",
+        "@p4runtime//proto/p4/v1:p4runtime_cc_grpc",
+        "@p4runtime//proto/p4/v1:p4runtime_cc_proto",
     ],
 )
 
@@ -56,7 +45,7 @@ cc_test(
         "@googletest//:gtest",
         "@googletest//:gtest_main",
         "@grpc//:grpc++",
-        "@p4runtime//:p4runtime_cc_grpc",
-        "@p4runtime//:p4runtime_cc_proto",
+        "@p4runtime//proto/p4/v1:p4runtime_cc_grpc",
+        "@p4runtime//proto/p4/v1:p4runtime_cc_proto",
     ],
 )
