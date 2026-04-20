@@ -52,6 +52,15 @@ issues) where helpful. Do not add comments that merely restate the code.
 find and use the successor immediately — don't suppress the warning. A
 deprecated call that works today is a broken call on the next upgrade.
 
+For C++, follow the [Google C++ Style Guide] and
+[Abseil Tips of the Week]. In particular, keep namespaces flat
+([TotW #130]) — don't introduce sub-namespaces that don't earn their
+keep. `namespace fourward` is almost always enough.
+
+[Google C++ Style Guide]: https://google.github.io/styleguide/cppguide.html
+[Abseil Tips of the Week]: https://abseil.io/tips/
+[TotW #130]: https://abseil.io/tips/130
+
 If you take a shortcut or skip a corner case, note it in
 [LIMITATIONS.md](docs/LIMITATIONS.md) with a `TODO` comment at the site.
 Mark workarounds with a prominent `WORKAROUND` comment explaining what is
@@ -169,6 +178,7 @@ simulator/simulator.proto    Shared types for simulator clients (P4Runtime, STF,
 simulator/*.kt               Kotlin simulator (the heart of 4ward).
 p4c_backend/*.{h,cpp}        C++ p4c backend plugin (emits proto IR from P4 source).
 p4runtime/*.kt               P4Runtime gRPC server (Kotlin).
+p4runtime_cc/*.{h,cc}        C++ RAII wrapper that embeds the server as a subprocess.
 cli/*.kt                     Standalone CLI (4ward compile / sim / run).
 web/*.kt                     Web playground server and graph extractors (Kotlin).
 examples/*.p4                Ready-to-run example programs.

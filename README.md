@@ -278,10 +278,11 @@ ergonomics (sealed classes, pattern matching).
 - **Java?** Kotlin, but worse.
 - **OCaml?** Excellent fit, but not well-supported within Google's ecosystem :(
 
-> [!IMPORTANT]  
-> **You don't need to know Kotlin to contribute to 4ward!**
-> [The AI writes the code](docs/AI_WORKFLOW.md) — you just need to know your
-requirements.
+> [!IMPORTANT]
+> **You don't need Kotlin to contribute to — or use — 4ward.**
+> [AI writes the code](docs/AI_WORKFLOW.md); C++ projects embed via
+> [`//p4runtime_cc:fourward_server`](https://smolkaj.github.io/4ward/reference/embedding-cc/);
+> any gRPC client works in any language.
 
 ## Project structure
 
@@ -323,7 +324,9 @@ report in about 5. No flakes, no "works on my machine." See for yourself on the
 
 **[User documentation](https://smolkaj.github.io/4ward/)** — getting started
 guides, reference pages, and concept explainers for the web playground, CLI,
-and gRPC API.
+and gRPC API. Working in a C++ codebase?
+**[Embedding in C++](https://smolkaj.github.io/4ward/reference/embedding-cc/)**
+lets you treat 4ward like a native C++ library.
 
 **[Tutorial](examples/tutorial.t)** — a hands-on walkthrough from hello
 world to machine-readable trace output. Doubles as a regression test (cram

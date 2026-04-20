@@ -32,6 +32,11 @@ bazel_dep(name = "grpc", version = "1.80.0")  # For cc_grpc_library (dataplane_c
 bazel_dep(name = "grpc-java", version = "1.78.0.bcr.1")
 bazel_dep(name = "grpc_kotlin", version = "1.5.0")
 
+# Abseil — idiomatic C++ utilities (absl::Status, absl::Duration, absl::StrCat)
+# used by //p4runtime_cc. Declared directly so the apparent name @abseil-cpp
+# resolves under strict deps; it is also pulled transitively via @grpc.
+bazel_dep(name = "abseil-cpp", version = "20260107.1")
+
 # WORKAROUND for strict-deps issues in grpc_kotlin@1.5.0 — see
 # `bazel/grpc_kotlin.patch` for the details and upstream PR link.
 single_version_override(
@@ -145,6 +150,11 @@ use_repo(pip, "pip")
 # --- Dev tools ---
 
 bazel_dep(name = "buildifier_prebuilt", version = "8.5.1.2", dev_dependency = True)
+
+# Not dev_dependency: //p4runtime_cc:fourward_server_test is visible to BCR
+# consumers building `@fourward//...`, so its `@googletest` dep must resolve
+# outside the root-module context too.
+bazel_dep(name = "googletest", version = "1.17.0.bcr.2")
 
 # Runs clang-tidy as a Bazel aspect — no compile_commands.json needed.
 # Usage: bazel build //p4c_backend/... --config=clang-tidy

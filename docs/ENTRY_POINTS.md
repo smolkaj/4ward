@@ -53,10 +53,11 @@ with a hardware switch or BMv2.
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--port=<N>` | 9559 | gRPC listen port |
+| `--port=<N>` | 9559 | gRPC listen port (use `0` to let the kernel pick an ephemeral port) |
 | `--device-id=<N>` | 1 | P4Runtime device ID |
 | `--drop-port=<N>` | *(derived)* | Override the drop port value |
 | `--cpu-port=<N>` | *(derived)* | Override the CPU port value |
+| `--port-file=<PATH>` | *(off)* | After binding, atomically write the listening port here. Intended for embedders (see the [C++ wrapper](#c-embedding-wrapper)). |
 
 In addition to the standard P4Runtime RPCs, the server exposes a **Dataplane
 service** for direct packet injection:
@@ -141,6 +142,36 @@ P4RuntimeTestHarness().use { harness ->
 loading, PacketOut/PacketIn routing, `@p4runtime_translation`. Gives you full
 gRPC semantics (status codes, streaming) without network flakiness.
 
+## C++ embedding wrapper
+
+**Target:** `//p4runtime_cc:fourward_server`
+**API:** `fourward::FourwardServer::Start()` (C++)
+
+Treat 4ward like a native C++ library. `Start()` spawns the P4Runtime +
+Dataplane server as a subprocess, blocks until it is accepting RPCs, and
+returns an RAII handle with factories for both service stubs on a shared
+gRPC channel; destruction kills the subprocess. Your project sees a C++
+API and a Bazel target — the server's implementation language is out of
+sight.
+
+```cpp
+#include "p4runtime_cc/fourward_server.h"
+
+ASSIGN_OR_RETURN(fourward::FourwardServer server,
+                 fourward::FourwardServer::Start());
+auto p4rt = server.NewP4RuntimeStub();
+auto dataplane = server.NewDataplaneStub();
+// ... drive the server via gRPC; subprocess is killed on scope exit ...
+```
+
+`Options` exposes `device_id`, `port` (unset = kernel picks ephemeral),
+`drop_port`, `cpu_port`, and `startup_timeout`.
+
+**When to use:** Any C++ project that wants to use 4ward.
+
+See the [user-facing embedding guide](https://smolkaj.github.io/4ward/reference/embedding-cc/)
+for the Bazel setup and full example.
+
 ## Intrinsic port configuration
 
 All entry points share the same defaults for intrinsic ports (drop port, CPU
@@ -155,6 +186,7 @@ override them in whatever way fits its context. See the
 | **Web playground** | Same as P4Runtime server | Same as P4Runtime server |
 | **STF runner** | Constructor param | N/A (no P4Runtime layer) |
 | **Test harness** | Constructor param | Constructor param |
+| **C++ wrapper** | `Options::drop_port` | `Options::cpu_port` |
 
 ### Defaults
 
