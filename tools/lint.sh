@@ -32,6 +32,24 @@ fi
 # TODO(buf-edition-2024): Re-enable buf lint/breaking once buf supports
 # edition 2024. Tracked in https://github.com/smolkaj/4ward/pull/4.
 
+echo "Checking for deprecated Bazel deps..."
+# `bazel query` returns targets whose `deprecation` attribute is non-empty
+# and that are reachable from anything in //... . We filter out toolchain
+# constant targets under @bazel_tools, which legitimately carry deprecation
+# messages unrelated to user code.
+deprecated=$(bazel query --keep_going \
+  'attr("deprecation", ".", deps(//...)) except @bazel_tools//...' 2>/dev/null || true)
+if [[ -n "$deprecated" ]]; then
+  echo "ERROR: Build targets depend on deprecated Bazel labels. Use the suggested successor:"
+  while IFS= read -r target; do
+    [[ -z "$target" ]] && continue
+    successor=$(bazel query --output=build "$target" 2>/dev/null \
+      | sed -n 's/.*deprecation = "\(.*\)".*/  \1/p')
+    printf '  %s\n%s\n' "$target" "${successor:-  (no hint)}"
+  done <<< "$deprecated"
+  rc=1
+fi
+
 echo "Checking for source files compiled into multiple kt_jvm_library targets..."
 if targets=$(bazel query 'kind("kt_jvm_library", //...)' 2>/dev/null); then
   duplicates=$(
