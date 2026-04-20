@@ -4,19 +4,19 @@ import com.google.devtools.build.runfiles.Runfiles
 import java.nio.file.Files
 import java.nio.file.Path
 
-// "The main repository always has the empty string as the canonical name."
-// https://bazel.build/external/overview#canonical-repo-name
-private val runfiles: Runfiles = Runfiles.preload().withSourceRepository("")
+// unmapped(): no repo-mapping translation — paths are looked up as-is in the
+// runfiles directory or manifest. Works in both OSS Bazel (where main-repo
+// paths start with `_main/`) and google3 (where copybara rewrites `_main` to
+// the google3 prefix). External-repo paths must use canonical names or be
+// injected by the BUILD rule via $(rlocationpath ...).
+private val runfiles: Runfiles = Runfiles.preload().unmapped()
 
 /**
  * Resolves a runfiles path to an absolute [Path].
  *
- * The first path component identifies the repo in the runfiles directory tree:
- * - Main repo: `resolveRunfile("_main/web/frontend/index.html")`
- * - External: `resolveRunfile("p4c/p4include/core.p4")`
- *
- * `_main` is the workspace name ([ctx.workspace_name]) under bzlmod. External repos use their
- * apparent name (e.g. `p4c` for `@p4c`).
+ * [path] must start with a repo directory prefix. Bare paths will not resolve.
+ * - Main repo: `"_main/web/frontend/index.html"`
+ * - External repo: inject via `$(rlocationpath ...)` in BUILD
  *
  * @throws IllegalStateException if the path cannot be resolved.
  */
