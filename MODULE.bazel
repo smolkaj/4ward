@@ -150,6 +150,7 @@ use_repo(pip, "pip")
 # --- Dev tools ---
 
 bazel_dep(name = "buildifier_prebuilt", version = "8.5.1.2", dev_dependency = True)
+
 # Not dev_dependency: //p4runtime_cc:fourward_server_test is visible to BCR
 # consumers building `@fourward//...`, so its `@googletest` dep must resolve
 # outside the root-module context too.
