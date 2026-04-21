@@ -135,7 +135,11 @@ class WebServerTest {
       """
         .trimIndent()
     conn.outputStream.write("""{"source":${WebServer.jsonEscape(p4)}}""".toByteArray())
-    assertTrue("compile should succeed (2xx)", conn.responseCode in 200..299)
+    val status = conn.responseCode
+    val body =
+      (if (status in 200..299) conn.inputStream else conn.errorStream)?.bufferedReader()?.readText()
+        ?: ""
+    assertTrue("compile should succeed (got $status); body: $body", status in 200..299)
   }
 
   // ---------------------------------------------------------------------------
