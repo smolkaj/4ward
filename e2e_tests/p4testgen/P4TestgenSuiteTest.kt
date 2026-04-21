@@ -23,7 +23,7 @@ class P4TestgenSuiteTest(private val testName: String) {
     @JvmStatic
     @Parameterized.Parameters(name = "{0}")
     fun testCases(): List<Array<String>> {
-      val pkgDir = fourward.bazel.resolveRunfile("_main/$PKG")
+      val pkgDir = fourward.bazel.repoRoot.resolve(PKG)
       return Files.list(pkgDir)
         .use { it.toList() }
         .filter { Files.isDirectory(it) && it.fileName.toString().endsWith("_stfs") }
@@ -42,8 +42,8 @@ class P4TestgenSuiteTest(private val testName: String) {
   @Test
   fun test() {
     val (program, stfName) = testName.split("/", limit = 2)
-    val configPath = fourward.bazel.resolveRunfile("_main/$PKG/$program.txtpb")
-    val stfPath = fourward.bazel.resolveRunfile("_main/$PKG/${program}_stfs/$stfName.stf")
+    val configPath = fourward.bazel.repoRoot.resolve("$PKG/$program.txtpb")
+    val stfPath = fourward.bazel.repoRoot.resolve("$PKG/${program}_stfs/$stfName.stf")
     val result = runStf(configPath, stfPath)
     if (result is TestResult.Failure) fail(result.message)
   }

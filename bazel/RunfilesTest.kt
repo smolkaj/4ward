@@ -8,37 +8,34 @@ import org.junit.Test
 class RunfilesTest {
 
   @Test
-  fun `resolves main-repo file`() {
-    val path = resolveRunfile("_main/bazel/Runfiles.kt")
+  fun `repoRoot resolves to an existing directory`() {
+    assertTrue("repoRoot should exist: $repoRoot", Files.isDirectory(repoRoot))
+  }
+
+  @Test
+  fun `repoRoot-relative main-repo file resolves`() {
+    val path = repoRoot.resolve("bazel/Runfiles.kt")
     assertTrue("resolved path should exist: $path", Files.isRegularFile(path))
   }
 
   @Test
-  fun `resolves p4c-4ward binary`() {
-    val path = resolveRunfile("_main/p4c_backend/p4c-4ward")
-    assertTrue(Files.isExecutable(path))
+  fun `repoRoot-relative main-repo binary resolves`() {
+    val path = repoRoot.resolve("p4c_backend/p4c-4ward")
+    assertTrue("binary should exist and be executable: $path", Files.isExecutable(path))
   }
 
   @Test
-  fun `resolves external-repo file via rlocationpath property`() {
-    // External repos use canonical names that differ across environments.
-    // Production code gets the path via $(rlocationpath ...) in BUILD jvm_flags.
-    // This test verifies the same mechanism works.
-    val path = resolveRunfile(requireP4IncludeProperty())
+  fun `resolveRunfileProperty reads a BUILD-injected rlocationpath`() {
+    val path = resolveRunfileProperty("fourward.p4include")
     assertTrue("resolved path should exist: $path", Files.isRegularFile(path))
   }
 
   @Test
-  fun `main-repo path without _main prefix fails`() {
-    assertThrows(IllegalStateException::class.java) { resolveRunfile("bazel/RunfilesTest.kt") }
-  }
-
-  @Test
-  fun `throws on missing file`() {
+  fun `resolveRunfileProperty throws when the property is unset`() {
     val e =
       assertThrows(IllegalStateException::class.java) {
-        resolveRunfile("_main/nonexistent/path.txt")
+        resolveRunfileProperty("fourward.definitely_unset_property")
       }
-    assertTrue("error should name the path", e.message!!.contains("nonexistent"))
+    assertTrue("error should name the missing property", e.message!!.contains("definitely_unset"))
   }
 }

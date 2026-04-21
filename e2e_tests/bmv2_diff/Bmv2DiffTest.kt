@@ -24,7 +24,7 @@ class Bmv2DiffTest(private val testName: String) {
     @JvmStatic
     @Parameterized.Parameters(name = "{0}")
     fun testCases(): List<Array<String>> {
-      val dir = fourward.bazel.resolveRunfile("_main/e2e_tests/bmv2_diff").toFile()
+      val dir = fourward.bazel.repoRoot.resolve("e2e_tests/bmv2_diff").toFile()
       return dir
         .listFiles { f -> f.extension == "stf" }
         ?.map { arrayOf(it.nameWithoutExtension) }
@@ -35,10 +35,10 @@ class Bmv2DiffTest(private val testName: String) {
   @Test
   fun test() {
     val pkg = "e2e_tests/bmv2_diff"
-    val stfPath = fourward.bazel.resolveRunfile("_main/$pkg/$testName.stf")
-    val jsonPath = fourward.bazel.resolveRunfile("_main/$pkg/$testName.json")
-    val configPath = fourward.bazel.resolveRunfile("_main/$pkg/$testName.txtpb")
-    val driverBinary = fourward.bazel.resolveRunfile("_main/$pkg/bmv2_driver")
+    val stfPath = fourward.bazel.repoRoot.resolve("$pkg/$testName.stf")
+    val jsonPath = fourward.bazel.repoRoot.resolve("$pkg/$testName.json")
+    val configPath = fourward.bazel.repoRoot.resolve("$pkg/$testName.txtpb")
+    val driverBinary = fourward.bazel.repoRoot.resolve("$pkg/bmv2_driver")
 
     val stf = StfFile.parse(stfPath)
     val config = loadPipelineConfig(configPath)

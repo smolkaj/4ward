@@ -89,6 +89,7 @@ kt_jvm_test(
     test_class = "fourward.cli.NetworkServeTest",
     deps = [
         ":cli",
+        "//bazel:runfiles",
         "//e2e_tests:golden_file",
         "//p4runtime",
         "//simulator",
@@ -115,6 +116,7 @@ kt_jvm_test(
     test_class = "fourward.cli.NetworkSimCliTest",
     deps = [
         ":cli",
+        "//bazel:runfiles",
         "//e2e_tests:golden_file",
         "@fourward_maven//:junit_junit",
     ],

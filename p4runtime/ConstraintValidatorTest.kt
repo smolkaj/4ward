@@ -89,7 +89,7 @@ class ConstraintValidatorTest {
   // =========================================================================
 
   private fun loadP4Info(configPath: String): p4.config.v1.P4InfoOuterClass.P4Info {
-    val path = fourward.bazel.resolveRunfile("_main/$configPath")
+    val path = fourward.bazel.repoRoot.resolve(configPath)
     val builder = PipelineConfig.newBuilder()
     com.google.protobuf.TextFormat.merge(path.toFile().readText(), builder)
     return builder.build().p4Info
@@ -161,6 +161,6 @@ class ConstraintValidatorTest {
 
   companion object {
     private val VALIDATOR_BINARY: Path =
-      fourward.bazel.resolveRunfile("_main/p4runtime/constraint_validator")
+      fourward.bazel.repoRoot.resolve("p4runtime/constraint_validator")
   }
 }

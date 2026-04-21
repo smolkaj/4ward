@@ -36,7 +36,7 @@ class CorpusStfTest(private val testName: String) {
     @JvmStatic
     @Parameterized.Parameters(name = "{0}")
     fun testCases(): List<Array<String>> {
-      val corpusDir = fourward.bazel.resolveRunfile("_main/e2e_tests/corpus")
+      val corpusDir = fourward.bazel.repoRoot.resolve("e2e_tests/corpus")
       return Files.list(corpusDir).use { stream ->
         stream
           .filter { it.toString().endsWith(".stf") }

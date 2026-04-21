@@ -4,9 +4,8 @@ import com.google.protobuf.TextFormat
 import com.google.protobuf.util.JsonFormat
 import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
-import fourward.bazel.requireP4IncludeProperty
-import fourward.bazel.resolveRunfile
-import fourward.bazel.resolveRunfileOrNull
+import fourward.bazel.repoRoot
+import fourward.bazel.resolveRunfileProperty
 import fourward.ir.PipelineConfig
 import fourward.simulator.Simulator
 import java.net.InetSocketAddress
@@ -304,8 +303,10 @@ class WebServer(
     }
 
     // 2. Bazel runfiles (works across OSS Bazel and google3/blaze).
-    resolveRunfileOrNull("_main/web/frontend/$relativePath")?.let { file ->
-      if (Files.isRegularFile(file)) return Files.readAllBytes(file)
+    val frontendDir = repoRoot.resolve("web/frontend")
+    val file = frontendDir.resolve(relativePath).normalize()
+    if (file.startsWith(frontendDir) && Files.isRegularFile(file)) {
+      return Files.readAllBytes(file)
     }
 
     // 3. Classpath.
@@ -323,7 +324,7 @@ class WebServer(
 
     val cmd = mutableListOf(p4c.toString())
 
-    resolveRunfile(requireP4IncludeProperty()).parent?.let { p4include ->
+    resolveRunfileProperty("fourward.p4include").parent?.let { p4include ->
       cmd += listOf("-I", p4include.toString())
     }
 
@@ -337,9 +338,7 @@ class WebServer(
   }
 
   private fun findP4c(): Path? {
-    resolveRunfileOrNull("_main/p4c_backend/p4c-4ward")?.let {
-      if (Files.isExecutable(it)) return it
-    }
+    repoRoot.resolve("p4c_backend/p4c-4ward").let { if (Files.isExecutable(it)) return it }
     val pathDirs = System.getenv("PATH")?.split(":") ?: emptyList()
     for (dir in pathDirs) {
       val candidate = Path.of(dir, "p4c-4ward")

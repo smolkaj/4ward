@@ -1,6 +1,6 @@
 package fourward.cli
 
-import fourward.e2e.runfilePath
+import fourward.bazel.repoRoot
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -9,35 +9,35 @@ class NetworkSimCliTest {
 
   @Test
   fun `two-switch network passes`() {
-    val nstfPath = runfilePath(PKG, "two_switch.nstf")
+    val nstfPath = repoRoot.resolve("$PKG/two_switch.nstf")
     val exitCode = networkSim(nstfPath, OutputFormat.HUMAN)
     assertEquals("expected PASS", ExitCode.SUCCESS, exitCode)
   }
 
   @Test
   fun `inline table entries work`() {
-    val nstfPath = runfilePath(PKG, "two_switch_inline.nstf")
+    val nstfPath = repoRoot.resolve("$PKG/two_switch_inline.nstf")
     val exitCode = networkSim(nstfPath, OutputFormat.HUMAN)
     assertEquals("expected PASS", ExitCode.SUCCESS, exitCode)
   }
 
   @Test
   fun `mixed external and inline entries work`() {
-    val nstfPath = runfilePath(PKG, "mixed_entries.nstf")
+    val nstfPath = repoRoot.resolve("$PKG/mixed_entries.nstf")
     val exitCode = networkSim(nstfPath, OutputFormat.HUMAN)
     assertEquals("expected PASS", ExitCode.SUCCESS, exitCode)
   }
 
   @Test
   fun `inline multicast PRE directives work`() {
-    val nstfPath = runfilePath(PKG, "inline_multicast.nstf")
+    val nstfPath = repoRoot.resolve("$PKG/inline_multicast.nstf")
     val exitCode = networkSim(nstfPath, OutputFormat.HUMAN)
     assertEquals("expected PASS", ExitCode.SUCCESS, exitCode)
   }
 
   @Test
   fun `wrong expectation fails`() {
-    val nstfPath = runfilePath(PKG, "two_switch_fail.nstf")
+    val nstfPath = repoRoot.resolve("$PKG/two_switch_fail.nstf")
     val exitCode = networkSim(nstfPath, OutputFormat.HUMAN)
     assertEquals("expected FAIL", ExitCode.TEST_FAILURE, exitCode)
   }

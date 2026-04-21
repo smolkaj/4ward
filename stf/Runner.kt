@@ -2,7 +2,6 @@ package fourward.stf
 
 import com.google.protobuf.ByteString
 import com.google.protobuf.TextFormat
-import fourward.bazel.resolveRunfile
 import fourward.ir.PipelineConfig
 import fourward.simulator.Simulator
 import fourward.simulator.WriteResult
@@ -204,7 +203,10 @@ sealed class TestResult {
  * tests).
  */
 fun runStfTest(testName: String, pkg: String = "e2e_tests/$testName"): TestResult =
-  runStf(resolveRunfile("_main/$pkg/$testName.txtpb"), resolveRunfile("_main/$pkg/$testName.stf"))
+  runStf(
+    fourward.bazel.repoRoot.resolve("$pkg/$testName.txtpb"),
+    fourward.bazel.repoRoot.resolve("$pkg/$testName.stf"),
+  )
 
 fun runStf(configPath: Path, stfPath: Path): TestResult = StfRunner(configPath).run(stfPath)
 

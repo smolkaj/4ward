@@ -63,7 +63,7 @@ class EnrichedTraceGoldenTest {
   }
 
   private fun loadGolden(): TraceTree {
-    val path = fourward.bazel.resolveRunfile("_main/$GOLDEN_PATH")
+    val path = fourward.bazel.repoRoot.resolve(GOLDEN_PATH)
     val builder = TraceTree.newBuilder()
     TextFormat.merge(path.toFile().readText(), builder)
     return builder.build()

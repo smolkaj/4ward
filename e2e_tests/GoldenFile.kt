@@ -1,7 +1,5 @@
 package fourward.e2e
 
-import fourward.bazel.resolveRunfile
-import java.nio.file.Path
 import java.nio.file.Paths
 import org.junit.Assert.fail
 
@@ -16,7 +14,7 @@ import org.junit.Assert.fail
  * instead of comparing.
  */
 fun assertMatchesGoldenFile(goldenFileName: String, pkg: String, actual: String) {
-  val goldenPath = runfilePath(pkg, goldenFileName)
+  val goldenPath = fourward.bazel.repoRoot.resolve("$pkg/$goldenFileName")
 
   if (isUpdateMode()) {
     val workspace =
@@ -42,6 +40,3 @@ fun assertMatchesGoldenFile(goldenFileName: String, pkg: String, actual: String)
 
 /** Returns true if `-- --update` was passed on the command line. */
 fun isUpdateMode(): Boolean = System.getProperty("sun.java.command")?.contains("--update") == true
-
-/** Resolves a file path relative to a Bazel package in runfiles. */
-fun runfilePath(pkg: String, fileName: String): Path = resolveRunfile("_main/$pkg/$fileName")

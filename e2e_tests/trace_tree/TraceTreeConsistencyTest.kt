@@ -31,7 +31,7 @@ class TraceTreeConsistencyTest(private val testName: String) {
     @JvmStatic
     @Parameters(name = "{0}")
     fun testCases(): List<Array<String>> {
-      val dir = fourward.bazel.resolveRunfile("_main/$PKG").toFile()
+      val dir = fourward.bazel.repoRoot.resolve(PKG).toFile()
       return dir
         .listFiles { f -> f.name.endsWith(".stf") }
         ?.map { arrayOf(it.name.removeSuffix(".stf")) }
@@ -41,8 +41,8 @@ class TraceTreeConsistencyTest(private val testName: String) {
 
   @Test
   fun `output packets match trace tree leaves`() {
-    val configPath = fourward.bazel.resolveRunfile("_main/$PKG/$testName.txtpb")
-    val stfPath = fourward.bazel.resolveRunfile("_main/$PKG/$testName.stf")
+    val configPath = fourward.bazel.repoRoot.resolve("$PKG/$testName.txtpb")
+    val stfPath = fourward.bazel.repoRoot.resolve("$PKG/$testName.stf")
 
     val config = loadPipelineConfig(configPath)
     val stf = StfFile.parse(stfPath)

@@ -1719,13 +1719,13 @@ class GoldenErrorTest(private val testName: String) {
       )
 
     private val VALIDATOR_BINARY: Path =
-      fourward.bazel.resolveRunfile("_main/p4runtime/constraint_validator")
+      fourward.bazel.repoRoot.resolve("p4runtime/constraint_validator")
 
     private const val MCAST_ACTION_ID = 99997
 
     private const val DCTR_ID = 800
 
     private fun goldenDir(): java.nio.file.Path =
-      fourward.bazel.resolveRunfile("_main/p4runtime/golden_errors")
+      fourward.bazel.repoRoot.resolve("p4runtime/golden_errors")
   }
 }
