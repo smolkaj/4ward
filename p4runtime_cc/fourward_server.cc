@@ -157,8 +157,12 @@ void KillAndReap(pid_t pid) {
 absl::StatusOr<FourwardServer> FourwardServer::Start(
     FourwardServerOptions options) {
   std::string runfiles_error;
-  std::unique_ptr<Runfiles> runfiles(
-      Runfiles::Create("", BAZEL_CURRENT_REPOSITORY, &runfiles_error));
+  // `FOURWARD_SERVER_RLOCATION` is a canonical path already, so we use the
+  // `Create(argv0, error)` overload rather than the one that takes
+  // `BAZEL_CURRENT_REPOSITORY` — the latter is only needed for resolving
+  // apparent names, and skipping it keeps the wrapper portable to
+  // environments that don't inject that macro (e.g. google3).
+  std::unique_ptr<Runfiles> runfiles(Runfiles::Create("", &runfiles_error));
   if (runfiles == nullptr) {
     return absl::InternalError(
         absl::StrCat("failed to resolve runfiles: ", runfiles_error));
