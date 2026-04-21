@@ -78,7 +78,11 @@ def _fourward_pipeline_impl(ctx):
         progress_message = "Compiling %{input} to 4ward pipeline",
     )
 
-    return [DefaultInfo(files = depset([ctx.outputs.out]))]
+    # Explicit `runfiles` is required by google3; matches @p4c//bazel:p4_library.bzl.
+    return [DefaultInfo(
+        files = depset([ctx.outputs.out]),
+        runfiles = ctx.runfiles(files = [ctx.outputs.out]),
+    )]
 
 fourward_pipeline = rule(
     implementation = _fourward_pipeline_impl,
