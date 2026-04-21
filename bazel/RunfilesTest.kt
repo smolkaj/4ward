@@ -24,7 +24,7 @@ class RunfilesTest {
     // External repos use canonical names that differ across environments.
     // Production code gets the path via $(rlocationpath ...) in BUILD jvm_flags.
     // This test verifies the same mechanism works.
-    val path = resolveRunfile(requireP4IncludeProperty())
+    val path = resolveRunfileProperty("fourward.p4include")
     assertTrue("resolved path should exist: $path", Files.isRegularFile(path))
   }
 

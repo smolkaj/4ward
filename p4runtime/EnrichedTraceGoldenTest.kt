@@ -63,7 +63,7 @@ class EnrichedTraceGoldenTest {
   }
 
   private fun loadGolden(): TraceTree {
-    val path = fourward.bazel.resolveRunfile("_main/$GOLDEN_PATH")
+    val path = fourward.bazel.resolveRunfileProperty("fourward.enriched_trace_golden")
     val builder = TraceTree.newBuilder()
     TextFormat.merge(path.toFile().readText(), builder)
     return builder.build()
@@ -103,9 +103,5 @@ class EnrichedTraceGoldenTest {
         .build()
 
     return P4RuntimeOuterClass.Entity.newBuilder().setTableEntry(entry).build()
-  }
-
-  companion object {
-    private const val GOLDEN_PATH = "p4runtime/enriched_trace.golden.txtpb"
   }
 }

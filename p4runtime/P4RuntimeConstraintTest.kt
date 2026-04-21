@@ -172,6 +172,6 @@ class P4RuntimeConstraintTest {
 
   companion object {
     private val VALIDATOR_BINARY: Path =
-      fourward.bazel.resolveRunfile("_main/p4runtime/constraint_validator")
+      fourward.bazel.resolveRunfileProperty("fourward.constraint_validator")
   }
 }

@@ -1,8 +1,7 @@
 package fourward.cli
 
-import fourward.bazel.requireP4IncludeProperty
-import fourward.bazel.resolveRunfile
-import fourward.bazel.resolveRunfileOrNull
+import fourward.bazel.resolveRunfileProperty
+import fourward.bazel.resolveRunfilePropertyOrNull
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -63,7 +62,7 @@ fun compileToTemp(p4Source: Path, includeDirs: List<Path>): Pair<Path?, Int> {
 /** Locates the p4c-4ward binary: runfiles → env → PATH. Returns null if not found. */
 private fun findP4c4ward(): Path? {
   // 1. Bazel runfiles: works when invoked via `bazel run //cli:4ward`.
-  resolveRunfileOrNull("_main/p4c_backend/p4c-4ward")?.let { if (Files.isExecutable(it)) return it }
+  resolveRunfilePropertyOrNull("fourward.p4c_4ward")?.let { if (Files.isExecutable(it)) return it }
 
   // 2. Explicit env var.
   val envPath = System.getenv("P4C_4WARD_PATH")
@@ -90,7 +89,7 @@ private fun findP4c4ward(): Path? {
 private fun resolveIncludeDirs(userDirs: List<Path>): List<Path> {
   val dirs = mutableListOf<Path>()
 
-  resolveRunfile(requireP4IncludeProperty()).parent?.let { dirs.add(it) }
+  resolveRunfileProperty("fourward.p4include").parent?.let { dirs.add(it) }
 
   dirs.addAll(userDirs)
   return dirs

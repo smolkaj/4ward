@@ -304,7 +304,7 @@ class SaiP4ConstraintTest {
   companion object {
     private const val MAC_LEN = 6
     private val VALIDATOR_BINARY: Path =
-      fourward.bazel.resolveRunfile("_main/p4runtime/constraint_validator")
+      fourward.bazel.resolveRunfileProperty("fourward.constraint_validator")
 
     // Shared across all tests — pipeline load + constraint validator subprocess is expensive.
     private lateinit var harness: P4RuntimeTestHarness

@@ -232,6 +232,10 @@ kt_jvm_test(
         "//e2e_tests/trace_tree:clone_with_egress",
         "//e2e_tests/translated_type",
     ] + glob(["golden_errors/*.golden.txt"]),
+    jvm_flags = [
+        "-Dfourward.constraint_validator=$(rlocationpath :constraint_validator)",
+        "-Dfourward.golden_errors_anchor=$(rlocationpath :golden_errors/action-not-valid-for-profile.golden.txt)",
+    ],
     test_class = "fourward.p4runtime.GoldenErrorTest",
     deps = [
         ":dataplane_java_proto",
@@ -347,6 +351,9 @@ kt_jvm_test(
         "//e2e_tests/basic_table",
         "//e2e_tests/constrained_table",
     ],
+    jvm_flags = [
+        "-Dfourward.constraint_validator=$(rlocationpath :constraint_validator)",
+    ],
     test_class = "fourward.p4runtime.ConstraintValidatorTest",
     deps = [
         ":p4runtime",
@@ -435,6 +442,9 @@ kt_jvm_test(
         "//e2e_tests/basic_table",
         "//e2e_tests/constrained_table",
     ],
+    jvm_flags = [
+        "-Dfourward.constraint_validator=$(rlocationpath :constraint_validator)",
+    ],
     test_class = "fourward.p4runtime.P4RuntimeConstraintTest",
     deps = [
         ":dataplane_java_proto",
@@ -466,6 +476,9 @@ kt_jvm_test(
     data = [
         "enriched_trace.golden.txtpb",
         "//e2e_tests/translated_port",
+    ],
+    jvm_flags = [
+        "-Dfourward.enriched_trace_golden=$(rlocationpath :enriched_trace.golden.txtpb)",
     ],
     test_class = "fourward.p4runtime.EnrichedTraceGoldenTest",
     deps = [
@@ -655,6 +668,9 @@ kt_jvm_test(
     data = [
         ":constraint_validator",
         "//e2e_tests/sai_p4:sai_middleblock",
+    ],
+    jvm_flags = [
+        "-Dfourward.constraint_validator=$(rlocationpath :constraint_validator)",
     ],
     test_class = "fourward.p4runtime.SaiP4ConstraintTest",
     deps = [
