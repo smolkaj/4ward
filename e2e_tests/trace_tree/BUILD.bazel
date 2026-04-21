@@ -50,8 +50,6 @@ _P4_PROGRAMS = _GOLDEN + _STF_ONLY
 
 _PASSING = _GOLDEN
 
-_MANUAL = []
-
 [fourward_pipeline(
     name = name,
     src = "%s.p4" % name,
@@ -117,18 +115,4 @@ kt_jvm_test(
     ],
     test_class = "fourward.e2e.tracetree.TraceTreeConsistencyTest",
     deps = _TEST_DEPS + ["//simulator:p4info_java_proto"],
-)
-
-kt_jvm_test(
-    name = "golden_trace_tree_test_manual",
-    srcs = ["GoldenTraceTreeTest.kt"],
-    data = ["%s.stf" % n for n in _MANUAL] +
-           ["%s.golden.txtpb" % n for n in _MANUAL] +
-           [":%s" % n for n in _MANUAL],
-    jvm_flags = [
-        "-Dfourward.trace_tree_goldens=" + ",".join(sorted(_MANUAL)),
-    ],
-    tags = ["manual"],
-    test_class = "fourward.e2e.tracetree.GoldenTraceTreeTest",
-    deps = _TEST_DEPS,
 )
