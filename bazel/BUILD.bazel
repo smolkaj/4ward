@@ -9,9 +9,26 @@ package(
     licenses = ["notice"],
 )
 
+# Bakes the anchor's rlocationpath into a Kotlin const so consumers don't
+# need to inject a jvm_flag to discover it at runtime.
+genrule(
+    name = "runfiles_root",
+    srcs = ["//:LICENSE"],
+    outs = ["RunfilesRoot.kt"],
+    cmd = """cat > $@ <<'EOF'
+package fourward.bazel
+
+internal const val REPO_ROOT_RLOCATIONPATH = "$(rlocationpath //:LICENSE)"
+EOF""",
+)
+
 kt_jvm_library(
     name = "runfiles",
-    srcs = ["Runfiles.kt"],
+    srcs = [
+        "Runfiles.kt",
+        ":runfiles_root",
+    ],
+    data = ["//:LICENSE"],
     visibility = ["//visibility:public"],
     deps = ["@rules_java//java/runfiles"],
 )

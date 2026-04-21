@@ -1,42 +1,40 @@
 package fourward.bazel
 
 import com.google.devtools.build.runfiles.Runfiles
-import java.nio.file.Files
 import java.nio.file.Path
 
-// unmapped(): no repo-mapping translation — paths are looked up as-is in the
-// runfiles directory or manifest. Works in both OSS Bazel (where main-repo
-// paths start with `_main/`) and google3 (where copybara rewrites `_main` to
-// the google3 prefix). External-repo paths must use canonical names or be
-// injected by the BUILD rule via $(rlocationpath ...).
 private val runfiles: Runfiles = Runfiles.preload().unmapped()
 
 /**
- * Resolves a runfiles path to an absolute [Path].
+ * Runfile root of the main repository. Its prefix varies per build environment — `_main` under OSS
+ * root builds, `fourward+` under BCR consumers, `third_party/fourward` under google3 — so
+ * hardcoding any literal prefix is a portability bug. Compose with `.resolve("path/to/file")` to
+ * locate specific runfiles.
  *
- * [path] must start with a repo directory prefix. Bare paths will not resolve.
- * - Main repo: `"_main/web/frontend/index.html"`
- * - External repo: inject via `$(rlocationpath ...)` in BUILD
- *
- * @throws IllegalStateException if the path cannot be resolved.
+ * Example:
+ * ```
+ * val config = repoRoot.resolve("e2e_tests/basic_table/basic_table.txtpb")
+ * ```
  */
-fun resolveRunfile(path: String): Path =
-  resolveRunfileOrNull(path)
-    ?: error("Cannot resolve runfile '$path'. Are you running inside 'bazel run' or 'bazel test'?")
-
-/** Like [resolveRunfile] but returns null if the file does not exist in the runfiles tree. */
-fun resolveRunfileOrNull(path: String): Path? {
-  val resolved = runfiles.rlocation(path) ?: return null
-  val p = Path.of(resolved)
-  return if (Files.exists(p)) p else null
-}
+val repoRoot: Path = resolveRlocation(REPO_ROOT_RLOCATIONPATH, "runfiles anchor").parent
 
 /**
- * Returns the `fourward.p4include` system property, which the BUILD rule must set via `jvm_flags =
- * ["-Dfourward.p4include=$(rlocationpath @p4c//p4include:core.p4)"]`.
+ * Resolves a runfile path supplied by BUILD via `jvm_flags = ["-D<key>=$(rlocationpath <label>)"]`.
+ * Use this for files in **external** repositories (e.g. `@p4c//p4include:core.p4`) whose canonical
+ * name varies per environment. For files in the main repo, use [repoRoot] + `.resolve(...)`.
  */
-fun requireP4IncludeProperty(): String =
-  checkNotNull(System.getProperty("fourward.p4include")) {
-    "fourward.p4include system property not set. " +
-      "The kt_jvm_binary must pass -Dfourward.p4include=\$(rlocationpath @p4c//p4include:core.p4)"
-  }
+fun resolveRunfileProperty(key: String): Path {
+  val rlocation =
+    checkNotNull(System.getProperty(key)) {
+      "$key system property not set. Expected BUILD to pass " +
+        "-D$key=\$(rlocationpath <label>) in jvm_flags."
+    }
+  return resolveRlocation(rlocation, "$key ($rlocation)")
+}
+
+private fun resolveRlocation(rlocation: String, what: String): Path =
+  Path.of(
+    checkNotNull(runfiles.rlocation(rlocation)) {
+      "$what not found in runfiles tree. Are you running inside 'bazel run' or 'bazel test'?"
+    }
+  )

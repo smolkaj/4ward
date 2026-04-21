@@ -1,8 +1,8 @@
 package fourward.e2e.tracetree
 
 import com.google.protobuf.TextFormat
+import fourward.bazel.repoRoot
 import fourward.e2e.assertMatchesGoldenFile
-import fourward.e2e.runfilePath
 import fourward.sim.TraceTree
 import fourward.simulator.Simulator
 import fourward.stf.StfFile
@@ -34,7 +34,7 @@ class GoldenTraceTreeTest(private val testName: String) {
     @JvmStatic
     @Parameters(name = "{0}")
     fun testCases(): List<Array<String>> {
-      val dir = runfilePath(PKG, "").toFile()
+      val dir = repoRoot.resolve(PKG).toFile()
       return dir
         .listFiles { f -> f.name.endsWith(".golden.txtpb") }
         ?.map { arrayOf(it.name.removeSuffix(".golden.txtpb")) }
@@ -44,8 +44,8 @@ class GoldenTraceTreeTest(private val testName: String) {
 
   @Test
   fun `trace tree matches golden file`() {
-    val configPath = runfilePath(PKG, "$testName.txtpb")
-    val stfPath = runfilePath(PKG, "$testName.stf")
+    val configPath = repoRoot.resolve("$PKG/$testName.txtpb")
+    val stfPath = repoRoot.resolve("$PKG/$testName.stf")
     val actual = captureTraceTree(configPath, stfPath)
 
     assertMatchesGoldenFile(

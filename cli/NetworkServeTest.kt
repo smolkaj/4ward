@@ -1,6 +1,6 @@
 package fourward.cli
 
-import fourward.e2e.runfilePath
+import fourward.bazel.repoRoot
 import fourward.stf.decodeHex
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
@@ -12,7 +12,7 @@ class NetworkServeTest {
 
   @Test
   fun `starts one server per switch`() {
-    val nstf = NetworkStf.parse(runfilePath(PKG, "two_switch_inline.nstf"))
+    val nstf = NetworkStf.parse(repoRoot.resolve("$PKG/two_switch_inline.nstf"))
     val servers = startNetworkServers(nstf, EPHEMERAL_PORT)
     try {
       assertEquals(2, servers.size)
@@ -24,7 +24,7 @@ class NetworkServeTest {
 
   @Test
   fun `servers are pre-loaded with pipelines`() {
-    val nstf = NetworkStf.parse(runfilePath(PKG, "two_switch_inline.nstf"))
+    val nstf = NetworkStf.parse(repoRoot.resolve("$PKG/two_switch_inline.nstf"))
     val servers = startNetworkServers(nstf, EPHEMERAL_PORT)
     try {
       val s1Result = servers[0].simulator.processPacket(0, PAYLOAD.decodeHex())
@@ -43,7 +43,7 @@ class NetworkServeTest {
 
   @Test
   fun `port collision on second switch cleans up first`() {
-    val nstf = NetworkStf.parse(runfilePath(PKG, "two_switch_inline.nstf"))
+    val nstf = NetworkStf.parse(repoRoot.resolve("$PKG/two_switch_inline.nstf"))
     // Start a server on a known port, then try to start both switches on that same port.
     val blocker = fourward.p4runtime.P4RuntimeServer(port = EPHEMERAL_PORT).start()
     val blockedPort = blocker.port()

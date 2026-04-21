@@ -1,7 +1,7 @@
 package fourward.e2e.network
 
 import com.google.protobuf.ByteString
-import fourward.e2e.runfilePath
+import fourward.bazel.repoRoot
 import fourward.ir.PipelineConfig
 import fourward.simulator.Endpoint
 import fourward.simulator.Link
@@ -31,10 +31,10 @@ import org.junit.Test
 class NetworkSimulatorTest {
 
   private val basicTableConfig by lazy {
-    loadPipelineConfig(runfilePath(CONFIG_PKG, "basic_table.txtpb"))
+    loadPipelineConfig(repoRoot.resolve("$CONFIG_PKG/basic_table.txtpb"))
   }
   private val multicastConfig by lazy {
-    loadPipelineConfig(runfilePath(MULTICAST_PKG, "multicast.txtpb"))
+    loadPipelineConfig(repoRoot.resolve("$MULTICAST_PKG/multicast.txtpb"))
   }
 
   private fun loadSwitch(
@@ -45,7 +45,7 @@ class NetworkSimulatorTest {
   ) {
     val sim = network.addSwitch(id)
     sim.loadPipeline(cfg)
-    val stf = StfFile.parse(runfilePath(TEST_PKG, stfFile))
+    val stf = StfFile.parse(repoRoot.resolve("$TEST_PKG/$stfFile"))
     installStfEntries(sim, stf, cfg.p4Info)
   }
 
