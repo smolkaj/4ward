@@ -23,13 +23,13 @@ class Bmv2DiffTest(private val testName: String) {
   companion object {
     @JvmStatic
     @Parameterized.Parameters(name = "{0}")
-    fun testCases(): List<Array<String>> {
-      val dir = fourward.bazel.repoRoot.resolve("e2e_tests/bmv2_diff").toFile()
-      return dir
-        .listFiles { f -> f.extension == "stf" }
-        ?.map { arrayOf(it.nameWithoutExtension) }
-        ?.sortedBy { it[0] } ?: emptyList()
-    }
+    fun testCases(): List<Array<String>> =
+      System.getProperty("fourward.bmv2_diff_testcases")
+        .orEmpty()
+        .split(",")
+        .filter { it.isNotEmpty() }
+        .sorted()
+        .map { arrayOf(it) }
   }
 
   @Test

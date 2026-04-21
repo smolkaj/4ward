@@ -58,6 +58,10 @@ def bmv2_diff_test_suite(name, tests, local_tests = {}, tags = [], includes = []
         test_class = "fourward.e2e.bmv2.Bmv2DiffTest",
         tags = tags,
         data = data,
+        jvm_flags = [
+            "-Dfourward.bmv2_diff_testcases=" +
+            ",".join(sorted(tests + list(local_tests.keys()))),
+        ],
         deps = [
             "//bazel:runfiles",
             "//simulator:ir_java_proto",

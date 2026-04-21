@@ -68,6 +68,9 @@ def corpus_test_suite(name, tests, tags = [], includes = [], stf_overrides = {})
         test_class = "fourward.e2e.corpus.CorpusStfTest",
         tags = tags,
         data = data,
+        jvm_flags = [
+            "-Dfourward.corpus_testcases=" + ",".join(sorted(tests)),
+        ],
         deps = [
             "//bazel:runfiles",
             "//stf",

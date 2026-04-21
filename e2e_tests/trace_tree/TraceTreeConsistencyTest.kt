@@ -30,13 +30,13 @@ class TraceTreeConsistencyTest(private val testName: String) {
 
     @JvmStatic
     @Parameters(name = "{0}")
-    fun testCases(): List<Array<String>> {
-      val dir = fourward.bazel.repoRoot.resolve(PKG).toFile()
-      return dir
-        .listFiles { f -> f.name.endsWith(".stf") }
-        ?.map { arrayOf(it.name.removeSuffix(".stf")) }
-        ?.sortedBy { it[0] } ?: emptyList()
-    }
+    fun testCases(): List<Array<String>> =
+      System.getProperty("fourward.trace_tree_programs")
+        .orEmpty()
+        .split(",")
+        .filter { it.isNotEmpty() }
+        .sorted()
+        .map { arrayOf(it) }
   }
 
   @Test
