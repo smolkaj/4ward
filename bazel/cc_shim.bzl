@@ -1,25 +1,21 @@
-"""Emits an executable shim named `cc` that forwards to the CC toolchain compiler.
+"""Emits an executable shim named `cc` forwarding to the CC toolchain compiler.
 
-p4c shells out to `cc` by name for preprocessing. Hermetic test sandboxes
-(blaze/google3, some OSS CI setups) have no system `cc` on PATH, so any
-runtime that invokes p4c via plain `ProcessBuilder` / `exec` has to provide
-`cc` itself. Prepend the shim's parent directory to PATH before spawning
-p4c and the preprocessing step works.
-
-For Starlark actions, prefer the `export -f cc` trick used in
-`fourward_pipeline.bzl` — it doesn't require a separate file.
+For sandboxed environments without a system `cc` on PATH: consumers prepend
+the shim's parent dir to their subprocess's PATH, and p4c (or any tool that
+shells out to `cc`) finds one. For Starlark actions, prefer `export -f cc`
+inside `run_shell` — no separate file needed.
 """
 
-load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain", "use_cc_toolchain")
+load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 
 def _cc_shim_impl(ctx):
-    cc_toolchain = find_cc_toolchain(ctx)
+    # cfg = "exec" on the attr gives a compiler runnable on the test machine,
+    # not on the (possibly cross-compile) target platform.
+    cc_toolchain = ctx.attr._cc_toolchain[cc_common.CcToolchainInfo]
     cc = cc_toolchain.compiler_executable
 
-    # The shim file must be named literally `cc` so PATH lookup finds it.
-    # `declare_file("cc")` would collide with the target name, so nest it
-    # in a per-target subdirectory; the caller takes `.parent` to get the
-    # dir to prepend to PATH.
+    # Subdir so the output basename can be literally `cc` without colliding
+    # with the target name; callers take `.parent` to get a dir for PATH.
     shim = ctx.actions.declare_file(ctx.label.name + "/cc")
     ctx.actions.write(
         output = shim,
@@ -27,10 +23,8 @@ def _cc_shim_impl(ctx):
         is_executable = True,
     )
 
-    # `cc_toolchain.all_files` includes the compiler binary and anything it
-    # transitively needs at runtime (e.g. macOS's cc_wrapper.sh). Without
-    # it, the shim resolves to a runfile path the test sandbox hasn't
-    # staged.
+    # `all_files` covers wrapper scripts (e.g. macOS cc_wrapper.sh) that
+    # `compiler_executable` references but doesn't itself carry.
     return [DefaultInfo(
         files = depset([shim]),
         runfiles = ctx.runfiles(
@@ -41,6 +35,11 @@ def _cc_shim_impl(ctx):
 
 cc_shim = rule(
     implementation = _cc_shim_impl,
-    toolchains = use_cc_toolchain(),
-    doc = "Produces a `cc` executable shim forwarding to the CC toolchain compiler.",
+    attrs = {
+        "_cc_toolchain": attr.label(
+            default = "@bazel_tools//tools/cpp:current_cc_toolchain",
+            cfg = "exec",
+            providers = [cc_common.CcToolchainInfo],
+        ),
+    },
 )
