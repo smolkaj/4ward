@@ -32,11 +32,19 @@ fun resolveRunfileOrNull(path: String): Path? {
 }
 
 /**
- * Returns the `fourward.p4include` system property, which the BUILD rule must set via `jvm_flags =
+ * Returns the `fourward.p4include` system property. BUILD must set it via `jvm_flags =
  * ["-Dfourward.p4include=$(rlocationpath @p4c//p4include:core.p4)"]`.
  */
-fun requireP4IncludeProperty(): String =
-  checkNotNull(System.getProperty("fourward.p4include")) {
-    "fourward.p4include system property not set. " +
-      "The kt_jvm_binary must pass -Dfourward.p4include=\$(rlocationpath @p4c//p4include:core.p4)"
+fun requireP4IncludeProperty(): String = requireRunfileProperty("fourward.p4include")
+
+/**
+ * Returns the value of a system property that the BUILD rule sets via `jvm_flags =
+ * ["-D<key>=$(rlocationpath <label>)"]`. This is how runfile paths are passed from BUILD to Kotlin
+ * without hardcoding a repo prefix — works uniformly under OSS Bazel (`_main/...`), BCR consumers
+ * (`fourward+/...`), and google3 (`third_party/fourward/...`).
+ */
+fun requireRunfileProperty(key: String): String =
+  checkNotNull(System.getProperty(key)) {
+    "$key system property not set. Expected BUILD to pass " +
+      "-D$key=\$(rlocationpath <label>) in jvm_flags."
   }
