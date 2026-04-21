@@ -33,13 +33,13 @@ class GoldenTraceTreeTest(private val testName: String) {
 
     @JvmStatic
     @Parameters(name = "{0}")
-    fun testCases(): List<Array<String>> {
-      val dir = repoRoot.resolve(PKG).toFile()
-      return dir
-        .listFiles { f -> f.name.endsWith(".golden.txtpb") }
-        ?.map { arrayOf(it.name.removeSuffix(".golden.txtpb")) }
-        ?.sortedBy { it[0] } ?: emptyList()
-    }
+    fun testCases(): List<Array<String>> =
+      System.getProperty("fourward.trace_tree_goldens")
+        .orEmpty()
+        .split(",")
+        .filter { it.isNotEmpty() }
+        .sorted()
+        .map { arrayOf(it) }
   }
 
   @Test

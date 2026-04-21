@@ -16,7 +16,6 @@ package fourward.e2e.corpus
 
 import fourward.stf.TestResult
 import fourward.stf.runStfTest
-import java.nio.file.Files
 import org.junit.Assert.fail
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -25,9 +24,9 @@ import org.junit.runners.Parameterized
 /**
  * Parameterized test that runs all p4c corpus STF tests in a single JVM.
  *
- * Test names are discovered at runtime from the .stf files present in the runfiles directory. Each
- * test launches a fresh simulator subprocess (the simulator resets state on each LoadPipeline), so
- * tests remain isolated despite sharing a JVM.
+ * Test names are enumerated at BUILD time (via the `corpus_test_suite` macro) and passed via
+ * `-Dfourward.corpus_testcases=...`. Runtime file-listing is avoided because hermetic sandboxes
+ * (google3, remote executors) serve runfiles via manifest, not as a real directory tree.
  */
 @RunWith(Parameterized::class)
 class CorpusStfTest(private val testName: String) {
@@ -35,16 +34,13 @@ class CorpusStfTest(private val testName: String) {
   companion object {
     @JvmStatic
     @Parameterized.Parameters(name = "{0}")
-    fun testCases(): List<Array<String>> {
-      val corpusDir = fourward.bazel.repoRoot.resolve("e2e_tests/corpus")
-      return Files.list(corpusDir).use { stream ->
-        stream
-          .filter { it.toString().endsWith(".stf") }
-          .map { arrayOf(it.fileName.toString().removeSuffix(".stf")) }
-          .sorted(Comparator.comparing { it[0] })
-          .toList()
-      }
-    }
+    fun testCases(): List<Array<String>> =
+      System.getProperty("fourward.corpus_testcases")
+        .orEmpty()
+        .split(",")
+        .filter { it.isNotEmpty() }
+        .sorted()
+        .map { arrayOf(it) }
   }
 
   @Test
