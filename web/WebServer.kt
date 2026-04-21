@@ -8,6 +8,7 @@ import fourward.bazel.repoRoot
 import fourward.bazel.resolveRunfileProperty
 import fourward.ir.PipelineConfig
 import fourward.simulator.Simulator
+import java.io.File
 import java.net.InetSocketAddress
 import java.nio.file.Files
 import java.nio.file.Path
@@ -331,7 +332,18 @@ class WebServer(
     cmd += listOf("-o", outputPath.toString())
     cmd += source.toString()
 
-    val process = ProcessBuilder(cmd).redirectErrorStream(true).start()
+    val pb = ProcessBuilder(cmd).redirectErrorStream(true)
+    // p4c shells out to `cc` for preprocessing. Hermetic sandboxes
+    // (blaze/google3) don't have `cc` on PATH, so fall back to a
+    // BUILD-provided shim that execs the CC toolchain compiler. Where
+    // system `cc` exists (Linux CI, macOS CLT), prefer it — the shim's
+    // transitive runfiles are toolchain-specific and can be finicky.
+    if (!hasSystemCc()) {
+      val shimDir = resolveRunfileProperty("fourward.cc_shim").parent
+      val env = pb.environment()
+      env["PATH"] = "$shimDir${File.pathSeparator}${env["PATH"] ?: ""}"
+    }
+    val process = pb.start()
     val processOutput = process.inputStream.bufferedReader().readText()
     val exitCode = process.waitFor()
     return CompileResult(exitCode, processOutput)
@@ -346,6 +358,11 @@ class WebServer(
     }
     return null
   }
+
+  private fun hasSystemCc(): Boolean =
+    System.getenv("PATH")?.split(":").orEmpty().any { dir ->
+      Files.isExecutable(Path.of(dir, "cc"))
+    }
 
   // ---------------------------------------------------------------------------
   // Helpers

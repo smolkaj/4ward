@@ -1,9 +1,12 @@
 load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_binary", "kt_jvm_library", "kt_jvm_test")
+load("//bazel:cc_shim.bzl", "cc_shim")
 
 package(
     default_applicable_licenses = ["//:license"],
     licenses = ["notice"],
 )
+
+cc_shim(name = "cc_shim")
 
 kt_jvm_library(
     name = "web",
@@ -49,12 +52,14 @@ kt_jvm_library(
 kt_jvm_binary(
     name = "playground",
     data = [
+        ":cc_shim",
         "//p4c_backend:p4c-4ward",
         "@p4c//p4include",
         "@p4c//p4include:core.p4",
     ] + glob(["frontend/**"]),
     jvm_flags = [
         "-Dfourward.p4include=$(rlocationpath @p4c//p4include:core.p4)",
+        "-Dfourward.cc_shim=$(rlocationpath :cc_shim)",
     ],
     main_class = "fourward.web.PlaygroundServerKt",
     visibility = ["//visibility:public"],
@@ -65,12 +70,14 @@ kt_jvm_test(
     name = "WebServerTest",
     srcs = ["WebServerTest.kt"],
     data = [
+        ":cc_shim",
         "//p4c_backend:p4c-4ward",
         "@p4c//p4include",
         "@p4c//p4include:core.p4",
     ] + glob(["frontend/**"]),
     jvm_flags = [
         "-Dfourward.p4include=$(rlocationpath @p4c//p4include:core.p4)",
+        "-Dfourward.cc_shim=$(rlocationpath :cc_shim)",
     ],
     test_class = "fourward.web.WebServerTest",
     deps = [
