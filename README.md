@@ -56,8 +56,8 @@ enough for production test workloads.
 | Architecture customization | no | [**first-class support**](docs/ROADMAP.md#track-5-architecture-customization) |
 | Interactive playground | no | [**browser-based IDE**](#web-playground) with trace playback & packet decoding |
 | Error messages | opaque | [**actionable, with valid options**](docs/ROADMAP.md#track-11-error-quality) — [75 golden-tested](p4runtime/golden_errors/) |
-| Throughput (16-way selector) | [~4,500 pps ÷ 16 paths](docs/PERFORMANCE.md#bmv2-comparison) | [**~1,400 pps, all 16 paths**](docs/PERFORMANCE.md) ([head-to-head on SAI P4](docs/PERFORMANCE.md#bmv2-comparison)) |
-| Parallelism (16-way selector) | single-threaded | [**10,000 pps on 16 cores**](docs/PERFORMANCE.md) — parallel across packets and forks |
+| Throughput (16-way selector) | [~4,500 pps ÷ 16 paths](docs/PERFORMANCE.md#bmv2-comparison) | [**~1,900 pps, all 16 paths**](docs/PERFORMANCE.md) ([head-to-head on SAI P4](docs/PERFORMANCE.md#bmv2-comparison)) |
+| Parallelism (16-way selector) | single-threaded | [**12,000 pps on 16 cores**](docs/PERFORMANCE.md) — parallel across packets and forks |
 | Extensibility | limited | [**AI-friendly codebase**](docs/ROADMAP.md#why-4ward-is-easier-to-extend) — if AI can extend it, anyone can |
 | CI | slow | **[~2 min](https://4ward.buildbuddy.io/trends/)**, rigorous |
 | Development pace | slow | **[AI-fast](docs/AI_WORKFLOW.md)** |

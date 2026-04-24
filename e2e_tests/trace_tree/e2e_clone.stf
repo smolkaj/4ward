@@ -1,0 +1,3 @@
+# E2E clone: egress clones the packet to port 5 via session 100.
+mirroring_add 100 5
+packet 0 FFFFFFFFFFFF 000000000001 0800

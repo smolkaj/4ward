@@ -16,8 +16,8 @@ events {
     to_state: "accept"
   }
   source_info {
-    file: "e2e_tests/trace_tree/clone_with_egress.p4"
-    line: 24
+    file: "e2e_tests/trace_tree/e2e_clone.p4"
+    line: 23
     column: 10
     source_fragment: "start"
   }
@@ -51,19 +51,98 @@ events {
   }
 }
 events {
-  clone {
-    session_id: 100
-  }
-  source_info {
-    file: "e2e_tests/trace_tree/clone_with_egress.p4"
-    line: 37
-    column: 8
-    source_fragment: "clone3(CloneType.I2E, 32w100, {})"
+  pipeline_stage {
+    stage_name: "ingress"
+    stage_kind: CONTROL
+    direction: EXIT
   }
 }
 events {
   pipeline_stage {
-    stage_name: "ingress"
+    stage_name: "egress"
+    stage_kind: CONTROL
+    direction: ENTER
+  }
+}
+events {
+  branch {
+    control_name: "MyEgress"
+    taken: true
+  }
+  source_info {
+    file: "e2e_tests/trace_tree/e2e_clone.p4"
+    line: 53
+    column: 12
+    source_fragment: "smeta.instance_type == 0"
+  }
+}
+events {
+  clone {
+    session_id: 100
+  }
+  source_info {
+    file: "e2e_tests/trace_tree/e2e_clone.p4"
+    line: 54
+    column: 12
+    source_fragment: "clone3(CloneType.E2E, 32w100, {})"
+  }
+}
+events {
+  table_lookup {
+    table_name: "egress_classify"
+    hit: true
+    matched_entry {
+      table_id: 43808281
+      match {
+        field_id: 1
+        exact {
+          value: "\000\000\000\000"
+        }
+      }
+      action {
+        action {
+          action_id: 23337001
+        }
+      }
+      is_const: true
+    }
+    action_name: "tag_original"
+  }
+  source_info {
+    file: "e2e_tests/trace_tree/e2e_clone.p4"
+    line: 56
+    column: 8
+    source_fragment: "egress_classify.apply()"
+  }
+}
+events {
+  action_execution {
+    action_name: "tag_original"
+  }
+  source_info {
+    file: "e2e_tests/trace_tree/e2e_clone.p4"
+    line: 56
+    column: 8
+    source_fragment: "egress_classify.apply()"
+  }
+}
+events {
+  pipeline_stage {
+    stage_name: "egress"
+    stage_kind: CONTROL
+    direction: EXIT
+  }
+}
+events {
+  pipeline_stage {
+    stage_name: "compute_checksum"
+    stage_kind: CONTROL
+    direction: ENTER
+  }
+}
+events {
+  pipeline_stage {
+    stage_name: "compute_checksum"
     stage_kind: CONTROL
     direction: EXIT
   }
@@ -72,7 +151,7 @@ events {
   clone_session_lookup {
     session_id: 100
     session_found: true
-    dataplane_egress_port: 3
+    dataplane_egress_port: 5
   }
 }
 fork_outcome {
@@ -80,73 +159,6 @@ fork_outcome {
   branches {
     label: "original"
     subtree {
-      events {
-        pipeline_stage {
-          stage_name: "egress"
-          stage_kind: CONTROL
-          direction: ENTER
-        }
-      }
-      events {
-        table_lookup {
-          table_name: "egress_classify"
-          hit: true
-          matched_entry {
-            table_id: 43808281
-            match {
-              field_id: 1
-              exact {
-                value: "\000\000\000\000"
-              }
-            }
-            action {
-              action {
-                action_id: 23337001
-              }
-            }
-            is_const: true
-          }
-          action_name: "tag_original"
-        }
-        source_info {
-          file: "e2e_tests/trace_tree/clone_with_egress.p4"
-          line: 55
-          column: 12
-          source_fragment: "egress_classify.apply()"
-        }
-      }
-      events {
-        action_execution {
-          action_name: "tag_original"
-        }
-        source_info {
-          file: "e2e_tests/trace_tree/clone_with_egress.p4"
-          line: 55
-          column: 12
-          source_fragment: "egress_classify.apply()"
-        }
-      }
-      events {
-        pipeline_stage {
-          stage_name: "egress"
-          stage_kind: CONTROL
-          direction: EXIT
-        }
-      }
-      events {
-        pipeline_stage {
-          stage_name: "compute_checksum"
-          stage_kind: CONTROL
-          direction: ENTER
-        }
-      }
-      events {
-        pipeline_stage {
-          stage_name: "compute_checksum"
-          stage_kind: CONTROL
-          direction: EXIT
-        }
-      }
       events {
         pipeline_stage {
           stage_name: "deparser"
@@ -186,6 +198,18 @@ fork_outcome {
         }
       }
       events {
+        branch {
+          control_name: "MyEgress"
+          taken: false
+        }
+        source_info {
+          file: "e2e_tests/trace_tree/e2e_clone.p4"
+          line: 53
+          column: 12
+          source_fragment: "smeta.instance_type == 0"
+        }
+      }
+      events {
         table_lookup {
           table_name: "egress_classify"
           hit: true
@@ -194,7 +218,7 @@ fork_outcome {
             match {
               field_id: 1
               exact {
-                value: "\000\000\000\001"
+                value: "\000\000\000\002"
               }
             }
             action {
@@ -207,9 +231,9 @@ fork_outcome {
           action_name: "tag_clone"
         }
         source_info {
-          file: "e2e_tests/trace_tree/clone_with_egress.p4"
-          line: 55
-          column: 12
+          file: "e2e_tests/trace_tree/e2e_clone.p4"
+          line: 56
+          column: 8
           source_fragment: "egress_classify.apply()"
         }
       }
@@ -218,9 +242,9 @@ fork_outcome {
           action_name: "tag_clone"
         }
         source_info {
-          file: "e2e_tests/trace_tree/clone_with_egress.p4"
-          line: 55
-          column: 12
+          file: "e2e_tests/trace_tree/e2e_clone.p4"
+          line: 56
+          column: 8
           source_fragment: "egress_classify.apply()"
         }
       }
@@ -267,8 +291,8 @@ fork_outcome {
       }
       packet_outcome {
         output {
-          dataplane_egress_port: 3
-          payload: "\377\377\377\377\377\377\273\273\273\273\273\273\b\000"
+          dataplane_egress_port: 5
+          payload: "\252\252\252\252\252\252\273\273\273\273\273\273\b\000"
         }
       }
     }

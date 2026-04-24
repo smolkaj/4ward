@@ -81,6 +81,13 @@ fork_outcome {
     label: "original"
     subtree {
       events {
+        pipeline_stage {
+          stage_name: "egress"
+          stage_kind: CONTROL
+          direction: ENTER
+        }
+      }
+      events {
         branch {
           control_name: "MyEgress"
           taken: false

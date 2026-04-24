@@ -86,11 +86,10 @@ class Interpreter internal constructor(config: BehavioralConfig) {
     packetCtx: PacketContext? = null,
     selectorOverrides: Map<String, Int> = emptyMap(),
     externHandler: ExternHandler? = null,
-    tableLookupCache: Map<String, TableStore.LookupResult>? = null,
-  ) = Execution(tableStore, packetCtx, selectorOverrides, externHandler, tableLookupCache)
+  ) = Execution(tableStore, packetCtx, selectorOverrides, externHandler)
 
   /**
-   * Per-execution interpreter state. Cheap to create (5 field assignments). Accesses the outer
+   * Per-execution interpreter state. Cheap to create (4 field assignments). Accesses the outer
    * [Interpreter]'s config-derived maps directly via the inner class relationship.
    */
   inner class Execution(
@@ -98,26 +97,11 @@ class Interpreter internal constructor(config: BehavioralConfig) {
     private val packetCtx: PacketContext? = null,
     private val selectorOverrides: Map<String, Int> = emptyMap(),
     private val externHandler: ExternHandler? = null,
-    /**
-     * Cached table lookup results from a prior execution, keyed by table name. When non-null, table
-     * lookups use the cache instead of scanning [tableStore] — avoiding O(n) scans for tables whose
-     * key values haven't changed since the cache was populated (i.e., tables before a fork point).
-     *
-     * The cache is disabled once a table from [selectorOverrides] is hit, since tables after the
-     * fork point may produce different key values due to different selector member actions.
-     */
-    private val tableLookupCache: Map<String, TableStore.LookupResult>? = null,
   ) {
 
     /** Non-null packet context; throws a clear error if packet I/O is attempted without one. */
     private val packet: PacketContext
       get() = packetCtx ?: error("packet I/O requires a PacketContext")
-
-    /** Table lookup results recorded during this execution, for caching in fork re-executions. */
-    private val recordedLookups = mutableMapOf<String, TableStore.LookupResult>()
-
-    /** Set to true once a [selectorOverrides] table is hit, disabling the [tableLookupCache]. */
-    private var pastForkPoint = false
 
     /** Context from the most recent table miss, for PNA's `add_entry` extern. */
     private var lastTableMissCtx: TableMissContext? = null
@@ -327,6 +311,25 @@ class Interpreter internal constructor(config: BehavioralConfig) {
       withLocalScope(control.localVarsList, env) { execBlock(control.applyBodyList, env) }
     }
 
+    /**
+     * Resumes from an action selector fork point: executes the selected member's action, then the
+     * continuation (remaining statements captured as the fork propagated through [execBlock]). The
+     * caller must pop the control scope afterwards.
+     */
+    fun resumeFromFork(
+      fork: ActionSelectorFork,
+      member: TableStore.MemberAction,
+      env: Environment,
+    ) {
+      currentSourceInfo = fork.sourceInfo
+      val tableBehavior = tables[fork.tableName] ?: error("unknown table: ${fork.tableName}")
+      val resolvedName = tableBehavior.actionOverridesMap[member.actionName] ?: member.actionName
+      execAction(resolvedName, member.params, env)
+      for (stmts in fork.remainingStmts) {
+        execBlock(stmts, env)
+      }
+    }
+
     /** Pushes a scope, defines [localVars], runs [body], then pops the scope. */
     private inline fun withLocalScope(
       localVars: List<fourward.ir.VarDecl>,
@@ -352,7 +355,16 @@ class Interpreter internal constructor(config: BehavioralConfig) {
     // -------------------------------------------------------------------------
 
     private fun execBlock(stmts: List<Stmt>, env: Environment) {
-      for (stmt in stmts) execStmt(stmt, env)
+      var i = 0
+      try {
+        while (i < stmts.size) {
+          execStmt(stmts[i], env)
+          i++
+        }
+      } catch (fork: ActionSelectorFork) {
+        fork.remainingStmts.addLast(stmts.subList(i + 1, stmts.size))
+        throw fork
+      }
     }
 
     private fun execStmt(stmt: Stmt, env: Environment) {
@@ -811,12 +823,7 @@ class Interpreter internal constructor(config: BehavioralConfig) {
     private fun applyTable(tableName: String, env: Environment): TableResult {
       val tableBehavior = tables[tableName] ?: error("unknown table: $tableName")
       val keyValues = tableBehavior.keysList.map { key -> key.fieldName to evalExpr(key.expr, env) }
-
-      // On fork re-executions, use cached results for tables before the fork point.
-      val cached =
-        if (!pastForkPoint && tableLookupCache != null) tableLookupCache[tableName] else null
-      val result = cached ?: tableStore.lookup(tableName, keyValues)
-      if (!pastForkPoint) recordedLookups.putIfAbsent(tableName, result)
+      val result = tableStore.lookup(tableName, keyValues)
 
       // Record table miss context so PNA's add_entry extern knows which table to insert into.
       if (!result.hit) lastTableMissCtx = TableMissContext(tableName, keyValues)
@@ -846,9 +853,7 @@ class Interpreter internal constructor(config: BehavioralConfig) {
       if (result.members != null) {
         val forced = selectorOverrides[tableName]
         if (forced != null) {
-          // Re-execution with a forced member. Disable cache: tables after the fork may
-          // see different key values per branch.
-          pastForkPoint = true
+          // Re-execution with a forced member (replay path for resubmit/recirculate).
           val member =
             result.members.find { it.memberId == forced }
               ?: error("forced member $forced not found in table $tableName")
@@ -857,12 +862,14 @@ class Interpreter internal constructor(config: BehavioralConfig) {
           execAction(resolvedMember, member.params, env)
           return TableResult(result.hit, member.actionName)
         }
-        // First encounter: throw to let the architecture build the trace tree.
+        // First encounter: capture state and throw to let the architecture fork.
         throw ActionSelectorFork(
           tableName,
           result.members,
           packetCtx!!.getEvents(),
-          recordedLookups.toMap(),
+          env.deepCopy(),
+          packetCtx!!.bytesConsumed,
+          currentSourceInfo,
         )
       }
 
@@ -1391,10 +1398,8 @@ fun interpreterExecution(
   packetCtx: PacketContext? = null,
   selectorOverrides: Map<String, Int> = emptyMap(),
   externHandler: ExternHandler? = null,
-  tableLookupCache: Map<String, TableStore.LookupResult>? = null,
 ): Interpreter.Execution =
-  Interpreter(config)
-    .execution(tableStore, packetCtx, selectorOverrides, externHandler, tableLookupCache)
+  Interpreter(config).execution(tableStore, packetCtx, selectorOverrides, externHandler)
 
 /**
  * Thrown by an `exit` statement; unwinds the call stack to the top of the current pipeline stage.
@@ -1408,18 +1413,31 @@ class AssertionFailureException(message: String) : Exception(message)
 class ReturnException(val value: Value) : Exception()
 
 /**
- * Thrown at non-deterministic choice points to signal the architecture to fork the trace tree.
- *
- * The architecture catches this and re-executes the pipeline for each branch, building a tree by
- * stripping shared prefix events.
+ * Thrown at non-deterministic choice points to signal the architecture to fork the trace tree. The
+ * architecture catches this and continues each branch from the fork point (fork-point resume)
+ * instead of replaying the pipeline.
  */
 sealed class ForkException(val eventsBeforeFork: List<TraceEvent>) : Exception()
 
-/** Fork at an action selector group hit — one branch per group member. */
+/**
+ * Fork at an action selector group hit — one branch per group member.
+ *
+ * Carries the full interpreter state at the fork point so each branch can continue from there
+ * (fork-point resume) instead of replaying the entire pipeline.
+ */
 class ActionSelectorFork(
   val tableName: String,
   val members: List<TableStore.MemberAction>,
   eventsBeforeFork: List<TraceEvent>,
-  /** Table lookup results from before the fork point, for caching in re-executions. */
-  val preForkLookups: Map<String, TableStore.LookupResult> = emptyMap(),
+  /** Deep copy of the environment at the fork point — each branch restores from this. */
+  val forkPointEnv: Environment,
+  /** Parser buffer position at the fork point. */
+  val bytesConsumed: Int,
+  /** Source info at the fork point (the table apply statement), for trace events in branches. */
+  val sourceInfo: fourward.ir.SourceInfo? = null,
+  /**
+   * Continuation: remaining statements at each block nesting level (innermost first). Populated as
+   * the exception propagates through [Interpreter.Execution.execBlock].
+   */
+  val remainingStmts: ArrayDeque<List<fourward.ir.Stmt>> = ArrayDeque(),
 ) : ForkException(eventsBeforeFork)
