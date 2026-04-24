@@ -69,6 +69,19 @@ class V1ModelArchitecture(
   // after publication, so safe to read concurrently from any number of [processPacket] threads
   // without synchronization.
   private val interpreter: Interpreter = Interpreter(config)
+  // Lazy: some test configs have empty parser lists; only accessed when processing packets.
+  private val typesByName by lazy { config.typesList.associateBy { it.name } }
+  private val parserUserParams by lazy {
+    config.parsersList
+      .first()
+      .paramsList
+      .filter { it.type.hasNamed() && it.type.named !in IO_TYPES }
+      .also {
+        require(it.size == V1MODEL_USER_PARAM_COUNT) {
+          "Expected $V1MODEL_USER_PARAM_COUNT non-IO parser params, got ${it.size}"
+        }
+      }
+  }
 
   /** Invariant inputs to the pipeline, shared across fork re-executions. */
   private data class PipelineContext(
@@ -196,7 +209,7 @@ class V1ModelArchitecture(
     val packetCtx = PacketContext(ctx.payload, bytesConsumed)
     val env = snapshotEnv.deepCopy()
     val pendingOps = snapshotPendingOps?.copy() ?: V1ModelPendingOps()
-    val standardMetadata = resolveStandardMetadata(ctx, env)
+    val standardMetadata = resolveStandardMetadata(env)
     return finishPipelineState(
       ctx,
       V1ModelDecisions(selectorMembers = selectorMembers),
@@ -231,29 +244,16 @@ class V1ModelArchitecture(
   }
 
   /** Applies preserved metadata fields onto the user metadata struct in [env]. */
-  private fun applyPreservedMetadata(
-    ctx: PipelineContext,
-    env: Environment,
-    preservedMetadata: Map<String, Value>?,
-  ) {
+  private fun applyPreservedMetadata(env: Environment, preservedMetadata: Map<String, Value>?) {
     if (preservedMetadata == null) return
-    val parserUserParams =
-      ctx.config.parsersList.first().paramsList.filter {
-        it.type.hasNamed() && it.type.named !in IO_TYPES
-      }
     val metaVal = env.lookup(parserUserParams[1].name) as? StructVal ?: return
     for ((name, value) in preservedMetadata) metaVal.fields[name] = value
   }
 
-  /** Resolves standard_metadata from the environment using the config's parser parameter names. */
-  private fun resolveStandardMetadata(ctx: PipelineContext, env: Environment): StructVal {
-    val parserUserParams =
-      ctx.config.parsersList.first().paramsList.filter {
-        it.type.hasNamed() && it.type.named !in IO_TYPES
-      }
-    return env.lookup(parserUserParams[2].name) as? StructVal
+  /** Resolves standard_metadata from the environment using the cached parser parameter names. */
+  private fun resolveStandardMetadata(env: Environment): StructVal =
+    env.lookup(parserUserParams[2].name) as? StructVal
       ?: error("standard_metadata not found in environment")
-  }
 
   // -------------------------------------------------------------------------
   // Fork-on-write handlers
@@ -367,7 +367,7 @@ class V1ModelArchitecture(
         configure = { s ->
           s.standardMetadata.setBitField("instance_type", CLONE_I2E_INSTANCE_TYPE)
           s.standardMetadata.setBitField("egress_port", fork.clonePort)
-          applyPreservedMetadata(ctx, s.env, fork.preservedMetadata)
+          applyPreservedMetadata(s.env, fork.preservedMetadata)
         },
         pipelineTail = { c, s -> runEgressAndDeparser(c, s) },
       )
@@ -410,7 +410,7 @@ class V1ModelArchitecture(
           s.pendingOps.egressCloneSessionId = null
           s.standardMetadata.setBitField("instance_type", CLONE_E2E_INSTANCE_TYPE)
           s.standardMetadata.setBitField("egress_port", fork.clonePort)
-          applyPreservedMetadata(ctx, s.env, fork.preservedMetadata)
+          applyPreservedMetadata(s.env, fork.preservedMetadata)
         },
         pipelineTail = { _, s ->
           resetEgressSpec(s)
@@ -482,18 +482,6 @@ class V1ModelArchitecture(
         "possible infinite resubmit/recirculate loop"
     }
     val config = ctx.config
-    val typesByName = config.typesList.associateBy { it.name }
-
-    // Derive the type names for hdr/meta/standard_metadata from the parser's
-    // parameter list, filtering out the architecture-level packet I/O params.
-    // v1model always declares: (packet_in, hdr, meta, standard_metadata) in that order.
-    val parserUserParams =
-      config.parsersList.first().paramsList.filter {
-        it.type.hasNamed() && it.type.named !in IO_TYPES
-      }
-    require(parserUserParams.size == V1MODEL_USER_PARAM_COUNT) {
-      "Expected $V1MODEL_USER_PARAM_COUNT non-IO parser params, got ${parserUserParams.size}"
-    }
     val headersTypeName = parserUserParams[0].type.named
     val metaTypeName = parserUserParams[1].type.named
     val standardMetaTypeName = parserUserParams[2].type.named
@@ -564,23 +552,15 @@ class V1ModelArchitecture(
         createExternHandler(standardMetadata, pendingOps, ctx.tableStore, dropPort),
       )
 
-    val config = ctx.config
-    val typesByName = config.typesList.associateBy { it.name }
-    val parserUserParams =
-      config.parsersList.first().paramsList.filter {
-        it.type.hasNamed() && it.type.named !in IO_TYPES
-      }
-    val metaParamName = parserUserParams[1].name
-    val metaStructDecl = typesByName[parserUserParams[1].type.named]?.struct
     return PipelineState(
       packetCtx,
       pendingOps,
       interpreter,
       env,
       standardMetadata,
-      metaParamName,
-      metaStructDecl,
-      config,
+      parserUserParams[1].name,
+      typesByName[parserUserParams[1].type.named]?.struct,
+      ctx.config,
       dropPort,
     )
   }
