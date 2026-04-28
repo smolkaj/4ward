@@ -42,8 +42,8 @@ ternary ACL entries.
 | Workload | Sequential, 1 core | Sequential, 16 cores | Batch, 1 core | Batch, 16 cores |
 |----------|--------------------|----------------------|---------------|-----------------|
 | L3 forwarding | 2,500 | 2,600 | 2,600 | 29,000 |
-| WCMP ×16 | 1,900 | 2,200 | 1,600 | 12,000 |
-| WCMP ×16 + mirror | 1,300 | 1,600 | 1,000 | 8,000 |
+| WCMP ×16 | 2,000 | 2,300 | 1,700 | 13,000 |
+| WCMP ×16 + mirror | 1,400 | 1,700 | 1,100 | 9,000 |
 
 - **Sequential** = `InjectPacket` (one packet at a time, wait for result).
 - **Batch** = `InjectPackets` (1000 packets streamed concurrently).
@@ -64,7 +64,7 @@ with the same table entries: 10k LPM routes + 500 ternary ACL entries.
 | Workload | BMv2 | 4ward, 1 core | 4ward, 16 cores |
 |----------|------|---------------|-----------------|
 | L3 forwarding | 4,500 | 2,500 | 29,000 |
-| WCMP ×16 | 4,400 | 1,900 | 12,000 |
+| WCMP ×16 | 4,400 | 2,000 | 13,000 |
 
 (packets/sec; higher is better)
 
@@ -122,15 +122,15 @@ bazel test //p4runtime:DataplaneBenchmark --test_output=streamed
 
 ## Optimizations
 
-Starting from an unoptimized baseline, eleven optimizations delivered a
-**195× improvement** on the hardest workload (WCMP ×16 + mirror, batch,
-16 cores) and **32× single-core sequential**.
+Starting from an unoptimized baseline, twelve optimizations delivered a
+**220× improvement** on the hardest workload (WCMP ×16 + mirror, batch,
+16 cores) and **34× single-core sequential**.
 
 | Workload | Baseline | Current (1 core) | Current (16 cores) |
 |----------|----------|-------------------|--------------------|
 | L3 forwarding | 1,400 | 2,500 | 29,000 |
-| WCMP ×16 | 83 | 1,900 | 12,000 |
-| WCMP ×16 + mirror | 41 | 1,300 | 8,000 |
+| WCMP ×16 | 83 | 2,000 | 13,000 |
+| WCMP ×16 + mirror | 41 | 1,400 | 9,000 |
 
 (sequential packets/sec, except "16 cores" column which uses batch mode)
 
@@ -163,8 +163,14 @@ Starting from an unoptimized baseline, eleven optimizations delivered a
     continues each branch from there. Eliminates prefix re-execution,
     prefix event stripping, and the entire replay infrastructure.
     v1model only — PSA/PNA still use replay.
+12. **CompactFieldMap for StructVal fields** (PR #589): struct deep-copy
+    via `Array.copyOf` instead of N HashMap Node allocations. Leaf
+    values (BitVal, BoolVal) are immutable and safe to share; only
+    mutable nested values (HeaderVal) are deep-copied.
 
 **What didn't help** (tried and reverted):
 - Caching `defaultValue()` templates — negligible impact.
 - Persistent collections (`kotlinx.collections.immutable`) for
   copy-on-write — HAMT overhead cancelled the copy savings.
+- Caching config-derived parser params — the filter operates on 3
+  elements, invisible in a profile.

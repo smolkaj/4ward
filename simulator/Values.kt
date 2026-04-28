@@ -127,14 +127,28 @@ data class HeaderVal(
  */
 data class StructVal(val typeName: String, val fields: MutableMap<String, Value> = mutableMapOf()) :
   Value() {
-  fun copy(): StructVal = StructVal(typeName, LinkedHashMap(fields))
+  fun copy(): StructVal = StructVal(typeName, copyFields())
 
-  override fun deepCopy(): StructVal =
-    StructVal(
+  private fun copyFields(): MutableMap<String, Value> =
+    if (fields is CompactFieldMap) (fields as CompactFieldMap).copy() else LinkedHashMap(fields)
+
+  override fun deepCopy(): StructVal {
+    if (fields is CompactFieldMap) {
+      // Array.copyOf shares references. Leaf types (BitVal, BoolVal) are immutable and safe
+      // to share; only mutable nested values need deep-copying.
+      val copy = (fields as CompactFieldMap).copy()
+      for ((key, value) in copy) {
+        if (value is HeaderVal || value is StructVal || value is HeaderStackVal) {
+          copy[key] = value.deepCopy()
+        }
+      }
+      return StructVal(typeName, copy)
+    }
+    return StructVal(
       typeName,
-      // Pre-size to avoid HashMap.resize on the fork-copy hot path (load factor 0.75).
       fields.mapValuesTo(LinkedHashMap(fields.size * 4 / 3 + 1)) { it.value.deepCopy() },
     )
+  }
 
   /** P4 spec §8.20: a header union is valid if any member header is valid. */
   fun isUnionValid(): Boolean = fields.values.any { it is HeaderVal && it.valid }

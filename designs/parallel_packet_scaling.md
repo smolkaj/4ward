@@ -1,10 +1,11 @@
 # Parallel Packet Scaling
 
-**Status: Phase 3 complete (PRs #554, #562, #567). wcmp×128 parallel
-throughput improved +120% from baseline (1,501 → 3,393 pps), efficiency
-from 45% to ~59%. The three main wins: Long-backed BitVector (#562),
-CompactFieldMap + proto builder pooling (#554), and fork-point resume
-(#567). See "Phase 3 results" below for measurements.**
+**Status: Phase 3 complete (PRs #554, #562, #567, #589). wcmp×128
+parallel throughput improved +155% from baseline (1,501 → 3,825 pps),
+efficiency from 45% to 72%. The four main wins: Long-backed BitVector
+(#562), CompactFieldMap + proto builder pooling (#554), fork-point
+resume (#567), and CompactFieldMap for StructVal fields (#589). See
+"Phase 3 results" below for measurements.**
 
 ## North star
 
@@ -917,21 +918,18 @@ Measured on the same hardware (AMD Ryzen 9 7950X3D), same workload
 
 | Workload | Baseline | After Phase 3 | Sequential Δ | Parallel Δ |
 |----------|----------|---------------|-------------|------------|
-| wcmp×128 seq | 207 pps | 345 pps | **+67%** | — |
-| wcmp×128 par | 1,501 pps | 3,393 pps | — | **+126%** |
+| wcmp×128 seq | 207 pps | 347 pps | **+68%** | — |
+| wcmp×128 par | 1,501 pps | 3,825 pps | — | **+155%** |
 | direct seq | 2,568 pps | ~2,500 pps | ≈0% | — |
 | direct par | 38,449 pps | ~38,000 pps | — | ≈0% |
 
 Direct L3 is unaffected (no forks, nothing to optimize). wcmp×128
-sees the full benefit: +67% sequential, +126% parallel. Efficiency
-improved from 45% to ~59%.
+sees the full benefit: +68% sequential, +155% parallel. Efficiency
+improved from 45% to 72%.
 
 **Remaining candidates.** C (compiled instruction sequence) and E
 (deferred trace serialization) are still viable for further gains but
-are higher effort. The fork-point resume design also opens a path for
-Candidate A (copy-on-write `Environment`) which would stack on top by
-reducing the per-branch `env.deepCopy()` cost — currently the
-dominant remaining cost on the fork hot path.
+are higher effort.
 
 
 ## Non-goals
