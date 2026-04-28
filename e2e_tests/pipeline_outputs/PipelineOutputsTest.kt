@@ -1,0 +1,117 @@
+package fourward.e2e.pipelineoutputs
+
+import com.google.protobuf.TextFormat
+import fourward.bazel.repoRoot
+import fourward.ir.DeviceConfig
+import fourward.ir.PipelineConfig
+import java.nio.file.Files
+import java.nio.file.Path
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import p4.config.v1.P4InfoOuterClass.P4Info
+import p4.v1.P4RuntimeOuterClass.ForwardingPipelineConfig
+
+/**
+ * Verifies that `fourward_pipeline` emits each configured output as the expected proto message
+ * type, in both text and binary encodings. See the companion BUILD.bazel for the target
+ * configurations.
+ */
+class PipelineOutputsTest {
+
+  @Test
+  fun `out + out_format=native produces PipelineConfig as txtpb`() {
+    val path = runfile("tiny_native.txtpb")
+    assertHeader(path, "fourward.ir.PipelineConfig")
+    val cfg =
+      PipelineConfig.newBuilder().also { TextFormat.merge(Files.readString(path), it) }.build()
+    assertHasBasicTable(cfg.p4Info)
+    assertFalse(cfg.device.behavioral.controlsList.isEmpty())
+  }
+
+  @Test
+  fun `out + out_format=p4runtime produces ForwardingPipelineConfig as binpb`() {
+    val bytes = Files.readAllBytes(runfile("tiny_p4runtime.binpb"))
+    val fpc = ForwardingPipelineConfig.parseFrom(bytes)
+    assertHasBasicTable(fpc.p4Info)
+    // p4_device_config is an opaque blob; we only assert it decodes as our DeviceConfig.
+    val dc = DeviceConfig.parseFrom(fpc.p4DeviceConfig)
+    assertFalse(dc.behavioral.controlsList.isEmpty())
+  }
+
+  @Test
+  fun `out_p4info produces standalone P4Info in txtpb`() {
+    val path = runfile("tiny.p4info.txtpb")
+    assertHeader(path, "p4.config.v1.P4Info")
+    val p4info = P4Info.newBuilder().also { TextFormat.merge(Files.readString(path), it) }.build()
+    assertHasBasicTable(p4info)
+  }
+
+  @Test
+  fun `out_p4info produces standalone P4Info in binpb`() {
+    val bytes = Files.readAllBytes(runfile("tiny.p4info.binpb"))
+    val p4info = P4Info.parseFrom(bytes)
+    assertHasBasicTable(p4info)
+  }
+
+  @Test
+  fun `out_p4_device_config produces standalone DeviceConfig in txtpb`() {
+    val path = runfile("tiny.device_config.txtpb")
+    assertHeader(path, "fourward.ir.DeviceConfig")
+    val dc = DeviceConfig.newBuilder().also { TextFormat.merge(Files.readString(path), it) }.build()
+    assertFalse(dc.behavioral.controlsList.isEmpty())
+  }
+
+  @Test
+  fun `out_p4_device_config produces standalone DeviceConfig in binpb`() {
+    val bytes = Files.readAllBytes(runfile("tiny.device_config.binpb"))
+    val dc = DeviceConfig.parseFrom(bytes)
+    assertFalse(dc.behavioral.controlsList.isEmpty())
+  }
+
+  @Test
+  fun `combined target emits same artifacts as single-output targets`() {
+    // p4c is invoked once with all three flags; each file should match what
+    // the dedicated single-output targets produce in isolation.
+    val combined =
+      ForwardingPipelineConfig.parseFrom(Files.readAllBytes(runfile("tiny_all.combined.binpb")))
+    val standalone =
+      ForwardingPipelineConfig.parseFrom(Files.readAllBytes(runfile("tiny_p4runtime.binpb")))
+    assertEquals(standalone, combined)
+
+    val p4info =
+      P4Info.newBuilder()
+        .also { TextFormat.merge(Files.readString(runfile("tiny_all.p4info.txtpb")), it) }
+        .build()
+    val p4infoStandalone =
+      P4Info.newBuilder()
+        .also { TextFormat.merge(Files.readString(runfile("tiny.p4info.txtpb")), it) }
+        .build()
+    assertEquals(p4infoStandalone, p4info)
+
+    val dc = DeviceConfig.parseFrom(Files.readAllBytes(runfile("tiny_all.device_config.binpb")))
+    val dcStandalone =
+      DeviceConfig.parseFrom(Files.readAllBytes(runfile("tiny.device_config.binpb")))
+    assertEquals(dcStandalone, dc)
+  }
+
+  private fun runfile(name: String): Path = repoRoot.resolve("e2e_tests/pipeline_outputs/$name")
+
+  private fun assertHeader(path: Path, expectedMessage: String) {
+    val firstTwo = Files.readAllLines(path).take(2)
+    assertEquals(
+      "text-proto output must declare proto-file and proto-message",
+      2,
+      firstTwo.count { it.startsWith("# proto-") },
+    )
+    assertTrue(
+      "expected proto-message '$expectedMessage' in header, got: $firstTwo",
+      firstTwo.any { it == "# proto-message: $expectedMessage" },
+    )
+  }
+
+  private fun assertHasBasicTable(p4info: P4Info) {
+    assertEquals("expected exactly one table (tiny.p4 declares one)", 1, p4info.tablesCount)
+  }
+}

@@ -17,7 +17,6 @@
 #include "p4c_backend/backend.h"
 
 #include <array>
-#include <filesystem>
 #include <fstream>
 #include <string>
 
@@ -1013,12 +1012,19 @@ void FourWardBackend::emitArchitecture(const IR::ToplevelBlock* toplevel) {
 
 namespace {
 
-// Write a proto message to a file. Binary if the path ends with .binpb or
-// .bin; text-format with a proto-file/proto-message header otherwise.
-bool writeProto(const google::protobuf::Message& msg, std::ostream& out,
-                bool binary, const char* protoFile, const char* protoMessage,
-                const std::string& path) {
-  if (binary) {
+// 4ward standardises on .txtpb / .binpb for proto files. `validateOutputs`
+// in main.cpp rejects anything else right after argument parsing, so by the
+// time we reach `writeProto` the suffix is guaranteed to be one of the two.
+bool isBinary(const std::string& path) { return path.ends_with(".binpb"); }
+
+bool writeProto(const google::protobuf::Message& msg, const std::string& path,
+                const char* protoFile, const char* protoMessage) {
+  std::ofstream out(path, std::ios::binary);
+  if (!out.is_open()) {
+    ::P4::error("4ward: cannot open output file '%1%'", path);
+    return false;
+  }
+  if (isBinary(path)) {
     if (!msg.SerializeToOstream(&out)) {
       ::P4::error("4ward: failed to serialise %1% to '%2%'", protoMessage,
                   path);
@@ -1035,47 +1041,44 @@ bool writeProto(const google::protobuf::Message& msg, std::ostream& out,
         << "# proto-message: " << protoMessage << "\n\n"
         << text;
   }
-  return true;
-}
-
-}  // namespace
-
-bool FourWardBackend::writePipelineConfig() const {
-  const std::string path = outputFilePath();
-  const bool binary = path.ends_with(".binpb") || path.ends_with(".bin");
-  std::ofstream out(path, std::ios::binary);
-  if (!out.is_open()) {
-    ::P4::error("4ward: cannot open output file '%1%'", path);
-    return false;
-  }
-
-  if (options_.format == FourWardOptions::Format::kP4runtime) {
-    // P4Runtime ForwardingPipelineConfig: p4info + Pipeline serialized into
-    // p4_device_config bytes.
-    p4::v1::ForwardingPipelineConfig fpc;
-    *fpc.mutable_p4info() = pipelineConfig_.p4info();
-    fpc.set_p4_device_config(pipelineConfig_.device().SerializeAsString());
-    if (!writeProto(fpc, out, binary, "@p4runtime//p4/v1/p4runtime.proto",
-                    "p4.v1.ForwardingPipelineConfig", path))
-      return false;
-  } else {
-    if (!writeProto(pipelineConfig_, out, binary,
-                    "@fourward//simulator/ir.proto",
-                    "fourward.ir.PipelineConfig", path))
-      return false;
-  }
-
   // clang-format off
   LOG1("4ward: wrote " << path);
   // clang-format on
   return true;
 }
 
-std::string FourWardBackend::outputFilePath() const {
-  if (options_.outputFile.has_value()) return *options_.outputFile;
-  return std::filesystem::path(options_.file)
-      .replace_extension(".txtpb")
-      .string();
+}  // namespace
+
+bool FourWardBackend::writeOutputs() const {
+  if (options_.outputFile.has_value()) {
+    if (options_.format == FourWardOptions::Format::kP4runtime) {
+      p4::v1::ForwardingPipelineConfig fpc;
+      *fpc.mutable_p4info() = pipelineConfig_.p4info();
+      fpc.set_p4_device_config(pipelineConfig_.device().SerializeAsString());
+      if (!writeProto(fpc, *options_.outputFile,
+                      "@p4runtime//p4/v1/p4runtime.proto",
+                      "p4.v1.ForwardingPipelineConfig")) {
+        return false;
+      }
+    } else if (!writeProto(pipelineConfig_, *options_.outputFile,
+                           "@fourward//simulator/ir.proto",
+                           "fourward.ir.PipelineConfig")) {
+      return false;
+    }
+  }
+  if (options_.outP4Info.has_value() &&
+      !writeProto(pipelineConfig_.p4info(), *options_.outP4Info,
+                  "@p4runtime//p4/config/v1/p4info.proto",
+                  "p4.config.v1.P4Info")) {
+    return false;
+  }
+  if (options_.outP4DeviceConfig.has_value() &&
+      !writeProto(pipelineConfig_.device(), *options_.outP4DeviceConfig,
+                  "@fourward//simulator/ir.proto",
+                  "fourward.ir.DeviceConfig")) {
+    return false;
+  }
+  return true;
 }
 
 }  // namespace P4::FourWard

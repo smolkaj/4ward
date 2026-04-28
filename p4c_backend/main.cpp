@@ -16,15 +16,26 @@
 
 // p4c-4ward: the 4ward p4c backend.
 //
-// Compiles a P4 program to a PipelineConfig proto binary suitable for loading
-// into the 4ward simulator. Usage:
+// Compiles a P4 program into one or more proto files for the 4ward simulator
+// and P4Runtime control plane. Each output is opt-in; at least one must be
+// requested:
 //
-//   p4c-4ward --arch v1model -o output.txtpb input.p4
+//   -o <file>                       Combined pipeline config
+//                                   (--format selects native or p4runtime)
+//   --out-p4info <file>             Standalone p4.config.v1.P4Info
+//   --out-p4-device-config <file>   Standalone fourward.ir.DeviceConfig
+//
+// All output paths must end in .txtpb (text proto) or .binpb (binary proto).
+//
+// Example:
+//
+//   p4c-4ward --arch v1model -o pipeline.binpb --format p4runtime input.p4
 
 #include <cstdlib>
 #include <exception>
 #include <iostream>
 #include <map>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -49,6 +60,33 @@
 
 namespace IR = P4::IR;
 using P4::literals::operator""_cs;
+
+// Validates that every requested output path uses a .txtpb or .binpb
+// extension and that at least one output flag was supplied. Run upfront so a
+// typo or missing flag fails before any compilation work happens.
+static void checkOutputExtension(const std::optional<std::string>& path,
+                                 const char* flag) {
+  if (!path.has_value()) return;
+  if (!path->ends_with(".txtpb") && !path->ends_with(".binpb")) {
+    ::P4::error(
+        "4ward: %1% '%2%' has unsupported extension; "
+        "use .txtpb (text) or .binpb (binary)",
+        flag, *path);
+  }
+}
+
+static bool validateOutputs(const P4::FourWard::FourWardOptions& options) {
+  checkOutputExtension(options.outputFile, "-o");
+  checkOutputExtension(options.outP4Info, "--out-p4info");
+  checkOutputExtension(options.outP4DeviceConfig, "--out-p4-device-config");
+  if (!options.outputFile.has_value() && !options.outP4Info.has_value() &&
+      !options.outP4DeviceConfig.has_value()) {
+    ::P4::error(
+        "4ward: at least one output flag is required: -o, --out-p4info, or "
+        "--out-p4-device-config");
+  }
+  return ::P4::errorCount() == 0;
+}
 
 // Walks the post-frontend IR to extract @p4runtime_translation_mappings
 // annotations from Type_Newtype declarations.  These annotations specify
@@ -231,6 +269,7 @@ int main(int argc, char* const argv[]) {
       options.setInputFile();
     }
     if (::P4::errorCount() > 0) return EXIT_FAILURE;
+    if (!validateOutputs(options)) return EXIT_FAILURE;
 
     const IR::P4Program* program = P4::parseP4File(options);
     if (program == nullptr || ::P4::errorCount() > 0) return EXIT_FAILURE;
@@ -272,7 +311,7 @@ int main(int argc, char* const argv[]) {
     backend.process(toplevel);
     backend.setPortTypeName(derivePortTypeName(program));
 
-    if (!backend.writePipelineConfig()) return EXIT_FAILURE;
+    if (!backend.writeOutputs()) return EXIT_FAILURE;
     return ::P4::errorCount() > 0 ? EXIT_FAILURE : EXIT_SUCCESS;
   } catch (const std::exception& e) {
     std::cerr << "p4c-4ward: " << e.what() << '\n';

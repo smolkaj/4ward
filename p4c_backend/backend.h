@@ -60,9 +60,9 @@ class FourWardBackend : public Inspector {
   // Must be called after process() (which builds the Architecture).
   void setPortTypeName(std::string portTypeName);
 
-  // Writes the accumulated PipelineConfig proto to the output file.
-  // Returns true on success.
-  bool writePipelineConfig() const;
+  // Writes each requested output file (combined `-o`, `--out-p4info`,
+  // `--out-p4-device-config`). Returns true on success.
+  bool writeOutputs() const;
 
  private:
   const FourWardOptions& options_;
@@ -90,8 +90,6 @@ class FourWardBackend : public Inspector {
   fourward::ir::Stmt emitStmt(const IR::StatOrDecl* node);
   fourward::ir::BlockStmt emitBlock(const IR::BlockStatement* block);
   static fourward::ir::SourceInfo emitSourceInfo(const IR::Node* node);
-
-  std::string outputFilePath() const;
 };
 
 }  // namespace P4::FourWard
