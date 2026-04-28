@@ -1,8 +1,18 @@
 # Dataplane Performance
 
+This document covers **data plane** performance only: how fast 4ward
+processes packets. All numbers below are packet throughput.
+
+**Control plane** operations (table programming via `Write`, pipeline
+loading via `SetForwardingPipelineConfig`) have not been measured or
+optimized. They are expected to be slow — and that's fine. 4ward's
+target use cases (testing, validation, trace exploration) are
+data-plane-bound: the control plane sets up state once, then the data
+plane processes thousands of packets. If control plane performance
+matters for your use case, let us know.
+
 4ward optimizes for correctness, observability, and extensibility — yet
-achieves practical throughput for production test workloads. This document
-covers our benchmark methodology, results, and comparison with BMv2.
+achieves practical throughput for production test workloads.
 
 ## Benchmark setup
 
