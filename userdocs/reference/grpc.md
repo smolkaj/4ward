@@ -186,7 +186,12 @@ message OutputPacket {
 }
 ```
 
-## Performance
+## Data plane performance
+
+The numbers below cover **data plane** throughput (packet processing).
+Control plane operations (table writes, pipeline loading) have not been
+optimized — 4ward targets use cases where the control plane sets up
+state once, then the data plane processes many packets.
 
 While 4ward optimizes for correctness and observability over raw speed,
 it is fast enough for production test workloads like DVaaS. The
