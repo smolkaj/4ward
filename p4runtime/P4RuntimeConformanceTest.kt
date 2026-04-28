@@ -6,6 +6,7 @@ package fourward.p4runtime
 
 import com.google.protobuf.Any as ProtoAny
 import com.google.protobuf.ByteString
+import com.google.protobuf.TextFormat
 import fourward.ir.PipelineConfig
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.assertGrpcError
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildEthernetFrame
@@ -401,6 +402,20 @@ class P4RuntimeConformanceTest {
           .setP4Info(p4.config.v1.P4InfoOuterClass.P4Info.getDefaultInstance())
       )
     }
+  }
+
+  @Test
+  fun `39 - setForwardingPipelineConfig accepts text-format DeviceConfig in p4_device_config`() {
+    // p4_device_config is opaque to P4Runtime; 4ward's simulator accepts both
+    // binary- and text-format DeviceConfig so people who hand-edit a .txtpb
+    // ForwardingPipelineConfig don't have to know which encoding is in there.
+    val config = loadBasicTableConfig()
+    val textBytes = ByteString.copyFromUtf8(TextFormat.printer().printToString(config.device))
+    loadRawPipeline(
+      ForwardingPipelineConfig.newBuilder().setP4Info(config.p4Info).setP4DeviceConfig(textBytes)
+    )
+    val readBack = harness.getConfig()
+    assertEquals(config.device, fourward.ir.DeviceConfig.parseFrom(readBack.config.p4DeviceConfig))
   }
 
   // =========================================================================
