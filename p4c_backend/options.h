@@ -27,17 +27,27 @@ namespace P4::FourWard {
 
 class FourWardOptions : public CompilerOptions {
  public:
-  // Output file path. Extension determines encoding:
+  // Output file path for the combined pipeline proto. Extension determines
+  // encoding:
   //   .txtpb → text-format protobuf
   //   .binpb → binary protobuf
+  // The proto message type is controlled by `format`.
   std::optional<std::string> outputFile;
 
-  // Output message type.
-  //   "native" (default): 4ward-native PipelineConfig.
-  //   "p4runtime": P4Runtime ForwardingPipelineConfig (Pipeline proto
-  //                serialized into p4_device_config bytes).
+  // Output message type for `outputFile`.
+  //   "native" (default): fourward.ir.PipelineConfig.
+  //   "p4runtime":        p4.v1.ForwardingPipelineConfig (DeviceConfig
+  //                       serialized into p4_device_config bytes).
   enum class Format : std::uint8_t { kNative, kP4runtime };
   Format format = Format::kNative;
+
+  // Optional side outputs. Each writes a standalone proto message. Extension
+  // determines encoding as above. Enables pipelines that want p4info or the
+  // device-config blob independently of the combined form.
+  //   outP4Info:         p4.config.v1.P4Info
+  //   outP4DeviceConfig: fourward.ir.DeviceConfig
+  std::optional<std::string> outP4Info;
+  std::optional<std::string> outP4DeviceConfig;
 
   FourWardOptions();
 };

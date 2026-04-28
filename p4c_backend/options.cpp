@@ -33,8 +33,24 @@ FourWardOptions::FourWardOptions() {
         }
         return true;
       },
-      "output message type: 'native' (default, 4ward PipelineConfig) "
+      "output message type for -o: 'native' (4ward PipelineConfig) "
       "or 'p4runtime' (P4Runtime ForwardingPipelineConfig)");
+  registerOption(
+      "--out-p4info", "file",
+      [this](const char* arg) {
+        outP4Info = arg;
+        return true;
+      },
+      "write p4.config.v1.P4Info to <file> "
+      "(.txtpb for text-format, .binpb for binary)");
+  registerOption(
+      "--out-p4-device-config", "file",
+      [this](const char* arg) {
+        outP4DeviceConfig = arg;
+        return true;
+      },
+      "write fourward.ir.DeviceConfig to <file> "
+      "(.txtpb for text-format, .binpb for binary)");
 }
 
 }  // namespace P4::FourWard

@@ -1,0 +1,83 @@
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
+load("//bazel:fourward_pipeline.bzl", "fourward_pipeline")
+
+package(
+    default_applicable_licenses = ["//:license"],
+    default_testonly = True,
+    licenses = ["notice"],
+)
+
+# Combined output only — native PipelineConfig as text proto.
+fourward_pipeline(
+    name = "tiny_native",
+    src = "tiny.p4",
+    out = "tiny_native.txtpb",
+)
+
+# Combined output only — P4Runtime ForwardingPipelineConfig as binary proto.
+fourward_pipeline(
+    name = "tiny_p4runtime",
+    src = "tiny.p4",
+    out = "tiny_p4runtime.binpb",
+    out_format = "p4runtime",
+)
+
+# Standalone p4info outputs, one target per encoding.
+fourward_pipeline(
+    name = "tiny_p4info_txtpb",
+    src = "tiny.p4",
+    out_p4info = "tiny.p4info.txtpb",
+)
+
+fourward_pipeline(
+    name = "tiny_p4info_binpb",
+    src = "tiny.p4",
+    out_p4info = "tiny.p4info.binpb",
+)
+
+# Standalone device-config outputs, one target per encoding.
+fourward_pipeline(
+    name = "tiny_device_config_txtpb",
+    src = "tiny.p4",
+    out_p4_device_config = "tiny.device_config.txtpb",
+)
+
+fourward_pipeline(
+    name = "tiny_device_config_binpb",
+    src = "tiny.p4",
+    out_p4_device_config = "tiny.device_config.binpb",
+)
+
+# All three outputs from a single action, mixing encodings to ensure per-file
+# extension handling is independent.
+fourward_pipeline(
+    name = "tiny_all",
+    src = "tiny.p4",
+    out = "tiny_all.combined.binpb",
+    out_format = "p4runtime",
+    out_p4_device_config = "tiny_all.device_config.binpb",
+    out_p4info = "tiny_all.p4info.txtpb",
+)
+
+kt_jvm_test(
+    name = "PipelineOutputsTest",
+    srcs = ["PipelineOutputsTest.kt"],
+    data = [
+        ":tiny_all",
+        ":tiny_device_config_binpb",
+        ":tiny_device_config_txtpb",
+        ":tiny_native",
+        ":tiny_p4info_binpb",
+        ":tiny_p4info_txtpb",
+        ":tiny_p4runtime",
+    ],
+    test_class = "fourward.e2e.pipelineoutputs.PipelineOutputsTest",
+    deps = [
+        "//bazel:runfiles",
+        "//simulator:ir_java_proto",
+        "//simulator:p4info_java_proto",
+        "//simulator:p4runtime_java_proto",
+        "@fourward_maven//:junit_junit",
+        "@protobuf//java/core",
+    ],
+)
