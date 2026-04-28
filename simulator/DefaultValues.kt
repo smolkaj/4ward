@@ -83,5 +83,5 @@ private fun defaultStruct(
 ): StructVal =
   StructVal(
     typeName = typeName,
-    fields = fieldDecls.associateTo(mutableMapOf()) { f -> f.name to defaultValue(f.type, types) },
+    fields = CompactFieldMap.of(fieldDecls.map { f -> f.name to defaultValue(f.type, types) }),
   )

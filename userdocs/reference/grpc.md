@@ -197,8 +197,8 @@ cores, 128 MB L3) running OpenJDK 21.
 | Workload | Sequential, 1 core | Sequential, 16 cores | Batch, 1 core | Batch, 16 cores |
 |----------|--------------------|----------------------|---------------|-----------------|
 | L3 forwarding | 2,500 | 2,600 | 2,600 | 29,000 |
-| WCMP ×16 members | 1,900 | 2,200 | 1,600 | 12,000 |
-| WCMP ×16 + mirror | 1,300 | 1,600 | 1,000 | 8,000 |
+| WCMP ×16 members | 2,000 | 2,300 | 1,700 | 13,000 |
+| WCMP ×16 + mirror | 1,400 | 1,700 | 1,100 | 9,000 |
 
 "Sequential" means one `InjectPacket` call at a time — send a packet,
 wait for the result, repeat. "Batch" uses the `InjectPackets` streaming
@@ -224,7 +224,7 @@ logging enabled — its analog of 4ward's trace trees.
 | Workload | BMv2 | 4ward, 1 core | 4ward, 16 cores |
 |----------|------|---------------|-----------------|
 | L3 forwarding | 4,500 | 2,500 | 29,000 |
-| WCMP ×16 | 4,400 | 1,900 | 12,000 |
+| WCMP ×16 | 4,400 | 2,000 | 13,000 |
 
 BMv2 is faster on single-core sequential throughput — it's a mature C++
 codebase and doesn't build trace trees. With concurrent processing,
