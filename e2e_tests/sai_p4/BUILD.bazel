@@ -36,7 +36,13 @@ fourward_pipeline(
     src = "instantiations/google/middleblock.p4",
     out = "sai_middleblock.txtpb",
     extra_srcs = [":sai_p4_srcs"],
-    visibility = ["//p4runtime:__pkg__"],
+    # Side output for the pipeline_outputs regression test — verifies that
+    # large (~130 KB) binpb writes round-trip cleanly. See #592.
+    out_p4_device_config = "sai_middleblock.dc.binpb",
+    visibility = [
+        "//e2e_tests/pipeline_outputs:__pkg__",
+        "//p4runtime:__pkg__",
+    ],
 )
 
 # BMv2 JSON (for head-to-head benchmarking against the 4ward simulator).

@@ -70,6 +70,9 @@ kt_jvm_test(
         ":tiny_p4info_binpb",
         ":tiny_p4info_txtpb",
         ":tiny_p4runtime",
+        # Regression fixture for #592: large (~130 KB) binpb output that
+        # exercises multi-buffer-chunk writes.
+        "//e2e_tests/sai_p4:sai_middleblock",
     ],
     test_class = "fourward.e2e.pipelineoutputs.PipelineOutputsTest",
     deps = [

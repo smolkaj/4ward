@@ -1019,13 +1019,16 @@ bool isBinary(const std::string& path) { return path.ends_with(".binpb"); }
 
 bool writeProto(const google::protobuf::Message& msg, const std::string& path,
                 const char* protoFile, const char* protoMessage) {
-  std::ofstream out(path, std::ios::binary);
-  if (!out.is_open()) {
-    ::P4::error("4ward: cannot open output file '%1%'", path);
-    return false;
-  }
+  // Serialise into a string in full, then write the bytes all at once. Avoids
+  // a subtle silent-truncation bug (issue #592): SerializeToOstream only
+  // checks `output->good()` after its internal `OstreamOutputStream` flushes
+  // into the std::ofstream buffer. The std::ofstream's own destructor flush
+  // to disk happens after this function returns, and a failure there sets
+  // badbit silently — no exception, no error propagation. Manifested in
+  // google3 as 201-byte truncated files for ~130 KB DeviceConfigs.
+  std::string serialised;
   if (isBinary(path)) {
-    if (!msg.SerializeToOstream(&out)) {
+    if (!msg.SerializeToString(&serialised)) {
       ::P4::error("4ward: failed to serialise %1% to '%2%'", protoMessage,
                   path);
       return false;
@@ -1037,9 +1040,25 @@ bool writeProto(const google::protobuf::Message& msg, const std::string& path,
                   path);
       return false;
     }
-    out << "# proto-file: " << protoFile << "\n"
-        << "# proto-message: " << protoMessage << "\n\n"
-        << text;
+    serialised = "# proto-file: ";
+    serialised += protoFile;
+    serialised += "\n# proto-message: ";
+    serialised += protoMessage;
+    serialised += "\n\n";
+    serialised += text;
+  }
+
+  std::ofstream out(path, std::ios::binary);
+  if (!out.is_open()) {
+    ::P4::error("4ward: cannot open output file '%1%'", path);
+    return false;
+  }
+  out.write(serialised.data(), static_cast<std::streamsize>(serialised.size()));
+  out.close();
+  if (out.fail()) {
+    ::P4::error("4ward: failed to write %1% to '%2%' (close/flush failed)",
+                protoMessage, path);
+    return false;
   }
   // clang-format off
   LOG1("4ward: wrote " << path);

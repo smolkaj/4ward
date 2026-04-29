@@ -71,6 +71,36 @@ class PipelineOutputsTest {
   }
 
   @Test
+  fun `large binpb output round-trips cleanly (regression for #592)`() {
+    // tiny.p4's binpb (~2 KB) fits in a single ofstream buffer chunk so it
+    // can't catch silent flush truncation. SAI middleblock's DeviceConfig is
+    // ~130 KB — well past typical ofstream buffer sizes (~8-64 KB) — and is
+    // the smallest fixture in the tree large enough to exercise the
+    // multi-chunk write path. Manifested as 201-byte truncated files in
+    // google3 before #596.
+    val saiDir = repoRoot.resolve("e2e_tests/sai_p4")
+    val binpbBytes = Files.readAllBytes(saiDir.resolve("sai_middleblock.dc.binpb"))
+    // 100 KB lower bound is comfortably above any plausible ofstream buffer
+    // size; if SAI middleblock ever shrinks below this, pick a different
+    // fixture rather than lowering the threshold.
+    assertTrue(
+      "expected SAI middleblock DeviceConfig > 100 KB to force " +
+        "multi-chunk writes, got ${binpbBytes.size}",
+      binpbBytes.size > 100_000,
+    )
+    // Compare against the device sub-message of the combined PipelineConfig
+    // emitted by the same p4c invocation. Catches truncation that happens to
+    // land at a message boundary (where parseFrom wouldn't throw) and asserts
+    // that the standalone binpb matches the combined output for a real-sized
+    // pipeline (tiny.p4 already covers this property at small scale).
+    val combined =
+      PipelineConfig.newBuilder()
+        .also { TextFormat.merge(Files.readString(saiDir.resolve("sai_middleblock.txtpb")), it) }
+        .build()
+    assertEquals(combined.device, DeviceConfig.parseFrom(binpbBytes))
+  }
+
+  @Test
   fun `combined target emits same artifacts as single-output targets`() {
     // p4c is invoked once with all three flags; each file should match what
     // the dedicated single-output targets produce in isolation.
