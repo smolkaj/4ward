@@ -2,6 +2,9 @@ package fourward.p4runtime
 
 import com.google.protobuf.ByteString
 import fourward.dataplane.DataplaneGrpcKt.DataplaneCoroutineStub
+import fourward.dataplane.InjectPacketRequest
+import fourward.dataplane.PrePacketHookInvocation
+import fourward.dataplane.PrePacketHookResponse
 import fourward.dataplane.SubscribeResultsRequest
 import fourward.dataplane.SubscribeResultsResponse
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.assertGrpcError
@@ -9,7 +12,10 @@ import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildEthernetFrame
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.buildExactEntry
 import fourward.p4runtime.P4RuntimeTestHarness.Companion.loadConfig
 import io.grpc.Status
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.Channel.Factory.UNLIMITED
@@ -25,6 +31,7 @@ import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 
@@ -316,39 +323,47 @@ class DataplaneServiceTest {
   // =========================================================================
 
   @Test
+  fun `RegisterPrePacketHook first message is HookRegistered`() = runBlocking {
+    harness.loadPipeline(loadPassthroughConfig())
+    val dataplaneStub = DataplaneCoroutineStub(harness.channel)
+    val responseChannel = Channel<PrePacketHookResponse>(UNLIMITED)
+    val first = dataplaneStub.registerPrePacketHook(responseChannel.consumeAsFlow()).first()
+    assertTrue("first message should be HookRegistered", first.hasRegistered())
+  }
+
+  @Test
+  fun `RegisterPrePacketHook rejects second registration with ALREADY_EXISTS`() = runBlocking {
+    // Pins the invariant that the sentinel send() must come *after* the
+    // broker.registerHook() success check — otherwise a duplicate registrant
+    // would receive a HookRegistered before being told ALREADY_EXISTS.
+    harness.loadPipeline(loadPassthroughConfig())
+    val dataplaneStub = DataplaneCoroutineStub(harness.channel)
+    val (firstHook, _) = registerHookAndAwaitReady(dataplaneStub)
+
+    assertGrpcError(Status.Code.ALREADY_EXISTS, "already registered") {
+      val secondResponses = Channel<PrePacketHookResponse>(UNLIMITED)
+      runBlocking { dataplaneStub.registerPrePacketHook(secondResponses.consumeAsFlow()).first() }
+    }
+
+    firstHook.cancel()
+  }
+
+  @Test
   fun `pre-packet hook fires before InjectPacket`() = runBlocking {
     harness.loadPipeline(loadPassthroughConfig())
     val dataplaneStub = DataplaneCoroutineStub(harness.channel)
+    val (hookJob, packetEvents) = registerHookAndAwaitReady(dataplaneStub)
 
-    val invocationsReceived =
-      kotlinx.coroutines.channels.Channel<fourward.dataplane.PrePacketHookInvocation>(10)
-    val responseChannel =
-      kotlinx.coroutines.channels.Channel<fourward.dataplane.PrePacketHookResponse>(UNLIMITED)
-
-    // Register the hook — collect invocations and send responses.
-    val hookJob =
-      async(Dispatchers.IO) {
-        dataplaneStub.registerPrePacketHook(responseChannel.consumeAsFlow()).collect { invocation ->
-          invocationsReceived.send(invocation)
-          responseChannel.send(fourward.dataplane.PrePacketHookResponse.getDefaultInstance())
-        }
-      }
-
-    delay(200) // Let the hook register.
-
-    // Inject a packet — the hook should fire first.
     val packet = buildEthernetFrame(42)
     dataplaneStub.injectPacket(
-      fourward.dataplane.InjectPacketRequest.newBuilder()
+      InjectPacketRequest.newBuilder()
         .setDataplaneIngressPort(0)
         .setPayload(ByteString.copyFrom(packet))
         .build()
     )
 
-    // Verify the hook was invoked and carries a snapshot of installed entities.
-    // With no entries installed, the entities list should be empty.
-    val invocation = withTimeout(5000) { invocationsReceived.receive() }
-    assertTrue("entities should be empty before any writes", invocation.entitiesList.isEmpty())
+    val event = withTimeout(5000) { packetEvents.receive() }
+    assertTrue("entities should be empty before any writes", event.entitiesList.isEmpty())
 
     hookJob.cancel()
   }
@@ -357,38 +372,23 @@ class DataplaneServiceTest {
   fun `pre-packet hook invocation carries installed entities`() = runBlocking {
     val config = loadBasicTableConfig()
     harness.loadPipeline(config)
-
-    // Install a table entry before registering the hook.
     harness.installEntry(buildExactEntry(config, matchValue = 0x0800, port = 1))
 
     val dataplaneStub = DataplaneCoroutineStub(harness.channel)
-    val invocationsReceived =
-      kotlinx.coroutines.channels.Channel<fourward.dataplane.PrePacketHookInvocation>(10)
-    val responseChannel =
-      kotlinx.coroutines.channels.Channel<fourward.dataplane.PrePacketHookResponse>(UNLIMITED)
-
-    val hookJob =
-      async(Dispatchers.IO) {
-        dataplaneStub.registerPrePacketHook(responseChannel.consumeAsFlow()).collect { invocation ->
-          invocationsReceived.send(invocation)
-          responseChannel.send(fourward.dataplane.PrePacketHookResponse.getDefaultInstance())
-        }
-      }
-
-    delay(200)
+    val (hookJob, packetEvents) = registerHookAndAwaitReady(dataplaneStub)
 
     val packet = buildEthernetFrame(42)
     dataplaneStub.injectPacket(
-      fourward.dataplane.InjectPacketRequest.newBuilder()
+      InjectPacketRequest.newBuilder()
         .setDataplaneIngressPort(0)
         .setPayload(ByteString.copyFrom(packet))
         .build()
     )
 
-    val invocation = withTimeout(5000) { invocationsReceived.receive() }
+    val event = withTimeout(5000) { packetEvents.receive() }
     assertTrue(
       "hook invocation should carry the installed table entry",
-      invocation.entitiesList.any { it.hasTableEntry() },
+      event.entitiesList.any { it.hasTableEntry() },
     )
 
     hookJob.cancel()
@@ -398,32 +398,50 @@ class DataplaneServiceTest {
   fun `pre-packet hook fires before PacketOut`() = runBlocking {
     harness.loadPipeline(loadPassthroughConfig())
     val dataplaneStub = DataplaneCoroutineStub(harness.channel)
+    val (hookJob, packetEvents) = registerHookAndAwaitReady(dataplaneStub)
 
-    val invocationsReceived =
-      kotlinx.coroutines.channels.Channel<fourward.dataplane.PrePacketHookInvocation>(10)
-    val responseChannel =
-      kotlinx.coroutines.channels.Channel<fourward.dataplane.PrePacketHookResponse>(UNLIMITED)
-
-    val hookJob =
-      async(Dispatchers.IO) {
-        dataplaneStub.registerPrePacketHook(responseChannel.consumeAsFlow()).collect { invocation ->
-          invocationsReceived.send(invocation)
-          responseChannel.send(fourward.dataplane.PrePacketHookResponse.getDefaultInstance())
-        }
-      }
-
-    delay(200) // Let the hook register.
-
-    // Send a PacketOut via P4Runtime StreamChannel — the hook must fire.
     val stream = harness.openStream()
     stream.arbitrate()
     val packet = buildEthernetFrame(42)
     stream.sendPacket(packet, ingressPort = 0, timeoutMs = 100)
 
-    // Verify the hook was invoked. withTimeout throws if no invocation arrives.
-    withTimeout(5000) { invocationsReceived.receive() }
+    withTimeout(5000) { packetEvents.receive() }
 
     hookJob.cancel()
     stream.close()
+  }
+
+  /**
+   * Registers a pre-packet hook and suspends until the server confirms registration via the
+   * `registered` sentinel on [PrePacketHookInvocation]. After this returns, packets emitted by the
+   * test are guaranteed to flow through the hook — no timing-based guesses needed. The returned
+   * channel yields packet events only; the registration sentinel is consumed here.
+   */
+  private suspend fun CoroutineScope.registerHookAndAwaitReady(
+    dataplaneStub: DataplaneCoroutineStub
+  ): Pair<Job, Channel<PrePacketHookInvocation.PacketEvent>> {
+    val packetEvents = Channel<PrePacketHookInvocation.PacketEvent>(10)
+    val responseChannel = Channel<PrePacketHookResponse>(UNLIMITED)
+    val ready = CompletableDeferred<Unit>()
+
+    val hookJob =
+      launch(Dispatchers.IO) {
+        dataplaneStub.registerPrePacketHook(responseChannel.consumeAsFlow()).collect { invocation ->
+          when (invocation.eventCase) {
+            PrePacketHookInvocation.EventCase.REGISTERED -> {
+              ready.complete(Unit)
+            }
+            PrePacketHookInvocation.EventCase.PACKET -> {
+              packetEvents.send(invocation.packet)
+              responseChannel.send(PrePacketHookResponse.getDefaultInstance())
+            }
+            PrePacketHookInvocation.EventCase.EVENT_NOT_SET ->
+              fail("server emitted PrePacketHookInvocation with no event set")
+          }
+        }
+      }
+
+    withTimeout(5000) { ready.await() }
+    return hookJob to packetEvents
   }
 }

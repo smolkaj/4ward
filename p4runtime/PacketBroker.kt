@@ -79,8 +79,11 @@ class PacketBroker(
     runBlocking {
       val invocation =
         PrePacketHookInvocation.newBuilder()
-          .addAllEntities(readAllEntities())
-          .apply { readP4Info()?.let { setP4Info(it) } }
+          .setPacket(
+            PrePacketHookInvocation.PacketEvent.newBuilder()
+              .addAllEntities(readAllEntities())
+              .apply { readP4Info()?.let { setP4Info(it) } }
+          )
           .build()
       h.invocations.send(invocation)
       val response = h.responses.receive()

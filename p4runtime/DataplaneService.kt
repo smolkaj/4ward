@@ -144,6 +144,24 @@ class DataplaneService(
         .asException()
     }
 
+    // Synchronisation handshake: tell the client the hook is live. From the
+    // client's perspective, every packet emitted *after* this message is
+    // guaranteed to flow through the hook — no timing guesses needed.
+    // Mirrors the SubscriptionActive sentinel that subscribeResults emits.
+    //
+    // The sentinel must be sent *before* the forwarder is launched. Sending it
+    // through the `invocations` channel after launching the forwarder would be
+    // racier, not safer: the broker may already be firing into the rendezvous
+    // channel from another thread (the hook is live the moment registerHook
+    // returns true), so a concurrent packet event could win the rendezvous
+    // before our sentinel does. Bypassing the channel entirely keeps ordering
+    // tied to lexical structure rather than thread races.
+    send(
+      PrePacketHookInvocation.newBuilder()
+        .setRegistered(PrePacketHookInvocation.HookRegistered.getDefaultInstance())
+        .build()
+    )
+
     // Forward invocations from the internal channel to the gRPC stream.
     launch {
       for (invocation in invocations) {
