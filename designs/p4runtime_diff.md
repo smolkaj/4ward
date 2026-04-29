@@ -50,33 +50,52 @@ oracle.
 
 `bazel/behavioral_model.patch` builds `simple_switch_lib` and its
 transitive deps but explicitly omits PI ("Minimal build: no Thrift, no
-nanomsg, no debugger, no PI"). The `simple_switch_grpc` binary depends
-on [`p4lang/PI`](https://github.com/p4lang/PI).
+nanomsg, no debugger, no PI"). The `simple_switch_grpc` binary requires
+both [`p4lang/PI`](https://github.com/p4lang/PI) and the
+`targets/simple_switch_grpc/` directory of `behavioral-model` itself —
+the binary lives in behavioral-model, links against PI's `libpi_bmv2`
+adapter.
 
-Some prior art reduces the cost:
+The realistic split:
 
-- **Upstream PI already has WORKSPACE-style Bazel rules** for the core
-  library (`pihdrs`, `piutils`, `pip4info`, `pi`, …). See PI's
-  [`BUILD`](https://github.com/p4lang/PI/blob/main/BUILD) and
-  [`bazel/deps.bzl`](https://github.com/p4lang/PI/blob/main/bazel/deps.bzl).
-  Stratum already consumes it as a Bazel dep
-  ([`stratum/bazel/deps.bzl`](https://github.com/stratum/stratum/blob/main/bazel/deps.bzl)),
-  proving it works in production.
-- **What's missing upstream**: BUILD files for `targets/bmv2/` (the
-  `simple_switch_grpc` target plugin) and `bin/`. Those are
-  autotools-only today. We'd write them.
-- **Bzlmod shim**: 4ward uses Bzlmod, PI is WORKSPACE-only, no BCR
-  module exists. We'd add a small `MODULE.bazel` wrapping the
-  upstream WORKSPACE rules.
-- **Version skew**: PI pins protobuf/gRPC versions that may diverge
-  from ours; resolving that is the most likely source of incidental
-  scope.
+- **Upstream PI**: has WORKSPACE-style Bazel rules for its C frontend
+  (`pihdrs`, `piutils`, `pip4info`, `pi`, `pifegeneric`) but **none**
+  for the C++ bmv2 adapter (`targets/bmv2/`, ~15 `.cpp` files
+  producing `libpi_bmv2`) — that's autotools-only.
+- **PI's deps.bzl** pins absl 2022-06-23 LTS, which is incompatible
+  with our absl 20260107.1 / protobuf 33.5 / grpc 1.80.0 (target
+  renames around protobuf 26 break PI's existing `cc_library`
+  references).
+- **Behavioral-model's `targets/simple_switch_grpc/`** is autotools
+  only; our existing patch covers `simple_switch_lib` only (the
+  data-plane variant) and explicitly disables `--with-pi`.
 
-Net: the core PI port is reuse, not greenfield; the
-`simple_switch_grpc`/`bin/` BUILD files plus a Bzlmod shim are the
-genuinely new work. Plausibly 1–2 weeks of focused work, dominated by
-version-skew triage. **This is Phase 1 and remains the dominant risk**
-(see Risks).
+[`rules_foreign_cc`](https://github.com/bazel-contrib/rules_foreign_cc)
+was the obvious first attempt: wrap PI and `simple_switch_grpc` as
+`configure_make` targets, defer dep resolution to autotools. **It
+doesn't work.** `rules_foreign_cc` does not bundle autoconf, automake,
+or libtool — it expects them on the host PATH. Adding them as a
+system dependency contradicts 4ward's "fully hermetic build, no
+system packages" property — exactly the property that makes 4ward
+attractive as a BMv2 replacement in DVaaS (designs/dvaas_integration.md).
+
+Two paths remain, both real work:
+
+1. **Native Bazel rules for PI and behavioral-model's
+   `simple_switch_grpc`.** Multi-week port — version-skew triage on
+   PI's stale absl pin, ~15 `cc_library`s for the bmv2 adapter,
+   another ~10 for `simple_switch_grpc/` itself, plus protobuf 26+
+   target rename patches.
+2. **Vendor autotools as Bazel deps.** `autoconf` and `automake` are
+   themselves shell + m4 — notoriously hard to bazelify. Some
+   third-party `rules_autotools` exists but is experimental.
+   Probably not less work than option 1.
+
+**This is the dominant risk and currently a blocker** (see Risks).
+The harness, runner, and scenarios in this PR are written against an
+abstract `Bmv2P4RuntimeRunner` interface so they're ready to wire up
+once a working `simple_switch_grpc` build lands; the tests are
+tagged `bmv2-grpc-blocked` and skipped until then.
 
 ### Scenarios
 
@@ -139,21 +158,24 @@ failure.
 
 ## Phasing
 
+The harness, runner, and initial scenarios ship as a single PR. The
+PI Bazel port is the dominant cost but provides no observable value
+on its own, and a harness with no scenarios isn't useful — bundling
+keeps each component honest about its end-to-end role and lets
+reviewers see the full picture before any of it merges.
+
 1. **PI Bazel port.** Pull `p4lang/PI` in as a `git_override`'d
    `bazel_dep`, reusing its upstream WORKSPACE Bazel rules; add the
    missing BUILD files for `targets/bmv2/` and `bin/`; resolve
-   version skew with our protobuf/gRPC. No 4ward code changes; ships
-   as its own PR.
+   version skew with our protobuf/gRPC. No 4ward code changes.
 2. **Harness skeleton.** A `Bmv2P4RuntimeRunner`. A test that spawns
    both servers, sets a pipeline config on each, performs one
    Write+Read, asserts responses match.
 3. **Initial scenario corpus.** The five scenarios above. Triage
    divergences: file 4ward bugs as issues, file BMv2 bugs upstream,
    raise spec ambiguities with the P4 API working group.
-4. **Corpus growth.** Add scenarios as P4Runtime features land.
-
-Phases 2 and 3 land together — a harness with no scenarios isn't
-useful.
+4. **Corpus growth.** Add scenarios as P4Runtime features land
+   (post-merge follow-ups, not part of this PR).
 
 ## Non-goals
 
@@ -167,11 +189,13 @@ useful.
 
 ## Risks
 
-- **PI's Bazel port is the long pole.** PI itself depends on Thrift,
-  protobuf, gRPC, and several p4lang sub-deps. If transitive
-  dependencies clash with our existing protobuf/gRPC versions, Phase
-  1 stalls. Pre-flight by attempting a minimal `cc_library(name =
-  "PI")` build before committing to the full design.
+- **PI / behavioral-model autotools build is the long pole.** Using
+  `rules_foreign_cc` reduces our scope to "wire up the autotools
+  build" rather than "port to native Bazel," but it depends on
+  Thrift, gRPC, protobuf, and several p4lang sub-deps being
+  resolvable from the host. macOS in particular is fragile here.
+  Pre-flight by attempting a minimal `configure_make` build of PI's
+  C frontend before committing to wiring `simple_switch_grpc`.
 - **Subprocess management flakiness.** Two servers per scenario with
   port allocation, startup races, and graceful shutdown is more
   failure surface than the existing single-process harness. Reusing
