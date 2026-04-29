@@ -3,18 +3,25 @@ package fourward.p4runtime
 import com.google.protobuf.ByteString
 import io.grpc.Status
 import io.grpc.StatusException
+import java.math.BigInteger
 import p4.config.v1.P4InfoOuterClass
 import p4.v1.P4RuntimeOuterClass
+
+/** Interprets a [ByteString] as an unsigned big-endian [BigInteger]. */
+private fun ByteString.toBigInt(): BigInteger = BigInteger(1, toByteArray())
 
 /**
  * Validates P4Runtime Write updates against the p4info schema.
  *
- * Enforces P4Runtime spec §9.1: action IDs/refs, action parameter count/IDs/byte widths, match
- * field IDs/kinds/byte widths, required exact fields, and priority rules.
+ * Enforces P4Runtime spec §9.1: action IDs/refs, action parameter count/IDs, match field IDs/kinds,
+ * required exact fields, and priority rules. Bytestring values are checked against the §8.3
+ * fits-in-bitwidth rule via [requireFitsInBitwidth] — the validator accepts any length (including
+ * the canonical shortest form) as long as the represented integer fits in the P4Info-specified
+ * bitwidth.
  *
  * All lookup maps are pre-computed at construction time so [validate] does zero allocations.
  * Constructed once per pipeline load; call [validate] for each update before type translation so
- * SDN-visible values are checked at canonical widths (§8.3).
+ * SDN-visible values are checked against their P4-program bitwidths (§8.3).
  */
 class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
 
@@ -202,9 +209,9 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
                 "'${it.value.name}' (${it.key})"
               })})"
           )
-      // §8.3: canonical byte width. Skip if bitwidth is 0
-      // (e.g. @p4runtime_translation with sdn_string).
-      checkWidth(paramInfo.bitwidth, param.value.size(), "param '${paramInfo.name}'")
+      // §8.3: value must fit in the param's bitwidth. Bitwidth 0 means unspecified
+      // (e.g. @p4runtime_translation with sdn_string) — only an empty bytestring is rejected.
+      requireFitsInBitwidth(param.value, paramInfo.bitwidth, "param '${paramInfo.name}'")
     }
   }
 
@@ -289,26 +296,32 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
     val f = fieldInfo.name
     when (fm.fieldMatchTypeCase) {
       P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.EXACT ->
-        checkWidth(w, fm.exact.value.size(), "match field '$f' value")
+        requireFitsInBitwidth(fm.exact.value, w, "match field '$f' value")
       P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.TERNARY -> {
-        checkWidth(w, fm.ternary.value.size(), "match field '$f' value")
-        checkWidth(w, fm.ternary.mask.size(), "match field '$f' mask")
+        requireFitsInBitwidth(fm.ternary.value, w, "match field '$f' value")
+        requireFitsInBitwidth(fm.ternary.mask, w, "match field '$f' mask")
         // §8.3: bits where mask is 0 must also be 0 in value.
         checkTernaryMaskedBits(fm.ternary.value, fm.ternary.mask, f)
       }
       P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.LPM -> {
-        checkWidth(w, fm.lpm.value.size(), "match field '$f' value")
+        requireFitsInBitwidth(fm.lpm.value, w, "match field '$f' value")
+        // §9.1.1: prefix_len must be in [0, W].
+        if (fm.lpm.prefixLen < 0 || fm.lpm.prefixLen > w) {
+          throw invalidArg(
+            "match field '$f' has prefix_len ${fm.lpm.prefixLen} outside the valid range [0, $w]"
+          )
+        }
         // §8.3: bits beyond prefix_len must be zero.
-        checkLpmTrailingBits(fm.lpm.value, fm.lpm.prefixLen, f)
+        checkLpmTrailingBits(fm.lpm.value, fm.lpm.prefixLen, w, f)
       }
       P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.RANGE -> {
-        checkWidth(w, fm.range.low.size(), "match field '$f' low")
-        checkWidth(w, fm.range.high.size(), "match field '$f' high")
+        requireFitsInBitwidth(fm.range.low, w, "match field '$f' low")
+        requireFitsInBitwidth(fm.range.high, w, "match field '$f' high")
         // P4Runtime spec §9.1.1: low must be <= high.
         checkRangeOrder(fm.range.low, fm.range.high, f)
       }
       P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.OPTIONAL ->
-        checkWidth(w, fm.optional.value.size(), "match field '$f' value")
+        requireFitsInBitwidth(fm.optional.value, w, "match field '$f' value")
       P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.OTHER,
       P4RuntimeOuterClass.FieldMatch.FieldMatchTypeCase.FIELDMATCHTYPE_NOT_SET,
       null -> {}
@@ -408,62 +421,50 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
         P4InfoOuterClass.MatchField.MatchType.OPTIONAL,
       )
 
-    /** §8.3: values must be exactly ceil(bitwidth/8) bytes. Skips if bitwidth is 0. */
-    private fun checkWidth(bitwidth: Int, actual: Int, label: String) {
-      val expected = (bitwidth + 7) / 8
-      if (expected > 0 && actual != expected) {
-        throw invalidArg("$label expects $expected bytes, got $actual")
-      }
-    }
-
-    /** §8.3: ternary value bits must be zero where the mask is zero. */
+    /**
+     * §8.3: ternary value bits must be zero where the mask is zero.
+     *
+     * Length-agnostic: value and mask may be any length (each separately validated by
+     * [requireFitsInBitwidth] beforehand), so the check is done on the integer values directly.
+     */
     private fun checkTernaryMaskedBits(value: ByteString, mask: ByteString, fieldName: String) {
-      for (i in 0 until value.size()) {
-        val v = value.byteAt(i).toInt() and 0xFF
-        val m = mask.byteAt(i).toInt() and 0xFF
-        if (v and m != v) {
-          throw invalidArg(
-            "match field '$fieldName' has masked-off bits set in value (value & ~mask != 0)"
-          )
-        }
+      val v = value.toBigInt()
+      val m = mask.toBigInt()
+      if (v.and(m.not()).signum() != 0) {
+        throw invalidArg(
+          "match field '$fieldName' has masked-off bits set in value (value & ~mask != 0)"
+        )
       }
     }
 
     /** §9.1.1: range match low must be <= high (unsigned comparison). */
     private fun checkRangeOrder(low: ByteString, high: ByteString, fieldName: String) {
-      for (i in 0 until low.size()) {
-        val l = low.byteAt(i).toInt() and 0xFF
-        val h = high.byteAt(i).toInt() and 0xFF
-        if (l < h) return // low < high — valid
-        if (l > h) {
-          throw invalidArg("match field '$fieldName' has range low > high")
-        }
-        // l == h — continue to next byte
+      if (low.toBigInt() > high.toBigInt()) {
+        throw invalidArg("match field '$fieldName' has range low > high")
       }
-      // low == high — valid (single-value range)
     }
 
-    /** §8.3: LPM value bits beyond prefix_len must be zero. */
-    private fun checkLpmTrailingBits(value: ByteString, prefixLen: Int, fieldName: String) {
-      for (i in 0 until value.size()) {
-        val bitStart = i * 8
-        val b = value.byteAt(i).toInt() and 0xFF
-        if (bitStart >= prefixLen) {
-          if (b != 0) {
-            throw invalidArg(
-              "match field '$fieldName' has non-zero bits beyond prefix length $prefixLen"
-            )
-          }
-        } else if (bitStart + 8 > prefixLen) {
-          // Partial byte: only the high (prefixLen - bitStart) bits are valid.
-          val trailingBits = 8 - (prefixLen - bitStart)
-          val trailingMask = (1 shl trailingBits) - 1
-          if (b and trailingMask != 0) {
-            throw invalidArg(
-              "match field '$fieldName' has non-zero bits beyond prefix length $prefixLen"
-            )
-          }
-        }
+    /**
+     * §8.3: LPM value bits beyond prefix_len must be zero.
+     *
+     * The value is interpreted as a [bitwidth]-bit unsigned integer; the trailing (bitwidth -
+     * prefixLen) bits must be zero, regardless of how many bytes were used to send it. (E.g. for
+     * `bit<32>` LPM with prefix_len=8, the value `\x0A` represents integer 10 with implicit leading
+     * zeros — and bit positions [0,24) of the bit<32> integer are non-zero, so it is rejected.)
+     */
+    private fun checkLpmTrailingBits(
+      value: ByteString,
+      prefixLen: Int,
+      bitwidth: Int,
+      fieldName: String,
+    ) {
+      val trailingBits = bitwidth - prefixLen
+      if (trailingBits == 0) return // entire value is significant
+      val mask = BigInteger.ONE.shiftLeft(trailingBits).subtract(BigInteger.ONE)
+      if (value.toBigInt().and(mask).signum() != 0) {
+        throw invalidArg(
+          "match field '$fieldName' has non-zero bits beyond prefix length $prefixLen"
+        )
       }
     }
 

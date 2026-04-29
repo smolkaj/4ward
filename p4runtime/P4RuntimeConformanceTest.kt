@@ -368,12 +368,13 @@ class P4RuntimeConformanceTest {
         )
     }
 
-    // Read back: should have the MODIFY's action (port=2).
+    // Read back: should have the MODIFY's action (port=2). Reads return canonical
+    // (shortest) bytestrings per spec §8.3, regardless of how the value was sent.
     val results = harness.readEntry(P4RuntimeTestHarness.buildMatchFilter(config, 0x0800))
     assertEquals("entry should exist", 1, results.size)
     assertEquals(
-      "entry should have the MODIFY's action",
-      entry2.tableEntry.action.action.paramsList,
+      "entry should have the MODIFY's action (canonical-form params)",
+      entry2.tableEntry.action.action.paramsList.map(::canonicalizeParam),
       results[0].tableEntry.action.action.paramsList,
     )
   }
@@ -497,13 +498,15 @@ class P4RuntimeConformanceTest {
     val results = harness.readEntry(filter)
     assertEquals(1, results.size)
     // The returned entry should have the same action as what was installed.
+    // Per spec §8.3, the server returns bytestrings in canonical (shortest) form regardless of
+    // the encoding the client sent, so we compare against the canonicalized expected params.
     assertTrue("should have action set", results[0].tableEntry.action.hasAction())
     assertEquals(
       entry.tableEntry.action.action.actionId,
       results[0].tableEntry.action.action.actionId,
     )
     assertEquals(
-      entry.tableEntry.action.action.paramsList,
+      entry.tableEntry.action.action.paramsList.map(::canonicalizeParam),
       results[0].tableEntry.action.action.paramsList,
     )
   }
@@ -1208,32 +1211,34 @@ class P4RuntimeConformanceTest {
   // Bytestring encoding (scenario 63)
   // =========================================================================
 
-  /** P4Runtime spec §8.7: read responses have bytestrings zero-padded to ceil(bitwidth/8). */
+  /** P4Runtime spec §8.3: read responses use canonical (shortest) bytestring form. */
   @Test
-  fun `63 - read responses have correctly sized bytestrings`() {
+  fun `63 - read responses use canonical bytestring form`() {
     val config = loadBasicTableConfig()
     harness.loadPipeline(config)
-    val matchField = config.p4Info.tablesList.first().matchFieldsList.first()
-    val forwardAction = config.p4Info.actionsList.find { it.preamble.name.contains("forward") }!!
-    val matchBytes = (matchField.bitwidth + 7) / 8
-    val paramBytes = (forwardAction.paramsList.first().bitwidth + 7) / 8
 
+    // Send a value (port=1) that has a strictly shorter canonical form than the param's fixed
+    // width — that way the assertion catches both "padded to fixed width" and "canonical".
     val entry = buildExactEntry(config, matchValue = 0x0800, port = 1)
     harness.installEntry(entry)
 
     val results = harness.readRegularEntries()
     assertEquals(1, results.size)
     val readEntry = results[0].tableEntry
+    val readMatch = readEntry.matchList[0].exact.value
+    val readParam = readEntry.action.action.paramsList[0].value
     assertEquals(
-      "match field bytestring should be $matchBytes bytes",
-      matchBytes,
-      readEntry.matchList[0].exact.value.size(),
+      "match field bytestring should be canonical (no leading zero bytes)",
+      readMatch,
+      canonicalize(readMatch),
     )
     assertEquals(
-      "action param bytestring should be $paramBytes bytes",
-      paramBytes,
-      readEntry.action.action.paramsList[0].value.size(),
+      "action param bytestring should be canonical (no leading zero bytes)",
+      readParam,
+      canonicalize(readParam),
     )
+    // And specifically: port=1 fits in 1 byte, so the read-back param must be 1 byte (not 2).
+    assertEquals("port=1 canonical encoding is one byte", 1, readParam.size())
   }
 
   // =========================================================================
@@ -2269,7 +2274,12 @@ class P4RuntimeConformanceTest {
   // §8.2: Read-write symmetry (scenarios 110-113)
   // =========================================================================
 
-  /** §8.2: Table entry written via Write reads back identically via Read. */
+  /**
+   * §8.3: Per the spec's read-write symmetry property, "the encoder of a P4Runtime request or reply
+   * uses the shortest strings that fit the encoded integer values" — so reads return canonical form
+   * regardless of the encoding the client wrote. The round-trip identity holds after canonicalizing
+   * the written entry.
+   */
   @Test
   fun `110 - table entry read-write symmetry`() {
     val config = loadBasicTableConfig()
@@ -2278,11 +2288,16 @@ class P4RuntimeConformanceTest {
     harness.installEntry(entry)
     val readBack = harness.readEntry(buildReadFilter(config, 0x0800))
     assertEquals(1, readBack.size)
-    val written = entry.tableEntry
+    val canonicalWritten =
+      canonicalizeBytestrings(
+          p4.v1.P4RuntimeOuterClass.Update.newBuilder().setEntity(entry).build()
+        )
+        .entity
+        .tableEntry
     val read = readBack[0].tableEntry
-    assertEquals("table_id must match", written.tableId, read.tableId)
-    assertEquals("match fields must match", written.matchList, read.matchList)
-    assertEquals("action must match", written.action, read.action)
+    assertEquals("table_id must match", canonicalWritten.tableId, read.tableId)
+    assertEquals("match fields must match", canonicalWritten.matchList, read.matchList)
+    assertEquals("action must match", canonicalWritten.action, read.action)
   }
 
   /** §8.2: Action profile member round-trips identically. */

@@ -269,6 +269,18 @@ kt_jvm_test(
 )
 
 kt_jvm_test(
+    name = "BytestringsTest",
+    srcs = ["BytestringsTest.kt"],
+    test_class = "fourward.p4runtime.BytestringsTest",
+    deps = [
+        ":p4runtime",
+        "@fourward_maven//:com_google_protobuf_protobuf_java",
+        "@fourward_maven//:io_grpc_grpc_api",
+        "@fourward_maven//:junit_junit",
+    ],
+)
+
+kt_jvm_test(
     name = "EntityReaderTest",
     srcs = ["EntityReaderTest.kt"],
     test_class = "fourward.p4runtime.EntityReaderTest",

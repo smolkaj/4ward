@@ -126,21 +126,33 @@ class WriteValidatorTest {
   }
 
   @Test
-  fun `wrong param byte width returns INVALID_ARGUMENT`() {
+  fun `param value too narrow accepted as canonical encoding`() {
+    // §8.3: shorter-than-fixed-width is the canonical form (read-write symmetric).
     val v = validator()
-    // Param is 16-bit (2 bytes); send 1 byte.
+    v.validate(
+      insertUpdate(
+        EXACT_TABLE_ID,
+        exactMatch(MATCH_FIELD_ID, bytes(2)),
+        action(params = listOf(param(value = bytes(1)))),
+      )
+    )
+  }
+
+  @Test
+  fun `param value out of range returns OUT_OF_RANGE`() {
+    // §8.3: value 0x10000 doesn't fit in bit<16>, regardless of byte count.
+    val v = validator()
     val e =
       assertThrows(StatusException::class.java) {
         v.validate(
           insertUpdate(
             EXACT_TABLE_ID,
             exactMatch(MATCH_FIELD_ID, bytes(2)),
-            action(params = listOf(param(value = bytes(1)))),
+            action(params = listOf(param(value = byteArrayOf(0x01, 0x00, 0x00)))),
           )
         )
       }
-    assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code)
-    assert(e.status.description!!.contains("bytes"))
+    assertEquals(Status.Code.OUT_OF_RANGE, e.status.code)
   }
 
   @Test
@@ -184,15 +196,27 @@ class WriteValidatorTest {
   }
 
   @Test
-  fun `wrong match value width returns INVALID_ARGUMENT`() {
+  fun `match value shorter than fixed width accepted as canonical encoding`() {
+    // §8.3: 1 byte for a bit<16> match field is the canonical form (value fits in 16 bits).
     val v = validator()
-    // Match field is 16-bit (2 bytes); send 1 byte.
+    v.validate(insertUpdate(EXACT_TABLE_ID, exactMatch(MATCH_FIELD_ID, bytes(1)), action()))
+  }
+
+  @Test
+  fun `match value out of range returns OUT_OF_RANGE`() {
+    // §8.3: 3-byte value 0x010000 overflows the field's bit<16> width.
+    val v = validator()
     val e =
       assertThrows(StatusException::class.java) {
-        v.validate(insertUpdate(EXACT_TABLE_ID, exactMatch(MATCH_FIELD_ID, bytes(1)), action()))
+        v.validate(
+          insertUpdate(
+            EXACT_TABLE_ID,
+            exactMatch(MATCH_FIELD_ID, byteArrayOf(0x01, 0x00, 0x00)),
+            action(),
+          )
+        )
       }
-    assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code)
-    assert(e.status.description!!.contains("bytes"))
+    assertEquals(Status.Code.OUT_OF_RANGE, e.status.code)
   }
 
   @Test
@@ -208,37 +232,36 @@ class WriteValidatorTest {
   }
 
   @Test
-  fun `ternary match value and mask widths validated`() {
+  fun `ternary match value out of range returns OUT_OF_RANGE`() {
     val v = validator()
     val e =
       assertThrows(StatusException::class.java) {
         v.validate(
           insertUpdate(
             TERNARY_TABLE_ID,
-            ternaryMatch(TERNARY_FIELD_ID, value = bytes(1), mask = bytes(2)),
+            ternaryMatch(TERNARY_FIELD_ID, value = byteArrayOf(0x01, 0x00, 0x00), mask = bytes(2)),
             ternaryAction(),
             priority = 1,
           )
         )
       }
-    assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code)
-    assert(e.status.description!!.contains("value"))
+    assertEquals(Status.Code.OUT_OF_RANGE, e.status.code)
   }
 
   @Test
-  fun `LPM match value width validated`() {
+  fun `LPM match value out of range returns OUT_OF_RANGE`() {
     val v = validator()
     val e =
       assertThrows(StatusException::class.java) {
         v.validate(
           insertUpdate(
             LPM_TABLE_ID,
-            lpmMatch(LPM_FIELD_ID, value = bytes(1), prefixLen = 8),
+            lpmMatch(LPM_FIELD_ID, value = byteArrayOf(0x01, 0x00, 0x00), prefixLen = 8),
             ternaryAction(),
           )
         )
       }
-    assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code)
+    assertEquals(Status.Code.OUT_OF_RANGE, e.status.code)
   }
 
   // =========================================================================
@@ -638,21 +661,20 @@ class WriteValidatorTest {
   }
 
   @Test
-  fun `range match width validated`() {
+  fun `range match endpoints out of range return OUT_OF_RANGE`() {
     val v = validator()
     val e =
       assertThrows(StatusException::class.java) {
         v.validate(
           insertUpdate(
             RANGE_TABLE_ID,
-            rangeMatch(low = bytes(1), high = bytes(2)),
+            rangeMatch(low = bytes(1), high = byteArrayOf(0x01, 0x00, 0x00)),
             ternaryAction(),
             priority = 1,
           )
         )
       }
-    assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code)
-    assert(e.status.description!!.contains("bytes"))
+    assertEquals(Status.Code.OUT_OF_RANGE, e.status.code)
   }
 
   // =========================================================================
@@ -673,21 +695,20 @@ class WriteValidatorTest {
   }
 
   @Test
-  fun `optional match wrong width returns INVALID_ARGUMENT`() {
+  fun `optional match value out of range returns OUT_OF_RANGE`() {
     val v = validator()
     val e =
       assertThrows(StatusException::class.java) {
         v.validate(
           insertUpdate(
             OPTIONAL_TABLE_ID,
-            optionalMatch(value = bytes(1)),
+            optionalMatch(value = byteArrayOf(0x01, 0x00, 0x00)),
             ternaryAction(),
             priority = 1,
           )
         )
       }
-    assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code)
-    assert(e.status.description!!.contains("bytes"))
+    assertEquals(Status.Code.OUT_OF_RANGE, e.status.code)
   }
 
   @Test
@@ -817,19 +838,18 @@ class WriteValidatorTest {
   }
 
   @Test
-  fun `member with wrong param width returns INVALID_ARGUMENT`() {
+  fun `member with param value out of range returns OUT_OF_RANGE`() {
     val v = validator()
     val e =
       assertThrows(StatusException::class.java) {
         v.validate(
           memberUpdate(
             P4RuntimeOuterClass.Update.Type.INSERT,
-            action(params = listOf(param(value = bytes(1)))),
+            action(params = listOf(param(value = byteArrayOf(0x01, 0x00, 0x00)))),
           )
         )
       }
-    assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code)
-    assert(e.status.description!!.contains("bytes"))
+    assertEquals(Status.Code.OUT_OF_RANGE, e.status.code)
   }
 
   // =========================================================================
@@ -887,16 +907,20 @@ class WriteValidatorTest {
   }
 
   @Test
-  fun `bit7 field rejects 2-byte value`() {
+  fun `bit7 field rejects value greater than 127`() {
+    // §8.3: 0x80 = 128 doesn't fit in 7 bits (max = 127), even when sent as a single byte.
     val v = bitwidthValidator()
     val e =
       assertThrows(StatusException::class.java) {
         v.validate(
-          insertUpdate(BIT7_TABLE_ID, listOf(exactMatch(BIT7_FIELD_ID, bytes(2))), action())
+          insertUpdate(
+            BIT7_TABLE_ID,
+            listOf(exactMatch(BIT7_FIELD_ID, byteArrayOf(0x80.toByte()))),
+            action(),
+          )
         )
       }
-    assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code)
-    assert(e.status.description!!.contains("bytes"))
+    assertEquals(Status.Code.OUT_OF_RANGE, e.status.code)
   }
 
   @Test
@@ -908,16 +932,27 @@ class WriteValidatorTest {
   }
 
   @Test
-  fun `bit128 field rejects 15-byte value`() {
+  fun `bit128 field accepts 15-byte canonical value`() {
+    // §8.3: shorter-than-fixed-width is the canonical form, accepted regardless of bitwidth.
     val v = bitwidthValidator()
+    v.validate(
+      insertUpdate(BIT128_TABLE_ID, listOf(exactMatch(BIT128_FIELD_ID, bytes(15))), action())
+    )
+  }
+
+  @Test
+  fun `bit128 field rejects value exceeding 128 bits`() {
+    // 17-byte value with high byte 0x01 = 2^128 — first integer that doesn't fit.
+    val v = bitwidthValidator()
+    val tooLarge = ByteArray(17)
+    tooLarge[0] = 0x01
     val e =
       assertThrows(StatusException::class.java) {
         v.validate(
-          insertUpdate(BIT128_TABLE_ID, listOf(exactMatch(BIT128_FIELD_ID, bytes(15))), action())
+          insertUpdate(BIT128_TABLE_ID, listOf(exactMatch(BIT128_FIELD_ID, tooLarge)), action())
         )
       }
-    assertEquals(Status.Code.INVALID_ARGUMENT, e.status.code)
-    assert(e.status.description!!.contains("bytes"))
+    assertEquals(Status.Code.OUT_OF_RANGE, e.status.code)
   }
 
   @Test

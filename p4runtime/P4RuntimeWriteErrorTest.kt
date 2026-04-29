@@ -168,20 +168,20 @@ class P4RuntimeWriteErrorTest {
     assertGrpcError(Status.Code.INVALID_ARGUMENT, "priority") { harness.installEntry(entity) }
   }
 
-  // P4Runtime spec §8.3: match field value must have canonical byte width.
+  // P4Runtime spec §8.3: match field value must fit in the field's bitwidth.
   @Test
-  fun `insert with wrong match value width returns INVALID_ARGUMENT`() {
+  fun `insert with match value out of range returns OUT_OF_RANGE`() {
     val config = loadBasicTableConfig()
     harness.loadPipeline(config)
-    // etherType is 16-bit (2 bytes); send 1 byte.
+    // etherType is 16-bit; send a 3-byte value 0x010000 that overflows.
     val entity =
       buildInvalidEntry(config) { b ->
         b.tableEntryBuilder
           .getMatchBuilder(0)
           .exactBuilder
-          .setValue(ByteString.copyFrom(byteArrayOf(0x08)))
+          .setValue(ByteString.copyFrom(byteArrayOf(0x01, 0x00, 0x00)))
       }
-    assertGrpcError(Status.Code.INVALID_ARGUMENT, "bytes") { harness.installEntry(entity) }
+    assertGrpcError(Status.Code.OUT_OF_RANGE, "does not fit") { harness.installEntry(entity) }
   }
 
   // P4Runtime spec §9.1.1: match field kind must match p4info.

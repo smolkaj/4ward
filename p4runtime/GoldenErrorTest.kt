@@ -101,7 +101,7 @@ class GoldenErrorTest(private val testName: String) {
       "unknown-table-id" -> triggerUnknownTableId()
       "unknown-action-id" -> triggerUnknownActionId()
       "wrong-param-count" -> triggerWrongParamCount()
-      "wrong-match-width" -> triggerWrongMatchWidth()
+      "match-value-out-of-range" -> triggerMatchValueOutOfRange()
       "wrong-match-kind" -> triggerWrongMatchKind()
       "missing-exact-field" -> triggerMissingExactField()
       "duplicate-match-field" -> triggerDuplicateMatchField()
@@ -126,7 +126,7 @@ class GoldenErrorTest(private val testName: String) {
       "commit-without-save" -> triggerCommitWithoutSave()
       "unrecognized-pipeline-action" -> triggerUnrecognizedPipelineAction()
       "simulator-rejected-pipeline" -> triggerSimulatorRejectedPipeline()
-      "param-width-mismatch" -> triggerParamWidthMismatch()
+      "param-value-out-of-range" -> triggerParamValueOutOfRange()
       "priority-required" -> triggerPriorityRequired()
       "ternary-masked-bits" -> triggerTernaryMaskedBits()
       "lpm-trailing-bits" -> triggerLpmTrailingBits()
@@ -250,11 +250,11 @@ class GoldenErrorTest(private val testName: String) {
   }
 
   @Suppress("MagicNumber")
-  private fun triggerWrongMatchWidth() {
+  private fun triggerMatchValueOutOfRange() {
     val config = loadBasicTable()
     harness.loadPipeline(config)
     val valid = buildExactEntry(config, matchValue = 0x0800, port = 1)
-    // etherType is 16-bit (2 bytes); send 1 byte.
+    // etherType is 16-bit; send a 3-byte value 0x010000 that overflows.
     val entity =
       valid
         .toBuilder()
@@ -262,7 +262,7 @@ class GoldenErrorTest(private val testName: String) {
           tableEntryBuilder
             .getMatchBuilder(0)
             .exactBuilder
-            .setValue(ByteString.copyFrom(byteArrayOf(0x08)))
+            .setValue(ByteString.copyFrom(byteArrayOf(0x01, 0x00, 0x00)))
         }
         .build()
     harness.installEntry(entity)
@@ -470,11 +470,11 @@ class GoldenErrorTest(private val testName: String) {
   }
 
   @Suppress("MagicNumber")
-  private fun triggerParamWidthMismatch() {
+  private fun triggerParamValueOutOfRange() {
     val config = loadBasicTable()
     harness.loadPipeline(config)
     val valid = buildExactEntry(config, matchValue = 0x0800, port = 1)
-    // The 'port' param is 9-bit (2 bytes canonical); send 4 bytes instead.
+    // The 'port' param is 9-bit (max value 0x1FF); send 0x0200 which overflows.
     val entity =
       valid
         .toBuilder()
@@ -484,7 +484,7 @@ class GoldenErrorTest(private val testName: String) {
             valid.tableEntry.action.action
               .getParams(0)
               .toBuilder()
-              .setValue(ByteString.copyFrom(byteArrayOf(0, 0, 0, 1))),
+              .setValue(ByteString.copyFrom(byteArrayOf(0x02, 0x00))),
           )
         }
         .build()
@@ -1642,7 +1642,7 @@ class GoldenErrorTest(private val testName: String) {
         "unknown-table-id",
         "unknown-action-id",
         "wrong-param-count",
-        "wrong-match-width",
+        "match-value-out-of-range",
         "wrong-match-kind",
         "missing-exact-field",
         "duplicate-match-field",
@@ -1667,7 +1667,7 @@ class GoldenErrorTest(private val testName: String) {
         "commit-without-save",
         "unrecognized-pipeline-action",
         "simulator-rejected-pipeline",
-        "param-width-mismatch",
+        "param-value-out-of-range",
         "priority-required",
         "ternary-masked-bits",
         "lpm-trailing-bits",
