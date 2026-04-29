@@ -36,11 +36,12 @@ canonicalizations.
 
 The §8.3 bytestring fix in #594 lived in the gRPC adapter — code BMv2's
 C++ API never reaches and our existing differential harness
-(`e2e_tests/bmv2_diff/`, 187 STF tests) never touches. The same is
-likely true of other corners: status codes, batch atomicity, role
-config, idle timeout, default-action semantics, action-profile group
-membership rules. Today, 4ward's tests encode our *reading* of the spec;
-a control-plane differential harness uses an external implementation as
+(`e2e_tests/bmv2_diff/`, 187 STF tests) never touches. Candidate
+corners that could be similarly affected include status codes, batch
+atomicity, role config, idle timeout, default-action semantics, and
+action-profile group membership rules — none verified, hence the
+proposal. Today, 4ward's tests encode our *reading* of the spec; a
+control-plane differential harness uses an external implementation as
 oracle.
 
 ## Design
@@ -50,11 +51,32 @@ oracle.
 `bazel/behavioral_model.patch` builds `simple_switch_lib` and its
 transitive deps but explicitly omits PI ("Minimal build: no Thrift, no
 nanomsg, no debugger, no PI"). The `simple_switch_grpc` binary depends
-on [`p4lang/PI`](https://github.com/p4lang/PI), which carries a Thrift
-dependency and a wider protobuf/gRPC surface than the existing patch
-covers. Realistic estimate: 2–3× the size of the current 223-line
-patch, plus pulling PI in as a `git_override`'d `bazel_dep`. **This is
-Phase 1 below and is the dominant risk** (see Risks).
+on [`p4lang/PI`](https://github.com/p4lang/PI).
+
+Some prior art reduces the cost:
+
+- **Upstream PI already has WORKSPACE-style Bazel rules** for the core
+  library (`pihdrs`, `piutils`, `pip4info`, `pi`, …). See PI's
+  [`BUILD`](https://github.com/p4lang/PI/blob/main/BUILD) and
+  [`bazel/deps.bzl`](https://github.com/p4lang/PI/blob/main/bazel/deps.bzl).
+  Stratum already consumes it as a Bazel dep
+  ([`stratum/bazel/deps.bzl`](https://github.com/stratum/stratum/blob/main/bazel/deps.bzl)),
+  proving it works in production.
+- **What's missing upstream**: BUILD files for `targets/bmv2/` (the
+  `simple_switch_grpc` target plugin) and `bin/`. Those are
+  autotools-only today. We'd write them.
+- **Bzlmod shim**: 4ward uses Bzlmod, PI is WORKSPACE-only, no BCR
+  module exists. We'd add a small `MODULE.bazel` wrapping the
+  upstream WORKSPACE rules.
+- **Version skew**: PI pins protobuf/gRPC versions that may diverge
+  from ours; resolving that is the most likely source of incidental
+  scope.
+
+Net: the core PI port is reuse, not greenfield; the
+`simple_switch_grpc`/`bin/` BUILD files plus a Bzlmod shim are the
+genuinely new work. Plausibly 1–2 weeks of focused work, dominated by
+version-skew triage. **This is Phase 1 and remains the dominant risk**
+(see Risks).
 
 ### Scenarios
 
@@ -75,9 +97,9 @@ Initial scenarios:
   with canonical encoding; both servers must treat them as the same
   key.
 - **Out-of-range values.** Write with a value exceeding the field
-  bitwidth; both must reject. Note documented divergence on the
-  specific gRPC code (4ward returns `OUT_OF_RANGE`; BMv2's code
-  unknown until measured).
+  bitwidth; both must reject. 4ward returns `OUT_OF_RANGE` per spec;
+  BMv2's actual code is to be measured during Phase 2 and recorded as
+  either an expected match or a documented divergence.
 - **Batch atomicity.** A `WriteRequest` with one valid + one invalid
   update under each `Atomicity` mode.
 - **Default action semantics.** Modify default; read; verify both
@@ -117,10 +139,11 @@ failure.
 
 ## Phasing
 
-1. **PI Bazel port.** Extend the BMv2 patch (or write a new patch on a
-   `git_override`'d `p4lang/PI` dep) until `simple_switch_grpc` builds
-   under Bazel and accepts a gRPC connection from a test. No 4ward
-   code changes. Likely its own PR.
+1. **PI Bazel port.** Pull `p4lang/PI` in as a `git_override`'d
+   `bazel_dep`, reusing its upstream WORKSPACE Bazel rules; add the
+   missing BUILD files for `targets/bmv2/` and `bin/`; resolve
+   version skew with our protobuf/gRPC. No 4ward code changes; ships
+   as its own PR.
 2. **Harness skeleton.** A `Bmv2P4RuntimeRunner`. A test that spawns
    both servers, sets a pipeline config on each, performs one
    Write+Read, asserts responses match.
@@ -153,13 +176,17 @@ useful.
   port allocation, startup races, and graceful shutdown is more
   failure surface than the existing single-process harness. Reusing
   `Bmv2Runner.kt`'s lifecycle is mitigation.
-- **Divergence triage.** If the first run of Phase 3 finds 30
-  divergences, triage becomes its own project. Mitigation: scenarios
-  are ordered by confidence, starting with the §8.3 regression test
-  where 4ward and the spec demonstrably agree.
-- **CI cost.** Two gRPC servers per scenario will not fit the
-  default-test budget. Plan to tag the suite `heavy` and run only on
-  CI, like the existing bmv2 diff tests.
+- **Divergence triage.** Baseline rate is unknown until Phase 3 runs.
+  Mitigation: scenarios are ordered by confidence, starting with the
+  §8.3 regression test where 4ward and the spec demonstrably agree —
+  any divergence there is a BMv2 bug, not ours. If volume turns out
+  to be high, scenarios get a `divergence-classified` tag and fail
+  only on unclassified differences.
+- **CI cost.** Two gRPC servers per scenario doesn't fit the default
+  test budget; tag the suite `heavy` and skip locally, run on CI.
+  Only two `heavy` targets exist today (`bmv2_diff_test` and the
+  `P4RuntimeWriteErrorTest` heavy variant), so adding a peer suite
+  is well within the existing pattern.
 
 ## Alternatives considered
 
@@ -177,3 +204,6 @@ useful.
   are written against specific testbeds, not as libraries you point
   at two implementations and diff. None replace the proposed harness;
   individual test cases from them may be portable into the corpus.
+- **Stratum's PI consumption.** Stratum already pins PI as a Bazel
+  dep but uses it as a *backend*, not for differential testing. Their
+  Bazel wiring is reusable as reference; their use case is not.
