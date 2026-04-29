@@ -464,10 +464,11 @@ class P4RuntimeService(
     // Validate against p4info before type translation so SDN-visible values
     // are checked at canonical widths (P4Runtime spec §8.3, §9.1).
     state.writeValidator.validate(rawUpdate)
+    val canonicalUpdate = canonicalizeBytestrings(rawUpdate)
     val translator = state.typeTranslator?.takeIf { it.hasTranslations }
     val update =
       try {
-        translator?.translateForWrite(rawUpdate) ?: rawUpdate
+        translator?.translateForWrite(canonicalUpdate) ?: canonicalUpdate
       } catch (e: TranslationException) {
         throw Status.INVALID_ARGUMENT.withDescription("type translation failed: ${e.message}")
           .withCause(e)

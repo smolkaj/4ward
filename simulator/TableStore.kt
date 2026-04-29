@@ -17,7 +17,7 @@ import p4.v1.P4RuntimeOuterClass.Update
 private val bigIntCache = java.util.IdentityHashMap<ByteString, BigInteger>()
 
 /** Interprets a protobuf [ByteString] as an unsigned big-endian [BigInteger]. Cached for reuse. */
-internal fun ByteString.toUnsignedBigInteger(): BigInteger =
+fun ByteString.toUnsignedBigInteger(): BigInteger =
   bigIntCache.getOrPut(this) { BigInteger(1, toByteArray()) }
 
 /** Decode a proto ByteString as an unsigned Long. For the common case (≤8 bytes). */
