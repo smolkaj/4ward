@@ -75,14 +75,6 @@ git_override(
 # p4-constraints validates @entry_restriction / @action_restriction annotations.
 bazel_dep(name = "p4_constraints", version = "20260311.0")
 
-# grpc with Bazel 9 support (native rule autoloading + rules_swift compat).
-# TODO: Drop once grpc publishes a Bazel-9-compatible release to BCR.
-git_override(
-    module_name = "grpc",
-    commit = "a09a3af54b870cf9d1064f807355721451196329",
-    remote = "https://github.com/smolkaj/grpc.git",
-)
-
 # BMv2 (behavioral-model) — v1model reference simulator for differential testing.
 # Patched to add native Bazel build rules (no Thrift, no nanomsg).
 # Dev-only: not needed by downstream consumers of the 4ward module.
