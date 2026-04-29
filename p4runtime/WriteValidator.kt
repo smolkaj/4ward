@@ -7,9 +7,6 @@ import java.math.BigInteger
 import p4.config.v1.P4InfoOuterClass
 import p4.v1.P4RuntimeOuterClass
 
-/** Interprets a [ByteString] as an unsigned big-endian [BigInteger]. */
-private fun ByteString.toBigInt(): BigInteger = BigInteger(1, toByteArray())
-
 /**
  * Validates P4Runtime Write updates against the p4info schema.
  *
@@ -428,8 +425,8 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
      * [requireFitsInBitwidth] beforehand), so the check is done on the integer values directly.
      */
     private fun checkTernaryMaskedBits(value: ByteString, mask: ByteString, fieldName: String) {
-      val v = value.toBigInt()
-      val m = mask.toBigInt()
+      val v = value.toUnsignedBigInteger()
+      val m = mask.toUnsignedBigInteger()
       if (v.and(m.not()).signum() != 0) {
         throw invalidArg(
           "match field '$fieldName' has masked-off bits set in value (value & ~mask != 0)"
@@ -439,7 +436,7 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
 
     /** §9.1.1: range match low must be <= high (unsigned comparison). */
     private fun checkRangeOrder(low: ByteString, high: ByteString, fieldName: String) {
-      if (low.toBigInt() > high.toBigInt()) {
+      if (low.toUnsignedBigInteger() > high.toUnsignedBigInteger()) {
         throw invalidArg("match field '$fieldName' has range low > high")
       }
     }
@@ -461,7 +458,7 @@ class WriteValidator(p4Info: P4InfoOuterClass.P4Info) {
       val trailingBits = bitwidth - prefixLen
       if (trailingBits == 0) return // entire value is significant
       val mask = BigInteger.ONE.shiftLeft(trailingBits).subtract(BigInteger.ONE)
-      if (value.toBigInt().and(mask).signum() != 0) {
+      if (value.toUnsignedBigInteger().and(mask).signum() != 0) {
         throw invalidArg(
           "match field '$fieldName' has non-zero bits beyond prefix length $prefixLen"
         )

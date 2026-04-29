@@ -3,27 +3,28 @@ package fourward.p4runtime
 import com.google.protobuf.ByteString
 import io.grpc.Status
 import io.grpc.StatusException
+import java.math.BigInteger
 import p4.v1.P4RuntimeOuterClass
+
+/** Interprets a [ByteString] as an unsigned big-endian [BigInteger]. */
+internal fun ByteString.toUnsignedBigInteger(): BigInteger = BigInteger(1, toByteArray())
 
 /**
  * Helpers for the P4Runtime bytestring encoding rules in spec §8.3.
  *
  * P4Runtime carries P4 integer values as protobuf `bytes`. The spec says:
  *
- *   "Upon receiving a binary string, the P4Runtime receiver (whether the server or
- *    the client) does not impose any restrictions on the maximum length of the string
- *    itself. Instead, the receiver verifies that the value encoded by the string fits
- *    within the expected type (signed or unsigned) and P4Info-specified bitwidth for
- *    the P4 object value."
+ * "Upon receiving a binary string, the P4Runtime receiver (whether the server or the client) does
+ * not impose any restrictions on the maximum length of the string itself. Instead, the receiver
+ * verifies that the value encoded by the string fits within the expected type (signed or unsigned)
+ * and P4Info-specified bitwidth for the P4 object value."
  *
- *   "The canonical binary string representation uses the shortest string that fits
- *    the encoded integer value. […] read-write symmetry requires that the encoder of
- *    a P4Runtime request or reply uses the shortest strings that fit the encoded
- *    integer values."
+ * "The canonical binary string representation uses the shortest string that fits the encoded
+ * integer value. […] read-write symmetry requires that the encoder of a P4Runtime request or reply
+ * uses the shortest strings that fit the encoded integer values."
  *
- * 4ward currently exposes only unsigned (`bit<W>`) values on the wire — `int<W>`
- * appears only in `P4Data` (§8.4.3), which 4ward does not surface — so the helpers
- * below are unsigned-only.
+ * 4ward currently exposes only unsigned (`bit<W>`) values on the wire — `int<W>` appears only in
+ * `P4Data` (§8.4.3), which 4ward does not surface — so the helpers below are unsigned-only.
  */
 
 /**
@@ -49,32 +50,8 @@ fun requireFitsInBitwidth(value: ByteString, bitwidth: Int, label: String) {
   if (value.isEmpty) {
     throw outOfRange("$label is empty (P4Runtime spec §8.3 requires a non-zero-length bytestring)")
   }
-  // Walk the high bytes and count how many bits are actually occupied.
-  // We could BigInteger.bitLength() but that allocates; this scan is O(bytes) and allocation-free.
-  val bytes = value
-  val expectedHighByteMask = highByteMask(bitwidth)
-  val expectedHighBytePos = bytes.size() - bytesNeeded(bitwidth)
-  for (i in 0 until bytes.size()) {
-    val b = bytes.byteAt(i).toInt() and 0xFF
-    when {
-      i < expectedHighBytePos -> {
-        if (b != 0) {
-          throw outOfRange(
-            "$label 0x${value.toHex()} does not fit in $bitwidth bits " +
-              "(byte $i is 0x${"%02x".format(b)}, expected 0)"
-          )
-        }
-      }
-      i == expectedHighBytePos -> {
-        if (b and expectedHighByteMask.inv() and 0xFF != 0) {
-          throw outOfRange(
-            "$label 0x${value.toHex()} does not fit in $bitwidth bits " +
-              "(top bits of byte $i are non-zero)"
-          )
-        }
-        return
-      }
-    }
+  if (value.toUnsignedBigInteger().bitLength() > bitwidth) {
+    throw outOfRange("$label 0x${value.toHex()} does not fit in $bitwidth bits")
   }
 }
 
@@ -83,6 +60,11 @@ fun requireFitsInBitwidth(value: ByteString, bitwidth: Int, label: String) {
  *
  * Strips leading zero bytes; preserves a single `\x00` for the value zero. Bitwidth-agnostic, so
  * works for any width (no [Int] / [Long] truncation hazard).
+ *
+ * Empty input is returned as-is. §8.3's integer rules say empty is invalid for `bit<W>` fields, but
+ * the validator catches that before this function is reached. For non-integer fields
+ * (`@p4runtime_translation` with `sdn_string`, where the bytes carry a UTF-8 string), an empty
+ * value represents the empty string and is already canonical.
  */
 fun canonicalize(value: ByteString): ByteString {
   if (value.isEmpty) return value
@@ -149,47 +131,60 @@ fun canonicalizeMatch(match: P4RuntimeOuterClass.FieldMatch): P4RuntimeOuterClas
   }
 
 /** Returns a copy of [param] with its `value` canonicalized per spec §8.3. */
-fun canonicalizeParam(
-  param: P4RuntimeOuterClass.Action.Param
-): P4RuntimeOuterClass.Action.Param =
+fun canonicalizeParam(param: P4RuntimeOuterClass.Action.Param): P4RuntimeOuterClass.Action.Param =
   param.toBuilder().setValue(canonicalize(param.value)).build()
 
 /**
  * Returns a copy of [update] with all bytestrings canonicalized per spec §8.3.
  *
- * Currently only [P4RuntimeOuterClass.TableEntry]'s match fields and action params are
- * canonicalized — that is the surface where the §8.3 read-write asymmetry would otherwise leak
- * into [fourward.simulator.TableStore.sameKey]'s raw proto-equality compare. Other entity types
- * (counters, registers, multicast groups, …) are passed through; if they ever start storing
- * client-supplied bytestrings as match keys, extend this function.
+ * Canonicalizes the entity types that store client-supplied bytestrings as part of the entry's
+ * identity or payload — `TableEntry` (match fields + action params) and `ActionProfileMember`
+ * (action params). For every other entity type, the bytestring fields are either absent or already
+ * in a normal form (counters/meters carry indices and numeric data, not match keys), so the update
+ * is returned unchanged. If a future entity type starts storing client bytestrings as a match key,
+ * add a case here — the exhaustive `when` will fail at compile time so it can't be forgotten.
  */
 fun canonicalizeBytestrings(update: P4RuntimeOuterClass.Update): P4RuntimeOuterClass.Update {
   val entity = update.entity
   return when (entity.entityCase) {
-    P4RuntimeOuterClass.Entity.EntityCase.TABLE_ENTRY -> {
-      val canonicalEntry = canonicalizeTableEntry(entity.tableEntry)
+    P4RuntimeOuterClass.Entity.EntityCase.TABLE_ENTRY ->
       update
         .toBuilder()
-        .setEntity(entity.toBuilder().setTableEntry(canonicalEntry))
+        .setEntity(entity.toBuilder().setTableEntry(canonicalizeTableEntry(entity.tableEntry)))
         .build()
-    }
     P4RuntimeOuterClass.Entity.EntityCase.ACTION_PROFILE_MEMBER -> {
       val member = entity.actionProfileMember
-      val canonicalAction = canonicalizeAction(member.action)
       update
         .toBuilder()
         .setEntity(
-          entity.toBuilder().setActionProfileMember(member.toBuilder().setAction(canonicalAction))
+          entity
+            .toBuilder()
+            .setActionProfileMember(member.toBuilder().setAction(canonicalizeAction(member.action)))
         )
         .build()
     }
-    else -> update
+    // Action-profile groups carry only member-ID references — no client bytestrings.
+    P4RuntimeOuterClass.Entity.EntityCase.ACTION_PROFILE_GROUP,
+    // PRE entries (multicast groups, clone sessions) reference replicas by integer port IDs.
+    P4RuntimeOuterClass.Entity.EntityCase.PACKET_REPLICATION_ENGINE_ENTRY,
+    // Counters / meters use integer indices and numeric counts, not match keys.
+    P4RuntimeOuterClass.Entity.EntityCase.COUNTER_ENTRY,
+    P4RuntimeOuterClass.Entity.EntityCase.DIRECT_COUNTER_ENTRY,
+    P4RuntimeOuterClass.Entity.EntityCase.METER_ENTRY,
+    P4RuntimeOuterClass.Entity.EntityCase.DIRECT_METER_ENTRY,
+    // Registers, value sets, digests, externs aren't surfaced by 4ward today.
+    P4RuntimeOuterClass.Entity.EntityCase.REGISTER_ENTRY,
+    P4RuntimeOuterClass.Entity.EntityCase.VALUE_SET_ENTRY,
+    P4RuntimeOuterClass.Entity.EntityCase.DIGEST_ENTRY,
+    P4RuntimeOuterClass.Entity.EntityCase.EXTERN_ENTRY,
+    // Should not happen: the validator rejects updates with no entity set before we reach here.
+    P4RuntimeOuterClass.Entity.EntityCase.ENTITY_NOT_SET,
+    null -> update
   }
 }
 
-private fun canonicalizeTableEntry(
-  entry: P4RuntimeOuterClass.TableEntry
-): P4RuntimeOuterClass.TableEntry {
+/** Returns a copy of [entry] with match-field and action-parameter bytestrings canonicalized. */
+fun canonicalizeTableEntry(entry: P4RuntimeOuterClass.TableEntry): P4RuntimeOuterClass.TableEntry {
   val builder = entry.toBuilder()
   if (entry.matchCount > 0) {
     builder.clearMatch()
@@ -201,39 +196,37 @@ private fun canonicalizeTableEntry(
 
 private fun canonicalizeTableAction(
   action: P4RuntimeOuterClass.TableAction
-): P4RuntimeOuterClass.TableAction {
-  if (action.hasAction()) {
-    return action.toBuilder().setAction(canonicalizeAction(action.action)).build()
+): P4RuntimeOuterClass.TableAction =
+  when (action.typeCase) {
+    P4RuntimeOuterClass.TableAction.TypeCase.ACTION ->
+      action.toBuilder().setAction(canonicalizeAction(action.action)).build()
+    P4RuntimeOuterClass.TableAction.TypeCase.ACTION_PROFILE_ACTION_SET -> {
+      val rebuilt =
+        action.actionProfileActionSet.actionProfileActionsList.map { profileAction ->
+          profileAction.toBuilder().setAction(canonicalizeAction(profileAction.action)).build()
+        }
+      action
+        .toBuilder()
+        .setActionProfileActionSet(
+          action.actionProfileActionSet
+            .toBuilder()
+            .clearActionProfileActions()
+            .addAllActionProfileActions(rebuilt)
+        )
+        .build()
+    }
+    // ID-only references carry no client bytestrings — nothing to canonicalize.
+    P4RuntimeOuterClass.TableAction.TypeCase.ACTION_PROFILE_MEMBER_ID,
+    P4RuntimeOuterClass.TableAction.TypeCase.ACTION_PROFILE_GROUP_ID,
+    P4RuntimeOuterClass.TableAction.TypeCase.TYPE_NOT_SET,
+    null -> action
   }
-  if (action.hasActionProfileActionSet()) {
-    val set = action.actionProfileActionSet.toBuilder()
-    val rebuilt =
-      action.actionProfileActionSet.actionProfileActionsList.map { profileAction ->
-        profileAction.toBuilder().setAction(canonicalizeAction(profileAction.action)).build()
-      }
-    set.clearActionProfileActions()
-    rebuilt.forEach { set.addActionProfileActions(it) }
-    return action.toBuilder().setActionProfileActionSet(set).build()
-  }
-  return action
-}
 
-private fun canonicalizeAction(
-  action: P4RuntimeOuterClass.Action
-): P4RuntimeOuterClass.Action {
+private fun canonicalizeAction(action: P4RuntimeOuterClass.Action): P4RuntimeOuterClass.Action {
   if (action.paramsCount == 0) return action
   val builder = action.toBuilder().clearParams()
   for (p in action.paramsList) builder.addParams(canonicalizeParam(p))
   return builder.build()
-}
-
-/** Number of bytes needed to encode a value of [bitwidth] bits. */
-private fun bytesNeeded(bitwidth: Int): Int = (bitwidth + 7) / 8
-
-/** Mask of the bits actually occupied within the highest bytestring byte for [bitwidth]. */
-private fun highByteMask(bitwidth: Int): Int {
-  val occupiedInHighByte = ((bitwidth - 1) % 8) + 1
-  return (1 shl occupiedInHighByte) - 1
 }
 
 private fun outOfRange(msg: String): StatusException =

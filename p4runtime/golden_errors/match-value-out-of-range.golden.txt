@@ -1,1 +1,1 @@
-OUT_OF_RANGE: match field 'hdr.ethernet.etherType' value 0x010000 does not fit in 16 bits (byte 0 is 0x01, expected 0)
+OUT_OF_RANGE: match field 'hdr.ethernet.etherType' value 0x010000 does not fit in 16 bits

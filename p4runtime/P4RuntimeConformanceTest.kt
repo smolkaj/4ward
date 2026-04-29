@@ -2288,12 +2288,7 @@ class P4RuntimeConformanceTest {
     harness.installEntry(entry)
     val readBack = harness.readEntry(buildReadFilter(config, 0x0800))
     assertEquals(1, readBack.size)
-    val canonicalWritten =
-      canonicalizeBytestrings(
-          p4.v1.P4RuntimeOuterClass.Update.newBuilder().setEntity(entry).build()
-        )
-        .entity
-        .tableEntry
+    val canonicalWritten = canonicalizeTableEntry(entry.tableEntry)
     val read = readBack[0].tableEntry
     assertEquals("table_id must match", canonicalWritten.tableId, read.tableId)
     assertEquals("match fields must match", canonicalWritten.matchList, read.matchList)

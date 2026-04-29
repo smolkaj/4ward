@@ -12,12 +12,11 @@ import org.junit.Test
 /**
  * Spec-conformance tests for [requireFitsInBitwidth] and [canonicalize].
  *
- * The two parameterized tables ([validEncodings], [invalidEncodings]) mirror Tables 4 and 5 of
- * the P4Runtime specification §8.3 verbatim, so this file is the long-term anchor that keeps
- * 4ward's bytestring handling tied to the normative tables.
+ * The two parameterized tables ([validEncodings], [invalidEncodings]) mirror Tables 4 and 5 of the
+ * P4Runtime specification §8.3 verbatim, so this file is the long-term anchor that keeps 4ward's
+ * bytestring handling tied to the normative tables.
  *
- * Spec source:
- * https://p4lang.github.io/p4runtime/spec/main/P4Runtime-Spec.html#sec-bytestrings
+ * Spec source: https://p4lang.github.io/p4runtime/spec/main/P4Runtime-Spec.html#sec-bytestrings
  */
 class BytestringsTest {
 
@@ -197,8 +196,8 @@ class BytestringsTest {
 }
 
 /**
- * Encodes [value] (assumed non-negative) as the minimum-width unsigned big-endian bytestring.
- * Used in tests as the spec's reference implementation of "shortest string that fits".
+ * Encodes [value] (assumed non-negative) as the minimum-width unsigned big-endian bytestring. Used
+ * in tests as the spec's reference implementation of "shortest string that fits".
  */
 internal fun encodeMinimum(value: java.math.BigInteger): ByteString {
   require(value.signum() >= 0) { "expected non-negative, got $value" }
