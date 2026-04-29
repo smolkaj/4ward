@@ -464,9 +464,6 @@ class P4RuntimeService(
     // Validate against p4info before type translation so SDN-visible values
     // are checked at canonical widths (P4Runtime spec §8.3, §9.1).
     state.writeValidator.validate(rawUpdate)
-    // Spec §8.3 read-write symmetry: store bytestrings in their canonical (shortest) form so
-    // (a) reads return canonical bytes for free, and (b) TableStore.sameKey matches across
-    // different on-the-wire encodings of the same logical value.
     val canonicalUpdate = canonicalizeBytestrings(rawUpdate)
     val translator = state.typeTranslator?.takeIf { it.hasTranslations }
     val update =

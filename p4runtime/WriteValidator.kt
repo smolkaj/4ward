@@ -1,6 +1,7 @@
 package fourward.p4runtime
 
 import com.google.protobuf.ByteString
+import fourward.simulator.toUnsignedBigInteger
 import io.grpc.Status
 import io.grpc.StatusException
 import java.math.BigInteger
