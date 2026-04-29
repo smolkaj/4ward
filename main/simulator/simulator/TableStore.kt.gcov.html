@@ -37,7 +37,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-04-29 21:05:03</td>
+            <td class="headerValue">2026-04-29 21:19:14</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">98.1&nbsp;%</td>
@@ -79,7 +79,7 @@
 <span id="L17"><span class="lineNum">      17</span> <span class="tlaGNC tlaBgGNC">           1 : private val bigIntCache = java.util.IdentityHashMap&lt;ByteString, BigInteger&gt;()</span></span>
 <span id="L18"><span class="lineNum">      18</span>              : </span>
 <span id="L19"><span class="lineNum">      19</span>              : /** Interprets a protobuf [ByteString] as an unsigned big-endian [BigInteger]. Cached for reuse. */</span>
-<span id="L20"><span class="lineNum">      20</span>              : internal fun ByteString.toUnsignedBigInteger(): BigInteger =</span>
+<span id="L20"><span class="lineNum">      20</span>              : fun ByteString.toUnsignedBigInteger(): BigInteger =</span>
 <span id="L21"><span class="lineNum">      21</span> <span class="tlaGNC">           1 :   bigIntCache.getOrPut(this) { BigInteger(1, toByteArray()) }</span></span>
 <span id="L22"><span class="lineNum">      22</span>              : </span>
 <span id="L23"><span class="lineNum">      23</span>              : /** Decode a proto ByteString as an unsigned Long. For the common case (≤8 bytes). */</span>
