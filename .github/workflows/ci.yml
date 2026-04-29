@@ -97,7 +97,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: ~/.cache/bazel
-          key: bazel-ubuntu-24.04-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', 'bazel/*.patch') }}
+          key: bazel-ubuntu-24.04-${{ hashFiles('*.bazel*') }}
           restore-keys: bazel-ubuntu-24.04-
 
       - name: Install clang tools
@@ -146,7 +146,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: ${{ env.BAZEL_CACHE }}
-          key: bazel-${{ matrix.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', 'bazel/*.patch') }}
+          key: bazel-${{ matrix.os }}-${{ hashFiles('*.bazel*') }}
           restore-keys: |
             bazel-${{ matrix.os }}-
             ${{ matrix.os == 'ubuntu-24.04' && 'bazel-coverage-' || '' }}
@@ -187,7 +187,7 @@ jobs:
         if: always() && (github.ref_name == 'main' || env.DURATION > 300)
         with:
           path: ${{ env.BAZEL_CACHE }}
-          key: bazel-${{ matrix.os }}-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', 'bazel/*.patch') }}-${{ github.run_id }}
+          key: bazel-${{ matrix.os }}-${{ hashFiles('*.bazel*') }}-${{ github.run_id }}
 
 
   # Exercises @fourward via local_path_override from bcr_test_module/, the
@@ -203,17 +203,18 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      # Separate cache namespace (`bazel-bcr-*`) from the main
-      # build-and-test job: this workspace pins Bazel 8.x, uses a
-      # different `.bazelrc`, and resolves its own dependency graph via
-      # `bcr_test_module/MODULE.bazel`, so sharing a key would cause
-      # constant eviction churn. The key folds in root MODULE files
-      # because fourward is pulled in via `local_path_override`.
+      # Separate local cache namespace (`bazel-bcr-*`) from the main
+      # build-and-test job: this workspace uses a different `.bazelrc`
+      # and resolves its own dependency graph via
+      # `bcr_test_module/MODULE.bazel`, so sharing a local cache key
+      # would cause eviction churn. The remote cache (BuildBuddy) is
+      # shared — both builds use the same Bazel version, so action
+      # hashes match and the BCR check benefits from warm cache.
       - name: Restore Bazel cache
         uses: actions/cache/restore@v5
         with:
           path: ~/.cache/bazel
-          key: bazel-bcr-${{ hashFiles('bcr_test_module/MODULE.bazel', 'bcr_test_module/.bazelversion', 'MODULE.bazel', 'MODULE.bazel.lock', 'bazel/*.patch') }}
+          key: bazel-bcr-${{ hashFiles('*.bazel*', 'bcr_test_module/*.bazel*') }}
           restore-keys: bazel-bcr-
 
       - name: Save start time
@@ -222,12 +223,6 @@ jobs:
       # Build flags live in `bcr_test_module/.bazelrc` so local
       # invocations reproduce this job exactly — CI only adds the
       # BuildBuddy remote cache and target-pattern exclusions on top.
-      # `bcr_test_module/.bazelversion` pins Bazel 8.x: BCR's
-      # grpc@1.80.0 pulls rules_swift@2.5.0, conflicting with the
-      # rules_swift@3.1.2 bazel_tools carries in Bazel 9. (fourward
-      # -as-root sidesteps this via a grpc `git_override`, but
-      # overrides don't apply to non-root modules.)
-      #
       # Keep target patterns in sync with modules/fourward/*/presubmit.yml.
       - name: Build public targets via bcr_test_module
         env:
@@ -262,7 +257,7 @@ jobs:
         if: always() && (github.ref_name == 'main' || env.DURATION > 300)
         with:
           path: ~/.cache/bazel
-          key: bazel-bcr-${{ hashFiles('bcr_test_module/MODULE.bazel', 'bcr_test_module/.bazelversion', 'MODULE.bazel', 'MODULE.bazel.lock', 'bazel/*.patch') }}-${{ github.run_id }}
+          key: bazel-bcr-${{ hashFiles('*.bazel*', 'bcr_test_module/*.bazel*') }}-${{ github.run_id }}
 
 
   coverage:
@@ -293,7 +288,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: ~/.cache/bazel
-          key: bazel-coverage-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', 'bazel/*.patch') }}
+          key: bazel-coverage-${{ hashFiles('*.bazel*') }}
           restore-keys: |
             bazel-coverage-
             bazel-ubuntu-24.04-
@@ -344,7 +339,7 @@ jobs:
         if: always() && github.ref_name == 'main'
         with:
           path: ~/.cache/bazel
-          key: bazel-coverage-${{ hashFiles('MODULE.bazel', 'MODULE.bazel.lock', 'bazel/*.patch') }}-${{ github.run_id }}
+          key: bazel-coverage-${{ hashFiles('*.bazel*') }}-${{ github.run_id }}
 
       - name: Publish mainline report
         if: github.event_name == 'push'
