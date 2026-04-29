@@ -1,6 +1,9 @@
 package fourward.p4runtime
 
 import com.google.protobuf.Any as ProtoAny
+import com.google.protobuf.ByteString
+import com.google.protobuf.InvalidProtocolBufferException
+import com.google.protobuf.TextFormat
 import com.google.rpc.Code
 import fourward.ir.DeviceConfig
 import fourward.ir.PipelineConfig
@@ -170,6 +173,33 @@ class P4RuntimeService(
     }
 
   /**
+   * Decodes the opaque [p4_device_config] bytes as a [DeviceConfig], accepting either binary or
+   * text-format protobuf. Lets callers paste a text-format DeviceConfig into a hand-edited `.txtpb`
+   * ForwardingPipelineConfig without first re-serializing it as binary.
+   */
+  private fun parseDeviceConfig(bytes: ByteString): DeviceConfig {
+    val binaryError =
+      try {
+        return DeviceConfig.parseFrom(bytes)
+      } catch (e: InvalidProtocolBufferException) {
+        e
+      }
+    try {
+      val builder = DeviceConfig.newBuilder()
+      TextFormat.merge(bytes.toStringUtf8(), builder)
+      return builder.build()
+    } catch (e: TextFormat.ParseException) {
+      throw Status.INVALID_ARGUMENT.withDescription(
+          "p4_device_config is not a valid DeviceConfig proto (expected serialized " +
+            "fourward.ir.DeviceConfig in binary or text format). " +
+            "binary parse: ${binaryError.message}; text parse: ${e.message}"
+        )
+        .withCause(e)
+        .asException()
+    }
+  }
+
+  /**
    * Validates the forwarding pipeline config and builds a [PipelineState] without activating it.
    * Used by VERIFY, VERIFY_AND_COMMIT, and VERIFY_AND_SAVE.
    */
@@ -181,17 +211,7 @@ class P4RuntimeService(
         .asException()
     }
 
-    val deviceConfig =
-      try {
-        DeviceConfig.parseFrom(fwdConfig.p4DeviceConfig)
-      } catch (e: com.google.protobuf.InvalidProtocolBufferException) {
-        throw Status.INVALID_ARGUMENT.withDescription(
-            "p4_device_config is not a valid DeviceConfig proto " +
-              "(expected serialized fourward.ir.DeviceConfig): ${e.message}"
-          )
-          .withCause(e)
-          .asException()
-      }
+    val deviceConfig = parseDeviceConfig(fwdConfig.p4DeviceConfig)
 
     val pipelineConfig =
       PipelineConfig.newBuilder().setP4Info(fwdConfig.p4Info).setDevice(deviceConfig).build()
