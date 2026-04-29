@@ -118,18 +118,38 @@ message SubscribeResultsResponse {
 
 message SubscriptionActive {}
 
-// Sent by the server before processing packets. The server holds the
-// write lock and waits for the client's response before proceeding.
+// Server -> client message on the RegisterPrePacketHook stream. Mirrors the
+// SubscribeResultsResponse shape — a oneof whose first variant is a
+// registration sentinel — so clients can synchronise on "hook is live"
+// without timing-based guesses.
 message PrePacketHookInvocation {
-  // Snapshot of all P4Runtime entities currently installed on the server,
-  // read under the write lock. The client can use this to derive entries
-  // that depend on the current forwarding state (e.g. auxiliary entries
-  // mirroring gNMI config).
-  repeated p4.v1.Entity entities = 1;
+  oneof event {
+    // Sent exactly once as the first message. Confirms the hook is
+    // registered and no packet events will be missed.
+    HookRegistered registered = 3;
 
-  // The P4Info from the loaded pipeline, enabling the client to interpret
-  // the entities above (e.g. map table/action IDs to names).
-  p4.config.v1.P4Info p4info = 2;
+    // Sent before each packet flows through the pipeline. The server
+    // holds the write lock and waits for the client's
+    // PrePacketHookResponse before proceeding.
+    PacketEvent packet = 4;
+  }
+
+  message HookRegistered {}
+
+  message PacketEvent {
+    // Snapshot of all P4Runtime entities currently installed on the
+    // server, read under the write lock. The client can use this to
+    // derive entries that depend on the current forwarding state (e.g.
+    // auxiliary entries mirroring gNMI config).
+    repeated p4.v1.Entity entities = 1;
+
+    // The P4Info from the loaded pipeline, enabling the client to
+    // interpret the entities above (e.g. map table/action IDs to names).
+    p4.config.v1.P4Info p4info = 2;
+  }
+
+  // Field numbers retired during the move into the `packet` oneof variant.
+  reserved 1, 2;
 }
 
 // Sent by the client in response to a PrePacketHookInvocation. Contains
