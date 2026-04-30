@@ -14,10 +14,10 @@ import p4.v1.P4RuntimeOuterClass.TableEntry
 /**
  * Unit tests for the canonicalize-and-diff helpers in [ResponseDiff].
  *
- * The differential harness itself is gated on a working `simple_switch_grpc` binary
- * (see designs/p4runtime_diff.md §Phase 1) and ships in a follow-up PR. These tests
- * exercise the canonicalization logic on synthetic [TableEntry] / [ReadResponse]
- * protos so the diff machinery is correct on day one of the harness landing.
+ * The differential harness itself is gated on a working `simple_switch_grpc` binary (see
+ * designs/p4runtime_diff.md §Phase 1) and ships in a follow-up PR. These tests exercise the
+ * canonicalization logic on synthetic [TableEntry] / [ReadResponse] protos so the diff machinery is
+ * correct on day one of the harness landing.
  */
 class ResponseDiffTest {
 
@@ -25,10 +25,7 @@ class ResponseDiffTest {
   fun `canonicalizeTableEntry sorts match list by field_id`() {
     val unsorted = entry(matches = listOf(exact(2, 0xCAFE), exact(1, 0xBEEF)))
     val canonical = canonicalizeTableEntry(unsorted)
-    assertEquals(
-      listOf(1, 2),
-      canonical.matchList.map { it.fieldId },
-    )
+    assertEquals(listOf(1, 2), canonical.matchList.map { it.fieldId })
   }
 
   @Test
@@ -54,14 +51,8 @@ class ResponseDiffTest {
         .addEntities(asEntity(entry(matches = listOf(exact(3, 0x03), exact(1, 0x04)))))
         .build()
     val canonical = canonicalizeReadResponse(resp)
-    assertEquals(
-      listOf(1, 2),
-      canonical.getEntities(0).tableEntry.matchList.map { it.fieldId },
-    )
-    assertEquals(
-      listOf(1, 3),
-      canonical.getEntities(1).tableEntry.matchList.map { it.fieldId },
-    )
+    assertEquals(listOf(1, 2), canonical.getEntities(0).tableEntry.matchList.map { it.fieldId })
+    assertEquals(listOf(1, 3), canonical.getEntities(1).tableEntry.matchList.map { it.fieldId })
   }
 
   @Test
@@ -98,11 +89,9 @@ class ResponseDiffTest {
     FieldMatch.newBuilder()
       .setFieldId(fieldId)
       .setExact(
-        FieldMatch.Exact.newBuilder()
-          .setValue(ByteString.copyFrom(byteArrayOf(value.toByte())))
+        FieldMatch.Exact.newBuilder().setValue(ByteString.copyFrom(byteArrayOf(value.toByte())))
       )
       .build()
 
-  private fun asEntity(entry: TableEntry): Entity =
-    Entity.newBuilder().setTableEntry(entry).build()
+  private fun asEntity(entry: TableEntry): Entity = Entity.newBuilder().setTableEntry(entry).build()
 }

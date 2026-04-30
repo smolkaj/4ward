@@ -51,13 +51,21 @@ gracefully on hosts that don't have a Bazel-built `simple_switch_grpc`.
 
 ## Phase-1 build options for the future
 
-Both have known costs documented in the design doc:
+Three paths with empirically-grounded costs (see design doc §"Building
+`simple_switch_grpc` is the long pole"):
 
 1. **Native Bazel rules for PI's `targets/bmv2/` + behavioral-model's
    `targets/simple_switch_grpc/`.** Multi-week port; version-skew triage
    on PI's stale absl pin; protobuf 26+ target rename patches.
-2. **Vendor autoconf/automake/libtool as Bazel deps.** Experimental
-   `rules_autotools` exists but isn't production-grade. Probably more work
-   than option 1.
+2. **Aggressive autotools patching.** `rules_foreign_cc` works once
+   autotools are on the host (CI installs them via apt), but PI's
+   `configure.ac` is feature-coupled — `--without-bmv2 --without-proto`
+   doesn't yield a clean minimal build because the root `configure.ac`
+   unconditionally registers optional subtrees and the root
+   `Makefile.am` SUBDIRS pull them in transitively. Patching that
+   machinery to support a true core-only build is itself substantial.
+3. **System-installed `simple_switch_grpc`.** Sacrifices hermeticity
+   (Stratum does this). Detect at test time, skip cleanly when absent.
+   Lowest-cost path to running scenarios on hosts that have it.
 
 Tracking issue: [#595](https://github.com/smolkaj/4ward/issues/595).

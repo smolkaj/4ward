@@ -72,30 +72,55 @@ The realistic split:
 
 [`rules_foreign_cc`](https://github.com/bazel-contrib/rules_foreign_cc)
 was the obvious first attempt: wrap PI and `simple_switch_grpc` as
-`configure_make` targets, defer dep resolution to autotools. **It
-doesn't work.** `rules_foreign_cc` does not bundle autoconf, automake,
-or libtool — it expects them on the host PATH. Adding them as a
-system dependency contradicts 4ward's "fully hermetic build, no
-system packages" property — exactly the property that makes 4ward
-attractive as a BMv2 replacement in DVaaS (designs/dvaas_integration.md).
+`configure_make` targets, defer dep resolution to autotools.
+Empirically the path is more involved than that:
 
-Two paths remain, both real work:
+1. **`rules_foreign_cc` doesn't bundle autotools.** Autoconf,
+   automake, and libtool must exist on the host PATH. Adding them as
+   system deps trades a small amount of hermeticity for the rest of
+   the harness; CI installs them via `apt-get`, dev hosts already
+   have them or can `apt-get` similarly. We accept this because the
+   diff suite is `dev_dependency = True` — it never reaches BCR
+   consumers.
+2. **PI's `configure.ac` is feature-coupled.** Even with autotools
+   present, `--without-bmv2 --without-proto --without-fe-cpp
+   --without-cli` doesn't yield a clean minimal build: the root
+   `configure.ac` registers `proto/`, `frontends_extra/cpp/`,
+   `targets/bmv2/` via unconditional or marginally-conditional
+   `AC_CONFIG_SUBDIRS`, and the SUBDIRS in the root `Makefile.am`
+   pull in `tests/`, `examples/`, `generators/`, `bin/`, `CLI/`
+   transitively. Each of those expects sub-subdirectories to exist
+   and to have their own generated `Makefile.in`. Patching the
+   configure machinery to support a true PI-core-only build is its
+   own unbounded project.
+3. **`simple_switch_grpc` lives in `behavioral-model`, not PI.** PI
+   ships only `libpi_bmv2` (the bmv2 backend adapter, in
+   `targets/bmv2/`). The actual gRPC binary is in
+   `p4lang/behavioral-model`'s `targets/simple_switch_grpc/`, which
+   our existing patch deliberately excludes. Phase 1 is therefore
+   really *two* coordinated patches.
 
-1. **Native Bazel rules for PI and behavioral-model's
-   `simple_switch_grpc`.** Multi-week port — version-skew triage on
-   PI's stale absl pin, ~15 `cc_library`s for the bmv2 adapter,
-   another ~10 for `simple_switch_grpc/` itself, plus protobuf 26+
+The realistic remaining paths:
+
+1. **Native Bazel rules for PI's `targets/bmv2/` plus
+   behavioral-model's `targets/simple_switch_grpc/`.** Skips
+   autotools entirely. Multi-week port — version-skew triage on
+   PI's stale absl pin, `cc_library`s for the bmv2 adapter (~15
+   files) and the gRPC binary (~10 files), plus protobuf 26+
    target rename patches.
-2. **Vendor autotools as Bazel deps.** `autoconf` and `automake` are
-   themselves shell + m4 — notoriously hard to bazelify. Some
-   third-party `rules_autotools` exists but is experimental.
-   Probably not less work than option 1.
+2. **Aggressive autotools patching.** Modify PI's `configure.ac`
+   and `Makefile.am` to actually support a "PI core only" build,
+   plus extend `behavioral-model`'s autotools to support a
+   `--with-pi` Bazel variant. Probably not less work than (1).
+3. **Use a system-installed `simple_switch_grpc`.** Sacrifices
+   hermeticity. Stratum does this. We could detect at test time and
+   skip cleanly when absent. Lowest cost; would let the harness
+   exercise scenarios in environments that have it.
 
-**This is the dominant risk and currently a blocker** (see Risks).
-The harness, runner, and scenarios in this PR are written against an
-abstract `Bmv2P4RuntimeRunner` interface so they're ready to wire up
-once a working `simple_switch_grpc` build lands; the tests are
-tagged `bmv2-grpc-blocked` and skipped until then.
+**This PR delivers the parts that don't depend on Phase 1**: the
+canonicalize-and-diff helpers (`ResponseDiff.kt`) plus their unit
+tests. The runner and scenarios stay deferred — see the README in
+`e2e_tests/p4runtime_diff/`.
 
 ### Scenarios
 
@@ -189,13 +214,10 @@ reviewers see the full picture before any of it merges.
 
 ## Risks
 
-- **PI / behavioral-model autotools build is the long pole.** Using
-  `rules_foreign_cc` reduces our scope to "wire up the autotools
-  build" rather than "port to native Bazel," but it depends on
-  Thrift, gRPC, protobuf, and several p4lang sub-deps being
-  resolvable from the host. macOS in particular is fragile here.
-  Pre-flight by attempting a minimal `configure_make` build of PI's
-  C frontend before committing to wiring `simple_switch_grpc`.
+- **PI / behavioral-model build is the long pole.** Three known paths
+  (native Bazel port, aggressive autotools patching, system-installed
+  binary), all with non-trivial cost. See "Building
+  `simple_switch_grpc` is the long pole" above.
 - **Subprocess management flakiness.** Two servers per scenario with
   port allocation, startup races, and graceful shutdown is more
   failure surface than the existing single-process harness. Reusing

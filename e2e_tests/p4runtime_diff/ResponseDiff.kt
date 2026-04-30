@@ -8,8 +8,8 @@ import p4.v1.P4RuntimeOuterClass.ReadResponse
 import p4.v1.P4RuntimeOuterClass.TableEntry
 
 /**
- * Canonicalize-then-compare logic for P4Runtime responses, per
- * `designs/p4runtime_diff.md` §"Canonicalizations before diff".
+ * Canonicalize-then-compare logic for P4Runtime responses, per `designs/p4runtime_diff.md`
+ * §"Canonicalizations before diff".
  *
  * The design enumerates four allowed divergences that must be canonicalized away before equality:
  * 1. Field ordering in repeated fields — sort by `field_id`.
