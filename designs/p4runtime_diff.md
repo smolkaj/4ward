@@ -50,33 +50,77 @@ oracle.
 
 `bazel/behavioral_model.patch` builds `simple_switch_lib` and its
 transitive deps but explicitly omits PI ("Minimal build: no Thrift, no
-nanomsg, no debugger, no PI"). The `simple_switch_grpc` binary depends
-on [`p4lang/PI`](https://github.com/p4lang/PI).
+nanomsg, no debugger, no PI"). The `simple_switch_grpc` binary requires
+both [`p4lang/PI`](https://github.com/p4lang/PI) and the
+`targets/simple_switch_grpc/` directory of `behavioral-model` itself —
+the binary lives in behavioral-model, links against PI's `libpi_bmv2`
+adapter.
 
-Some prior art reduces the cost:
+The realistic split:
 
-- **Upstream PI already has WORKSPACE-style Bazel rules** for the core
-  library (`pihdrs`, `piutils`, `pip4info`, `pi`, …). See PI's
-  [`BUILD`](https://github.com/p4lang/PI/blob/main/BUILD) and
-  [`bazel/deps.bzl`](https://github.com/p4lang/PI/blob/main/bazel/deps.bzl).
-  Stratum already consumes it as a Bazel dep
-  ([`stratum/bazel/deps.bzl`](https://github.com/stratum/stratum/blob/main/bazel/deps.bzl)),
-  proving it works in production.
-- **What's missing upstream**: BUILD files for `targets/bmv2/` (the
-  `simple_switch_grpc` target plugin) and `bin/`. Those are
-  autotools-only today. We'd write them.
-- **Bzlmod shim**: 4ward uses Bzlmod, PI is WORKSPACE-only, no BCR
-  module exists. We'd add a small `MODULE.bazel` wrapping the
-  upstream WORKSPACE rules.
-- **Version skew**: PI pins protobuf/gRPC versions that may diverge
-  from ours; resolving that is the most likely source of incidental
-  scope.
+- **Upstream PI**: has WORKSPACE-style Bazel rules for its C frontend
+  (`pihdrs`, `piutils`, `pip4info`, `pi`, `pifegeneric`) but **none**
+  for the C++ bmv2 adapter (`targets/bmv2/`, ~15 `.cpp` files
+  producing `libpi_bmv2`) — that's autotools-only.
+- **PI's deps.bzl** pins absl 2022-06-23 LTS, which is incompatible
+  with our absl 20260107.1 / protobuf 33.5 / grpc 1.80.0 (target
+  renames around protobuf 26 break PI's existing `cc_library`
+  references).
+- **Behavioral-model's `targets/simple_switch_grpc/`** is autotools
+  only; our existing patch covers `simple_switch_lib` only (the
+  data-plane variant) and explicitly disables `--with-pi`.
 
-Net: the core PI port is reuse, not greenfield; the
-`simple_switch_grpc`/`bin/` BUILD files plus a Bzlmod shim are the
-genuinely new work. Plausibly 1–2 weeks of focused work, dominated by
-version-skew triage. **This is Phase 1 and remains the dominant risk**
-(see Risks).
+[`rules_foreign_cc`](https://github.com/bazel-contrib/rules_foreign_cc)
+was the obvious first attempt: wrap PI and `simple_switch_grpc` as
+`configure_make` targets, defer dep resolution to autotools.
+Empirically the path is more involved than that:
+
+1. **`rules_foreign_cc` doesn't bundle autotools.** Autoconf,
+   automake, and libtool must exist on the host PATH. Adding them as
+   system deps trades a small amount of hermeticity for the rest of
+   the harness; CI installs them via `apt-get`, dev hosts already
+   have them or can `apt-get` similarly. We accept this because the
+   diff suite is `dev_dependency = True` — it never reaches BCR
+   consumers.
+2. **PI's `configure.ac` is feature-coupled.** Even with autotools
+   present, `--without-bmv2 --without-proto --without-fe-cpp
+   --without-cli` doesn't yield a clean minimal build: the root
+   `configure.ac` registers `proto/`, `frontends_extra/cpp/`,
+   `targets/bmv2/` via unconditional or marginally-conditional
+   `AC_CONFIG_SUBDIRS`, and the SUBDIRS in the root `Makefile.am`
+   pull in `tests/`, `examples/`, `generators/`, `bin/`, `CLI/`
+   transitively. Each of those expects sub-subdirectories to exist
+   and to have their own generated `Makefile.in`. Patching the
+   configure machinery to support a true PI-core-only build is its
+   own unbounded project.
+3. **`simple_switch_grpc` lives in `behavioral-model`, not PI.** PI
+   ships only `libpi_bmv2` (the bmv2 backend adapter, in
+   `targets/bmv2/`). The actual gRPC binary is in
+   `p4lang/behavioral-model`'s `targets/simple_switch_grpc/`, which
+   our existing patch deliberately excludes. Phase 1 is therefore
+   really *two* coordinated patches.
+
+The realistic remaining paths:
+
+1. **Native Bazel rules for PI's `targets/bmv2/` plus
+   behavioral-model's `targets/simple_switch_grpc/`.** Skips
+   autotools entirely. Multi-week port — version-skew triage on
+   PI's stale absl pin, `cc_library`s for the bmv2 adapter (~15
+   files) and the gRPC binary (~10 files), plus protobuf 26+
+   target rename patches.
+2. **Aggressive autotools patching.** Modify PI's `configure.ac`
+   and `Makefile.am` to actually support a "PI core only" build,
+   plus extend `behavioral-model`'s autotools to support a
+   `--with-pi` Bazel variant. Probably not less work than (1).
+3. **Use a system-installed `simple_switch_grpc`.** Sacrifices
+   hermeticity. Stratum does this. We could detect at test time and
+   skip cleanly when absent. Lowest cost; would let the harness
+   exercise scenarios in environments that have it.
+
+**This PR delivers the parts that don't depend on Phase 1**: the
+canonicalize-and-diff helpers (`ResponseDiff.kt`) plus their unit
+tests. The runner and scenarios stay deferred — see the README in
+`e2e_tests/p4runtime_diff/`.
 
 ### Scenarios
 
@@ -139,21 +183,24 @@ failure.
 
 ## Phasing
 
+The harness, runner, and initial scenarios ship as a single PR. The
+PI Bazel port is the dominant cost but provides no observable value
+on its own, and a harness with no scenarios isn't useful — bundling
+keeps each component honest about its end-to-end role and lets
+reviewers see the full picture before any of it merges.
+
 1. **PI Bazel port.** Pull `p4lang/PI` in as a `git_override`'d
    `bazel_dep`, reusing its upstream WORKSPACE Bazel rules; add the
    missing BUILD files for `targets/bmv2/` and `bin/`; resolve
-   version skew with our protobuf/gRPC. No 4ward code changes; ships
-   as its own PR.
+   version skew with our protobuf/gRPC. No 4ward code changes.
 2. **Harness skeleton.** A `Bmv2P4RuntimeRunner`. A test that spawns
    both servers, sets a pipeline config on each, performs one
    Write+Read, asserts responses match.
 3. **Initial scenario corpus.** The five scenarios above. Triage
    divergences: file 4ward bugs as issues, file BMv2 bugs upstream,
    raise spec ambiguities with the P4 API working group.
-4. **Corpus growth.** Add scenarios as P4Runtime features land.
-
-Phases 2 and 3 land together — a harness with no scenarios isn't
-useful.
+4. **Corpus growth.** Add scenarios as P4Runtime features land
+   (post-merge follow-ups, not part of this PR).
 
 ## Non-goals
 
@@ -167,11 +214,10 @@ useful.
 
 ## Risks
 
-- **PI's Bazel port is the long pole.** PI itself depends on Thrift,
-  protobuf, gRPC, and several p4lang sub-deps. If transitive
-  dependencies clash with our existing protobuf/gRPC versions, Phase
-  1 stalls. Pre-flight by attempting a minimal `cc_library(name =
-  "PI")` build before committing to the full design.
+- **PI / behavioral-model build is the long pole.** Three known paths
+  (native Bazel port, aggressive autotools patching, system-installed
+  binary), all with non-trivial cost. See "Building
+  `simple_switch_grpc` is the long pole" above.
 - **Subprocess management flakiness.** Two servers per scenario with
   port allocation, startup races, and graceful shutdown is more
   failure surface than the existing single-process harness. Reusing

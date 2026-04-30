@@ -1,0 +1,32 @@
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_library", "kt_jvm_test")
+
+package(
+    default_applicable_licenses = ["//:license"],
+    default_testonly = True,
+    licenses = ["notice"],
+)
+
+# Canonicalize-and-diff helpers for P4Runtime responses. Will be consumed by
+# the future P4RuntimeDiffTest once a working simple_switch_grpc binary lands
+# (see designs/p4runtime_diff.md §Phase 1 and the README in this directory).
+kt_jvm_library(
+    name = "response_diff",
+    srcs = ["ResponseDiff.kt"],
+    visibility = ["//visibility:private"],
+    deps = [
+        "//simulator:p4runtime_java_proto",
+        "@fourward_maven//:com_google_protobuf_protobuf_java",
+    ],
+)
+
+kt_jvm_test(
+    name = "ResponseDiffTest",
+    srcs = ["ResponseDiffTest.kt"],
+    test_class = "fourward.e2e.p4runtime_diff.ResponseDiffTest",
+    deps = [
+        ":response_diff",
+        "//simulator:p4runtime_java_proto",
+        "@fourward_maven//:com_google_protobuf_protobuf_java",
+        "@fourward_maven//:junit_junit",
+    ],
+)
