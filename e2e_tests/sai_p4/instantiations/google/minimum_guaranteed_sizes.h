@@ -61,7 +61,7 @@
 #define WCMP_GROUP_TABLE_MINIMUM_GUARANTEED_SIZE_TOR 960
 
 // The default size semantics for WCMP group selectors.
-#define WCMP_GROUP_DEFAULT_SELECTOR_SIZE_SEMANTICS_NON_TOR "sum_of_weights"
+#define WCMP_GROUP_DEFAULT_SELECTOR_SIZE_SEMANTICS_NON_TOR "sum_of_members"
 #define WCMP_GROUP_DEFAULT_SELECTOR_SIZE_SEMANTICS_TOR "sum_of_weights"
 
 // The maximum sum of weights across all wcmp groups.
